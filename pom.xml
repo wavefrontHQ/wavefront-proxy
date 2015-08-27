@@ -5,7 +5,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>3.0</version>
+  <version>3.1-SNAPSHOT</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
@@ -75,7 +75,7 @@
       <dependency>
         <groupId>com.wavefront</groupId>
         <artifactId>java-lib</artifactId>
-        <version>3.0</version>
+        <version>3.1-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>
@@ -146,11 +146,6 @@
         <version>4.5</version>
       </dependency>
       <dependency>
-        <groupId>org.antlr</groupId>
-        <artifactId>antlr4-runtime</artifactId>
-        <version>4.5</version>
-      </dependency>
-      <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-handler</artifactId>
         <version>4.0.10.Final</version>
@@ -166,6 +161,9 @@
   <profiles>
     <profile>
       <id>release</id>
+      <properties>
+        <gpg.useagent>true</gpg.useagent>
+      </properties>
       <build>
         <plugins>
           <plugin>
@@ -202,6 +200,9 @@
               <execution>
                 <id>sign-artifacts</id>
                 <phase>verify</phase>
+                <configuration>
+                  <useAgent>true</useAgent>
+                </configuration>
                 <goals>
                   <goal>sign</goal>
                 </goals>
