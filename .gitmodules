@@ -1,9 +1,0 @@
-[submodule "java-lib"]
-	path = java-lib
-	url = git@github.com:wavefrontHQ/java-lib.git
-[submodule "proxy"]
-	path = proxy
-	url = git@github.com:wavefrontHQ/proxy.git
-[submodule "java-client"]
-	path = java-client
-	url = git@github.com:wavefrontHQ/java-client.git
