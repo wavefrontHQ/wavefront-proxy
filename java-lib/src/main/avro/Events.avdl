@@ -1,0 +1,18 @@
+@namespace("sunnylabs.event")
+protocol Events{
+  record ReportEvent{
+    string name;
+
+    // Milliseconds since 1970
+    long startTime;
+    union {null, long} endTime = null;
+    map<string> annotations;
+    array<string> hosts = [];
+    // number of events summarized under this one.
+    union {null, long} summarizedEvents = null;
+    union {null, array<string>} tags = null;
+    union {null, boolean} isUserEvent = null;
+
+    string table="tsdb";
+  }
+}

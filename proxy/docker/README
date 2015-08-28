@@ -1,0 +1,22 @@
+Add a wavefront.conf file with at least the following things defined:
+
+server=https://.../api
+hostname=...
+token=...
+
+Then:
+
+docker build -t wavefront/agent .
+
+Run:
+
+docker run -d -p 2878:2878 wavefront/agent
+
+You should see it running with:
+
+$ docker ps
+CONTAINER ID        IMAGE                    COMMAND             CREATED             STATUS              PORTS                    NAMES
+59fb0adea3af        wavefront/agent:latest   "/bin/sh run.sh"    48 seconds ago      Up 42 seconds       0.0.0.0:2878->2878/tcp   happy_newton        
+
+You should then be able to send it metrics via graphite format to port 2878:
+
