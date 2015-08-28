@@ -3,16 +3,21 @@ package com.wavefront.agent;
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.agent.formatter.Formatter;
 import com.wavefront.ingester.graphite.GraphiteDecoder;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.commons.lang.StringUtils;
 import sunnylabs.report.ReportPoint;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Adds all graphite strings to a working list, and batches them up on a set schedule (100ms) to
@@ -32,6 +37,11 @@ public class GraphiteStringHandler extends SimpleChannelInboundHandler<String> {
 
   private final PointHandler pointHandler;
 
+  private final Pattern pointLineWhiteList;
+  private final Pattern pointLineBlackList;
+
+  private final Counter regexRejects;
+
   public GraphiteStringHandler(final ForceQueueEnabledAgentAPI agentAPI,
                                final UUID daemonId,
                                final int port,
@@ -41,13 +51,24 @@ public class GraphiteStringHandler extends SimpleChannelInboundHandler<String> {
                                final long millisecondsPerBatch,
                                final int pointsPerBatch,
                                final int blockedPointsPerBatch,
-                               final Formatter formatter) {
-    this.pointHandler = new PointHandler(agentAPI, daemonId, port, logLevel, validationLevel, millisecondsPerBatch,
-        pointsPerBatch, blockedPointsPerBatch);
+                               final Formatter formatter,
+                               @Nullable final String pointLineWhiteListRegex,
+                               @Nullable final String pointLineBlackListRegex) {
+    this.pointHandler = new PointHandler(agentAPI, daemonId, port, logLevel, validationLevel,
+        millisecondsPerBatch, pointsPerBatch, blockedPointsPerBatch);
 
     this.prefix = prefix;
     this.blockedPointsPerBatch = blockedPointsPerBatch;
     this.formatter = formatter;
+
+    this.pointLineWhiteList = StringUtils.isBlank(pointLineWhiteListRegex) ?
+        null : Pattern.compile(pointLineWhiteListRegex);
+
+    this.pointLineBlackList = StringUtils.isBlank(pointLineBlackListRegex) ?
+        null : Pattern.compile(pointLineBlackListRegex);
+
+    this.regexRejects = Metrics.newCounter(
+        new MetricName("validationRegex." + String.valueOf(port), "", "points-rejected"));
   }
 
   public static final String PUSH_DATA_DELIMETER = "\n";
@@ -60,6 +81,15 @@ public class GraphiteStringHandler extends SimpleChannelInboundHandler<String> {
     return StringUtils.join(pushData, PUSH_DATA_DELIMETER);
   }
 
+  protected boolean passesWhiteAndBlackLists(String pointLine) {
+    if (pointLineWhiteList != null && !pointLineWhiteList.matcher(pointLine).matches() ||
+        pointLineBlackList != null && pointLineBlackList.matcher(pointLine).matches()) {
+      regexRejects.inc();
+      return false;
+    }
+    return true;
+  }
+
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
     // ignore empty lines.
@@ -68,6 +98,12 @@ public class GraphiteStringHandler extends SimpleChannelInboundHandler<String> {
       msg = formatter.format(msg);
     }
     String pointLine = msg;
+
+    // apply white/black lists after formatting, but before prefixing
+    if (!passesWhiteAndBlackLists(pointLine)) {
+      handleBlockedPoint(pointLine);
+      return;
+    }
     if (prefix != null) {
       pointLine = prefix + "." + msg;
     }
@@ -77,16 +113,20 @@ public class GraphiteStringHandler extends SimpleChannelInboundHandler<String> {
     try {
       decoder.decodeReportPoints(pointLine, validatedPoints, "dummy");
     } catch (Exception e) {
-      if (pointHandler.sendDataTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
-        pointHandler.sendDataTask.addBlockedSample(pointLine);
-      }
-      pointHandler.sendDataTask.incrementBlockedPoints();
+      handleBlockedPoint(pointLine);
     }
     if (!validatedPoints.isEmpty()) {
       ReportPoint point = validatedPoints.get(0);
       point.setTimestamp(Clock.now());
       pointHandler.reportPoint(point, pointLine);
     }
+  }
+
+  private void handleBlockedPoint(String pointLine) {
+    if (pointHandler.sendDataTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
+      pointHandler.sendDataTask.addBlockedSample(pointLine);
+    }
+    pointHandler.sendDataTask.incrementBlockedPoints();
   }
 
   @Override
