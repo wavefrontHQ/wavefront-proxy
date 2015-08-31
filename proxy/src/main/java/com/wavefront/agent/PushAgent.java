@@ -75,7 +75,8 @@ public class PushAgent extends AbstractAgent {
 
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new GraphiteStringHandler(agentAPI, agentId, port, prefix,
-        pushLogLevel, pushValidationLevel, pushFlushInterval, pushFlushMaxPoints, pushBlockedSamples, formatter);
+        pushLogLevel, pushValidationLevel, pushFlushInterval, pushFlushMaxPoints, pushBlockedSamples,
+        formatter, graphiteWhitelistRegex, graphiteBlacklistRegex);
 
     // Start the graphite head in a new thread; if we have a formatter, then set implicitHosts to false to avoid
     // tagging with the wrong host in the GraphiteIngester pipeline

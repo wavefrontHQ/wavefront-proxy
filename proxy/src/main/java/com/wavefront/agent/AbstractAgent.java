@@ -129,6 +129,12 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--idFile"}, description = "File to read agent id from. Defaults to ~/.dshell/id")
   protected String idFile = null;
 
+  @Parameter(names = {"--graphiteWhitelistRegex"}, description = "Regex pattern (java.util.regex) that graphite lines must match to be accepted")
+  protected String graphiteWhitelistRegex;
+
+  @Parameter(names = {"--graphiteBlacklistRegex"}, description = "Regex pattern (java.util.regex) that graphite lines must NOT match to be accepted")
+  protected String graphiteBlacklistRegex;
+
   protected QueuedAgentService agentAPI;
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
@@ -200,6 +206,8 @@ public abstract class AbstractAgent {
         graphitePorts = prop.getProperty("graphitePorts");
         graphiteFormat = prop.getProperty("graphiteFormat");
         graphiteDelimiters = prop.getProperty("graphiteDelimiters");
+        graphiteWhitelistRegex = prop.getProperty("graphiteWhitelistRegex");
+        graphiteBlacklistRegex = prop.getProperty("graphiteBlacklistRegex");
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
