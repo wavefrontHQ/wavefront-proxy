@@ -129,11 +129,17 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--idFile"}, description = "File to read agent id from. Defaults to ~/.dshell/id")
   protected String idFile = null;
 
-  @Parameter(names = {"--graphiteWhitelistRegex"}, description = "Regex pattern (java.util.regex) that graphite lines must match to be accepted")
+  @Parameter(names = {"--graphiteWhitelistRegex"}, description = "(DEPRECATED for whitelistRegex)")
   protected String graphiteWhitelistRegex;
 
-  @Parameter(names = {"--graphiteBlacklistRegex"}, description = "Regex pattern (java.util.regex) that graphite lines must NOT match to be accepted")
+  @Parameter(names = {"--graphiteBlacklistRegex"}, description = "(DEPRECATED for blacklistRegex)")
   protected String graphiteBlacklistRegex;
+
+  @Parameter(names = {"--whitelistRegex"}, description = "Regex pattern (java.util.regex) that input lines must match to be accepted")
+  protected String whitelistRegex;
+
+  @Parameter(names = {"--blacklistRegex"}, description = "Regex pattern (java.util.regex) that input lines must NOT match to be accepted")
+  protected String blacklistRegex;
 
   protected QueuedAgentService agentAPI;
   protected ResourceBundle props;
@@ -208,10 +214,21 @@ public abstract class AbstractAgent {
         graphiteDelimiters = prop.getProperty("graphiteDelimiters");
         graphiteWhitelistRegex = prop.getProperty("graphiteWhitelistRegex");
         graphiteBlacklistRegex = prop.getProperty("graphiteBlacklistRegex");
+        whitelistRegex = prop.getProperty("whitelistRegex");
+        blacklistRegex = prop.getProperty("blacklistRegex");
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
         throw exception;
+      }
+
+      // Compatibility with deprecated fields
+      if (whitelistRegex == null && graphiteWhitelistRegex != null) {
+        whitelistRegex = graphiteWhitelistRegex;
+      }
+
+      if (blacklistRegex == null && graphiteBlacklistRegex != null) {
+        blacklistRegex = graphiteBlacklistRegex;
       }
     }
   }
