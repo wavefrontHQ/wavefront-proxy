@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 public class GraphiteStringHandler extends SimpleChannelInboundHandler<String> {
 
   // formatted
-  private GraphiteDecoder decoder = new GraphiteDecoder("");
+  private GraphiteDecoder decoder = new GraphiteDecoder("unknown");
 
   private List<ReportPoint> validatedPoints = new ArrayList<>();
 

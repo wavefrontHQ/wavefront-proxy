@@ -1,6 +1,7 @@
 package com.wavefront.ingester.graphite;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
@@ -34,10 +35,11 @@ public class GraphiteDecoder extends MessageToMessageDecoder<String> {
   private final String hostName;
 
   public GraphiteDecoder() {
-    this.hostName = null;
+    this.hostName = "unknown";
   }
 
   public GraphiteDecoder(String hostName) {
+    Preconditions.checkNotNull(hostName);
     this.hostName = hostName;
   }
 
