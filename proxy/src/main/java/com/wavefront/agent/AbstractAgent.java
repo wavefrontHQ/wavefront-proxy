@@ -28,6 +28,7 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.UUID;
@@ -141,6 +142,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--blacklistRegex"}, description = "Regex pattern (java.util.regex) that input lines must NOT match to be accepted")
   protected String blacklistRegex;
 
+  @Parameter(description = "Unparsed parameters")
+  protected List<String> unparsed_params;
+
   protected QueuedAgentService agentAPI;
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
@@ -240,7 +244,9 @@ public abstract class AbstractAgent {
    */
   public void start(String[] args) throws IOException {
     try {
+      logger.info("Arguments: " + String.join(", ", args));
       new JCommander(this, args);
+      logger.info("Unparsed arguments: " + String.join(", ", unparsed_params));
 
       /* ------------------------------------------------------------------------------------
        * Configuration Setup.
