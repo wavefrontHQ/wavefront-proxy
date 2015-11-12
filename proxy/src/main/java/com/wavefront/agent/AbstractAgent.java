@@ -1,6 +1,7 @@
 package com.wavefront.agent;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
@@ -33,6 +34,7 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.UUID;
@@ -159,6 +161,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
   protected String opentsdbBlacklistRegex;
 
+  @Parameter(description = "Unparsed parameters")
+  protected List<String> unparsed_params;
+
   protected QueuedAgentService agentAPI;
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
@@ -261,7 +266,11 @@ public abstract class AbstractAgent {
    */
   public void start(String[] args) throws IOException {
     try {
+      logger.info("Arguments: " + Joiner.on(", ").join(args));
       new JCommander(this, args);
+      if (unparsed_params != null) {
+        logger.info("Unparsed arguments: " + Joiner.on(", ").join(unparsed_params));
+      }
 
       /* ------------------------------------------------------------------------------------
        * Configuration Setup.
