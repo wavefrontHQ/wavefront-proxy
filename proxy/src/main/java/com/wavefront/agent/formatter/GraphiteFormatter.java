@@ -1,5 +1,6 @@
 package com.wavefront.agent.formatter;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
@@ -13,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p/>
  * Created by dev@wavefront.com on 11/5/14.
  */
-public class GraphiteFormatter extends Formatter {
+public class GraphiteFormatter implements Function<String, String> {
 
   // Fields to extract and assemble, in order, as the host name
   private final List<Integer> hostIndices = new ArrayList<Integer>();
@@ -52,7 +53,8 @@ public class GraphiteFormatter extends Formatter {
     return ops.get();
   }
 
-  public String format(String mesg) throws IllegalArgumentException {
+  @Override
+  public String apply(String mesg) {
     // Resting place for output
     StringBuffer finalMesg = new StringBuffer();
 

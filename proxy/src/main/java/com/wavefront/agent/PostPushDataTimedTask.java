@@ -1,6 +1,7 @@
 package com.wavefront.agent;
 
 import com.google.common.util.concurrent.RateLimiter;
+
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.agent.Constants;
 import com.yammer.metrics.Metrics;
@@ -9,7 +10,6 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 
-import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -17,6 +17,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.ws.rs.core.Response;
 
 /**
  * @author Andrew Kao (andrew@wavefront.com)
@@ -135,7 +137,7 @@ public class PostPushDataTimedTask implements Runnable {
         try {
           Response response = agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
               System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
-              GraphiteStringHandler.joinPushData(current));
+              ChannelStringHandler.joinPushData(current));
           int pointsInList = current.size();
           this.pointsSent.inc(pointsInList);
           if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
@@ -164,7 +166,7 @@ public class PostPushDataTimedTask implements Runnable {
               if (pushDataPointCount > 0) {
                 agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
                     System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
-                    GraphiteStringHandler.joinPushData(pushData), true);
+                    ChannelStringHandler.joinPushData(pushData), true);
 
                 // update the counters as if this was a failed call to the API
                 this.pointsSent.inc(pushDataPointCount);

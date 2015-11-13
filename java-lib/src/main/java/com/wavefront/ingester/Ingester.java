@@ -1,8 +1,22 @@
-package com.wavefront.ingester.graphite;
+package com.wavefront.ingester;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+
+import javax.annotation.Nullable;
+
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.*;
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -12,33 +26,36 @@ import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
+/**
+ * Ingester thread that sets up decoders and a command handler to listen for metrics on a port.
+ *
+ * @author Clement Pang (clement@wavefront.com).
+ */
+public class Ingester implements Runnable {
 
-public class GraphiteIngester implements Runnable {
+  private static final Logger logger = Logger.getLogger(Ingester.class.getCanonicalName());
 
-  private static final Logger logger = Logger.getLogger(GraphiteIngester.class.getCanonicalName());
   private static final int CHANNEL_IDLE_TIMEOUT_IN_SECS = (int) TimeUnit.DAYS.toSeconds(1);
 
+  @Nullable
+  private final List<Function<SocketChannel, ChannelHandler>> decoders;
   private final ChannelHandler commandHandler;
-  private boolean decodeGraphite;
-  private boolean implicitHosts;
   private final int listeningPort;
 
-  public GraphiteIngester(ChannelHandler commandHandler, int port, boolean decodeGraphite) {
-    this(commandHandler, port, decodeGraphite, true);
-  }
-
-  public GraphiteIngester(ChannelHandler commandHandler, int port,
-                          boolean decodeGraphite, boolean implicitHosts) {
+  public Ingester(List<Function<SocketChannel, ChannelHandler>> decoders,
+                  ChannelHandler commandHandler, int port) {
     this.listeningPort = port;
     this.commandHandler = commandHandler;
-    this.decodeGraphite = decodeGraphite;
-    this.implicitHosts = implicitHosts;
+    this.decoders = decoders;
+  }
+
+  public Ingester(ChannelHandler commandHandler, int port) {
+    this.listeningPort = port;
+    this.commandHandler = commandHandler;
+    this.decoders = null;
   }
 
   public void run() {
-
     // Configure the server.
     ServerBootstrap b = new ServerBootstrap();
     try {
@@ -52,13 +69,9 @@ public class GraphiteIngester implements Runnable {
               ChannelPipeline pipeline = ch.pipeline();
               pipeline.addLast(new LineBasedFrameDecoder(4096, true, true));
               pipeline.addLast(new StringDecoder(Charsets.UTF_8));
-              if (implicitHosts) {
-                if (decodeGraphite) {
-                  // Full decoding to a report point
-                  pipeline.addLast(new GraphiteDecoder(ch.remoteAddress().getHostName()));
-                } else {
-                  // Implicit host annotation only; left in string format
-                  pipeline.addLast(new GraphiteHostAnnotator(ch.remoteAddress().getHostName()));
+              if (decoders != null) {
+                for (Function<SocketChannel, ChannelHandler> handler : decoders) {
+                  pipeline.addLast(handler.apply(ch));
                 }
               }
               // Shared across all reports for proper batching

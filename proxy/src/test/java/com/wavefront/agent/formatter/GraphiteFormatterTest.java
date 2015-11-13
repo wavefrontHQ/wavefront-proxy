@@ -1,25 +1,19 @@
-package com.wavefront.agent;
+package com.wavefront.agent.formatter;
 
-import com.wavefront.agent.formatter.GraphiteFormatter;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sunnylabs.report.ReportPoint;
-
-import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
 
 /**
  * @author Andrew Kao (andrew@wavefront.com)
  */
-public class GraphiteStringHandlerTest {
+public class GraphiteFormatterTest {
 
-  private static final Logger logger = LoggerFactory.getLogger(GraphiteStringHandlerTest.class);
+  private static final Logger logger = LoggerFactory.getLogger(GraphiteFormatterTest.class);
 
   @Test
   public void testCollectdGraphiteParsing() {
-
     String format = "4,3,2"; // Extract the 4th, 3rd, and 2nd segments of the metric as the hostname, in that order
     String delimiter = "_";
 
@@ -35,18 +29,18 @@ public class GraphiteStringHandlerTest {
 
     // Test basic functionality with correct input
     GraphiteFormatter formatter = new GraphiteFormatter(format, delimiter);
-    String output1 = formatter.format(testString1);
+    String output1 = formatter.apply(testString1);
     Assert.assertEquals(expected1, output1);
-    String output2 = formatter.format(testString2);
+    String output2 = formatter.apply(testString2);
     Assert.assertEquals(expected2, output2);
 
     // Test format length limits
-    formatter.format(testString3); // should not throw exception
+    formatter.apply(testString3); // should not throw exception
 
     // Do we properly reject metrics that don't work with the given format?
     boolean threwException = false;
     try {
-      formatter.format(testString4); // should be too short for given format
+      formatter.apply(testString4); // should be too short for given format
     } catch (IllegalArgumentException e) {
       threwException = true;
     }
@@ -65,7 +59,7 @@ public class GraphiteStringHandlerTest {
     // Benchmark
     long start = System.nanoTime();
     for (int index = 0; index < 1000 * 1000; index++) {
-      formatter.format(testString2);
+      formatter.apply(testString2);
     }
     long end = System.nanoTime();
 
@@ -75,37 +69,5 @@ public class GraphiteStringHandlerTest {
     logger.error(" ns per op: " + nsPerOps + " and ops/sec " + (1000 * 1000 * 1000 / nsPerOps));
     Assert.assertTrue(formatter.getOps() >= 1000 * 1000);  // make sure we actually ran it 1M times
     Assert.assertTrue(nsPerOps < 10 * 1000); // make sure it was less than 10 μs per run; it's around 1 μs on my machine
-  }
-
-  @Test
-  public void testPointInRangeCorrectForTimeRanges() throws NoSuchMethodException, InvocationTargetException,
-      IllegalAccessException {
-
-    long millisPerYear = 31536000000L;
-    long millisPerDay = 86400000L;
-
-    // not in range if over a year ago
-    ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear, 10L, "host", "table",
-        new HashMap<String, String>());
-    Assert.assertFalse(PointHandler.pointInRange(rp));
-
-    rp.setTimestamp(System.currentTimeMillis() - millisPerYear - 1);
-    Assert.assertFalse(PointHandler.pointInRange(rp));
-
-    // in range if within a year ago
-    rp.setTimestamp(System.currentTimeMillis() - (millisPerYear / 2));
-    Assert.assertTrue(PointHandler.pointInRange(rp));
-
-    // in range for right now
-    rp.setTimestamp(System.currentTimeMillis());
-    Assert.assertTrue(PointHandler.pointInRange(rp));
-
-    // in range if within a day in the future
-    rp.setTimestamp(System.currentTimeMillis() + millisPerDay - 1);
-    Assert.assertTrue(PointHandler.pointInRange(rp));
-
-    // out of range for over a day in the future
-    rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 2));
-    Assert.assertFalse(PointHandler.pointInRange(rp));
   }
 }

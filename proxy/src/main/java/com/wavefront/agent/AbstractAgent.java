@@ -1,19 +1,21 @@
 package com.wavefront.agent;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
+
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
+
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
@@ -22,8 +24,11 @@ import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJacksonProvider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
-import javax.net.ssl.HttpsURLConnection;
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URI;
@@ -39,6 +44,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.net.ssl.HttpsURLConnection;
+
 /**
  * Agent that runs remotely on a server collecting metrics.
  *
@@ -50,6 +57,7 @@ public abstract class AbstractAgent {
 
   private static final Gson GSON = new Gson();
   private static final int GRAPHITE_LISTENING_PORT = 2878;
+  private static final int OPENTSDB_LISTENING_PORT = 4242;
   private static final int HTTP_JSON_LISTENING_PORT = 3878;
 
   @Parameter(names = {"-f", "--file"}, description =
@@ -129,17 +137,27 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--idFile"}, description = "File to read agent id from. Defaults to ~/.dshell/id")
   protected String idFile = null;
 
-  @Parameter(names = {"--graphiteWhitelistRegex"}, description = "(DEPRECATED for whitelistRegex)")
+  @Parameter(names = {"--graphiteWhitelistRegex"}, description = "(DEPRECATED for whitelistRegex)", hidden = true)
   protected String graphiteWhitelistRegex;
 
-  @Parameter(names = {"--graphiteBlacklistRegex"}, description = "(DEPRECATED for blacklistRegex)")
+  @Parameter(names = {"--graphiteBlacklistRegex"}, description = "(DEPRECATED for blacklistRegex)", hidden = true)
   protected String graphiteBlacklistRegex;
 
-  @Parameter(names = {"--whitelistRegex"}, description = "Regex pattern (java.util.regex) that input lines must match to be accepted")
+  @Parameter(names = {"--whitelistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must match to be accepted")
   protected String whitelistRegex;
 
-  @Parameter(names = {"--blacklistRegex"}, description = "Regex pattern (java.util.regex) that input lines must NOT match to be accepted")
+  @Parameter(names = {"--blacklistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must NOT match to be accepted")
   protected String blacklistRegex;
+
+  @Parameter(names = {"--opentsdbPorts"}, description = "Comma-separated list of ports to listen on for opentsdb " +
+      "data. Defaults to: " + OPENTSDB_LISTENING_PORT)
+  protected String opentsdbPorts = "" + OPENTSDB_LISTENING_PORT;
+
+  @Parameter(names = {"--opentsdbWhitelistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must match to be accepted")
+  protected String opentsdbWhitelistRegex;
+
+  @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
+  protected String opentsdbBlacklistRegex;
 
   protected QueuedAgentService agentAPI;
   protected ResourceBundle props;
@@ -216,6 +234,9 @@ public abstract class AbstractAgent {
         graphiteBlacklistRegex = prop.getProperty("graphiteBlacklistRegex");
         whitelistRegex = prop.getProperty("whitelistRegex");
         blacklistRegex = prop.getProperty("blacklistRegex");
+        opentsdbPorts = prop.getProperty("opentsdbPorts");
+        opentsdbWhitelistRegex = prop.getProperty("opentsdbWhitelistRegex");
+        opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex");
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
@@ -440,10 +461,9 @@ public abstract class AbstractAgent {
       logger.warning("cannot fetch proxy agent configuration from remote server: " + Throwables.getRootCause(ex));
       return null;
     }
-//    commented due to issue in 2.2.3 on old agents
-//    if (newConfig.currentTime != null) {
-//      Clock.set(newConfig.currentTime);
-//    }
+    if (newConfig.currentTime != null) {
+      Clock.set(newConfig.currentTime);
+    }
     try {
       newConfig.validate(localAgent);
     } catch (Exception ex) {

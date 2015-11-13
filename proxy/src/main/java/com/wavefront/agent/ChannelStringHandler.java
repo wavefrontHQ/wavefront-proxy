@@ -1,65 +1,74 @@
 package com.wavefront.agent;
 
+import com.google.common.base.Function;
+
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
-import com.wavefront.agent.formatter.Formatter;
-import com.wavefront.ingester.graphite.GraphiteDecoder;
+import com.wavefront.ingester.Decoder;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import org.apache.commons.lang.StringUtils;
-import sunnylabs.report.ReportPoint;
 
-import javax.annotation.Nullable;
+import org.apache.commons.lang.StringUtils;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
+import sunnylabs.report.ReportPoint;
+
 /**
- * Adds all graphite strings to a working list, and batches them up on a set schedule (100ms) to
- * be sent (through the daemon's logic) up to the collector on the server side.
+ * Parses points from a channel using the given decoder and send it off to the AgentAPI interface.
+ *
+ * @author Clement Pang (clement@wavefront.com).
  */
 @ChannelHandler.Sharable
-public class GraphiteStringHandler extends SimpleChannelInboundHandler<String> {
+public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
-  // formatted
-  private GraphiteDecoder decoder = new GraphiteDecoder("unknown");
-
-  private List<ReportPoint> validatedPoints = new ArrayList<>();
-
-  private String prefix = null;
-  private int blockedPointsPerBatch;
-  private Formatter formatter;
-
+  private final Decoder decoder;
+  private final List<ReportPoint> validatedPoints = new ArrayList<>();
+  private final String prefix;
+  /**
+   * Transformer to transform each line.
+   */
+  @Nullable
+  private final Function<String, String> transformer;
   private final PointHandler pointHandler;
 
+  @Nullable
   private final Pattern pointLineWhiteList;
+  @Nullable
   private final Pattern pointLineBlackList;
 
   private final Counter regexRejects;
 
-  public GraphiteStringHandler(final ForceQueueEnabledAgentAPI agentAPI,
-                               final UUID daemonId,
-                               final int port,
-                               final String prefix,
-                               final String logLevel,
-                               final String validationLevel,
-                               final long millisecondsPerBatch,
-                               final int pointsPerBatch,
-                               final int blockedPointsPerBatch,
-                               final Formatter formatter,
-                               @Nullable final String pointLineWhiteListRegex,
-                               @Nullable final String pointLineBlackListRegex) {
+  private int blockedPointsPerBatch;
+
+  public ChannelStringHandler(Decoder decoder, final ForceQueueEnabledAgentAPI agentAPI,
+                              final UUID daemonId,
+                              final int port,
+                              final String prefix,
+                              final String logLevel,
+                              final String validationLevel,
+                              final long millisecondsPerBatch,
+                              final int pointsPerBatch,
+                              final int blockedPointsPerBatch,
+                              @Nullable final Function<String, String> transformer,
+                              @Nullable final String pointLineWhiteListRegex,
+                              @Nullable final String pointLineBlackListRegex) {
+    this.decoder = decoder;
     this.pointHandler = new PointHandler(agentAPI, daemonId, port, logLevel, validationLevel,
         millisecondsPerBatch, pointsPerBatch, blockedPointsPerBatch);
 
     this.prefix = prefix;
     this.blockedPointsPerBatch = blockedPointsPerBatch;
-    this.formatter = formatter;
+    this.transformer = transformer;
 
     this.pointLineWhiteList = StringUtils.isBlank(pointLineWhiteListRegex) ?
         null : Pattern.compile(pointLineWhiteListRegex);
@@ -94,8 +103,8 @@ public class GraphiteStringHandler extends SimpleChannelInboundHandler<String> {
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
     // ignore empty lines.
     if (msg == null || msg.trim().length() == 0) return;
-    if (formatter != null) {
-      msg = formatter.format(msg);
+    if (transformer != null) {
+      msg = transformer.apply(msg);
     }
     String pointLine = msg;
 

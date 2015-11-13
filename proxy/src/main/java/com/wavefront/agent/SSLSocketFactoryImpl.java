@@ -1,10 +1,10 @@
 package com.wavefront.agent;
 
-import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
+
+import javax.net.ssl.SSLSocketFactory;
 
 /**
  * Delegated SSLSocketFactory that sets SoTimeout explicitly.
@@ -59,15 +59,14 @@ public class SSLSocketFactoryImpl extends SSLSocketFactory {
   }
 
   @Override
-  public Socket createSocket(String s, int i) throws IOException, UnknownHostException {
+  public Socket createSocket(String s, int i) throws IOException {
     Socket socket = delegate.createSocket(s, i);
     socket.setSoTimeout(soTimeout);
     return socket;
   }
 
   @Override
-  public Socket createSocket(String s, int i, InetAddress inetAddress, int i1) throws IOException,
-      UnknownHostException {
+  public Socket createSocket(String s, int i, InetAddress inetAddress, int i1) throws IOException {
     Socket socket = delegate.createSocket(s, i, inetAddress, i1);
     socket.setSoTimeout(soTimeout);
     return socket;

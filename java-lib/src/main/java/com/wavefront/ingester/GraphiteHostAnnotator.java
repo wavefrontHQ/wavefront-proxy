@@ -1,14 +1,15 @@
-package com.wavefront.ingester.graphite;
-
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.MessageToMessageDecoder;
+package com.wavefront.ingester;
 
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.MessageToMessageDecoder;
+
 /**
- * Given a raw graphite line, look for any host tag, and add it if implicit. Do not perform full decoding, though.
+ * Given a raw graphite line, look for any host tag, and add it if implicit. Does not perform full
+ * decoding, though.
  */
 public class GraphiteHostAnnotator extends MessageToMessageDecoder<String> {
 
