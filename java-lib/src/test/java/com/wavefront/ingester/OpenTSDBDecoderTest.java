@@ -58,5 +58,17 @@ public class OpenTSDBDecoderTest {
     assertEquals(93123.0, point.getValue());
     assertEquals(12345678L, point.getTimestamp().longValue());
     assertEquals("localhost", point.getHost());
+
+    // adaptive timestamp (13-char timestamp is millis).
+    out = new ArrayList<>();
+    final long now = System.currentTimeMillis();
+    decoder.decodeReportPoints("put tsdb.vehicle.charge.battery_level " + now
+        + " 93.123e3", out);
+    point = out.get(0);
+    assertEquals("dummy", point.getTable());
+    assertEquals("tsdb.vehicle.charge.battery_level", point.getMetric());
+    assertEquals(93123.0, point.getValue());
+    assertEquals(now, point.getTimestamp().longValue());
+    assertEquals("localhost", point.getHost());
   }
 }

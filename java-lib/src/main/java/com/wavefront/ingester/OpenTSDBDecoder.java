@@ -3,7 +3,6 @@ package com.wavefront.ingester;
 import com.google.common.base.Preconditions;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import sunnylabs.report.ReportPoint;
 
@@ -20,7 +19,7 @@ public class OpenTSDBDecoder implements Decoder {
   private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder()
       .appendCaseInsensitiveLiteral("put").whiteSpace()
       .appendMetricName().whiteSpace()
-      .appendTimestamp(TimeUnit.SECONDS).whiteSpace()
+      .appendTimestamp().whiteSpace()
       .appendValue().whiteSpace()
       .appendAnnotationsConsumer().build();
 

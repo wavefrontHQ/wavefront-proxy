@@ -135,6 +135,16 @@ public class IngesterFormatter {
       return this;
     }
 
+    public IngesterFormatBuilder appendTimestamp() {
+      elements.add(new AdaptiveTimestamp(false));
+      return this;
+    }
+
+    public IngesterFormatBuilder appendOptionalTimestamp() {
+      elements.add(new AdaptiveTimestamp(true));
+      return this;
+    }
+
     public IngesterFormatBuilder appendTimestamp(TimeUnit timeUnit) {
       elements.add(new Timestamp(timeUnit, false));
       return this;
@@ -238,6 +248,42 @@ public class IngesterFormatter {
         point.setValue(Double.parseDouble(value));
       } catch (NumberFormatException nef) {
         throw new RuntimeException("invalid metric value: " + value);
+      }
+    }
+  }
+
+  public static class AdaptiveTimestamp implements FormatterElement {
+
+    private final boolean optional;
+
+    public AdaptiveTimestamp(boolean optional) {
+      this.optional = optional;
+    }
+
+    @Override
+    public void consume(Queue<Token> tokenQueue, ReportPoint point) {
+      Token peek = tokenQueue.peek();
+      if (peek == null) {
+        if (optional) return;
+        else throw new RuntimeException("Expecting timestamp, found EOF");
+      }
+      if (peek.getType() == DSWrapperLexer.Number) {
+        try {
+          Double timestamp = Double.parseDouble(tokenQueue.poll().getText());
+          Long timestampLong = timestamp.longValue();
+          // see if it has 13 digits.
+          if (timestampLong.toString().length() == 13) {
+            // milliseconds.
+            point.setTimestamp(timestamp.longValue());
+          } else {
+            // treat it as seconds.
+            point.setTimestamp((long) (1000.0 * timestamp));
+          }
+        } catch (NumberFormatException nfe) {
+          throw new RuntimeException("Invalid timestamp value: " + peek.getText());
+        }
+      } else if (!optional) {
+        throw new RuntimeException("Expecting timestamp, found: " + peek.getText());
       }
     }
   }

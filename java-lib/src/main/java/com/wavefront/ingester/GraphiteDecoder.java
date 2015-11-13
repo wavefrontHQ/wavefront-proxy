@@ -6,7 +6,6 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import sunnylabs.report.ReportPoint;
@@ -24,7 +23,7 @@ public class GraphiteDecoder implements Decoder {
   private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder()
       .appendMetricName().whiteSpace()
       .appendValue().whiteSpace()
-      .appendOptionalTimestamp(TimeUnit.SECONDS).whiteSpace()
+      .appendOptionalTimestamp().whiteSpace()
       .appendAnnotationsConsumer().build();
   private final String hostName;
 
