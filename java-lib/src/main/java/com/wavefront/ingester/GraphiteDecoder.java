@@ -20,11 +20,11 @@ import sunnylabs.report.ReportPoint;
 public class GraphiteDecoder implements Decoder {
 
   private static final Pattern CUSTOMERID = Pattern.compile("[a-z]+");
-  private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder()
+  private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder().whiteSpace()
       .appendMetricName().whiteSpace()
       .appendValue().whiteSpace()
       .appendOptionalTimestamp().whiteSpace()
-      .appendAnnotationsConsumer().build();
+      .appendAnnotationsConsumer().whiteSpace().build();
   private final String hostName;
 
   public GraphiteDecoder() {

@@ -1,12 +1,13 @@
 package com.wavefront.agent;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
+
 import org.apache.commons.lang.time.DateUtils;
-import sunnylabs.report.ReportPoint;
 
 import java.util.Map;
 import java.util.UUID;
@@ -15,9 +16,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import sunnylabs.report.ReportPoint;
+
 /**
- * Adds all graphite strings to a working list, and batches them up on a set schedule (100ms) to
- * be sent (through the daemon's logic) up to the collector on the server side.
+ * Adds all graphite strings to a working list, and batches them up on a set schedule (100ms) to be
+ * sent (through the daemon's logic) up to the collector on the server side.
  */
 public class PointHandler {
 
@@ -58,13 +61,19 @@ public class PointHandler {
     }
   }
 
-  public void reportPoint(ReportPoint point, String pointLine) {
+  /**
+   * Send a point for reporting.
+   *
+   * @param point     Point to report.
+   * @param debugLine Debug information to print to console when the line is rejected.
+   */
+  public void reportPoint(ReportPoint point, String debugLine) {
     try {
       Object pointValue = point.getValue();
 
       if (!pointInRange(point)) {
         outOfRangePointTimes.inc();
-        String errorMessage = port + ": Point outside of reasonable time frame (" + pointLine + ")";
+        String errorMessage = port + ": Point outside of reasonable time frame (" + debugLine + ")";
         logger.warning(errorMessage);
         throw new RuntimeException(errorMessage);
       }
@@ -78,15 +87,15 @@ public class PointHandler {
             }
             break;
         }
-        this.sendDataTask.addPoint(pointLine);
+        this.sendDataTask.addPoint(pointToString(point));
       } else {
         // No validation was requested by user; send forward.
-        this.sendDataTask.addPoint(pointLine);
+        this.sendDataTask.addPoint(pointToString(point));
       }
 
     } catch (Exception e) {
       if (this.sendDataTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
-        this.sendDataTask.addBlockedSample(pointLine);
+        this.sendDataTask.addBlockedSample(debugLine);
       }
       this.sendDataTask.incrementBlockedPoints();
     }

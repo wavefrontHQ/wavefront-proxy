@@ -84,7 +84,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"-v", "--validationlevel"}, description =
       "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY/TEXT_ONLY/ALL); NO_VALIDATION is default")
-  protected String pushValidationLevel = "NO_VALIDATION";
+  protected String pushValidationLevel = "NUMERIC_ONLY";
 
   @Parameter(names = {"-h", "--host"}, description = "Server URL")
   protected String server = "http://localhost:8082/api/";
@@ -220,28 +220,31 @@ public abstract class AbstractAgent {
       Properties prop = new Properties();
       try {
         prop.load(new FileInputStream(pushConfigFile));
-        prefix = Strings.emptyToNull(prop.getProperty("prefix"));
-        pushLogLevel = prop.getProperty("pushLogLevel");
-        pushValidationLevel = prop.getProperty("pushValidationLevel");
-        token = prop.getProperty("token");
-        server = prop.getProperty("server");
-        hostname = prop.getProperty("hostname");
-        idFile = prop.getProperty("idFile");
-        pushFlushInterval = Integer.parseInt(prop.getProperty("pushFlushInterval"));
-        pushFlushMaxPoints = Integer.parseInt(prop.getProperty("pushFlushMaxPoints"));
-        pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples"));
-        pushListenerPorts = prop.getProperty("pushListenerPorts");
-        httpJsonPorts = prop.getProperty("jsonListenerPorts");
-        graphitePorts = prop.getProperty("graphitePorts");
-        graphiteFormat = prop.getProperty("graphiteFormat");
-        graphiteDelimiters = prop.getProperty("graphiteDelimiters");
-        graphiteWhitelistRegex = prop.getProperty("graphiteWhitelistRegex");
-        graphiteBlacklistRegex = prop.getProperty("graphiteBlacklistRegex");
-        whitelistRegex = prop.getProperty("whitelistRegex");
-        blacklistRegex = prop.getProperty("blacklistRegex");
-        opentsdbPorts = prop.getProperty("opentsdbPorts");
-        opentsdbWhitelistRegex = prop.getProperty("opentsdbWhitelistRegex");
-        opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex");
+        prefix = Strings.emptyToNull(prop.getProperty("prefix", prefix));
+        pushLogLevel = prop.getProperty("pushLogLevel", pushLogLevel);
+        pushValidationLevel = prop.getProperty("pushValidationLevel", pushValidationLevel);
+        token = prop.getProperty("token", token);
+        server = prop.getProperty("server", server);
+        hostname = prop.getProperty("hostname", hostname);
+        idFile = prop.getProperty("idFile", idFile);
+        pushFlushInterval = Integer.parseInt(prop.getProperty("pushFlushInterval",
+            String.valueOf(pushFlushInterval)));
+        pushFlushMaxPoints = Integer.parseInt(prop.getProperty("pushFlushMaxPoints",
+            String.valueOf(pushFlushMaxPoints)));
+        pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
+            String.valueOf(pushBlockedSamples)));
+        pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
+        httpJsonPorts = prop.getProperty("jsonListenerPorts", httpJsonPorts);
+        graphitePorts = prop.getProperty("graphitePorts", graphitePorts);
+        graphiteFormat = prop.getProperty("graphiteFormat", graphiteFormat);
+        graphiteDelimiters = prop.getProperty("graphiteDelimiters", graphiteDelimiters);
+        graphiteWhitelistRegex = prop.getProperty("graphiteWhitelistRegex", graphiteWhitelistRegex);
+        graphiteBlacklistRegex = prop.getProperty("graphiteBlacklistRegex", graphiteBlacklistRegex);
+        whitelistRegex = prop.getProperty("whitelistRegex", whitelistRegex);
+        blacklistRegex = prop.getProperty("blacklistRegex", blacklistRegex);
+        opentsdbPorts = prop.getProperty("opentsdbPorts", opentsdbPorts);
+        opentsdbWhitelistRegex = prop.getProperty("opentsdbWhitelistRegex", opentsdbWhitelistRegex);
+        opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);

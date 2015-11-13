@@ -100,6 +100,9 @@ public class IngesterFormatter {
       if (annotations.containsKey("tag")) {
         annotations.put("_tag", annotations.remove("tag"));
       }
+      if (host == null) {
+        host = annotations.remove("fqdn");
+      }
     }
     if (host == null) {
       host = defaultHostName;
@@ -189,6 +192,7 @@ public class IngesterFormatter {
     public void consume(Queue<Token> tokenQueue, ReportPoint point) {
       while (!tokenQueue.isEmpty()) {
         WHITESPACE_ELEMENT.consume(tokenQueue, point);
+        if (tokenQueue.isEmpty()) return;
         element.consume(tokenQueue, point);
       }
     }

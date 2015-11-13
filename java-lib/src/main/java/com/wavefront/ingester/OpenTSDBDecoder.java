@@ -16,12 +16,12 @@ import sunnylabs.report.ReportPoint;
 public class OpenTSDBDecoder implements Decoder {
 
   private final String hostName;
-  private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder()
+  private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder().whiteSpace()
       .appendCaseInsensitiveLiteral("put").whiteSpace()
       .appendMetricName().whiteSpace()
       .appendTimestamp().whiteSpace()
       .appendValue().whiteSpace()
-      .appendAnnotationsConsumer().build();
+      .appendAnnotationsConsumer().whiteSpace().build();
 
   public OpenTSDBDecoder() {
     this.hostName = "unknown";

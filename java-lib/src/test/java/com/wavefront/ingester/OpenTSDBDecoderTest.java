@@ -70,5 +70,14 @@ public class OpenTSDBDecoderTest {
     assertEquals(93123.0, point.getValue());
     assertEquals(now, point.getTimestamp().longValue());
     assertEquals("localhost", point.getHost());
+
+    out = new ArrayList<>();
+    decoder.decodeReportPoints("put tail.kernel.counter.errors 1447394143 0 fqdn=li250-160.members.linode.com  ", out);
+    point = out.get(0);
+    assertEquals("dummy", point.getTable());
+    assertEquals("tail.kernel.counter.errors", point.getMetric());
+    assertEquals(0.0, point.getValue());
+    assertEquals(1447394143000L, point.getTimestamp().longValue());
+    assertEquals("li250-160.members.linode.com", point.getHost());
   }
 }

@@ -1,20 +1,27 @@
 package com.wavefront.agent;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Maps;
+
+import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.metrics.JsonMetricsParser;
-import sunnylabs.report.ReportPoint;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
+
+import sunnylabs.report.ReportPoint;
 
 /**
  * Agent-side JSON metrics endpoint.
@@ -77,7 +84,7 @@ public class JsonMetricsEndpoint extends PointHandler {
         newAnnotations.putAll(point.getAnnotations());
         point.setAnnotations(newAnnotations);
       }
-      reportPoint(point, pointToString(point));
+      reportPoint(point, "json: " + pointToString(point));
     }
     return Response.accepted().build();
   }
