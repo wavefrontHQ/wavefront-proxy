@@ -11,11 +11,45 @@ import java.util.HashMap;
 import sunnylabs.report.ReportPoint;
 
 /**
- * @author Andrew Kao (andrew@wavefront.com)
+ * @author Andrew Kao (andrew@wavefront.com), Jason Bau (jbau@wavefront.com)
  */
 public class PointHandlerTest {
 
   private static final Logger logger = LoggerFactory.getLogger(PointHandlerTest.class);
+
+  @Test
+  public void testPointIllegalChars() {
+    ReportPoint rp = new ReportPoint("metric1", System.currentTimeMillis(), 10L, "host", "table",
+        new HashMap<String, String>());
+    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+
+    rp.setMetric("good.metric2");
+    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+
+    rp.setMetric("good-metric3");
+    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+
+    rp.setMetric("good_metric4");
+    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+
+    rp.setMetric("good,metric5");
+    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+
+    rp.setMetric("good/metric6");
+    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+
+    rp.setMetric("as&df");
+    Assert.assertFalse(PointHandler.pointMetricCharactersAreLegal(rp));
+
+    rp.setMetric("as:df");
+    Assert.assertFalse(PointHandler.pointMetricCharactersAreLegal(rp));
+
+    rp.setMetric("as df");
+    Assert.assertFalse(PointHandler.pointMetricCharactersAreLegal(rp));
+
+    rp.setMetric("as'df");
+    Assert.assertFalse(PointHandler.pointMetricCharactersAreLegal(rp));
+  }
 
   @Test
   public void testPointInRangeCorrectForTimeRanges() throws NoSuchMethodException, InvocationTargetException,
