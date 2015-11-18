@@ -3,7 +3,9 @@ package com.wavefront.common;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.yammer.metrics.core.MetricName;
+import sunnylabs.report.ReportPoint;
 
+import javax.annotation.Nonnull;
 import javax.management.ObjectName;
 import java.util.Collections;
 import java.util.Map;
@@ -14,7 +16,7 @@ import java.util.Map;
  * @author Clement Pang (clement@wavefront.com)
  */
 public class TaggedMetricName extends MetricName {
-
+  @Nonnull
   private final Map<String, String> tags;
 
   /**
@@ -51,7 +53,31 @@ public class TaggedMetricName extends MetricName {
     return tags;
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    if (!super.equals(o)) return false;
+
+    TaggedMetricName that = (TaggedMetricName) o;
+
+    return getTags().equals(that.getTags());
+
+  }
+
+  @Override
+  public int hashCode() {
+    int result = super.hashCode();
+    result = 31 * result + getTags().hashCode();
+    return result;
+  }
+
+  public void updatePointBuilder(ReportPoint.Builder builder) {
+    builder.getAnnotations().putAll(tags);
+  }
+
   private static Pair<String, String>[] makeTags(Map<String, String> tags) {
+    @SuppressWarnings("unchecked")
     Pair<String, String>[] toReturn = new Pair[tags.size()];
     int i = 0;
     for (Map.Entry<String, String> entry : tags.entrySet()) {
@@ -63,6 +89,7 @@ public class TaggedMetricName extends MetricName {
 
   private static Pair<String, String>[] makeTags(String... tagAndValues) {
     Preconditions.checkArgument((tagAndValues.length & 1) == 0, "must have even number of tag values");
+    @SuppressWarnings("unchecked")
     Pair<String, String>[] toReturn = new Pair[tagAndValues.length / 2];
     for (int i = 0; i < tagAndValues.length; i += 2) {
       String tag = tagAndValues[i];
