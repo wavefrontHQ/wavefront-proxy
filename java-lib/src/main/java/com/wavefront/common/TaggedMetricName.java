@@ -77,6 +77,7 @@ public class TaggedMetricName extends MetricName {
   }
 
   private static Pair<String, String>[] makeTags(Map<String, String> tags) {
+    @SuppressWarnings("unchecked")
     Pair<String, String>[] toReturn = new Pair[tags.size()];
     int i = 0;
     for (Map.Entry<String, String> entry : tags.entrySet()) {
@@ -88,6 +89,7 @@ public class TaggedMetricName extends MetricName {
 
   private static Pair<String, String>[] makeTags(String... tagAndValues) {
     Preconditions.checkArgument((tagAndValues.length & 1) == 0, "must have even number of tag values");
+    @SuppressWarnings("unchecked")
     Pair<String, String>[] toReturn = new Pair[tagAndValues.length / 2];
     for (int i = 0; i < tagAndValues.length; i += 2) {
       String tag = tagAndValues[i];
