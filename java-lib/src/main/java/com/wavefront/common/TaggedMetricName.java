@@ -3,7 +3,9 @@ package com.wavefront.common;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.yammer.metrics.core.MetricName;
+import sunnylabs.report.ReportPoint;
 
+import javax.annotation.Nonnull;
 import javax.management.ObjectName;
 import java.util.Collections;
 import java.util.Map;
@@ -14,7 +16,7 @@ import java.util.Map;
  * @author Clement Pang (clement@wavefront.com)
  */
 public class TaggedMetricName extends MetricName {
-
+  @Nonnull
   private final Map<String, String> tags;
 
   /**
@@ -49,6 +51,29 @@ public class TaggedMetricName extends MetricName {
 
   public Map<String, String> getTags() {
     return tags;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    if (!super.equals(o)) return false;
+
+    TaggedMetricName that = (TaggedMetricName) o;
+
+    return getTags().equals(that.getTags());
+
+  }
+
+  @Override
+  public int hashCode() {
+    int result = super.hashCode();
+    result = 31 * result + getTags().hashCode();
+    return result;
+  }
+
+  public void updatePointBuilder(ReportPoint.Builder builder) {
+    builder.getAnnotations().putAll(tags);
   }
 
   private static Pair<String, String>[] makeTags(Map<String, String> tags) {
