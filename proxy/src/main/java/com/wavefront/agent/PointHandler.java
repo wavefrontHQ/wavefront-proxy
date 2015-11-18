@@ -15,6 +15,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import sunnylabs.report.ReportPoint;
 
@@ -25,12 +26,14 @@ import sunnylabs.report.ReportPoint;
 public class PointHandler {
 
   private static final Logger logger = Logger.getLogger(PointHandler.class.getCanonicalName());
+  private static final Pattern legalMetricChars = Pattern.compile("^[\\w./,-]+$");
 
   // What types of data should be validated and sent to the cloud?
   public static final String VALIDATION_NO_VALIDATION = "NO_VALIDATION";  // Validate nothing
   public static final String VALIDATION_NUMERIC_ONLY = "NUMERIC_ONLY";    // Validate/send numerics; block text
 
   private final Counter outOfRangePointTimes;
+  private final Counter illegalMetricCharacterPoints;
   private final String validationLevel;
   private final int port;
 
@@ -52,6 +55,7 @@ public class PointHandler {
     this.sendDataTask = new PostPushDataTimedTask(agentAPI, pointsPerBatch, logLevel, daemonId, port);
 
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
+    this.illegalMetricCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
 
     int numTimerThreadsUsed = Runtime.getRuntime().availableProcessors();
     logger.info("Using " + numTimerThreadsUsed + " timer threads for listener on port: " + port);
@@ -70,6 +74,13 @@ public class PointHandler {
   public void reportPoint(ReportPoint point, String debugLine) {
     try {
       Object pointValue = point.getValue();
+
+      if (!pointMetricCharactersAreLegal(point)) {
+        illegalMetricCharacterPoints.inc();
+        String errorMessage = port + ": Point's metric has illegal characters (" + debugLine + ")";
+        logger.warning(errorMessage);
+        throw new RuntimeException(errorMessage);
+      }
 
       if (!pointInRange(point)) {
         outOfRangePointTimes.inc();
@@ -102,6 +113,12 @@ public class PointHandler {
   }
 
   private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
+
+  @VisibleForTesting
+  static boolean pointMetricCharactersAreLegal(ReportPoint point) {
+    String metric = point.getMetric();
+    return legalMetricChars.matcher(metric).matches();
+  }
 
   @VisibleForTesting
   static boolean pointInRange(ReportPoint point) {
