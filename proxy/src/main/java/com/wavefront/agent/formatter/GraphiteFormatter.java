@@ -11,8 +11,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Specific formatter for the graphite/collectd world of metric-munged names.
- * <p/>
- * Created by dev@wavefront.com on 11/5/14.
+ *
+ * @author dev@wavefront.com.
  */
 public class GraphiteFormatter implements Function<String, String> {
 
