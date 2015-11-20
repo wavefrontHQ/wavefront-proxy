@@ -71,6 +71,8 @@ public class IngesterFormatter {
         })));
     ReportPoint point = new ReportPoint();
     point.setTable(customerId);
+    // if the point has a timestamp, this would be overriden
+    point.setTimestamp(System.currentTimeMillis());
     try {
       for (FormatterElement element : elements) {
         element.consume(queue, point);
@@ -81,11 +83,7 @@ public class IngesterFormatter {
     if (!queue.isEmpty()) {
       throw new RuntimeException("Could not parse: " + input);
     }
-
-    // fix up the point.
-    if (point.getTimestamp() == null) {
-      point.setTimestamp(System.currentTimeMillis());
-    }
+    
     String host = null;
     Map<String, String> annotations = point.getAnnotations();
     if (annotations != null) {
