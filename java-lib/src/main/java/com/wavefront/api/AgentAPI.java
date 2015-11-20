@@ -5,6 +5,7 @@ import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ShellOutputDTO;
 import org.jboss.resteasy.annotations.GZIP;
 
+import javax.validation.Valid;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -101,7 +102,7 @@ public interface AgentAPI {
   Response postWorkUnitResult(@PathParam("agentId") UUID agentId,
                               @PathParam("workUnitId") UUID workUnitId,
                               @PathParam("hostId") UUID targetId,
-                              @GZIP ShellOutputDTO shellOutputDTO);
+                              @GZIP @Valid ShellOutputDTO shellOutputDTO);
 
   /**
    * Reports that a host has failed to connect.
