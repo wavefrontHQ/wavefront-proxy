@@ -82,10 +82,6 @@ public class IngesterFormatter {
       throw new RuntimeException("Could not parse: " + input);
     }
 
-    // fix up the point.
-    if (point.getTimestamp() == null) {
-      point.setTimestamp(System.currentTimeMillis());
-    }
     String host = null;
     Map<String, String> annotations = point.getAnnotations();
     if (annotations != null) {
@@ -268,8 +264,12 @@ public class IngesterFormatter {
     public void consume(Queue<Token> tokenQueue, ReportPoint point) {
       Token peek = tokenQueue.peek();
       if (peek == null) {
-        if (optional) return;
-        else throw new RuntimeException("Expecting timestamp, found EOF");
+        if (optional) {
+          point.setTimestamp(System.currentTimeMillis());
+          return;
+        } else {
+          throw new RuntimeException("Expecting timestamp, found EOF");
+        }
       }
       if (peek.getType() == DSWrapperLexer.Number) {
         try {
@@ -288,6 +288,8 @@ public class IngesterFormatter {
         }
       } else if (!optional) {
         throw new RuntimeException("Expecting timestamp, found: " + peek.getText());
+      } else {
+        point.setTimestamp(System.currentTimeMillis());
       }
     }
   }
