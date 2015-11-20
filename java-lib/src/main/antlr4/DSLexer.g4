@@ -16,6 +16,11 @@ MinusSign
   : '-'
   ;
 
+PlusSign
+  : '+'
+  ;
+
+
 IpV6Address
   : ('::')? ((Segment ':') | (Segment '::'))+ (Segment | (Segment '::'))
   | '::'
@@ -29,8 +34,8 @@ IpV6Address
 // negative numbers are not accounted for here since we need to
 // handle for instance 5 - 6 (and not consume the minus sign into the number making it just two numbers).
 Number
-  : Digit+ ('.' Digit+)? (('e' | 'E') (MinusSign)? Digit+)?
-  | '.' Digit+ (('e' | 'E') (MinusSign)? Digit+)?
+  : Digit+ ('.' Digit+)? (('e' | 'E') (MinusSign | PlusSign)? Digit+)?
+  | '.' Digit+ (('e' | 'E') (MinusSign | PlusSign)? Digit+)?
   ;
 
 Letters
