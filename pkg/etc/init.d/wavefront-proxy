@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# chkconfig: - 99 00
+# description: Wavefront Graphite Proxy and ssh-daemon
+# processname: wavefront-proxy.pid
+# logs: /var/log/wavefront-proxy.log
+
+### BEGIN INIT INFO
+# Provides:          wavefront-proxy
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Required-Start:
+# Required-Stop:
+### END INIT INFO
+
+#############################
+
+DESC="Wavefront Proxy"
+APP_NAME=wavefront-proxy
+USER=wavefront
+DAEMON=$APP_NAME
+
+##### CUSTOMER OPTIONS ######
+
+# Full path to the proxy program, including the /bin directory. No trailing slash.
+DAEMON_PATH=/opt/$USER/$APP_NAME/bin
+# Full path to the configuration file.
+CONF_FILE=/opt/$USER/$APP_NAME/conf/$USER.conf
+LOG_FILE=/var/log/$USER.log
+PID_FILE=/var/run/$USER.pid
+
+ABS_DAEMON=$DAEMON_PATH/$DAEMON
+
+case "$1" in
+start)
+	# Treated as an implicit restart
+	if [ -f $PIDFILE ]; then
+		echo "Found existing pid; stopping process."
+		$0 stop
+	fi
+
+	printf "%-44s" "Starting $APP_NAME..."
+	touch $LOG_FILE
+	chown $USER:$USER $LOG_FILE
+	su - $USER -s /bin/bash -m -c "$ABS_DAEMON -f $CONF_FILE --buffer $DAEMON_PATH/buffer >> $LOG_FILE 2>&1 & echo \$!" > $PID_FILE 2> /dev/null
+	PID=`cat $PID_FILE`
+	printf "%-6s" $PID
+	if [ -z "$PID" ]; then
+		printf "%s\n" "Fail"
+	else
+		printf "%s\n" "OK"
+	fi
+;;
+status)
+	printf "%-50s" "Checking $APP_NAME..."
+	if [ -f $PID_FILE ]; then
+	        if [ -z "`pgrep -F $PID_FILE`" ]; then
+			printf "%s\n" "Process dead but pidfile exists"
+			exit 1
+		else
+			echo "Running"
+		fi
+	else
+		printf "%s\n" "Service not running"
+	fi
+;;
+stop)
+	printf "%-50s" "Stopping $APP_NAME"
+	if [ -f $PID_FILE ]; then
+		PID=`cat $PID_FILE`
+		if ! [ -z "$PID" ]; then
+			kill $PID
+			printf "%s\n" "OK"
+			rm -f $PID_FILE
+		else
+			printf "%s\n" "PID file is empty"
+		fi
+	else
+		printf "%s\n" "process is not running"
+	fi
+;;
+restart)
+	$0 stop
+	$0 start
+;;
+*)
+	echo "Usage: $0 {status | start | stop | restart}"
+	exit 1
+esac

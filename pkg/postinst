@@ -1,0 +1,14 @@
+#!/bin/bash
+USER=wavefront
+GROUP=wavefront
+
+if ! groupmod $GROUP &> /dev/null; then
+	groupadd $GROUP &> /dev/null
+fi
+if ! id $USER &> /dev/null; then
+	useradd -r -s /bin/bash -g $GROUP $USER &> /dev/null
+fi
+
+chown -R $USER:$GROUP /opt/wavefront/wavefront-proxy
+
+exit 0
