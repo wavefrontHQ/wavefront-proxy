@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.common;
 
 /**
  * Clock to manage agent time synced with the server.

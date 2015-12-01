@@ -211,6 +211,18 @@ public class GraphiteDecoderTest {
   }
 
   @Test
+  public void testDecodeWithMillisTimestamp() throws Exception {
+    GraphiteDecoder decoder = new GraphiteDecoder();
+    List<ReportPoint> out = Lists.newArrayList();
+    decoder.decodeReportPoints("vehicle.charge.battery_level 93 1234567892468", out, "customer");
+    ReportPoint point = out.get(0);
+    assertEquals("customer", point.getTable());
+    assertEquals("vehicle.charge.battery_level", point.getMetric());
+    assertEquals(93.0, point.getValue());
+    assertEquals(1234567892468L, point.getTimestamp().longValue());
+  }
+
+  @Test
   public void testMetricWithNumberStarting() throws Exception {
     GraphiteDecoder decoder = new GraphiteDecoder();
     List<ReportPoint> out = Lists.newArrayList();

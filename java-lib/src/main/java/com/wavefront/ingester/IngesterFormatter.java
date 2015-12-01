@@ -5,6 +5,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import com.wavefront.common.Clock;
+
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CommonTokenFactory;
@@ -72,7 +74,7 @@ public class IngesterFormatter {
     ReportPoint point = new ReportPoint();
     point.setTable(customerId);
     // if the point has a timestamp, this would be overriden
-    point.setTimestamp(System.currentTimeMillis());
+    point.setTimestamp(Clock.now());
     try {
       for (FormatterElement element : elements) {
         element.consume(queue, point);

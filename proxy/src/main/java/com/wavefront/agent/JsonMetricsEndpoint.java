@@ -3,6 +3,7 @@ package com.wavefront.agent;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.wavefront.common.Clock;
 import com.wavefront.metrics.JsonMetricsParser;
 
 import java.util.ArrayList;

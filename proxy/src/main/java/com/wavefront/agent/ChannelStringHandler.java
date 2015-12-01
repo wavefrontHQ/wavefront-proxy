@@ -126,7 +126,6 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     }
     if (!validatedPoints.isEmpty()) {
       ReportPoint point = validatedPoints.get(0);
-      point.setTimestamp(Clock.now());
       pointHandler.reportPoint(point, pointLine);
     }
   }
