@@ -404,7 +404,7 @@ public class IngesterFormatter {
     return toReturn;
   }
 
-  private static String unquote(String text) {
+  public static String unquote(String text) {
     if (text.startsWith("\"")) {
       text = DOUBLE_QUOTE_PATTERN.matcher(text.substring(1, text.length() - 1)).
               replaceAll(DOUBLE_QUOTE_REPLACEMENT);
