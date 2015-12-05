@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import queryserver.parser.DSWrapperLexer;
 import sunnylabs.report.ReportPoint;
@@ -34,6 +36,10 @@ import sunnylabs.report.ReportPoint;
 public class IngesterFormatter {
 
   private static final FormatterElement WHITESPACE_ELEMENT = new Whitespace();
+  private static final Pattern SINGLE_QUOTE_PATTERN = Pattern.compile("\\'", Pattern.LITERAL);
+  private static final Pattern DOUBLE_QUOTE_PATTERN = Pattern.compile("\\\"", Pattern.LITERAL);
+  private static final String DOUBLE_QUOTE_REPLACEMENT = Matcher.quoteReplacement("\"");
+  private static final String SINGLE_QUOTE_REPLACEMENT = Matcher.quoteReplacement("'");
 
   private final List<FormatterElement> elements;
 
@@ -398,11 +404,13 @@ public class IngesterFormatter {
     return toReturn;
   }
 
-  private static String unquote(String text) {
+  public static String unquote(String text) {
     if (text.startsWith("\"")) {
-      text = text.substring(1, text.length() - 1).replace("\\\"", "\"");
+      text = DOUBLE_QUOTE_PATTERN.matcher(text.substring(1, text.length() - 1)).
+              replaceAll(DOUBLE_QUOTE_REPLACEMENT);
     } else if (text.startsWith("'")) {
-      text = text.substring(1, text.length() - 1).replace("\\'", "'");
+      text = SINGLE_QUOTE_PATTERN.matcher(text.substring(1, text.length() - 1)).
+              replaceAll(SINGLE_QUOTE_REPLACEMENT);
     }
     return text;
   }
