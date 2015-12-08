@@ -26,6 +26,8 @@ import javax.ws.rs.core.Response;
 public class PostPushDataTimedTask implements Runnable {
   private static final Logger logger = Logger.getLogger(PostPushDataTimedTask.class.getCanonicalName());
 
+  private static final int MAX_SPLIT_BATCH_SIZE = 50000; // same value as default pushFlushMaxPoints
+
   // TODO: enum
   public static final String LOG_NONE = "NONE";
   public static final String LOG_SUMMARY = "SUMMARY";
@@ -51,10 +53,15 @@ public class PostPushDataTimedTask implements Runnable {
 
   private UUID daemonId;
   private int port;
-  private int pointsPerBatch;
+  private static int pointsPerBatch = MAX_SPLIT_BATCH_SIZE;
   private String logLevel;
 
   private ForceQueueEnabledAgentAPI agentAPI;
+
+  public static void setPointsPerBatch(int newSize) {
+    pointsPerBatch = Math.min(newSize, MAX_SPLIT_BATCH_SIZE);
+    pointsPerBatch = Math.max(pointsPerBatch, 1);
+  }
 
   public void addPoint(String metricString) {
     writeLock.lock();
@@ -109,11 +116,10 @@ public class PostPushDataTimedTask implements Runnable {
     return daemonId;
   }
 
-  public PostPushDataTimedTask(ForceQueueEnabledAgentAPI agentAPI, int pointsPerBatch, String logLevel, UUID daemonId, int port) {
+  public PostPushDataTimedTask(ForceQueueEnabledAgentAPI agentAPI, String logLevel, UUID daemonId, int port) {
     ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     writeLock = lock.writeLock();
 
-    this.pointsPerBatch = pointsPerBatch;
     this.logLevel = logLevel;
     this.daemonId = daemonId;
     this.port = port;

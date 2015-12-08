@@ -45,9 +45,8 @@ public class JsonMetricsEndpoint extends PointHandler {
                              final String logLevel,
                              final String validationLevel,
                              final long millisecondsPerBatch,
-                             final int blockedPointsPerBatch,
-                             final int pointsPerBatch) {
-    super(agentApi, daemonId, port, logLevel, validationLevel, millisecondsPerBatch, pointsPerBatch,
+                             final int blockedPointsPerBatch) {
+    super(agentApi, daemonId, port, logLevel, validationLevel, millisecondsPerBatch,
         blockedPointsPerBatch);
     this.prefix = prefix;
     this.defaultHost = host;

@@ -23,6 +23,26 @@ public class AgentConfiguration {
   public Long currentTime;
   private List<SshTargetDTO> targets;
   private List<WorkUnit> workUnits;
+  private boolean collectorSetsPointsPerBatch = false;
+  private Long pointsPerBatch;
+  private boolean collectorSetsRetryBackoff = false;
+  private Double retryBackoffBaseSeconds;
+
+  public boolean isCollectorSetsRetryBackoff() {
+    return collectorSetsRetryBackoff;
+  }
+
+  public void setCollectorSetsRetryBackoff(boolean collectorSetsRetryBackoff) {
+    this.collectorSetsRetryBackoff = collectorSetsRetryBackoff;
+  }
+
+  public Double getRetryBackoffBaseSeconds() {
+    return retryBackoffBaseSeconds;
+  }
+
+  public void setRetryBackoffBaseSeconds(Double retryBackoffBaseSeconds) {
+    this.retryBackoffBaseSeconds = retryBackoffBaseSeconds;
+  }
 
   public List<WorkUnit> getWorkUnits() {
     if (workUnits == null) return Collections.emptyList();
@@ -34,6 +54,14 @@ public class AgentConfiguration {
     return targets;
   }
 
+  public void setCollectorSetsPointsPerBatch(boolean collectorSetsPointsPerBatch) {
+    this.collectorSetsPointsPerBatch = collectorSetsPointsPerBatch;
+  }
+
+  public boolean isCollectorSetsPointsPerBatch() {
+    return collectorSetsPointsPerBatch;
+  }
+
   public void setTargets(List<SshTargetDTO> targets) {
     this.targets = targets;
   }
@@ -42,6 +70,13 @@ public class AgentConfiguration {
     this.workUnits = workUnits;
   }
 
+  public Long getPointsPerBatch() {
+    return pointsPerBatch;
+  }
+
+  public void setPointsPerBatch(Long pointsPerBatch) {
+    this.pointsPerBatch = pointsPerBatch;
+  }
 
   public void validate(boolean local) {
     Set<UUID> knownHostUUIDs = Collections.emptySet();

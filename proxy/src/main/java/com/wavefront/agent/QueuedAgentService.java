@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -9,8 +10,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
-import com.fasterxml.jackson.databind.JsonNode;
 import com.squareup.tape.FileObjectQueue;
 import com.squareup.tape.TaskInjector;
 import com.squareup.tape.TaskQueue;
@@ -25,32 +24,18 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.MetricsRegistry;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Reader;
-import java.io.Writer;
+import javax.annotation.Nullable;
+import javax.ws.rs.core.Response;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-
-import javax.annotation.Nullable;
-import javax.ws.rs.core.Response;
 
 import static com.google.common.collect.ImmutableList.of;
 
@@ -63,11 +48,15 @@ import static com.google.common.collect.ImmutableList.of;
  */
 public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
+  private static final int MAX_SPLIT_BATCH_SIZE = 50000; // same value as default pushFlushMaxPoints
+  private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final Logger logger = Logger.getLogger(QueuedAgentService.class.getCanonicalName());
 
   private final Gson resubmissionTaskMarshaller;
   private final AgentAPI wrapped;
   private final List<TaskQueue<ResubmissionTask>> taskQueues;
+  private static int splitBatchSize = MAX_SPLIT_BATCH_SIZE;
+  private static double retryBackoffBaseSeconds = 2.0;
   private boolean lastKnownQueueSizeIsPositive = true;
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
   private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
@@ -96,8 +85,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     return (long) (resultPostingSizes.mean() * resultPostingMeter.fifteenMinuteRate());
   }
 
-  public QueuedAgentService(AgentAPI service, String bufferFile, int retryThreads,
-                            ScheduledExecutorService executorService, boolean purge, final UUID agentId)
+  public QueuedAgentService(AgentAPI service, String bufferFile, final int retryThreads,
+                            final ScheduledExecutorService executorService, boolean purge,
+                            final UUID agentId, final boolean splitPushWhenRateLimited,
+                            final String logLevel)
       throws IOException {
     if (retryThreads <= 0) {
       logger.warning("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
@@ -147,11 +138,17 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           }
       );
 
-      executorService.scheduleWithFixedDelay(new Runnable() {
+      Runnable taskRunnable = new Runnable() {
+        private int backoffExponent = 1;
+
         @Override
         public void run() {
+          int successes = 0;
+          int failures = 0;
           try {
-            int failures = 0;
+            if (logLevel.equals("DETAILED")) {
+              logger.warning("[RETRY THREAD " + threadId + "] TASK STARTING");
+            }
             while (taskQueue.size() > 0 && taskQueue.size() > failures) {
               synchronized (taskQueue) {
                 ResubmissionTask task = taskQueue.peek();
@@ -159,24 +156,34 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                 try {
                   if (task != null) {
                     task.execute(null);
+                    successes++;
                   }
                 } catch (Exception ex) {
                   failures++;
                   //noinspection ThrowableResultOfMethodCallIgnored
                   if (Throwables.getRootCause(ex) instanceof QueuedPushTooLargeException) {
+                    // this should split this task, remove it from the queue, and not try more tasks
                     logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected push (413 response). " +
                         "Split data and attempt later: " + ex);
                     List<? extends ResubmissionTask> splitTasks = task.splitTask();
                     for (ResubmissionTask smallerTask : splitTasks) {
                       taskQueue.add(smallerTask);
                     }
-                    // this should remove the task from the queue
                     break;
                   } else //noinspection ThrowableResultOfMethodCallIgnored
                     if (Throwables.getRootCause(ex) instanceof RejectedExecutionException) {
+                      // this should either split and remove the original task or keep it at front
+                      // it also should not try any more tasks
                       logger.warning("[RETRY THREAD " + threadId + "] Wavefront server quiesced (406 response). Will " +
-                          "re-attempt later: " + ex);
-                      removeTask = false;
+                          "attempt later: " + ex);
+                      if (splitPushWhenRateLimited) {
+                        List<? extends ResubmissionTask> splitTasks = task.splitTask();
+                        for (ResubmissionTask smallerTask : splitTasks) {
+                          taskQueue.add(smallerTask);
+                        }
+                      } else {
+                        removeTask = false;
+                      }
                       break;
                     } else {
                       logger.warning("[RETRY THREAD " + threadId + "] cannot submit data to Wavefront servers. Will " +
@@ -188,8 +195,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                   task.currentAgentId = null;
                   taskQueue.add(task);
                   if (failures > 10) {
-                    logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will re-attempt " +
-                        "in 30s");
+                    logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will re-attempt later");
                     break;
                   }
                 } finally {
@@ -199,9 +205,25 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             }
           } catch (Throwable ex) {
             logger.log(Level.WARNING, "[RETRY THREAD " + threadId + "] unexpected exception", ex);
+          } finally {
+            if (successes == 0 && failures != 0) {
+              backoffExponent = Math.min(4, backoffExponent + 1); // caps at 2*base^4
+            } else {
+              backoffExponent = 1;
+            }
+            long next = (long) ((Math.random() + 1.0) *
+                Math.pow(retryBackoffBaseSeconds, backoffExponent));
+            if (logLevel.equals("DETAILED")) {
+              logger.warning("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
+                  ", Failed Batches: " + failures);
+              logger.warning("[RETRY THREAD " + threadId + "] RESCHEDULING in " + next);
+            }
+            executorService.schedule(this, next, TimeUnit.SECONDS);
           }
         }
-      }, (long) (Math.random() * 30), 30, TimeUnit.SECONDS);
+      };
+
+      executorService.schedule(taskRunnable, (long) (Math.random() * retryThreads), TimeUnit.SECONDS);
       taskQueues.add(taskQueue);
     }
 
@@ -246,6 +268,16 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         return getQueuedTasksCount();
       }
     });
+  }
+
+  public static void setRetryBackoffBaseSeconds(double newSecs) {
+    retryBackoffBaseSeconds = Math.min(newSecs, MAX_RETRY_BACKOFF_BASE_SECONDS);
+    retryBackoffBaseSeconds = Math.max(retryBackoffBaseSeconds, 1.0);
+  }
+
+  public static void setSplitBatchSize(int newSize) {
+    splitBatchSize = Math.min(newSize, MAX_SPLIT_BATCH_SIZE);
+    splitBatchSize = Math.max(splitBatchSize, 1);
   }
 
   public long getQueuedTasksCount() {
@@ -500,15 +532,18 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
       List<String> pushDatum = ChannelStringHandler.unjoinPushData(pushData);
 
-      // split data into 2 tasks w/ half the strings
-      if (pushDatum.size() > 1) {
-        int halfPoints = pushDatum.size() / 2;
-        splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
-            ChannelStringHandler.joinPushData(new ArrayList<>(pushDatum.subList(0, halfPoints)))));
-        splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
-            ChannelStringHandler.joinPushData(new ArrayList<>(pushDatum.subList(halfPoints,
-                pushDatum.size())))
-        ));
+      int numDatum = pushDatum.size();
+      if (numDatum > 1) {
+        // in this case, at least split the strings in 2 batches.  batch size must be less
+        // than splitBatchSize
+        int stride = Math.min(splitBatchSize, (int) Math.ceil((float) numDatum / 2.0));
+        int endingIndex = 0;
+        for (int startingIndex = 0; endingIndex < numDatum; startingIndex += stride) {
+          endingIndex = Math.min(numDatum, startingIndex + stride);
+          splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
+              ChannelStringHandler.joinPushData(new ArrayList<>(
+                  pushDatum.subList(startingIndex, endingIndex)))));
+        }
       } else {
         // 1 or 0
         splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format, pushData));

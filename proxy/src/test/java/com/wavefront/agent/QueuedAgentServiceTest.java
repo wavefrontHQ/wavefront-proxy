@@ -1,31 +1,25 @@
 package com.wavefront.agent;
 
+import com.google.common.collect.Sets;
 import com.squareup.tape.TaskInjector;
 import com.wavefront.agent.QueuedAgentService.PostPushDataResultTask;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.ShellOutputDTO;
-
 import net.jcip.annotations.NotThreadSafe;
-
+import org.apache.commons.lang.RandomStringUtils;
 import org.easymock.EasyMock;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
-import javax.ws.rs.core.Response;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
 /**
  * @author Andrew Kao (andrew@wavefront.com)
@@ -43,6 +37,7 @@ public class QueuedAgentServiceTest {
     newAgentId = UUID.randomUUID();
 
     int retryThreads = 1;
+    QueuedAgentService.setSplitBatchSize(50000);
 
     queuedAgentService = new QueuedAgentService(mockAgentAPI, "unitTestBuffer", retryThreads,
         Executors.newScheduledThreadPool(retryThreads + 1, new ThreadFactory() {
@@ -55,7 +50,7 @@ public class QueuedAgentServiceTest {
             toReturn.setName("unit test submission worker: " + counter.getAndIncrement());
             return toReturn;
           }
-        }), true, newAgentId);
+        }), true, newAgentId, false, "NONE");
   }
 
   // postWorkUnitResult
@@ -307,7 +302,7 @@ public class QueuedAgentServiceTest {
       exceptionThrown = true;
     }
 
-    Assert.assertTrue(exceptionThrown);
+    assertTrue(exceptionThrown);
     EasyMock.verify(mockAgentAPI);
   }
 
@@ -342,7 +337,7 @@ public class QueuedAgentServiceTest {
       exceptionThrown = true;
     }
 
-    Assert.assertTrue(exceptionThrown);
+    assertTrue(exceptionThrown);
     EasyMock.verify(mockAgentAPI);
   }
 
@@ -448,7 +443,7 @@ public class QueuedAgentServiceTest {
       exceptionThrown = true;
     }
 
-    Assert.assertTrue(exceptionThrown);
+    assertTrue(exceptionThrown);
     EasyMock.verify(mockAgentAPI);
   }
 
@@ -490,7 +485,7 @@ public class QueuedAgentServiceTest {
       exceptionThrown = true;
     }
 
-    Assert.assertTrue(exceptionThrown);
+    assertTrue(exceptionThrown);
     EasyMock.verify(mockAgentAPI);
   }
 
@@ -625,11 +620,90 @@ public class QueuedAgentServiceTest {
     String firstSplitDataString = splitTasks.get(0).getPushData();
     List<String> firstSplitData = ChannelStringHandler.unjoinPushData(firstSplitDataString);
 
-    assertEquals(2, firstSplitData.size());
+    assertEquals(3, firstSplitData.size());
 
     String secondSplitDataString = splitTasks.get(1).getPushData();
     List<String> secondSplitData = ChannelStringHandler.unjoinPushData(secondSplitDataString);
 
-    assertEquals(3, secondSplitData.size());
+    assertEquals(2, secondSplitData.size());
+  }
+
+  @Test
+  public void postPushDataResultTaskSplitsIntoManyTask() {
+    for(int targetBatchSize = 1; targetBatchSize <= 10; targetBatchSize++) {
+      QueuedAgentService.setSplitBatchSize(targetBatchSize);
+
+      UUID agentId = UUID.randomUUID();
+      UUID workUnitId = UUID.randomUUID();
+
+      long now = System.currentTimeMillis();
+
+      String format = "unitTestFormat";
+
+      for (int numTestStrings = 1; numTestStrings <= 51; numTestStrings += 1) {
+        List<String> pretendPushDataList = new ArrayList<String>();
+        for (int i = 0; i < numTestStrings; i++) {
+          pretendPushDataList.add(RandomStringUtils.randomAlphabetic(6));
+        }
+
+        String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+
+        PostPushDataResultTask task = new PostPushDataResultTask(
+            agentId,
+            workUnitId,
+            now,
+            format,
+            pretendPushData
+        );
+
+        List<PostPushDataResultTask> splitTasks = task.splitTask();
+        Set<String> splitData = Sets.newHashSet();
+        for (PostPushDataResultTask taskN : splitTasks) {
+          List<String> dataStrings = ChannelStringHandler.unjoinPushData(taskN.getPushData());
+          splitData.addAll(dataStrings);
+          assertTrue(dataStrings.size() <= targetBatchSize + 1);
+        }
+        assertEquals(Sets.newHashSet(pretendPushDataList), splitData);
+      }
+    }
+  }
+
+  @Test
+  public void splitIntoTwoTest() {
+    QueuedAgentService.setSplitBatchSize(10000000);
+
+    UUID agentId = UUID.randomUUID();
+    UUID workUnitId = UUID.randomUUID();
+
+    long now = System.currentTimeMillis();
+
+    String format = "unitTestFormat";
+
+    for (int numTestStrings = 2; numTestStrings <= 51; numTestStrings += 1) {
+      List<String> pretendPushDataList = new ArrayList<String>();
+      for (int i = 0; i < numTestStrings; i++) {
+        pretendPushDataList.add(RandomStringUtils.randomAlphabetic(6));
+      }
+
+      String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+
+      PostPushDataResultTask task = new PostPushDataResultTask(
+          agentId,
+          workUnitId,
+          now,
+          format,
+          pretendPushData
+      );
+
+      List<PostPushDataResultTask> splitTasks = task.splitTask();
+      assertEquals(2, splitTasks.size());
+      Set<String> splitData = Sets.newHashSet();
+      for (PostPushDataResultTask taskN : splitTasks) {
+        List<String> dataStrings = ChannelStringHandler.unjoinPushData(taskN.getPushData());
+        splitData.addAll(dataStrings);
+        assertTrue(dataStrings.size() <= numTestStrings / 2 + 1);
+      }
+      assertEquals(Sets.newHashSet(pretendPushDataList), splitData);
+    }
   }
 }

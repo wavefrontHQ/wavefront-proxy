@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 
 import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
+import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
 import com.wavefront.ingester.Ingester;
@@ -78,8 +79,8 @@ public class PushAgent extends AbstractAgent {
                 new URI("http://localhost:" + strPort + "/"),
                 new ResourceConfig(JacksonFeature.class).
                     register(new JsonMetricsEndpoint(agentAPI, agentId, port, hostname, prefix,
-                        pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples,
-                        pushFlushMaxPoints)),
+                        pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples
+                    )),
                 true);
             logger.info("listening on port: " + strPort + " for HTTP JSON metrics");
           } catch (URISyntaxException e) {
@@ -96,7 +97,7 @@ public class PushAgent extends AbstractAgent {
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new OpenTSDBDecoder("unknown"),
         agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
-        pushFlushMaxPoints, pushBlockedSamples, null, opentsdbWhitelistRegex,
+        pushBlockedSamples, null, opentsdbWhitelistRegex,
         opentsdbBlacklistRegex);
     new Thread(new Ingester(graphiteHandler, port)).start();
   }
@@ -108,7 +109,7 @@ public class PushAgent extends AbstractAgent {
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown"),
         agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
-        pushFlushMaxPoints, pushBlockedSamples, formatter, whitelistRegex, blacklistRegex);
+        pushBlockedSamples, formatter, whitelistRegex, blacklistRegex);
 
     if (formatter == null) {
       List<Function<SocketChannel, ChannelHandler>> handler = Lists.newArrayList(1);
@@ -121,6 +122,42 @@ public class PushAgent extends AbstractAgent {
       new Thread(new Ingester(handler, graphiteHandler, port)).start();
     } else {
       new Thread(new Ingester(graphiteHandler, port)).start();
+    }
+  }
+
+  /**
+   * Push agent configuration during check-in by the collector.
+   *
+   * @param config The configuration to process.
+   */
+  @Override
+  protected void processConfiguration(AgentConfiguration config) {
+    try {
+      agentAPI.agentConfigProcessed(agentId);
+      Long pointsPerBatch = config.getPointsPerBatch();
+      if (config.isCollectorSetsPointsPerBatch()) {
+        if (pointsPerBatch != null) {
+          // if the collector is in charge and it provided a setting, use it
+          QueuedAgentService.setSplitBatchSize(pointsPerBatch.intValue());
+          PostPushDataTimedTask.setPointsPerBatch(pointsPerBatch.intValue());
+        } // otherwise don't change the setting
+      } else {
+        // restores the agent setting
+        QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
+        PostPushDataTimedTask.setPointsPerBatch(pushFlushMaxPoints);
+      }
+
+      if (config.isCollectorSetsRetryBackoff()) {
+        if (config.getRetryBackoffBaseSeconds() != null) {
+          // if the collector is in charge and it provided a setting, use it
+          QueuedAgentService.setRetryBackoffBaseSeconds(config.getRetryBackoffBaseSeconds());
+        } // otherwise don't change the setting
+      } else {
+        // restores the agent setting
+        QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
+      }
+    } catch (RuntimeException e) {
+      // cannot throw or else configuration update thread would die.
     }
   }
 }
