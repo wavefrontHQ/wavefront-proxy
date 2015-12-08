@@ -77,6 +77,12 @@ public class PointHandler {
         throw new RuntimeException(errorMessage);
       }
 
+      if (!annotationKeysAreValid(point)) {
+        String errorMessage = port + ": Point annotation key has illegal character (" + debugLine + ")";
+        logger.warning(errorMessage);
+        throw new RuntimeException(errorMessage);
+      }
+
       if (!pointInRange(point)) {
         outOfRangePointTimes.inc();
         String errorMessage = port + ": Point outside of reasonable time frame (" + debugLine + ")";
@@ -108,6 +114,16 @@ public class PointHandler {
   }
 
   private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
+
+  @VisibleForTesting
+  static boolean annotationKeysAreValid(ReportPoint point) {
+    for (String key : point.getAnnotations().keySet()) {
+      if (!charactersAreValid(key)) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   @VisibleForTesting
   static boolean charactersAreValid(String input) {

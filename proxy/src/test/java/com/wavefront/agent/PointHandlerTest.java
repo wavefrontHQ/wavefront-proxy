@@ -8,6 +8,7 @@ import sunnylabs.report.ReportPoint;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author Andrew Kao (andrew@wavefront.com), Jason Bau (jbau@wavefront.com)
@@ -56,6 +57,23 @@ public class PointHandlerTest {
 
     input = "as'df";
     Assert.assertFalse(PointHandler.charactersAreValid(input));
+  }
+
+  @Test
+  public void testPointAnnotationKeyValidation() {
+    Map<String, String> goodMap = new HashMap<String, String>();
+    goodMap.put("key", "value");
+
+    Map<String, String> badMap = new HashMap<String, String>();
+    badMap.put("k:ey", "value");
+
+    ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis(), 10L, "host", "table",
+        goodMap);
+    Assert.assertTrue(PointHandler.annotationKeysAreValid(rp));
+
+    rp.setAnnotations(badMap);
+    Assert.assertFalse(PointHandler.annotationKeysAreValid(rp));
+
   }
 
   @Test
