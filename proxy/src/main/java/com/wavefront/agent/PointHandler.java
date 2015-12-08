@@ -1,13 +1,12 @@
 package com.wavefront.agent;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-
 import org.apache.commons.lang.time.DateUtils;
+import sunnylabs.report.ReportPoint;
 
 import java.util.Map;
 import java.util.UUID;
@@ -15,9 +14,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
-
-import sunnylabs.report.ReportPoint;
 
 /**
  * Adds all graphite strings to a working list, and batches them up on a set schedule (100ms) to be
@@ -26,14 +22,13 @@ import sunnylabs.report.ReportPoint;
 public class PointHandler {
 
   private static final Logger logger = Logger.getLogger(PointHandler.class.getCanonicalName());
-  private static final Pattern legalMetricChars = Pattern.compile("^[\\w./,-]+$");
 
   // What types of data should be validated and sent to the cloud?
   public static final String VALIDATION_NO_VALIDATION = "NO_VALIDATION";  // Validate nothing
   public static final String VALIDATION_NUMERIC_ONLY = "NUMERIC_ONLY";    // Validate/send numerics; block text
 
   private final Counter outOfRangePointTimes;
-  private final Counter illegalMetricCharacterPoints;
+  private final Counter illegalCharacterPoints;
   private final String validationLevel;
   private final int port;
 
@@ -55,7 +50,7 @@ public class PointHandler {
     this.sendDataTask = new PostPushDataTimedTask(agentAPI, pointsPerBatch, logLevel, daemonId, port);
 
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
-    this.illegalMetricCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
+    this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
 
     int numTimerThreadsUsed = Runtime.getRuntime().availableProcessors();
     logger.info("Using " + numTimerThreadsUsed + " timer threads for listener on port: " + port);
@@ -75,9 +70,15 @@ public class PointHandler {
     try {
       Object pointValue = point.getValue();
 
-      if (!pointMetricCharactersAreLegal(point)) {
-        illegalMetricCharacterPoints.inc();
-        String errorMessage = port + ": Point's metric has illegal characters (" + debugLine + ")";
+      if (!charactersAreValid(point.getMetric())) {
+        illegalCharacterPoints.inc();
+        String errorMessage = port + ": Point metric has illegal character (" + debugLine + ")";
+        logger.warning(errorMessage);
+        throw new RuntimeException(errorMessage);
+      }
+
+      if (!annotationKeysAreValid(point)) {
+        String errorMessage = port + ": Point annotation key has illegal character (" + debugLine + ")";
         logger.warning(errorMessage);
         throw new RuntimeException(errorMessage);
       }
@@ -115,10 +116,36 @@ public class PointHandler {
   private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
 
   @VisibleForTesting
-  static boolean pointMetricCharactersAreLegal(ReportPoint point) {
-    String metric = point.getMetric();
-    return legalMetricChars.matcher(metric).matches();
+  static boolean annotationKeysAreValid(ReportPoint point) {
+    for (String key : point.getAnnotations().keySet()) {
+      if (!charactersAreValid(key)) {
+        return false;
+      }
+    }
+    return true;
   }
+
+  @VisibleForTesting
+  static boolean charactersAreValid(String input) {
+    // Legal characters are 44-57 (,-./ and numbers), 65-90 (upper), 97-122 (lower), 95 (_)
+    int l = input.length();
+    if (l == 0) {
+      return false;
+    }
+
+    for (int i = 0; i < l; i++) {
+      char cur = input.charAt(i);
+      if (!(44 <= cur && cur <= 57) && !(65 <= cur && cur <= 90) && !(97 <= cur && cur <= 122) &&
+          cur != 95) {
+        if (i != 0 || cur != 126) {
+          // first character can be 126 (~)
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
 
   @VisibleForTesting
   static boolean pointInRange(ReportPoint point) {
