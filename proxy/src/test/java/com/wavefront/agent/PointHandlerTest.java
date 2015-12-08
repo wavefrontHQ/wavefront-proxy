@@ -4,11 +4,10 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sunnylabs.report.ReportPoint;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
-
-import sunnylabs.report.ReportPoint;
 
 /**
  * @author Andrew Kao (andrew@wavefront.com), Jason Bau (jbau@wavefront.com)
@@ -19,36 +18,44 @@ public class PointHandlerTest {
 
   @Test
   public void testPointIllegalChars() {
-    ReportPoint rp = new ReportPoint("metric1", System.currentTimeMillis(), 10L, "host", "table",
-        new HashMap<String, String>());
-    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+    String input = "metric1";
+    Assert.assertTrue(PointHandler.charactersAreValid(input));
 
-    rp.setMetric("good.metric2");
-    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+    input = "good.metric2";
+    Assert.assertTrue(PointHandler.charactersAreValid(input));
 
-    rp.setMetric("good-metric3");
-    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+    input = "good-metric3";
+    Assert.assertTrue(PointHandler.charactersAreValid(input));
 
-    rp.setMetric("good_metric4");
-    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+    input = "good_metric4";
+    Assert.assertTrue(PointHandler.charactersAreValid(input));
 
-    rp.setMetric("good,metric5");
-    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+    input = "good,metric5";
+    Assert.assertTrue(PointHandler.charactersAreValid(input));
 
-    rp.setMetric("good/metric6");
-    Assert.assertTrue(PointHandler.pointMetricCharactersAreLegal(rp));
+    input = "good/metric6";
+    Assert.assertTrue(PointHandler.charactersAreValid(input));
 
-    rp.setMetric("as&df");
-    Assert.assertFalse(PointHandler.pointMetricCharactersAreLegal(rp));
+    input = "~good.metric7";
+    Assert.assertTrue(PointHandler.charactersAreValid(input));
 
-    rp.setMetric("as:df");
-    Assert.assertFalse(PointHandler.pointMetricCharactersAreLegal(rp));
+    input = "abcdefghijklmnopqrstuvwxyz.0123456789,/_-ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    Assert.assertTrue(PointHandler.charactersAreValid(input));
 
-    rp.setMetric("as df");
-    Assert.assertFalse(PointHandler.pointMetricCharactersAreLegal(rp));
+    input = "abcdefghijklmnopqrstuvwxyz.0123456789,/_-ABCDEFGHIJKLMNOPQRSTUVWXYZ~";
+    Assert.assertFalse(PointHandler.charactersAreValid(input));
 
-    rp.setMetric("as'df");
-    Assert.assertFalse(PointHandler.pointMetricCharactersAreLegal(rp));
+    input = "as;df";
+    Assert.assertFalse(PointHandler.charactersAreValid(input));
+
+    input = "as:df";
+    Assert.assertFalse(PointHandler.charactersAreValid(input));
+
+    input = "as df";
+    Assert.assertFalse(PointHandler.charactersAreValid(input));
+
+    input = "as'df";
+    Assert.assertFalse(PointHandler.charactersAreValid(input));
   }
 
   @Test
