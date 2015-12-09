@@ -67,7 +67,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   private final Gson resubmissionTaskMarshaller;
   private final AgentAPI wrapped;
-  private final UUID agentId;
   private final List<TaskQueue<ResubmissionTask>> taskQueues;
   private boolean lastKnownQueueSizeIsPositive = true;
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
@@ -100,7 +99,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   public QueuedAgentService(AgentAPI service, String bufferFile, int retryThreads,
                             ScheduledExecutorService executorService, boolean purge, final UUID agentId)
       throws IOException {
-    this.agentId = agentId;
     if (retryThreads <= 0) {
       logger.warning("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
           "setting retryThreads to a value > 0");
