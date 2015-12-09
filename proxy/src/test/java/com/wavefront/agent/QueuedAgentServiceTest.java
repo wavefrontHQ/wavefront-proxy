@@ -35,10 +35,12 @@ public class QueuedAgentServiceTest {
 
   private QueuedAgentService queuedAgentService;
   private AgentAPI mockAgentAPI;
+  private UUID newAgentId;
 
   @Before
   public void testSetup() throws IOException {
     mockAgentAPI = EasyMock.createMock(AgentAPI.class);
+    newAgentId = UUID.randomUUID();
 
     int retryThreads = 1;
 
@@ -53,7 +55,7 @@ public class QueuedAgentServiceTest {
             toReturn.setName("unit test submission worker: " + counter.getAndIncrement());
             return toReturn;
           }
-        }), true);
+        }), true, newAgentId);
   }
 
   // postWorkUnitResult
@@ -240,6 +242,7 @@ public class QueuedAgentServiceTest {
       @Override
       public void injectMembers(ResubmissionTask task) {
         task.service = mockAgentAPI;
+        task.currentAgentId = newAgentId;
       }
     }.injectMembers(task);
   }
@@ -264,7 +267,7 @@ public class QueuedAgentServiceTest {
 
     injectServiceToResubmissionTask(task);
 
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO))
+    EasyMock.expect(mockAgentAPI.postWorkUnitResult(newAgentId, workUnitId, targetId, shellOutputDTO))
         .andReturn(Response.ok().build()).once();
 
     EasyMock.replay(mockAgentAPI);
@@ -291,7 +294,7 @@ public class QueuedAgentServiceTest {
 
     injectServiceToResubmissionTask(task);
 
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO))
+    EasyMock.expect(mockAgentAPI.postWorkUnitResult(newAgentId, workUnitId, targetId, shellOutputDTO))
         .andReturn(Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
 
     EasyMock.replay(mockAgentAPI);
@@ -326,7 +329,7 @@ public class QueuedAgentServiceTest {
 
     injectServiceToResubmissionTask(task);
 
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO))
+    EasyMock.expect(mockAgentAPI.postWorkUnitResult(newAgentId, workUnitId, targetId, shellOutputDTO))
         .andReturn(Response.status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
 
     EasyMock.replay(mockAgentAPI);
@@ -397,7 +400,7 @@ public class QueuedAgentServiceTest {
 
     injectServiceToResubmissionTask(task);
 
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData))
+    EasyMock.expect(mockAgentAPI.postPushData(newAgentId, workUnitId, now, format, pretendPushData))
         .andReturn(Response.ok().build()).once();
 
     EasyMock.replay(mockAgentAPI);
@@ -432,7 +435,7 @@ public class QueuedAgentServiceTest {
 
     injectServiceToResubmissionTask(task);
 
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData))
+    EasyMock.expect(mockAgentAPI.postPushData(newAgentId, workUnitId, now, format, pretendPushData))
         .andReturn(Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
 
     EasyMock.replay(mockAgentAPI);
@@ -474,7 +477,7 @@ public class QueuedAgentServiceTest {
 
     injectServiceToResubmissionTask(task);
 
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData))
+    EasyMock.expect(mockAgentAPI.postPushData(newAgentId, workUnitId, now, format, pretendPushData))
         .andReturn(Response.status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
 
     EasyMock.replay(mockAgentAPI);

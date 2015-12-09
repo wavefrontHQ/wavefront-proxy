@@ -385,8 +385,8 @@ public abstract class AbstractAgent {
             toReturn.setName("submission worker: " + counter.getAndIncrement());
             return toReturn;
           }
-        }), purgeBuffer
-    );
+        }), purgeBuffer,
+        agentId);
   }
 
   /**

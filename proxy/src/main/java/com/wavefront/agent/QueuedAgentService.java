@@ -67,6 +67,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   private final Gson resubmissionTaskMarshaller;
   private final AgentAPI wrapped;
+  private final UUID agentId;
   private final List<TaskQueue<ResubmissionTask>> taskQueues;
   private boolean lastKnownQueueSizeIsPositive = true;
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
@@ -97,7 +98,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   public QueuedAgentService(AgentAPI service, String bufferFile, int retryThreads,
-                            ScheduledExecutorService executorService, boolean purge) throws IOException {
+                            ScheduledExecutorService executorService, boolean purge, final UUID agentId)
+      throws IOException {
+    this.agentId = agentId;
     if (retryThreads <= 0) {
       logger.warning("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
           "setting retryThreads to a value > 0");
@@ -141,6 +144,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             @Override
             public void injectMembers(ResubmissionTask task) {
               task.service = wrapped;
+              task.currentAgentId = agentId;
             }
           }
       );
@@ -183,6 +187,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                   // this can potentially cause a duplicate task to be injected (but since submission is mostly
                   // idempotent it's not really a big deal)
                   task.service = null;
+                  task.currentAgentId = null;
                   taskQueue.add(task);
                   if (failures > 10) {
                     logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will re-attempt " +
@@ -364,7 +369,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       } catch (RuntimeException ex) {
         List<PostPushDataResultTask> splitTasks = handleTaskRetry(ex, task);
         for (PostPushDataResultTask splitTask : splitTasks) {
-          postPushData(splitTask.getAgentId(), splitTask.getWorkUnitId(), splitTask.getCurrentMillis(),
+          // we need to ensure that we use the latest agent id.
+          postPushData(agentId, splitTask.getWorkUnitId(), splitTask.getCurrentMillis(),
               splitTask.getFormat(), splitTask.getPushData());
         }
         return Response.status(Response.Status.NOT_ACCEPTABLE).build();
@@ -458,7 +464,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
     @Override
     public void execute(Object callback) {
-      parsePostingResponse(service.postWorkUnitResult(agentId, workUnitId, hostId, shellOutputDTO));
+      parsePostingResponse(service.postWorkUnitResult(currentAgentId, workUnitId, hostId, shellOutputDTO));
     }
 
     @Override
@@ -486,7 +492,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
     @Override
     public void execute(Object callback) {
-      parsePostingResponse(service.postPushData(agentId, workUnitId, currentMillis, format, pushData));
+      parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis, format, pushData));
     }
 
     @Override
