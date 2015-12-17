@@ -18,18 +18,15 @@
 DESC="Wavefront Proxy"
 APP_NAME=wavefront-proxy
 USER=wavefront
-DAEMON=$APP_NAME
 
 ##### CUSTOMER OPTIONS ######
-
-# Full path to the proxy program, including the /bin directory. No trailing slash.
-DAEMON_PATH=/opt/$USER/$APP_NAME/bin
-# Full path to the configuration file.
-CONF_FILE=/opt/$USER/$APP_NAME/conf/$USER.conf
+WAVEFRONT_BASE_DIR=/opt/$USER/$APP_NAME
+DAEMON_PATH=$WAVEFRONT_BASE_DIR/bin
+CONF_FILE=$WAVEFRONT_BASE_DIR/conf/$USER.conf
 LOG_FILE=/var/log/$USER.log
 PID_FILE=/var/run/$USER.pid
-
-ABS_DAEMON=$DAEMON_PATH/$DAEMON
+ABS_DAEMON=$WAVEFRONT_BASE_DIR/bin/wavefront-push-agent.jar
+JAVA_PATH=$WAVEFRONT_BASE_DIR/bin/jre/bin/java
 
 case "$1" in
 start)
@@ -42,7 +39,7 @@ start)
 	printf "%-44s" "Starting $APP_NAME..."
 	touch $LOG_FILE
 	chown $USER:$USER $LOG_FILE
-	su - $USER -s /bin/bash -m -c "$ABS_DAEMON -f $CONF_FILE --buffer $DAEMON_PATH/buffer >> $LOG_FILE 2>&1 & echo \$!" > $PID_FILE 2> /dev/null
+	su - $USER -m -c "$JAVA_PATH -jar $ABS_DAEMON -f $CONF_FILE --buffer $WAVEFRONT_BASE_DIR/bin/buffer >> $LOG_FILE 2>&1 & echo \$!" > $PID_FILE 2> /dev/null
 	PID=`cat $PID_FILE`
 	printf "%-6s" $PID
 	if [ -z "$PID" ]; then
