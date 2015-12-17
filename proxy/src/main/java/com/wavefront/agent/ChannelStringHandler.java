@@ -57,14 +57,13 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
                               final String logLevel,
                               final String validationLevel,
                               final long millisecondsPerBatch,
-                              final int pointsPerBatch,
                               final int blockedPointsPerBatch,
                               @Nullable final Function<String, String> transformer,
                               @Nullable final String pointLineWhiteListRegex,
                               @Nullable final String pointLineBlackListRegex) {
     this.decoder = decoder;
     this.pointHandler = new PointHandler(agentAPI, daemonId, port, logLevel, validationLevel,
-        millisecondsPerBatch, pointsPerBatch, blockedPointsPerBatch);
+        millisecondsPerBatch, blockedPointsPerBatch);
 
     this.prefix = prefix;
     this.blockedPointsPerBatch = blockedPointsPerBatch;

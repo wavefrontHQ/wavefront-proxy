@@ -1,15 +1,14 @@
 package com.wavefront.agent;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Clock;
@@ -17,20 +16,17 @@ import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
-
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.URLConnectionEngine;
 import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
+import org.jboss.resteasy.client.jaxrs.internal.proxy.processors.webtarget.QueryParamProcessor;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJacksonProvider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import javax.net.ssl.HttpsURLConnection;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URI;
@@ -46,8 +42,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.net.ssl.HttpsURLConnection;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
@@ -162,6 +156,12 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
   protected String opentsdbBlacklistRegex;
 
+  @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
+  protected boolean splitPushWhenRateLimited = false;
+
+  @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
+  protected double retryBackoffBaseSeconds = 2.0;
+
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
@@ -246,6 +246,10 @@ public abstract class AbstractAgent {
         opentsdbPorts = prop.getProperty("opentsdbPorts", opentsdbPorts);
         opentsdbWhitelistRegex = prop.getProperty("opentsdbWhitelistRegex", opentsdbWhitelistRegex);
         opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
+        splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
+            String.valueOf(splitPushWhenRateLimited)));
+        retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
+            String.valueOf(retryBackoffBaseSeconds)));
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
@@ -260,6 +264,10 @@ public abstract class AbstractAgent {
       if (blacklistRegex == null && graphiteBlacklistRegex != null) {
         blacklistRegex = graphiteBlacklistRegex;
       }
+
+      PostPushDataTimedTask.setPointsPerBatch(pushFlushMaxPoints);
+      QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
+      QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
     }
   }
 
@@ -385,8 +393,7 @@ public abstract class AbstractAgent {
             toReturn.setName("submission worker: " + counter.getAndIncrement());
             return toReturn;
           }
-        }), purgeBuffer,
-        agentId);
+        }), purgeBuffer, agentId, splitPushWhenRateLimited, pushLogLevel);
   }
 
   /**

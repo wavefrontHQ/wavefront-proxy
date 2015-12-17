@@ -41,13 +41,12 @@ public class PointHandler {
                       final String logLevel,
                       final String validationLevel,
                       final long millisecondsPerBatch,
-                      final int pointsPerBatch,
                       final int blockedPointsPerBatch) {
     this.validationLevel = validationLevel;
     this.port = port;
     this.blockedPointsPerBatch = blockedPointsPerBatch;
 
-    this.sendDataTask = new PostPushDataTimedTask(agentAPI, pointsPerBatch, logLevel, daemonId, port);
+    this.sendDataTask = new PostPushDataTimedTask(agentAPI, logLevel, daemonId, port);
 
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
     this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
