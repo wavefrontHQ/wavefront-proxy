@@ -1,34 +1,38 @@
 #!/bin/bash -e -x
 
-if [[ $# -lt 5 ]]; then
-	echo "Usage: $0 <jdk_zip_path> <proxy_jar_path> <fpm_target> <fpm_version> <fpm_iteration> [extra_packr_args...]"
+if [[ $# -lt 4 ]]; then
+	echo "Usage: $0 <jdk_dir_path> <fpm_target> <fpm_version> <fpm_iteration> [extra_packr_args...]"
 	exit 1
 fi
 
 JDK=$1
-JAR=$2
-TARGET=$3
-VERSION=$4
-ITERATION=$5
-shift 5
+JDK=${JDK%/}
 
+TARGET=$2
+VERSION=$3
+ITERATION=$4
+shift 4
+
+cd `dirname $0`
 echo "Cleaning prior build run..."
 rm -rf build
+
+echo "Create build dirs..."
 mkdir build
-
-packr \
-	--platform linux64 \
-	--jdk "$JDK" \
-	--executable wavefront-proxy \
-	--appjar "$JAR" \
-	--mainclass "com/wavefront/agent/PushAgent" \
-	--vmargs "-Xmx4G" \
-	--outdir "build/opt/wavefront/wavefront-proxy/bin" \
-	$@
-
-cp -R opt/* build/opt/
+cp -R opt build/opt
 cp -R etc build/etc
 cp -R usr build/usr
+
+BIN_DIR=build/opt/wavefront/wavefront-proxy/bin
+
+echo "Make the agent jar..."
+cd ..
+mvn package -DskipTests=true
+cd -
+cp ../proxy/target/wavefront-push-agent.jar $BIN_DIR
+
+echo "Stage the JDK..."
+cp -r $JDK $BIN_DIR/jre
 
 if [[ $TARGET == "deb" ]]; then
 	EXTRA_DIRS="usr"
