@@ -1,5 +1,6 @@
 package com.wavefront.api.agent;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 
@@ -14,6 +15,7 @@ import java.util.UUID;
  *
  * @author Clement Pang (clement@sunnylabs.com)
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AgentConfiguration {
 
   public String name;
@@ -23,16 +25,16 @@ public class AgentConfiguration {
   public Long currentTime;
   private List<SshTargetDTO> targets;
   private List<WorkUnit> workUnits;
-  private boolean collectorSetsPointsPerBatch = false;
+  private Boolean collectorSetsPointsPerBatch;
   private Long pointsPerBatch;
-  private boolean collectorSetsRetryBackoff = false;
+  private Boolean collectorSetsRetryBackoff;
   private Double retryBackoffBaseSeconds;
 
-  public boolean isCollectorSetsRetryBackoff() {
+  public Boolean getCollectorSetsRetryBackoff() {
     return collectorSetsRetryBackoff;
   }
 
-  public void setCollectorSetsRetryBackoff(boolean collectorSetsRetryBackoff) {
+  public void setCollectorSetsRetryBackoff(Boolean collectorSetsRetryBackoff) {
     this.collectorSetsRetryBackoff = collectorSetsRetryBackoff;
   }
 
@@ -54,11 +56,11 @@ public class AgentConfiguration {
     return targets;
   }
 
-  public void setCollectorSetsPointsPerBatch(boolean collectorSetsPointsPerBatch) {
+  public void setCollectorSetsPointsPerBatch(Boolean collectorSetsPointsPerBatch) {
     this.collectorSetsPointsPerBatch = collectorSetsPointsPerBatch;
   }
 
-  public boolean isCollectorSetsPointsPerBatch() {
+  public Boolean getCollectorSetsPointsPerBatch() {
     return collectorSetsPointsPerBatch;
   }
 
