@@ -1,29 +1,25 @@
 package com.wavefront.agent;
 
+import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-
-import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
 import com.wavefront.ingester.Ingester;
 import com.wavefront.ingester.OpenTSDBDecoder;
-
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.socket.SocketChannel;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
-
-import javax.annotation.Nullable;
-
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.socket.SocketChannel;
 
 /**
  * Push-only Agent.
@@ -135,26 +131,41 @@ public class PushAgent extends AbstractAgent {
     try {
       agentAPI.agentConfigProcessed(agentId);
       Long pointsPerBatch = config.getPointsPerBatch();
-      if (config.isCollectorSetsPointsPerBatch()) {
+      if (config.getCollectorSetsPointsPerBatch() != null &&
+          config.getCollectorSetsPointsPerBatch()) {
         if (pointsPerBatch != null) {
           // if the collector is in charge and it provided a setting, use it
           QueuedAgentService.setSplitBatchSize(pointsPerBatch.intValue());
           PostPushDataTimedTask.setPointsPerBatch(pointsPerBatch.intValue());
+          if (pushLogLevel.equals("DETAILED")) {
+            logger.info("Agent push batch set to (remotely) " + pointsPerBatch);
+          }
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
         QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
         PostPushDataTimedTask.setPointsPerBatch(pushFlushMaxPoints);
+        if (pushLogLevel.equals("DETAILED")) {
+          logger.info("Agent push batch set to (locally) " + pushFlushMaxPoints);
+        }
       }
 
-      if (config.isCollectorSetsRetryBackoff()) {
+      if (config.getCollectorSetsRetryBackoff() != null &&
+          config.getCollectorSetsRetryBackoff()) {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
           QueuedAgentService.setRetryBackoffBaseSeconds(config.getRetryBackoffBaseSeconds());
+          if (pushLogLevel.equals("DETAILED")) {
+            logger.info("Agent backoff base set to (remotely) " +
+                config.getRetryBackoffBaseSeconds());
+          }
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
         QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
+        if (pushLogLevel.equals("DETAILED")) {
+          logger.info("Agent backoff base set to (locally) " + retryBackoffBaseSeconds);
+        }
       }
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
