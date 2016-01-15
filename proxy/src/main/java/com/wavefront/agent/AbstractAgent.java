@@ -1,14 +1,15 @@
 package com.wavefront.agent;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
+
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Clock;
@@ -16,18 +17,24 @@ import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
+
+import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
-import org.jboss.resteasy.client.jaxrs.engines.URLConnectionEngine;
-import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
-import org.jboss.resteasy.client.jaxrs.internal.proxy.processors.webtarget.QueryParamProcessor;
+import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJacksonProvider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
-import javax.net.ssl.HttpsURLConnection;
-import java.io.*;
-import java.net.HttpURLConnection;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -358,23 +365,15 @@ public abstract class AbstractAgent {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
     factory.registerProvider(ResteasyJacksonProvider.class);
-    URLConnectionEngine httpEngine = new URLConnectionEngine() {
-      @Override
-      protected HttpURLConnection createConnection(ClientInvocation request) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) request.getUri().toURL().openConnection();
-        connection.setRequestMethod(request.getMethod());
-        connection.setConnectTimeout(5000); // 5s
-        connection.setReadTimeout(60000); // 60s
-        if (connection instanceof HttpsURLConnection) {
-          HttpsURLConnection secureConnection = (HttpsURLConnection) connection;
-          secureConnection.setSSLSocketFactory(new com.wavefront.agent.SSLSocketFactoryImpl(
-              secureConnection.getSSLSocketFactory(), 60000));
-        }
-        return connection;
-      }
-    };
+    PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager();
+    connectionManager.setMaxTotal(200);
+    connectionManager.setDefaultMaxPerRoute(100);
+    HttpClient httpClient = new DefaultHttpClient(connectionManager);
+    HttpParams httpParams = httpClient.getParams();
+    HttpConnectionParams.setConnectionTimeout(httpParams, 5000); //5s
+    HttpConnectionParams.setSoTimeout(httpParams, 60000); //60s
     ResteasyClient client = new ResteasyClientBuilder().
-        httpEngine(httpEngine).
+        httpEngine(new ApacheHttpClient4Engine(httpClient)).
         providerFactory(factory).
         build();
     ResteasyWebTarget target = client.target(server);
