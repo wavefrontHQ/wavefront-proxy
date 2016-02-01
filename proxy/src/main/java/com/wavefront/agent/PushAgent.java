@@ -8,9 +8,12 @@ import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
 import com.wavefront.ingester.Ingester;
+import com.wavefront.ingester.StringLineIngester;
+import com.wavefront.ingester.TcpIngester;
+import com.wavefront.ingester.UdpIngester;
 import com.wavefront.ingester.OpenTSDBDecoder;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.socket.SocketChannel;
+import com.wavefront.agent.DataDogAgentHandler;
+import com.wavefront.agent.DogStatsDUDPHandler;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -19,7 +22,15 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
+
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.HttpRequestDecoder;
+import io.netty.handler.codec.http.HttpResponseEncoder;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 
 /**
  * Push-only Agent.
@@ -65,6 +76,22 @@ public class PushAgent extends AbstractAgent {
         }
       }
     }
+    if (datadogAgentPorts != null) {
+      for (final String strPort : datadogAgentPorts.split(",")) {
+        if (strPort.trim().length() > 0) {
+          startDataDogAgentListener(strPort);
+          logger.info("listening on port: " + strPort + " for DataDog agent metrics");
+        }
+      }
+    }
+    if (dogstatsdPorts != null) {
+      for (final String strPort : dogstatsdPorts.split(",")) {
+        if (strPort.trim().length() > 0) {
+          startDogStatsDListener(strPort);
+          logger.info("listening on port: " + strPort + " for DogStatsD metrics");
+        }
+      }
+    }
     if (httpJsonPorts != null) {
       for (String strPort : httpJsonPorts.split(",")) {
         if (strPort.trim().length() > 0) {
@@ -95,7 +122,42 @@ public class PushAgent extends AbstractAgent {
         agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
         pushBlockedSamples, null, opentsdbWhitelistRegex,
         opentsdbBlacklistRegex);
-    new Thread(new Ingester(graphiteHandler, port)).start();
+    new Thread(new StringLineIngester(graphiteHandler, port)).start();
+  }
+
+  protected void startDogStatsDListener(String strPort) {
+    int port = Integer.parseInt(strPort);
+
+    // Set up a custom graphite handler, with no formatter
+    ChannelHandler handler = new DogStatsDUDPHandler(agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples);
+    new Thread(new UdpIngester(handler, port)).start();
+  }
+  
+  protected void startDataDogAgentListener(String strPort) {
+    int port = Integer.parseInt(strPort);
+    // decoders
+    List<Function<Channel, ChannelHandler>> decoders = new ArrayList<>();
+    decoders.add(new Function<Channel, ChannelHandler>() {
+        @Override
+        public ChannelHandler apply(Channel input) {
+          return new HttpRequestDecoder();
+        }
+      });
+    decoders.add(new Function<Channel, ChannelHandler>() {
+        @Override
+        public ChannelHandler apply(Channel input) {
+          return new HttpResponseEncoder();
+        }
+      });
+    decoders.add(new Function<Channel, ChannelHandler>() {
+        @Override
+        public ChannelHandler apply(Channel input) {
+          return new HttpObjectAggregator(1048576);
+        }
+      });
+
+    ChannelHandler handler = new DataDogAgentHandler(agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples);
+    new Thread(new TcpIngester(decoders, handler, port)).start();
   }
 
   protected void startGraphiteListener(String strPort,
@@ -108,16 +170,17 @@ public class PushAgent extends AbstractAgent {
         pushBlockedSamples, formatter, whitelistRegex, blacklistRegex);
 
     if (formatter == null) {
-      List<Function<SocketChannel, ChannelHandler>> handler = Lists.newArrayList(1);
-      handler.add(new Function<SocketChannel, ChannelHandler>() {
+      List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);
+      handler.add(new Function<Channel, ChannelHandler>() {
         @Override
-        public ChannelHandler apply(SocketChannel input) {
-          return new GraphiteHostAnnotator(input.remoteAddress().getHostName());
+        public ChannelHandler apply(Channel input) {
+          SocketChannel ch = (SocketChannel)input;
+          return new GraphiteHostAnnotator(ch.remoteAddress().getHostName());
         }
       });
-      new Thread(new Ingester(handler, graphiteHandler, port)).start();
+      new Thread(new StringLineIngester(handler, graphiteHandler, port)).start();
     } else {
-      new Thread(new Ingester(graphiteHandler, port)).start();
+      new Thread(new StringLineIngester(graphiteHandler, port)).start();
     }
   }
 

@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
  * Adds all graphite strings to a working list, and batches them up on a set schedule (100ms) to be
@@ -72,20 +73,17 @@ public class PointHandler {
       if (!charactersAreValid(point.getMetric())) {
         illegalCharacterPoints.inc();
         String errorMessage = port + ": Point metric has illegal character (" + debugLine + ")";
-        logger.warning(errorMessage);
         throw new RuntimeException(errorMessage);
       }
 
       if (!annotationKeysAreValid(point)) {
         String errorMessage = port + ": Point annotation key has illegal character (" + debugLine + ")";
-        logger.warning(errorMessage);
         throw new RuntimeException(errorMessage);
       }
 
       if (!pointInRange(point)) {
         outOfRangePointTimes.inc();
         String errorMessage = port + ": Point outside of reasonable time frame (" + debugLine + ")";
-        logger.warning(errorMessage);
         throw new RuntimeException(errorMessage);
       }
 
@@ -94,7 +92,8 @@ public class PointHandler {
         switch (validationLevel) {
           case VALIDATION_NUMERIC_ONLY:
             if (!(pointValue instanceof Long) && !(pointValue instanceof Double)) {
-              throw new RuntimeException(port + ": Was not long/double object");
+              String errorMessage = port + ": Was not long/double object (" + debugLine + ")";
+              throw new RuntimeException(errorMessage);
             }
             break;
         }
@@ -105,6 +104,7 @@ public class PointHandler {
       }
 
     } catch (Exception e) {
+      logger.log(Level.WARNING, "Failed to add point", e);
       if (this.sendDataTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
         this.sendDataTask.addBlockedSample(debugLine);
       }

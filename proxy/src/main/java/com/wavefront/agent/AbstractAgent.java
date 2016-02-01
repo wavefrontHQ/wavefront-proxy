@@ -63,6 +63,8 @@ public abstract class AbstractAgent {
   private static final int GRAPHITE_LISTENING_PORT = 2878;
   private static final int OPENTSDB_LISTENING_PORT = 4242;
   private static final int HTTP_JSON_LISTENING_PORT = 3878;
+  private static final int DOGSTATSD_LISTENING_PORT = 8125;
+  private static final int DATADOG_HTTP_LISTENING_PORT = 8126;
 
   @Parameter(names = {"-f", "--file"}, description =
       "Proxy configuration file")
@@ -162,6 +164,14 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
   protected String opentsdbBlacklistRegex;
+
+  @Parameter(names = {"--datadogPorts"}, description = "Comma-separated list of ports to listen on for DataDog agent " +
+      "data. Defaults to: " + DATADOG_HTTP_LISTENING_PORT)
+  protected String datadogAgentPorts = "" + DATADOG_HTTP_LISTENING_PORT;
+
+  @Parameter(names = {"--dogstatsdPorts"}, description = "Comma-separated list of ports to listen on for DataDog DogStatsD " +
+      "data. Defaults to: " + DOGSTATSD_LISTENING_PORT)
+  protected String dogstatsdPorts = "" + DOGSTATSD_LISTENING_PORT;
 
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
