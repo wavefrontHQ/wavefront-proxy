@@ -164,6 +164,7 @@ public class Wavefront implements WavefrontSender {
           if (StringUtils.isBlank(tag.getValue())) {
             throw new IllegalArgumentException("point tag value cannot be blank");
           }
+          writer.write(" ");
           writer.write(sanitize(tag.getKey()));
           writer.write("=");
           writer.write(sanitize(tag.getValue()));
