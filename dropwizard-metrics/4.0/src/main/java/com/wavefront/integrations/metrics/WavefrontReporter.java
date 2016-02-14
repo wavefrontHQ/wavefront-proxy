@@ -269,7 +269,7 @@ public class WavefrontReporter extends ScheduledReporter {
       }
 
       for (Entry<MetricName, Gauge> entry : gauges.entrySet()) {
-        if (entry.getValue() instanceof Number) {
+        if (entry.getValue().getValue() instanceof Number) {
           reportGauge(entry.getKey(), entry.getValue(), timestamp, combineTags(reporterPTags, entry));
         }
       }
