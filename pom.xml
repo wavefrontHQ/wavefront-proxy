@@ -10,6 +10,8 @@
     <module>java-lib</module>
     <module>proxy</module>
     <module>java-client</module>
+    <module>dropwizard-metrics/3.1</module>
+    <module>dropwizard-metrics/4.0</module>
   </modules>
   <packaging>pom</packaging>
 

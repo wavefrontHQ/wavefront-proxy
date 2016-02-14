@@ -16,3 +16,8 @@ hs_err_pid*
 **/target/
 
 proxy/unitTest*
+
+# Eclipse files
+.classpath
+.project
+.settings/
