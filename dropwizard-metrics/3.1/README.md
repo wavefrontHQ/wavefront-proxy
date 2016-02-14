@@ -14,7 +14,7 @@ It is designed to be used with the [stable version 3.1.x of Dropwizard Metrics](
 
 ### Setting up Maven
 
-You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wavefront` libraries as dependencies:
+You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wavefront` libraries as dependencies. Logging depends on `org.slf4j`:
 
 ```Maven
    <dependency>
@@ -27,6 +27,11 @@ You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wave
       <artifactId>dropwizard-metrics-3.1</artifactId>
       <version>3.7</version>
     </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>1.7.16</version>
+    </dependency>       
 ```
 
 Versions `3.1.0` and `3.1.1` of `metrics-core` will also work.

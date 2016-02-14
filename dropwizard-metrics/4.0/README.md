@@ -14,7 +14,7 @@ It is designed to be used with [the 4.0.0-SNAPSHOT of Dropwizard Metrics](https:
 
 ### Setting up Maven
 
-You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wavefront` libraries as dependencies:
+You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wavefront` libraries as dependencies. Logging depends on `org.slf4j`:
 
 ```Maven
    <dependency>
@@ -26,6 +26,11 @@ You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wave
       <groupId>com.wavefront</groupId>
       <artifactId>dropwizard-metrics-4.0</artifactId>
       <version>3.7</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>1.7.16</version>
     </dependency>
 ```
 
@@ -46,15 +51,15 @@ Then for example to create a Reporter which will emit data every 10 seconds for:
 you would do something like this:
 
 ```java
-MetricRegistry registry = new MetricRegistry();   	
-Map<String, String> tag = new HashMap<String,String>();  	
-tag.put("type", "counter");
-MetricName name = new MetricName("requests", tag);
-Counter counter = metrics.counter(metricName);
+MetricRegistry metrics = new MetricRegistry();   	
+Map<String, String> tags = new HashMap<String,String>();  	
+tags.put("type", "counter");
+MetricName name = new MetricName("requests", tags);
+Counter counter = metrics.counter(name);
     			
 // NB If you specify the same tag name at the Metric and Reporter 
 // level the Metric level one will overwrite it
-WavefrontReporter reporter = WavefrontReporter.forRegistry(registry)
+WavefrontReporter reporter = WavefrontReporter.forRegistry(metrics)
         .withSource("app-1.company.com")
         .withPointTag("dc", "dallas")
     	.withPointTag("service", "query")
