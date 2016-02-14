@@ -6,6 +6,7 @@ import com.codahale.metrics.jvm.ClassLoadingGaugeSet;
 import com.codahale.metrics.jvm.FileDescriptorRatioGauge;
 import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
+import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 import com.wavefront.integrations.Wavefront;
 import com.wavefront.integrations.WavefrontSender;
 
@@ -239,6 +240,7 @@ public class WavefrontReporter extends ScheduledReporter {
       registry.register("jvm.buffers", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
       registry.register("jvm.gc", new GarbageCollectorMetricSet());
       registry.register("jvm.memory", new MemoryUsageGaugeSet());
+      registry.register("jvm.thread-states", new ThreadStatesGaugeSet());
     }
   }
 

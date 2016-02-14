@@ -3,6 +3,7 @@ package com.wavefront.integrations.metrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.dropwizard.metrics.jvm.ThreadStatesGaugeSet;
 import com.wavefront.integrations.Wavefront;
 import com.wavefront.integrations.WavefrontSender;
 
@@ -252,6 +253,7 @@ public class WavefrontReporter extends ScheduledReporter {
       registry.register("jvm.buffers", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
       registry.register("jvm.gc", new GarbageCollectorMetricSet());
       registry.register("jvm.memory", new MemoryUsageGaugeSet());
+      registry.register("jvm.thread-states", new ThreadStatesGaugeSet());
     }
   }
 
