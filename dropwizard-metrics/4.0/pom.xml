@@ -9,9 +9,9 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
   
-  <artifactId>metrics-wavefront</artifactId>
-  <version>4.0.0</version>
-  <name>Wavefront Dropwizard Metrics Reporter</name>
+  <artifactId>dropwizard-metrics-4.0</artifactId>
+  <version>3.7-SNAPSHOT</version>
+  <name>Wavefront Dropwizard Metrics 4.0 Reporter</name>
   <description>Report metrics via the Wavefront Proxy</description>
 
   <dependencies>

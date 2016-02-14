@@ -20,12 +20,12 @@ You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wave
    <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
-      <version>https://github.com/dropwizard/metrics</version>
+      <version>4.0.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.wavefront</groupId>
-      <artifactId>metrics-wavefront</artifactId>
-      <version>4.0.0</version>
+      <artifactId>dropwizard-metrics-4.0</artifactId>
+      <version>3.7</version>
     </dependency>
 ```
 

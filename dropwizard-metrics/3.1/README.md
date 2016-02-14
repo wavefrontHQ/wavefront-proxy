@@ -24,8 +24,8 @@ You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wave
     </dependency>
     <dependency>
       <groupId>com.wavefront</groupId>
-      <artifactId>metrics-wavefront</artifactId>
-      <version>3.1.2</version>
+      <artifactId>dropwizard-metrics-3.1</artifactId>
+      <version>3.7</version>
     </dependency>
 ```
 
