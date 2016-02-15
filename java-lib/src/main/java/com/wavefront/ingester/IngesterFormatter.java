@@ -92,7 +92,7 @@ public class IngesterFormatter {
     if (!queue.isEmpty()) {
       throw new RuntimeException("Could not parse: " + input);
     }
-    
+
     String host = null;
     Map<String, String> annotations = point.getAnnotations();
     if (annotations != null) {

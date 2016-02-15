@@ -169,7 +169,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
   protected double retryBackoffBaseSeconds = 2.0;
-  
+
   @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
   protected String customSourceTags = "fqdn";
 
@@ -309,7 +309,7 @@ public abstract class AbstractAgent {
 
       // read build information.
       props = ResourceBundle.getBundle("build");
-      
+
       // create Set of custom tags from the configuration string
       String[] tags = customSourceTags.split(",");
       for (String tag : tags) {
