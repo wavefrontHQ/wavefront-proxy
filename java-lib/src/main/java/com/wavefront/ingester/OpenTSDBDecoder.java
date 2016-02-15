@@ -2,6 +2,7 @@ package com.wavefront.ingester;
 
 import com.google.common.base.Preconditions;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import sunnylabs.report.ReportPoint;
@@ -22,19 +23,24 @@ public class OpenTSDBDecoder implements Decoder {
       .appendTimestamp().whiteSpace()
       .appendValue().whiteSpace()
       .appendAnnotationsConsumer().whiteSpace().build();
+  private LinkedHashSet<String> customSourceTags;
 
-  public OpenTSDBDecoder() {
+  public OpenTSDBDecoder(LinkedHashSet<String> customSourceTags) {
     this.hostName = "unknown";
+    Preconditions.checkNotNull(customSourceTags);
+    this.customSourceTags = customSourceTags;
   }
 
-  public OpenTSDBDecoder(String hostName) {
+  public OpenTSDBDecoder(String hostName, LinkedHashSet<String> customSourceTags) {
     Preconditions.checkNotNull(hostName);
     this.hostName = hostName;
+    Preconditions.checkNotNull(customSourceTags);
+    this.customSourceTags = customSourceTags;
   }
 
   @Override
   public void decodeReportPoints(String msg, List<ReportPoint> out, String customerId) {
-    ReportPoint point = FORMAT.drive(msg, hostName, customerId);
+    ReportPoint point = FORMAT.drive(msg, hostName, customerId, customSourceTags);
     if (out != null) {
       out.add(point);
     }
@@ -42,7 +48,7 @@ public class OpenTSDBDecoder implements Decoder {
 
   @Override
   public void decodeReportPoints(String msg, List<ReportPoint> out) {
-    ReportPoint point = FORMAT.drive(msg, hostName, "dummy");
+    ReportPoint point = FORMAT.drive(msg, hostName, "dummy", customSourceTags);
     if (out != null) {
       out.add(point);
     }

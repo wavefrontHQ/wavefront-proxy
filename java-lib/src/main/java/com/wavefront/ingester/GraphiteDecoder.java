@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -26,19 +27,24 @@ public class GraphiteDecoder implements Decoder {
       .appendOptionalTimestamp().whiteSpace()
       .appendAnnotationsConsumer().whiteSpace().build();
   private final String hostName;
+  private LinkedHashSet<String> customSourceTags;
 
-  public GraphiteDecoder() {
+  public GraphiteDecoder(LinkedHashSet<String> customSourceTags) {
     this.hostName = "unknown";
+    Preconditions.checkNotNull(customSourceTags);
+    this.customSourceTags = customSourceTags;
   }
 
-  public GraphiteDecoder(String hostName) {
+  public GraphiteDecoder(String hostName, LinkedHashSet<String> customSourceTags) {
     Preconditions.checkNotNull(hostName);
     this.hostName = hostName;
+    Preconditions.checkNotNull(customSourceTags);
+    this.customSourceTags = customSourceTags;
   }
 
   @Override
   public void decodeReportPoints(String msg, List<ReportPoint> out, String customerId) {
-    ReportPoint point = FORMAT.drive(msg, hostName, customerId);
+    ReportPoint point = FORMAT.drive(msg, hostName, customerId, customSourceTags);
     if (out != null) {
       out.add(point);
     }

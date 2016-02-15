@@ -17,6 +17,7 @@ import org.antlr.v4.runtime.Recognizer;
 import org.antlr.v4.runtime.Token;
 
 import java.util.ArrayDeque;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -47,7 +48,7 @@ public class IngesterFormatter {
     this.elements = elements;
   }
 
-  public ReportPoint drive(String input, String defaultHostName, String customerId) {
+  public ReportPoint drive(String input, String defaultHostName, String customerId, LinkedHashSet<String> customSourceTags) {
     DSWrapperLexer lexer = new DSWrapperLexer(new ANTLRInputStream(input));
     // note that other errors are not thrown by the lexer and hence we only need to handle the
     // syntaxError case.
@@ -107,7 +108,13 @@ public class IngesterFormatter {
         annotations.put("_tag", annotations.remove("tag"));
       }
       if (host == null) {
-        host = annotations.remove("fqdn");
+        // iterate over the set of custom tags, breaking when one is found
+        for (String tag : customSourceTags) {
+          host = annotations.remove(tag);
+          if (host != null) {
+            break;
+          }
+        }
       }
     }
     if (host == null) {

@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.ResourceBundle;
@@ -168,6 +169,9 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
   protected double retryBackoffBaseSeconds = 2.0;
+  
+  @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
+  protected String customSourceTags = "fqdn";
 
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
@@ -175,6 +179,7 @@ public abstract class AbstractAgent {
   protected QueuedAgentService agentAPI;
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
+  protected LinkedHashSet<String> customSourceTagsSet = new LinkedHashSet<String>();
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -257,6 +262,7 @@ public abstract class AbstractAgent {
             String.valueOf(splitPushWhenRateLimited)));
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
             String.valueOf(retryBackoffBaseSeconds)));
+        customSourceTags = prop.getProperty("customSourceTags", customSourceTags);
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
@@ -303,6 +309,12 @@ public abstract class AbstractAgent {
 
       // read build information.
       props = ResourceBundle.getBundle("build");
+      
+      // create Set of custom tags from the configuration string
+      String[] tags = customSourceTags.split(",");
+      for (String tag : tags) {
+        customSourceTagsSet.add(tag.trim());
+      }
 
       // 3. Setup proxies.
       AgentAPI service = createAgentService();
