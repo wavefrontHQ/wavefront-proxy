@@ -270,6 +270,8 @@ public abstract class AbstractAgent {
         opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
         splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
             String.valueOf(splitPushWhenRateLimited)));
+        datadogAgentPorts = prop.getProperty("datadogPorts", datadogAgentPorts);
+        dogstatsdPorts = prop.getProperty("dogstatsdPorts", dogstatsdPorts);
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
             String.valueOf(retryBackoffBaseSeconds)));
         customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
