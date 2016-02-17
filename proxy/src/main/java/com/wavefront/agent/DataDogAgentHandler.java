@@ -314,23 +314,7 @@ public class DataDogAgentHandler extends SimpleChannelInboundHandler<Object> {
         // ignore everything else and get the "series" array
         final JsonNode metrics = root.findPath("series");
         for (final JsonNode metric : metrics) {
-            // we currently only support: gauge, histogram
-            final JsonNode type = metric.findPath("type");
-            if (!type.asText().equalsIgnoreCase("gauge") &&
-                !type.asText().equalsIgnoreCase("rate")) {
-                LOG.warning(String.format("Ignoring '%s' metric type (%s)", type.asText(), root.toString()));
-                continue;
-            }
             String metricName = metric.findPath("metric").asText();
-
-            // rate types are created from histograms and  seem to end
-            // in "count" which is a little confusing so add ".rate"
-            // to the end to clarify.
-            // NOTE: will need to check that all "rate" types are from the
-            // histogram
-            if (type.asText().equalsIgnoreCase("rate")) {
-                metricName += ".rate";
-            }
 
             // grab the tags
             final Map<String, String> annotations = new HashMap<>();
