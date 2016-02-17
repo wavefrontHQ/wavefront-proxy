@@ -6,7 +6,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.Collections;
 import java.util.List;
 
 import sunnylabs.report.ReportPoint;
@@ -19,7 +19,7 @@ import static org.junit.Assert.fail;
  */
 public class GraphiteDecoderTest {
 
-  private final static LinkedHashSet<String> emptyCustomSourceTags = new LinkedHashSet<String>();
+  private final static List<String> emptyCustomSourceTags = Collections.emptyList();
 
   @Test
   public void testDoubleFormat() throws Exception {
@@ -295,7 +295,7 @@ public class GraphiteDecoderTest {
 
   @Test
   public void testSourcePriority() throws Exception {
-    LinkedHashSet<String> customSourceTags = new LinkedHashSet<String>();
+    List<String> customSourceTags = new ArrayList<String>();
     customSourceTags.add("fqdn");
     GraphiteDecoder decoder = new GraphiteDecoder(customSourceTags);
     List<ReportPoint> out = Lists.newArrayList();
@@ -311,7 +311,7 @@ public class GraphiteDecoderTest {
 
   @Test
   public void testFQDNasSource() throws Exception {
-    LinkedHashSet<String> customSourceTags = new LinkedHashSet<String>();
+    List<String> customSourceTags = new ArrayList<String>();
     customSourceTags.add("fqdn");
     customSourceTags.add("hostname");
     GraphiteDecoder decoder = new GraphiteDecoder(customSourceTags);
@@ -329,7 +329,7 @@ public class GraphiteDecoderTest {
 
   @Test
   public void testUserPrefOverridesDefault() throws Exception {
-    LinkedHashSet<String> customSourceTags = new LinkedHashSet<String>();
+    List<String> customSourceTags = new ArrayList<String>();
     customSourceTags.add("fqdn");
     GraphiteDecoder decoder = new GraphiteDecoder("localhost", customSourceTags);
     List<ReportPoint> out = Lists.newArrayList();
@@ -381,7 +381,7 @@ public class GraphiteDecoderTest {
   @Ignore
   @Test
   public void testBenchmark() throws Exception {
-    LinkedHashSet<String> customSourceTags = new LinkedHashSet<String>();
+    List<String> customSourceTags = new ArrayList<String>();
     customSourceTags.add("fqdn");
     customSourceTags.add("hostname");
     customSourceTags.add("highcardinalitytag1");

@@ -1,6 +1,5 @@
 package com.wavefront.ingester;
 
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -17,7 +16,7 @@ public class GraphiteHostAnnotator extends MessageToMessageDecoder<String> {
   private final Pattern sourceExistencePattern;
   private final String hostName;
 
-  public GraphiteHostAnnotator(String hostName, LinkedHashSet<String> customSourceTags) {
+  public GraphiteHostAnnotator(String hostName, List<String> customSourceTags) {
     this.hostName = hostName;
     StringBuffer pattern = new StringBuffer(".+(");
     for (String tag : customSourceTags) {

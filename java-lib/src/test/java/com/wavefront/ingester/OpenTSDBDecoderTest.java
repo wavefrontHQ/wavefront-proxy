@@ -3,7 +3,6 @@ package com.wavefront.ingester;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 
 import sunnylabs.report.ReportPoint;
@@ -20,7 +19,7 @@ public class OpenTSDBDecoderTest {
 
   @Test
   public void testDoubleFormat() throws Exception {
-    LinkedHashSet<String> customSourceTags = new LinkedHashSet<String>();
+    List<String> customSourceTags = new ArrayList<String>();
     customSourceTags.add("fqdn");
     OpenTSDBDecoder decoder = new OpenTSDBDecoder("localhost", customSourceTags);
     List<ReportPoint> out = new ArrayList<>();

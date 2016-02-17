@@ -4,7 +4,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -17,7 +17,7 @@ import static junit.framework.Assert.assertEquals;
  */
 public class GraphiteHostAnnotatorTest {
 
-  private final static LinkedHashSet<String> emptyCustomSourceTags = new LinkedHashSet<String>();
+  private final static List<String> emptyCustomSourceTags = Collections.emptyList();
 
   @Test
   public void testHostMatches() throws Exception {
@@ -48,7 +48,7 @@ public class GraphiteHostAnnotatorTest {
 
   @Test
   public void testCustomTagMatches() throws Exception {
-    LinkedHashSet<String> customSourceTags = new LinkedHashSet<String>();
+    List<String> customSourceTags = new ArrayList<String>();
     customSourceTags.add("fqdn");
     customSourceTags.add("hostname");
     GraphiteHostAnnotator handler = new GraphiteHostAnnotator("test.host.com", customSourceTags);
@@ -60,7 +60,7 @@ public class GraphiteHostAnnotatorTest {
 
   @Test
   public void testSourceAddedWithCustomTags() throws Exception {
-    LinkedHashSet<String> customSourceTags = new LinkedHashSet<String>();
+    List<String> customSourceTags = new ArrayList<String>();
     customSourceTags.add("fqdn");
     customSourceTags.add("hostname");
     GraphiteHostAnnotator handler = new GraphiteHostAnnotator("test.host.com", customSourceTags);
@@ -73,7 +73,7 @@ public class GraphiteHostAnnotatorTest {
   @Ignore
   @Test
   public void testBenchmark() throws Exception {
-    LinkedHashSet<String> customSourceTags = new LinkedHashSet<String>();
+    List<String> customSourceTags = new ArrayList<String>();
     customSourceTags.add("fqdn");
     customSourceTags.add("hostname");
     customSourceTags.add("highcardinalitytag1");

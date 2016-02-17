@@ -2,7 +2,6 @@ package com.wavefront.ingester;
 
 import com.google.common.base.Preconditions;
 
-import java.util.LinkedHashSet;
 import java.util.List;
 
 import sunnylabs.report.ReportPoint;
@@ -23,15 +22,15 @@ public class OpenTSDBDecoder implements Decoder {
       .appendTimestamp().whiteSpace()
       .appendValue().whiteSpace()
       .appendAnnotationsConsumer().whiteSpace().build();
-  private LinkedHashSet<String> customSourceTags;
+  private List<String> customSourceTags;
 
-  public OpenTSDBDecoder(LinkedHashSet<String> customSourceTags) {
+  public OpenTSDBDecoder(List<String> customSourceTags) {
     this.hostName = "unknown";
     Preconditions.checkNotNull(customSourceTags);
     this.customSourceTags = customSourceTags;
   }
 
-  public OpenTSDBDecoder(String hostName, LinkedHashSet<String> customSourceTags) {
+  public OpenTSDBDecoder(String hostName, List<String> customSourceTags) {
     Preconditions.checkNotNull(hostName);
     this.hostName = hostName;
     Preconditions.checkNotNull(customSourceTags);
