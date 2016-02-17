@@ -91,7 +91,7 @@ public class PushAgent extends AbstractAgent {
     int port = Integer.parseInt(strPort);
 
     // Set up a custom graphite handler, with no formatter
-    ChannelHandler graphiteHandler = new ChannelStringHandler(new OpenTSDBDecoder("unknown"),
+    ChannelHandler graphiteHandler = new ChannelStringHandler(new OpenTSDBDecoder("unknown", customSourceTags),
         agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
         pushBlockedSamples, null, opentsdbWhitelistRegex,
         opentsdbBlacklistRegex);
@@ -103,7 +103,7 @@ public class PushAgent extends AbstractAgent {
     int port = Integer.parseInt(strPort);
 
     // Set up a custom graphite handler, with no formatter
-    ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown"),
+    ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown", customSourceTags),
         agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
         pushBlockedSamples, formatter, whitelistRegex, blacklistRegex);
 
@@ -112,7 +112,7 @@ public class PushAgent extends AbstractAgent {
       handler.add(new Function<SocketChannel, ChannelHandler>() {
         @Override
         public ChannelHandler apply(SocketChannel input) {
-          return new GraphiteHostAnnotator(input.remoteAddress().getHostName());
+          return new GraphiteHostAnnotator(input.remoteAddress().getHostName(), customSourceTags);
         }
       });
       new Thread(new Ingester(handler, graphiteHandler, port)).start();

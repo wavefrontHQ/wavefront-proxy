@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.ResourceBundle;
@@ -169,12 +170,16 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
   protected double retryBackoffBaseSeconds = 2.0;
 
+  @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
+  protected String customSourceTagsProperty = "fqdn";
+
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
   protected QueuedAgentService agentAPI;
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
+  protected List<String> customSourceTags = new ArrayList<String>();
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -257,6 +262,7 @@ public abstract class AbstractAgent {
             String.valueOf(splitPushWhenRateLimited)));
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
             String.valueOf(retryBackoffBaseSeconds)));
+        customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
@@ -303,6 +309,17 @@ public abstract class AbstractAgent {
 
       // read build information.
       props = ResourceBundle.getBundle("build");
+
+      // create List of custom tags from the configuration string
+      String[] tags = customSourceTagsProperty.split(",");
+      for (String tag : tags) {
+        tag = tag.trim();
+        if (!customSourceTags.contains(tag)) {
+          customSourceTags.add(tag);
+        } else {
+          logger.warning("Custom source tag: " + tag + " was repeated. Check the customSourceTags property in wavefront.conf");
+        }
+      }
 
       // 3. Setup proxies.
       AgentAPI service = createAgentService();

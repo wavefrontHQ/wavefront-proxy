@@ -19,7 +19,9 @@ public class OpenTSDBDecoderTest {
 
   @Test
   public void testDoubleFormat() throws Exception {
-    OpenTSDBDecoder decoder = new OpenTSDBDecoder("localhost");
+    List<String> customSourceTags = new ArrayList<String>();
+    customSourceTags.add("fqdn");
+    OpenTSDBDecoder decoder = new OpenTSDBDecoder("localhost", customSourceTags);
     List<ReportPoint> out = new ArrayList<>();
     decoder.decodeReportPoints("put tsdb.vehicle.charge.battery_level 12345.678 93.123e3 host=vehicle_2554", out);
     ReportPoint point = out.get(0);

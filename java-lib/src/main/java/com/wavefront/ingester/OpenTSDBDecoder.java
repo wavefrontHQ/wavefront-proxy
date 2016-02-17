@@ -22,19 +22,24 @@ public class OpenTSDBDecoder implements Decoder {
       .appendTimestamp().whiteSpace()
       .appendValue().whiteSpace()
       .appendAnnotationsConsumer().whiteSpace().build();
+  private List<String> customSourceTags;
 
-  public OpenTSDBDecoder() {
+  public OpenTSDBDecoder(List<String> customSourceTags) {
     this.hostName = "unknown";
+    Preconditions.checkNotNull(customSourceTags);
+    this.customSourceTags = customSourceTags;
   }
 
-  public OpenTSDBDecoder(String hostName) {
+  public OpenTSDBDecoder(String hostName, List<String> customSourceTags) {
     Preconditions.checkNotNull(hostName);
     this.hostName = hostName;
+    Preconditions.checkNotNull(customSourceTags);
+    this.customSourceTags = customSourceTags;
   }
 
   @Override
   public void decodeReportPoints(String msg, List<ReportPoint> out, String customerId) {
-    ReportPoint point = FORMAT.drive(msg, hostName, customerId);
+    ReportPoint point = FORMAT.drive(msg, hostName, customerId, customSourceTags);
     if (out != null) {
       out.add(point);
     }
@@ -42,7 +47,7 @@ public class OpenTSDBDecoder implements Decoder {
 
   @Override
   public void decodeReportPoints(String msg, List<ReportPoint> out) {
-    ReportPoint point = FORMAT.drive(msg, hostName, "dummy");
+    ReportPoint point = FORMAT.drive(msg, hostName, "dummy", customSourceTags);
     if (out != null) {
       out.add(point);
     }

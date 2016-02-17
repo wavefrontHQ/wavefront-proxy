@@ -13,32 +13,29 @@ import io.netty.handler.codec.MessageToMessageDecoder;
  */
 public class GraphiteHostAnnotator extends MessageToMessageDecoder<String> {
 
-  // Host names may have spaces, but the first character must exist and be non-whitespace
-  private static final Pattern HOST_EXISTENCE_PATTERN = Pattern.compile("(.+)(host=[^\\s].+)",
-      Pattern.CASE_INSENSITIVE);
-  private static final Pattern SOURCE_EXISTENCE_PATTERN = Pattern.compile("(.+)(source=[^\\s].+)",
-      Pattern.CASE_INSENSITIVE);
+  private final Pattern sourceExistencePattern;
   private final String hostName;
 
-  public GraphiteHostAnnotator(String hostName) {
+  public GraphiteHostAnnotator(String hostName, List<String> customSourceTags) {
     this.hostName = hostName;
+    StringBuffer pattern = new StringBuffer(".+(");
+    for (String tag : customSourceTags) {
+      pattern.append(tag);
+      pattern.append("|");
+    }
+    pattern.append("source|host)=[^\\s].+");
+    sourceExistencePattern = Pattern.compile(pattern.toString(), Pattern.CASE_INSENSITIVE);
   }
 
   // Decode from a possibly host-annotated graphite string to a definitely host-annotated graphite string.
   @Override
   protected void decode(ChannelHandlerContext ctx, String msg, List<Object> out) throws Exception {
-    Matcher m = HOST_EXISTENCE_PATTERN.matcher(msg);
+    Matcher m = sourceExistencePattern.matcher(msg);
     if (m.matches()) {
-      // Has a host; add without change
+      // Has a source; add without change
       out.add(msg);
     } else {
-      m = SOURCE_EXISTENCE_PATTERN.matcher(msg);
-      if (m.matches()) {
-        out.add(msg);
-      } else {
-        // No host? Add what we got from the socket
-        out.add(msg + " source=" + hostName);
-      }
+      out.add(msg + " source=" + hostName);
     }
   }
 }

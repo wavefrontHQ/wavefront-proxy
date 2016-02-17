@@ -26,19 +26,24 @@ public class GraphiteDecoder implements Decoder {
       .appendOptionalTimestamp().whiteSpace()
       .appendAnnotationsConsumer().whiteSpace().build();
   private final String hostName;
+  private List<String> customSourceTags;
 
-  public GraphiteDecoder() {
+  public GraphiteDecoder(List<String> customSourceTags) {
     this.hostName = "unknown";
+    Preconditions.checkNotNull(customSourceTags);
+    this.customSourceTags = customSourceTags;
   }
 
-  public GraphiteDecoder(String hostName) {
+  public GraphiteDecoder(String hostName, List<String> customSourceTags) {
     Preconditions.checkNotNull(hostName);
     this.hostName = hostName;
+    Preconditions.checkNotNull(customSourceTags);
+    this.customSourceTags = customSourceTags;
   }
 
   @Override
   public void decodeReportPoints(String msg, List<ReportPoint> out, String customerId) {
-    ReportPoint point = FORMAT.drive(msg, hostName, customerId);
+    ReportPoint point = FORMAT.drive(msg, hostName, customerId, customSourceTags);
     if (out != null) {
       out.add(point);
     }
