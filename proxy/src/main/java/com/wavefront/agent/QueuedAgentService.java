@@ -10,6 +10,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.squareup.tape.FileException;
 import com.squareup.tape.FileObjectQueue;
 import com.squareup.tape.TaskInjector;
 import com.squareup.tape.TaskQueue;
@@ -430,10 +431,18 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     TaskQueue<ResubmissionTask> queue = getSmallestQueue();
     if (queue != null) {
       synchronized (queue) {
-        queue.add(taskToRetry);
+        try {
+          queue.add(taskToRetry);
+        } catch (FileException e) {
+          logger.warning(
+              "CRITICAL (Losing points!): " +
+                  "WF-1: Could not open enough file descriptors to send points to " +
+                  "Wavefront. Please raise this user's ulimit, or use more agents " +
+                  "across more nodes for sending this much data.");
+        }
       }
     } else {
-      logger.warning("CRITICAL: No retry queues found. Losing points!");
+      logger.warning("CRITICAL (Losing points!): WF-2: No retry queues found.");
     }
   }
 
