@@ -435,9 +435,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         try {
           queue.add(taskToRetry);
         } catch (FileException e) {
-          logger.warning(
-              "CRITICAL (Losing points!): WF-1: Submission queue is full.\n" +
-                  ExceptionUtils.getFullStackTrace(e));
+          logger.log(Level.WARNING,
+              "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
         }
       }
     } else {
