@@ -24,6 +24,7 @@ import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.MetricsRegistry;
+import org.apache.commons.lang.exception.ExceptionUtils;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
@@ -435,10 +436,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           queue.add(taskToRetry);
         } catch (FileException e) {
           logger.warning(
-              "CRITICAL (Losing points!): " +
-                  "WF-1: Could not open enough file descriptors to send points to " +
-                  "Wavefront. Please raise this user's ulimit, or use more agents " +
-                  "across more nodes for sending this much data.");
+              "CRITICAL (Losing points!): WF-1: Submission queue is full.\n" +
+                  ExceptionUtils.getFullStackTrace(e));
         }
       }
     } else {
