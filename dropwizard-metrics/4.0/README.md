@@ -14,7 +14,20 @@ It is designed to be used with [the 4.0.0-SNAPSHOT of Dropwizard Metrics](https:
 
 ### Setting up Maven
 
-You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wavefront` libraries as dependencies. Logging depends on `org.slf4j`:
+Until DropWizard releases a 4.0.0 version you won't be able to use this directly from Maven Central. Instead you must first build DropWizard, then this project locally. This is pretty straightforward:
+
+```sh
+git clone https://github.com/dropwizard/metrics.git
+git clone https://github.com/wavefrontHQ/java.git
+cd metrics/metrics-core
+mvn install
+cd ../metrics-jvm/
+mvn install
+cd ../../java/dropwizard-metrics/4.0/
+mvn install
+```
+
+Then you will just need both the DropWizard `metrics-core` and the Wavefront `metrics-wavefront` libraries as dependencies in your project. Logging depends on `org.slf4j`:
 
 ```Maven
    <dependency>
@@ -25,7 +38,7 @@ You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wave
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>dropwizard-metrics-4.0</artifactId>
-      <version>3.7</version>
+      <version>3.7-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
