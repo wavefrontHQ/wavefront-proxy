@@ -14,7 +14,7 @@ It is designed to be used with [the 4.0.0-SNAPSHOT of Dropwizard Metrics](https:
 
 ### Setting up Maven
 
-DropWizard has not yet released a 4.0.0 version meaning you can't yet use this directly from Maven Central. Instead you must first build the DropWizard locally, then this project. This is pretty straightforward:
+Until DropWizard releases a 4.0.0 version you won't be able to use this directly from Maven Central. Instead you must first build DropWizard, then this project locally. This is pretty straightforward:
 
 ```sh
 git clone https://github.com/dropwizard/metrics.git
