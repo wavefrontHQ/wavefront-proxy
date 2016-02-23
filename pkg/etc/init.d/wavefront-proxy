@@ -39,7 +39,7 @@ start)
 	printf "%-44s" "Starting $APP_NAME..."
 	touch $LOG_FILE
 	chown $USER:$USER $LOG_FILE
-	su - $USER -m -c "$JAVA_PATH -jar $ABS_DAEMON -f $CONF_FILE --buffer $WAVEFRONT_BASE_DIR/bin/buffer >> $LOG_FILE 2>&1 & echo \$!" > $PID_FILE 2> /dev/null
+	su - $USER -m -c "$JAVA_PATH -XX:+AggressiveHeap -jar $ABS_DAEMON -f $CONF_FILE --buffer $WAVEFRONT_BASE_DIR/bin/buffer >> $LOG_FILE 2>&1 & echo \$!" > $PID_FILE 2> /dev/null
 	PID=`cat $PID_FILE`
 	printf "%-6s" $PID
 	if [ -z "$PID" ]; then

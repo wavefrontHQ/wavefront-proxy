@@ -10,6 +10,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.squareup.tape.FileException;
 import com.squareup.tape.FileObjectQueue;
 import com.squareup.tape.TaskInjector;
 import com.squareup.tape.TaskQueue;
@@ -23,6 +24,7 @@ import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.MetricsRegistry;
+import org.apache.commons.lang.exception.ExceptionUtils;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
@@ -430,10 +432,15 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     TaskQueue<ResubmissionTask> queue = getSmallestQueue();
     if (queue != null) {
       synchronized (queue) {
-        queue.add(taskToRetry);
+        try {
+          queue.add(taskToRetry);
+        } catch (FileException e) {
+          logger.log(Level.WARNING,
+              "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
+        }
       }
     } else {
-      logger.warning("CRITICAL: No retry queues found. Losing points!");
+      logger.warning("CRITICAL (Losing points!): WF-2: No retry queues found.");
     }
   }
 
