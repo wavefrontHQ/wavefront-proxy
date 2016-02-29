@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
@@ -30,6 +31,8 @@ import sunnylabs.report.ReportPoint;
  */
 @ChannelHandler.Sharable
 public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
+  private static final Logger logger =
+    Logger.getLogger(ChannelStringHandler.class.getCanonicalName());
 
   private final Decoder decoder;
   private final List<ReportPoint> validatedPoints = new ArrayList<>();
