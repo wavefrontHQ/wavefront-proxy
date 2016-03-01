@@ -103,6 +103,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
+    logger.finer("Processing message " + msg);
     // ignore empty lines.
     if (msg == null || msg.trim().length() == 0) return;
     if (transformer != null) {
@@ -142,5 +143,14 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
     // ignore.
+  }
+
+  @Override
+  public String toString() {
+    if (decoder == null) {
+      return "Channel String Handler (no decoder)";
+    } else {
+      return "Channel String Handler (" + decoder.toString() + ")";
+    }
   }
 }
