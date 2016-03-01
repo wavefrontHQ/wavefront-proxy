@@ -24,7 +24,7 @@ public class StringLineIngester extends TcpIngester {
   }
 
   public StringLineIngester(ChannelHandler commandHandler, int port) {
-    super(commandHandler, port);
+    super(createDecoderList(null), commandHandler, port);
   }
 
   /**
@@ -34,8 +34,12 @@ public class StringLineIngester extends TcpIngester {
    * @return copy of the provided list with additional decodiers prepended
    */
   private static List<Function<Channel, ChannelHandler>> createDecoderList(final List<Function<Channel, ChannelHandler>> decoders) {
-    final List<Function<Channel, ChannelHandler>> copy =
-      new ArrayList<>(decoders);
+    final List<Function<Channel, ChannelHandler>> copy;
+    if (decoders == null) {
+      copy = new ArrayList<>();
+    } else {
+      copy = new ArrayList<>(decoders);
+    }
     copy.add(0, new Function<Channel, ChannelHandler>() {
         @Override
         public ChannelHandler apply(Channel input) {
