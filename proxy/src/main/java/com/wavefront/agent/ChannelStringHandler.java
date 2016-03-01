@@ -1,7 +1,7 @@
 package com.wavefront.agent;
 
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.ingester.Decoder;
 import com.yammer.metrics.Metrics;
@@ -114,7 +114,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     if (prefix != null) {
       pointLine = prefix + "." + msg;
     }
-    List<ReportPoint> points = Lists.newArrayList();
+    List<ReportPoint> points = Lists.newArrayListWithExpectedSize(1);
     try {
       decoder.decodeReportPoints(pointLine, points, "dummy");
     } catch (Exception e) {

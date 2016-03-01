@@ -13,6 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -71,22 +72,19 @@ public class PointHandler {
 
       if (!charactersAreValid(point.getMetric())) {
         illegalCharacterPoints.inc();
-        String errorMessage = port + ": Point metric has illegal character (" + debugLine + ")";
-        logger.warning(errorMessage);
-        throw new RuntimeException(errorMessage);
+        String errorMessage = "WF-400 " + port + ": Point metric has illegal character (" + debugLine + ")";
+        throw new IllegalArgumentException(errorMessage);
       }
 
       if (!annotationKeysAreValid(point)) {
-        String errorMessage = port + ": Point annotation key has illegal character (" + debugLine + ")";
-        logger.warning(errorMessage);
-        throw new RuntimeException(errorMessage);
+        String errorMessage = "WF-401 " + port + ": Point annotation key has illegal character (" + debugLine + ")";
+        throw new IllegalArgumentException(errorMessage);
       }
 
       if (!pointInRange(point)) {
         outOfRangePointTimes.inc();
-        String errorMessage = port + ": Point outside of reasonable time frame (" + debugLine + ")";
-        logger.warning(errorMessage);
-        throw new RuntimeException(errorMessage);
+        String errorMessage = "WF-402 " + port + ": Point outside of reasonable time frame (" + debugLine + ")";
+        throw new IllegalArgumentException(errorMessage);
       }
 
       if ((validationLevel != null) && (!validationLevel.equals(VALIDATION_NO_VALIDATION))) {
@@ -94,7 +92,8 @@ public class PointHandler {
         switch (validationLevel) {
           case VALIDATION_NUMERIC_ONLY:
             if (!(pointValue instanceof Long) && !(pointValue instanceof Double)) {
-              throw new RuntimeException(port + ": Was not long/double object");
+              String errorMessage = "WF-403 " + port + ": Was not long/double object (" + debugLine + ")";
+              throw new IllegalArgumentException(errorMessage);
             }
             break;
         }
@@ -103,12 +102,14 @@ public class PointHandler {
         // No validation was requested by user; send forward.
         this.sendDataTask.addPoint(pointToString(point));
       }
-
-    } catch (Exception e) {
+    } catch (IllegalArgumentException e) {
+      logger.log(Level.WARNING, e.getMessage());
       if (this.sendDataTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
         this.sendDataTask.addBlockedSample(debugLine);
       }
       this.sendDataTask.incrementBlockedPoints();
+    } catch (Exception ex) {
+      logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point", ex);
     }
   }
 
