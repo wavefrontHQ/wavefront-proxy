@@ -1,27 +1,25 @@
 package com.wavefront.agent;
 
+import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Function;
-
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.ingester.Decoder;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-
-import org.apache.commons.lang.StringUtils;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.regex.Pattern;
-
-import javax.annotation.Nullable;
-
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import org.apache.commons.lang.StringUtils;
 import sunnylabs.report.ReportPoint;
+
+import javax.annotation.Nullable;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * Parses points from a channel using the given decoder and send it off to the AgentAPI interface.
@@ -31,8 +29,9 @@ import sunnylabs.report.ReportPoint;
 @ChannelHandler.Sharable
 public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
+  private static final Logger logger = Logger.getLogger(ChannelStringHandler.class.getCanonicalName());
+
   private final Decoder decoder;
-  private final List<ReportPoint> validatedPoints = new ArrayList<>();
   private final String prefix;
   /**
    * Transformer to transform each line.
@@ -115,16 +114,15 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     if (prefix != null) {
       pointLine = prefix + "." + msg;
     }
-    if (validatedPoints.size() != 0) {
-      validatedPoints.clear();
-    }
+    List<ReportPoint> points = Lists.newArrayList();
     try {
-      decoder.decodeReportPoints(pointLine, validatedPoints, "dummy");
+      decoder.decodeReportPoints(pointLine, points, "dummy");
     } catch (Exception e) {
+      logger.log(Level.WARNING, "Cannot parse input line with decoder: \"" + pointLine + "\"", e);
       handleBlockedPoint(pointLine);
     }
-    if (!validatedPoints.isEmpty()) {
-      ReportPoint point = validatedPoints.get(0);
+    if (!points.isEmpty()) {
+      ReportPoint point = points.get(0);
       pointHandler.reportPoint(point, pointLine);
     }
   }
