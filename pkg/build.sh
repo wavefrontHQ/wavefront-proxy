@@ -27,7 +27,7 @@ BIN_DIR=build/opt/wavefront/wavefront-proxy/bin
 
 echo "Make the agent jar..."
 cd ..
-mvn package -DskipTests=true
+mvn package -pl :proxy -am
 cd -
 cp ../proxy/target/wavefront-push-agent.jar $BIN_DIR
 
