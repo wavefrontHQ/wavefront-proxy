@@ -1,15 +1,13 @@
 package com.wavefront.ingester;
 
 import com.google.common.collect.Lists;
-
 import org.junit.Ignore;
 import org.junit.Test;
+import sunnylabs.report.ReportPoint;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import sunnylabs.report.ReportPoint;
 
 import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -235,6 +233,22 @@ public class GraphiteDecoderTest {
     assertEquals("1vehicle.charge.battery_level", point.getMetric());
     assertEquals(93.0, point.getValue());
     assertEquals(1234567890246L, point.getTimestamp().longValue());
+  }
+
+  @Test
+  public void testQuotedMetric() throws Exception {
+    GraphiteDecoder decoder = new GraphiteDecoder(emptyCustomSourceTags);
+    List<ReportPoint> out = Lists.newArrayList();
+    decoder.decodeReportPoints("\"1vehicle.charge.$()+battery_level\" 93 1234567890.246 host=12345 " +
+        "blah=\"test hello\" \"hello world\"=test", out, "customer");
+    ReportPoint point = out.get(0);
+    assertEquals("customer", point.getTable());
+    assertEquals("1vehicle.charge.$()+battery_level", point.getMetric());
+    assertEquals("12345", point.getHost());
+    assertEquals(93.0, point.getValue());
+    assertEquals(1234567890246L, point.getTimestamp().longValue());
+    assertEquals("test hello", point.getAnnotations().get("blah"));
+    assertEquals("test", point.getAnnotations().get("hello world"));
   }
 
   @Test
