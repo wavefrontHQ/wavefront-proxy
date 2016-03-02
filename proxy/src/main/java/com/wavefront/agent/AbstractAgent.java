@@ -19,10 +19,8 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 
 import org.apache.http.client.HttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.PoolingClientConnectionManager;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
@@ -382,15 +380,19 @@ public abstract class AbstractAgent {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
     factory.registerProvider(ResteasyJacksonProvider.class);
-    PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager();
-    connectionManager.setMaxTotal(200);
-    connectionManager.setDefaultMaxPerRoute(100);
-    HttpClient httpClient = new DefaultHttpClient(connectionManager);
-    HttpParams httpParams = httpClient.getParams();
-    HttpConnectionParams.setConnectionTimeout(httpParams, 5000); //5s
-    HttpConnectionParams.setSoTimeout(httpParams, 60000); //60s
+    HttpClient httpClient = HttpClientBuilder.create().
+        setMaxConnTotal(200).
+        setMaxConnPerRoute(100).
+        setDefaultRequestConfig(
+            RequestConfig.custom().
+                setContentCompressionEnabled(true).
+                setRedirectsEnabled(true).
+                setConnectTimeout(5000).
+                setConnectionRequestTimeout(5000).
+                setSocketTimeout(60000).build()).
+        build();
     ResteasyClient client = new ResteasyClientBuilder().
-        httpEngine(new ApacheHttpClient4Engine(httpClient)).
+        httpEngine(new ApacheHttpClient4Engine(httpClient, true)).
         providerFactory(factory).
         build();
     ResteasyWebTarget target = client.target(server);

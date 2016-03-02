@@ -1,25 +1,29 @@
 package com.wavefront.agent;
 
 import com.google.common.base.Function;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.ingester.Decoder;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import org.apache.commons.lang.StringUtils;
-import sunnylabs.report.ReportPoint;
 
-import javax.annotation.Nullable;
+import org.apache.commons.lang.StringUtils;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+
+import javax.annotation.Nullable;
+
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
+import sunnylabs.report.ReportPoint;
 
 /**
  * Parses points from a channel using the given decoder and send it off to the AgentAPI interface.
@@ -104,7 +108,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     if (transformer != null) {
       msg = transformer.apply(msg);
     }
-    String pointLine = msg;
+    String pointLine = msg.trim();
 
     // apply white/black lists after formatting, but before prefixing
     if (!passesWhiteAndBlackLists(pointLine)) {
@@ -118,8 +122,17 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     try {
       decoder.decodeReportPoints(pointLine, points, "dummy");
     } catch (Exception e) {
-      logger.log(Level.WARNING, "Cannot parse input line with decoder: \"" + pointLine + "\"", e);
-      handleBlockedPoint(pointLine);
+      final Throwable rootCause = Throwables.getRootCause(e);
+      if (rootCause == null || rootCause.getMessage() == null) {
+        final String message = "WF-300 Cannot parse: \"" + pointLine +
+            "\", reason: \"" + e.getMessage() + "\"";
+        handleBlockedPoint(message);
+      } else {
+        final String message = "WF-300 Cannot parse: \"" + pointLine +
+            "\", reason: \"" + e.getMessage() +
+            "\", root cause: \"" + rootCause.getMessage() + "\"";
+        handleBlockedPoint(message);
+      }
     }
     if (!points.isEmpty()) {
       ReportPoint point = points.get(0);

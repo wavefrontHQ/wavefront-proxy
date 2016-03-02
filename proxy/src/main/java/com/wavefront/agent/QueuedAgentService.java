@@ -1,6 +1,5 @@
 package com.wavefront.agent;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -10,6 +9,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
+import com.fasterxml.jackson.databind.JsonNode;
 import com.squareup.tape.FileException;
 import com.squareup.tape.FileObjectQueue;
 import com.squareup.tape.TaskInjector;
@@ -24,20 +25,33 @@ import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.MetricsRegistry;
-import org.apache.commons.lang.exception.ExceptionUtils;
 
-import javax.annotation.Nullable;
-import javax.ws.rs.core.Response;
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+
+import javax.annotation.Nullable;
+import javax.ws.rs.core.Response;
 
 import static com.google.common.collect.ImmutableList.of;
 
@@ -188,8 +202,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                       }
                       break;
                     } else {
-                      logger.warning("[RETRY THREAD " + threadId + "] cannot submit data to Wavefront servers. Will " +
-                          "re-attempt later: " + ex);
+                      logger.log(Level.WARNING,
+                          "[RETRY THREAD " + threadId + "] cannot submit data to Wavefront servers. Will " +
+                              "re-attempt later", ex);
                     }
                   // this can potentially cause a duplicate task to be injected (but since submission is mostly
                   // idempotent it's not really a big deal)
@@ -445,14 +460,18 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   private static void parsePostingResponse(Response response) {
-    if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-      if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
-        throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus());
-      } else if (response.getStatus() == Response.Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode()) {
-        throw new QueuedPushTooLargeException("Request too large: " + response.getStatus());
-      } else {
-        throw new RuntimeException("Server error: " + response.getStatus());
+    try {
+      if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+        if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
+          throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus());
+        } else if (response.getStatus() == Response.Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode()) {
+          throw new QueuedPushTooLargeException("Request too large: " + response.getStatus());
+        } else {
+          throw new RuntimeException("Server error: " + response.getStatus());
+        }
       }
+    } finally {
+      response.close();
     }
   }
 

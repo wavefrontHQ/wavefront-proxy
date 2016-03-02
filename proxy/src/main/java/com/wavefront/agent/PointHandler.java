@@ -1,12 +1,13 @@
 package com.wavefront.agent;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
+
 import org.apache.commons.lang.time.DateUtils;
-import sunnylabs.report.ReportPoint;
 
 import java.util.Map;
 import java.util.UUID;
@@ -15,6 +16,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import sunnylabs.report.ReportPoint;
 
 /**
  * Adds all graphite strings to a working list, and batches them up on a set schedule (100ms) to be
@@ -103,9 +106,8 @@ public class PointHandler {
         this.sendDataTask.addPoint(pointToString(point));
       }
     } catch (IllegalArgumentException e) {
-      logger.log(Level.WARNING, e.getMessage());
       if (this.sendDataTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
-        this.sendDataTask.addBlockedSample(debugLine);
+        this.sendDataTask.addBlockedSample(e.getMessage());
       }
       this.sendDataTask.incrementBlockedPoints();
     } catch (Exception ex) {

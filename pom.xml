@@ -92,7 +92,7 @@
       <dependency>
         <groupId>org.jboss.resteasy</groupId>
         <artifactId>resteasy-bom</artifactId>
-        <version>3.0.11.Final</version>
+        <version>3.0.16.Final</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -115,6 +115,11 @@
         <groupId>com.fasterxml.jackson.module</groupId>
         <artifactId>jackson-module-afterburner</artifactId>
         <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>4.5.2</version>
       </dependency>
       <dependency>
         <groupId>com.yammer.metrics</groupId>

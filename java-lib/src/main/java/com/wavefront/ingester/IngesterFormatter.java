@@ -51,6 +51,7 @@ public class IngesterFormatter {
     DSWrapperLexer lexer = new DSWrapperLexer(new ANTLRInputStream(input));
     // note that other errors are not thrown by the lexer and hence we only need to handle the
     // syntaxError case.
+    lexer.removeErrorListeners();
     lexer.addErrorListener(new BaseErrorListener() {
       @Override
       public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,

@@ -140,8 +140,9 @@ public class PostPushDataTimedTask implements Runnable {
 
       if (current.size() != 0) {
         TimerContext timerContext = this.batchSendTime.time();
+        Response response = null;
         try {
-          Response response = agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
+          response = agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
               System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
               ChannelStringHandler.joinPushData(current));
           int pointsInList = current.size();
@@ -152,12 +153,13 @@ public class PostPushDataTimedTask implements Runnable {
         } finally {
           numApiCalls++;
           timerContext.stop();
+          if (response != null) response.close();
         }
 
         if (points.size() > getQueuedPointLimit()) {
           if (warningMessageRateLimiter.tryAcquire()) {
-            logger.warning("too many pending points (" + points.size() + "), block size: " + pointsPerBatch +
-                ". flushing to retry queue");
+            logger.warning("WF-3 Too many pending points (" + points.size() + "), block size: " +
+                pointsPerBatch + ". flushing to retry queue");
           }
 
           // there are going to be too many points to be able to flush w/o the agent blowing up
@@ -218,16 +220,16 @@ public class PostPushDataTimedTask implements Runnable {
     }
 
     if (logLevel.equals(LOG_DETAILED)) {
-      logger.warning(port + " (DETAILED): Sending " + current.size() + " valid points; " +
+      logger.warning("[" + port + "] (DETAILED): sending " + current.size() + " valid points; " +
               "queue size:" + points.size() + "; total attempted points: " +
               getAttemptedPoints() + "; total blocked: " + this.pointsBlocked.count());
     }
     if (((numIntervals % INTERVALS_PER_SUMMARY) == 0) && (!logLevel.equals(LOG_NONE))) {
-      logger.warning(port + " (SUMMARY): Points attempted:" + getAttemptedPoints() + "; blocked: " +
-              this.pointsBlocked.count());
+      logger.warning("[" + port + "] (SUMMARY): points attempted: " + getAttemptedPoints() +
+          "; blocked: " + this.pointsBlocked.count());
       if (currentBlockedSamples != null) {
         for (String blockedLine : currentBlockedSamples) {
-          logger.warning("Blocked line [" + blockedLine + "]: receiving port: " + port);
+          logger.warning("[" + port + "] blocked input: [" + blockedLine + "]");
         }
       }
     }
