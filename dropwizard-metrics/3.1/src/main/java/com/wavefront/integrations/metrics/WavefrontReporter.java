@@ -1,6 +1,16 @@
 package com.wavefront.integrations.metrics;
 
-import com.codahale.metrics.*;
+import com.codahale.metrics.Clock;
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metered;
+import com.codahale.metrics.MetricFilter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.ScheduledReporter;
+import com.codahale.metrics.Snapshot;
+import com.codahale.metrics.Timer;
 import com.codahale.metrics.jvm.BufferPoolMetricSet;
 import com.codahale.metrics.jvm.ClassLoadingGaugeSet;
 import com.codahale.metrics.jvm.FileDescriptorRatioGauge;
@@ -10,12 +20,11 @@ import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 import com.wavefront.integrations.Wavefront;
 import com.wavefront.integrations.WavefrontSender;
 
-import java.lang.management.ManagementFactory;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
@@ -23,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A reporter which publishes metric values to a Wavefront Proxy.
- *
  */
 public class WavefrontReporter extends ScheduledReporter {
   /**
@@ -38,8 +46,8 @@ public class WavefrontReporter extends ScheduledReporter {
 
   /**
    * A builder for {@link WavefrontReporter} instances. Defaults to not using a prefix, using the
-   * default clock, converting rates to events/second, converting durations to milliseconds,
-   * a host named "unknown", no point Tags, and not filtering any metrics.
+   * default clock, converting rates to events/second, converting durations to milliseconds, a host
+   * named "unknown", no point Tags, and not filtering any metrics.
    */
   public static class Builder {
     private final MetricRegistry registry;
@@ -167,7 +175,7 @@ public class WavefrontReporter extends ScheduledReporter {
     /**
      * Include JVM Metrics from this Reporter.
      *
-     * @return
+     * @return {@code this}
      */
     public Builder withJvmMetrics() {
       this.includeJvmMetrics = true;
@@ -175,24 +183,25 @@ public class WavefrontReporter extends ScheduledReporter {
     }
 
     /**
-     * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the
-     * given {@link WavefrontSender}.
+     * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
+     * {@link WavefrontSender}.
      *
-     * @param Wavefront a {@link WavefrontSender}
+     * @param proxyHostname Wavefront Proxy hostname.
+     * @param proxyPort     Wavefront Proxy port.
      * @return a {@link WavefrontReporter}
      */
     public WavefrontReporter build(String proxyHostname, int proxyPort) {
       return new WavefrontReporter(registry,
-                                   proxyHostname,
-                                   proxyPort,
-                                   clock,
-                                   prefix,
-                                   source,
-                                   pointTags,
-                                   rateUnit,
-                                   durationUnit,
-                                   filter,
-                                   includeJvmMetrics);
+          proxyHostname,
+          proxyPort,
+          clock,
+          prefix,
+          source,
+          pointTags,
+          rateUnit,
+          durationUnit,
+          filter,
+          includeJvmMetrics);
     }
   }
 
@@ -224,17 +233,17 @@ public class WavefrontReporter extends ScheduledReporter {
 
     if (includeJvmMetrics) {
       registry.register("jvm.uptime", new Gauge<Long>() {
-          @Override
-          public Long getValue() {
-            return ManagementFactory.getRuntimeMXBean().getUptime();
-          }
-        });
+        @Override
+        public Long getValue() {
+          return ManagementFactory.getRuntimeMXBean().getUptime();
+        }
+      });
       registry.register("jvm.current_time", new Gauge<Long>() {
-          @Override
-          public Long getValue() {
-            return clock.getTime();
-          }
-        });
+        @Override
+        public Long getValue() {
+          return clock.getTime();
+        }
+      });
       registry.register("jvm.classes", new ClassLoadingGaugeSet());
       registry.register("jvm.fd_usage", new FileDescriptorRatioGauge());
       registry.register("jvm.buffers", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
@@ -310,26 +319,26 @@ public class WavefrontReporter extends ScheduledReporter {
     wavefront.send(prefix(name, "mean"), convertDuration(snapshot.getMean()), timestamp, source, pointTags);
     wavefront.send(prefix(name, "min"), convertDuration(snapshot.getMin()), timestamp, source, pointTags);
     wavefront.send(prefix(name, "stddev"),
-                   convertDuration(snapshot.getStdDev()),
-                   timestamp, source, pointTags);
+        convertDuration(snapshot.getStdDev()),
+        timestamp, source, pointTags);
     wavefront.send(prefix(name, "p50"),
-                   convertDuration(snapshot.getMedian()),
-                   timestamp, source, pointTags);
+        convertDuration(snapshot.getMedian()),
+        timestamp, source, pointTags);
     wavefront.send(prefix(name, "p75"),
-                   convertDuration(snapshot.get75thPercentile()),
-                   timestamp, source, pointTags);
+        convertDuration(snapshot.get75thPercentile()),
+        timestamp, source, pointTags);
     wavefront.send(prefix(name, "p95"),
-                   convertDuration(snapshot.get95thPercentile()),
-                   timestamp, source, pointTags);
+        convertDuration(snapshot.get95thPercentile()),
+        timestamp, source, pointTags);
     wavefront.send(prefix(name, "p98"),
-                   convertDuration(snapshot.get98thPercentile()),
-                   timestamp, source, pointTags);
+        convertDuration(snapshot.get98thPercentile()),
+        timestamp, source, pointTags);
     wavefront.send(prefix(name, "p99"),
-                   convertDuration(snapshot.get99thPercentile()),
-                   timestamp, source, pointTags);
+        convertDuration(snapshot.get99thPercentile()),
+        timestamp, source, pointTags);
     wavefront.send(prefix(name, "p999"),
-                   convertDuration(snapshot.get999thPercentile()),
-                   timestamp, source, pointTags);
+        convertDuration(snapshot.get999thPercentile()),
+        timestamp, source, pointTags);
 
     reportMetered(name, timer, timestamp);
   }
@@ -337,17 +346,17 @@ public class WavefrontReporter extends ScheduledReporter {
   private void reportMetered(String name, Metered meter, long timestamp) throws IOException {
     wavefront.send(prefix(name, "count"), meter.getCount(), timestamp, source, pointTags);
     wavefront.send(prefix(name, "m1_rate"),
-                   convertRate(meter.getOneMinuteRate()),
-                   timestamp, source, pointTags);
+        convertRate(meter.getOneMinuteRate()),
+        timestamp, source, pointTags);
     wavefront.send(prefix(name, "m5_rate"),
-                   convertRate(meter.getFiveMinuteRate()),
-                   timestamp, source, pointTags);
+        convertRate(meter.getFiveMinuteRate()),
+        timestamp, source, pointTags);
     wavefront.send(prefix(name, "m15_rate"),
-                   convertRate(meter.getFifteenMinuteRate()),
-                   timestamp, source, pointTags);
+        convertRate(meter.getFifteenMinuteRate()),
+        timestamp, source, pointTags);
     wavefront.send(prefix(name, "mean_rate"),
-                   convertRate(meter.getMeanRate()),
-                   timestamp, source, pointTags);
+        convertRate(meter.getMeanRate()),
+        timestamp, source, pointTags);
   }
 
   private void reportHistogram(String name, Histogram histogram, long timestamp) throws IOException {
