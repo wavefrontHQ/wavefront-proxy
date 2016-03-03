@@ -38,7 +38,7 @@ Then you will just need both the DropWizard `metrics-core` and the Wavefront `me
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>dropwizard-metrics-4.0</artifactId>
-      <version>3.7-SNAPSHOT</version>
+      <version>3.9-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
