@@ -9,7 +9,6 @@ import com.wavefront.common.Clock;
 
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.BaseErrorListener;
-import org.antlr.v4.runtime.CommonTokenFactory;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.RecognitionException;
@@ -41,25 +40,36 @@ public class IngesterFormatter {
   private static final String DOUBLE_QUOTE_REPLACEMENT = Matcher.quoteReplacement("\"");
   private static final String SINGLE_QUOTE_REPLACEMENT = Matcher.quoteReplacement("'");
 
+  private static final BaseErrorListener THROWING_ERROR_LISTENER = new BaseErrorListener() {
+    @Override
+    public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
+                            int charPositionInLine, String msg, RecognitionException e) {
+      throw new RuntimeException(msg, e);
+    }
+  };
+
   private final List<FormatterElement> elements;
+  private final ThreadLocal<DSWrapperLexer> dsWrapperLexerThreadLocal =
+      new ThreadLocal<DSWrapperLexer>() {
+        @Override
+        protected DSWrapperLexer initialValue() {
+          final DSWrapperLexer lexer = new DSWrapperLexer(new ANTLRInputStream(""));
+          // note that other errors are not thrown by the lexer and hence we only need to handle the
+          // syntaxError case.
+          lexer.removeErrorListeners();
+          lexer.addErrorListener(THROWING_ERROR_LISTENER);
+          return lexer;
+        }
+      };
 
   private IngesterFormatter(List<FormatterElement> elements) {
     this.elements = elements;
   }
 
-  public ReportPoint drive(String input, String defaultHostName, String customerId, List<String> customSourceTags) {
-    DSWrapperLexer lexer = new DSWrapperLexer(new ANTLRInputStream(input));
-    // note that other errors are not thrown by the lexer and hence we only need to handle the
-    // syntaxError case.
-    lexer.removeErrorListeners();
-    lexer.addErrorListener(new BaseErrorListener() {
-      @Override
-      public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
-                              int charPositionInLine, String msg, RecognitionException e) {
-        throw new RuntimeException(msg, e);
-      }
-    });
-    lexer.setTokenFactory(new CommonTokenFactory(true));
+  public ReportPoint drive(String input, String defaultHostName, String customerId,
+                           List<String> customSourceTags) {
+    DSWrapperLexer lexer = dsWrapperLexerThreadLocal.get();
+    lexer.setInputStream(new ANTLRInputStream(input));
     CommonTokenStream commonTokenStream = new CommonTokenStream(lexer);
     commonTokenStream.getText();
     List<Token> tokens = commonTokenStream.getTokens();
@@ -414,10 +424,10 @@ public class IngesterFormatter {
   public static String unquote(String text) {
     if (text.startsWith("\"")) {
       text = DOUBLE_QUOTE_PATTERN.matcher(text.substring(1, text.length() - 1)).
-              replaceAll(DOUBLE_QUOTE_REPLACEMENT);
+          replaceAll(DOUBLE_QUOTE_REPLACEMENT);
     } else if (text.startsWith("'")) {
       text = SINGLE_QUOTE_PATTERN.matcher(text.substring(1, text.length() - 1)).
-              replaceAll(SINGLE_QUOTE_REPLACEMENT);
+          replaceAll(SINGLE_QUOTE_REPLACEMENT);
     }
     return text;
   }
