@@ -85,6 +85,26 @@ public class PushAgent extends AbstractAgent {
         }
       }
     }
+    if (writeHttpJsonPorts != null) {
+      for (String strPort : writeHttpJsonPorts.split(",")) {
+        if (strPort.trim().length() > 0) {
+          try {
+            int port = Integer.parseInt(strPort);
+            // will immediately start the server.
+            JettyHttpContainerFactory.createServer(
+                new URI("http://localhost:" + strPort + "/"),
+                new ResourceConfig(JacksonFeature.class).
+                    register(new WriteHttpJsonMetricsEndpoint(agentAPI, agentId, port, hostname, prefix,
+                        pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples
+                    )),
+                true);
+            logger.info("listening on port: " + strPort + " for Write HTTP JSON metrics");
+          } catch (URISyntaxException e) {
+            throw new RuntimeException("Unable to bind to: " + strPort + " for Write HTTP JSON metrics", e);
+          }
+        }
+      }
+    }
   }
 
   protected void startOpenTsdbListener(String strPort) {
