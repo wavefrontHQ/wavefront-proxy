@@ -1,47 +1,75 @@
-#!/bin/bash -e -x
+#!/bin/bash -e
+
+function die {
+	echo $@
+	exit 1
+}
+
+PROG_DIR=`dirname $0`
+cd $PROG_DIR
+PROG_DIR=`pwd`
+echo "Cleaning prior build run..."
+
+cd ..
+mvn clean
+cd -
+
+rm -rf build
+if ls *.deb  &> /dev/null; then
+	rm *.deb
+fi
+if ls *.rpm  &> /dev/null; then
+	rm *.rpm
+fi
 
 if [[ $# -lt 4 ]]; then
-	echo "Usage: $0 <jdk_dir_path> <fpm_target> <fpm_version> <fpm_iteration> [extra_packr_args...]"
-	exit 1
+	die "Usage: $0 <jdk_dir_path> <fpm_target> <fpm_version> <fpm_iteration>"
 fi
 
 JDK=$1
 JDK=${JDK%/}
-
-TARGET=$2
+FPM_TARGET=$2
 VERSION=$3
 ITERATION=$4
 shift 4
 
-cd `dirname $0`
-echo "Cleaning prior build run..."
-rm -rf build
+WF_DIR=`pwd`/build/opt/wavefront
+PROXY_DIR=$WF_DIR/wavefront-proxy
 
 echo "Create build dirs..."
 mkdir build
-cp -R opt build/opt
-cp -R etc build/etc
-cp -R usr build/usr
-
-BIN_DIR=build/opt/wavefront/wavefront-proxy/bin
-
-echo "Make the agent jar..."
-cd ..
-mvn package -pl :proxy -am
-cd -
-cp ../proxy/target/wavefront-push-agent.jar $BIN_DIR
+cp -r opt build/opt
+cp -r etc build/etc
+cp -r usr build/usr
 
 echo "Stage the JDK..."
-cp -r $JDK $BIN_DIR/jre
+cp -r $JDK $PROXY_DIR/jre
 
-if [[ $TARGET == "deb" ]]; then
+echo "Make jsvc..."
+JSVC_BUILD_DIR="$PROXY_DIR/commons-daemon/src/native/unix"
+cd $JSVC_BUILD_DIR
+support/buildconf.sh
+./configure --with-java=$PROXY_DIR/jre
+make
+cd $PROXY_DIR/bin
+ln -s ../commons-daemon/src/native/unix/jsvc jsvc
+
+echo "Make the agent jar..."
+cd $PROG_DIR/..
+mvn install -pl :java-lib -am
+mvn package -pl :proxy -am
+cd $PROG_DIR
+cp ../proxy/target/wavefront-push-agent.jar $PROXY_DIR/bin
+
+if [[ $FPM_TARGET == "deb" ]]; then
 	EXTRA_DIRS="usr"
 else
 	EXTRA_DIRS=""
 fi
 
 fpm \
-	--after-install postinst \
+	--after-install after-install.sh \
+	--after-remove after-remove.sh \
 	--architecture amd64 \
 	--config-files opt/wavefront/wavefront-proxy/conf/wavefront.conf \
 	--deb-no-default-config-files \
@@ -58,7 +86,9 @@ fpm \
 	--version $VERSION \
 	-C build \
 	-s dir \
-	-t $TARGET \
+	-t $FPM_TARGET \
 	opt etc $EXTRA_DIRS
 
-rpm --delsign *.rpm
+if [[ $FPM_TARGET == "rpm" ]]; then
+	rpm --delsign *.rpm
+fi
