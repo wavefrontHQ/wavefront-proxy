@@ -13,15 +13,15 @@ import java.util.UUID;
  */
 public abstract class ResubmissionTask<T extends ResubmissionTask<T>> implements Task {
 
-  /**
-   * To be injected. Should be null when serialized.
-   */
-  protected AgentAPI service = null;
+    /**
+     * To be injected. Should be null when serialized.
+     */
+    protected AgentAPI service = null;
 
-  /**
-   * To be injected. Should be null when serialized.
-   */
-  protected UUID currentAgentId = null;
+    /**
+     * To be injected. Should be null when serialized.
+     */
+    protected UUID currentAgentId = null;
 
-  public abstract List<T> splitTask();
+    public abstract List<T> splitTask();
 }

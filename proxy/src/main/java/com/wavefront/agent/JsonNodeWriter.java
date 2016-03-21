@@ -21,25 +21,26 @@ import java.lang.reflect.Type;
  */
 public class JsonNodeWriter implements MessageBodyWriter<JsonNode> {
 
-  private final ObjectMapper mapper = new ObjectMapper();
-  private final JsonFactory factory = new JsonFactory();
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final JsonFactory factory = new JsonFactory();
 
-  @Override
-  public boolean isWriteable(Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
-    return JsonNode.class.isAssignableFrom(type);
-  }
+    @Override
+    public boolean isWriteable(Class<?> type, Type genericType, Annotation[] annotations,
+        MediaType mediaType) {
+        return JsonNode.class.isAssignableFrom(type);
+    }
 
-  @Override
-  public long getSize(JsonNode jsonNode, Class<?> type, Type genericType, Annotation[] annotations,
-                      MediaType mediaType) {
-    return -1;
-  }
+    @Override
+    public long getSize(JsonNode jsonNode, Class<?> type, Type genericType,
+        Annotation[] annotations, MediaType mediaType) {
+        return -1;
+    }
 
-  @Override
-  public void writeTo(JsonNode jsonNode, Class<?> type, Type genericType, Annotation[] annotations,
-                      MediaType mediaType, MultivaluedMap<String, Object> httpHeaders,
-                      OutputStream entityStream) throws IOException, WebApplicationException {
-    JsonGenerator generator = factory.createGenerator(entityStream);
-    mapper.writeTree(generator, jsonNode);
-  }
+    @Override
+    public void writeTo(JsonNode jsonNode, Class<?> type, Type genericType,
+        Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, Object> httpHeaders,
+        OutputStream entityStream) throws IOException, WebApplicationException {
+        JsonGenerator generator = factory.createGenerator(entityStream);
+        mapper.writeTree(generator, jsonNode);
+    }
 }
