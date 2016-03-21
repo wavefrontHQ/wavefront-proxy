@@ -11,16 +11,9 @@ import java.util.UUID;
  */
 public interface ForceQueueEnabledAgentAPI extends AgentAPI {
 
-  Response postWorkUnitResult(UUID agentId,
-                              UUID workUnitId,
-                              UUID targetId,
-                              ShellOutputDTO shellOutputDTO,
-                              boolean forceToQueue);
+    Response postWorkUnitResult(UUID agentId, UUID workUnitId, UUID targetId,
+        ShellOutputDTO shellOutputDTO, boolean forceToQueue);
 
-  Response postPushData(UUID agentId,
-                        UUID workUnitId,
-                        Long currentMillis,
-                        String format,
-                        String pushData,
-                        boolean forceToQueue);
+    Response postPushData(UUID agentId, UUID workUnitId, Long currentMillis, String format,
+        String pushData, boolean forceToQueue);
 }
