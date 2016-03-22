@@ -56,9 +56,9 @@ import javax.ws.rs.core.Response;
 import static com.google.common.collect.ImmutableList.of;
 
 /**
- * A wrapper for any AgentAPI that queues up any result posting if the backend is not available. Current data
- * will always be submitted right away (thus prioritizing live data) while background threads will submit
- * backlogged data.
+ * A wrapper for any AgentAPI that queues up any result posting if the backend is not available.
+ * Current data will always be submitted right away (thus prioritizing live data) while background
+ * threads will submit backlogged data.
  *
  * @author Clement Pang (clement@wavefront.com)
  */
@@ -66,7 +66,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   private static final int MAX_SPLIT_BATCH_SIZE = 50000; // same value as default pushFlushMaxPoints
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
-  private static final Logger logger = Logger.getLogger(QueuedAgentService.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(
+      QueuedAgentService.class.getCanonicalName());
 
   private final Gson resubmissionTaskMarshaller;
   private final AgentAPI wrapped;
@@ -75,27 +76,28 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private static double retryBackoffBaseSeconds = 2.0;
   private boolean lastKnownQueueSizeIsPositive = true;
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
-  private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
-      TimeUnit.MINUTES);
+  private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class,
+      "post-result", "results", TimeUnit.MINUTES);
   /**
-   * Biases result sizes to the last 5 minutes heavily. This histogram does not see all result sizes. The executor
-   * only ever processes one posting at any given time and drops the rest. {@link #resultPostingMeter} records the
-   * actual rate (i.e. sees all posting calls).
+   * Biases result sizes to the last 5 minutes heavily. This histogram does not see all result
+   * sizes. The executor only ever processes one posting at any given time and drops the rest.
+   * {@link #resultPostingMeter} records the actual rate (i.e. sees all posting calls).
    */
-  private Histogram resultPostingSizes = metricsRegistry.newHistogram(QueuedAgentService.class, "result-size", true);
+  private Histogram resultPostingSizes = metricsRegistry.newHistogram(QueuedAgentService.class,
+      "result-size", true);
   /**
    * A single threaded bounded work queue to update result posting sizes.
    */
-  private ExecutorService resultPostingSizerExecutorService = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.SECONDS,
-      new ArrayBlockingQueue<Runnable>(1));
+  private ExecutorService resultPostingSizerExecutorService = new ThreadPoolExecutor(1, 1, 60L,
+      TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(1));
 
   /**
    * @return bytes per minute for requests submissions. Null if no data is available yet.
    */
   @Nullable
   public Long getBytesPerMinute() {
-    if (resultPostingMeter.fifteenMinuteRate() == 0 || resultPostingSizes.mean() == 0 || resultPostingSizes.count() <
-        50) {
+    if (resultPostingMeter.fifteenMinuteRate() == 0 || resultPostingSizes.mean() == 0 ||
+        resultPostingSizes.count() < 50) {
       return null;
     }
     return (long) (resultPostingSizes.mean() * resultPostingMeter.fifteenMinuteRate());
@@ -107,11 +109,12 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                             final String logLevel)
       throws IOException {
     if (retryThreads <= 0) {
-      logger.warning("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
-          "setting retryThreads to a value > 0");
+      logger.warning("You have no retry threads set up. Any points that get rejected will be lost" +
+          ".\n Change this by setting retryThreads to a value > 0");
     }
     resubmissionTaskMarshaller = new GsonBuilder().
-        registerTypeHierarchyAdapter(ResubmissionTask.class, new ResubmissionTaskDeserializer()).create();
+        registerTypeHierarchyAdapter(ResubmissionTask.class, new ResubmissionTaskDeserializer())
+        .create();
     this.wrapped = service;
     this.taskQueues = Lists.newArrayListWithExpectedSize(retryThreads);
     for (int i = 0; i < retryThreads; i++) {
@@ -122,15 +125,17 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           logger.warning("Retry buffer has been purged: " + buffer.getAbsolutePath());
         }
       }
-      final TaskQueue<ResubmissionTask> taskQueue = new TaskQueue<>(
-          new FileObjectQueue<>(buffer, new FileObjectQueue.Converter<ResubmissionTask>() {
+      final TaskQueue<ResubmissionTask> taskQueue = new TaskQueue<>(new FileObjectQueue<>(buffer,
+          new FileObjectQueue.Converter<ResubmissionTask>() {
             @Override
             public ResubmissionTask from(byte[] bytes) throws IOException {
               try {
-                Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
+                Reader reader = new InputStreamReader(new GZIPInputStream(
+                    new ByteArrayInputStream(bytes)));
                 return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
               } catch (Throwable t) {
-                logger.warning("Failed to read a single retry submission from buffer, ignoring: " + t);
+                logger.warning("Failed to read a single retry submission from buffer, ignoring: " +
+                    t);
                 return null;
               }
             }
@@ -144,15 +149,13 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
               gzipOutputStream.finish();
               gzipOutputStream.close();
             }
-          }),
-          new TaskInjector<ResubmissionTask>() {
-            @Override
-            public void injectMembers(ResubmissionTask task) {
-              task.service = wrapped;
-              task.currentAgentId = agentId;
-            }
-          }
-      );
+          }), new TaskInjector<ResubmissionTask>() {
+        @Override
+        public void injectMembers(ResubmissionTask task) {
+          task.service = wrapped;
+          task.currentAgentId = agentId;
+        }
+      });
 
       Runnable taskRunnable = new Runnable() {
         private int backoffExponent = 1;
@@ -179,7 +182,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                   //noinspection ThrowableResultOfMethodCallIgnored
                   if (Throwables.getRootCause(ex) instanceof QueuedPushTooLargeException) {
                     // this should split this task, remove it from the queue, and not try more tasks
-                    logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected push (413 response). " +
+                    logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected " +
+                        "push (413 response). " +
                         "Split data and attempt later: " + ex);
                     List<? extends ResubmissionTask> splitTasks = task.splitTask();
                     for (ResubmissionTask smallerTask : splitTasks) {
@@ -190,7 +194,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                     if (Throwables.getRootCause(ex) instanceof RejectedExecutionException) {
                       // this should either split and remove the original task or keep it at front
                       // it also should not try any more tasks
-                      logger.warning("[RETRY THREAD " + threadId + "] Wavefront server quiesced (406 response). Will " +
+                      logger.warning("[RETRY THREAD " + threadId + "] Wavefront server quiesced " +
+                          "(406 response). Will " +
                           "attempt later: " + ex);
                       if (splitPushWhenRateLimited) {
                         List<? extends ResubmissionTask> splitTasks = task.splitTask();
@@ -202,17 +207,19 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                       }
                       break;
                     } else {
-                      logger.log(Level.WARNING,
-                          "[RETRY THREAD " + threadId + "] cannot submit data to Wavefront servers. Will " +
-                              "re-attempt later", ex);
+                      logger.log(Level.WARNING, "[RETRY THREAD " + threadId + "] cannot submit " +
+                          "data to Wavefront servers. Will " +
+                          "re-attempt later", ex);
                     }
-                  // this can potentially cause a duplicate task to be injected (but since submission is mostly
+                  // this can potentially cause a duplicate task to be injected (but since
+                  // submission is mostly
                   // idempotent it's not really a big deal)
                   task.service = null;
                   task.currentAgentId = null;
                   taskQueue.add(task);
                   if (failures > 10) {
-                    logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will re-attempt later");
+                    logger.warning("[RETRY THREAD " + threadId + "] saw too many submission " +
+                        "errors. Will re-attempt later");
                     break;
                   }
                 } finally {
@@ -228,8 +235,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             } else {
               backoffExponent = 1;
             }
-            long next = (long) ((Math.random() + 1.0) *
-                Math.pow(retryBackoffBaseSeconds, backoffExponent));
+            long next = (long) ((Math.random() + 1.0) * Math.pow(retryBackoffBaseSeconds,
+                backoffExponent));
             if (logLevel.equals("DETAILED")) {
               logger.warning("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
                   ", Failed Batches: " + failures);
@@ -240,7 +247,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         }
       };
 
-      executorService.schedule(taskRunnable, (long) (Math.random() * retryThreads), TimeUnit.SECONDS);
+      executorService.schedule(taskRunnable, (long) (Math.random() * retryThreads),
+          TimeUnit.SECONDS);
       taskQueues.add(taskQueue);
     }
 
@@ -254,8 +262,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                 public Integer apply(TaskQueue<ResubmissionTask> input) {
                   return input.size();
                 }
-              }
-          ));
+              }));
           if (Iterables.tryFind(queueSizes, new Predicate<Integer>() {
             @Override
             public boolean apply(Integer input) {
@@ -351,27 +358,28 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   @Override
   public AgentConfiguration getConfig(UUID agentId, String hostname, Long currentMillis,
-                                      Long bytesLeftForbuffer, Long bytesPerMinuteForBuffer, Long currentQueueSize,
-                                      String token, String version) {
+                                      Long bytesLeftForbuffer, Long bytesPerMinuteForBuffer,
+                                      Long currentQueueSize, String token, String version) {
     return wrapped.getConfig(agentId, hostname, currentMillis, bytesLeftForbuffer, bytesPerMinuteForBuffer,
         currentQueueSize, token, version);
   }
 
   @Override
-  public AgentConfiguration checkin(UUID agentId, String hostname, String token, String version, Long currentMillis,
-                                    Boolean localAgent, JsonNode agentMetrics, Boolean pushAgent) {
+  public AgentConfiguration checkin(UUID agentId, String hostname, String token, String version,
+                                    Long currentMillis, Boolean localAgent, JsonNode agentMetrics,
+                                    Boolean pushAgent) {
     return wrapped.checkin(agentId, hostname, token, version, currentMillis, localAgent, agentMetrics, pushAgent);
   }
 
   @Override
-  public Response postWorkUnitResult(final UUID agentId, final UUID workUnitId, final UUID targetId,
-                                     final ShellOutputDTO shellOutputDTO) {
+  public Response postWorkUnitResult(final UUID agentId, final UUID workUnitId, final UUID
+      targetId, final ShellOutputDTO shellOutputDTO) {
     return this.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO, false);
   }
 
   @Override
-  public Response postWorkUnitResult(UUID agentId, UUID workUnitId, UUID targetId, ShellOutputDTO shellOutputDTO,
-                                     boolean forceToQueue) {
+  public Response postWorkUnitResult(UUID agentId, UUID workUnitId, UUID targetId,
+                                     ShellOutputDTO shellOutputDTO, boolean forceToQueue) {
     PostWorkUnitResultTask task = new PostWorkUnitResultTask(agentId, workUnitId, targetId, shellOutputDTO);
 
     if (forceToQueue) {
@@ -381,10 +389,12 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
       try {
         resultPostingMeter.mark();
-        parsePostingResponse(wrapped.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO));
+        parsePostingResponse(
+            wrapped.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO));
         scheduleTaskForSizing(task);
       } catch (RuntimeException ex) {
-        logger.warning("Cannot post work unit result to Wavefront servers. Will enqueue and retry later: " + ex);
+        logger.warning("Cannot post work unit result to Wavefront servers. Will enqueue and retry" +
+            " later: " + ex);
         handleTaskRetry(ex, task);
         return Response.status(Response.Status.NOT_ACCEPTABLE).build();
       }
@@ -393,15 +403,16 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public Response postPushData(final UUID agentId, final UUID workUnitId, final Long currentMillis,
-                               final String format, final String pushData) {
+  public Response postPushData(final UUID agentId, final UUID workUnitId, final Long
+      currentMillis, final String format, final String pushData) {
     return this.postPushData(agentId, workUnitId, currentMillis, format, pushData, false);
   }
 
   @Override
-  public Response postPushData(UUID agentId, UUID workUnitId, Long currentMillis, String format, String pushData,
-                               boolean forceToQueue) {
-    PostPushDataResultTask task = new PostPushDataResultTask(agentId, workUnitId, currentMillis, format, pushData);
+  public Response postPushData(UUID agentId, UUID workUnitId, Long currentMillis, String format,
+                               String pushData, boolean forceToQueue) {
+    PostPushDataResultTask task = new PostPushDataResultTask(agentId, workUnitId, currentMillis,
+        format, pushData);
 
     if (forceToQueue) {
       // bypass the charade of posting to the wrapped agentAPI. Just go straight to the retry queue
@@ -411,7 +422,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
       try {
         resultPostingMeter.mark();
-        parsePostingResponse(wrapped.postPushData(agentId, workUnitId, currentMillis, format, pushData));
+        parsePostingResponse(wrapped.postPushData(agentId, workUnitId, currentMillis, format,
+            pushData));
         scheduleTaskForSizing(task);
       } catch (RuntimeException ex) {
         List<PostPushDataResultTask> splitTasks = handleTaskRetry(ex, task);
@@ -429,7 +441,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   /**
    * @return list of tasks to immediately retry
    */
-  private <T extends ResubmissionTask<T>> List<T> handleTaskRetry(RuntimeException failureException, T taskToRetry) {
+  private <T extends ResubmissionTask<T>> List<T> handleTaskRetry(RuntimeException failureException,
+                                                                  T taskToRetry) {
     if (failureException instanceof QueuedPushTooLargeException) {
       List<T> resubmissionTasks = taskToRetry.splitTask();
       // there are split tasks, so go ahead and return them
@@ -438,7 +451,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         return resubmissionTasks;
       }
     }
-    logger.warning("Cannot post push data result to Wavefront servers. Will enqueue and retry later: " + failureException);
+    logger.warning("Cannot post push data result to Wavefront servers. Will enqueue and retry " +
+        "later: " + failureException);
     addTaskToSmallestQueue(taskToRetry);
     return Collections.emptyList();
   }
@@ -450,8 +464,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         try {
           queue.add(taskToRetry);
         } catch (FileException e) {
-          logger.log(Level.WARNING,
-              "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
+          logger.log(Level.WARNING, "CRITICAL (Losing points!): WF-1: Submission queue is full.",
+              e);
         }
       }
     } else {
@@ -463,8 +477,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     try {
       if (response.getStatus() != Response.Status.OK.getStatusCode()) {
         if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
-          throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus());
-        } else if (response.getStatus() == Response.Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode()) {
+          throw new RejectedExecutionException("Response not accepted by server: " +
+              response.getStatus());
+        } else if (response.getStatus() ==
+            Response.Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode()) {
           throw new QueuedPushTooLargeException("Request too large: " + response.getStatus());
         } else {
           throw new RuntimeException("Server error: " + response.getStatus());
@@ -511,7 +527,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     @VisibleForTesting
     final ShellOutputDTO shellOutputDTO;
 
-    public PostWorkUnitResultTask(UUID agentId, UUID workUnitId, UUID hostId, ShellOutputDTO shellOutputDTO) {
+    public PostWorkUnitResultTask(UUID agentId, UUID workUnitId, UUID hostId,
+                                  ShellOutputDTO shellOutputDTO) {
       this.agentId = agentId;
       this.workUnitId = workUnitId;
       this.hostId = hostId;
@@ -520,7 +537,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
     @Override
     public void execute(Object callback) {
-      parsePostingResponse(service.postWorkUnitResult(currentAgentId, workUnitId, hostId, shellOutputDTO));
+      parsePostingResponse(service.postWorkUnitResult(
+          currentAgentId, workUnitId, hostId, shellOutputDTO));
     }
 
     @Override
@@ -538,7 +556,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     private final String format;
     private final String pushData;
 
-    public PostPushDataResultTask(UUID agentId, UUID workUnitId, Long currentMillis, String format, String pushData) {
+    public PostPushDataResultTask(UUID agentId, UUID workUnitId, Long currentMillis, String format,
+                                  String pushData) {
       this.agentId = agentId;
       this.workUnitId = workUnitId;
       this.currentMillis = currentMillis;
@@ -548,7 +567,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
     @Override
     public void execute(Object callback) {
-      parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis, format, pushData));
+      parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis,
+          format, pushData));
     }
 
     @Override
@@ -567,12 +587,13 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         for (int startingIndex = 0; endingIndex < numDatum; startingIndex += stride) {
           endingIndex = Math.min(numDatum, startingIndex + stride);
           splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
-              ChannelStringHandler.joinPushData(new ArrayList<>(
-                  pushDatum.subList(startingIndex, endingIndex)))));
+              ChannelStringHandler.joinPushData(new ArrayList<>(pushDatum.subList(startingIndex,
+                  endingIndex)))));
         }
       } else {
         // 1 or 0
-        splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format, pushData));
+        splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
+            pushData));
       }
 
       return splitTasks;

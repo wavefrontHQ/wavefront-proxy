@@ -59,7 +59,8 @@ public class PointHandler {
     logger.info("Using " + numTimerThreadsUsed + " timer threads for listener on port: " + port);
     ScheduledExecutorService es = Executors.newScheduledThreadPool(numTimerThreadsUsed);
     for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
-      es.scheduleWithFixedDelay(this.sendDataTask, millisecondsPerBatch, millisecondsPerBatch, TimeUnit.MILLISECONDS);
+      es.scheduleWithFixedDelay(this.sendDataTask, millisecondsPerBatch, millisecondsPerBatch,
+          TimeUnit.MILLISECONDS);
     }
   }
 
@@ -75,18 +76,21 @@ public class PointHandler {
 
       if (!charactersAreValid(point.getMetric())) {
         illegalCharacterPoints.inc();
-        String errorMessage = "WF-400 " + port + ": Point metric has illegal character (" + debugLine + ")";
+        String errorMessage = "WF-400 " + port + ": Point metric has illegal character (" +
+            debugLine + ")";
         throw new IllegalArgumentException(errorMessage);
       }
 
       if (!annotationKeysAreValid(point)) {
-        String errorMessage = "WF-401 " + port + ": Point annotation key has illegal character (" + debugLine + ")";
+        String errorMessage = "WF-401 " + port + ": Point annotation key has illegal character (" +
+            debugLine + ")";
         throw new IllegalArgumentException(errorMessage);
       }
 
       if (!pointInRange(point)) {
         outOfRangePointTimes.inc();
-        String errorMessage = "WF-402 " + port + ": Point outside of reasonable time frame (" + debugLine + ")";
+        String errorMessage = "WF-402 " + port + ": Point outside of reasonable time frame (" +
+            debugLine + ")";
         throw new IllegalArgumentException(errorMessage);
       }
 
@@ -95,7 +99,8 @@ public class PointHandler {
         switch (validationLevel) {
           case VALIDATION_NUMERIC_ONLY:
             if (!(pointValue instanceof Long) && !(pointValue instanceof Double)) {
-              String errorMessage = "WF-403 " + port + ": Was not long/double object (" + debugLine + ")";
+              String errorMessage = "WF-403 " + port + ": Was not long/double object (" +
+                  debugLine + ")";
               throw new IllegalArgumentException(errorMessage);
             }
             break;
@@ -155,7 +160,8 @@ public class PointHandler {
     long rightNow = System.currentTimeMillis();
 
     // within 1 year ago and 1 day ahead
-    return (pointTime > (rightNow - MILLIS_IN_YEAR)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
+    return (pointTime > (rightNow - MILLIS_IN_YEAR)) &&
+        (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
   }
 
   protected String pointToString(ReportPoint point) {

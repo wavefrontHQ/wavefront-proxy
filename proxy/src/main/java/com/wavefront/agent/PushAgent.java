@@ -1,25 +1,29 @@
 package com.wavefront.agent;
 
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+
+import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
 import com.wavefront.ingester.Ingester;
 import com.wavefront.ingester.OpenTSDBDecoder;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.socket.SocketChannel;
+
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+
+import javax.annotation.Nullable;
+
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.socket.SocketChannel;
 
 /**
  * Push-only Agent.
@@ -47,8 +51,10 @@ public class PushAgent extends AbstractAgent {
       startGraphiteListener(strPort, null);
     }
     if (graphitePorts != null) {
-      Preconditions.checkNotNull(graphiteFormat, "graphiteFormat must be supplied to enable graphite support");
-      Preconditions.checkNotNull(graphiteDelimiters, "graphiteDelimiters must be supplied to enable graphite support");
+      Preconditions.checkNotNull(graphiteFormat, "graphiteFormat must be supplied to enable " +
+          "graphite support");
+      Preconditions.checkNotNull(graphiteDelimiters, "graphiteDelimiters must be supplied to " +
+          "enable graphite support");
       for (String strPort : graphitePorts.split(",")) {
         if (strPort.trim().length() > 0) {
           GraphiteFormatter formatter = new GraphiteFormatter(graphiteFormat, graphiteDelimiters);
@@ -71,16 +77,15 @@ public class PushAgent extends AbstractAgent {
           try {
             int port = Integer.parseInt(strPort);
             // will immediately start the server.
-            JettyHttpContainerFactory.createServer(
-                new URI("http://localhost:" + strPort + "/"),
+            JettyHttpContainerFactory.createServer(new URI("http://localhost:" + strPort + "/"),
                 new ResourceConfig(JacksonFeature.class).
                     register(new JsonMetricsEndpoint(agentAPI, agentId, port, hostname, prefix,
-                        pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples
-                    )),
+                        pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples)),
                 true);
             logger.info("listening on port: " + strPort + " for HTTP JSON metrics");
           } catch (URISyntaxException e) {
-            throw new RuntimeException("Unable to bind to: " + strPort + " for HTTP JSON metrics", e);
+            throw new RuntimeException("Unable to bind to: " + strPort + " for HTTP JSON " +
+                "metrics", e);
           }
         }
       }
@@ -91,9 +96,9 @@ public class PushAgent extends AbstractAgent {
     int port = Integer.parseInt(strPort);
 
     // Set up a custom graphite handler, with no formatter
-    ChannelHandler graphiteHandler = new ChannelStringHandler(new OpenTSDBDecoder("unknown", customSourceTags),
-        agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
-        pushBlockedSamples, null, opentsdbWhitelistRegex,
+    ChannelHandler graphiteHandler = new ChannelStringHandler(new OpenTSDBDecoder("unknown",
+        customSourceTags), agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel,
+        pushFlushInterval, pushBlockedSamples, null, opentsdbWhitelistRegex,
         opentsdbBlacklistRegex);
     new Thread(new Ingester(graphiteHandler, port)).start();
   }
@@ -103,9 +108,9 @@ public class PushAgent extends AbstractAgent {
     int port = Integer.parseInt(strPort);
 
     // Set up a custom graphite handler, with no formatter
-    ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown", customSourceTags),
-        agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
-        pushBlockedSamples, formatter, whitelistRegex, blacklistRegex);
+    ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown",
+        customSourceTags), agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel,
+        pushFlushInterval, pushBlockedSamples, formatter, whitelistRegex, blacklistRegex);
 
     if (formatter == null) {
       List<Function<SocketChannel, ChannelHandler>> handler = Lists.newArrayList(1);
@@ -150,8 +155,7 @@ public class PushAgent extends AbstractAgent {
         }
       }
 
-      if (config.getCollectorSetsRetryBackoff() != null &&
-          config.getCollectorSetsRetryBackoff()) {
+      if (config.getCollectorSetsRetryBackoff() != null && config.getCollectorSetsRetryBackoff()) {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
           QueuedAgentService.setRetryBackoffBaseSeconds(config.getRetryBackoffBaseSeconds());

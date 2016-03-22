@@ -63,112 +63,141 @@ public abstract class AbstractAgent {
   private static final int OPENTSDB_LISTENING_PORT = 4242;
   private static final int HTTP_JSON_LISTENING_PORT = 3878;
 
-  @Parameter(names = {"-f", "--file"}, description =
-      "Proxy configuration file")
+  @Parameter(names = {"-f", "--file"}, description = "Proxy configuration file")
   private String pushConfigFile = null;
 
-  @Parameter(names = {"-c", "--config"}, description =
-      "Local configuration file to use (overrides using the server to obtain a config file)")
+  @Parameter(names = {"-c", "--config"},
+      description = "Local configuration file to use (overrides using the server to obtain" +
+          " a config file)")
   private String configFile = null;
 
-  @Parameter(names = {"-p", "--prefix"}, description =
-      "Prefix to prepend to all push metrics before reporting.")
+  @Parameter(names = {"-p", "--prefix"},
+      description = "Prefix to prepend to all push metrics before reporting.")
   protected String prefix = null;
 
-  @Parameter(names = {"-t", "--token"}, description =
-      "Token to auto-register agent with an account")
+  @Parameter(names = {"-t", "--token"},
+      description = "Token to auto-register agent with an account")
   private String token = null;
 
-  @Parameter(names = {"-l", "--loglevel"}, description =
-      "Log level for push data (NONE/SUMMARY/DETAILED); NONE is default")
+  @Parameter(names = {"-l", "--loglevel"},
+      description = "Log level for push data (NONE/SUMMARY/DETAILED); NONE is default")
   protected String pushLogLevel = "NONE";
 
-  @Parameter(names = {"-v", "--validationlevel"}, description =
-      "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY/TEXT_ONLY/ALL); NO_VALIDATION is default")
+  @Parameter(names = {"-v", "--validationlevel"},
+      description = "Validation level for push data " +
+          "(NO_VALIDATION/NUMERIC_ONLY/TEXT_ONLY/ALL); NO_VALIDATION is default")
   protected String pushValidationLevel = "NUMERIC_ONLY";
 
   @Parameter(names = {"-h", "--host"}, description = "Server URL")
   protected String server = "http://localhost:8082/api/";
 
-  @Parameter(names = {"--buffer"}, description = "File to use for buffering failed transmissions to Wavefront servers" +
-      ". Defaults to buffer.")
+  @Parameter(names = {"--buffer"},
+      description = "File to use for buffering failed transmissions to Wavefront servers"
+          + ". Defaults to buffer.")
   private String bufferFile = "buffer";
 
-  @Parameter(names = {"--retryThreads"}, description = "Number of threads retrying failed transmissions. Defaults to " +
-      "the number of processors (min. 4). Buffer files are maxed out at 2G each so increasing the number of retry " +
-      "threads effectively governs the maximum amount of space the agent will use to buffer points locally")
+  @Parameter(names = {"--retryThreads"},
+      description = "Number of threads retrying failed transmissions. Defaults to " +
+          "the number of processors (min. 4). Buffer files are maxed out at 2G each so " +
+          "increasing the number of retry " +
+          "threads effectively governs the maximum amount of space the agent will use to " +
+          "buffer points locally")
   protected int retryThreads = Math.max(4, Runtime.getRuntime().availableProcessors());
 
-  @Parameter(names = {"--purgeBuffer"}, description = "Whether to purge the retry buffer on start-up. Defaults to " +
-      "false.")
+  @Parameter(names = {"--purgeBuffer"},
+      description = "Whether to purge the retry buffer on start-up. Defaults to false.")
   private boolean purgeBuffer = false;
 
-  @Parameter(names = {"--pushFlushInterval"}, description = "Milliseconds between flushes to . Defaults to 1000 ms")
+  @Parameter(names = {"--pushFlushInterval"},
+      description = "Milliseconds between flushes to . Defaults to 1000 ms")
   protected long pushFlushInterval = 1000;
 
-  @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points in a single push flush. Defaults" +
-      " to 50,000")
+  @Parameter(names = {"--pushFlushMaxPoints"},
+      description = "Maximum allowed points in a single push flush. Defaults to 50,000")
   protected int pushFlushMaxPoints = 50000;
 
-  @Parameter(names = {"--pushBlockedSamples"}, description = "Max number of blocked samples to print to log. Defaults" +
-      " to 0.")
+  @Parameter(names = {"--pushBlockedSamples"},
+      description = "Max number of blocked samples to print to log. Defaults to 0.")
   protected int pushBlockedSamples = 0;
 
-  @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
-      "2878.")
+  @Parameter(names = {"--pushListenerPorts"},
+      description = "Comma-separated list of ports to listen on. Defaults to 2878.")
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
 
-  @Parameter(names = {"--graphitePorts"}, description = "Comma-separated list of ports to listen on for graphite " +
-      "data. Defaults to empty list.")
+  @Parameter(names = {"--graphitePorts"},
+      description = "Comma-separated list of ports to listen on for graphite data. " +
+          "Defaults to empty list.")
   protected String graphitePorts = "";
 
-  @Parameter(names = {"--graphiteFormat"}, description = "Comma-separated list of metric segments to extract and " +
-      "reassemble as the hostname (1-based).")
+  @Parameter(names = {"--graphiteFormat"},
+      description = "Comma-separated list of metric segments to extract and " +
+          "reassemble as the hostname (1-based).")
   protected String graphiteFormat = "";
 
-  @Parameter(names = {"--graphiteDelimiters"}, description = "Concatenated delimiters that should be replaced in the " +
-      "extracted hostname with dots. Defaults to underscores (_).")
+  @Parameter(names = {"--graphiteDelimiters"},
+      description = "Concatenated delimiters that should be replaced in the extracted" +
+          " hostname with dots. Defaults to underscores (_).")
   protected String graphiteDelimiters = "_";
 
-  @Parameter(names = {"--httpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics " +
-      "data. Binds, by default, to " + HTTP_JSON_LISTENING_PORT)
+  @Parameter(names = {"--httpJsonPorts"},
+      description = "Comma-separated list of ports to listen on for json metrics " +
+          "data. Binds, by default, to " + HTTP_JSON_LISTENING_PORT)
   protected String httpJsonPorts = "" + HTTP_JSON_LISTENING_PORT;
 
-  @Parameter(names = {"--hostname"}, description = "Hostname for the agent. Defaults to FQDN of machine.")
+  @Parameter(names = {"--hostname"},
+      description = "Hostname for the agent. Defaults to FQDN of machine.")
   protected String hostname;
 
-  @Parameter(names = {"--idFile"}, description = "File to read agent id from. Defaults to ~/.dshell/id")
+  @Parameter(names = {"--idFile"},
+      description = "File to read agent id from. Defaults to ~/.dshell/id")
   protected String idFile = null;
 
-  @Parameter(names = {"--graphiteWhitelistRegex"}, description = "(DEPRECATED for whitelistRegex)", hidden = true)
+  @Parameter(names = {"--graphiteWhitelistRegex"}, description = "(DEPRECATED for whitelistRegex)",
+      hidden = true)
   protected String graphiteWhitelistRegex;
 
-  @Parameter(names = {"--graphiteBlacklistRegex"}, description = "(DEPRECATED for blacklistRegex)", hidden = true)
+  @Parameter(names = {"--graphiteBlacklistRegex"}, description = "(DEPRECATED for blacklistRegex)",
+      hidden = true)
   protected String graphiteBlacklistRegex;
 
-  @Parameter(names = {"--whitelistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must match to be accepted")
+  @Parameter(names = {"--whitelistRegex"},
+      description = "Regex pattern (java.util.regex) that graphite input lines must match " +
+          "to be accepted")
   protected String whitelistRegex;
 
-  @Parameter(names = {"--blacklistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must NOT match to be accepted")
+  @Parameter(names = {"--blacklistRegex"},
+      description = "Regex pattern (java.util.regex) that graphite input lines must NOT " +
+          "match to be accepted")
   protected String blacklistRegex;
 
-  @Parameter(names = {"--opentsdbPorts"}, description = "Comma-separated list of ports to listen on for opentsdb " +
-      "data. Defaults to: " + OPENTSDB_LISTENING_PORT)
+  @Parameter(names = {"--opentsdbPorts"},
+      description = "Comma-separated list of ports to listen on for opentsdb " +
+          "data. Defaults to: " + OPENTSDB_LISTENING_PORT)
   protected String opentsdbPorts = "" + OPENTSDB_LISTENING_PORT;
 
-  @Parameter(names = {"--opentsdbWhitelistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must match to be accepted")
+  @Parameter(names = {"--opentsdbWhitelistRegex"},
+      description = "Regex pattern (java.util.regex) that opentsdb input lines must match " +
+          "to be accepted")
   protected String opentsdbWhitelistRegex;
 
-  @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
+  @Parameter(names = {"--opentsdbBlacklistRegex"},
+      description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT " +
+          "match to be accepted")
   protected String opentsdbBlacklistRegex;
 
-  @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
+  @Parameter(names = {"--splitPushWhenRateLimited"},
+      description = "Whether to split the push batch size when the push is rejected by " +
+          "Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
 
-  @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
+  @Parameter(names = {"--retryBackoffBaseSeconds"},
+      description = "For exponential backoff when retry threads are throttled, the base (a" +
+          " in a^b) in seconds.  Default 2.0")
   protected double retryBackoffBaseSeconds = 2.0;
 
-  @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
+  @Parameter(names = {"--customSourceTags"},
+      description = "Comma separated list of point tag keys that should be treated as the " +
+          "source in Wavefront in the absence of a tag named source or host")
   protected String customSourceTagsProperty = "fqdn";
 
   @Parameter(description = "Unparsed parameters")
@@ -210,14 +239,12 @@ public abstract class AbstractAgent {
     this.localAgent = localAgent;
     try {
       this.hostname = InetAddress.getLocalHost().getCanonicalHostName();
-      Metrics.newGauge(ExpectedAgentMetric.BUFFER_BYTES_LEFT.metricName,
-          new Gauge<Long>() {
-            @Override
-            public Long value() {
-              return bufferSpaceLeft.get();
-            }
-          }
-      );
+      Metrics.newGauge(ExpectedAgentMetric.BUFFER_BYTES_LEFT.metricName, new Gauge<Long>() {
+        @Override
+        public Long value() {
+          return bufferSpaceLeft.get();
+        }
+      });
     } catch (UnknownHostException e) {
       throw Throwables.propagate(e);
     }
@@ -315,7 +342,8 @@ public abstract class AbstractAgent {
         if (!customSourceTags.contains(tag)) {
           customSourceTags.add(tag);
         } else {
-          logger.warning("Custom source tag: " + tag + " was repeated. Check the customSourceTags property in wavefront.conf");
+          logger.warning("Custom source tag: " + tag + " was repeated. Check the customSourceTags" +
+              " property in wavefront.conf");
         }
       }
 
@@ -336,8 +364,7 @@ public abstract class AbstractAgent {
       if (configFile != null) {
         logger.info("Loading configuration file from: " + configFile);
         try {
-          config = GSON.fromJson(new FileReader(configFile),
-              AgentConfiguration.class);
+          config = GSON.fromJson(new FileReader(configFile), AgentConfiguration.class);
         } catch (FileNotFoundException e) {
           throw new RuntimeException("Cannot read config file: " + configFile);
         }
@@ -355,7 +382,8 @@ public abstract class AbstractAgent {
 
         URI url = URI.create(server);
         if (url.getPath().endsWith("/api/")) {
-          String configurationLogMessage = "TO CONFIGURE THIS PROXY AGENT, USE THIS KEY: " + agentId;
+          String configurationLogMessage = "TO CONFIGURE THIS PROXY AGENT, USE THIS KEY: " +
+              agentId;
           logger.warning(Strings.repeat("*", configurationLogMessage.length()));
           logger.warning(configurationLogMessage);
           logger.warning(Strings.repeat("*", configurationLogMessage.length()));
@@ -486,17 +514,20 @@ public abstract class AbstractAgent {
         }
         if (buffer != null) {
           // the amount of space is limited by the number of retryThreads.
-          bufferSpaceLeft.set(Math.min((long) Integer.MAX_VALUE * retryThreads, buffer.getUsableSpace()));
+          bufferSpaceLeft.set(Math.min((long) Integer.MAX_VALUE * retryThreads,
+              buffer.getUsableSpace()));
         }
       } catch (Throwable t) {
         logger.warning("cannot compute remaining space in buffer file partition: " + t);
       }
 
-      JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(), true, true, true);
+      JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
+          true, true, true);
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
           System.currentTimeMillis(), localAgent, agentMetrics, pushAgent);
     } catch (Exception ex) {
-      logger.warning("cannot fetch proxy agent configuration from remote server: " + Throwables.getRootCause(ex));
+      logger.warning("cannot fetch proxy agent configuration from remote server: " +
+          Throwables.getRootCause(ex));
       return null;
     }
     if (newConfig.currentTime != null) {

@@ -40,10 +40,8 @@ public class JsonMetricsEndpoint extends PointHandler {
                              final UUID daemonId,
                              final int port,
                              final String host,
-                             @Nullable
-                             final String prefix,
-                             final String logLevel,
-                             final String validationLevel,
+                             @Nullable final String prefix,
+                             final String logLevel, final String validationLevel,
                              final long millisecondsPerBatch,
                              final int blockedPointsPerBatch) {
     super(agentApi, daemonId, port, logLevel, validationLevel, millisecondsPerBatch,

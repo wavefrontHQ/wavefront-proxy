@@ -14,7 +14,8 @@ public class GraphiteFormatterTest {
 
   @Test
   public void testCollectdGraphiteParsing() {
-    String format = "4,3,2"; // Extract the 4th, 3rd, and 2nd segments of the metric as the hostname, in that order
+    // Extract the 4th, 3rd, and 2nd segments of the metric as the hostname, in that order
+    String format = "4,3,2";
     String delimiter = "_";
 
     // Test input
@@ -64,10 +65,13 @@ public class GraphiteFormatterTest {
     long end = System.nanoTime();
 
     // Report/validate performance
-    logger.error(" Time to parse 1M strings: " + (end - start) + " ns for " + formatter.getOps() + " runs");
+    logger.error(" Time to parse 1M strings: " + (end - start) + " ns for " + formatter.getOps() +
+        " runs");
     long nsPerOps = (end - start) / formatter.getOps();
     logger.error(" ns per op: " + nsPerOps + " and ops/sec " + (1000 * 1000 * 1000 / nsPerOps));
-    Assert.assertTrue(formatter.getOps() >= 1000 * 1000);  // make sure we actually ran it 1M times
-    Assert.assertTrue(nsPerOps < 10 * 1000); // make sure it was less than 10 μs per run; it's around 1 μs on my machine
+    // make sure we actually ran it 1M times
+    Assert.assertTrue(formatter.getOps() >= 1000 * 1000);
+    // make sure it was less than 10 μs per run; it's around 1 μs on my machine
+    Assert.assertTrue(nsPerOps < 10 * 1000);
   }
 }
