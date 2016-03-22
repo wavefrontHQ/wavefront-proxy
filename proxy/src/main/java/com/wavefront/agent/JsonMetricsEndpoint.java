@@ -36,16 +36,9 @@ public class JsonMetricsEndpoint extends PointHandler {
   private final String prefix;
   private final String defaultHost;
 
-  public JsonMetricsEndpoint(final QueuedAgentService agentApi,
-                             final UUID daemonId,
-                             final int port,
-                             final String host,
-                             @Nullable
-                             final String prefix,
-                             final String logLevel,
-                             final String validationLevel,
-                             final long millisecondsPerBatch,
-                             final int blockedPointsPerBatch) {
+  public JsonMetricsEndpoint(final QueuedAgentService agentApi, final UUID daemonId, final int
+      port, final String host, @Nullable final String prefix, final String logLevel, final String
+      validationLevel, final long millisecondsPerBatch, final int blockedPointsPerBatch) {
     super(agentApi, daemonId, port, logLevel, validationLevel, millisecondsPerBatch,
         blockedPointsPerBatch);
     this.prefix = prefix;
@@ -54,11 +47,9 @@ public class JsonMetricsEndpoint extends PointHandler {
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response reportMetrics(@QueryParam("h") String host,
-                                @QueryParam("p") String prefix,
-                                @QueryParam("d") Long timestamp,
-                                @Context UriInfo uriInfo,
-                                JsonNode metrics) {
+  public Response reportMetrics(@QueryParam("h") String host, @QueryParam(
+      "p") String prefix, @QueryParam(
+      "d") Long timestamp, @Context UriInfo uriInfo, JsonNode metrics) {
     MultivaluedMap<String, String> queryParams = uriInfo.getQueryParameters(true);
     Map<String, String> tags = Maps.newHashMap();
     for (Map.Entry<String, List<String>> entry : queryParams.entrySet()) {
