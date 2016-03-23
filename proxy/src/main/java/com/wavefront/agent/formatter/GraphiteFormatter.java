@@ -36,7 +36,8 @@ public class GraphiteFormatter implements Function<String, String> {
       if (field.trim().length() > 0) {
         int iField = Integer.parseInt(field);
         if (iField <= 0) {
-          throw new IllegalArgumentException("Can't define a field of index 0 or less; indices must be 1-based");
+          throw new IllegalArgumentException("Can't define a field of index 0 or less; indices " +
+              "must be 1-based");
         }
         hostIndices.add(iField - 1);
         hostIndexSet.add(iField - 1);

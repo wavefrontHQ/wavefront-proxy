@@ -4,11 +4,12 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sunnylabs.report.ReportPoint;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
+
+import sunnylabs.report.ReportPoint;
 
 /**
  * @author Andrew Kao (andrew@wavefront.com), Jason Bau (jbau@wavefront.com)
@@ -67,8 +68,8 @@ public class PointHandlerTest {
     Map<String, String> badMap = new HashMap<String, String>();
     badMap.put("k:ey", "value");
 
-    ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis(), 10L, "host", "table",
-        goodMap);
+    ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis(), 10L, "host",
+        "table", goodMap);
     Assert.assertTrue(PointHandler.annotationKeysAreValid(rp));
 
     rp.setAnnotations(badMap);
@@ -77,15 +78,15 @@ public class PointHandlerTest {
   }
 
   @Test
-  public void testPointInRangeCorrectForTimeRanges() throws NoSuchMethodException, InvocationTargetException,
-      IllegalAccessException {
+  public void testPointInRangeCorrectForTimeRanges() throws NoSuchMethodException,
+      InvocationTargetException, IllegalAccessException {
 
     long millisPerYear = 31536000000L;
     long millisPerDay = 86400000L;
 
     // not in range if over a year ago
-    ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear, 10L, "host", "table",
-        new HashMap<String, String>());
+    ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear,
+        10L, "host", "table", new HashMap<String, String>());
     Assert.assertFalse(PointHandler.pointInRange(rp));
 
     rp.setTimestamp(System.currentTimeMillis() - millisPerYear - 1);

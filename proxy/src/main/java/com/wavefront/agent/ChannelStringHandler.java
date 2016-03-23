@@ -33,7 +33,8 @@ import sunnylabs.report.ReportPoint;
 @ChannelHandler.Sharable
 public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
-  private static final Logger logger = Logger.getLogger(ChannelStringHandler.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(ChannelStringHandler.class
+      .getCanonicalName());
 
   private final Decoder decoder;
   private final String prefix;
@@ -53,7 +54,8 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
   private int blockedPointsPerBatch;
 
-  public ChannelStringHandler(Decoder decoder, final ForceQueueEnabledAgentAPI agentAPI,
+  public ChannelStringHandler(Decoder decoder,
+                              final ForceQueueEnabledAgentAPI agentAPI,
                               final UUID daemonId,
                               final int port,
                               final String prefix,
@@ -72,14 +74,14 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     this.blockedPointsPerBatch = blockedPointsPerBatch;
     this.transformer = transformer;
 
-    this.pointLineWhiteList = StringUtils.isBlank(pointLineWhiteListRegex) ?
-        null : Pattern.compile(pointLineWhiteListRegex);
+    this.pointLineWhiteList = StringUtils.isBlank(pointLineWhiteListRegex) ? null : Pattern
+        .compile(pointLineWhiteListRegex);
 
-    this.pointLineBlackList = StringUtils.isBlank(pointLineBlackListRegex) ?
-        null : Pattern.compile(pointLineBlackListRegex);
+    this.pointLineBlackList = StringUtils.isBlank(pointLineBlackListRegex) ? null : Pattern
+        .compile(pointLineBlackListRegex);
 
-    this.regexRejects = Metrics.newCounter(
-        new MetricName("validationRegex." + String.valueOf(port), "", "points-rejected"));
+    this.regexRejects = Metrics.newCounter(new MetricName("validationRegex." + String.valueOf
+        (port), "", "points-rejected"));
   }
 
   public static final String PUSH_DATA_DELIMETER = "\n";

@@ -52,7 +52,8 @@ public class SSLSocketFactoryImpl extends SSLSocketFactory {
   }
 
   @Override
-  public Socket createSocket(InetAddress inetAddress, int i, InetAddress inetAddress1, int i1) throws IOException {
+  public Socket createSocket(InetAddress inetAddress, int i, InetAddress inetAddress1, int i1)
+      throws IOException {
     Socket socket = delegate.createSocket(inetAddress, i, inetAddress1, i1);
     socket.setSoTimeout(soTimeout);
     return socket;
