@@ -141,10 +141,11 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   }
 
   private void handleBlockedPoint(String pointLine) {
-    if (pointHandler.sendDataTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
-      pointHandler.sendDataTask.addBlockedSample(pointLine);
+    final PostPushDataTimedTask randomPostTask = pointHandler.getRandomPostTask();
+    if (randomPostTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
+      randomPostTask.addBlockedSample(pointLine);
     }
-    pointHandler.sendDataTask.incrementBlockedPoints();
+    randomPostTask.incrementBlockedPoints();
   }
 
   @Override

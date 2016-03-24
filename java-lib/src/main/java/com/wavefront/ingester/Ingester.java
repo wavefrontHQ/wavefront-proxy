@@ -59,9 +59,9 @@ public class Ingester implements Runnable {
     // Configure the server.
     ServerBootstrap b = new ServerBootstrap();
     try {
-      b.group(new NioEventLoopGroup(), new NioEventLoopGroup())
+      b.group(new NioEventLoopGroup(1), new NioEventLoopGroup())
           .channel(NioServerSocketChannel.class)
-          .option(ChannelOption.SO_BACKLOG, 100)
+          .option(ChannelOption.SO_BACKLOG, 1024)
           .localAddress(listeningPort)
           .childHandler(new ChannelInitializer<SocketChannel>() {
             @Override

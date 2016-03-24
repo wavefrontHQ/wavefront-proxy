@@ -10,6 +10,7 @@ import com.yammer.metrics.core.MetricName;
 import org.apache.commons.lang.time.DateUtils;
 
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,6 +27,7 @@ import sunnylabs.report.ReportPoint;
 public class PointHandler {
 
   private static final Logger logger = Logger.getLogger(PointHandler.class.getCanonicalName());
+  private static final Random random = new Random();
 
   // What types of data should be validated and sent to the cloud?
   public static final String VALIDATION_NO_VALIDATION = "NO_VALIDATION";  // Validate nothing
@@ -37,7 +39,7 @@ public class PointHandler {
   private final int port;
 
   protected final int blockedPointsPerBatch;
-  protected final PostPushDataTimedTask sendDataTask;
+  protected final PostPushDataTimedTask[] sendDataTasks;
 
   public PointHandler(final ForceQueueEnabledAgentAPI agentAPI,
                       final UUID daemonId,
@@ -50,16 +52,19 @@ public class PointHandler {
     this.port = port;
     this.blockedPointsPerBatch = blockedPointsPerBatch;
 
-    this.sendDataTask = new PostPushDataTimedTask(agentAPI, logLevel, daemonId, port);
-
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
     this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
 
     int numTimerThreadsUsed = Runtime.getRuntime().availableProcessors();
+    this.sendDataTasks = new PostPushDataTimedTask[numTimerThreadsUsed];
     logger.info("Using " + numTimerThreadsUsed + " timer threads for listener on port: " + port);
     ScheduledExecutorService es = Executors.newScheduledThreadPool(numTimerThreadsUsed);
-    for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
-      es.scheduleWithFixedDelay(this.sendDataTask, millisecondsPerBatch, millisecondsPerBatch, TimeUnit.MILLISECONDS);
+    for (int i = 0; i < numTimerThreadsUsed; i++) {
+      final PostPushDataTimedTask postPushDataTimedTask =
+          new PostPushDataTimedTask(agentAPI, logLevel, daemonId, port);
+      es.scheduleWithFixedDelay(postPushDataTimedTask, millisecondsPerBatch, millisecondsPerBatch,
+          TimeUnit.MILLISECONDS);
+      this.sendDataTasks[i] = postPushDataTimedTask;
     }
   }
 
@@ -70,6 +75,7 @@ public class PointHandler {
    * @param debugLine Debug information to print to console when the line is rejected.
    */
   public void reportPoint(ReportPoint point, String debugLine) {
+    final PostPushDataTimedTask randomPostTask = getRandomPostTask();
     try {
       Object pointValue = point.getValue();
 
@@ -89,7 +95,6 @@ public class PointHandler {
         String errorMessage = "WF-402 " + port + ": Point outside of reasonable time frame (" + debugLine + ")";
         throw new IllegalArgumentException(errorMessage);
       }
-
       if ((validationLevel != null) && (!validationLevel.equals(VALIDATION_NO_VALIDATION))) {
         // Is it the right type of point?
         switch (validationLevel) {
@@ -100,19 +105,23 @@ public class PointHandler {
             }
             break;
         }
-        this.sendDataTask.addPoint(pointToString(point));
+        randomPostTask.addPoint(pointToString(point));
       } else {
         // No validation was requested by user; send forward.
-        this.sendDataTask.addPoint(pointToString(point));
+        randomPostTask.addPoint(pointToString(point));
       }
     } catch (IllegalArgumentException e) {
-      if (this.sendDataTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
-        this.sendDataTask.addBlockedSample(e.getMessage());
+      if (randomPostTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
+        randomPostTask.addBlockedSample(e.getMessage());
       }
-      this.sendDataTask.incrementBlockedPoints();
+      randomPostTask.incrementBlockedPoints();
     } catch (Exception ex) {
       logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point", ex);
     }
+  }
+
+  public PostPushDataTimedTask getRandomPostTask() {
+    return this.sendDataTasks[random.nextInt(this.sendDataTasks.length)];
   }
 
   private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
