@@ -92,6 +92,12 @@
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
     </dependency>
+    <dependency>
+      <!-- This is for pickle/unpickle support -->
+      <groupId>net.razorvine</groupId>
+      <artifactId>pyrolite</artifactId>
+      <version>4.10</version>
+    </dependency>
   </dependencies>
 
   <build>
