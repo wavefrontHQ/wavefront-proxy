@@ -33,13 +33,19 @@ jsvc_exec()
 {
 	cd $(dirname $AGENT_JAR)
 	$JSVC -user $USER -home $JAVA_HOME -cp $AGENT_JAR -XX:+AggressiveHeap -outfile $LOG_FILE -errfile $ERR_FILE -pidfile $PID_FILE $1 $CLASS $ARGS
+	if [[ $? -eq 0 ]]; then
+		echo "Done."
+	else
+		echo "There was a problem, see $ERR_FILE"
+	fi
 }
 
 case "$1" in
 start)
 	echo "Starting $DESC"
 	jsvc_exec
-	$0 "status"
+	# The launched nanny process will create the PID_FILE shortly.
+	# Instead of blocking on that we silently succeed.
 ;;
 status)
 	if [[ -f "$PID_FILE" ]]; then
@@ -51,15 +57,12 @@ status)
 stop)
 	echo "Stopping $DESC"
 	jsvc_exec "-stop"
-	$0 "status"
 ;;
 restart)
 	if [[ -f "$PID_FILE" ]]; then
 		$0 "stop"
-		$0 "start"
-	else
-		echo "$DESC not running, no action taken."
 	fi
+	$0 "start"
 ;;
 *)
 	echo "Usage: $0 {status | start | stop | restart}"
