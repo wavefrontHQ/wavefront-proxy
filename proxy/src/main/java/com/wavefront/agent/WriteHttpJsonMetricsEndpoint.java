@@ -53,9 +53,10 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandler {
   @Consumes(MediaType.APPLICATION_JSON)
   public Response reportMetrics(@Context UriInfo uriInfo,
                                 JsonNode metrics) {
+    final PostPushDataTimedTask randomPostTask = this.getRandomPostTask();
     if (!metrics.isArray()) {
       logger.warning("metrics is not an array!");
-      this.sendDataTask.incrementBlockedPoints();
+      randomPostTask.incrementBlockedPoints();
       throw new IllegalArgumentException("Metrics must be an array");
     }
 
@@ -79,7 +80,7 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandler {
         }
         JsonNode values = metric.get("values");
         if (values == null) {
-          this.sendDataTask.incrementBlockedPoints();
+          randomPostTask.incrementBlockedPoints();
           logger.warning("Skipping.  Missing values.");
           continue;
         }
@@ -101,7 +102,7 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandler {
           index++;
         }
       } catch (final Exception e) {
-        this.sendDataTask.incrementBlockedPoints();
+        randomPostTask.incrementBlockedPoints();
         logger.log(Level.WARNING, "Failed adding metric", e);
       }
     }
