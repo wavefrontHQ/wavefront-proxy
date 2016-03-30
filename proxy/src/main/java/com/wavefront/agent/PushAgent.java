@@ -9,13 +9,15 @@ import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
 import com.wavefront.ingester.Ingester;
+import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.OpenTSDBDecoder;
-
+import com.wavefront.ingester.PickleProtocolDecoder;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import java.io.IOException;
+import java.nio.ByteOrder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -26,7 +28,9 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
 /**
  * Push-only Agent.
@@ -53,13 +57,14 @@ public class PushAgent extends AbstractAgent {
     for (String strPort : pushListenerPorts.split(",")) {
       startGraphiteListener(strPort, null);
     }
-    if (graphitePorts != null) {
+    GraphiteFormatter graphiteFormatter = null;
+    if (graphitePorts != null || picklePorts != null) {
       Preconditions.checkNotNull(graphiteFormat, "graphiteFormat must be supplied to enable graphite support");
       Preconditions.checkNotNull(graphiteDelimiters, "graphiteDelimiters must be supplied to enable graphite support");
+      graphiteFormatter = new GraphiteFormatter(graphiteFormat, graphiteDelimiters, graphiteFieldsToRemove);
       for (String strPort : graphitePorts.split(",")) {
         if (strPort.trim().length() > 0) {
-          GraphiteFormatter formatter = new GraphiteFormatter(graphiteFormat, graphiteDelimiters);
-          startGraphiteListener(strPort, formatter);
+          startGraphiteListener(strPort, graphiteFormatter);
           logger.info("listening on port: " + strPort + " for graphite metrics");
         }
       }
@@ -69,6 +74,14 @@ public class PushAgent extends AbstractAgent {
         if (strPort.trim().length() > 0) {
           startOpenTsdbListener(strPort);
           logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
+        }
+      }
+    }
+    if (picklePorts != null) {
+      for (String strPort : picklePorts.split(",")) {
+        if (strPort.trim().length() > 0) {
+          startPickleListener(strPort, graphiteFormatter);
+          logger.info("listening on port: " + strPort + " for pickle protocol metrics");
         }
       }
     }
@@ -119,6 +132,31 @@ public class PushAgent extends AbstractAgent {
         port, prefix, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), null, opentsdbWhitelistRegex,
         opentsdbBlacklistRegex);
     new Thread(new Ingester(graphiteHandler, port)).start();
+  }
+
+  protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
+    int port = Integer.parseInt(strPort);
+    
+    // Set up a custom handler
+    ChannelHandler handler = new ChannelByteArrayHandler(new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler()), port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples, getFlushTasks(port), whitelistRegex, blacklistRegex);
+    // create a class to use for StreamIngester to get a new FrameDecoder
+    // for each request (not shareable since it's storing how many bytes
+    // read, etc)
+    // the pickle listener for carbon-relay streams data in its own format:
+    //   [Length of pickled data to follow in a 4 byte unsigned int]
+    //   [pickled data of the given length]
+    //   <repeat ...>
+    // the LengthFieldBasedFrameDecoder() parses out the length and grabs
+    // <length> bytes from the stream and passes that chunk as a byte array
+    // to the decoder.
+    class FrameDecoderFactoryImpl implements StreamIngester.FrameDecoderFactory {
+      @Override
+      public ChannelInboundHandler getDecoder() {
+        return new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false);
+      }
+    }
+
+    new Thread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port)).start();
   }
 
   protected void startGraphiteListener(String strPort,

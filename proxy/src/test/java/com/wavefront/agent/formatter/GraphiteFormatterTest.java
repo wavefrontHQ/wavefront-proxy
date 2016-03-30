@@ -28,7 +28,7 @@ public class GraphiteFormatterTest {
     String expected2 = "collectd.cpu.loadavg.1m 40 1415233342 source=www02.web.bigcorp.com";
 
     // Test basic functionality with correct input
-    GraphiteFormatter formatter = new GraphiteFormatter(format, delimiter);
+    GraphiteFormatter formatter = new GraphiteFormatter(format, delimiter, "");
     String output1 = formatter.apply(testString1);
     Assert.assertEquals(expected1, output1);
     String output2 = formatter.apply(testString2);
@@ -50,7 +50,7 @@ public class GraphiteFormatterTest {
     String badFormat = "4,2,0"; // nuh-uh; we're doing 1-based indexing
     threwException = false;
     try {
-      new GraphiteFormatter(badFormat, delimiter);
+      new GraphiteFormatter(badFormat, delimiter, "");
     } catch (IllegalArgumentException e) {
       threwException = true;
     }
@@ -69,5 +69,55 @@ public class GraphiteFormatterTest {
     logger.error(" ns per op: " + nsPerOps + " and ops/sec " + (1000 * 1000 * 1000 / nsPerOps));
     Assert.assertTrue(formatter.getOps() >= 1000 * 1000);  // make sure we actually ran it 1M times
     Assert.assertTrue(nsPerOps < 10 * 1000); // make sure it was less than 10 μs per run; it's around 1 μs on my machine
+  }
+
+  @Test
+  public void testFieldsToRemove() {
+    String format = "2"; // Extract the 2nd field for host name
+    String delimiter = "_";
+    String remove = "1,3";  // remove the 1st and 3rd fields from metric name
+
+    // Test input
+    String testString1 = "hosts.host1.collectd.cpu.loadavg.1m 40";
+    String testString2 = "hosts.host1.collectd.cpu.loadavg.1m 7 1459527231";
+
+    // Test output
+    String expected1 = "cpu.loadavg.1m 40 source=host1";
+    String expected2 = "cpu.loadavg.1m 7 1459527231 source=host1";
+
+    GraphiteFormatter formatter = new GraphiteFormatter(format, delimiter, remove);
+    Assert.assertEquals(expected1, formatter.apply(testString1));
+    Assert.assertEquals(expected2, formatter.apply(testString2));
+  }
+
+  @Test
+  public void testFieldsToRemoveInvalidFormats() {
+    String format = "2"; // Extract the 2nd field for host name
+    String delimiter = "_";
+
+    // Test input
+    String testString1 = "hosts.host1.collectd.cpu.loadavg.1m 40";
+    String testString2 = "hosts.host1.collectd.cpu.loadavg.1m 7 1459527231";
+
+    // empty string
+    boolean threwException = false;
+    GraphiteFormatter formatter = new GraphiteFormatter(format, delimiter, ",");
+
+    // Test output
+    String expected1 = "hosts.collectd.cpu.loadavg.1m 40 source=host1";
+    String expected2 = "hosts.collectd.cpu.loadavg.1m 7 1459527231 source=host1";
+
+    Assert.assertEquals(expected1, formatter.apply(testString1));
+    Assert.assertEquals(expected2, formatter.apply(testString2));
+
+    // <= 0 number
+    threwException = false;
+    try {
+      formatter = new GraphiteFormatter(format, delimiter, "0");
+    } catch (IllegalArgumentException e) {
+      threwException = true;
+    }
+    Assert.assertTrue("Expected fields to remove value of '0' to fail",
+                      threwException);
   }
 }
