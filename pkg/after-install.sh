@@ -21,10 +21,13 @@ elif [[ -f /etc/redhat-release ]] || [[ -f /etc/system-release-cpe ]]; then
 	chkconfig --level 345 wavefront-proxy on
 fi
 
-# If there is an errant pre-3.8 agent running, we need to kill it.
-if [[ -f /var/run/wavefront.pid ]]; then
-	PID=`cat /var/run/wavefront.pid`
+# If there is an errant pre-3.9 agent running, we need to kill it. This is
+# required for a clean upgrade from pre-3.9 to 3.9+.
+OLD_PID_FILE="/var/run/wavefront.pid"
+if [[ -f $OLD_PID_FILE ]]; then
+	PID=`cat $OLD_PID_FILE`
 	kill -9 $PID || true
+	rm $OLD_PID_FILE
 fi
 
 service wavefront-proxy restart

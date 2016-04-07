@@ -69,6 +69,7 @@ fi
 
 fpm \
 	--after-install after-install.sh \
+	--before-remove before-remove.sh \
 	--after-remove after-remove.sh \
 	--architecture amd64 \
 	--config-files opt/wavefront/wavefront-proxy/conf/wavefront.conf \
