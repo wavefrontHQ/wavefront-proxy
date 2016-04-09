@@ -72,12 +72,12 @@ public class PushAgent extends AbstractAgent {
       }
     }
     if (picklePorts != null) {
-        for (String strPort : picklePorts.split(",")) {
-            if (strPort.trim().length() > 0) {
-                startPickleListener(strPort, graphiteFormatter);
-                logger.info("listening on port: " + strPort + " for pickle protocol metrics");
-            }
+      for (String strPort : picklePorts.split(",")) {
+        if (strPort.trim().length() > 0) {
+          startPickleListener(strPort, graphiteFormatter);
+          logger.info("listening on port: " + strPort + " for pickle protocol metrics");
         }
+      }
     }
     if (httpJsonPorts != null) {
       for (String strPort : httpJsonPorts.split(",")) {
@@ -148,11 +148,13 @@ public class PushAgent extends AbstractAgent {
     // <length> bytes from the stream and passes that chunk as a byte array
     // to the decoder.
     class FrameDecoderFactoryImpl implements StreamIngester.FrameDecoderFactory {
-        @Override
-        public ChannelInboundHandler getDecoder() {
-            return new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false);
-        }
+      @Override
+      public ChannelInboundHandler getDecoder() {
+        return new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000,
+                                                0, 4, 0, 4, false);
+      }
     }
+
     new Thread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port)).start();
   }
 

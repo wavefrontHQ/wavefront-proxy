@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
  * Handles updating the metric and source names by extracting components
@@ -27,54 +28,68 @@ public class MetricMangler {
   private int maxField = 0;
 
   // Lookup set for which indices are hostname related
-  private Set<Integer> hostIndexSet = new HashSet<Integer>();
+  private final Set<Integer> hostIndexSet = new HashSet<Integer>();
 
   // Characters which should be interpreted as dots
+  @Nullable
   private final String delimiters;
 
   // Fields to remove
-  private Set<Integer> removeIndexSet = new HashSet<Integer>();
+  private final Set<Integer> removeIndexSet = new HashSet<Integer>();
 
-  public MetricMangler(String strFields, String strDelimiters, String strFieldsToRemove) {
-    if (strFields != null) {
+  /**
+   * Constructor.
+   * @param sourceFields comma separated field index(es) (1-based) where the
+   *                     source name will be extracted
+   * @param delimiters characters to be interpreted as dots
+   * @param removeFields comma separated field index(es) (1-based) of fields to
+   *                     remove from the metric name
+   * @throws IllegalArgumentException when one of the field index is <= 0
+   */
+  public MetricMangler(@Nullable String sourceFields,
+                       @Nullable String delimiters,
+                       @Nullable String removeFields) {
+    if (sourceFields != null) {
       // Store ordered field indices and lookup set
-      for (String field : strFields.split(",")) {
+      for (String field : sourceFields.split(",")) {
         if (field.trim().length() > 0) {
-          int iField = Integer.parseInt(field);
-          if (iField <= 0) {
+          int fieldIndex = Integer.parseInt(field);
+          if (fieldIndex <= 0) {
             throw new IllegalArgumentException("Can't define a field of index 0 or less; indices must be 1-based");
           }
-          hostIndices.add(iField - 1);
-          hostIndexSet.add(iField - 1);
-          if (iField > maxField) {
-            maxField = iField;
+          hostIndices.add(fieldIndex - 1);
+          hostIndexSet.add(fieldIndex - 1);
+          if (fieldIndex > maxField) {
+            maxField = fieldIndex;
           }
         }
       }
     }
 
-    if (strFieldsToRemove != null) {
-      for (String field : strFieldsToRemove.split(",")) {
+    if (removeFields != null) {
+      for (String field : removeFields.split(",")) {
         if (field.trim().length() > 0) {
-          int iField = Integer.parseInt(field);
-          if (iField <= 0) {
+          int fieldIndex = Integer.parseInt(field);
+          if (fieldIndex <= 0) {
             throw new IllegalArgumentException("Can't define a field to remove of index 0 or less; indices must be 1-based");
           }
-          removeIndexSet.add(iField - 1);
+          removeIndexSet.add(fieldIndex - 1);
         }
       }
     }
 
     // Store as-is; going to loop through chars anyway
-    delimiters = strDelimiters;
+    this.delimiters = delimiters;
   }
 
   /**
-   * Simple struct to return both the source and the updated metric
+   * Simple struct to return both the source and the updated metric.
    * from {@link #getSourceNameFromMetric(String)}
    */
   public static class MetricComponents {
+    @Nullable
     public String source;
+    @Nullable
     public String metric;
   }
 
@@ -83,6 +98,8 @@ public class MetricMangler {
    * and the source name.
    * @param metric the metric name
    * @return the updated metric name and the extracted source
+   * @throws IllegalArgumentException when the number of segments (split on '.')
+   *         is less than the maximum source component index
    */
   public MetricComponents extractComponents(final String metric) {
     final String[] segments = metric.split("\\.");
@@ -94,7 +111,7 @@ public class MetricMangler {
     }
 
     // Assemble the newly shorn metric name, in original order
-    StringBuffer buf = new StringBuffer();
+    StringBuilder buf = new StringBuilder();
     for (int i = 0; i < segments.length; i++) {
       final String segment = segments[i];
       if (!hostIndexSet.contains(i) && !removeIndexSet.contains(i)) {
@@ -108,7 +125,7 @@ public class MetricMangler {
 
     // Loop over host components in configured order, and replace all delimiters with dots
     if (hostIndices != null && !hostIndices.isEmpty()) {
-      buf = new StringBuffer();
+      buf = new StringBuilder();
       for (int f = 0; f < hostIndices.size(); f++) {
         char[] segmentChars = segments[hostIndices.get(f)].toCharArray();
         if (delimiters != null && !delimiters.isEmpty()) {
