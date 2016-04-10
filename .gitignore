@@ -21,3 +21,6 @@ proxy/unitTest*
 .classpath
 .project
 .settings/
+
+test/buffer.*
+test/proxy.out
