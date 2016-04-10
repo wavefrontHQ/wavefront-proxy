@@ -150,8 +150,7 @@ public class PushAgent extends AbstractAgent {
     class FrameDecoderFactoryImpl implements StreamIngester.FrameDecoderFactory {
       @Override
       public ChannelInboundHandler getDecoder() {
-        return new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000,
-                                                0, 4, 0, 4, false);
+        return new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false);
       }
     }
 
