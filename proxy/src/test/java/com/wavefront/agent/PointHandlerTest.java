@@ -4,11 +4,12 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sunnylabs.report.ReportPoint;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
+
+import sunnylabs.report.ReportPoint;
 
 /**
  * @author Andrew Kao (andrew@wavefront.com), Jason Bau (jbau@wavefront.com)

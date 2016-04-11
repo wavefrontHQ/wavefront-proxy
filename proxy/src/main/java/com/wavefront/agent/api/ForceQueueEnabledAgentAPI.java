@@ -3,8 +3,9 @@ package com.wavefront.agent.api;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.ShellOutputDTO;
 
-import javax.ws.rs.core.Response;
 import java.util.UUID;
+
+import javax.ws.rs.core.Response;
 
 /**
  * @author Andrew Kao (andrew@wavefront.com)

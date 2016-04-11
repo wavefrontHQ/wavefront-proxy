@@ -221,8 +221,8 @@ public class PostPushDataTimedTask implements Runnable {
 
     if (logLevel.equals(LOG_DETAILED)) {
       logger.warning("[" + port + "] (DETAILED): sending " + current.size() + " valid points; " +
-              "queue size:" + points.size() + "; total attempted points: " +
-              getAttemptedPoints() + "; total blocked: " + this.pointsBlocked.count());
+          "queue size:" + points.size() + "; total attempted points: " +
+          getAttemptedPoints() + "; total blocked: " + this.pointsBlocked.count());
     }
     if (((numIntervals % INTERVALS_PER_SUMMARY) == 0) && (!logLevel.equals(LOG_NONE))) {
       logger.warning("[" + port + "] (SUMMARY): points attempted: " + getAttemptedPoints() +
