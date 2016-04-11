@@ -23,15 +23,16 @@ if ls *.rpm  &> /dev/null; then
 fi
 
 if [[ $# -lt 4 ]]; then
-	die "Usage: $0 <jdk_dir_path> <fpm_target> <fpm_version> <fpm_iteration>"
+	die "Usage: $0 <jdk_dir_path> <commons_daemon_path> <fpm_target> <fpm_version> <fpm_iteration>"
 fi
 
 JDK=$1
 JDK=${JDK%/}
-FPM_TARGET=$2
-VERSION=$3
-ITERATION=$4
-shift 4
+COMMONS_DAEMON=$2
+FPM_TARGET=$3
+VERSION=$4
+ITERATION=$5
+shift 5
 
 WF_DIR=`pwd`/build/opt/wavefront
 PROXY_DIR=$WF_DIR/wavefront-proxy
@@ -46,6 +47,7 @@ echo "Stage the JDK..."
 cp -r $JDK $PROXY_DIR/jre
 
 echo "Make jsvc..."
+cp -r $COMMONS_DAEMON $PROXY_DIR
 JSVC_BUILD_DIR="$PROXY_DIR/commons-daemon/src/native/unix"
 cd $JSVC_BUILD_DIR
 support/buildconf.sh

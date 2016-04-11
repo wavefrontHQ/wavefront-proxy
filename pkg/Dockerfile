@@ -30,3 +30,6 @@ RUN rm apache-maven-3.0.5-bin.tar.gz
 RUN cd /usr/local && ln -s apache-maven-3.0.5 maven
 RUN echo 'export M2_HOME=/usr/local/maven' >> /etc/profile.d/maven.sh
 RUN echo 'export PATH=${M2_HOME}/bin:${PATH}' >> /etc/profile.d/maven.sh
+
+# Apache commons daemon
+RUN git clone https://github.com/apache/commons-daemon

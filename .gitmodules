@@ -1,3 +1,0 @@
-[submodule "pkg/opt/wavefront/wavefront-proxy/commons-daemon"]
-	path = pkg/opt/wavefront/wavefront-proxy/commons-daemon
-	url = git://git.apache.org/commons-daemon.git
