@@ -14,6 +14,7 @@ import org.apache.commons.lang.StringUtils;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -101,6 +102,33 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     return true;
   }
 
+  /**
+   * Verify the given point is valid to send to WF.
+   * @param point The point to verify.
+   * @return A human readable error message regarding the point, or empty string if the point is OK.
+   */
+  private String verifyPoint(ReportPoint point) {
+    StringBuilder sb = new StringBuilder();
+    if (point.getHost().length() >= 1024) {
+      sb.append(" Host too long: ").append(point.getHost()).append(".");
+    }
+    if (point.getMetric().length() >= 1024) {
+      sb.append(" Metric too long: ").append(point.getMetric()).append(".");
+    }
+    // Each tag of the form "k=v" must be < 1024
+    for (Map.Entry<String, String> tag : point.getAnnotations().entrySet()) {
+      if (tag.getKey().length() + tag.getValue().length() >= 1023) {
+        sb.append(" Tag too long: ").append(tag.getKey()).append("=").append(tag.getValue())
+            .append(".");
+      }
+    }
+    if (sb.length() > 0) {
+      sb.insert(0, "WF-301: Point is malformed.");
+      return sb.toString();
+    }
+    return "";
+  }
+
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
     // ignore empty lines.
@@ -136,7 +164,12 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     }
     if (!points.isEmpty()) {
       ReportPoint point = points.get(0);
-      pointHandler.reportPoint(point, pointLine);
+      String errorMessage = verifyPoint(point);
+      if (errorMessage != "") {
+        handleBlockedPoint(errorMessage);
+      } else {
+        pointHandler.reportPoint(point, pointLine);
+      }
     }
   }
 
