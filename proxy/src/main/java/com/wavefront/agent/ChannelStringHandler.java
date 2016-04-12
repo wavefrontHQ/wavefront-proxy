@@ -15,6 +15,7 @@ import org.apache.commons.lang.StringUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -115,9 +116,9 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     if (point.getMetric().length() >= 1024) {
       sb.append(" Metric too long: ").append(point.getMetric()).append(".");
     }
-    // Each tag of the form "k=v" must be < 1024
+    // Each tag of the form "k=v" must be < 256
     for (Map.Entry<String, String> tag : point.getAnnotations().entrySet()) {
-      if (tag.getKey().length() + tag.getValue().length() >= 1023) {
+      if (tag.getKey().length() + tag.getValue().length() >= 255) {
         sb.append(" Tag too long: ").append(tag.getKey()).append("=").append(tag.getValue())
             .append(".");
       }
@@ -165,7 +166,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     if (!points.isEmpty()) {
       ReportPoint point = points.get(0);
       String errorMessage = verifyPoint(point);
-      if (errorMessage != "") {
+      if (!errorMessage.equals("")) {
         handleBlockedPoint(errorMessage);
       } else {
         pointHandler.reportPoint(point, pointLine);
