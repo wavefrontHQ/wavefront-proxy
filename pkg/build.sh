@@ -40,6 +40,7 @@ PROXY_DIR=$WF_DIR/wavefront-proxy
 echo "Create build dirs..."
 mkdir build
 cp -r opt build/opt
+chmod 600 build/opt/wavefront/wavefront-proxy/conf/wavefront.conf
 cp -r etc build/etc
 cp -r usr build/usr
 
