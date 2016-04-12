@@ -89,12 +89,9 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       pointHandler.handleBlockedPoint(pointLine);
       return;
     }
-    if (prefix != null) {
-      pointLine = prefix + "." + msg;
-    }
     List<ReportPoint> points = Lists.newArrayListWithExpectedSize(1);
     try {
-      decoder.decodeReportPoints(pointLine, points, "dummy");
+      decoder.decodeReportPoints(ctx, pointLine, points, "dummy");
     } catch (Exception e) {
       final Throwable rootCause = Throwables.getRootCause(e);
       if (rootCause == null || rootCause.getMessage() == null) {
@@ -110,12 +107,24 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     }
     if (!points.isEmpty()) {
       ReportPoint point = points.get(0);
+      if (prefix != null) {
+        point.setMetric(prefix + "." + point.getMetric());
+      }
       pointHandler.reportPoint(point, pointLine);
     }
   }
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-    // ignore.
+    final Throwable rootCause = Throwables.getRootCause(cause);
+    if (rootCause == null || rootCause.getMessage() == null) {
+      final String message = "WF-301 Channel Handler Failed, reason: \""
+          + cause.getMessage() + "\"";
+      pointHandler.handleBlockedPoint(message);
+    } else {
+      final String message = "WF-301 Channel Handler Failed, reason: \""
+          + cause.getMessage() + "\", root cause: \"" + rootCause.getMessage() + "\"";
+      pointHandler.handleBlockedPoint(message);
+    }
   }
 }

@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 
 import com.wavefront.common.MetricMangler;
 
+import io.netty.channel.ChannelHandlerContext;
 import net.razorvine.pickle.PickleUtils;
 import net.razorvine.pickle.Unpickler;
 import sunnylabs.report.ReportPoint;
@@ -58,7 +59,7 @@ public class PickleProtocolDecoder implements Decoder<byte[]> {
   }
 
   @Override
-  public void decodeReportPoints(byte[] msg, List<ReportPoint> out, String customerId) {
+  public void decodeReportPoints(ChannelHandlerContext ctx, byte[] msg, List<ReportPoint> out, String customerId) {
     InputStream is = new ByteArrayInputStream(msg);
     Unpickler unpickler = new Unpickler();
     Object dataRaw = null;
@@ -139,7 +140,7 @@ public class PickleProtocolDecoder implements Decoder<byte[]> {
   }
 
   @Override
-  public void decodeReportPoints(byte[] msg, List<ReportPoint> out) {
-    decodeReportPoints(msg, out, "dummy");
+  public void decodeReportPoints(ChannelHandlerContext ctx, byte[] msg, List<ReportPoint> out) {
+    decodeReportPoints(ctx, msg, out, "dummy");
   }
 }

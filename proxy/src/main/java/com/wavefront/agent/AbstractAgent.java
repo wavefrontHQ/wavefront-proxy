@@ -49,6 +49,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.ws.rs.core.Response;
+import javax.ws.rs.WebApplicationException;
+
 /**
  * Agent that runs remotely on a server collecting metrics.
  *
@@ -511,6 +514,16 @@ public abstract class AbstractAgent {
       JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(), true, true, true);
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
           System.currentTimeMillis(), localAgent, agentMetrics, pushAgent);
+    } catch (final WebApplicationException waex) {
+      // catch a web application exception specifically so we can print out
+      // the response message (helps with debugging 4xx errors)
+      logger.warning("cannot fetch proxy agent configuration from remote server: " + Throwables.getRootCause(waex));
+      final Response response = waex.getResponse();
+      if (response != null && response.hasEntity()) {
+        final String responseString = response.readEntity(String.class);
+        logger.warning("Response\n:" + responseString);
+      }
+      return null;
     } catch (Exception ex) {
       logger.warning("cannot fetch proxy agent configuration from remote server: " + Throwables.getRootCause(ex));
       return null;

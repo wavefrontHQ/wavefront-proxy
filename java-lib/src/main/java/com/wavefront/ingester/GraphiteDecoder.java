@@ -8,6 +8,7 @@ import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import io.netty.channel.ChannelHandlerContext;
 import sunnylabs.report.ReportPoint;
 
 /**
@@ -42,7 +43,7 @@ public class GraphiteDecoder implements Decoder<String> {
   }
 
   @Override
-  public void decodeReportPoints(String msg, List<ReportPoint> out, String customerId) {
+  public void decodeReportPoints(ChannelHandlerContext ctx, String msg, List<ReportPoint> out, String customerId) {
     ReportPoint point = FORMAT.drive(msg, hostName, customerId, customSourceTags);
     if (out != null) {
       out.add(point);
@@ -50,9 +51,9 @@ public class GraphiteDecoder implements Decoder<String> {
   }
 
   @Override
-  public void decodeReportPoints(String msg, List<ReportPoint> out) {
+  public void decodeReportPoints(ChannelHandlerContext ctx, String msg, List<ReportPoint> out) {
     List<ReportPoint> output = Lists.newArrayList();
-    decodeReportPoints(msg, output, "dummy");
+    decodeReportPoints(ctx, msg, output, "dummy");
     if (!output.isEmpty()) {
       for (ReportPoint rp : output) {
         String metricName = rp.getMetric();

@@ -70,7 +70,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
 
     List<ReportPoint> points = Lists.newArrayListWithExpectedSize(1);
     try {
-      decoder.decodeReportPoints(msg, points, "dummy");
+      decoder.decodeReportPoints(ctx, msg, points, "dummy");
       for (final ReportPoint point: points) {
         if (!this.whiteBlackList.passes(point.getMetric())) {
           pointHandler.handleBlockedPoint(point.getMetric());

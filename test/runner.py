@@ -238,10 +238,49 @@ class TestWriteHttpProxy(unittest.TestCase, TestAgentProxyBase):
         self.assertEquals(pushdata_expect,
                           self.server.requests.commands['pushdata'][0])
 
+class TestOpenTSDBProtocol(unittest.TestCase, TestAgentProxyBase):
+    """
+    Tests the OpenTSDB plain text protocol support in the proxy.
+    """
 
+    def __init__(self, *args, **kwargs):
+        super(TestOpenTSDBProtocol, self).__init__(*args, **kwargs)
+
+    def setUp(self):
+        self.setUpCommon(self.__class__.__name__)
+
+    def tearDown(self):
+        self.tearDownCommon()
+
+    def test_version_input(self):
+        """
+        Tests that the 'version' string sent as input is accepted and
+        returns something.
+        tcollector uses this to see if the OpenTSDB endpoint is up
+        http://opentsdb.net/docs/build/html/api_http/version.html
+        """
+
+        # connect to the proxy on 4242 - the opentsdb listener port
+        s = socket.socket()
+        s.connect(('127.0.0.1', 4242))
+
+        # send "version" and check response
+        s.sendall('version\n')
+        response = s.recv(1024)
+        self.assertEquals('Wavefront proxy OpenTSDB text protocol implementation\n', response)
+
+        # all done.  close the socket
+        s.shutdown(socket.SHUT_WR)
+        s.close()
+
+        # nothing should be sent to server
+        print 'Waiting to be sure nothing is being sent to server ...'
+        self.server.requests.pushdata_event.wait(60)
+        self.assertFalse(self.server.requests.pushdata_event.is_set())
+        
 class TestPickleProtocolProxy(unittest.TestCase, TestAgentProxyBase):
     """
-    Tests the opentsdb pickle protocol support
+    Tests the Graphite Pickle protocol support
     """
 
     def __init__(self, *args, **kwargs):
