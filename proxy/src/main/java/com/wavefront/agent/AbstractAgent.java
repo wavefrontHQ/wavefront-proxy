@@ -49,6 +49,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.ws.rs.core.Response;
+import javax.ws.rs.WebApplicationException;
+
 /**
  * Agent that runs remotely on a server collecting metrics.
  *
@@ -63,6 +66,7 @@ public abstract class AbstractAgent {
   private static final int OPENTSDB_LISTENING_PORT = 4242;
   private static final int HTTP_JSON_LISTENING_PORT = 3878;
   private static final int WRITE_HTTP_JSON_LISTENING_PORT = 4878;
+  private static final int PICKLE_PROTOCOL_LISTENING_PORT = 5878;
 
   @Parameter(names = {"-f", "--file"}, description =
       "Proxy configuration file")
@@ -131,13 +135,16 @@ public abstract class AbstractAgent {
       "extracted hostname with dots. Defaults to underscores (_).")
   protected String graphiteDelimiters = "_";
 
+  @Parameter(names = {"--graphiteFieldsToRemove"}, description="Comma-separated list of metric segments to remove (1-based)")
+  protected String graphiteFieldsToRemove;
+
   @Parameter(names = {"--httpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics " +
       "data. Binds, by default, to " + HTTP_JSON_LISTENING_PORT)
   protected String httpJsonPorts = "" + HTTP_JSON_LISTENING_PORT;
 
   @Parameter(names = {"--writeHttpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics from collectd write_http json format " +
       "data. Binds, by default, to " + WRITE_HTTP_JSON_LISTENING_PORT)
-  protected String writeHttpJsonPorts = "" + WRITE_HTTP_JSON_LISTENING_PORT;
+  protected String writeHttpJsonPorts;
 
   @Parameter(names = {"--hostname"}, description = "Hostname for the agent. Defaults to FQDN of machine.")
   protected String hostname;
@@ -166,6 +173,10 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
   protected String opentsdbBlacklistRegex;
+
+  @Parameter(names = {"--picklePorts"}, description = "Comma-separated list of ports to listen on for pickle protocol " +
+      "data. Defaults to: " + PICKLE_PROTOCOL_LISTENING_PORT)
+  protected String picklePorts;
 
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
@@ -254,6 +265,7 @@ public abstract class AbstractAgent {
         writeHttpJsonPorts = prop.getProperty("writeHttpJsonListenerPorts", writeHttpJsonPorts);
         graphitePorts = prop.getProperty("graphitePorts", graphitePorts);
         graphiteFormat = prop.getProperty("graphiteFormat", graphiteFormat);
+        graphiteFieldsToRemove = prop.getProperty("graphiteFieldsToRemove", graphiteFieldsToRemove);
         graphiteDelimiters = prop.getProperty("graphiteDelimiters", graphiteDelimiters);
         graphiteWhitelistRegex = prop.getProperty("graphiteWhitelistRegex", graphiteWhitelistRegex);
         graphiteBlacklistRegex = prop.getProperty("graphiteBlacklistRegex", graphiteBlacklistRegex);
@@ -267,6 +279,7 @@ public abstract class AbstractAgent {
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
             String.valueOf(retryBackoffBaseSeconds)));
         customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
+        picklePorts = prop.getProperty("picklePorts", picklePorts);
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
@@ -501,6 +514,16 @@ public abstract class AbstractAgent {
       JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(), true, true, true);
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
           System.currentTimeMillis(), localAgent, agentMetrics, pushAgent);
+    } catch (final WebApplicationException waex) {
+      // catch a web application exception specifically so we can print out
+      // the response message (helps with debugging 4xx errors)
+      logger.warning("cannot fetch proxy agent configuration from remote server: " + Throwables.getRootCause(waex));
+      final Response response = waex.getResponse();
+      if (response != null && response.hasEntity()) {
+        final String responseString = response.readEntity(String.class);
+        logger.warning("Response\n:" + responseString);
+      }
+      return null;
     } catch (Exception ex) {
       logger.warning("cannot fetch proxy agent configuration from remote server: " + Throwables.getRootCause(ex));
       return null;

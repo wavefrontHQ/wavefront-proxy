@@ -4,6 +4,10 @@ import com.google.common.base.Preconditions;
 
 import java.util.List;
 
+import io.netty.util.CharsetUtil;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
 import sunnylabs.report.ReportPoint;
 
 /**
@@ -13,7 +17,7 @@ import sunnylabs.report.ReportPoint;
  *
  * @author Clement Pang (clement@wavefront.com).
  */
-public class OpenTSDBDecoder implements Decoder {
+public class OpenTSDBDecoder implements Decoder<String> {
 
   private final String hostName;
   private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder().whiteSpace()
@@ -38,7 +42,12 @@ public class OpenTSDBDecoder implements Decoder {
   }
 
   @Override
-  public void decodeReportPoints(String msg, List<ReportPoint> out, String customerId) {
+  public void decodeReportPoints(ChannelHandlerContext ctx, String msg, List<ReportPoint> out, String customerId) {
+    if (msg.startsWith("version")) {
+      ByteBuf buf = Unpooled.copiedBuffer("Wavefront proxy OpenTSDB text protocol implementation\n", CharsetUtil.UTF_8);
+      ctx.writeAndFlush(buf);
+      return;
+    }
     ReportPoint point = FORMAT.drive(msg, hostName, customerId, customSourceTags);
     if (out != null) {
       out.add(point);
@@ -46,10 +55,7 @@ public class OpenTSDBDecoder implements Decoder {
   }
 
   @Override
-  public void decodeReportPoints(String msg, List<ReportPoint> out) {
-    ReportPoint point = FORMAT.drive(msg, hostName, "dummy", customSourceTags);
-    if (out != null) {
-      out.add(point);
-    }
+  public void decodeReportPoints(ChannelHandlerContext ctx, String msg, List<ReportPoint> out) {
+    decodeReportPoints(ctx, msg, out, "dummy");
   }
 }

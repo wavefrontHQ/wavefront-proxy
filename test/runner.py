@@ -5,8 +5,13 @@ This is a test runner with test suite for testing various proxy endpoints.
 
 import datetime
 import BaseHTTPServer
+import pickle
+import socket
+import struct
 import subprocess
+import StringIO
 import threading
+import tokenize
 import unittest
 import urllib2
 
@@ -68,8 +73,9 @@ class HttpServerRequests(object):
                     self.commands[command] = [content]
                 else:
                     self.commands[command].append(content)
-                #print('Adding %s request for |%s|\n%s' %
-                #      (command, path, content))
+                # use this for debugging if needed
+                # print('Adding %s request for |%s|\n%s' %
+                #       (command, path, content))
                 if command == 'config' and parts[5] == 'processed':
                     self.config_processed_event.set()
                 elif command == 'pushdata':
@@ -100,15 +106,27 @@ class AgentHttpEndpointHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write("{}")
 
-class TestWriteHttpProxy(unittest.TestCase):
+class TestAgentProxyBase(object):
     """
-    Tests the write_http plugin support (only JSON is supported/tested)
+    Base class for all test cases that are testing the agent.  This class
+    will startup (and shutdown) a fake "metrics.wavefront.com" end point
+    and also start the agent itself.
     """
 
-    def setUp(self):
+    def __init__(self, *args, **kwargs):
+        super(TestAgentProxyBase, self).__init__(*args, **kwargs)
+        self.server = None
+        self.endpoint_thread = None
+        self.agent_stdout_fd = None
+        self.agent_process = None
+
+    def setUpCommon(self, test_name):
         """
         Unit Test setup function.  Sets up the fake wavefront endpoint
-        and connects to the proxy.
+        and starts the agent.
+
+        Arguments:
+        test_name - name of the test being run
         """
 
         # cleanup function set in case setUp() fails
@@ -123,7 +141,7 @@ class TestWriteHttpProxy(unittest.TestCase):
         self.endpoint_thread.start()
 
         # start the agent
-        self.agent_stdout_fd = open('./test/proxy.out', 'w')
+        self.agent_stdout_fd = open('./test/proxy' + test_name + '.out', 'w')
         args = ['java', '-jar', '../proxy/target/wavefront-push-agent.jar',
                 '-f', './wavefront.conf', '--purgeBuffer']
         self.agent_process = subprocess.Popen(args, stdout=self.agent_stdout_fd,
@@ -155,8 +173,23 @@ class TestWriteHttpProxy(unittest.TestCase):
             self.endpoint_thread.join()
             self.endpoint_thread = None
 
-    def tearDown(self):
+    def tearDownCommon(self):
         self.cleanup()
+
+
+class TestWriteHttpProxy(unittest.TestCase, TestAgentProxyBase):
+    """
+    Tests the write_http plugin support (only JSON is supported/tested)
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(TestWriteHttpProxy, self).__init__(*args, **kwargs)
+
+    def setUp(self):
+        self.setUpCommon(self.__class__.__name__)
+
+    def tearDown(self):
+        self.tearDownCommon()
 
     def test_simple_1(self):
         """
@@ -191,6 +224,7 @@ class TestWriteHttpProxy(unittest.TestCase):
         headers = {
             'Content-Type': 'application/json'
         }
+        # uncomment this and the print conn.read() to see the full request
         #handler = urllib2.HTTPHandler(debuglevel=1)
         #opener = urllib2.build_opener(handler)
         #urllib2.install_opener(opener)
@@ -203,6 +237,181 @@ class TestWriteHttpProxy(unittest.TestCase):
         self.server.requests.pushdata_event.wait(60)
         self.assertEquals(pushdata_expect,
                           self.server.requests.commands['pushdata'][0])
+
+class TestOpenTSDBProtocol(unittest.TestCase, TestAgentProxyBase):
+    """
+    Tests the OpenTSDB plain text protocol support in the proxy.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(TestOpenTSDBProtocol, self).__init__(*args, **kwargs)
+
+    def setUp(self):
+        self.setUpCommon(self.__class__.__name__)
+
+    def tearDown(self):
+        self.tearDownCommon()
+
+    def test_version_input(self):
+        """
+        Tests that the 'version' string sent as input is accepted and
+        returns something.
+        tcollector uses this to see if the OpenTSDB endpoint is up
+        http://opentsdb.net/docs/build/html/api_http/version.html
+        """
+
+        # connect to the proxy on 4242 - the opentsdb listener port
+        s = socket.socket()
+        s.connect(('127.0.0.1', 4242))
+
+        # send "version" and check response
+        s.sendall('version\n')
+        response = s.recv(1024)
+        self.assertEquals('Wavefront proxy OpenTSDB text protocol implementation\n', response)
+
+        # all done.  close the socket
+        s.shutdown(socket.SHUT_WR)
+        s.close()
+
+        # nothing should be sent to server
+        print 'Waiting to be sure nothing is being sent to server ...'
+        self.server.requests.pushdata_event.wait(60)
+        self.assertFalse(self.server.requests.pushdata_event.is_set())
+        
+class TestPickleProtocolProxy(unittest.TestCase, TestAgentProxyBase):
+    """
+    Tests the Graphite Pickle protocol support
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(TestPickleProtocolProxy, self).__init__(*args, **kwargs)
+
+    def setUp(self):
+        self.setUpCommon(self.__class__.__name__)
+
+    def tearDown(self):
+        self.tearDownCommon()
+
+    def test_example_capture_1(self):
+        """
+        Test of a capture sent to us by Rocket Fuel.
+        """
+
+        # connect to the proxy on port 5878 - the pickle protocol port
+        s = socket.socket()
+        s.connect(('127.0.0.1', 5878))
+
+        # open the sample file and send to proxy on open socket
+        # the file is graphite pickle format which has a format that looks like:
+        # <4 byte unsigned integer length><pickle data>
+        # [<4 byte unsigned integer length><pickle data>]...
+        # all_pickled list stores the pickle.loads() parsed output from each
+        all_pickled = []
+        all_data = []
+        with open('test/pickle/sample1.pkl', 'rb') as sample_fd:
+            # grab 4 byte uint repersenting the length
+            orig_length = sample_fd.read(4)
+            while orig_length:
+                all_data.append(orig_length)
+                # the length is big-endian (>) unsigned int (I)
+                length = struct.unpack('>I', orig_length)[0]
+                # read the length # of bytes from the file now
+                data = sample_fd.read(length)
+                if data:
+                    # all_data stores everything in the file (one record per
+                    # list item)
+                    all_data.append(data)
+                    # all_pickled stores the parsed pickled data
+                    # (one list item per pickled segment)
+                    all_pickled.append(pickle.loads(data))
+
+                # read the next segment
+                orig_length = sample_fd.read(4)
+
+            # send the entire file on the socket using the expected format
+            s.sendall(''.join(all_data))
+
+        # all done.  close the socket
+        s.shutdown(socket.SHUT_WR)
+        s.close()
+
+        # wait for pushdata events to send all data to our fake metrics endpoint
+        lines = []
+        for i in range(5):
+            print 'Waiting for pushdata (' + str(i) + ') event ...'
+            self.server.requests.pushdata_event.wait(60)
+            self.server.requests.pushdata_event.clear()
+            self.assertTrue('pushdata' in self.server.requests.commands)
+
+            # get the contents of the pushdata event and add it to our current
+            # list of events
+            if i < len(self.server.requests.commands['pushdata']):
+                pushdata = self.server.requests.commands['pushdata'][i]
+                pushdata_lines = pushdata.splitlines()
+                for tmp in pushdata_lines:
+                    lines.append(tmp)
+
+            else:
+                # assumption: if that last .wait() timed out, then there are
+                # no more pushdata events
+                break
+
+        current = 0
+        for pickled_data in all_pickled:
+            # walk through each record in the pickled segment and make sure
+            # it matches what the proxy sent to WF.
+            # pickle record:
+            #   ('metric name', (timestamp, value))
+            for metric in pickled_data:
+                # split up the metric name into its individual parts
+                # [0] -> skipped
+                # [1] -> host name
+                # [2-n] -> the metric name sent to WF
+                parts = metric[0].split('.')
+                metric_name = '.'.join(parts[2:])
+                # skip over any that have invalid characters in them (will be
+                # blocked by proxy)
+                if '#' in metric_name:
+                    continue
+                host_name = parts[1]
+                ts = int(metric[1][0]) # remove .0 with int()
+                value = metric[1][1]
+
+                # now grab the line from the pushdata content that should match
+                line = lines[current]
+                # tokenize the line
+                tokens = tokenize.generate_tokens(
+                    StringIO.StringIO(line).readline)
+
+                # "metric name" value ts source=hostname
+                token_number = 0
+                for token in tokens:
+                    tmp = token[4][token[2][1]:token[3][1]]
+                    # strip off the quotes
+                    if len(tmp) > 0 and tmp[0] == '"':
+                        tmp = tmp[1:-1]
+
+                    # metric name
+                    if token_number == 0:
+                        self.assertEquals(tmp, metric_name)
+
+                    # value
+                    elif token_number == 1:
+                        if tmp == '-': # negative numbers in 2 tokens
+                            tmp = tmp + tokens.next()[1]
+                        self.assertEquals(float(tmp), value)
+
+                    # timestamp
+                    elif token_number == 2:
+                        self.assertEquals(long(tmp), ts)
+
+                    # host name (skip source, =)
+                    elif token_number == 5:
+                        self.assertEquals(tmp, host_name)
+
+                    token_number = token_number + 1
+
+                current = current + 1
 
 if __name__ == '__main__':
     unittest.main()

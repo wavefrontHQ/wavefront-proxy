@@ -89,8 +89,20 @@
       <artifactId>antlr4-runtime</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.easymock</groupId>
+      <artifactId>easymock</artifactId>
+      <scope>test</scope>
+      <version>3.2</version>
+    </dependency>
+    <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
+    </dependency>
+    <dependency>
+      <!-- This is for pickle/unpickle support -->
+      <groupId>net.razorvine</groupId>
+      <artifactId>pyrolite</artifactId>
+      <version>4.10</version>
     </dependency>
   </dependencies>
 
