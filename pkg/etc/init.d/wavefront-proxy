@@ -1,9 +1,7 @@
-#!/bin/bash
+#!/bin/bash -e
 
 # chkconfig: - 99 00
-# description: Wavefront Graphite Proxy and ssh-daemon
-# processname: wavefront-proxy.pid
-# logs: /var/log/wavefront-proxy.log
+# description: Wavefront Proxy
 
 ### BEGIN INIT INFO
 # Provides:          wavefront-proxy
@@ -16,69 +14,55 @@
 #############################
 
 DESC="Wavefront Proxy"
-APP_NAME=wavefront-proxy
-USER=wavefront
+APP_NAME="wavefront-proxy"
+USER="wavefront"
+WAVEFRONT_DIR="/opt/$USER"
+PROXY_DIR="$WAVEFRONT_DIR/wavefront-proxy"
+export JAVA_HOME="$PROXY_DIR/jre"
+CONF_FILE="$PROXY_DIR/conf/wavefront.conf"
+LOG_FILE="/var/log/wavefront.log"
+ERR_FILE=$LOG_FILE
+PID_FILE="/var/run/$APP_NAME.pid"
+AGENT_JAR="$PROXY_DIR/bin/wavefront-push-agent.jar"
+CLASS="com.wavefront.agent.PushAgentDaemon"
+ARGS="-f $CONF_FILE --buffer $PROXY_DIR/bin/buffer"
 
-##### CUSTOMER OPTIONS ######
-WAVEFRONT_BASE_DIR=/opt/$USER/$APP_NAME
-DAEMON_PATH=$WAVEFRONT_BASE_DIR/bin
-CONF_FILE=$WAVEFRONT_BASE_DIR/conf/$USER.conf
-LOG_FILE=/var/log/$USER.log
-PID_FILE=/var/run/$USER.pid
-ABS_DAEMON=$WAVEFRONT_BASE_DIR/bin/wavefront-push-agent.jar
-JAVA_PATH=$WAVEFRONT_BASE_DIR/bin/jre/bin/java
+JSVC=$PROXY_DIR/bin/jsvc
+
+jsvc_exec()
+{
+	cd $(dirname $AGENT_JAR)
+	$JSVC -user $USER -home $JAVA_HOME -cp $AGENT_JAR -XX:+AggressiveHeap -outfile $LOG_FILE -errfile $ERR_FILE -pidfile $PID_FILE $1 $CLASS $ARGS
+	if [[ $? -eq 0 ]]; then
+		echo "Done."
+	else
+		echo "There was a problem, see $ERR_FILE"
+	fi
+}
 
 case "$1" in
 start)
-	# Treated as an implicit restart
-	if [ -f $PIDFILE ]; then
-		echo "Found existing pid; stopping process."
-		$0 stop
-	fi
-
-	printf "%-44s" "Starting $APP_NAME..."
-	touch $LOG_FILE
-	chown $USER:$USER $LOG_FILE
-	su - $USER -m -c "$JAVA_PATH -XX:+AggressiveHeap -jar $ABS_DAEMON -f $CONF_FILE --buffer $WAVEFRONT_BASE_DIR/bin/buffer >> $LOG_FILE 2>&1 & echo \$!" > $PID_FILE 2> /dev/null
-	PID=`cat $PID_FILE`
-	printf "%-6s" $PID
-	if [ -z "$PID" ]; then
-		printf "%s\n" "Fail"
-	else
-		printf "%s\n" "OK"
-	fi
+	echo "Starting $DESC"
+	jsvc_exec
+	# The launched nanny process will create the PID_FILE shortly.
+	# Instead of blocking on that we silently succeed.
 ;;
 status)
-	printf "%-50s" "Checking $APP_NAME..."
-	if [ -f $PID_FILE ]; then
-	        if [ -z "`pgrep -F $PID_FILE`" ]; then
-			printf "%s\n" "Process dead but pidfile exists"
-			exit 1
-		else
-			echo "Running"
-		fi
+	if [[ -f "$PID_FILE" ]]; then
+		echo "$DESC is running (PID $(cat $PID_FILE))"
 	else
-		printf "%s\n" "Service not running"
+		echo "$DESC is not running."
 	fi
 ;;
 stop)
-	printf "%-50s" "Stopping $APP_NAME"
-	if [ -f $PID_FILE ]; then
-		PID=`cat $PID_FILE`
-		if ! [ -z "$PID" ]; then
-			kill $PID
-			printf "%s\n" "OK"
-			rm -f $PID_FILE
-		else
-			printf "%s\n" "PID file is empty"
-		fi
-	else
-		printf "%s\n" "process is not running"
-	fi
+	echo "Stopping $DESC"
+	jsvc_exec "-stop"
 ;;
 restart)
-	$0 stop
-	$0 start
+	if [[ -f "$PID_FILE" ]]; then
+		$0 "stop"
+	fi
+	$0 "start"
 ;;
 *)
 	echo "Usage: $0 {status | start | stop | restart}"
