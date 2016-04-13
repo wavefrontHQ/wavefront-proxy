@@ -85,7 +85,7 @@ fpm \
 	--maintainer "Wavefront <support@wavefront.com>" \
 	--name wavefront-proxy \
 	--rpm-os linux \
-	--url http://www.wavefront.com \
+	--url https://www.wavefront.com \
 	--vendor Wavefront \
 	--version $VERSION \
 	-C build \
