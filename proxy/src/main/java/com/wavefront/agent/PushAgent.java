@@ -1,25 +1,29 @@
 package com.wavefront.agent;
 
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+
+import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
 import com.wavefront.ingester.Ingester;
 import com.wavefront.ingester.OpenTSDBDecoder;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.socket.SocketChannel;
+
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+
+import javax.annotation.Nullable;
+
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.socket.SocketChannel;
 
 /**
  * Push-only Agent.
