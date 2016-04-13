@@ -8,7 +8,7 @@
   <parent>
     <groupId>com.wavefront</groupId>
     <artifactId>wavefront</artifactId>
-    <version>3.11-SNAPSHOT</version>
+    <version>3.11</version>
   </parent>
 
   <name>Wavefront Java Libraries</name>
