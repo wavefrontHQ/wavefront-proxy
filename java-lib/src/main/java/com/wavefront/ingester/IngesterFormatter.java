@@ -120,7 +120,7 @@ public class IngesterFormatter {
       if (host == null) {
         // iterate over the set of custom tags, breaking when one is found
         for (String tag : customSourceTags) {
-          host = annotations.remove(tag);
+          host = annotations.get(tag);
           if (host != null) {
             break;
           }
