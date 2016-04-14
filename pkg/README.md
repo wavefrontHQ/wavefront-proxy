@@ -13,8 +13,11 @@ Build and run the docker container for building.
     docker build -t wavefront-proxy-builder .
     docker run -it wavefront-proxy-builder bash
     # Inside docker container
+    cd /root/java/proxy
+    mvn package
     cd /root/java/pkg
-    ./build.sh /zulu-jdk /commons-daemon deb 3.1 4
+    ./stage.sh /zulu-jdk /commons-daemon ~/wavefront ../target/wavefront-push-agent.jar
+    ./build.sh deb 3.1 4
     # Outside docker container
     docker cp my_container:/root/java/pkg/wavefront-proxy_3.8-1_amd64.deb .
 

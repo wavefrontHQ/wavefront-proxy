@@ -1,68 +1,17 @@
-#!/bin/bash -e
+#!/bin/bash -ex
 
 function die {
 	echo $@
 	exit 1
 }
 
-PROG_DIR=`dirname $0`
-cd $PROG_DIR
-PROG_DIR=`pwd`
-echo "Cleaning prior build run..."
-
-cd ..
-mvn clean
-cd -
-
-rm -rf build
-if ls *.deb  &> /dev/null; then
-	rm *.deb
-fi
-if ls *.rpm  &> /dev/null; then
-	rm *.rpm
+if [[ $# -lt 3 ]]; then
+	die "Usage: $0 <fpm_target> <fpm_version> <fpm_iteration>"
 fi
 
-if [[ $# -lt 4 ]]; then
-	die "Usage: $0 <jdk_dir_path> <commons_daemon_path> <fpm_target> <fpm_version> <fpm_iteration>"
-fi
-
-JDK=$1
-JDK=${JDK%/}
-COMMONS_DAEMON=$2
-FPM_TARGET=$3
-VERSION=$4
-ITERATION=$5
-shift 5
-
-WF_DIR=`pwd`/build/opt/wavefront
-PROXY_DIR=$WF_DIR/wavefront-proxy
-
-echo "Create build dirs..."
-mkdir build
-cp -r opt build/opt
-chmod 600 build/opt/wavefront/wavefront-proxy/conf/wavefront.conf
-cp -r etc build/etc
-cp -r usr build/usr
-
-echo "Stage the JDK..."
-cp -r $JDK $PROXY_DIR/jre
-
-echo "Make jsvc..."
-cp -r $COMMONS_DAEMON $PROXY_DIR
-JSVC_BUILD_DIR="$PROXY_DIR/commons-daemon/src/native/unix"
-cd $JSVC_BUILD_DIR
-support/buildconf.sh
-./configure --with-java=$PROXY_DIR/jre
-make
-cd $PROXY_DIR/bin
-ln -s ../commons-daemon/src/native/unix/jsvc jsvc
-
-echo "Make the agent jar..."
-cd $PROG_DIR/..
-mvn install -pl :java-lib -am
-mvn package -pl :proxy -am
-cd $PROG_DIR
-cp ../proxy/target/wavefront-push-agent.jar $PROXY_DIR/bin
+FPM_TARGET=$1
+VERSION=$2
+ITERATION=$3
 
 if [[ $FPM_TARGET == "deb" ]]; then
 	EXTRA_DIRS="usr"
