@@ -176,6 +176,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
   protected String customSourceTagsProperty = "fqdn";
 
+  @Parameter(names = {"--ephemeral"}, description = "If true, this agent is removed from Wavefront after 24 hours of inactivity.")
+  protected boolean ephemeral = false;
+
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
@@ -500,7 +503,7 @@ public abstract class AbstractAgent {
 
       JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(), true, true, true);
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
-          System.currentTimeMillis(), localAgent, agentMetrics, pushAgent);
+          System.currentTimeMillis(), localAgent, agentMetrics, pushAgent, ephemeral);
     } catch (Exception ex) {
       logger.warning("cannot fetch proxy agent configuration from remote server: " + Throwables.getRootCause(ex));
       return null;
