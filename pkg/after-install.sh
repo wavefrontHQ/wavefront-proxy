@@ -3,7 +3,7 @@ USER=wavefront
 GROUP=wavefront
 WAVEFRONT_DIR=/opt/$USER
 PROXY_DIR=$WAVEFRONT_DIR/wavefront-proxy
-export JAVA_HOME=$PROXY_DIR/jre
+CONF_FILE=$PROXY_DIR/conf/wavefront.conf
 
 # Set up wavefront user.
 if ! groupmod $GROUP &> /dev/null; then
@@ -28,6 +28,10 @@ if [[ -f $OLD_PID_FILE ]]; then
 	PID=`cat $OLD_PID_FILE`
 	kill -9 $PID || true
 	rm $OLD_PID_FILE
+fi
+
+if [[ -f $CONF_FILE ]]; then
+	chmod 600 $CONF_FILE
 fi
 
 service wavefront-proxy restart
