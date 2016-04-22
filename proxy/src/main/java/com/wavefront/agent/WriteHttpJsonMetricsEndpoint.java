@@ -2,7 +2,6 @@ package com.wavefront.agent;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -10,10 +9,8 @@ import javax.annotation.Nullable;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
@@ -33,18 +30,11 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandler {
   private final String prefix;
   private final String defaultHost;
 
-  public WriteHttpJsonMetricsEndpoint(final QueuedAgentService agentApi,
-                                      final UUID daemonId,
-                                      final int port,
-                                      final String host,
+  public WriteHttpJsonMetricsEndpoint(final int port, final String host,
                                       @Nullable
-                                      final String prefix,
-                                      final String logLevel,
-                                      final String validationLevel,
-                                      final long millisecondsPerBatch,
-                                      final int blockedPointsPerBatch) {
-    super(agentApi, daemonId, port, logLevel, validationLevel, millisecondsPerBatch,
-        blockedPointsPerBatch);
+                                      final String prefix, final String validationLevel,
+                                      final int blockedPointsPerBatch, PostPushDataTimedTask[] postPushDataTimedTasks) {
+    super(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
     this.prefix = prefix;
     this.defaultHost = host;
   }

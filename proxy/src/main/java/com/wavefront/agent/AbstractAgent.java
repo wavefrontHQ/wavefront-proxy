@@ -100,6 +100,11 @@ public abstract class AbstractAgent {
       "threads effectively governs the maximum amount of space the agent will use to buffer points locally")
   protected int retryThreads = Math.max(4, Runtime.getRuntime().availableProcessors());
 
+  @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
+      "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
+      "small to the server and wasting connections. This setting is per listening port.")
+  protected int flushThreads = Math.max(4, Runtime.getRuntime().availableProcessors());
+
   @Parameter(names = {"--purgeBuffer"}, description = "Whether to purge the retry buffer on start-up. Defaults to " +
       "false.")
   private boolean purgeBuffer = false;
@@ -250,6 +255,8 @@ public abstract class AbstractAgent {
         pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
             String.valueOf(pushBlockedSamples)));
         pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
+        retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)));
+        flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));
         httpJsonPorts = prop.getProperty("jsonListenerPorts", httpJsonPorts);
         writeHttpJsonPorts = prop.getProperty("writeHttpJsonListenerPorts", writeHttpJsonPorts);
         graphitePorts = prop.getProperty("graphitePorts", graphitePorts);

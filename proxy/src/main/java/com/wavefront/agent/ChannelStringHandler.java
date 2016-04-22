@@ -4,7 +4,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
-import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.ingester.Decoder;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -15,9 +14,6 @@ import org.apache.commons.lang.StringUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -34,8 +30,6 @@ import sunnylabs.report.ReportPoint;
  */
 @ChannelHandler.Sharable
 public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
-
-  private static final Logger logger = Logger.getLogger(ChannelStringHandler.class.getCanonicalName());
 
   private final Decoder decoder;
   private final String prefix;
@@ -55,20 +49,17 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
   private int blockedPointsPerBatch;
 
-  public ChannelStringHandler(Decoder decoder, final ForceQueueEnabledAgentAPI agentAPI,
-                              final UUID daemonId,
+  public ChannelStringHandler(Decoder decoder,
                               final int port,
                               final String prefix,
-                              final String logLevel,
                               final String validationLevel,
-                              final long millisecondsPerBatch,
                               final int blockedPointsPerBatch,
+                              final PostPushDataTimedTask[] postPushDataTimedTasks,
                               @Nullable final Function<String, String> transformer,
                               @Nullable final String pointLineWhiteListRegex,
                               @Nullable final String pointLineBlackListRegex) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandler(agentAPI, daemonId, port, logLevel, validationLevel,
-        millisecondsPerBatch, blockedPointsPerBatch);
+    this.pointHandler = new PointHandler(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
 
     this.prefix = prefix;
     this.blockedPointsPerBatch = blockedPointsPerBatch;

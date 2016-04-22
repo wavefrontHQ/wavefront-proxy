@@ -548,7 +548,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
     @Override
     public void execute(Object callback) {
-      parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis, format, pushData));
+      try {
+        parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis, format, pushData));
+      } catch (Exception ex) {
+        throw new RuntimeException("Server error: " + Throwables.getRootCause(ex));
+      }
     }
 
     @Override

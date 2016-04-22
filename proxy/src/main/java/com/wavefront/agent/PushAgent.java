@@ -19,6 +19,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -78,10 +81,8 @@ public class PushAgent extends AbstractAgent {
             JettyHttpContainerFactory.createServer(
                 new URI("http://localhost:" + strPort + "/"),
                 new ResourceConfig(JacksonFeature.class).
-                    register(new JsonMetricsEndpoint(agentAPI, agentId, port, hostname, prefix,
-                        pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples
-                    )),
-                true);
+                    register(new JsonMetricsEndpoint(port, hostname, prefix,
+                        pushValidationLevel, pushBlockedSamples, getFlushTasks(port))), true);
             logger.info("listening on port: " + strPort + " for HTTP JSON metrics");
           } catch (URISyntaxException e) {
             throw new RuntimeException("Unable to bind to: " + strPort + " for HTTP JSON metrics", e);
@@ -98,9 +99,8 @@ public class PushAgent extends AbstractAgent {
             JettyHttpContainerFactory.createServer(
                 new URI("http://localhost:" + strPort + "/"),
                 new ResourceConfig(JacksonFeature.class).
-                    register(new WriteHttpJsonMetricsEndpoint(agentAPI, agentId, port, hostname, prefix,
-                        pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples
-                    )),
+                    register(new WriteHttpJsonMetricsEndpoint(port, hostname, prefix,
+                        pushValidationLevel, pushBlockedSamples, getFlushTasks(port))),
                 true);
             logger.info("listening on port: " + strPort + " for Write HTTP JSON metrics");
           } catch (URISyntaxException e) {
@@ -116,8 +116,7 @@ public class PushAgent extends AbstractAgent {
 
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new OpenTSDBDecoder("unknown", customSourceTags),
-        agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
-        pushBlockedSamples, null, opentsdbWhitelistRegex,
+        port, prefix, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), null, opentsdbWhitelistRegex,
         opentsdbBlacklistRegex);
     new Thread(new Ingester(graphiteHandler, port)).start();
   }
@@ -128,8 +127,8 @@ public class PushAgent extends AbstractAgent {
 
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown", customSourceTags),
-        agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
-        pushBlockedSamples, formatter, whitelistRegex, blacklistRegex);
+        port, prefix, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), formatter, whitelistRegex,
+        blacklistRegex);
 
     if (formatter == null) {
       List<Function<SocketChannel, ChannelHandler>> handler = Lists.newArrayList(1);
@@ -143,6 +142,21 @@ public class PushAgent extends AbstractAgent {
     } else {
       new Thread(new Ingester(graphiteHandler, port)).start();
     }
+  }
+
+  protected PostPushDataTimedTask[] getFlushTasks(int port) {
+    PostPushDataTimedTask[] toReturn = new PostPushDataTimedTask[flushThreads];
+    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for data received on " +
+        "port: " + port);
+    ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
+    for (int i = 0; i < flushThreads; i++) {
+      final PostPushDataTimedTask postPushDataTimedTask =
+          new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port);
+      es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
+          TimeUnit.MILLISECONDS);
+      toReturn[i] = postPushDataTimedTask;
+    }
+    return toReturn;
   }
 
   /**

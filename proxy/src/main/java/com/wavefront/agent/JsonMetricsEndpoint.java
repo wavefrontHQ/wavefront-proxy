@@ -9,7 +9,6 @@ import com.wavefront.metrics.JsonMetricsParser;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.Consumes;
@@ -36,18 +35,11 @@ public class JsonMetricsEndpoint extends PointHandler {
   private final String prefix;
   private final String defaultHost;
 
-  public JsonMetricsEndpoint(final QueuedAgentService agentApi,
-                             final UUID daemonId,
-                             final int port,
-                             final String host,
+  public JsonMetricsEndpoint(final int port, final String host,
                              @Nullable
-                             final String prefix,
-                             final String logLevel,
-                             final String validationLevel,
-                             final long millisecondsPerBatch,
-                             final int blockedPointsPerBatch) {
-    super(agentApi, daemonId, port, logLevel, validationLevel, millisecondsPerBatch,
-        blockedPointsPerBatch);
+                             final String prefix, final String validationLevel, final int blockedPointsPerBatch,
+                             PostPushDataTimedTask[] postPushDataTimedTasks) {
+    super(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
     this.prefix = prefix;
     this.defaultHost = host;
   }

@@ -2,7 +2,6 @@ package com.wavefront.agent;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -11,10 +10,6 @@ import org.apache.commons.lang.time.DateUtils;
 
 import java.util.Map;
 import java.util.Random;
-import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -41,13 +36,10 @@ public class PointHandler {
   protected final int blockedPointsPerBatch;
   protected final PostPushDataTimedTask[] sendDataTasks;
 
-  public PointHandler(final ForceQueueEnabledAgentAPI agentAPI,
-                      final UUID daemonId,
-                      final int port,
-                      final String logLevel,
+  public PointHandler(final int port,
                       final String validationLevel,
-                      final long millisecondsPerBatch,
-                      final int blockedPointsPerBatch) {
+                      final int blockedPointsPerBatch,
+                      final PostPushDataTimedTask[] sendDataTasks) {
     this.validationLevel = validationLevel;
     this.port = port;
     this.blockedPointsPerBatch = blockedPointsPerBatch;
@@ -55,17 +47,7 @@ public class PointHandler {
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
     this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
 
-    int numTimerThreadsUsed = Runtime.getRuntime().availableProcessors();
-    this.sendDataTasks = new PostPushDataTimedTask[numTimerThreadsUsed];
-    logger.info("Using " + numTimerThreadsUsed + " timer threads for listener on port: " + port);
-    ScheduledExecutorService es = Executors.newScheduledThreadPool(numTimerThreadsUsed);
-    for (int i = 0; i < numTimerThreadsUsed; i++) {
-      final PostPushDataTimedTask postPushDataTimedTask =
-          new PostPushDataTimedTask(agentAPI, logLevel, daemonId, port);
-      es.scheduleWithFixedDelay(postPushDataTimedTask, millisecondsPerBatch, millisecondsPerBatch,
-          TimeUnit.MILLISECONDS);
-      this.sendDataTasks[i] = postPushDataTimedTask;
-    }
+    this.sendDataTasks = sendDataTasks;
   }
 
   /**
