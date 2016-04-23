@@ -61,8 +61,6 @@ public abstract class AbstractAgent {
   private static final Gson GSON = new Gson();
   private static final int GRAPHITE_LISTENING_PORT = 2878;
   private static final int OPENTSDB_LISTENING_PORT = 4242;
-  private static final int HTTP_JSON_LISTENING_PORT = 3878;
-  private static final int WRITE_HTTP_JSON_LISTENING_PORT = 4878;
 
   @Parameter(names = {"-f", "--file"}, description =
       "Proxy configuration file")
@@ -137,12 +135,12 @@ public abstract class AbstractAgent {
   protected String graphiteDelimiters = "_";
 
   @Parameter(names = {"--httpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics " +
-      "data. Binds, by default, to " + HTTP_JSON_LISTENING_PORT)
-  protected String httpJsonPorts = "" + HTTP_JSON_LISTENING_PORT;
+      "data. Binds, by default, to none.")
+  protected String httpJsonPorts = "";
 
   @Parameter(names = {"--writeHttpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics from collectd write_http json format " +
-      "data. Binds, by default, to " + WRITE_HTTP_JSON_LISTENING_PORT)
-  protected String writeHttpJsonPorts = "" + WRITE_HTTP_JSON_LISTENING_PORT;
+      "data. Binds, by default, to none.")
+  protected String writeHttpJsonPorts = "";
 
   @Parameter(names = {"--hostname"}, description = "Hostname for the agent. Defaults to FQDN of machine.")
   protected String hostname;
