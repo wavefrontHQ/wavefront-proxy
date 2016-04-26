@@ -359,8 +359,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   @Override
   public AgentConfiguration checkin(UUID agentId, String hostname, String token, String version, Long currentMillis,
-                                    Boolean localAgent, JsonNode agentMetrics, Boolean pushAgent) {
-    return wrapped.checkin(agentId, hostname, token, version, currentMillis, localAgent, agentMetrics, pushAgent);
+                                    Boolean localAgent, JsonNode agentMetrics, Boolean pushAgent, Boolean ephemeral) {
+    return wrapped.checkin(agentId, hostname, token, version, currentMillis, localAgent, agentMetrics, pushAgent, ephemeral);
   }
 
   @Override

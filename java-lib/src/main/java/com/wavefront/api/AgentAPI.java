@@ -52,7 +52,8 @@ public interface AgentAPI {
                              @QueryParam("currentMillis") final Long currentMillis,
                              @QueryParam("local") Boolean localAgent,
                              @GZIP JsonNode agentMetrics,
-                             @QueryParam("push") Boolean pushAgent);
+                             @QueryParam("push") Boolean pushAgent,
+                             @QueryParam("ephemeral") Boolean ephemeral);
 
 
   /**
