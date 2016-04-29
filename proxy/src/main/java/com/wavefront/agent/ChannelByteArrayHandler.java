@@ -16,7 +16,6 @@ import sunnylabs.report.ReportPoint;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -41,21 +40,17 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
    * Constructor.
    */
   public ChannelByteArrayHandler(Decoder<byte[]> decoder,
-                                 final ForceQueueEnabledAgentAPI agentApi,
-                                 final UUID daemonId,
                                  final int port,
                                  final String prefix,
                                  final String logLevel,
                                  final String validationLevel,
                                  final long millisecondsPerBatch,
                                  final int blockedPointsPerBatch,
+                                 final PostPushDataTimedTask[] postPushDataTimedTasks,
                                  @Nullable final String pointLineWhiteListRegex,
                                  @Nullable final String pointLineBlackListRegex) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandler(agentApi, daemonId, port, logLevel,
-                                         validationLevel, millisecondsPerBatch,
-                                         blockedPointsPerBatch);
-
+    this.pointHandler = new PointHandler(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
     this.prefix = prefix;
     this.whiteBlackList = new MetricWhiteBlackList(
       pointLineWhiteListRegex, pointLineBlackListRegex, String.valueOf(port));

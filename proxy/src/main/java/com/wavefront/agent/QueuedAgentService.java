@@ -56,9 +56,9 @@ import javax.ws.rs.core.Response;
 import static com.google.common.collect.ImmutableList.of;
 
 /**
- * A wrapper for any AgentAPI that queues up any result posting if the backend is not available. Current data
- * will always be submitted right away (thus prioritizing live data) while background threads will submit
- * backlogged data.
+ * A wrapper for any AgentAPI that queues up any result posting if the backend is not available.
+ * Current data will always be submitted right away (thus prioritizing live data) while background
+ * threads will submit backlogged data.
  *
  * @author Clement Pang (clement@wavefront.com)
  */
@@ -78,9 +78,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
       TimeUnit.MINUTES);
   /**
-   * Biases result sizes to the last 5 minutes heavily. This histogram does not see all result sizes. The executor
-   * only ever processes one posting at any given time and drops the rest. {@link #resultPostingMeter} records the
-   * actual rate (i.e. sees all posting calls).
+   * Biases result sizes to the last 5 minutes heavily. This histogram does not see all result
+   * sizes. The executor only ever processes one posting at any given time and drops the rest.
+   * {@link #resultPostingMeter} records the actual rate (i.e. sees all posting calls).
    */
   private Histogram resultPostingSizes = metricsRegistry.newHistogram(QueuedAgentService.class, "result-size", true);
   /**
@@ -359,8 +359,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   @Override
   public AgentConfiguration checkin(UUID agentId, String hostname, String token, String version, Long currentMillis,
-                                    Boolean localAgent, JsonNode agentMetrics, Boolean pushAgent) {
-    return wrapped.checkin(agentId, hostname, token, version, currentMillis, localAgent, agentMetrics, pushAgent);
+                                    Boolean localAgent, JsonNode agentMetrics, Boolean pushAgent, Boolean ephemeral) {
+    return wrapped.checkin(agentId, hostname, token, version, currentMillis, localAgent, agentMetrics, pushAgent, ephemeral);
   }
 
   @Override
@@ -548,7 +548,13 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
     @Override
     public void execute(Object callback) {
-      parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis, format, pushData));
+      Response response;
+      try {
+        response = service.postPushData(currentAgentId, workUnitId, currentMillis, format, pushData);
+      } catch (Exception ex) {
+        throw new RuntimeException("Server error: " + Throwables.getRootCause(ex));
+      }
+      parsePostingResponse(response);
     }
 
     @Override

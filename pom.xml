@@ -5,13 +5,12 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>3.11-SNAPSHOT</version>
+  <version>3.14-SNAPSHOT</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
     <module>java-client</module>
     <module>dropwizard-metrics/3.1</module>
-    <module>dropwizard-metrics/4.0</module>
   </modules>
   <packaging>pom</packaging>
 
@@ -77,7 +76,7 @@
       <dependency>
         <groupId>com.wavefront</groupId>
         <artifactId>java-lib</artifactId>
-        <version>3.11-SNAPSHOT</version>
+        <version>3.14-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>

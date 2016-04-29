@@ -1,8 +1,9 @@
 package com.wavefront.agent;
 
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+
+import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.GraphiteDecoder;
@@ -11,20 +12,25 @@ import com.wavefront.ingester.Ingester;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.ingester.PickleProtocolDecoder;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.channel.ChannelInboundHandler;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nullable;
+
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
 /**
  * Push-only Agent.
@@ -88,10 +94,8 @@ public class PushAgent extends AbstractAgent {
             JettyHttpContainerFactory.createServer(
                 new URI("http://localhost:" + strPort + "/"),
                 new ResourceConfig(JacksonFeature.class).
-                    register(new JsonMetricsEndpoint(agentAPI, agentId, port, hostname, prefix,
-                        pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples
-                    )),
-                true);
+                    register(new JsonMetricsEndpoint(port, hostname, prefix,
+                        pushValidationLevel, pushBlockedSamples, getFlushTasks(port))), true);
             logger.info("listening on port: " + strPort + " for HTTP JSON metrics");
           } catch (URISyntaxException e) {
             throw new RuntimeException("Unable to bind to: " + strPort + " for HTTP JSON metrics", e);
@@ -108,9 +112,8 @@ public class PushAgent extends AbstractAgent {
             JettyHttpContainerFactory.createServer(
                 new URI("http://localhost:" + strPort + "/"),
                 new ResourceConfig(JacksonFeature.class).
-                    register(new WriteHttpJsonMetricsEndpoint(agentAPI, agentId, port, hostname, prefix,
-                        pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples
-                    )),
+                    register(new WriteHttpJsonMetricsEndpoint(port, hostname, prefix,
+                        pushValidationLevel, pushBlockedSamples, getFlushTasks(port))),
                 true);
             logger.info("listening on port: " + strPort + " for Write HTTP JSON metrics");
           } catch (URISyntaxException e) {
@@ -126,8 +129,7 @@ public class PushAgent extends AbstractAgent {
 
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new OpenTSDBDecoder("unknown", customSourceTags),
-        agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
-        pushBlockedSamples, null, opentsdbWhitelistRegex,
+        port, prefix, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), null, opentsdbWhitelistRegex,
         opentsdbBlacklistRegex);
     new Thread(new Ingester(graphiteHandler, port)).start();
   }
@@ -136,7 +138,8 @@ public class PushAgent extends AbstractAgent {
     int port = Integer.parseInt(strPort);
     
     // Set up a custom handler
-    ChannelHandler handler = new ChannelByteArrayHandler(new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler()), agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples, whitelistRegex, blacklistRegex);
+    ChannelHandler handler = new ChannelByteArrayHandler(new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler()), port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples, getFlushTasks(port), whitelistRegex, blacklistRegex);
+
     // create a class to use for StreamIngester to get a new FrameDecoder
     // for each request (not shareable since it's storing how many bytes
     // read, etc)
@@ -163,8 +166,8 @@ public class PushAgent extends AbstractAgent {
 
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown", customSourceTags),
-        agentAPI, agentId, port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval,
-        pushBlockedSamples, formatter, whitelistRegex, blacklistRegex);
+        port, prefix, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), formatter, whitelistRegex,
+        blacklistRegex);
 
     if (formatter == null) {
       List<Function<SocketChannel, ChannelHandler>> handler = Lists.newArrayList(1);
@@ -178,6 +181,21 @@ public class PushAgent extends AbstractAgent {
     } else {
       new Thread(new Ingester(graphiteHandler, port)).start();
     }
+  }
+
+  protected PostPushDataTimedTask[] getFlushTasks(int port) {
+    PostPushDataTimedTask[] toReturn = new PostPushDataTimedTask[flushThreads];
+    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for data received on " +
+        "port: " + port);
+    ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
+    for (int i = 0; i < flushThreads; i++) {
+      final PostPushDataTimedTask postPushDataTimedTask =
+          new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port);
+      es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
+          TimeUnit.MILLISECONDS);
+      toReturn[i] = postPushDataTimedTask;
+    }
+    return toReturn;
   }
 
   /**

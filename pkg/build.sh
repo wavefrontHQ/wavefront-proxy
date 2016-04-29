@@ -1,47 +1,28 @@
-#!/bin/bash -e -x
+#!/bin/bash -ex
 
-if [[ $# -lt 4 ]]; then
-	echo "Usage: $0 <jdk_dir_path> <fpm_target> <fpm_version> <fpm_iteration> [extra_packr_args...]"
+function die {
+	echo $@
 	exit 1
+}
+
+if [[ $# -lt 3 ]]; then
+	die "Usage: $0 <fpm_target> <fpm_version> <fpm_iteration>"
 fi
 
-JDK=$1
-JDK=${JDK%/}
+FPM_TARGET=$1
+VERSION=$2
+ITERATION=$3
 
-TARGET=$2
-VERSION=$3
-ITERATION=$4
-shift 4
-
-cd `dirname $0`
-echo "Cleaning prior build run..."
-rm -rf build
-
-echo "Create build dirs..."
-mkdir build
-cp -R opt build/opt
-cp -R etc build/etc
-cp -R usr build/usr
-
-BIN_DIR=build/opt/wavefront/wavefront-proxy/bin
-
-echo "Make the agent jar..."
-cd ..
-mvn package -pl :proxy -am
-cd -
-cp ../proxy/target/wavefront-push-agent.jar $BIN_DIR
-
-echo "Stage the JDK..."
-cp -r $JDK $BIN_DIR/jre
-
-if [[ $TARGET == "deb" ]]; then
+if [[ $FPM_TARGET == "deb" ]]; then
 	EXTRA_DIRS="usr"
 else
 	EXTRA_DIRS=""
 fi
 
 fpm \
-	--after-install postinst \
+	--after-install after-install.sh \
+	--before-remove before-remove.sh \
+	--after-remove after-remove.sh \
 	--architecture amd64 \
 	--config-files opt/wavefront/wavefront-proxy/conf/wavefront.conf \
 	--deb-no-default-config-files \
@@ -53,12 +34,14 @@ fpm \
 	--maintainer "Wavefront <support@wavefront.com>" \
 	--name wavefront-proxy \
 	--rpm-os linux \
-	--url http://www.wavefront.com \
+	--url https://www.wavefront.com \
 	--vendor Wavefront \
 	--version $VERSION \
 	-C build \
 	-s dir \
-	-t $TARGET \
+	-t $FPM_TARGET \
 	opt etc $EXTRA_DIRS
 
-rpm --delsign *.rpm
+if [[ $FPM_TARGET == "rpm" ]]; then
+	rpm --delsign *.rpm
+fi

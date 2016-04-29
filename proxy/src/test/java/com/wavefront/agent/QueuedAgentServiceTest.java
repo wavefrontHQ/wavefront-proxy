@@ -1,25 +1,35 @@
 package com.wavefront.agent;
 
 import com.google.common.collect.Sets;
+
 import com.squareup.tape.TaskInjector;
 import com.wavefront.agent.QueuedAgentService.PostPushDataResultTask;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.ShellOutputDTO;
+
 import net.jcip.annotations.NotThreadSafe;
+
 import org.apache.commons.lang.RandomStringUtils;
 import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.Assert.*;
+import javax.ws.rs.core.Response;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Andrew Kao (andrew@wavefront.com)
@@ -630,7 +640,7 @@ public class QueuedAgentServiceTest {
 
   @Test
   public void postPushDataResultTaskSplitsIntoManyTask() {
-    for(int targetBatchSize = 1; targetBatchSize <= 10; targetBatchSize++) {
+    for (int targetBatchSize = 1; targetBatchSize <= 10; targetBatchSize++) {
       QueuedAgentService.setSplitBatchSize(targetBatchSize);
 
       UUID agentId = UUID.randomUUID();

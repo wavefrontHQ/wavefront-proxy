@@ -335,7 +335,7 @@ public class GraphiteDecoderTest {
     assertEquals("customer", point.getTable());
     assertEquals("test", point.getMetric());
     assertEquals("machine.company.com", point.getHost());
-    assertEquals(null, point.getAnnotations().get("fqdn"));
+    assertEquals("machine.company.com", point.getAnnotations().get("fqdn"));
     assertEquals("machine", point.getAnnotations().get("hostname"));
     assertEquals(1.0, point.getValue());
   }
@@ -352,7 +352,7 @@ public class GraphiteDecoderTest {
     assertEquals("customer", point.getTable());
     assertEquals("test", point.getMetric());
     assertEquals("machine.company.com", point.getHost());
-    assertEquals(null, point.getAnnotations().get("fqdn"));
+    assertEquals("machine.company.com", point.getAnnotations().get("fqdn"));
     assertEquals(1.0, point.getValue());
   }
 
