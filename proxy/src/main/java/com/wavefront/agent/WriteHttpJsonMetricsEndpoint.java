@@ -17,15 +17,15 @@ import javax.ws.rs.core.UriInfo;
 import sunnylabs.report.ReportPoint;
 
 /**
- * Agent-side JSON metrics endpoint for parsing JSON from write_http collectd
- * plugin.
- * @see https://collectd.org/wiki/index.php/Plugin:Write_HTTP
+ * Agent-side JSON metrics endpoint for parsing JSON from write_http collectd plugin.
+ *
+ * @see <a href="https://collectd.org/wiki/index.php/Plugin:Write_HTTP">https://collectd.org/wiki/index.php/Plugin:Write_HTTP</a>
  */
 @Path("/")
 public class WriteHttpJsonMetricsEndpoint extends PointHandler {
 
   protected static final Logger logger = Logger.getLogger("agent");
-  
+
   @Nullable
   private final String prefix;
   private final String defaultHost;
@@ -78,10 +78,10 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandler {
         for (final JsonNode value : values) {
           String metricName = getMetricName(metric, index);
           ReportPoint.Builder builder = ReportPoint.newBuilder()
-            .setMetric(metricName)
-            .setTable("dummy")
-            .setTimestamp(ts)
-            .setHost(hostName);
+              .setMetric(metricName)
+              .setTable("dummy")
+              .setTimestamp(ts)
+              .setHost(hostName);
           if (value.isDouble()) {
             builder.setValue(value.asDouble());
           } else {
