@@ -5,7 +5,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>3.13</version>
+  <version>3.14-SNAPSHOT</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
@@ -76,7 +76,7 @@
       <dependency>
         <groupId>com.wavefront</groupId>
         <artifactId>java-lib</artifactId>
-        <version>3.13</version>
+        <version>3.14-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>
