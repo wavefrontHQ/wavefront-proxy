@@ -144,21 +144,6 @@ public class PushAgent extends AbstractAgent {
     }
   }
 
-  protected PostPushDataTimedTask[] getFlushTasks(int port) {
-    PostPushDataTimedTask[] toReturn = new PostPushDataTimedTask[flushThreads];
-    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for data received on " +
-        "port: " + port);
-    ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
-    for (int i = 0; i < flushThreads; i++) {
-      final PostPushDataTimedTask postPushDataTimedTask =
-          new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port);
-      es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
-          TimeUnit.MILLISECONDS);
-      toReturn[i] = postPushDataTimedTask;
-    }
-    return toReturn;
-  }
-
   /**
    * Push agent configuration during check-in by the collector.
    *
