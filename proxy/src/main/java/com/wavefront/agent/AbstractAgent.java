@@ -396,6 +396,7 @@ public abstract class AbstractAgent {
     factory.registerProvider(JsonNodeWriter.class);
     factory.registerProvider(ResteasyJacksonProvider.class);
     HttpClient httpClient = HttpClientBuilder.create().
+        useSystemProperties().
         setMaxConnTotal(200).
         setMaxConnPerRoute(100).
         setDefaultRequestConfig(
