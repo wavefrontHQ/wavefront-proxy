@@ -532,6 +532,21 @@ public abstract class AbstractAgent {
     return newConfig;
   }
 
+  protected PostPushDataTimedTask[] getFlushTasks(int port) {
+    PostPushDataTimedTask[] toReturn = new PostPushDataTimedTask[flushThreads];
+    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for data received on " +
+        "port: " + port);
+    ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
+    for (int i = 0; i < flushThreads; i++) {
+      final PostPushDataTimedTask postPushDataTimedTask =
+          new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port);
+      es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
+          TimeUnit.MILLISECONDS);
+      toReturn[i] = postPushDataTimedTask;
+    }
+    return toReturn;
+  }
+
   /**
    * Actual agents can do additional configuration.
    *
