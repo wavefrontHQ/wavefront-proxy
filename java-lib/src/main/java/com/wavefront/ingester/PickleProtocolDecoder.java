@@ -110,10 +110,10 @@ public class PickleProtocolDecoder implements Decoder<byte[]> {
           this.metricMangler.extractComponents(o[0].toString());
       point.setMetric(components.metric);
       String host = components.source;
-      if (host == null) {
-        final Map<String, String> annotations = point.getAnnotations();
+      final Map<String, String> annotations = point.getAnnotations();
+      if (host == null && annotations != null) {
         // iterate over the set of custom tags, breaking when one is found
-        for (String tag : customSourceTags) {
+        for (final String tag : customSourceTags) {
           host = annotations.remove(tag);
           if (host != null) {
             break;

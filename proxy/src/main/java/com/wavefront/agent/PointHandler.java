@@ -6,12 +6,16 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.annotation.Nullable;
 
 import sunnylabs.report.ReportPoint;
 
@@ -33,6 +37,9 @@ public class PointHandler {
   private final String validationLevel;
   private final int port;
 
+  @Nullable
+  private final String prefix;
+  
   protected final int blockedPointsPerBatch;
   protected final PostPushDataTimedTask[] sendDataTasks;
 
@@ -40,10 +47,19 @@ public class PointHandler {
                       final String validationLevel,
                       final int blockedPointsPerBatch,
                       final PostPushDataTimedTask[] sendDataTasks) {
+    this(port, validationLevel, blockedPointsPerBatch, null, sendDataTasks);
+  }
+
+  public PointHandler(final int port,
+                      final String validationLevel,
+                      final int blockedPointsPerBatch,
+                      @Nullable final String prefix,
+                      final PostPushDataTimedTask[] sendDataTasks) {
     this.validationLevel = validationLevel;
     this.port = port;
     this.blockedPointsPerBatch = blockedPointsPerBatch;
-
+    this.prefix = prefix;
+ 
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
     this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
 
@@ -61,6 +77,15 @@ public class PointHandler {
     try {
       Object pointValue = point.getValue();
 
+      validateHost(point.getHost());
+
+      if (prefix != null) {
+        point.setMetric(prefix + "." + point.getMetric());
+      }
+      if (point.getMetric().length() >= 1024) {
+        throw new IllegalArgumentException("WF-301: Metric name is too long: " + point.getMetric());
+      }
+
       if (!charactersAreValid(point.getMetric())) {
         illegalCharacterPoints.inc();
         String errorMessage = "WF-400 " + port + ": Point metric has illegal character (" + debugLine + ")";
@@ -72,6 +97,12 @@ public class PointHandler {
         throw new IllegalArgumentException(errorMessage);
       }
 
+      // Each tag of the form "k=v" must be < 256
+      for (Map.Entry<String, String> tag : point.getAnnotations().entrySet()) {
+        if (tag.getKey().length() + tag.getValue().length() >= 255) {
+          throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue());
+        }
+      }
       if (!pointInRange(point)) {
         outOfRangePointTimes.inc();
         String errorMessage = "WF-402 " + port + ": Point outside of reasonable time frame (" + debugLine + ")";
@@ -95,10 +126,15 @@ public class PointHandler {
     } catch (IllegalArgumentException e) {
       this.handleBlockedPoint(e.getMessage());
     } catch (Exception ex) {
-      logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point", ex);
+      logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point (" + debugLine + ")", ex);
     }
   }
 
+  public void reportPoints(List<ReportPoint> points) {
+    for (final ReportPoint point : points) {
+      reportPoint(point, pointToString(point));
+    }
+  }
   public PostPushDataTimedTask getRandomPostTask() {
     return this.sendDataTasks[random.nextInt(this.sendDataTasks.length)];
   }
@@ -144,7 +180,22 @@ public class PointHandler {
     return true;
   }
 
+  /**
+   * Validates that the given host value is valid
+   * @param host the host to check
+   * @throws IllegalArgumentException when host is blank or null
+   * @throws IllegalArgumentException when host is > 1024 characters
+   */
+  static void validateHost(String host) {
+    if (StringUtils.isBlank(host)) {
+      throw new IllegalArgumentException("WF-301: Host is required");
+    }
+    if (host.length() >= 1024) {
+      throw new IllegalArgumentException("WF-301: Host is too long: " + host);
+    }
 
+  }
+  
   @VisibleForTesting
   static boolean pointInRange(ReportPoint point) {
     long pointTime = point.getTimestamp();
@@ -154,7 +205,7 @@ public class PointHandler {
     return (pointTime > (rightNow - MILLIS_IN_YEAR)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
   }
 
-  protected String pointToString(ReportPoint point) {
+  protected static String pointToString(ReportPoint point) {
     String toReturn = String.format("\"%s\" %s %d source=\"%s\"",
         point.getMetric().replaceAll("\"", "\\\""),
         point.getValue(),

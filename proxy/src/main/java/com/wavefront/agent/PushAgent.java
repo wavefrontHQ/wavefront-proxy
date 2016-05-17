@@ -9,8 +9,9 @@ import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
-import com.wavefront.ingester.Ingester;
 import com.wavefront.ingester.StreamIngester;
+import com.wavefront.ingester.StringLineIngester;
+import com.wavefront.ingester.TcpIngester;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.ingester.PickleProtocolDecoder;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -28,8 +29,11 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
@@ -134,13 +138,18 @@ public class PushAgent extends AbstractAgent {
   }
 
   protected void startOpenTsdbListener(String strPort) {
-    int port = Integer.parseInt(strPort);
-
-    // Set up a custom graphite handler, with no formatter
-    ChannelHandler graphiteHandler = new ChannelStringHandler(new OpenTSDBDecoder("unknown", customSourceTags),
-        port, prefix, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), null, opentsdbWhitelistRegex,
-        opentsdbBlacklistRegex);
-    new Thread(new Ingester(graphiteHandler, port)).start();
+    final int port = Integer.parseInt(strPort);
+    final PostPushDataTimedTask[] flushTasks = getFlushTasks(port);
+    ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
+      @Override
+      public void initChannel(SocketChannel ch) throws Exception {
+        final ChannelHandler handler = new OpenTSDBPortUnificationHandler(new OpenTSDBDecoder("unknown", customSourceTags),
+            port, prefix, pushValidationLevel, pushBlockedSamples, flushTasks, opentsdbWhitelistRegex, opentsdbBlacklistRegex);
+        ChannelPipeline pipeline = ch.pipeline();
+        pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler));
+      }
+    };
+    new Thread(new TcpIngester(initializer, port)).start();
   }
 
   protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
@@ -149,7 +158,7 @@ public class PushAgent extends AbstractAgent {
     // Set up a custom handler
     ChannelHandler handler = new ChannelByteArrayHandler(
         new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
-        port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples,
+        port, prefix, pushValidationLevel, pushBlockedSamples,
         getFlushTasks(port), whitelistRegex, blacklistRegex);
 
     // create a class to use for StreamIngester to get a new FrameDecoder
@@ -182,16 +191,17 @@ public class PushAgent extends AbstractAgent {
         blacklistRegex);
 
     if (formatter == null) {
-      List<Function<SocketChannel, ChannelHandler>> handler = Lists.newArrayList(1);
-      handler.add(new Function<SocketChannel, ChannelHandler>() {
+      List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);
+      handler.add(new Function<Channel, ChannelHandler>() {
         @Override
-        public ChannelHandler apply(SocketChannel input) {
-          return new GraphiteHostAnnotator(input.remoteAddress().getHostName(), customSourceTags);
+        public ChannelHandler apply(Channel input) {
+          SocketChannel ch = (SocketChannel)input;
+          return new GraphiteHostAnnotator(ch.remoteAddress().getHostName(), customSourceTags);
         }
       });
-      new Thread(new Ingester(handler, graphiteHandler, port)).start();
+      new Thread(new StringLineIngester(handler, graphiteHandler, port)).start();
     } else {
-      new Thread(new Ingester(graphiteHandler, port)).start();
+      new Thread(new StringLineIngester(graphiteHandler, port)).start();
     }
   }
 

@@ -52,4 +52,8 @@ public class OpenTSDBDecoder implements Decoder<String> {
       out.add(point);
     }
   }
+
+  public String getDefaultHostName() {
+    return this.hostName;
+  }
 }
