@@ -52,6 +52,7 @@ status)
 		echo "$DESC is running (PID $(cat $PID_FILE))"
 	else
 		echo "$DESC is not running."
+		exit 3
 	fi
 ;;
 stop)
