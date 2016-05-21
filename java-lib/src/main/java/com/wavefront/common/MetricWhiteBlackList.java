@@ -36,12 +36,12 @@ public class MetricWhiteBlackList {
                               @Nullable final String pointLineBlackListRegex,
                               final String rejectCounterName) {
 
-    if (StringUtils.isBlank(pointLineWhiteListRegex)) {
+    if (!StringUtils.isBlank(pointLineWhiteListRegex)) {
       this.pointLineWhiteList = Pattern.compile(pointLineWhiteListRegex);
     } else {
       this.pointLineWhiteList = null;
     }
-    if (StringUtils.isBlank(pointLineBlackListRegex)) {
+    if (!StringUtils.isBlank(pointLineBlackListRegex)) {
       this.pointLineBlackList = Pattern.compile(pointLineBlackListRegex);
     } else {
       this.pointLineBlackList = null;
