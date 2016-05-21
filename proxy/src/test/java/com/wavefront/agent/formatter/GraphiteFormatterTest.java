@@ -1,6 +1,6 @@
 package com.wavefront.agent.formatter;
 
-import org.junit.Assert;
+import static org.junit.Assert.*;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +30,9 @@ public class GraphiteFormatterTest {
     // Test basic functionality with correct input
     GraphiteFormatter formatter = new GraphiteFormatter(format, delimiter, "");
     String output1 = formatter.apply(testString1);
-    Assert.assertEquals(expected1, output1);
+    assertEquals(expected1, output1);
     String output2 = formatter.apply(testString2);
-    Assert.assertEquals(expected2, output2);
+    assertEquals(expected2, output2);
 
     // Test format length limits
     formatter.apply(testString3); // should not throw exception
@@ -44,7 +44,7 @@ public class GraphiteFormatterTest {
     } catch (IllegalArgumentException e) {
       threwException = true;
     }
-    Assert.assertTrue(threwException);
+    assertTrue(threwException);
 
     // Do we properly reject invalid formats?
     String badFormat = "4,2,0"; // nuh-uh; we're doing 1-based indexing
@@ -54,7 +54,7 @@ public class GraphiteFormatterTest {
     } catch (IllegalArgumentException e) {
       threwException = true;
     }
-    Assert.assertTrue(threwException);
+    assertTrue(threwException);
 
     // Benchmark
     long start = System.nanoTime();
@@ -67,8 +67,8 @@ public class GraphiteFormatterTest {
     logger.error(" Time to parse 1M strings: " + (end - start) + " ns for " + formatter.getOps() + " runs");
     long nsPerOps = (end - start) / formatter.getOps();
     logger.error(" ns per op: " + nsPerOps + " and ops/sec " + (1000 * 1000 * 1000 / nsPerOps));
-    Assert.assertTrue(formatter.getOps() >= 1000 * 1000);  // make sure we actually ran it 1M times
-    Assert.assertTrue(nsPerOps < 10 * 1000); // make sure it was less than 10 μs per run; it's around 1 μs on my machine
+    assertTrue(formatter.getOps() >= 1000 * 1000);  // make sure we actually ran it 1M times
+    assertTrue(nsPerOps < 10 * 1000); // make sure it was less than 10 μs per run; it's around 1 μs on my machine
   }
 
   @Test
@@ -86,8 +86,8 @@ public class GraphiteFormatterTest {
     String expected2 = "cpu.loadavg.1m 7 1459527231 source=host1";
 
     GraphiteFormatter formatter = new GraphiteFormatter(format, delimiter, remove);
-    Assert.assertEquals(expected1, formatter.apply(testString1));
-    Assert.assertEquals(expected2, formatter.apply(testString2));
+    assertEquals(expected1, formatter.apply(testString1));
+    assertEquals(expected2, formatter.apply(testString2));
   }
 
   @Test
@@ -100,24 +100,21 @@ public class GraphiteFormatterTest {
     String testString2 = "hosts.host1.collectd.cpu.loadavg.1m 7 1459527231";
 
     // empty string
-    boolean threwException = false;
     GraphiteFormatter formatter = new GraphiteFormatter(format, delimiter, ",");
 
     // Test output
     String expected1 = "hosts.collectd.cpu.loadavg.1m 40 source=host1";
     String expected2 = "hosts.collectd.cpu.loadavg.1m 7 1459527231 source=host1";
 
-    Assert.assertEquals(expected1, formatter.apply(testString1));
-    Assert.assertEquals(expected2, formatter.apply(testString2));
+    assertEquals(expected1, formatter.apply(testString1));
+    assertEquals(expected2, formatter.apply(testString2));
 
     // <= 0 number
-    threwException = false;
     try {
-      formatter = new GraphiteFormatter(format, delimiter, "0");
+      new GraphiteFormatter(format, delimiter, "0");
+      fail("Expected fields to remove value of '0' to fail");
     } catch (IllegalArgumentException e) {
-      threwException = true;
+      // expected
     }
-    Assert.assertTrue("Expected fields to remove value of '0' to fail",
-                      threwException);
   }
 }

@@ -1,49 +1,49 @@
 package com.wavefront.common;
 
+import com.google.common.base.Splitter;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 import javax.annotation.Nullable;
 
 /**
- * Handles updating the metric and source names by extracting components
- * from the metric name.
- * There are several options considered:
- *   - source name:
- *     - extracted from one or more components of the metric name
- *       (where each component is separated by a '.')
- *     - allow characters to be optionally replaced in the components extracted
- *       as source name with '.'
- *   - metric name:
- *     - remove components (in addition to the source name)
- *       (this allows things like 'hosts.sjc1234.cpu.loadavg.1m' to get
- *        changed to cpu.loadavg.1m after extracting sjc1234)
- *
+ * Handles updating the metric and source names by extracting components from the metric name. There
+ * are several options considered: - source name: - extracted from one or more components of the
+ * metric name (where each component is separated by a '.') - allow characters to be optionally
+ * replaced in the components extracted as source name with '.' - metric name: - remove components
+ * (in addition to the source name) (this allows things like 'hosts.sjc1234.cpu.loadavg.1m' to get
+ * changed to cpu.loadavg.1m after extracting sjc1234)
+ * This code was originally mostly contained in GraphiteFormatter class and moved into a single
+ * re-usable class.
+ * @author Mike McLaughlin (mike@wavefront.com)
  */
 public class MetricMangler {
 
   // Fields to extract and assemble, in order, as the host name
-  private final List<Integer> hostIndices = new ArrayList<Integer>();
+  private final List<Integer> hostIndices = new ArrayList<>();
   private int maxField = 0;
 
   // Lookup set for which indices are hostname related
-  private final Set<Integer> hostIndexSet = new HashSet<Integer>();
+  private final Set<Integer> hostIndexSet = new HashSet<>();
 
   // Characters which should be interpreted as dots
   @Nullable
   private final String delimiters;
 
   // Fields to remove
-  private final Set<Integer> removeIndexSet = new HashSet<Integer>();
+  private final Set<Integer> removeIndexSet = new HashSet<>();
 
   /**
    * Constructor.
-   * @param sourceFields comma separated field index(es) (1-based) where the
-   *                     source name will be extracted
-   * @param delimiters characters to be interpreted as dots
-   * @param removeFields comma separated field index(es) (1-based) of fields to
-   *                     remove from the metric name
+   *
+   * @param sourceFields comma separated field index(es) (1-based) where the source name will be
+   *                     extracted
+   * @param delimiters   characters to be interpreted as dots
+   * @param removeFields comma separated field index(es) (1-based) of fields to remove from the
+   *                     metric name
    * @throws IllegalArgumentException when one of the field index is <= 0
    */
   public MetricMangler(@Nullable String sourceFields,
@@ -51,7 +51,8 @@ public class MetricMangler {
                        @Nullable String removeFields) {
     if (sourceFields != null) {
       // Store ordered field indices and lookup set
-      for (String field : sourceFields.split(",")) {
+      Iterable<String> fields = Splitter.on(",").omitEmptyStrings().trimResults().split(sourceFields);
+      for (String field : fields) {
         if (field.trim().length() > 0) {
           int fieldIndex = Integer.parseInt(field);
           if (fieldIndex <= 0) {
@@ -67,7 +68,8 @@ public class MetricMangler {
     }
 
     if (removeFields != null) {
-      for (String field : removeFields.split(",")) {
+      Iterable<String> fields = Splitter.on(",").omitEmptyStrings().trimResults().split(removeFields);
+      for (String field : fields) {
         if (field.trim().length() > 0) {
           int fieldIndex = Integer.parseInt(field);
           if (fieldIndex <= 0) {
@@ -83,8 +85,9 @@ public class MetricMangler {
   }
 
   /**
-   * Simple struct to return both the source and the updated metric.
-   * from {@link #getSourceNameFromMetric(String)}
+   * Simple struct to store and return both the source and the updated metric.
+   *
+   * @see {@link #extractComponents(String)}
    */
   public static class MetricComponents {
     @Nullable
@@ -94,12 +97,12 @@ public class MetricMangler {
   }
 
   /**
-   * Extracts the source from the metric name and returns the new metric name
-   * and the source name.
+   * Extracts the source from the metric name and returns the new metric name and the source name.
+   *
    * @param metric the metric name
    * @return the updated metric name and the extracted source
-   * @throws IllegalArgumentException when the number of segments (split on '.')
-   *         is less than the maximum source component index
+   * @throws IllegalArgumentException when the number of segments (split on '.') is less than the
+   *                                  maximum source component index
    */
   public MetricComponents extractComponents(final String metric) {
     final String[] segments = metric.split("\\.");
@@ -107,7 +110,8 @@ public class MetricMangler {
 
     // Is the metric name long enough?
     if (segments.length < maxField) {
-      throw new IllegalArgumentException("Metric data provided was incompatible with format.");
+      throw new IllegalArgumentException(
+          String.format("Metric data |%s| provided was incompatible with format.", metric));
     }
 
     // Assemble the newly shorn metric name, in original order
@@ -150,6 +154,4 @@ public class MetricMangler {
 
     return rtn;
   }
-    
-
 }

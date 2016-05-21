@@ -1,74 +1,68 @@
 package com.wavefront.ingester;
 
 import com.google.common.base.Preconditions;
-
 import com.wavefront.common.MetricMangler;
 
-import net.razorvine.pickle.PickleUtils;
 import net.razorvine.pickle.Unpickler;
 import sunnylabs.report.ReportPoint;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Pickle protocol format decoder.
  * https://docs.python.org/2/library/pickle.html
+ * @author Mike McLaughlin (mike@wavefront.com)
  */
 public class PickleProtocolDecoder implements Decoder<byte[]> {
 
   protected static final Logger logger = Logger.getLogger("agent");
 
+  private final int port;
   private final String defaultHostName;
   private final List<String> customSourceTags;
   private final MetricMangler metricMangler;
-
-  /**
-   * Constructor.
-   * @param customSourceTags list of tags that should be considered the host.
-   * @param mangler the metric mangler object.
-   */
-  public PickleProtocolDecoder(List<String> customSourceTags,
-                               MetricMangler mangler) {
-    this.defaultHostName = "unknown";
-    Preconditions.checkNotNull(customSourceTags);
-    this.customSourceTags = customSourceTags;
-    this.metricMangler = mangler;
-  }
+  private final ThreadLocal<Unpickler> unpicklerThreadLocal = new ThreadLocal<Unpickler>() {
+    @Override
+    protected Unpickler initialValue() {
+      return new Unpickler();
+    }
+  };
 
   /**
    * Constructor.
    * @param hostName the default host name.
    * @param customSourceTags list of source tags for this host.
    * @param mangler the metric mangler object.
+   * @param port the listening port (for debug logging)
    */
   public PickleProtocolDecoder(String hostName, List<String> customSourceTags,
-                               MetricMangler mangler) {
+                               MetricMangler mangler, int port) {
     Preconditions.checkNotNull(hostName);
     this.defaultHostName = hostName;
     Preconditions.checkNotNull(customSourceTags);
     this.customSourceTags = customSourceTags;
     this.metricMangler = mangler;
+    this.port = port;
   }
 
   @Override
   public void decodeReportPoints(byte[] msg, List<ReportPoint> out, String customerId) {
     InputStream is = new ByteArrayInputStream(msg);
-    Unpickler unpickler = new Unpickler();
-    Object dataRaw = null;
+    Object dataRaw;
     try {
-      dataRaw = unpickler.load(is);
+      dataRaw = unpicklerThreadLocal.get().load(is);
       if (!(dataRaw instanceof List)) {
-        throw new IllegalArgumentException("unable to unpickle data");
+        throw new IllegalArgumentException(
+            String.format("[%d] unable to unpickle data (unpickle did not return list)", port));
       }      
-    } catch (final java.io.IOException ioe) {
-      throw new IllegalArgumentException("unable to unpickle data", ioe);
+    } catch (final IOException ioe) {
+      throw new IllegalArgumentException(String.format("[%d] unable to unpickle data", port), ioe);
     }
 
     // [(path, (timestamp, value)), ...]
@@ -76,12 +70,12 @@ public class PickleProtocolDecoder implements Decoder<byte[]> {
     for (Object[] o : data) {
       Object[] details = (Object[])o[1];
       if (details == null || details.length != 2) {
-        logger.warning("Unexpected pickle protocol input");
+        logger.warning(String.format("[%d] Unexpected pickle protocol input", port));
         continue;
       }
       long ts;
       if (details[0] == null) {
-        logger.warning("Unexpected pickle protocol input (timestamp is null)");
+        logger.warning(String.format("[%d] Unexpected pickle protocol input (timestamp is null)", port));
         continue;
       } else if (details[0] instanceof Double) {
         ts = ((Double)details[0]).longValue() * 1000;
@@ -90,8 +84,8 @@ public class PickleProtocolDecoder implements Decoder<byte[]> {
       } else if (details[0] instanceof Integer) {
         ts = ((Integer)details[0]).longValue() * 1000;
       } else {
-        logger.warning("Unexpected pickle protocol input (details[0]: "
-                       + details[0].getClass().getName() + ")");
+        logger.warning(String.format("[%d] Unexpected pickle protocol input (details[0]: %s)",
+            port, details[0].getClass().getName()));
         continue;
       }
 
@@ -107,7 +101,7 @@ public class PickleProtocolDecoder implements Decoder<byte[]> {
       } else if (details[1] instanceof Integer) {
         value = ((Integer)details[1]).intValue();
       } else {
-        logger.warning("Unexpected pickle protocol input (value is null)");
+        logger.warning(String.format("[%d] Unexpected pickle protocol input (value is null)", port));
         continue;
       }
 
@@ -133,7 +127,7 @@ public class PickleProtocolDecoder implements Decoder<byte[]> {
       point.setTable(customerId);
       point.setTimestamp(ts);
       point.setValue(value);
-      point.setAnnotations(new HashMap<String, String>());
+      point.setAnnotations(Collections.<String, String>emptyMap());
       out.add(point);
     }
   }

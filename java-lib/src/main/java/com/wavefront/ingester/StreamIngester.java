@@ -1,8 +1,7 @@
 package com.wavefront.ingester;
 
 import java.util.logging.Logger;
-
-import javax.annotation.Nullable;
+import java.util.logging.Level;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -18,14 +17,15 @@ import io.netty.handler.codec.bytes.ByteArrayDecoder;
 
 /**
  * Ingester thread that sets up decoders and a command handler to listen for metrics on a port.
+ * @author Mike McLaughlin (mike@wavefront.com)
  */
 public class StreamIngester implements Runnable {
+
+  protected static final Logger logger = Logger.getLogger(StreamIngester.class.getName());
 
   public interface FrameDecoderFactory {
     ChannelInboundHandler getDecoder();
   }
-
-  private static final Logger logger = Logger.getLogger(Ingester.class.getCanonicalName());
 
   private final ChannelHandler commandHandler;
   private final int listeningPort;
@@ -51,7 +51,7 @@ public class StreamIngester implements Runnable {
             public void initChannel(SocketChannel ch) throws Exception {
               ChannelPipeline pipeline = ch.pipeline();
               pipeline.addLast("frame decoder", frameDecoderFactory.getDecoder());
-              pipeline.addLast("To Byte Array", new ByteArrayDecoder());
+              pipeline.addLast("byte array decoder", new ByteArrayDecoder());
               pipeline.addLast(commandHandler);
             }
           });
@@ -62,8 +62,7 @@ public class StreamIngester implements Runnable {
       // Wait until the server socket is closed.
       f.channel().closeFuture().sync();
     } catch (final InterruptedException e) {
-      // Server was interrupted
-      e.printStackTrace();
+      logger.log(Level.WARNING, "Interrupted", e);
     }
   }
 }
