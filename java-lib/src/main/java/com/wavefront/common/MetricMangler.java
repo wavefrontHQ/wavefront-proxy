@@ -10,12 +10,23 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
- * Handles updating the metric and source names by extracting components from the metric name. There
- * are several options considered: - source name: - extracted from one or more components of the
- * metric name (where each component is separated by a '.') - allow characters to be optionally
- * replaced in the components extracted as source name with '.' - metric name: - remove components
- * (in addition to the source name) (this allows things like 'hosts.sjc1234.cpu.loadavg.1m' to get
- * changed to cpu.loadavg.1m after extracting sjc1234)
+ * Handles updating the metric and source names by extracting components from the metric name.
+ * There are several options considered:
+ * <ul>
+ *  <li>source name:</li>
+ *  <ul>
+ *    <li>extracted from one or more components of the metric name
+ *       (where each component is separated by a '.')</li>
+ *    <li>allow characters to be optionally replaced in the components extracted
+ *        as source name with '.'</li>
+ *  </ul>
+ *  <li>metric name:</li>
+ *  <ul>
+ *    <li>remove components (in addition to the source name)
+ *        (this allows things like 'hosts.sjc1234.cpu.loadavg.1m' to get
+ *        changed to cpu.loadavg.1m after extracting sjc1234)</li>
+ *  </ul>
+ * </ul>
  * This code was originally mostly contained in GraphiteFormatter class and moved into a single
  * re-usable class.
  * @author Mike McLaughlin (mike@wavefront.com)
