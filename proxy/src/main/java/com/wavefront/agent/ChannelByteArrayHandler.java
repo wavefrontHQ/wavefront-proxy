@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 
 /**
  * Channel handler for byte array data.
+ * @author Mike McLaughlin (mike@wavefront.com)
  */
 @ChannelHandler.Sharable
 public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
