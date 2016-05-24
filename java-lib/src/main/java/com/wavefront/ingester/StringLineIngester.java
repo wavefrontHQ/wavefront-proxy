@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.handler.codec.LineBasedFrameDecoder;
@@ -38,7 +40,7 @@ public class StringLineIngester extends TcpIngester {
    * @param decoders the starting list
    * @return copy of the provided list with additional decodiers prepended
    */
-  private static List<Function<Channel, ChannelHandler>> createDecoderList(final List<Function<Channel, ChannelHandler>> decoders) {
+  private static List<Function<Channel, ChannelHandler>> createDecoderList(@Nullable final List<Function<Channel, ChannelHandler>> decoders) {
     final List<Function<Channel, ChannelHandler>> copy;
     if (decoders == null) {
       copy = new ArrayList<>();

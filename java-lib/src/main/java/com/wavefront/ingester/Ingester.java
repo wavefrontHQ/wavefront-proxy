@@ -37,8 +37,7 @@ public abstract class Ingester implements Runnable {
   private static final Logger logger = Logger.getLogger(Ingester.class.getCanonicalName());
 
   /**
-   * Default number of seconds before the channel idle timeout handler
-   * closes the connection.
+   * Default number of seconds before the channel idle timeout handler closes the connection.
    */
   private static final int CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT = (int) TimeUnit.DAYS.toSeconds(1);
 
@@ -80,36 +79,37 @@ public abstract class Ingester implements Runnable {
         addIdleTimeoutHandler(pipeline);
         pipeline.addLast(commandHandler);
       }
-      };
+    };
   }
 
   /**
    * Adds an idle timeout handler to the given pipeline
+   *
    * @param pipeline the pipeline to add the idle timeout handler
    */
   protected void addIdleTimeoutHandler(final ChannelPipeline pipeline) {
     // Shared across all reports for proper batching
     pipeline.addLast("idleStateHandler",
-                     new IdleStateHandler(CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT,
-                                          0, 0));
+        new IdleStateHandler(CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT,
+            0, 0));
     pipeline.addLast("idleChannelTerminator", new ChannelDuplexHandler() {
-        @Override
-        public void userEventTriggered(ChannelHandlerContext ctx,
-                                       Object evt) throws Exception {
-          if (evt instanceof IdleStateEvent) {
-            if (((IdleStateEvent) evt).state() == IdleState.READER_IDLE) {
-              logger.warning("terminating connection to graphite client due to inactivity after " + CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT + "s: " + ctx.channel());
-              ctx.close();
-            }
+      @Override
+      public void userEventTriggered(ChannelHandlerContext ctx,
+                                     Object evt) throws Exception {
+        if (evt instanceof IdleStateEvent) {
+          if (((IdleStateEvent) evt).state() == IdleState.READER_IDLE) {
+            logger.warning("terminating connection to graphite client due to inactivity after " + CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT + "s: " + ctx.channel());
+            ctx.close();
           }
         }
-      });
+      }
+    });
   }
 
   /**
-   * Adds additional decoders passed in during construction of this object
-   * (if not null).
-   * @param ch the channel and pipeline to add these decoders to
+   * Adds additional decoders passed in during construction of this object (if not null).
+   *
+   * @param ch       the channel and pipeline to add these decoders to
    * @param decoders the list of decoders to add to the channel
    */
   protected void addDecoders(final Channel ch, @Nullable List<Function<Channel, ChannelHandler>> decoders) {

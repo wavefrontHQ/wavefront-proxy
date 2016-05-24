@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * This class handles 2 d ifferent protocols on a single port.  Supported protocols include HTTP and
+ * This class handles 2 different protocols on a single port.  Supported protocols include HTTP and
  * a plain text protocol.  It dynamically adds the appropriate encoder/decoder based on the detected
  * protocol. This class was largely adapted from the example provided with netty v4.0
  *
