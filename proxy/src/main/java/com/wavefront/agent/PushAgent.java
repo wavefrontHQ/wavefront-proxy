@@ -2,6 +2,7 @@ package com.wavefront.agent;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 
 import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
@@ -9,13 +10,15 @@ import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
 import com.wavefront.ingester.Ingester;
+import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.OpenTSDBDecoder;
-
+import com.wavefront.ingester.PickleProtocolDecoder;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import java.io.IOException;
+import java.nio.ByteOrder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -26,7 +29,9 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
 /**
  * Push-only Agent.
@@ -50,30 +55,46 @@ public class PushAgent extends AbstractAgent {
 
   @Override
   protected void startListeners() {
-    for (String strPort : pushListenerPorts.split(",")) {
-      startGraphiteListener(strPort, null);
+    if (pushListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
+      for (String strPort : ports) {
+        startGraphiteListener(strPort, null);
+      }
     }
-    if (graphitePorts != null) {
+    GraphiteFormatter graphiteFormatter = null;
+    if (graphitePorts != null || picklePorts != null) {
       Preconditions.checkNotNull(graphiteFormat, "graphiteFormat must be supplied to enable graphite support");
       Preconditions.checkNotNull(graphiteDelimiters, "graphiteDelimiters must be supplied to enable graphite support");
-      for (String strPort : graphitePorts.split(",")) {
+      graphiteFormatter = new GraphiteFormatter(graphiteFormat, graphiteDelimiters, graphiteFieldsToRemove);
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(graphitePorts);
+      for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
-          GraphiteFormatter formatter = new GraphiteFormatter(graphiteFormat, graphiteDelimiters);
-          startGraphiteListener(strPort, formatter);
+          startGraphiteListener(strPort, graphiteFormatter);
           logger.info("listening on port: " + strPort + " for graphite metrics");
         }
       }
     }
     if (opentsdbPorts != null) {
-      for (String strPort : opentsdbPorts.split(",")) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(opentsdbPorts);
+      for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
           startOpenTsdbListener(strPort);
           logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
         }
       }
     }
+    if (picklePorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(picklePorts);
+      for (String strPort : ports) {
+        if (strPort.trim().length() > 0) {
+          startPickleListener(strPort, graphiteFormatter);
+          logger.info("listening on port: " + strPort + " for pickle protocol metrics");
+        }
+      }
+    }
     if (httpJsonPorts != null) {
-      for (String strPort : httpJsonPorts.split(",")) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(httpJsonPorts);
+      for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
           try {
             int port = Integer.parseInt(strPort);
@@ -91,7 +112,8 @@ public class PushAgent extends AbstractAgent {
       }
     }
     if (writeHttpJsonPorts != null) {
-      for (String strPort : writeHttpJsonPorts.split(",")) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonPorts);
+      for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
           try {
             int port = Integer.parseInt(strPort);
@@ -119,6 +141,35 @@ public class PushAgent extends AbstractAgent {
         port, prefix, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), null, opentsdbWhitelistRegex,
         opentsdbBlacklistRegex);
     new Thread(new Ingester(graphiteHandler, port)).start();
+  }
+
+  protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
+    int port = Integer.parseInt(strPort);
+    
+    // Set up a custom handler
+    ChannelHandler handler = new ChannelByteArrayHandler(
+        new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
+        port, prefix, pushLogLevel, pushValidationLevel, pushFlushInterval, pushBlockedSamples,
+        getFlushTasks(port), whitelistRegex, blacklistRegex);
+
+    // create a class to use for StreamIngester to get a new FrameDecoder
+    // for each request (not shareable since it's storing how many bytes
+    // read, etc)
+    // the pickle listener for carbon-relay streams data in its own format:
+    //   [Length of pickled data to follow in a 4 byte unsigned int]
+    //   [pickled data of the given length]
+    //   <repeat ...>
+    // the LengthFieldBasedFrameDecoder() parses out the length and grabs
+    // <length> bytes from the stream and passes that chunk as a byte array
+    // to the decoder.
+    class FrameDecoderFactoryImpl implements StreamIngester.FrameDecoderFactory {
+      @Override
+      public ChannelInboundHandler getDecoder() {
+        return new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false);
+      }
+    }
+
+    new Thread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port)).start();
   }
 
   protected void startGraphiteListener(String strPort,

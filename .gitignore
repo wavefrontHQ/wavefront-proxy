@@ -28,4 +28,4 @@ proxy/unitTest*
 .settings/
 
 test/buffer.*
-test/proxy.out
+test/proxy*.out

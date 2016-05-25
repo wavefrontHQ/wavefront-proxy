@@ -93,10 +93,7 @@ public class PointHandler {
         randomPostTask.addPoint(pointToString(point));
       }
     } catch (IllegalArgumentException e) {
-      if (randomPostTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
-        randomPostTask.addBlockedSample(e.getMessage());
-      }
-      randomPostTask.incrementBlockedPoints();
+      this.handleBlockedPoint(e.getMessage());
     } catch (Exception ex) {
       logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point", ex);
     }
@@ -104,6 +101,14 @@ public class PointHandler {
 
   public PostPushDataTimedTask getRandomPostTask() {
     return this.sendDataTasks[random.nextInt(this.sendDataTasks.length)];
+  }
+
+  public void handleBlockedPoint(String pointLine) {
+    final PostPushDataTimedTask randomPostTask = getRandomPostTask();
+    if (randomPostTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
+      randomPostTask.addBlockedSample(pointLine);
+    }
+    randomPostTask.incrementBlockedPoints();
   }
 
   private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;

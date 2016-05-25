@@ -13,7 +13,7 @@ import sunnylabs.report.ReportPoint;
  *
  * @author Clement Pang (clement@wavefront.com).
  */
-public class OpenTSDBDecoder implements Decoder {
+public class OpenTSDBDecoder implements Decoder<String> {
 
   private final String hostName;
   private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder().whiteSpace()
