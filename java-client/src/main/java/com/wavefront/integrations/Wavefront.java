@@ -191,12 +191,21 @@ public class Wavefront implements WavefrontSender {
 
   @Override
   public synchronized void close() throws IOException {
-    flush();
+    IOException exception = null;
+    try {
+      flush();
+    } catch(IOException ex) {
+      exception = ex;
+    }
+
     if (socket != null) {
       socket.close();
     }
     this.socket = null;
     this.writer = null;
+    if (exception != null) {
+      throw exception;
+    }
   }
 
   static String sanitize(String s) {
