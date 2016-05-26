@@ -29,7 +29,8 @@ public class Wavefront implements WavefrontSender {
   // this may be optimistic about Carbon/Wavefront
   private static final Charset UTF_8 = Charset.forName("UTF-8");
 
-  private final InetSocketAddress address;
+  private final String host;
+  private final int port;
   private final SocketFactory socketFactory;
 
   private Socket socket;
@@ -59,28 +60,8 @@ public class Wavefront implements WavefrontSender {
    * @param socketFactory the socket factory
    */
   public Wavefront(String agentHostName, int port, SocketFactory socketFactory) {
-    this(new InetSocketAddress(agentHostName, port), socketFactory);
-  }
-
-  /**
-   * Creates a new client which connects to the given address using the default
-   * {@link SocketFactory}.
-   *
-   * @param agentAddress the address of the Wavefront Proxy Agent
-   */
-  public Wavefront(InetSocketAddress agentAddress) {
-    this(agentAddress, SocketFactory.getDefault());
-  }
-
-  /**
-   * Creates a new client which connects to the given address and socket factory using the given
-   * character set.
-   *
-   * @param agentAddress  the address of the Wavefront Proxy Agent
-   * @param socketFactory the socket factory
-   */
-  public Wavefront(InetSocketAddress agentAddress, SocketFactory socketFactory) {
-    this.address = agentAddress;
+    this.host = agentHostName;
+    this.port = port;
     this.socketFactory = socketFactory;
   }
 
@@ -95,7 +76,7 @@ public class Wavefront implements WavefrontSender {
     if (socket != null) {
       throw new IllegalStateException("Already connected");
     }
-    InetSocketAddress address = this.address;
+    InetSocketAddress address = new InetSocketAddress(host, port);
     if (address.getAddress() == null) {
       throw new UnknownHostException(address.getHostName());
     }
