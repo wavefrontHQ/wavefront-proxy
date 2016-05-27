@@ -11,7 +11,8 @@ import javax.ws.rs.ext.ReaderInterceptorContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.zip.GZIPInputStream;
+import java.nio.ByteBuffer;
+import java.util.zip.InflaterInputStream;
 
 /**
  * lifted from docs:
@@ -20,8 +21,8 @@ import java.util.zip.GZIPInputStream;
  * @see <a href="https://github.com/leifoolsen/jaxrs2-workshop/blob/master/jaxrs-hateoas/src/main/java/no/javabin/jaxrs/hateoas/rest/interceptor/GZIPReaderInterceptor.java">Full
  * implementation</a>
  */
-class GZIPReaderInterceptor implements ReaderInterceptor {
-  private static final Logger logger = Logger.getLogger(GZIPReaderInterceptor.class.getCanonicalName());
+class ZLibReaderInterceptor implements ReaderInterceptor {
+  private static final Logger LOG = Logger.getLogger(ZLibReaderInterceptor.class.getCanonicalName());
   @Override
   public Object aroundReadFrom(ReaderInterceptorContext context) throws IOException, WebApplicationException {
 
@@ -29,13 +30,13 @@ class GZIPReaderInterceptor implements ReaderInterceptor {
     List<String> contentEncoding = headers.get("Content-Encoding");
 
     if (contentEncoding != null) {
-      if (contentEncoding.contains("deflate") || contentEncoding.contains("gzip")) {
+      if (contentEncoding.contains("deflate")) {
         try {
-          final InputStream originalInputStream = context.getInputStream();
-          context.setInputStream(new GZIPInputStream(originalInputStream));
+          final InputStream is = context.getInputStream();
+          context.setInputStream(new InflaterInputStream(is));
         } catch (final Exception e) {
-          logger.log(Level.WARNING, "Failed to decompress input", e);
-          throw e;
+          LOG.log(Level.WARNING, "Failed to decompress message", e);
+          throw new IllegalArgumentException("Unable to decompress", e);
         }
       }
     }

@@ -145,7 +145,7 @@ public class PushAgent extends AbstractAgent {
             JettyHttpContainerFactory.createServer(
                 new URI("http://localhost:" + strPort + "/"),
                 new ResourceConfig(JacksonFeature.class)
-                    .register(new GZIPReaderInterceptor())
+                    .register(new ZLibReaderInterceptor())
                     .register(new DataDogHttpHandler(port, hostname, prefix,
                         pushValidationLevel, pushBlockedSamples, getFlushTasks(port), whitelistRegex, blacklistRegex)),
                 true);

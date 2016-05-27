@@ -5,7 +5,7 @@ This is a test runner with test suite for testing various proxy endpoints.
 
 import datetime
 import BaseHTTPServer
-import gzip
+import zlib
 import pickle
 import re
 import requests
@@ -1103,9 +1103,9 @@ class TestProxyDataDogHttp(TestAgentProxyBase):
 
         self.wait_for_push_data(pushdata_expect)
 
-    def test_series_example_1_gzip(self):
+    def test_series_example_1_zlib(self):
         """
-        Test of a sample of /api/series path (gzip)
+        Test of a sample of /api/series path (zlib)
         """
 
         pushdata_expect = [
@@ -1129,11 +1129,10 @@ class TestProxyDataDogHttp(TestAgentProxyBase):
             'Content-Type': 'application/json'
         }
         out = StringIO.StringIO()
-        with gzip.GzipFile(fileobj=out, mode='w') as gzip_fd:
-            gzip_fd.write(json.dumps(data))
+        compressed = zlib.compress(json.dumps(data))
         request = urllib2.Request('http://127.0.0.1:8126/',
                                   headers=headers,
-                                  data=out.getvalue())
+                                  data=compressed)
         urllib2.urlopen(request)
 
         self.wait_for_push_data(pushdata_expect)
