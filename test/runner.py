@@ -415,7 +415,7 @@ class TestWriteHttpProxy(TestAgentProxyBase):
 
         utcnow = unix_time_seconds(datetime.datetime.utcnow().replace(
             tzinfo=dateutil.tz.tzutc()))
-        json = """
+        data = """
 [
    {
      "values": [197141504, 175136768],
@@ -447,7 +447,7 @@ class TestWriteHttpProxy(TestAgentProxyBase):
         #urllib2.install_opener(opener)
         request = urllib2.Request('http://127.0.0.1:4878/',
                                   headers=headers,
-                                  data=json)
+                                  data=data)
         #conn =
         urllib2.urlopen(request)
         #print conn.read()
@@ -1083,9 +1083,13 @@ class TestProxyDataDogHttp(TestAgentProxyBase):
         Test of a sample of /api/series path
         """
 
-        pushdata_expect = ['"datadog.dogstatsd.packet.count" 0.0 1451951750 source="ip-10-27-0-172.us-west-2.compute.internal"',
-                           '"test.mike.gauge" 10.0 1451951750 source="ip-10-27-0-172.us-west-2.compute.internal" "abc"="123" "def"="blah"']
-        
+        pushdata_expect = [
+            ('"datadog.dogstatsd.packet.count" 0.0 1451951750 '
+                 'source="ip-10-27-0-172.us-west-2.compute.internal"'),
+            ('"test.mike.gauge" 10.0 1451951750 '
+                 'source="ip-10-27-0-172.us-west-2.compute.internal" '
+                 '"abc"="123" "def"="blah"')]
+
         with open('test/datadog/series-points-from-gauge-using-godspeed.json',
                       'rb') as sample_fd:
             data = json.load(sample_fd)
@@ -1104,9 +1108,13 @@ class TestProxyDataDogHttp(TestAgentProxyBase):
         Test of a sample of /api/series path (gzip)
         """
 
-        pushdata_expect = ['"datadog.dogstatsd.packet.count" 0.0 1451951750 source="ip-10-27-0-172.us-west-2.compute.internal"',
-                           '"test.mike.gauge" 10.0 1451951750 source="ip-10-27-0-172.us-west-2.compute.internal" "abc"="123" "def"="blah"']
-        
+        pushdata_expect = [
+            ('"datadog.dogstatsd.packet.count" 0.0 1451951750 '
+                 'source="ip-10-27-0-172.us-west-2.compute.internal"'),
+            ('"test.mike.gauge" 10.0 1451951750 '
+                 'source="ip-10-27-0-172.us-west-2.compute.internal" '
+                 '"abc"="123" "def"="blah"')]
+
         with open('test/datadog/series-points-from-gauge-using-godspeed.json',
                       'rb') as sample_fd:
             data = json.load(sample_fd)
