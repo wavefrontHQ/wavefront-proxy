@@ -1,0 +1,35 @@
+{
+    "series": [
+        {
+            "device_name": null,
+            "host": "ip-10-27-0-172.us-west-2.compute.internal",
+            "interval": 10.0,
+            "metric": "datadog.dogstatsd.packet.count",
+            "points": [
+                [
+                    1451951750.0,
+                    0
+                ]
+            ],
+            "tags": null,
+            "type": "gauge"
+        },
+        {
+            "device_name": null,
+            "host": "ip-10-27-0-172.us-west-2.compute.internal",
+            "interval": 10.0,
+            "metric": "test.mike.gauge",
+            "points": [
+                [
+                    1451951750.0,
+                    10
+                ]
+            ],
+            "tags": [
+                "abc:123",
+                "def:blah"
+            ],
+            "type": "gauge"
+        }
+    ]
+}

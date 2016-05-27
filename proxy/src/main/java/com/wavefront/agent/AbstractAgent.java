@@ -145,6 +145,9 @@ public abstract class AbstractAgent {
       "data. Binds, by default, to none.")
   protected String writeHttpJsonPorts = "";
 
+  @Parameter(names = {"--datadogHttpPorts"}, description = "Comma-separated list of ports to listen on for DataDog agent data")
+  protected String datadogHttpPorts = "";
+    
   @Parameter(names = {"--hostname"}, description = "Hostname for the agent. Defaults to FQDN of machine.")
   protected String hostname;
 
@@ -267,6 +270,7 @@ public abstract class AbstractAgent {
         flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));
         httpJsonPorts = prop.getProperty("jsonListenerPorts", httpJsonPorts);
         writeHttpJsonPorts = prop.getProperty("writeHttpJsonListenerPorts", writeHttpJsonPorts);
+        datadogHttpPorts = prop.getProperty("datadogHttpPorts", datadogHttpPorts);
         graphitePorts = prop.getProperty("graphitePorts", graphitePorts);
         graphiteFormat = prop.getProperty("graphiteFormat", graphiteFormat);
         graphiteFieldsToRemove = prop.getProperty("graphiteFieldsToRemove", graphiteFieldsToRemove);

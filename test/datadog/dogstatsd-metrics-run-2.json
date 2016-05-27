@@ -1,0 +1,62 @@
+{
+  "series": [
+    {
+      "type": "gauge",
+      "points": [
+        [
+          1465965630.0,
+          336418
+        ]
+      ],
+      "host": "ip-10-29-0-8.us-west-2.compute.internal",
+      "device_name": null,
+      "interval": 10.0,
+      "metric": "datadog.dogstatsd.packet.count",
+      "tags": null
+    },
+    {
+      "type": "rate",
+      "points": [
+        [
+          1465965630.0,
+          33491.3
+        ]
+      ],
+      "host": "ip-10-29-0-8.us-west-2.compute.internal",
+      "device_name": null,
+      "interval": 10.0,
+      "metric": "ddogtest.request.count",
+      "tags": null
+    },
+    {
+      "type": "rate",
+      "points": [
+        [
+          1465965640.0,
+          34352.9
+        ]
+      ],
+      "host": "ip-10-29-0-8.us-west-2.compute.internal",
+      "device_name": null,
+      "interval": 10.0,
+      "metric": "ddogtest.request.count",
+      "tags": null
+    },
+    {
+      "type": "rate",
+      "points": [
+        [
+          1465965650.976062,
+          0.1
+        ]
+      ],
+      "host": "ip-10-29-0-8.us-west-2.compute.internal",
+      "device_name": null,
+      "interval": 10.0,
+      "metric": "datadog.dogstatsd.serialization_status",
+      "tags": [
+        "status:success"
+      ]
+    }
+  ]
+}

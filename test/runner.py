@@ -5,10 +5,12 @@ This is a test runner with test suite for testing various proxy endpoints.
 
 import datetime
 import BaseHTTPServer
+import gzip
 import pickle
 import re
 import requests
 import socket
+import StringIO
 import struct
 import subprocess
 import threading
@@ -18,6 +20,7 @@ import urllib2
 import Queue
 import dateutil
 import dateutil.tz
+import json
 
 EPOCH = (datetime.datetime.utcfromtimestamp(0)
          .replace(tzinfo=dateutil.tz.tzutc()))
@@ -1058,6 +1061,74 @@ class TestPickleProtocolProxy(TestAgentProxyBase):
                                     (metric_name, value, tstamp, host_name))
 
         self.wait_for_push_data(expected)
+
+class TestProxyDataDogHttp(TestAgentProxyBase):
+    """
+    Tests the datadog http endpoint support
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(TestProxyDataDogHttp, self).__init__(*args, **kwargs)
+
+    def setUp(self):
+        args = ['--datadogHttpPorts', '8126']
+        self.setup_common(self.__class__.__name__ + '__' +
+                          self._testMethodName, 8126, args)
+
+    def tearDown(self):
+        self.teardown_common()
+
+    def test_series_example_1(self):
+        """
+        Test of a sample of /api/series path
+        """
+
+        pushdata_expect = ['"datadog.dogstatsd.packet.count" 0.0 1451951750 source="ip-10-27-0-172.us-west-2.compute.internal"',
+                           '"test.mike.gauge" 10.0 1451951750 source="ip-10-27-0-172.us-west-2.compute.internal" "abc"="123" "def"="blah"']
+        
+        with open('test/datadog/series-points-from-gauge-using-godspeed.json',
+                      'rb') as sample_fd:
+            data = json.load(sample_fd)
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        request = urllib2.Request('http://127.0.0.1:8126/',
+                                  headers=headers,
+                                  data=json.dumps(data))
+        urllib2.urlopen(request)
+
+        self.wait_for_push_data(pushdata_expect)
+
+    def test_series_example_1_gzip(self):
+        """
+        Test of a sample of /api/series path (gzip)
+        """
+
+        pushdata_expect = ['"datadog.dogstatsd.packet.count" 0.0 1451951750 source="ip-10-27-0-172.us-west-2.compute.internal"',
+                           '"test.mike.gauge" 10.0 1451951750 source="ip-10-27-0-172.us-west-2.compute.internal" "abc"="123" "def"="blah"']
+        
+        with open('test/datadog/series-points-from-gauge-using-godspeed.json',
+                      'rb') as sample_fd:
+            data = json.load(sample_fd)
+
+        headers = {
+            'Accept-Encoding': 'gzip, deflate',
+            'Content-Encoding': 'deflate',
+            'DD-Dogstatsd-Version': '5.8.0',
+            'Accept': '*/*',
+            'User-Agent': 'python-requests/2.6.0 CPython/2.7.11 Darwin/15.5.0',
+            'Connection': 'keep-alive',
+            'Content-Type': 'application/json'
+        }
+        out = StringIO.StringIO()
+        with gzip.GzipFile(fileobj=out, mode='w') as gzip_fd:
+            gzip_fd.write(json.dumps(data))
+        request = urllib2.Request('http://127.0.0.1:8126/',
+                                  headers=headers,
+                                  data=out.getvalue())
+        urllib2.urlopen(request)
+
+        self.wait_for_push_data(pushdata_expect)
 
 def get_precision(value):
     """
