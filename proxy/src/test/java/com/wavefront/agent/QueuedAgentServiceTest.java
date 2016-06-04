@@ -6,6 +6,7 @@ import com.squareup.tape.TaskInjector;
 import com.wavefront.agent.QueuedAgentService.PostPushDataResultTask;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.ShellOutputDTO;
+import com.wavefront.ingester.StringLineIngester;
 
 import net.jcip.annotations.NotThreadSafe;
 
@@ -135,7 +136,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
     EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).
         andReturn(Response.ok().build()).once();
@@ -159,7 +160,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
     EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).
         andReturn(Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
@@ -188,7 +189,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str1);
     pretendPushDataList.add(str2);
 
-    String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
     EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).
         andReturn(Response.status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
@@ -224,7 +225,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str1);
     pretendPushDataList.add(str2);
 
-    String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
     EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).andReturn(Response
         .status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
@@ -393,7 +394,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
@@ -428,7 +429,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
@@ -470,7 +471,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
@@ -513,7 +514,7 @@ public class QueuedAgentServiceTest {
     List<String> pretendPushDataList = new ArrayList<String>();
     pretendPushDataList.add(str1);
 
-    String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
@@ -527,7 +528,7 @@ public class QueuedAgentServiceTest {
     assertEquals(1, splitTasks.size());
 
     String firstSplitDataString = splitTasks.get(0).getPushData();
-    List<String> firstSplitData = ChannelStringHandler.unjoinPushData(firstSplitDataString);
+    List<String> firstSplitData = StringLineIngester.unjoinPushData(firstSplitDataString);
 
     assertEquals(1, firstSplitData.size());
   }
@@ -552,7 +553,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str3);
     pretendPushDataList.add(str4);
 
-    String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
     PostPushDataResultTask task = new PostPushDataResultTask(
         agentId,
@@ -566,11 +567,11 @@ public class QueuedAgentServiceTest {
     assertEquals(2, splitTasks.size());
 
     String firstSplitDataString = splitTasks.get(0).getPushData();
-    List<String> firstSplitData = ChannelStringHandler.unjoinPushData(firstSplitDataString);
+    List<String> firstSplitData = StringLineIngester.unjoinPushData(firstSplitDataString);
     assertEquals(2, firstSplitData.size());
 
     String secondSplitDataString = splitTasks.get(1).getPushData();
-    List<String> secondSplitData = ChannelStringHandler.unjoinPushData(secondSplitDataString);
+    List<String> secondSplitData = StringLineIngester.unjoinPushData(secondSplitDataString);
     assertEquals(2, secondSplitData.size());
 
     // and all the data is the same...
@@ -583,9 +584,9 @@ public class QueuedAgentServiceTest {
     }
 
     // first list should have the first 2 strings
-    assertEquals(ChannelStringHandler.joinPushData(Arrays.asList(str1, str2)), firstSplitDataString);
+    assertEquals(StringLineIngester.joinPushData(Arrays.asList(str1, str2)), firstSplitDataString);
     // second list should have the last 2
-    assertEquals(ChannelStringHandler.joinPushData(Arrays.asList(str3, str4)), secondSplitDataString);
+    assertEquals(StringLineIngester.joinPushData(Arrays.asList(str3, str4)), secondSplitDataString);
 
   }
 
@@ -614,7 +615,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str4);
     pretendPushDataList.add(str5);
 
-    String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
     PostPushDataResultTask task = new PostPushDataResultTask(
         agentId,
@@ -628,12 +629,12 @@ public class QueuedAgentServiceTest {
     assertEquals(2, splitTasks.size());
 
     String firstSplitDataString = splitTasks.get(0).getPushData();
-    List<String> firstSplitData = ChannelStringHandler.unjoinPushData(firstSplitDataString);
+    List<String> firstSplitData = StringLineIngester.unjoinPushData(firstSplitDataString);
 
     assertEquals(3, firstSplitData.size());
 
     String secondSplitDataString = splitTasks.get(1).getPushData();
-    List<String> secondSplitData = ChannelStringHandler.unjoinPushData(secondSplitDataString);
+    List<String> secondSplitData = StringLineIngester.unjoinPushData(secondSplitDataString);
 
     assertEquals(2, secondSplitData.size());
   }
@@ -656,7 +657,7 @@ public class QueuedAgentServiceTest {
           pretendPushDataList.add(RandomStringUtils.randomAlphabetic(6));
         }
 
-        String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+        String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
         PostPushDataResultTask task = new PostPushDataResultTask(
             agentId,
@@ -669,7 +670,7 @@ public class QueuedAgentServiceTest {
         List<PostPushDataResultTask> splitTasks = task.splitTask();
         Set<String> splitData = Sets.newHashSet();
         for (PostPushDataResultTask taskN : splitTasks) {
-          List<String> dataStrings = ChannelStringHandler.unjoinPushData(taskN.getPushData());
+          List<String> dataStrings = StringLineIngester.unjoinPushData(taskN.getPushData());
           splitData.addAll(dataStrings);
           assertTrue(dataStrings.size() <= targetBatchSize + 1);
         }
@@ -695,7 +696,7 @@ public class QueuedAgentServiceTest {
         pretendPushDataList.add(RandomStringUtils.randomAlphabetic(6));
       }
 
-      String pretendPushData = ChannelStringHandler.joinPushData(pretendPushDataList);
+      String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
 
       PostPushDataResultTask task = new PostPushDataResultTask(
           agentId,
@@ -709,7 +710,7 @@ public class QueuedAgentServiceTest {
       assertEquals(2, splitTasks.size());
       Set<String> splitData = Sets.newHashSet();
       for (PostPushDataResultTask taskN : splitTasks) {
-        List<String> dataStrings = ChannelStringHandler.unjoinPushData(taskN.getPushData());
+        List<String> dataStrings = StringLineIngester.unjoinPushData(taskN.getPushData());
         splitData.addAll(dataStrings);
         assertTrue(dataStrings.size() <= numTestStrings / 2 + 1);
       }

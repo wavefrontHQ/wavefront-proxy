@@ -29,3 +29,4 @@ proxy/unitTest*
 
 test/buffer.*
 test/proxy*.out
+test/.wavefront_id
