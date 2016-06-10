@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>3.15</version>
+  <version>3.16-SNAPSHOT</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
@@ -34,7 +34,7 @@
     <connection>scm:git:git@github.com:wavefronthq/java.git</connection>
     <developerConnection>scm:git:git@github.com:wavefronthq/java.git</developerConnection>
     <url>git@github.com:wavefronthq/java.git</url>
-    <tag>wavefront-3.15</tag>
+    <tag>wavefront-3.0</tag>
   </scm>
 
   <distributionManagement>
@@ -75,7 +75,7 @@
       <dependency>
         <groupId>com.wavefront</groupId>
         <artifactId>java-lib</artifactId>
-        <version>3.15</version>
+        <version>3.16-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>
