@@ -26,16 +26,13 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandler {
 
   protected static final Logger logger = Logger.getLogger("agent");
 
-  @Nullable
-  private final String prefix;
   private final String defaultHost;
 
   public WriteHttpJsonMetricsEndpoint(final int port, final String host,
                                       @Nullable
                                       final String prefix, final String validationLevel,
                                       final int blockedPointsPerBatch, PostPushDataTimedTask[] postPushDataTimedTasks) {
-    super(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
-    this.prefix = prefix;
+    super(port, validationLevel, blockedPointsPerBatch, prefix, postPushDataTimedTasks);
     this.defaultHost = host;
   }
 

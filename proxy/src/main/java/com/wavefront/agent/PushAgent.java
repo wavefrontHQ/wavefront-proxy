@@ -135,6 +135,27 @@ public class PushAgent extends AbstractAgent {
         }
       }
     }
+    if (datadogHttpPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(datadogHttpPorts);
+      for (String strPort : ports) {
+        if (strPort.trim().length() > 0) {
+          try {
+            int port = Integer.parseInt(strPort);
+            // will immediately start the server.
+            JettyHttpContainerFactory.createServer(
+                new URI("http://localhost:" + strPort + "/"),
+                new ResourceConfig(JacksonFeature.class)
+                    .register(new ZLibReaderInterceptor())
+                    .register(new DataDogHttpHandler(port, hostname, prefix,
+                        pushValidationLevel, pushBlockedSamples, getFlushTasks(port), whitelistRegex, blacklistRegex)),
+                true);
+            logger.info("listening on port " + strPort + " for Data Dog JSON metrics");
+          } catch (URISyntaxException e) {
+            throw new RuntimeException("Unable to bind to: " + strPort + " for Write HTTP JSON metrics", e);
+          }
+        }
+      }
+    }
   }
 
   protected void startOpenTsdbListener(String strPort) {
