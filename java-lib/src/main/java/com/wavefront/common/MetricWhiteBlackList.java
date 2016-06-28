@@ -33,11 +33,11 @@ public class MetricWhiteBlackList implements Predicate<String> {
    *
    * @param pointLineWhiteListRegex the white list regular expression.
    * @param pointLineBlackListRegex the black list regular expression
-   * @param rejectCounterName       the name for the counter (validationRegex.{rejectCounterName})
+   * @param portName                the port used as metric name (validationRegex.point-rejected [port=portName])
    */
   public MetricWhiteBlackList(@Nullable final String pointLineWhiteListRegex,
                               @Nullable final String pointLineBlackListRegex,
-                              final String rejectCounterName) {
+                              final String portName) {
 
     if (!StringUtils.isBlank(pointLineWhiteListRegex)) {
       this.pointLineWhiteList = Pattern.compile(pointLineWhiteListRegex);
@@ -51,7 +51,7 @@ public class MetricWhiteBlackList implements Predicate<String> {
     }
 
     this.regexRejects = Metrics.newCounter(
-        new TaggedMetricName("validationRegex", rejectCounterName, "", "points-rejected"));
+        new TaggedMetricName("validationRegex", "points-rejected", "port", portName));
   }
 
   /**
