@@ -1,7 +1,10 @@
 package com.wavefront.common;
 
+import com.google.common.base.Predicate;
+
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+
 import org.apache.commons.lang.StringUtils;
 
 import java.util.regex.Pattern;
@@ -9,12 +12,12 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
- * White/Black list checker for a metric.  This code was originally contained within the
- * ChannelStringHandler.  This class was created for easy re-use by classes such as the
- * ChannelByteArrayHandler.
+ * White/Black list checker for a metric.  This code was originally contained within the ChannelStringHandler.  This
+ * class was created for easy re-use by classes such as the ChannelByteArrayHandler.
+ *
  * @author Mike McLaughlin (mike@wavefront.com)
  */
-public class MetricWhiteBlackList {
+public class MetricWhiteBlackList implements Predicate<String> {
   @Nullable
   private final Pattern pointLineWhiteList;
   @Nullable
@@ -57,7 +60,8 @@ public class MetricWhiteBlackList {
    * @param pointLine the line to check
    * @return true if the line passes checks; false o/w
    */
-  public boolean passes(String pointLine) {
+  @Override
+  public boolean apply(String pointLine) {
     if ((pointLineWhiteList != null && !pointLineWhiteList.matcher(pointLine).matches()) ||
         (pointLineBlackList != null && pointLineBlackList.matcher(pointLine).matches())) {
       regexRejects.inc();
@@ -65,5 +69,4 @@ public class MetricWhiteBlackList {
     }
     return true;
   }
-
 }

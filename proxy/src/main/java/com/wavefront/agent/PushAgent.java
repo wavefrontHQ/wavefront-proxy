@@ -2,30 +2,30 @@ package com.wavefront.agent;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 
 import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.api.agent.AgentConfiguration;
+import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
+import com.wavefront.ingester.OpenTSDBDecoder;
+import com.wavefront.ingester.PickleProtocolDecoder;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.ingester.TcpIngester;
-import com.wavefront.ingester.OpenTSDBDecoder;
-import com.wavefront.ingester.PickleProtocolDecoder;
+
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import java.io.IOException;
-import java.nio.ByteOrder;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteOrder;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -143,8 +143,10 @@ public class PushAgent extends AbstractAgent {
     ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
       @Override
       public void initChannel(SocketChannel ch) throws Exception {
-        final ChannelHandler handler = new OpenTSDBPortUnificationHandler(new OpenTSDBDecoder("unknown", customSourceTags),
-            port, prefix, pushValidationLevel, pushBlockedSamples, flushTasks, opentsdbWhitelistRegex, opentsdbBlacklistRegex);
+        final ChannelHandler handler = new OpenTSDBPortUnificationHandler(
+            new OpenTSDBDecoder("unknown", customSourceTags),
+            port, prefix, pushValidationLevel, pushBlockedSamples, flushTasks, opentsdbWhitelistRegex,
+            opentsdbBlacklistRegex);
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler));
       }
@@ -154,7 +156,7 @@ public class PushAgent extends AbstractAgent {
 
   protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
     int port = Integer.parseInt(strPort);
-    
+
     // Set up a custom handler
     ChannelHandler handler = new ChannelByteArrayHandler(
         new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
@@ -181,6 +183,23 @@ public class PushAgent extends AbstractAgent {
     new Thread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port)).start();
   }
 
+  /**
+   * Registers a custom point handler on a particular port.
+   *
+   * @param strPort       The port to listen on.
+   * @param decoder       The decoder to use.
+   * @param pointHandler  The handler to handle parsed ReportPoints.
+   * @param linePredicate Predicate to reject lines. See {@link com.wavefront.common.MetricWhiteBlackList}
+   * @param formatter     Transform function for each line.
+   */
+  protected void startCustomListener(String strPort, Decoder<String> decoder, PointHandler pointHandler,
+                                     Predicate<String> linePredicate,
+                                     @Nullable Function<String, String> formatter) {
+    int port = Integer.parseInt(strPort);
+    ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler, linePredicate, formatter);
+    new Thread(new StringLineIngester(channelHandler, port)).start();
+  }
+
   protected void startGraphiteListener(String strPort,
                                        @Nullable Function<String, String> formatter) {
     int port = Integer.parseInt(strPort);
@@ -195,7 +214,7 @@ public class PushAgent extends AbstractAgent {
       handler.add(new Function<Channel, ChannelHandler>() {
         @Override
         public ChannelHandler apply(Channel input) {
-          SocketChannel ch = (SocketChannel)input;
+          SocketChannel ch = (SocketChannel) input;
           return new GraphiteHostAnnotator(ch.remoteAddress().getHostName(), customSourceTags);
         }
       });

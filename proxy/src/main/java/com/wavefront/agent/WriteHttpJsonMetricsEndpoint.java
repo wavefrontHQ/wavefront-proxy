@@ -22,7 +22,7 @@ import sunnylabs.report.ReportPoint;
  * @see <a href="https://collectd.org/wiki/index.php/Plugin:Write_HTTP">https://collectd.org/wiki/index.php/Plugin:Write_HTTP</a>
  */
 @Path("/")
-public class WriteHttpJsonMetricsEndpoint extends PointHandler {
+public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
 
   protected static final Logger logger = Logger.getLogger("agent");
 

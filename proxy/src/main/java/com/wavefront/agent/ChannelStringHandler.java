@@ -1,23 +1,17 @@
 package com.wavefront.agent;
 
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
-import com.wavefront.ingester.Decoder;
 import com.wavefront.common.MetricWhiteBlackList;
+import com.wavefront.ingester.Decoder;
 
-import org.apache.commons.lang.StringUtils;
-
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
-import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.Null;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -43,7 +37,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   private final Function<String, String> transformer;
   private final PointHandler pointHandler;
 
-  private MetricWhiteBlackList whiteBlackList;
+  private final Predicate<String> linePredicate;
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final int port,
@@ -55,36 +49,37 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
                               @Nullable final String pointLineWhiteListRegex,
                               @Nullable final String pointLineBlackListRegex) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandler(port, validationLevel, blockedPointsPerBatch, prefix, postPushDataTimedTasks);
+    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
+        postPushDataTimedTasks);
     this.transformer = transformer;
-    this.whiteBlackList = new MetricWhiteBlackList(pointLineWhiteListRegex,
-                                                   pointLineBlackListRegex,
-                                                   String.valueOf(port));
+    this.linePredicate = new MetricWhiteBlackList(pointLineWhiteListRegex,
+        pointLineBlackListRegex,
+        String.valueOf(port));
   }
 
-  protected ChannelStringHandler(Decoder<String> decoder,
-                                 final PointHandler pointhandler,
-                                 final MetricWhiteBlackList whiteBlackList,
-                                 @Nullable final Function<String, String> transformer) {
+  public ChannelStringHandler(Decoder<String> decoder,
+                              final PointHandler pointhandler,
+                              final Predicate<String> linePredicate,
+                              @Nullable final Function<String, String> transformer) {
     this.decoder = decoder;
     this.pointHandler = pointhandler;
     this.transformer = transformer;
-    this.whiteBlackList = whiteBlackList;
+    this.linePredicate = linePredicate;
   }
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-    processPointLine(msg, decoder, pointHandler, whiteBlackList, transformer);
+    processPointLine(msg, decoder, pointHandler, linePredicate, transformer);
   }
 
   /**
-   * This probably belongs in a base class.  It's only done like this so it can be easily re-used.
-   * This should be refactored when it's clear where it belongs.
+   * This probably belongs in a base class.  It's only done like this so it can be easily re-used. This should be
+   * refactored when it's clear where it belongs.
    */
   public static void processPointLine(final String message,
                                       Decoder<String> decoder,
                                       final PointHandler pointHandler,
-                                      final MetricWhiteBlackList whiteBlackList,
+                                      final Predicate<String> linePredicate,
                                       @Nullable final Function<String, String> transformer) {
     // ignore empty lines.
     String msg = message;
@@ -97,7 +92,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     String pointLine = msg.trim();
 
     // apply white/black lists after formatting
-    if (!whiteBlackList.passes(pointLine)) {
+    if (!linePredicate.apply(pointLine)) {
       pointHandler.handleBlockedPoint(pointLine);
       return;
     }
@@ -109,7 +104,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     } catch (Exception e) {
       final Throwable rootCause = Throwables.getRootCause(e);
       String errMsg = "WF-300 Cannot parse: \"" + pointLine +
-            "\", reason: \"" + e.getMessage() + "\"";
+          "\", reason: \"" + e.getMessage() + "\"";
       if (rootCause != null && rootCause.getMessage() != null) {
         errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
       }

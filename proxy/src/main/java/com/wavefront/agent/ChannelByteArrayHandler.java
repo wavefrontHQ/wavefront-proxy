@@ -1,21 +1,22 @@
 package com.wavefront.agent;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
 import com.wavefront.common.MetricWhiteBlackList;
 import com.wavefront.ingester.Decoder;
 
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import sunnylabs.report.ReportPoint;
-
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
+
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
+import sunnylabs.report.ReportPoint;
 
 
 /**
@@ -30,7 +31,7 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
   private final Decoder<byte[]> decoder;
   private final PointHandler pointHandler;
 
-  private MetricWhiteBlackList whiteBlackList;
+  private final Predicate<String> metricPredicate;
 
   /**
    * Constructor.
@@ -44,8 +45,9 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
                                  @Nullable final String pointLineWhiteListRegex,
                                  @Nullable final String pointLineBlackListRegex) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandler(port, validationLevel, blockedPointsPerBatch, prefix, postPushDataTimedTasks);
-    this.whiteBlackList = new MetricWhiteBlackList(
+    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
+        postPushDataTimedTasks);
+    this.metricPredicate = new MetricWhiteBlackList(
       pointLineWhiteListRegex, pointLineBlackListRegex, String.valueOf(port));
   }
 
@@ -60,7 +62,7 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
     try {
       decoder.decodeReportPoints(msg, points, "dummy");
       for (final ReportPoint point: points) {
-        if (!this.whiteBlackList.passes(point.getMetric())) {
+        if (!this.metricPredicate.apply(point.getMetric())) {
           pointHandler.handleBlockedPoint(point.getMetric());
           continue;
         }

@@ -1,12 +1,21 @@
 package com.wavefront.agent;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wavefront.common.MetricWhiteBlackList;
+import com.wavefront.ingester.OpenTSDBDecoder;
+import com.wavefront.metrics.JsonMetricsParser;
+
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 import java.util.HashMap;
 import java.util.Map;
-import java.net.URI;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
@@ -22,20 +31,12 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import com.google.common.base.Throwables;
-
-import com.wavefront.ingester.OpenTSDBDecoder;
-import com.wavefront.common.MetricWhiteBlackList;
-import com.wavefront.metrics.JsonMetricsParser;
-
 import sunnylabs.report.ReportPoint;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.*;
-import static io.netty.handler.codec.http.HttpVersion.*;
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 /**
  * This class handles an incoming message of either String or FullHttpRequest type.  All other types
@@ -51,7 +52,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
    * The point handler that takes report metrics one data point at a time and handles batching and
    * retries, etc
    */
-  private final PointHandler pointHandler;
+  private final PointHandlerImpl pointHandler;
 
   /**
    * OpenTSDB decoder object
@@ -61,7 +62,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
   /**
    * white list/ black list handler
    */
-  private final MetricWhiteBlackList whiteBlackList;
+  private final Predicate<String> whiteBlackList;
 
   OpenTSDBPortUnificationHandler(final OpenTSDBDecoder decoder,
                                  final int port,
@@ -72,7 +73,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
                                  @Nullable final String pointLineWhiteListRegex,
                                  @Nullable final String pointLineBlackListRegex) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandler(
+    this.pointHandler = new PointHandlerImpl(
         port, validationLevel, blockedPointsPerBatch, prefix, postPushDataTimedTasks);
     this.whiteBlackList = new MetricWhiteBlackList(
         pointLineWhiteListRegex, pointLineBlackListRegex, String.valueOf(port));
@@ -245,7 +246,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
       builder.setTable("dummy");
       builder.setHost(hostName);
       ReportPoint point = builder.build();
-      pointHandler.reportPoint(point, "OpenTSDB http json: " + PointHandler.pointToString(point));
+      pointHandler.reportPoint(point, "OpenTSDB http json: " + PointHandlerImpl.pointToString(point));
       return true;
     } catch (final Exception e) {
       blockMessage("WF-300", "Failed to add metric", e);
