@@ -100,6 +100,8 @@ public class PostPushDataTimedTask implements Runnable {
     return this.pointsQueued.count();
   }
 
+  public long getNumPointsToSend() { return this.points.size(); }
+
   public long getNumApiCalls() {
     return numApiCalls;
   }

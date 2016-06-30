@@ -103,7 +103,16 @@ public class PointHandler {
   }
 
   public PostPushDataTimedTask getRandomPostTask() {
-    return this.sendDataTasks[random.nextInt(this.sendDataTasks.length)];
+    long min = Long.MAX_VALUE;
+    PostPushDataTimedTask randomPostTask = null;
+    for (int i = 0; i < this.sendDataTasks.length; i++) {
+      long pointsToSend = this.sendDataTasks[i].getNumPointsToSend();
+      if (pointsToSend < min) {
+        min = pointsToSend;
+        randomPostTask = this.sendDataTasks[i];
+      }
+    }
+    return randomPostTask;
   }
 
   private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
