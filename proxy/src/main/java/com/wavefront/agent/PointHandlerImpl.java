@@ -133,7 +133,16 @@ public class PointHandlerImpl implements PointHandler {
   }
 
   public PostPushDataTimedTask getRandomPostTask() {
-    return this.sendDataTasks[random.nextInt(this.sendDataTasks.length)];
+    long min = Long.MAX_VALUE;
+    PostPushDataTimedTask randomPostTask = null;
+    for (int i = 0; i < this.sendDataTasks.length; i++) {
+      long pointsToSend = this.sendDataTasks[i].getNumPointsToSend();
+      if (pointsToSend < min) {
+        min = pointsToSend;
+        randomPostTask = this.sendDataTasks[i];
+      }
+    }
+    return randomPostTask;
   }
 
   @Override
