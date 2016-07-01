@@ -20,6 +20,7 @@ import com.yammer.metrics.core.Gauge;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.config.SocketConfig;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
@@ -399,6 +400,9 @@ public abstract class AbstractAgent {
         useSystemProperties().
         setMaxConnTotal(200).
         setMaxConnPerRoute(100).
+        setDefaultSocketConfig(
+            SocketConfig.custom().
+                setSoTimeout(60000).build()).
         setDefaultRequestConfig(
             RequestConfig.custom().
                 setContentCompressionEnabled(true).
