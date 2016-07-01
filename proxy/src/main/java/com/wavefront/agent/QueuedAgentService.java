@@ -19,6 +19,7 @@ import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ShellOutputDTO;
+import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
@@ -562,7 +563,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       // pull the pushdata back apart to split and put back together
       List<PostPushDataResultTask> splitTasks = Lists.newArrayList();
 
-      List<String> pushDatum = ChannelStringHandler.unjoinPushData(pushData);
+      List<String> pushDatum = StringLineIngester.unjoinPushData(pushData);
 
       int numDatum = pushDatum.size();
       if (numDatum > 1) {
@@ -573,7 +574,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         for (int startingIndex = 0; endingIndex < numDatum; startingIndex += stride) {
           endingIndex = Math.min(numDatum, startingIndex + stride);
           splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
-              ChannelStringHandler.joinPushData(new ArrayList<>(
+              StringLineIngester.joinPushData(new ArrayList<>(
                   pushDatum.subList(startingIndex, endingIndex)))));
         }
       } else {

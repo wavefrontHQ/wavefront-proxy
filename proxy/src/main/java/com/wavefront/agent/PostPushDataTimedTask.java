@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.RateLimiter;
 
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.agent.Constants;
+import com.wavefront.ingester.StringLineIngester;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -136,7 +137,7 @@ public class PostPushDataTimedTask implements Runnable {
         try {
           response = agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
               System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
-              ChannelStringHandler.joinPushData(current));
+              StringLineIngester.joinPushData(current));
           int pointsInList = current.size();
           this.pointsAttempted.inc(pointsInList);
           if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
@@ -163,7 +164,7 @@ public class PostPushDataTimedTask implements Runnable {
             if (pushDataPointCount > 0) {
               agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
                   System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
-                  ChannelStringHandler.joinPushData(pushData), true);
+                  StringLineIngester.joinPushData(pushData), true);
 
               // update the counters as if this was a failed call to the API
               this.pointsAttempted.inc(pushDataPointCount);

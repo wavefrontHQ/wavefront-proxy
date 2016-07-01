@@ -135,6 +135,9 @@ public abstract class AbstractAgent {
       "extracted hostname with dots. Defaults to underscores (_).")
   protected String graphiteDelimiters = "_";
 
+  @Parameter(names = {"--graphiteFieldsToRemove"}, description="Comma-separated list of metric segments to remove (1-based)")
+  protected String graphiteFieldsToRemove;
+
   @Parameter(names = {"--httpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics " +
       "data. Binds, by default, to none.")
   protected String httpJsonPorts = "";
@@ -170,6 +173,10 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
   protected String opentsdbBlacklistRegex;
+
+  @Parameter(names = {"--picklePorts"}, description = "Comma-separated list of ports to listen on for pickle protocol " +
+      "data. Defaults to none.")
+  protected String picklePorts;
 
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
@@ -263,6 +270,7 @@ public abstract class AbstractAgent {
         writeHttpJsonPorts = prop.getProperty("writeHttpJsonListenerPorts", writeHttpJsonPorts);
         graphitePorts = prop.getProperty("graphitePorts", graphitePorts);
         graphiteFormat = prop.getProperty("graphiteFormat", graphiteFormat);
+        graphiteFieldsToRemove = prop.getProperty("graphiteFieldsToRemove", graphiteFieldsToRemove);
         graphiteDelimiters = prop.getProperty("graphiteDelimiters", graphiteDelimiters);
         graphiteWhitelistRegex = prop.getProperty("graphiteWhitelistRegex", graphiteWhitelistRegex);
         graphiteBlacklistRegex = prop.getProperty("graphiteBlacklistRegex", graphiteBlacklistRegex);
@@ -277,6 +285,7 @@ public abstract class AbstractAgent {
             String.valueOf(retryBackoffBaseSeconds)));
         customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
         ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
+        picklePorts = prop.getProperty("picklePorts", picklePorts);
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);

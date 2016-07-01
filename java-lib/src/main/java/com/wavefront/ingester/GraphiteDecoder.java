@@ -17,7 +17,7 @@ import sunnylabs.report.ReportPoint;
  *
  * @author Clement Pang (clement@wavefront.com).
  */
-public class GraphiteDecoder implements Decoder {
+public class GraphiteDecoder implements Decoder<String> {
 
   private static final Pattern CUSTOMERID = Pattern.compile("[a-z]+");
   private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder().whiteSpace()

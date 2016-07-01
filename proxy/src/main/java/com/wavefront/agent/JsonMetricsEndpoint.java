@@ -29,7 +29,7 @@ import sunnylabs.report.ReportPoint;
  * @author Clement Pang (clement@wavefront.com).
  */
 @Path("/")
-public class JsonMetricsEndpoint extends PointHandler {
+public class JsonMetricsEndpoint extends PointHandlerImpl {
 
   @Nullable
   private final String prefix;

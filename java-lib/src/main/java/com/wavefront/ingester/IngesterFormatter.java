@@ -411,6 +411,7 @@ public class IngesterFormatter {
     }
     while (next != null && (next.getType() == DSWrapperLexer.Letters ||
         next.getType() == DSWrapperLexer.Number ||
+        next.getType() == DSWrapperLexer.SLASH ||
         next.getType() == DSWrapperLexer.Literal ||
         next.getType() == DSWrapperLexer.IpV4Address ||
         next.getType() == DSWrapperLexer.MinusSign ||

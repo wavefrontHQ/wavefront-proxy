@@ -21,43 +21,43 @@ public class PointHandlerTest {
   @Test
   public void testPointIllegalChars() {
     String input = "metric1";
-    Assert.assertTrue(PointHandler.charactersAreValid(input));
+    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
 
     input = "good.metric2";
-    Assert.assertTrue(PointHandler.charactersAreValid(input));
+    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
 
     input = "good-metric3";
-    Assert.assertTrue(PointHandler.charactersAreValid(input));
+    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
 
     input = "good_metric4";
-    Assert.assertTrue(PointHandler.charactersAreValid(input));
+    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
 
     input = "good,metric5";
-    Assert.assertTrue(PointHandler.charactersAreValid(input));
+    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
 
     input = "good/metric6";
-    Assert.assertTrue(PointHandler.charactersAreValid(input));
+    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
 
     input = "~good.metric7";
-    Assert.assertTrue(PointHandler.charactersAreValid(input));
+    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
 
     input = "abcdefghijklmnopqrstuvwxyz.0123456789,/_-ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    Assert.assertTrue(PointHandler.charactersAreValid(input));
+    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
 
     input = "abcdefghijklmnopqrstuvwxyz.0123456789,/_-ABCDEFGHIJKLMNOPQRSTUVWXYZ~";
-    Assert.assertFalse(PointHandler.charactersAreValid(input));
+    Assert.assertFalse(PointHandlerImpl.charactersAreValid(input));
 
     input = "as;df";
-    Assert.assertFalse(PointHandler.charactersAreValid(input));
+    Assert.assertFalse(PointHandlerImpl.charactersAreValid(input));
 
     input = "as:df";
-    Assert.assertFalse(PointHandler.charactersAreValid(input));
+    Assert.assertFalse(PointHandlerImpl.charactersAreValid(input));
 
     input = "as df";
-    Assert.assertFalse(PointHandler.charactersAreValid(input));
+    Assert.assertFalse(PointHandlerImpl.charactersAreValid(input));
 
     input = "as'df";
-    Assert.assertFalse(PointHandler.charactersAreValid(input));
+    Assert.assertFalse(PointHandlerImpl.charactersAreValid(input));
   }
 
   @Test
@@ -70,10 +70,10 @@ public class PointHandlerTest {
 
     ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis(), 10L, "host", "table",
         goodMap);
-    Assert.assertTrue(PointHandler.annotationKeysAreValid(rp));
+    Assert.assertTrue(PointHandlerImpl.annotationKeysAreValid(rp));
 
     rp.setAnnotations(badMap);
-    Assert.assertFalse(PointHandler.annotationKeysAreValid(rp));
+    Assert.assertFalse(PointHandlerImpl.annotationKeysAreValid(rp));
 
   }
 
@@ -87,25 +87,25 @@ public class PointHandlerTest {
     // not in range if over a year ago
     ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear, 10L, "host", "table",
         new HashMap<String, String>());
-    Assert.assertFalse(PointHandler.pointInRange(rp));
+    Assert.assertFalse(PointHandlerImpl.pointInRange(rp));
 
     rp.setTimestamp(System.currentTimeMillis() - millisPerYear - 1);
-    Assert.assertFalse(PointHandler.pointInRange(rp));
+    Assert.assertFalse(PointHandlerImpl.pointInRange(rp));
 
     // in range if within a year ago
     rp.setTimestamp(System.currentTimeMillis() - (millisPerYear / 2));
-    Assert.assertTrue(PointHandler.pointInRange(rp));
+    Assert.assertTrue(PointHandlerImpl.pointInRange(rp));
 
     // in range for right now
     rp.setTimestamp(System.currentTimeMillis());
-    Assert.assertTrue(PointHandler.pointInRange(rp));
+    Assert.assertTrue(PointHandlerImpl.pointInRange(rp));
 
     // in range if within a day in the future
     rp.setTimestamp(System.currentTimeMillis() + millisPerDay - 1);
-    Assert.assertTrue(PointHandler.pointInRange(rp));
+    Assert.assertTrue(PointHandlerImpl.pointInRange(rp));
 
     // out of range for over a day in the future
     rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 2));
-    Assert.assertFalse(PointHandler.pointInRange(rp));
+    Assert.assertFalse(PointHandlerImpl.pointInRange(rp));
   }
 }
