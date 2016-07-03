@@ -409,6 +409,7 @@ public abstract class AbstractAgent {
         useSystemProperties().
         setMaxConnTotal(200).
         setMaxConnPerRoute(100).
+        setConnectionTimeToLive(1, TimeUnit.MINUTES).
         setDefaultSocketConfig(
             SocketConfig.custom().
                 setSoTimeout(60000).build()).
