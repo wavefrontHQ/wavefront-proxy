@@ -46,6 +46,7 @@ public class PostPushDataTimedTask implements Runnable {
   private final Counter pointsAttempted;
   private final Counter pointsQueued;
   private final Counter pointsBlocked;
+  private final Counter batchesSent;
   private final Timer batchSendTime;
 
   private long numIntervals = 0;
@@ -53,6 +54,7 @@ public class PostPushDataTimedTask implements Runnable {
 
   private UUID daemonId;
   private int port;
+  private int threadId;
   private static int pointsPerBatch = MAX_SPLIT_BATCH_SIZE;
   private String logLevel;
 
@@ -101,7 +103,9 @@ public class PostPushDataTimedTask implements Runnable {
     return this.pointsQueued.count();
   }
 
-  public long getNumPointsToSend() { return this.points.size(); }
+  public long getNumPointsToSend() {
+    return this.points.size();
+  }
 
   public long getNumApiCalls() {
     return numApiCalls;
@@ -111,10 +115,12 @@ public class PostPushDataTimedTask implements Runnable {
     return daemonId;
   }
 
-  public PostPushDataTimedTask(ForceQueueEnabledAgentAPI agentAPI, String logLevel, UUID daemonId, int port) {
+  public PostPushDataTimedTask(ForceQueueEnabledAgentAPI agentAPI, String logLevel,
+                               UUID daemonId, int port, int threadId) {
     this.logLevel = logLevel;
     this.daemonId = daemonId;
     this.port = port;
+    this.threadId = threadId;
 
     this.agentAPI = agentAPI;
 
@@ -122,6 +128,8 @@ public class PostPushDataTimedTask implements Runnable {
     this.pointsQueued = Metrics.newCounter(new MetricName("points." + String.valueOf(port), "", "queued"));
     this.pointsBlocked = Metrics.newCounter(new MetricName("points." + String.valueOf(port), "", "blocked"));
     this.pointsReceived = Metrics.newCounter(new MetricName("points." + String.valueOf(port), "", "received"));
+    this.batchesSent = Metrics.newCounter(
+        new MetricName("push." + String.valueOf(port) + ".thread-" + String.valueOf(threadId), "", "batches"));
     this.batchSendTime = Metrics.newTimer(new MetricName("push." + String.valueOf(port), "", "duration"),
         TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
   }
@@ -130,6 +138,7 @@ public class PostPushDataTimedTask implements Runnable {
   public void run() {
     try {
       List<String> current = createAgentPostBatch();
+      batchesSent.inc();
 
       if (current.size() != 0) {
         TimerContext timerContext = this.batchSendTime.time();
