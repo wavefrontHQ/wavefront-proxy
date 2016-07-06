@@ -19,13 +19,19 @@ if ls *.rpm  &> /dev/null; then
 fi
 
 if [[ $# -lt 3 ]]; then
-	die "Usage: $0 <jdk_dir_path> <commons_daemon_path> <push_agent_jar_path>"
+	die "Usage: $0 <jre_dir_path> <commons_daemon_path> <push_agent_jar_path>"
 fi
 
-JDK=$1
-JDK=${JDK%/}
+JRE=$1
+JRE=${JRE%/}
+[[ -d $JRE ]] || die "Bad JRE given."
+
 COMMONS_DAEMON=$2
+[[ -d $COMMONS_DAEMON ]] || die "Bad agent commons-daemon given."
+
 PUSH_AGENT_JAR=$3
+[[ -f $PUSH_AGENT_JAR ]] || die "Bad agent jarfile given."
+
 shift 3
 
 WF_DIR=`pwd`/build/opt/wavefront
@@ -38,8 +44,8 @@ chmod 600 build/opt/wavefront/wavefront-proxy/conf/wavefront.conf
 cp -r etc build/etc
 cp -r usr build/usr
 
-echo "Stage the JDK..."
-cp -r $JDK $PROXY_DIR/jre
+echo "Stage the JRE..."
+cp -r $JRE $PROXY_DIR/jre
 
 echo "Make jsvc..."
 cp -r $COMMONS_DAEMON $PROXY_DIR
@@ -53,5 +59,4 @@ ln -s ../commons-daemon/src/native/unix/jsvc jsvc
 
 echo "Make the agent jar..."
 cd $PROG_DIR
-[[ -f $PUSH_AGENT_JAR ]] || die "Bad agent jarfile given."
 cp $PUSH_AGENT_JAR $PROXY_DIR/bin
