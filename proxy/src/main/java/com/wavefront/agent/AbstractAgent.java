@@ -286,6 +286,7 @@ public abstract class AbstractAgent {
         customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
         ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
         picklePorts = prop.getProperty("picklePorts", picklePorts);
+        bufferFile = prop.getProperty("buffer", bufferFile);
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
