@@ -164,9 +164,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--blacklistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must NOT match to be accepted")
   protected String blacklistRegex;
 
-  @Parameter(names = {"--opentsdbPorts"}, description = "Comma-separated list of ports to listen on for opentsdb " +
-      "data. Defaults to: " + OPENTSDB_LISTENING_PORT)
-  protected String opentsdbPorts = "" + OPENTSDB_LISTENING_PORT;
+  @Parameter(names = {"--opentsdbPorts"}, description = "Comma-separated list of ports to listen on for opentsdb data. " +
+      "Binds, by default, to none.")
+  protected String opentsdbPorts = "";
 
   @Parameter(names = {"--opentsdbWhitelistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must match to be accepted")
   protected String opentsdbWhitelistRegex;
@@ -553,7 +553,7 @@ public abstract class AbstractAgent {
     ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
     for (int i = 0; i < flushThreads; i++) {
       final PostPushDataTimedTask postPushDataTimedTask =
-          new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port);
+          new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port, i);
       es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
           TimeUnit.MILLISECONDS);
       toReturn[i] = postPushDataTimedTask;
