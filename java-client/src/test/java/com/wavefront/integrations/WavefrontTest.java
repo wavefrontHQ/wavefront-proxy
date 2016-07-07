@@ -13,9 +13,9 @@ public class WavefrontTest {
 
   @Test
   public void testSanitize() {
-    assertEquals("hello", Wavefront.sanitize("hello"));
-    assertEquals("hello-world", Wavefront.sanitize("hello world"));
-    assertEquals("hello.world", Wavefront.sanitize("hello.world"));
+    assertEquals("\"hello\"", Wavefront.sanitize("hello"));
+    assertEquals("\"hello-world\"", Wavefront.sanitize("hello world"));
+    assertEquals("\"hello.world\"", Wavefront.sanitize("hello.world"));
     assertEquals("\"hello\\\"world\\\"\"", Wavefront.sanitize("hello\"world\""));
     assertEquals("\"hello'world\"", Wavefront.sanitize("hello'world"));
   }

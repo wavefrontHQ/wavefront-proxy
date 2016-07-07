@@ -2,8 +2,6 @@ package com.wavefront.integrations;
 
 import org.apache.commons.lang.StringUtils;
 
-import javax.annotation.Nullable;
-import javax.net.SocketFactory;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -16,6 +14,9 @@ import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+
+import javax.annotation.Nullable;
+import javax.net.SocketFactory;
 
 /**
  * Wavefront Client that sends data directly via TCP to the Wavefront Proxy Agent.
@@ -214,7 +215,7 @@ public class Wavefront implements WavefrontSender {
       // for single quotes, once we are double-quoted, single quotes can exist happily inside it.
       return "\"" + whitespaceSanitized.replaceAll("\"", "\\\\\"") + "\"";
     } else {
-      return whitespaceSanitized;
+      return "\"" + whitespaceSanitized + "\"";
     }
   }
 }

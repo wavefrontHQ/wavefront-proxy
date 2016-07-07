@@ -1,13 +1,15 @@
 package com.wavefront.ingester;
 
 import com.google.common.collect.Lists;
+
 import org.junit.Ignore;
 import org.junit.Test;
-import sunnylabs.report.ReportPoint;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import sunnylabs.report.ReportPoint;
 
 import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -390,6 +392,20 @@ public class GraphiteDecoderTest {
       fail("should throw");
     } catch (Exception ignored) {
     }
+  }
+
+  @Test
+  public void testNumberLookingTagValue() {
+    GraphiteDecoder decoder = new GraphiteDecoder(emptyCustomSourceTags);
+    List<ReportPoint> out = Lists.newArrayList();
+    decoder.decodeReportPoints("vm.guest.virtualDisk.mediumSeeks.latest 4.00 1439250320 " +
+        "host=iadprdhyp02.iad.corp.com version=\"1.0.0-030051.d0e485f\"", out, "customer");
+    ReportPoint point = out.get(0);
+    assertEquals("customer", point.getTable());
+    assertEquals("vm.guest.virtualDisk.mediumSeeks.latest", point.getMetric());
+    assertEquals("iadprdhyp02.iad.corp.com", point.getHost());
+    assertEquals("1.0.0-030051.d0e485f", point.getAnnotations().get("version"));
+    assertEquals(4.0, point.getValue());
   }
 
   @Ignore
