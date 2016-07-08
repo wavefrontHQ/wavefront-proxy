@@ -18,12 +18,14 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
@@ -41,8 +43,28 @@ public final class HttpClientTest {
     void search(@QueryParam("q") String query);
   }
 
-  //@Test(expected = RuntimeException.class)
-  @Test
+  class SocketServerRunnable implements Runnable {
+    private ServerSocket server;
+
+    public int getPort() {
+      return server.getLocalPort();
+    }
+
+    public SocketServerRunnable() throws IOException {
+      server = new ServerSocket(0);
+    }
+
+    public void run() {
+      try {
+        Socket sock = server.accept();
+        sock.close();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+  }
+
+  @Test(expected=ProcessingException.class)
   public void httpClientTimeoutsWork() throws Exception {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
@@ -81,8 +103,7 @@ public final class HttpClientTest {
               @Override
               public Socket connectSocket(int connectTimeout, Socket sock, HttpHost host, InetSocketAddress remoteAddress, InetSocketAddress localAddress, HttpContext context) throws IOException {
                 assertTrue("Non-zero timeout passed to connect socket is expected", connectTimeout > 0);
-                return SSLConnectionSocketFactory.getSystemSocketFactory()
-                    .connectSocket(connectTimeout, sock, host, remoteAddress, localAddress, context);
+                throw new ProcessingException("OK");
               }
             }).build();
 
@@ -90,7 +111,12 @@ public final class HttpClientTest {
         httpEngine(new ApacheHttpClient4Engine(httpClient, true)).
         providerFactory(factory).
         build();
-    ResteasyWebTarget target = client.target("https://www.google.com");
+
+    SocketServerRunnable sr = new SocketServerRunnable();
+    Thread serverThread = new Thread(sr);
+    serverThread.start();
+
+    ResteasyWebTarget target = client.target("https://localhost:" + sr.getPort());
     SimpleRESTEasyAPI proxy = target.proxy(SimpleRESTEasyAPI.class);
     proxy.search("resteasy");
 
