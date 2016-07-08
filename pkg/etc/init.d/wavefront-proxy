@@ -27,12 +27,23 @@ AGENT_JAR="$PROXY_DIR/bin/wavefront-push-agent.jar"
 CLASS="com.wavefront.agent.PushAgentDaemon"
 ARGS="-f $CONF_FILE --buffer $PROXY_DIR/bin/buffer"
 
+PROXY_LAUNCH_CONF="/opt/wavefront/wavefront-proxy/conf/wavefront_proxy_launch.conf"
+JAVA_ARGS=""
+if [[ -r $PROXY_LAUNCH_CONF ]]; then
+	JAVA_ARGS=`grep -ve '[[:space:]]*#' $PROXY_LAUNCH_CONF | tr '\n' ' ' | sed -e 's/^[[:space:]]*//' | sed -e 's/[[:space:]]*$//'`
+fi
+
+# In bash, the test binary "[" insists on colon expansion. So check JAVA_ARGS a different way.
+case "$JAVA_ARGS" in
+	("") JAVA_ARGS="-XX:+AggressiveHeap"
+esac
+
 JSVC=$PROXY_DIR/bin/jsvc
 
 jsvc_exec()
 {
 	cd $(dirname $AGENT_JAR)
-	$JSVC -user $USER -home $JAVA_HOME -cp $AGENT_JAR -XX:+AggressiveHeap -outfile $LOG_FILE -errfile $ERR_FILE -pidfile $PID_FILE $1 $CLASS $ARGS
+	$JSVC -user $USER -home $JAVA_HOME -cp $AGENT_JAR "$JAVA_ARGS" -outfile $LOG_FILE -errfile $ERR_FILE -pidfile $PID_FILE $1 $CLASS $ARGS
 	if [[ $? -eq 0 ]]; then
 		echo "Done."
 	else
