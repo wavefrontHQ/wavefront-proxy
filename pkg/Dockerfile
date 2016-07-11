@@ -8,7 +8,7 @@ RUN gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A170311380
 RUN curl -L get.rvm.io | bash -s stable
 ENV PATH /usr/local/rvm/gems/ruby-1.9.3-p551/bin:/usr/local/rvm/gems/ruby-1.9.3-p551@global/bin:/usr/local/rvm/rubies/ruby-1.9.3-p551/bin:/usr/local/rvm/bin:$PATH
 RUN rvm install 1.9.3
-RUN gem install fpm --version 1.4.0
+RUN gem install fpm --version 1.6.2
 
 # Wavefront software. This repo contains build scripts for the agent, to be run
 # inside this container.
