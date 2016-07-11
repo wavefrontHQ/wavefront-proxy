@@ -41,11 +41,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
@@ -410,20 +414,68 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       return Response.status(Response.Status.NOT_ACCEPTABLE).build();
     } else {
 
+      FutureTask<Response> timedPostPushDataTask;
+      Thread timedThread;
+
       try {
-        resultPostingMeter.mark();
-        parsePostingResponse(wrapped.postPushData(agentId, workUnitId, currentMillis, format, pushData));
-        scheduleTaskForSizing(task);
-      } catch (RuntimeException ex) {
-        List<PostPushDataResultTask> splitTasks = handleTaskRetry(ex, task);
+        timedPostPushDataTask = new FutureTask<Response>(new Callable<Response>() {
+          private UUID agentId;
+          private UUID workUnitId;
+          private Long currentMillis;
+          private String format;
+          private String pushData;
+          private PostPushDataResultTask task;
+
+          @Override
+          public Response call() throws Exception {
+            try {
+              resultPostingMeter.mark();
+              parsePostingResponse(wrapped.postPushData(agentId, workUnitId, currentMillis, format, pushData));
+              scheduleTaskForSizing(task);
+            } catch (RuntimeException ex) {
+              List<PostPushDataResultTask> splitTasks = handleTaskRetry(ex, task);
+              for (PostPushDataResultTask splitTask : splitTasks) {
+                // we need to ensure that we use the latest agent id.
+                postPushData(agentId, splitTask.getWorkUnitId(), splitTask.getCurrentMillis(),
+                    splitTask.getFormat(), splitTask.getPushData());
+              }
+              return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+            }
+            return Response.ok().build();
+          }
+
+          public Callable<Response> init(UUID agentId, UUID workUnitId, Long currentMillis,
+                                         String format, String pushData, PostPushDataResultTask task) {
+            this.agentId = agentId;
+            this.workUnitId = workUnitId;
+            this.currentMillis = currentMillis;
+            this.format = format;
+            this.pushData = pushData;
+            this.task = task;
+            return this;
+          }
+
+        }.init(agentId, workUnitId, currentMillis, format, pushData, task));
+        timedThread = new Thread(timedPostPushDataTask);
+        timedThread.start();
+
+        // put a hard limit of 2 minutes on stuck threads (workaround for Java bug JDK-8075484)
+        return timedPostPushDataTask.get(120000L, TimeUnit.MILLISECONDS);
+
+      } catch (TimeoutException ex) {
+        List<PostPushDataResultTask> splitTasks = handleTaskRetry(
+            new RuntimeException("Task timeout expired (possible hung thread)", ex), task);
         for (PostPushDataResultTask splitTask : splitTasks) {
           // we need to ensure that we use the latest agent id.
           postPushData(agentId, splitTask.getWorkUnitId(), splitTask.getCurrentMillis(),
               splitTask.getFormat(), splitTask.getPushData());
         }
         return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+      } catch (InterruptedException | ExecutionException ex) {
+        // InterruptedException can't happen as no one calls timedThread.interrupt(),
+        // ExecutionException can't happen as everything is handled inside Callable<Response> - both are safe to ignore
+        return Response.ok().build();
       }
-      return Response.ok().build();
     }
   }
 
