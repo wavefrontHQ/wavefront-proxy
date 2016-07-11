@@ -11,10 +11,8 @@ Methodology
 Build and run the docker container for building.
 
     ### Outside docker container
-    # Build and run docker container
-    cd wavefronthq/java
-    docker build -t wavefront-proxy-builder pkg
-    docker run -it wavefront-proxy-builder bash
+    docker pull wavefronthq/proxy-builder
+    docker run -it wavefronthq/proxy-builder bash
     # Copy JRE into docker container for building WF proxy
     docker cp <my_jre_directory> my_container:/opt/jre
     # Copy a WF proxy that you build into the docker container
@@ -23,6 +21,7 @@ Build and run the docker container for building.
 
     ### Inside docker container
     cd /opt/wavefront-java-repo/pkg
+    git pull
     ./stage.sh /opt/jre /opt/commons-daemon /opt/wavefront-push-agent.jar
     ./build.sh deb 3.1 4
 
