@@ -4,12 +4,12 @@
   <parent>
     <groupId>com.wavefront</groupId>
     <artifactId>wavefront</artifactId>
-    <version>3.20-SNAPSHOT</version>
+    <version>3.20</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
   
   <artifactId>dropwizard-metrics-3.1</artifactId>
-  <version>3.20-SNAPSHOT</version>
+  <version>3.20</version>
   <name>Wavefront Dropwizard Metrics 3.1 Reporter</name>
   <description>Report metrics via the Wavefront Proxy</description>
 
@@ -17,7 +17,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>java-client</artifactId>
-      <version>3.20-SNAPSHOT</version>
+      <version>3.20</version>
     </dependency>
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
