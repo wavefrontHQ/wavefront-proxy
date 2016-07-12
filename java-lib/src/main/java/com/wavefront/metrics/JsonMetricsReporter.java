@@ -2,14 +2,27 @@ package com.wavefront.metrics;
 
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.*;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.MetricsRegistry;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.TimerContext;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 
-import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.*;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.ws.rs.core.UriBuilder;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -22,6 +35,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
  * @author Andrew Kao (andrew@wavefront.com)
  */
 public class JsonMetricsReporter extends AbstractPollingReporter {
+
+  private static final Logger logger = Logger.getLogger(JsonMetricsReporter.class.getCanonicalName());
 
   private final boolean includeVMMetrics;
   private final String table;
@@ -69,7 +84,11 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
 
   @Override
   public void run() {
-    reportMetrics();
+    try {
+      reportMetrics();
+    } catch (Throwable t) {
+      logger.log(Level.SEVERE, "Uncaught exception in reportMetrics loop", t);
+    }
   }
 
   public void reportMetrics() {
