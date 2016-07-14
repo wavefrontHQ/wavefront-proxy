@@ -302,6 +302,8 @@ public abstract class JsonMetricsGenerator {
       Object gaugeValue = evaluateGauge(gauge);
       if (gaugeValue != null) {
         json.writeObject(gaugeValue);
+      } else {
+        json.writeNull();
       }
     }
 
