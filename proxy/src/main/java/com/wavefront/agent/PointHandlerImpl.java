@@ -2,8 +2,10 @@ package com.wavefront.agent;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import com.wavefront.common.Clock;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.lang.StringUtils;
@@ -34,6 +36,7 @@ public class PointHandlerImpl implements PointHandler {
 
   private final Counter outOfRangePointTimes;
   private final Counter illegalCharacterPoints;
+  private final Histogram receivedPointLag;
   private final String validationLevel;
   private final int port;
 
@@ -62,6 +65,8 @@ public class PointHandlerImpl implements PointHandler {
 
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
     this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
+    this.receivedPointLag = Metrics.newHistogram(
+        new MetricName("points." + String.valueOf(port) + ".received", "", "lag"));
 
     this.sendDataTasks = sendDataTasks;
   }
@@ -114,9 +119,11 @@ public class PointHandlerImpl implements PointHandler {
             break;
         }
         randomPostTask.addPoint(pointToString(point));
+        receivedPointLag.update(Clock.now() - point.getTimestamp());
       } else {
         // No validation was requested by user; send forward.
         randomPostTask.addPoint(pointToString(point));
+        receivedPointLag.update(Clock.now() - point.getTimestamp());
       }
     } catch (IllegalArgumentException e) {
       this.handleBlockedPoint(e.getMessage());
