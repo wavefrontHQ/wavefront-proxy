@@ -36,10 +36,6 @@ final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
    */
   private final ChannelHandler handler;
 
-  private static final HttpRequestDecoder HTTP_REQUEST_DECODER = new HttpRequestDecoder();
-  private static final HttpResponseEncoder HTTP_RESPONSE_ENCODER = new HttpResponseEncoder();
-  private static final HttpObjectAggregator HTTP_OBJECT_AGGREGATOR = new HttpObjectAggregator(1048576);
-  private static final HttpContentCompressor HTTP_CONTENT_COMPRESSOR = new HttpContentCompressor();
   private static final StringDecoder STRING_DECODER = new StringDecoder(Charsets.UTF_8);
   private static final StringEncoder STRING_ENCODER = new StringEncoder(Charsets.UTF_8);
 
@@ -71,10 +67,10 @@ final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
     // determine the protocol and add the encoder/decoder
     final ChannelPipeline pipeline = ctx.pipeline();
     if (isHttp(firstByte, secondByte)) {
-      pipeline.addLast("decoder", HTTP_REQUEST_DECODER);
-      pipeline.addLast("encoder", HTTP_RESPONSE_ENCODER);
-      pipeline.addLast("aggregator", HTTP_OBJECT_AGGREGATOR);
-      pipeline.addLast("deflate", HTTP_CONTENT_COMPRESSOR);
+      pipeline.addLast("decoder", new HttpRequestDecoder());
+      pipeline.addLast("encoder", new HttpResponseEncoder());
+      pipeline.addLast("aggregator", new HttpObjectAggregator(1048576));
+      pipeline.addLast("deflate", new HttpContentCompressor());
       pipeline.addLast("handler", this.handler);
     } else {
       pipeline.addLast("line", new LineBasedFrameDecoder(4096));
