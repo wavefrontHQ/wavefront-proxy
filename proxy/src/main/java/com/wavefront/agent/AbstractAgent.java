@@ -36,8 +36,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -201,6 +203,12 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--javaNetConnection"}, description = "If true, use JRE's own http client when making connections instead of Apache HTTP Client")
   protected boolean javaNetConnection = false;
 
+  @Parameter(names = {"--proxyUser"}, description = "If proxy authentication is necessary, this is the username that will be passed along")
+  protected String proxyUser = null;
+
+  @Parameter(names = {"--proxyPassword"}, description = "If proxy authentication is necessary, this is the password that will be passed along")
+  protected String proxyPassword = null;
+
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
@@ -290,6 +298,8 @@ public abstract class AbstractAgent {
         opentsdbPorts = prop.getProperty("opentsdbPorts", opentsdbPorts);
         opentsdbWhitelistRegex = prop.getProperty("opentsdbWhitelistRegex", opentsdbWhitelistRegex);
         opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
+        proxyPassword = prop.getProperty("proxyPassword", proxyPassword);
+        proxyUser = prop.getProperty("proxyUser", proxyUser);
         javaNetConnection = Boolean.valueOf(prop.getProperty("javaNetConnection", String.valueOf(javaNetConnection)));
         splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
             String.valueOf(splitPushWhenRateLimited)));
@@ -346,6 +356,17 @@ public abstract class AbstractAgent {
       // read build information.
       props = ResourceBundle.getBundle("build");
 
+      if (proxyUser != null && proxyPassword != null) {
+        Authenticator.setDefault(
+            new Authenticator() {
+              @Override
+              public PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(proxyUser, proxyPassword.toCharArray());
+              }
+            }
+        );
+      }
+
       // create List of custom tags from the configuration string
       String[] tags = customSourceTagsProperty.split(",");
       for (String tag : tags) {
@@ -353,7 +374,8 @@ public abstract class AbstractAgent {
         if (!customSourceTags.contains(tag)) {
           customSourceTags.add(tag);
         } else {
-          logger.warning("Custom source tag: " + tag + " was repeated. Check the customSourceTags property in wavefront.conf");
+          logger.warning("Custom source tag: " + tag + " was repeated. Check the customSourceTags property in " +
+              "wavefront.conf");
         }
       }
 
