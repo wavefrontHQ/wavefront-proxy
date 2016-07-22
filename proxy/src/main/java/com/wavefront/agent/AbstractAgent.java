@@ -27,7 +27,6 @@ import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
-import org.jboss.resteasy.client.jaxrs.engines.URLConnectionEngine;
 import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJacksonProvider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
@@ -68,6 +67,9 @@ public abstract class AbstractAgent {
   private static final Gson GSON = new Gson();
   private static final int GRAPHITE_LISTENING_PORT = 2878;
   private static final int OPENTSDB_LISTENING_PORT = 4242;
+
+  protected static final SSLSocketFactoryImpl SSL_SOCKET_FACTORY = new SSLSocketFactoryImpl(
+      HttpsURLConnection.getDefaultSSLSocketFactory(), 60000);
 
   @Parameter(names = {"-f", "--file"}, description =
       "Proxy configuration file")
@@ -418,7 +420,7 @@ public abstract class AbstractAgent {
     factory.registerProvider(ResteasyJacksonProvider.class);
     ClientHttpEngine httpEngine;
     if (javaNetConnection) {
-      httpEngine = new URLConnectionEngine() {
+      httpEngine = new JavaNetConnectionEngine() {
         @Override
         protected HttpURLConnection createConnection(ClientInvocation request) throws IOException {
           HttpURLConnection connection = (HttpURLConnection) request.getUri().toURL().openConnection();
@@ -427,8 +429,7 @@ public abstract class AbstractAgent {
           connection.setReadTimeout(60000); // 60s
           if (connection instanceof HttpsURLConnection) {
             HttpsURLConnection secureConnection = (HttpsURLConnection) connection;
-            secureConnection.setSSLSocketFactory(new com.wavefront.agent.SSLSocketFactoryImpl(
-                secureConnection.getSSLSocketFactory(), 60000));
+            secureConnection.setSSLSocketFactory(SSL_SOCKET_FACTORY);
           }
           return connection;
         }

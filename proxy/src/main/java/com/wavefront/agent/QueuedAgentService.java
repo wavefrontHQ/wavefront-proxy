@@ -191,7 +191,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                     if (Throwables.getRootCause(ex) instanceof RejectedExecutionException) {
                       // this should either split and remove the original task or keep it at front
                       // it also should not try any more tasks
-                      logger.warning("[RETRY THREAD " + threadId + "] Wavefront server quiesced (406 response). Will " +
+                      logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected the submission. Will " +
                           "attempt later: " + ex);
                       if (splitPushWhenRateLimited) {
                         List<? extends ResubmissionTask> splitTasks = task.splitTask();
@@ -467,6 +467,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus());
         } else if (response.getStatus() == Response.Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode()) {
           throw new QueuedPushTooLargeException("Request too large: " + response.getStatus());
+        } else if (response.getStatus() == 407 || response.getStatus() == 408) {
+          throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus() +
+              " the agent is unclaimed, perhaps the token used does not have the proper permissions to" +
+              " register the agent? (or a token wasn't provided properly?)");
         } else {
           throw new RuntimeException("Server error: " + response.getStatus());
         }
