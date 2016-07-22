@@ -2,14 +2,20 @@ package com.wavefront.agent;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Splitter;
 
 import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.api.agent.AgentConfiguration;
+import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
-import com.wavefront.ingester.Ingester;
 import com.wavefront.ingester.OpenTSDBDecoder;
+import com.wavefront.ingester.PickleProtocolDecoder;
+import com.wavefront.ingester.StreamIngester;
+import com.wavefront.ingester.StringLineIngester;
+import com.wavefront.ingester.TcpIngester;
 
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
@@ -18,15 +24,18 @@ import org.glassfish.jersey.server.ResourceConfig;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteOrder;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
 /**
  * Push-only Agent.
@@ -50,30 +59,46 @@ public class PushAgent extends AbstractAgent {
 
   @Override
   protected void startListeners() {
-    for (String strPort : pushListenerPorts.split(",")) {
-      startGraphiteListener(strPort, null);
+    if (pushListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
+      for (String strPort : ports) {
+        startGraphiteListener(strPort, null);
+      }
     }
-    if (graphitePorts != null) {
+    GraphiteFormatter graphiteFormatter = null;
+    if (graphitePorts != null || picklePorts != null) {
       Preconditions.checkNotNull(graphiteFormat, "graphiteFormat must be supplied to enable graphite support");
       Preconditions.checkNotNull(graphiteDelimiters, "graphiteDelimiters must be supplied to enable graphite support");
-      for (String strPort : graphitePorts.split(",")) {
+      graphiteFormatter = new GraphiteFormatter(graphiteFormat, graphiteDelimiters, graphiteFieldsToRemove);
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(graphitePorts);
+      for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
-          GraphiteFormatter formatter = new GraphiteFormatter(graphiteFormat, graphiteDelimiters);
-          startGraphiteListener(strPort, formatter);
+          startGraphiteListener(strPort, graphiteFormatter);
           logger.info("listening on port: " + strPort + " for graphite metrics");
         }
       }
     }
     if (opentsdbPorts != null) {
-      for (String strPort : opentsdbPorts.split(",")) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(opentsdbPorts);
+      for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
           startOpenTsdbListener(strPort);
           logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
         }
       }
     }
+    if (picklePorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(picklePorts);
+      for (String strPort : ports) {
+        if (strPort.trim().length() > 0) {
+          startPickleListener(strPort, graphiteFormatter);
+          logger.info("listening on port: " + strPort + " for pickle protocol metrics");
+        }
+      }
+    }
     if (httpJsonPorts != null) {
-      for (String strPort : httpJsonPorts.split(",")) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(httpJsonPorts);
+      for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
           try {
             int port = Integer.parseInt(strPort);
@@ -91,7 +116,8 @@ public class PushAgent extends AbstractAgent {
       }
     }
     if (writeHttpJsonPorts != null) {
-      for (String strPort : writeHttpJsonPorts.split(",")) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonPorts);
+      for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
           try {
             int port = Integer.parseInt(strPort);
@@ -112,13 +138,66 @@ public class PushAgent extends AbstractAgent {
   }
 
   protected void startOpenTsdbListener(String strPort) {
+    final int port = Integer.parseInt(strPort);
+    final PostPushDataTimedTask[] flushTasks = getFlushTasks(port);
+    ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
+      @Override
+      public void initChannel(SocketChannel ch) throws Exception {
+        final ChannelHandler handler = new OpenTSDBPortUnificationHandler(
+            new OpenTSDBDecoder("unknown", customSourceTags),
+            port, prefix, pushValidationLevel, pushBlockedSamples, flushTasks, opentsdbWhitelistRegex,
+            opentsdbBlacklistRegex);
+        ChannelPipeline pipeline = ch.pipeline();
+        pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler));
+      }
+    };
+    new Thread(new TcpIngester(initializer, port)).start();
+  }
+
+  protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
     int port = Integer.parseInt(strPort);
 
-    // Set up a custom graphite handler, with no formatter
-    ChannelHandler graphiteHandler = new ChannelStringHandler(new OpenTSDBDecoder("unknown", customSourceTags),
-        port, prefix, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), null, opentsdbWhitelistRegex,
-        opentsdbBlacklistRegex);
-    new Thread(new Ingester(graphiteHandler, port)).start();
+    // Set up a custom handler
+    ChannelHandler handler = new ChannelByteArrayHandler(
+        new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
+        port, prefix, pushValidationLevel, pushBlockedSamples,
+        getFlushTasks(port), whitelistRegex, blacklistRegex);
+
+    // create a class to use for StreamIngester to get a new FrameDecoder
+    // for each request (not shareable since it's storing how many bytes
+    // read, etc)
+    // the pickle listener for carbon-relay streams data in its own format:
+    //   [Length of pickled data to follow in a 4 byte unsigned int]
+    //   [pickled data of the given length]
+    //   <repeat ...>
+    // the LengthFieldBasedFrameDecoder() parses out the length and grabs
+    // <length> bytes from the stream and passes that chunk as a byte array
+    // to the decoder.
+    class FrameDecoderFactoryImpl implements StreamIngester.FrameDecoderFactory {
+      @Override
+      public ChannelInboundHandler getDecoder() {
+        return new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false);
+      }
+    }
+
+    new Thread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port)).start();
+  }
+
+  /**
+   * Registers a custom point handler on a particular port.
+   *
+   * @param strPort       The port to listen on.
+   * @param decoder       The decoder to use.
+   * @param pointHandler  The handler to handle parsed ReportPoints.
+   * @param linePredicate Predicate to reject lines. See {@link com.wavefront.common.MetricWhiteBlackList}
+   * @param formatter     Transform function for each line.
+   */
+  protected void startCustomListener(String strPort, Decoder<String> decoder, PointHandler pointHandler,
+                                     Predicate<String> linePredicate,
+                                     @Nullable Function<String, String> formatter) {
+    int port = Integer.parseInt(strPort);
+    ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler, linePredicate, formatter);
+    new Thread(new StringLineIngester(channelHandler, port)).start();
   }
 
   protected void startGraphiteListener(String strPort,
@@ -131,32 +210,18 @@ public class PushAgent extends AbstractAgent {
         blacklistRegex);
 
     if (formatter == null) {
-      List<Function<SocketChannel, ChannelHandler>> handler = Lists.newArrayList(1);
-      handler.add(new Function<SocketChannel, ChannelHandler>() {
+      List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);
+      handler.add(new Function<Channel, ChannelHandler>() {
         @Override
-        public ChannelHandler apply(SocketChannel input) {
-          return new GraphiteHostAnnotator(input.remoteAddress().getHostName(), customSourceTags);
+        public ChannelHandler apply(Channel input) {
+          SocketChannel ch = (SocketChannel) input;
+          return new GraphiteHostAnnotator(ch.remoteAddress().getHostName(), customSourceTags);
         }
       });
-      new Thread(new Ingester(handler, graphiteHandler, port)).start();
+      new Thread(new StringLineIngester(handler, graphiteHandler, port)).start();
     } else {
-      new Thread(new Ingester(graphiteHandler, port)).start();
+      new Thread(new StringLineIngester(graphiteHandler, port)).start();
     }
-  }
-
-  protected PostPushDataTimedTask[] getFlushTasks(int port) {
-    PostPushDataTimedTask[] toReturn = new PostPushDataTimedTask[flushThreads];
-    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for data received on " +
-        "port: " + port);
-    ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
-    for (int i = 0; i < flushThreads; i++) {
-      final PostPushDataTimedTask postPushDataTimedTask =
-          new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port);
-      es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
-          TimeUnit.MILLISECONDS);
-      toReturn[i] = postPushDataTimedTask;
-    }
-    return toReturn;
   }
 
   /**

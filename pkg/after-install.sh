@@ -4,6 +4,7 @@ GROUP=wavefront
 WAVEFRONT_DIR=/opt/$USER
 PROXY_DIR=$WAVEFRONT_DIR/wavefront-proxy
 CONF_FILE=$PROXY_DIR/conf/wavefront.conf
+SPOOL_DIR=/var/spool/wavefront-proxy
 
 # Set up wavefront user.
 if ! groupmod $GROUP &> /dev/null; then
@@ -12,7 +13,9 @@ fi
 if ! id $USER &> /dev/null; then
 	useradd -r -s /bin/bash -g $GROUP $USER &> /dev/null
 fi
-chown -R $USER:$GROUP /opt/wavefront/wavefront-proxy
+
+# Create spool directory if it does not exist.
+[[ -d $SPOOL_DIR ]] || mkdir -p $SPOOL_DIR && chown $USER:$USER $SPOOL_DIR
 
 # Configure agent to start on reboot.
 if [[ -f /etc/debian_version ]]; then
@@ -20,6 +23,9 @@ if [[ -f /etc/debian_version ]]; then
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/system-release-cpe ]]; then
 	chkconfig --level 345 wavefront-proxy on
 fi
+
+# Allow system user to write .wavefront_id/buffer files to install dir.
+chown $USER:$GROUP /opt/wavefront/wavefront-proxy
 
 # If there is an errant pre-3.9 agent running, we need to kill it. This is
 # required for a clean upgrade from pre-3.9 to 3.9+.
@@ -31,7 +37,7 @@ if [[ -f $OLD_PID_FILE ]]; then
 fi
 
 if [[ -f $CONF_FILE ]]; then
-	chmod 600 $CONF_FILE
+    chmod 644 $CONF_FILE
 fi
 
 service wavefront-proxy restart

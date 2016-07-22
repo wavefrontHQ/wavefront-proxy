@@ -20,11 +20,15 @@ import com.yammer.metrics.core.Gauge;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.config.SocketConfig;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
+import org.jboss.resteasy.client.jaxrs.engines.URLConnectionEngine;
+import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJacksonProvider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
@@ -33,6 +37,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -48,6 +53,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.net.ssl.HttpsURLConnection;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
@@ -134,6 +141,9 @@ public abstract class AbstractAgent {
       "extracted hostname with dots. Defaults to underscores (_).")
   protected String graphiteDelimiters = "_";
 
+  @Parameter(names = {"--graphiteFieldsToRemove"}, description="Comma-separated list of metric segments to remove (1-based)")
+  protected String graphiteFieldsToRemove;
+
   @Parameter(names = {"--httpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics " +
       "data. Binds, by default, to none.")
   protected String httpJsonPorts = "";
@@ -160,15 +170,19 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--blacklistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must NOT match to be accepted")
   protected String blacklistRegex;
 
-  @Parameter(names = {"--opentsdbPorts"}, description = "Comma-separated list of ports to listen on for opentsdb " +
-      "data. Defaults to: " + OPENTSDB_LISTENING_PORT)
-  protected String opentsdbPorts = "" + OPENTSDB_LISTENING_PORT;
+  @Parameter(names = {"--opentsdbPorts"}, description = "Comma-separated list of ports to listen on for opentsdb data. " +
+      "Binds, by default, to none.")
+  protected String opentsdbPorts = "";
 
   @Parameter(names = {"--opentsdbWhitelistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must match to be accepted")
   protected String opentsdbWhitelistRegex;
 
   @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
   protected String opentsdbBlacklistRegex;
+
+  @Parameter(names = {"--picklePorts"}, description = "Comma-separated list of ports to listen on for pickle protocol " +
+      "data. Defaults to none.")
+  protected String picklePorts;
 
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
@@ -182,13 +196,16 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--ephemeral"}, description = "If true, this agent is removed from Wavefront after 24 hours of inactivity.")
   protected boolean ephemeral = false;
 
+  @Parameter(names = {"--javaNetConnection"}, description = "If true, use JRE's own http client when making connections instead of Apache HTTP Client")
+  protected boolean javaNetConnection = false;
+
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
   protected QueuedAgentService agentAPI;
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
-  protected List<String> customSourceTags = new ArrayList<String>();
+  protected List<String> customSourceTags = new ArrayList<>();
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -262,6 +279,7 @@ public abstract class AbstractAgent {
         writeHttpJsonPorts = prop.getProperty("writeHttpJsonListenerPorts", writeHttpJsonPorts);
         graphitePorts = prop.getProperty("graphitePorts", graphitePorts);
         graphiteFormat = prop.getProperty("graphiteFormat", graphiteFormat);
+        graphiteFieldsToRemove = prop.getProperty("graphiteFieldsToRemove", graphiteFieldsToRemove);
         graphiteDelimiters = prop.getProperty("graphiteDelimiters", graphiteDelimiters);
         graphiteWhitelistRegex = prop.getProperty("graphiteWhitelistRegex", graphiteWhitelistRegex);
         graphiteBlacklistRegex = prop.getProperty("graphiteBlacklistRegex", graphiteBlacklistRegex);
@@ -270,12 +288,15 @@ public abstract class AbstractAgent {
         opentsdbPorts = prop.getProperty("opentsdbPorts", opentsdbPorts);
         opentsdbWhitelistRegex = prop.getProperty("opentsdbWhitelistRegex", opentsdbWhitelistRegex);
         opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
+        javaNetConnection = Boolean.valueOf(prop.getProperty("javaNetConnection", String.valueOf(javaNetConnection)));
         splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
             String.valueOf(splitPushWhenRateLimited)));
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
             String.valueOf(retryBackoffBaseSeconds)));
         customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
         ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
+        picklePorts = prop.getProperty("picklePorts", picklePorts);
+        bufferFile = prop.getProperty("buffer", bufferFile);
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
@@ -395,19 +416,44 @@ public abstract class AbstractAgent {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
     factory.registerProvider(ResteasyJacksonProvider.class);
-    HttpClient httpClient = HttpClientBuilder.create().
-        setMaxConnTotal(200).
-        setMaxConnPerRoute(100).
-        setDefaultRequestConfig(
-            RequestConfig.custom().
-                setContentCompressionEnabled(true).
-                setRedirectsEnabled(true).
-                setConnectTimeout(5000).
-                setConnectionRequestTimeout(5000).
-                setSocketTimeout(60000).build()).
-        build();
+    ClientHttpEngine httpEngine;
+    if (javaNetConnection) {
+      httpEngine = new URLConnectionEngine() {
+        @Override
+        protected HttpURLConnection createConnection(ClientInvocation request) throws IOException {
+          HttpURLConnection connection = (HttpURLConnection) request.getUri().toURL().openConnection();
+          connection.setRequestMethod(request.getMethod());
+          connection.setConnectTimeout(5000); // 5s
+          connection.setReadTimeout(60000); // 60s
+          if (connection instanceof HttpsURLConnection) {
+            HttpsURLConnection secureConnection = (HttpsURLConnection) connection;
+            secureConnection.setSSLSocketFactory(new com.wavefront.agent.SSLSocketFactoryImpl(
+                secureConnection.getSSLSocketFactory(), 60000));
+          }
+          return connection;
+        }
+      };
+    } else {
+      HttpClient httpClient = HttpClientBuilder.create().
+          useSystemProperties().
+          setMaxConnTotal(200).
+          setMaxConnPerRoute(100).
+          setConnectionTimeToLive(1, TimeUnit.MINUTES).
+          setDefaultSocketConfig(
+              SocketConfig.custom().
+                  setSoTimeout(60000).build()).
+          setDefaultRequestConfig(
+              RequestConfig.custom().
+                  setContentCompressionEnabled(true).
+                  setRedirectsEnabled(true).
+                  setConnectTimeout(5000).
+                  setConnectionRequestTimeout(5000).
+                  setSocketTimeout(60000).build()).
+          build();
+      httpEngine = new ApacheHttpClient4Engine(httpClient, true);
+    }
     ResteasyClient client = new ResteasyClientBuilder().
-        httpEngine(new ApacheHttpClient4Engine(httpClient, true)).
+        httpEngine(httpEngine).
         providerFactory(factory).
         build();
     ResteasyWebTarget target = client.target(server);
@@ -529,6 +575,21 @@ public abstract class AbstractAgent {
       return null;
     }
     return newConfig;
+  }
+
+  protected PostPushDataTimedTask[] getFlushTasks(int port) {
+    PostPushDataTimedTask[] toReturn = new PostPushDataTimedTask[flushThreads];
+    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for data received on " +
+        "port: " + port);
+    ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
+    for (int i = 0; i < flushThreads; i++) {
+      final PostPushDataTimedTask postPushDataTimedTask =
+          new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port, i);
+      es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
+          TimeUnit.MILLISECONDS);
+      toReturn[i] = postPushDataTimedTask;
+    }
+    return toReturn;
   }
 
   /**

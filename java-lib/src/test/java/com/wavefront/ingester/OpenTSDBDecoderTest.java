@@ -91,4 +91,20 @@ public class OpenTSDBDecoderTest {
     assertEquals(1447985300000L, point.getTimestamp().longValue());
     assertEquals("ip-172-20-0-236.us-west-2.compute.internal", point.getHost());
   }
+
+  @Test
+  public void testOpenTSDBCharacters() {
+    List<String> customSourceTags = new ArrayList<>();
+    customSourceTags.add("fqdn");
+    OpenTSDBDecoder decoder = new OpenTSDBDecoder("localhost", customSourceTags);
+    List<ReportPoint> out = new ArrayList<>();
+    decoder.decodeReportPoints("put tsdb.vehicle.charge.battery_level 12345.678 93.123e3 host=/vehicle_2554-test/GOOD some_tag=/vehicle_2554-test/BAD", out);
+    ReportPoint point = out.get(0);
+    assertEquals("dummy", point.getTable());
+    assertEquals("tsdb.vehicle.charge.battery_level", point.getMetric());
+    assertEquals(93123.0, point.getValue());
+    assertEquals(12345678L, point.getTimestamp().longValue());
+    assertEquals("/vehicle_2554-test/GOOD", point.getHost());
+    assertEquals("/vehicle_2554-test/BAD", point.getAnnotations().get("some_tag"));
+  }
 }
