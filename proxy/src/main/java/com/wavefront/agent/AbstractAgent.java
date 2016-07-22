@@ -451,7 +451,11 @@ public abstract class AbstractAgent {
                   setConnectionRequestTimeout(5000).
                   setSocketTimeout(60000).build()).
           build();
-      httpEngine = new ApacheHttpClient4Engine(httpClient, true);
+      final ApacheHttpClient4Engine apacheHttpClient4Engine = new ApacheHttpClient4Engine(httpClient, true);
+      // avoid using disk at all
+      apacheHttpClient4Engine.setFileUploadInMemoryThresholdLimit(100);
+      apacheHttpClient4Engine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
+      httpEngine = apacheHttpClient4Engine;
     }
     ResteasyClient client = new ResteasyClientBuilder().
         httpEngine(httpEngine).
