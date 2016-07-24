@@ -147,34 +147,36 @@ public class Wavefront implements WavefrontSender {
     if (StringUtils.isBlank(source)) {
       throw new IllegalArgumentException("source cannot be blank");
     }
+    final StringBuilder sb = new StringBuilder();
     try {
-      writer.write(sanitize(name));
-      writer.write(' ');
-      writer.write(Double.toString(value));
-      if (timestamp != null) {
-        writer.write(' ');
-        writer.write(Long.toString(timestamp));
-      }
-      writer.write(" host=");
-      writer.write(sanitize(source));
-      if (pointTags != null) {
-        for (Map.Entry<String, String> tag : pointTags.entrySet()) {
-          if (StringUtils.isBlank(tag.getKey())) {
-            throw new IllegalArgumentException("point tag key cannot be blank");
-          }
-          if (StringUtils.isBlank(tag.getValue())) {
-            throw new IllegalArgumentException("point tag value cannot be blank");
-          }
-          writer.write(" ");
-          writer.write(sanitize(tag.getKey()));
-          writer.write("=");
-          writer.write(sanitize(tag.getValue()));
+        sb.append(sanitize(name));
+        sb.append(' ');
+        sb.append(Double.toString(value));
+        if (timestamp != null) {
+            sb.append(' ');
+            sb.append(Long.toString(timestamp));
         }
-      }
-      writer.write('\n');
+        sb.append(" host=");
+        sb.append(sanitize(source));
+        if (pointTags != null) {
+            for (final Map.Entry<String, String> tag : pointTags.entrySet()) {
+                if (StringUtils.isBlank(tag.getKey())) {
+                    throw new IllegalArgumentException("point tag key cannot be blank");
+                }
+                if (StringUtils.isBlank(tag.getValue())) {
+                    throw new IllegalArgumentException("point tag value cannot be blank");
+                }
+                sb.append(' ');
+                sb.append(sanitize(tag.getKey()));
+                sb.append('=');
+                sb.append(sanitize(tag.getValue()));
+            }
+        }
+        sb.append('\n');
+        writer.write(sb.toString());
     } catch (IOException e) {
-      failures.incrementAndGet();
-      throw e;
+        failures.incrementAndGet();
+        throw e;
     }
   }
 
