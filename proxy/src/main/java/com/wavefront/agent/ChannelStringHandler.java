@@ -115,6 +115,12 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-    // ignore.
+    final Throwable rootCause = Throwables.getRootCause(cause);
+    String message = "WF-301 Channel Handler Failed, reason: \""
+        + cause.getMessage() + "\"";
+    if (rootCause != null && rootCause.getMessage() != null) {
+      message += ", root cause: \"" + rootCause.getMessage() + "\"";
+    }
+    pointHandler.handleBlockedPoint(message);
   }
 }
