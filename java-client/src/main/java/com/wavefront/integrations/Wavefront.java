@@ -33,8 +33,8 @@ public class Wavefront implements WavefrontSender {
   private final InetSocketAddress address;
   private final SocketFactory socketFactory;
 
-  private Socket socket;
-  private Writer writer;
+  private volatile Socket socket;
+  private volatile Writer writer;
   private AtomicInteger failures = new AtomicInteger();
   /**
    * Source to use if there's none.
@@ -135,6 +135,7 @@ public class Wavefront implements WavefrontSender {
   private void internalSend(String name, double value, @Nullable Long timestamp, String source,
                             @Nullable Map<String, String> pointTags) throws IOException {
     if (!isConnected()) {
+      this.socket = null;
       try {
         connect();
       } catch (IllegalStateException ex) {
@@ -149,34 +150,34 @@ public class Wavefront implements WavefrontSender {
     }
     final StringBuilder sb = new StringBuilder();
     try {
-        sb.append(sanitize(name));
+      sb.append(sanitize(name));
+      sb.append(' ');
+      sb.append(Double.toString(value));
+      if (timestamp != null) {
         sb.append(' ');
-        sb.append(Double.toString(value));
-        if (timestamp != null) {
-            sb.append(' ');
-            sb.append(Long.toString(timestamp));
+        sb.append(Long.toString(timestamp));
+      }
+      sb.append(" host=");
+      sb.append(sanitize(source));
+      if (pointTags != null) {
+        for (final Map.Entry<String, String> tag : pointTags.entrySet()) {
+          if (StringUtils.isBlank(tag.getKey())) {
+            throw new IllegalArgumentException("point tag key cannot be blank");
+          }
+          if (StringUtils.isBlank(tag.getValue())) {
+            throw new IllegalArgumentException("point tag value cannot be blank");
+          }
+          sb.append(' ');
+          sb.append(sanitize(tag.getKey()));
+          sb.append('=');
+          sb.append(sanitize(tag.getValue()));
         }
-        sb.append(" host=");
-        sb.append(sanitize(source));
-        if (pointTags != null) {
-            for (final Map.Entry<String, String> tag : pointTags.entrySet()) {
-                if (StringUtils.isBlank(tag.getKey())) {
-                    throw new IllegalArgumentException("point tag key cannot be blank");
-                }
-                if (StringUtils.isBlank(tag.getValue())) {
-                    throw new IllegalArgumentException("point tag value cannot be blank");
-                }
-                sb.append(' ');
-                sb.append(sanitize(tag.getKey()));
-                sb.append('=');
-                sb.append(sanitize(tag.getValue()));
-            }
-        }
-        sb.append('\n');
-        writer.write(sb.toString());
+      }
+      sb.append('\n');
+      writer.write(sb.toString());
     } catch (IOException e) {
-        failures.incrementAndGet();
-        throw e;
+      failures.incrementAndGet();
+      throw e;
     }
   }
 
@@ -197,7 +198,7 @@ public class Wavefront implements WavefrontSender {
     IOException exception = null;
     try {
       flush();
-    } catch(IOException ex) {
+    } catch (IOException ex) {
       exception = ex;
     }
 
