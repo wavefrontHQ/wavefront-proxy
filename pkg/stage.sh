@@ -47,8 +47,12 @@ cp -r usr build/usr
 echo "Stage the JRE..."
 cp -r $JRE $PROXY_DIR/jre
 
-echo "Make jsvc..."
+COMMONS_DAEMON_COMMIT="7747df1f0bc21175040afb3b9adcccb3f80a8701"
+echo "Make jsvc at $COMMONS_DAEMON_COMMIT..."
 cp -r $COMMONS_DAEMON $PROXY_DIR
+cd $PROXY_DIR/commons-daemon
+git pull
+git reset --hard $COMMONS_DAEMON_COMMIT
 JSVC_BUILD_DIR="$PROXY_DIR/commons-daemon/src/native/unix"
 cd $JSVC_BUILD_DIR
 support/buildconf.sh
