@@ -6,8 +6,6 @@ function die {
 }
 
 cd `dirname $0`
-git pull
-curl -s https://packagecloud.io/install/repositories/wavefront/proxy/script.rpm.sh | bash
 
 if [[ $# -eq 3 ]]; then
 	FPM_TARGET=$1
@@ -20,7 +18,7 @@ elif [[ $# -eq 1 ]]; then
 	YUM_VERSION=$(yum info wavefront-proxy | grep Version | cut -d: -f2 | tr -d '[[:space:]]')
 	YUM_ITERATION=$(yum info wavefront-proxy | grep Release | cut -d: -f2 | tr -d '[[:space:]]')
 	VERSION=$MOST_RECENT_VERSION
-	if [[ $MOST_RECENT_VERSION -eq $YUM_VERSION ]]; then
+	if [[ "$MOST_RECENT_VERSION" == "$YUM_VERSION" ]]; then
 		let "ITERATION=YUM_ITERATION+1"
 	else
 		ITERATION=1

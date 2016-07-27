@@ -22,6 +22,8 @@ if [[ $# -lt 3 ]]; then
 	die "Usage: $0 <jre_dir_path> <commons_daemon_path> <push_agent_jar_path>"
 fi
 
+git pull
+
 JRE=$1
 JRE=${JRE%/}
 [[ -d $JRE ]] || die "Bad JRE given."
@@ -61,6 +63,6 @@ make
 cd $PROXY_DIR/bin
 ln -s ../commons-daemon/src/native/unix/jsvc jsvc
 
-echo "Make the agent jar..."
+echo "Stage the agent jar..."
 cd $PROG_DIR
 cp $PUSH_AGENT_JAR $PROXY_DIR/bin
