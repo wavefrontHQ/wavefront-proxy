@@ -180,7 +180,7 @@
             <configuration>
               <finalName>wavefront-push-agent</finalName>
               <appendAssemblyId>false</appendAssemblyId>
-              <attach>false</attach>
+              <attach>true</attach>
               <descriptorRefs>
                 <descriptorRef>jar-with-dependencies</descriptorRef>
               </descriptorRefs>
