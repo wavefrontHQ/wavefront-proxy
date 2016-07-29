@@ -12,6 +12,7 @@
 ### END INIT INFO
 
 #############################
+service_name="$(basename $0)"
 
 DESC="Wavefront Proxy"
 APP_NAME="wavefront-proxy"
@@ -37,6 +38,9 @@ fi
 case "$JAVA_ARGS" in
 	("") JAVA_ARGS="-XX:+AggressiveHeap"
 esac
+
+# Source custom settings
+[[ -f "/etc/sysconfig/$service_name" ]] && . /etc/sysconfig/$service_name
 
 JSVC=$PROXY_DIR/bin/jsvc
 
