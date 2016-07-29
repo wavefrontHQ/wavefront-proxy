@@ -220,17 +220,23 @@ public class PointHandlerImpl implements PointHandler {
     return (pointTime > (rightNow - MILLIS_IN_YEAR)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
   }
 
-  protected static String pointToString(ReportPoint point) {
-    String toReturn = String.format("\"%s\" %s %d source=\"%s\"",
-        point.getMetric().replaceAll("\"", "\\\""),
-        point.getValue(),
-        point.getTimestamp() / 1000,
-        point.getHost().replaceAll("\"", "\\\""));
+  private static String pointToStringSB(ReportPoint point) {
+    StringBuilder sb = new StringBuilder("\"")
+        .append(point.getMetric().replaceAll("\"", "\\\"")).append("\" ")
+        .append(point.getValue()).append(" ")
+        .append(point.getTimestamp() / 1000).append(" ")
+        .append("source=\"").append(point.getHost().replaceAll("\"", "\\\"")).append("\"");
     for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
-      toReturn += String.format(" \"%s\"=\"%s\"",
-          entry.getKey().replaceAll("\"", "\\\""),
-          entry.getValue().replaceAll("\"", "\\\""));
+      sb.append(" \"").append(entry.getKey().replaceAll("\"", "\\\"")).append("\"")
+          .append("=")
+          .append("\"").append(entry.getValue().replaceAll("\"", "\\\"")).append("\"");
     }
-    return toReturn;
+    return sb.toString();
+  }
+
+
+  @VisibleForTesting
+  static String pointToString(ReportPoint point) {
+    return pointToStringSB(point);
   }
 }

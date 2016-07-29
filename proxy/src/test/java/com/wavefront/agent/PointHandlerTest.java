@@ -1,5 +1,7 @@
 package com.wavefront.agent;
 
+import com.google.common.collect.ImmutableMap;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -107,5 +109,40 @@ public class PointHandlerTest {
     // out of range for over a day in the future
     rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 2));
     Assert.assertFalse(PointHandlerImpl.pointInRange(rp));
+  }
+
+  // This is a slow implementation of pointToString that is known to work to specification.
+  private static String referenceImpl(ReportPoint point) {
+    String toReturn = String.format("\"%s\" %s %d source=\"%s\"",
+        point.getMetric().replaceAll("\"", "\\\""),
+        point.getValue(),
+        point.getTimestamp() / 1000,
+        point.getHost().replaceAll("\"", "\\\""));
+    for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
+      toReturn += String.format(" \"%s\"=\"%s\"",
+          entry.getKey().replaceAll("\"", "\\\""),
+          entry.getValue().replaceAll("\"", "\\\""));
+    }
+    return toReturn;
+  }
+
+  private void testReportPointToStringHelper(ReportPoint rp) {
+    Assert.assertEquals(referenceImpl(rp), PointHandlerImpl.pointToString(rp));
+  }
+
+  @Test
+  public void testReportPointToString() {
+    // Vanilla point
+    testReportPointToStringHelper(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
+        ImmutableMap.of("foo", "bar", "boo", "baz")));
+    // No tags
+    testReportPointToStringHelper(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
+        new HashMap<String, String>()));
+    // Quote in metric name
+    testReportPointToStringHelper(new ReportPoint("some\"metric", 1469751813000L, 10L, "host", "table",
+        new HashMap<String, String>()));
+    // Quote in tags
+    testReportPointToStringHelper(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
+        ImmutableMap.of("foo\"", "\"bar", "bo\"o", "baz")));
   }
 }
