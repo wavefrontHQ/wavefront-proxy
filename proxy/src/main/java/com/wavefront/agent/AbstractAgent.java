@@ -21,6 +21,7 @@ import com.yammer.metrics.core.Gauge;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.SocketConfig;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
@@ -72,6 +73,9 @@ public abstract class AbstractAgent {
 
   protected static final SSLSocketFactoryImpl SSL_SOCKET_FACTORY = new SSLSocketFactoryImpl(
       HttpsURLConnection.getDefaultSSLSocketFactory(), 60000);
+
+  protected static final SSLConnectionSocketFactoryImpl SSL_CONNECTION_SOCKET_FACTORY = new
+      SSLConnectionSocketFactoryImpl(SSLConnectionSocketFactory.getSystemSocketFactory(), 60000);
 
   @Parameter(names = {"-f", "--file"}, description =
       "Proxy configuration file")
@@ -483,6 +487,7 @@ public abstract class AbstractAgent {
           setDefaultSocketConfig(
               SocketConfig.custom().
                   setSoTimeout(60000).build()).
+          setSSLSocketFactory(SSL_CONNECTION_SOCKET_FACTORY).
           setDefaultRequestConfig(
               RequestConfig.custom().
                   setContentCompressionEnabled(true).
