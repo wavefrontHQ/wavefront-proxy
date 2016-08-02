@@ -5,6 +5,7 @@ WAVEFRONT_DIR=/opt/$USER
 PROXY_DIR=$WAVEFRONT_DIR/wavefront-proxy
 CONF_FILE=$PROXY_DIR/conf/wavefront.conf
 SPOOL_DIR=/var/spool/wavefront-proxy
+LOG_LOCATION=/var/log/wavefront.log
 
 # Set up wavefront user.
 if ! groupmod $GROUP &> /dev/null; then
@@ -24,8 +25,11 @@ elif [[ -f /etc/redhat-release ]] || [[ -f /etc/system-release-cpe ]]; then
 	chkconfig --level 345 wavefront-proxy on
 fi
 
-# Allow system user to write .wavefront_id/buffer files to install dir.
-chown $USER:$GROUP /opt/wavefront/wavefront-proxy
+touch $LOG_LOCATION
+# Allow system user to
+#  1) write .wavefront_id/buffer files to install dir.
+#  2) write to its own logfile.
+chown $USER:$GROUP /opt/wavefront/wavefront-proxy $LOG_LOCATION
 
 # If there is an errant pre-3.9 agent running, we need to kill it. This is
 # required for a clean upgrade from pre-3.9 to 3.9+.
