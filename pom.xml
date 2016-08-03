@@ -219,6 +219,7 @@
                   <goal>shade</goal>
                 </goals>
                 <configuration>
+                  <finalName>${project.artifactId}-${project.version}-uber</finalName>
                   <relocations>
                     <relocation>
                       <pattern>com.wavefront.patches</pattern>

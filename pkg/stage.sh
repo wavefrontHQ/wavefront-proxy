@@ -65,4 +65,4 @@ ln -s ../commons-daemon/src/native/unix/jsvc jsvc
 
 echo "Stage the agent jar..."
 cd $PROG_DIR
-cp $PUSH_AGENT_JAR $PROXY_DIR/bin
+cp $PUSH_AGENT_JAR $PROXY_DIR/bin/wavefront-push-agent.jar
