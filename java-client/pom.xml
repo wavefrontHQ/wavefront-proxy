@@ -9,7 +9,7 @@
   <parent>
     <groupId>com.wavefront</groupId>
     <artifactId>wavefront</artifactId>
-    <version>3.23</version>
+    <version>3.24-SNAPSHOT</version>
   </parent>
 
   <developers>
