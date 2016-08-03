@@ -176,26 +176,6 @@
               </descriptors>
             </configuration>
           </execution>
-          <execution>
-            <configuration>
-              <finalName>wavefront-push-agent</finalName>
-              <appendAssemblyId>false</appendAssemblyId>
-              <attach>false</attach>
-              <descriptorRefs>
-                <descriptorRef>jar-with-dependencies</descriptorRef>
-              </descriptorRefs>
-              <archive>
-                <manifest>
-                  <mainClass>com.wavefront.agent.PushAgent</mainClass>
-                </manifest>
-              </archive>
-            </configuration>
-            <id>make-assembly</id>
-            <phase>package</phase>
-            <goals>
-              <goal>attached</goal>
-            </goals>
-          </execution>
         </executions>
       </plugin>
     </plugins>
