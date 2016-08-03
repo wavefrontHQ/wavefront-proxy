@@ -21,6 +21,7 @@ import com.yammer.metrics.core.Gauge;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.SocketConfig;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
@@ -72,6 +73,9 @@ public abstract class AbstractAgent {
 
   protected static final SSLSocketFactoryImpl SSL_SOCKET_FACTORY = new SSLSocketFactoryImpl(
       HttpsURLConnection.getDefaultSSLSocketFactory(), 60000);
+
+  protected static final SSLConnectionSocketFactoryImpl SSL_CONNECTION_SOCKET_FACTORY = new
+      SSLConnectionSocketFactoryImpl(SSLConnectionSocketFactory.getSystemSocketFactory(), 60000);
 
   @Parameter(names = {"-f", "--file"}, description =
       "Proxy configuration file")
@@ -203,6 +207,12 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--javaNetConnection"}, description = "If true, use JRE's own http client when making connections instead of Apache HTTP Client")
   protected boolean javaNetConnection = false;
 
+  @Parameter(names = {"--proxyHost"}, description = "Proxy host for routing traffic through a http proxy")
+  protected String proxyHost = null;
+
+  @Parameter(names = {"--proxyPort"}, description = "Proxy port for routing traffic through a http proxy")
+  protected int proxyPort = 0;
+
   @Parameter(names = {"--proxyUser"}, description = "If proxy authentication is necessary, this is the username that will be passed along")
   protected String proxyUser = null;
 
@@ -298,6 +308,8 @@ public abstract class AbstractAgent {
         opentsdbPorts = prop.getProperty("opentsdbPorts", opentsdbPorts);
         opentsdbWhitelistRegex = prop.getProperty("opentsdbWhitelistRegex", opentsdbWhitelistRegex);
         opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
+        proxyHost = prop.getProperty("proxyHost", proxyHost);
+        proxyPort = Integer.parseInt(prop.getProperty("proxyPort", String.valueOf(proxyPort)));
         proxyPassword = prop.getProperty("proxyPassword", proxyPassword);
         proxyUser = prop.getProperty("proxyUser", proxyUser);
         javaNetConnection = Boolean.valueOf(prop.getProperty("javaNetConnection", String.valueOf(javaNetConnection)));
@@ -356,12 +368,22 @@ public abstract class AbstractAgent {
       // read build information.
       props = ResourceBundle.getBundle("build");
 
+      if (proxyHost != null) {
+        System.setProperty("http.proxyHost", proxyHost);
+        System.setProperty("https.proxyHost", proxyHost);
+        System.setProperty("http.proxyPort", String.valueOf(proxyPort));
+        System.setProperty("https.proxyPort", String.valueOf(proxyPort));
+      }
       if (proxyUser != null && proxyPassword != null) {
         Authenticator.setDefault(
             new Authenticator() {
               @Override
               public PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(proxyUser, proxyPassword.toCharArray());
+                if (getRequestorType() == RequestorType.PROXY) {
+                  return new PasswordAuthentication(proxyUser, proxyPassword.toCharArray());
+                } else {
+                  return null;
+                }
               }
             }
         );
@@ -465,6 +487,7 @@ public abstract class AbstractAgent {
           setDefaultSocketConfig(
               SocketConfig.custom().
                   setSoTimeout(60000).build()).
+          setSSLSocketFactory(SSL_CONNECTION_SOCKET_FACTORY).
           setDefaultRequestConfig(
               RequestConfig.custom().
                   setContentCompressionEnabled(true).
