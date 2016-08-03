@@ -125,6 +125,35 @@
     </resources>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.4.3</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <finalName>${project.artifactId}-${project.version}-uber</finalName>
+              <!--Relocation is required until HTTPCLIENT-1747 is fixed.-->
+              <relocations>
+                <relocation>
+                  <pattern>com.wavefront.patches</pattern>
+                  <shadedPattern />
+                </relocation>
+              </relocations>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>com.wavefront.agent.PushAgent</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.1</version>
         <configuration>
@@ -175,26 +204,6 @@
                 <descriptor>src/assembly.xml</descriptor>
               </descriptors>
             </configuration>
-          </execution>
-          <execution>
-            <configuration>
-              <finalName>wavefront-push-agent</finalName>
-              <appendAssemblyId>false</appendAssemblyId>
-              <attach>false</attach>
-              <descriptorRefs>
-                <descriptorRef>jar-with-dependencies</descriptorRef>
-              </descriptorRefs>
-              <archive>
-                <manifest>
-                  <mainClass>com.wavefront.agent.PushAgent</mainClass>
-                </manifest>
-              </archive>
-            </configuration>
-            <id>make-assembly</id>
-            <phase>package</phase>
-            <goals>
-              <goal>attached</goal>
-            </goals>
           </execution>
         </executions>
       </plugin>
