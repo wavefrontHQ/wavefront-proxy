@@ -131,7 +131,9 @@
             </goals>
             <configuration>
               <finalName>${project.artifactId}-${project.version}-uber</finalName>
-              <!--Relocation is required until HTTPCLIENT-1747 is fixed.-->
+              <!--Filters section is required until HTTPCLIENT-1747 is fixed - to make sure that patched
+              versions of HttpClientParamConfig and InternalHttpClient classes end up in the uber jar and
+              not what's in 4.5.2 -->
               <filters>
                 <filter>
                   <artifact>org.apache.httpcomponents:httpclient</artifact>
