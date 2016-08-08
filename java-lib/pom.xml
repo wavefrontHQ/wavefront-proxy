@@ -104,6 +104,7 @@
       <plugin>
         <groupId>org.apache.avro</groupId>
         <artifactId>avro-maven-plugin</artifactId>
+        <version>1.7.7</version>
         <configuration>
           <stringType>String</stringType>
           <templateDirectory>${project.basedir}/src/main/resources/wavefront/templates/</templateDirectory>
