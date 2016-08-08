@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
+
 import org.apache.commons.lang.StringUtils;
 
 import java.io.IOException;
@@ -32,6 +33,7 @@ public abstract class JsonMetricsGenerator {
 
   private static final Clock clock = Clock.defaultClock();
   private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
+  private static Map<String, String> defaultMetricPointTags = null;
 
   public static void generateJsonMetrics(OutputStream outputStream, MetricsRegistry registry, boolean includeVMMetrics,
                                          boolean includeBuildMetrics, boolean clearMetrics)
@@ -77,6 +79,11 @@ public abstract class JsonMetricsGenerator {
 
   private static void writeBuildMetrics(ResourceBundle props, JsonGenerator json) throws IOException {
     json.writeFieldName("build");
+    if (defaultMetricPointTags != null) {
+      json.writeStartObject();
+      writeTags(json);
+      json.writeFieldName("value");
+    }
     json.writeStartObject();
     if (props.containsKey("build.version")) {
       // attempt to make a version string
@@ -99,6 +106,9 @@ public abstract class JsonMetricsGenerator {
       json.writeStringField("timestamp_raw", props.getString("maven.build.timestamp"));
     }
     json.writeEndObject();
+    if (defaultMetricPointTags != null) {
+      json.writeEndObject();
+    }
   }
 
   static int extractVersion(String versionStr) {
@@ -124,6 +134,11 @@ public abstract class JsonMetricsGenerator {
 
   private static void writeVmMetrics(JsonGenerator json) throws IOException {
     json.writeFieldName("jvm");
+    if (defaultMetricPointTags != null) {
+      json.writeStartObject();
+      writeTags(json);
+      json.writeFieldName("value");
+    }
     json.writeStartObject();
     {
       json.writeFieldName("vm");
@@ -222,13 +237,25 @@ public abstract class JsonMetricsGenerator {
       json.writeEndObject();
     }
     json.writeEndObject();
+    if (defaultMetricPointTags != null) {
+      json.writeEndObject();
+    }
+  }
+
+  private static void writeTags(JsonGenerator json) throws IOException{
+    json.writeFieldName("tags");
+    json.writeStartObject();
+    for (Map.Entry<String, String> tagEntry : defaultMetricPointTags.entrySet()) {
+      json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
+    }
+    json.writeEndObject();
   }
 
   public static void writeRegularMetrics(Processor processor, JsonGenerator json, MetricsRegistry registry,
                                          boolean showFullSamples) throws IOException {
     for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : registry.groupedMetrics().entrySet()) {
       for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
-        if (subEntry.getKey() instanceof TaggedMetricName) {
+        if (subEntry.getKey() instanceof TaggedMetricName || defaultMetricPointTags != null) {
           // write the hashcode since we need to support metrics with the same name but with different tags.
           // the server will remove the suffix.
           json.writeFieldName(sanitize(subEntry.getKey()) + "$" + subEntry.hashCode());
@@ -245,8 +272,18 @@ public abstract class JsonMetricsGenerator {
           json.writeStartObject();
           json.writeFieldName("tags");
           json.writeStartObject();
-          for (Map.Entry<String, String> tagEntry : ((TaggedMetricName) subEntry.getKey()).getTags().entrySet()) {
-            json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
+          if (subEntry.getKey() instanceof TaggedMetricName) {
+            for (Map.Entry<String, String> tagEntry : ((TaggedMetricName) subEntry.getKey()).getTags().entrySet()) {
+              json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
+            }
+          }
+          if (defaultMetricPointTags != null) {
+            for (Map.Entry<String, String> tagEntry : defaultMetricPointTags.entrySet()) {
+              if (!(subEntry.getKey() instanceof TaggedMetricName) ||
+                  !((TaggedMetricName) subEntry.getKey()).getTags().containsKey(tagEntry.getKey())) {
+                json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
+              }
+            }
           }
           json.writeEndObject();
           json.writeFieldName("value");
@@ -259,11 +296,15 @@ public abstract class JsonMetricsGenerator {
           e.printStackTrace();
         }
         // need to close the object as well.
-        if (subEntry.getKey() instanceof TaggedMetricName) {
+        if (subEntry.getKey() instanceof TaggedMetricName || defaultMetricPointTags != null) {
           json.writeEndObject();
         }
       }
     }
+  }
+
+  public static void setDefaultMetricPointTags(Map<String, String> pointTags) {
+    defaultMetricPointTags = pointTags;
   }
 
   static final class Processor implements MetricProcessor<Context> {
