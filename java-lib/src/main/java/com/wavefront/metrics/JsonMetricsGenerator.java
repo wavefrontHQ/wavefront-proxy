@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
-
 import org.apache.commons.lang.StringUtils;
 
 import java.io.IOException;
@@ -269,10 +268,10 @@ public abstract class JsonMetricsGenerator {
   }
 
   public static void writeRegularMetrics(Processor processor, JsonGenerator json, MetricsRegistry registry,
-          boolean showFullSamples, Map<String, String> defaultMetricPointTags) throws IOException {
+          boolean showFullSamples, Map<String, String> pointTags) throws IOException {
     for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : registry.groupedMetrics().entrySet()) {
       for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
-        if (subEntry.getKey() instanceof TaggedMetricName || defaultMetricPointTags != null) {
+        if (subEntry.getKey() instanceof TaggedMetricName || pointTags != null) {
           // write the hashcode since we need to support metrics with the same name but with different tags.
           // the server will remove the suffix.
           json.writeFieldName(sanitize(subEntry.getKey()) + "$" + subEntry.hashCode());
@@ -294,8 +293,8 @@ public abstract class JsonMetricsGenerator {
               json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
             }
           }
-          if (defaultMetricPointTags != null) {
-            for (Map.Entry<String, String> tagEntry : defaultMetricPointTags.entrySet()) {
+          if (pointTags != null) {
+            for (Map.Entry<String, String> tagEntry : pointTags.entrySet()) {
               if (!(subEntry.getKey() instanceof TaggedMetricName) ||
                   !((TaggedMetricName) subEntry.getKey()).getTags().containsKey(tagEntry.getKey())) {
                 json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
@@ -313,7 +312,7 @@ public abstract class JsonMetricsGenerator {
           e.printStackTrace();
         }
         // need to close the object as well.
-        if (subEntry.getKey() instanceof TaggedMetricName || defaultMetricPointTags != null) {
+        if (subEntry.getKey() instanceof TaggedMetricName || pointTags != null) {
           json.writeEndObject();
         }
       }
