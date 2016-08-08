@@ -82,8 +82,12 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    if (cause.getMessage().equals("Connection reset by peer")) {
+      // These errors are caused by the client and are safe to ignore
+      return;
+    }
     final Throwable rootCause = Throwables.getRootCause(cause);
-    String message = "WF-301 Channel Handler Failed, reason: \""
+    String message = "WF-301 Error while receiving data, reason: \""
         + cause.getMessage() + "\"";
     if (rootCause != null && rootCause.getMessage() != null) {
       message += ", root cause: \"" + rootCause.getMessage() + "\"";
