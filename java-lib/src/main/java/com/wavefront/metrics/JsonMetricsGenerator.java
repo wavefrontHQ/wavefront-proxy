@@ -33,19 +33,24 @@ public abstract class JsonMetricsGenerator {
 
   private static final Clock clock = Clock.defaultClock();
   private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
-  private static Map<String, String> defaultMetricPointTags = null;
 
   public static void generateJsonMetrics(OutputStream outputStream, MetricsRegistry registry, boolean includeVMMetrics,
                                          boolean includeBuildMetrics, boolean clearMetrics)
       throws IOException {
     JsonGenerator json = factory.createGenerator(outputStream, JsonEncoding.UTF8);
-    writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics);
+    writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null);
   }
 
   public static JsonNode generateJsonMetrics(MetricsRegistry registry, boolean includeVMMetrics,
                                              boolean includeBuildMetrics, boolean clearMetrics) throws IOException {
+    return generateJsonMetrics(registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null);
+  }
+
+  public static JsonNode generateJsonMetrics(MetricsRegistry registry, boolean includeVMMetrics,
+                                             boolean includeBuildMetrics, boolean clearMetrics,
+                                             Map<String, String> pointTags) throws IOException {
     TokenBuffer t = new TokenBuffer(new ObjectMapper());
-    writeJson(t, registry, includeVMMetrics, includeBuildMetrics, clearMetrics);
+    writeJson(t, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, pointTags);
     JsonParser parser = t.asParser();
     return parser.readValueAsTree();
   }
@@ -62,26 +67,33 @@ public abstract class JsonMetricsGenerator {
 
   public static void writeJson(JsonGenerator json, MetricsRegistry registry, boolean includeVMMetrics,
                                boolean includeBuildMetrics, boolean clearMetrics) throws IOException {
+    writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null);
+  }
+
+  public static void writeJson(JsonGenerator json, MetricsRegistry registry, boolean includeVMMetrics,
+                               boolean includeBuildMetrics, boolean clearMetrics,
+                               Map<String, String> pointTags) throws IOException {
     json.writeStartObject();
     if (includeVMMetrics) {
-      writeVmMetrics(json);
+      writeVmMetrics(json, pointTags);
     }
     if (includeBuildMetrics) {
       try {
-        writeBuildMetrics(ResourceBundle.getBundle("build"), json);
+        writeBuildMetrics(ResourceBundle.getBundle("build"), json, pointTags);
       } catch (MissingResourceException ignored) {
       }
     }
-    writeRegularMetrics(new Processor(clearMetrics), json, registry, false);
+    writeRegularMetrics(new Processor(clearMetrics), json, registry, false, pointTags);
     json.writeEndObject();
     json.close();
   }
 
-  private static void writeBuildMetrics(ResourceBundle props, JsonGenerator json) throws IOException {
+  private static void writeBuildMetrics(ResourceBundle props, JsonGenerator json,
+                                        Map<String, String> pointTags) throws IOException {
     json.writeFieldName("build");
-    if (defaultMetricPointTags != null) {
+    if (pointTags != null) {
       json.writeStartObject();
-      writeTags(json);
+      writeTags(json, pointTags);
       json.writeFieldName("value");
     }
     json.writeStartObject();
@@ -106,7 +118,7 @@ public abstract class JsonMetricsGenerator {
       json.writeStringField("timestamp_raw", props.getString("maven.build.timestamp"));
     }
     json.writeEndObject();
-    if (defaultMetricPointTags != null) {
+    if (pointTags != null) {
       json.writeEndObject();
     }
   }
@@ -132,11 +144,11 @@ public abstract class JsonMetricsGenerator {
     return version;
   }
 
-  private static void writeVmMetrics(JsonGenerator json) throws IOException {
+  private static void writeVmMetrics(JsonGenerator json, Map<String, String> pointTags) throws IOException {
     json.writeFieldName("jvm");
-    if (defaultMetricPointTags != null) {
+    if (pointTags != null) {
       json.writeStartObject();
-      writeTags(json);
+      writeTags(json, pointTags);
       json.writeFieldName("value");
     }
     json.writeStartObject();
@@ -237,15 +249,15 @@ public abstract class JsonMetricsGenerator {
       json.writeEndObject();
     }
     json.writeEndObject();
-    if (defaultMetricPointTags != null) {
+    if (pointTags != null) {
       json.writeEndObject();
     }
   }
 
-  private static void writeTags(JsonGenerator json) throws IOException{
+  private static void writeTags(JsonGenerator json, Map<String, String> pointTags) throws IOException{
     json.writeFieldName("tags");
     json.writeStartObject();
-    for (Map.Entry<String, String> tagEntry : defaultMetricPointTags.entrySet()) {
+    for (Map.Entry<String, String> tagEntry : pointTags.entrySet()) {
       json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
     }
     json.writeEndObject();
@@ -253,6 +265,11 @@ public abstract class JsonMetricsGenerator {
 
   public static void writeRegularMetrics(Processor processor, JsonGenerator json, MetricsRegistry registry,
                                          boolean showFullSamples) throws IOException {
+    writeRegularMetrics(processor, json, registry, showFullSamples, null);
+  }
+
+  public static void writeRegularMetrics(Processor processor, JsonGenerator json, MetricsRegistry registry,
+          boolean showFullSamples, Map<String, String> defaultMetricPointTags) throws IOException {
     for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : registry.groupedMetrics().entrySet()) {
       for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
         if (subEntry.getKey() instanceof TaggedMetricName || defaultMetricPointTags != null) {
@@ -301,10 +318,6 @@ public abstract class JsonMetricsGenerator {
         }
       }
     }
-  }
-
-  public static void setDefaultMetricPointTags(Map<String, String> pointTags) {
-    defaultMetricPointTags = pointTags;
   }
 
   static final class Processor implements MetricProcessor<Context> {

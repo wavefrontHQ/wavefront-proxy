@@ -407,11 +407,6 @@ public abstract class AbstractAgent {
         }
       }
 
-      if (agentMetricsPointTags != null) {
-        Map<String, String> pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
-        JsonMetricsGenerator.setDefaultMetricPointTags(pointTags);
-      }
-
       // 3. Setup proxies.
       AgentAPI service = createAgentService();
       try {
@@ -614,7 +609,12 @@ public abstract class AbstractAgent {
         logger.warning("cannot compute remaining space in buffer file partition: " + t);
       }
 
-      JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(), true, true, true);
+      Map<String, String> pointTags = null;
+      if (agentMetricsPointTags != null) {
+        pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
+      }
+      JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
+          true, true, true, pointTags);
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
           System.currentTimeMillis(), localAgent, agentMetrics, pushAgent, ephemeral);
     } catch (Exception ex) {
