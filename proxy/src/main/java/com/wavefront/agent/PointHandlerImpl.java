@@ -140,16 +140,21 @@ public class PointHandlerImpl implements PointHandler {
   }
 
   public PostPushDataTimedTask getRandomPostTask() {
+    // return the task with the lowest number of pending points and, if possible, not currently flushing to retry queue
     long min = Long.MAX_VALUE;
     PostPushDataTimedTask randomPostTask = null;
+    PostPushDataTimedTask firstChoicePostTask = null;
     for (int i = 0; i < this.sendDataTasks.length; i++) {
       long pointsToSend = this.sendDataTasks[i].getNumPointsToSend();
       if (pointsToSend < min) {
         min = pointsToSend;
         randomPostTask = this.sendDataTasks[i];
+        if (!this.sendDataTasks[i].getFlushingToQueueFlag()) {
+          firstChoicePostTask = this.sendDataTasks[i];
+        }
       }
     }
-    return randomPostTask;
+    return firstChoicePostTask == null ? randomPostTask : firstChoicePostTask;
   }
 
   @Override
