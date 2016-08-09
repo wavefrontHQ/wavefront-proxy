@@ -2,6 +2,7 @@ package com.wavefront.agent;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
@@ -45,6 +46,7 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.UUID;
@@ -56,6 +58,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.HttpsURLConnection;
 
 /**
@@ -201,6 +204,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
   protected String customSourceTagsProperty = "fqdn";
 
+  @Parameter(names = {"--agentMetricsPointTags"}, description = "Additional point tags and their respective values to be included into internal agent's metrics (comma-separated list, ex: dc=west,env=prod)")
+  protected String agentMetricsPointTags = null;
+
   @Parameter(names = {"--ephemeral"}, description = "If true, this agent is removed from Wavefront after 24 hours of inactivity.")
   protected boolean ephemeral = false;
 
@@ -318,6 +324,7 @@ public abstract class AbstractAgent {
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
             String.valueOf(retryBackoffBaseSeconds)));
         customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
+        agentMetricsPointTags = prop.getProperty("agentMetricsPointTags", agentMetricsPointTags);
         ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
         picklePorts = prop.getProperty("picklePorts", picklePorts);
         bufferFile = prop.getProperty("buffer", bufferFile);
@@ -603,7 +610,12 @@ public abstract class AbstractAgent {
         logger.warning("cannot compute remaining space in buffer file partition: " + t);
       }
 
-      JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(), true, true, true);
+      @Nullable Map<String, String> pointTags = null;
+      if (agentMetricsPointTags != null) {
+        pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
+      }
+      JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
+          true, true, true, pointTags);
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
           System.currentTimeMillis(), localAgent, agentMetrics, pushAgent, ephemeral);
     } catch (Exception ex) {
