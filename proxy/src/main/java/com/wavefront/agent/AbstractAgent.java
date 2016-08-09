@@ -58,6 +58,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.HttpsURLConnection;
 
 /**
@@ -609,7 +610,7 @@ public abstract class AbstractAgent {
         logger.warning("cannot compute remaining space in buffer file partition: " + t);
       }
 
-      Map<String, String> pointTags = null;
+      @Nullable Map<String, String> pointTags = null;
       if (agentMetricsPointTags != null) {
         pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
       }

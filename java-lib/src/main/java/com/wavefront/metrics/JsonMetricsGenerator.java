@@ -11,15 +11,19 @@ import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.Validate;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+
+import javax.annotation.Nullable;
 
 /**
  * Generator of metrics as a JSON node and outputting it to an output stream or returning a json node.
@@ -34,8 +38,7 @@ public abstract class JsonMetricsGenerator {
   private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
 
   public static void generateJsonMetrics(OutputStream outputStream, MetricsRegistry registry, boolean includeVMMetrics,
-                                         boolean includeBuildMetrics, boolean clearMetrics)
-      throws IOException {
+                                         boolean includeBuildMetrics, boolean clearMetrics) throws IOException {
     JsonGenerator json = factory.createGenerator(outputStream, JsonEncoding.UTF8);
     writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null);
   }
@@ -47,7 +50,7 @@ public abstract class JsonMetricsGenerator {
 
   public static JsonNode generateJsonMetrics(MetricsRegistry registry, boolean includeVMMetrics,
                                              boolean includeBuildMetrics, boolean clearMetrics,
-                                             Map<String, String> pointTags) throws IOException {
+                                             @Nullable Map<String, String> pointTags) throws IOException {
     TokenBuffer t = new TokenBuffer(new ObjectMapper());
     writeJson(t, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, pointTags);
     JsonParser parser = t.asParser();
@@ -71,7 +74,7 @@ public abstract class JsonMetricsGenerator {
 
   public static void writeJson(JsonGenerator json, MetricsRegistry registry, boolean includeVMMetrics,
                                boolean includeBuildMetrics, boolean clearMetrics,
-                               Map<String, String> pointTags) throws IOException {
+                               @Nullable Map<String, String> pointTags) throws IOException {
     json.writeStartObject();
     if (includeVMMetrics) {
       writeVmMetrics(json, pointTags);
@@ -143,7 +146,7 @@ public abstract class JsonMetricsGenerator {
     return version;
   }
 
-  private static void writeVmMetrics(JsonGenerator json, Map<String, String> pointTags) throws IOException {
+  private static void writeVmMetrics(JsonGenerator json, @Nullable Map<String, String> pointTags) throws IOException {
     json.writeFieldName("jvm");
     if (pointTags != null) {
       json.writeStartObject();
@@ -253,7 +256,8 @@ public abstract class JsonMetricsGenerator {
     }
   }
 
-  private static void writeTags(JsonGenerator json, Map<String, String> pointTags) throws IOException{
+  private static void writeTags(JsonGenerator json, Map<String, String> pointTags) throws IOException {
+    Validate.notNull(pointTags, "pointTags argument can't be null!");
     json.writeFieldName("tags");
     json.writeStartObject();
     for (Map.Entry<String, String> tagEntry : pointTags.entrySet()) {
@@ -267,11 +271,14 @@ public abstract class JsonMetricsGenerator {
     writeRegularMetrics(processor, json, registry, showFullSamples, null);
   }
 
-  public static void writeRegularMetrics(Processor processor, JsonGenerator json, MetricsRegistry registry,
-          boolean showFullSamples, Map<String, String> pointTags) throws IOException {
+  public static void writeRegularMetrics(Processor processor, JsonGenerator json,
+                                         MetricsRegistry registry, boolean showFullSamples,
+                                         @Nullable Map<String, String> pointTags) throws IOException {
     for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : registry.groupedMetrics().entrySet()) {
       for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
+        boolean closeObjectRequired = false;
         if (subEntry.getKey() instanceof TaggedMetricName || pointTags != null) {
+          closeObjectRequired = true;
           // write the hashcode since we need to support metrics with the same name but with different tags.
           // the server will remove the suffix.
           json.writeFieldName(sanitize(subEntry.getKey()) + "$" + subEntry.hashCode());
@@ -288,18 +295,15 @@ public abstract class JsonMetricsGenerator {
           json.writeStartObject();
           json.writeFieldName("tags");
           json.writeStartObject();
-          if (subEntry.getKey() instanceof TaggedMetricName) {
-            for (Map.Entry<String, String> tagEntry : ((TaggedMetricName) subEntry.getKey()).getTags().entrySet()) {
-              json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
-            }
-          }
+          Map<String, String> tags = new HashMap<>();
           if (pointTags != null) {
-            for (Map.Entry<String, String> tagEntry : pointTags.entrySet()) {
-              if (!(subEntry.getKey() instanceof TaggedMetricName) ||
-                  !((TaggedMetricName) subEntry.getKey()).getTags().containsKey(tagEntry.getKey())) {
-                json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
-              }
-            }
+            tags.putAll(pointTags);
+          }
+          if (subEntry.getKey() instanceof TaggedMetricName) {
+            tags.putAll(((TaggedMetricName) subEntry.getKey()).getTags());
+          }
+          for (Map.Entry<String, String> tagEntry : tags.entrySet()) {
+            json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
           }
           json.writeEndObject();
           json.writeFieldName("value");
@@ -312,7 +316,7 @@ public abstract class JsonMetricsGenerator {
           e.printStackTrace();
         }
         // need to close the object as well.
-        if (subEntry.getKey() instanceof TaggedMetricName || pointTags != null) {
+        if (closeObjectRequired) {
           json.writeEndObject();
         }
       }
