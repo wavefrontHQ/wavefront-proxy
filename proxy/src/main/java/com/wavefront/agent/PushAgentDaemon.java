@@ -4,10 +4,15 @@ import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
 import org.apache.commons.daemon.DaemonInitException;
 
+import java.util.logging.Logger;
+
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class PushAgentDaemon implements Daemon {
+
+    protected static final Logger logger = Logger.getLogger("agent");
+
     private PushAgent agent;
     private DaemonContext daemonContext;
 
@@ -24,7 +29,7 @@ public class PushAgentDaemon implements Daemon {
 
     @Override
     public void stop() throws Exception {
-
+        agent.shutdown();
     }
 
     @Override
