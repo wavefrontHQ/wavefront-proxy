@@ -289,17 +289,10 @@ public class PushAgent extends AbstractAgent {
   public void stopListeners() {
     for (Thread thread : managedThreads) {
       thread.interrupt();
-      int i = 0;
-      while (i < TimeUnit.SECONDS.toMillis(10) / 50) { // give up to 10 seconds to stop a listener thread
-        if (thread.getState() == Thread.State.TERMINATED) {
-          break;
-        }
-        try {
-          Thread.sleep(50);
-        } catch (InterruptedException e) {
-          break;
-        }
-        i++;
+      try {
+        thread.join(TimeUnit.SECONDS.toMillis(10));
+      } catch (InterruptedException e) {
+        // ignore
       }
     }
   }
