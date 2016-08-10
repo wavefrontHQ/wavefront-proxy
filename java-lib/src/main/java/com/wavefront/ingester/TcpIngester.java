@@ -39,7 +39,6 @@ public class TcpIngester extends Ingester {
     NioEventLoopGroup parentGroup = new NioEventLoopGroup(1);
     NioEventLoopGroup childGroup = new NioEventLoopGroup();
     try {
-      //b.group(new NioEventLoopGroup(1), new NioEventLoopGroup())
       b.group(parentGroup, childGroup)
         .channel(NioServerSocketChannel.class)
         .option(ChannelOption.SO_BACKLOG, 1024)
