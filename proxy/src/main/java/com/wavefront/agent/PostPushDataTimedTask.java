@@ -180,7 +180,7 @@ public class PostPushDataTimedTask implements Runnable {
     }
   }
 
-  private void drainBuffersToQueue() {
+  public void drainBuffersToQueue() {
     try {
       isFlushingToQueue = true;
       while (points.size() > 0) {

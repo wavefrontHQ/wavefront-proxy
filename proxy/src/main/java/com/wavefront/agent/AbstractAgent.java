@@ -232,6 +232,8 @@ public abstract class AbstractAgent {
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
+  protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
+  protected final List<ScheduledExecutorService> managedExecutors = new ArrayList<>();
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -278,6 +280,8 @@ public abstract class AbstractAgent {
   }
 
   protected abstract void startListeners();
+
+  protected abstract void stopListeners();
 
   private void loadListenerConfigurationFile() throws IOException {
     // If they've specified a push configuration file, override the command line values
@@ -644,12 +648,14 @@ public abstract class AbstractAgent {
     logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for data received on " +
         "port: " + port);
     ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
+    managedExecutors.add(es);
     for (int i = 0; i < flushThreads; i++) {
       final PostPushDataTimedTask postPushDataTimedTask =
           new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port, i);
       es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
           TimeUnit.MILLISECONDS);
       toReturn[i] = postPushDataTimedTask;
+      managedTasks.add(postPushDataTimedTask);
     }
     return toReturn;
   }
@@ -666,4 +672,21 @@ public abstract class AbstractAgent {
       // cannot throw or else configuration update thread would die.
     }
   }
+
+  public void shutdown() {
+    logger.info("Shutting down: Stopping listeners...");
+    stopListeners();
+    logger.info("Shutting down: Stopping schedulers...");
+    agentAPI.shutdown();
+    auxiliaryExecutor.shutdown();
+    for (ScheduledExecutorService executor : managedExecutors) {
+      executor.shutdown();
+    }
+    logger.info("Shutting down: Flushing pending points...");
+    for (PostPushDataTimedTask task : managedTasks) {
+      task.drainBuffersToQueue();
+    }
+    logger.info("Shutdown complete");
+  }
+
 }

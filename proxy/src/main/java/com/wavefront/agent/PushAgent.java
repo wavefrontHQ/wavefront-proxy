@@ -25,7 +25,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -43,6 +45,8 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
  * @author Clement Pang (clement@wavefront.com)
  */
 public class PushAgent extends AbstractAgent {
+
+  protected final List<Thread> managedThreads = new ArrayList<>();
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -151,7 +155,7 @@ public class PushAgent extends AbstractAgent {
         pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler));
       }
     };
-    new Thread(new TcpIngester(initializer, port)).start();
+    startAsManagedThread(new TcpIngester(initializer, port));
   }
 
   protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
@@ -180,7 +184,7 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
-    new Thread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port)).start();
+    startAsManagedThread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port));
   }
 
   /**
@@ -197,7 +201,7 @@ public class PushAgent extends AbstractAgent {
                                      @Nullable Function<String, String> formatter) {
     int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler, linePredicate, formatter);
-    new Thread(new StringLineIngester(channelHandler, port)).start();
+    startAsManagedThread(new StringLineIngester(channelHandler, port));
   }
 
   protected void startGraphiteListener(String strPort,
@@ -218,9 +222,9 @@ public class PushAgent extends AbstractAgent {
           return new GraphiteHostAnnotator(ch.remoteAddress().getHostName(), customSourceTags);
         }
       });
-      new Thread(new StringLineIngester(handler, graphiteHandler, port)).start();
+      startAsManagedThread(new StringLineIngester(handler, graphiteHandler, port));
     } else {
-      new Thread(new StringLineIngester(graphiteHandler, port)).start();
+      startAsManagedThread(new StringLineIngester(graphiteHandler, port));
     }
   }
 
@@ -272,6 +276,24 @@ public class PushAgent extends AbstractAgent {
       }
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
+    }
+  }
+
+  protected void startAsManagedThread(Runnable target) {
+    Thread thread = new Thread(target);
+    managedThreads.add(thread);
+    thread.start();
+  }
+
+  @Override
+  public void stopListeners() {
+    for (Thread thread : managedThreads) {
+      thread.interrupt();
+      try {
+        thread.join(TimeUnit.SECONDS.toMillis(10));
+      } catch (InterruptedException e) {
+        // ignore
+      }
     }
   }
 }

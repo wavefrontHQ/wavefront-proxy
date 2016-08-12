@@ -41,8 +41,10 @@ public class StreamIngester implements Runnable {
   public void run() {
     // Configure the server.
     ServerBootstrap b = new ServerBootstrap();
+    NioEventLoopGroup parentGroup = new NioEventLoopGroup(1);
+    NioEventLoopGroup childGroup = new NioEventLoopGroup();
     try {
-      b.group(new NioEventLoopGroup(1), new NioEventLoopGroup())
+      b.group(parentGroup, childGroup)
           .channel(NioServerSocketChannel.class)
           .option(ChannelOption.SO_BACKLOG, 1024)
           .localAddress(listeningPort)
@@ -62,7 +64,10 @@ public class StreamIngester implements Runnable {
       // Wait until the server socket is closed.
       f.channel().closeFuture().sync();
     } catch (final InterruptedException e) {
-      logger.log(Level.WARNING, "Interrupted", e);
+      logger.log(Level.WARNING, "Interrupted");
+      parentGroup.shutdownGracefully();
+      childGroup.shutdownGracefully();
+      logger.info("Listener on port " + String.valueOf(listeningPort) + " shut down");
     }
   }
 }
