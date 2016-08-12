@@ -77,6 +77,19 @@ public class StreamIngester implements Runnable {
             }
           });
 
+      if (parentChannelOptions != null) {
+        for (Map.Entry<ChannelOption<?>, ?> entry : parentChannelOptions.entrySet())
+        {
+          b.option((ChannelOption<Object>) entry.getKey(), entry.getValue());
+        }
+      }
+      if (childChannelOptions != null) {
+        for (Map.Entry<ChannelOption<?>, ?> entry : childChannelOptions.entrySet())
+        {
+          b.childOption((ChannelOption<Object>) entry.getKey(), entry.getValue());
+        }
+      }
+
       // Start the server.
       ChannelFuture f = b.bind().sync();
 
