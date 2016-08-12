@@ -213,6 +213,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--javaNetConnection"}, description = "If true, use JRE's own http client when making connections instead of Apache HTTP Client")
   protected boolean javaNetConnection = false;
 
+  @Parameter(names = {"--soLingerTime"}, description = "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
+  protected int soLingerTime = -1;
+
   @Parameter(names = {"--proxyHost"}, description = "Proxy host for routing traffic through a http proxy")
   protected String proxyHost = null;
 
@@ -323,6 +326,7 @@ public abstract class AbstractAgent {
         proxyPassword = prop.getProperty("proxyPassword", proxyPassword);
         proxyUser = prop.getProperty("proxyUser", proxyUser);
         javaNetConnection = Boolean.valueOf(prop.getProperty("javaNetConnection", String.valueOf(javaNetConnection)));
+        soLingerTime = Integer.parseInt(prop.getProperty("soLingerTime", String.valueOf(soLingerTime)));
         splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
             String.valueOf(splitPushWhenRateLimited)));
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",

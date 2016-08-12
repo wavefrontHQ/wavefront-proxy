@@ -3,9 +3,12 @@ package com.wavefront.ingester;
 import com.google.common.base.Function;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.annotation.Nullable;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -44,6 +47,19 @@ public class TcpIngester extends Ingester {
         .option(ChannelOption.SO_BACKLOG, 1024)
         .localAddress(listeningPort)
         .childHandler(initializer);
+
+      if (parentChannelOptions != null) {
+        for (Map.Entry<ChannelOption<?>, ?> entry : parentChannelOptions.entrySet())
+        {
+          b.option((ChannelOption<Object>) entry.getKey(), entry.getValue());
+        }
+      }
+      if (childChannelOptions != null) {
+        for (Map.Entry<ChannelOption<?>, ?> entry : childChannelOptions.entrySet())
+        {
+          b.childOption((ChannelOption<Object>) entry.getKey(), entry.getValue());
+        }
+      }
 
       // Start the server.
       ChannelFuture f = b.bind().sync();

@@ -26,6 +26,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -35,6 +36,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -47,6 +49,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 public class PushAgent extends AbstractAgent {
 
   protected final List<Thread> managedThreads = new ArrayList<>();
+  protected final IdentityHashMap<ChannelOption<?>, Object> childChannelOptions = new IdentityHashMap<>();
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -63,6 +66,9 @@ public class PushAgent extends AbstractAgent {
 
   @Override
   protected void startListeners() {
+    if (soLingerTime >= 0) {
+      childChannelOptions.put(ChannelOption.SO_LINGER, 0);
+    }
     if (pushListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
       for (String strPort : ports) {
@@ -155,7 +161,7 @@ public class PushAgent extends AbstractAgent {
         pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler));
       }
     };
-    startAsManagedThread(new TcpIngester(initializer, port));
+    startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions));
   }
 
   protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
@@ -184,7 +190,8 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
-    startAsManagedThread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port));
+    startAsManagedThread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port)
+        .withChildChannelOptions(childChannelOptions));
   }
 
   /**
@@ -201,13 +208,12 @@ public class PushAgent extends AbstractAgent {
                                      @Nullable Function<String, String> formatter) {
     int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler, linePredicate, formatter);
-    startAsManagedThread(new StringLineIngester(channelHandler, port));
+    startAsManagedThread(new StringLineIngester(channelHandler, port).withChildChannelOptions(childChannelOptions));
   }
 
   protected void startGraphiteListener(String strPort,
                                        @Nullable Function<String, String> formatter) {
     int port = Integer.parseInt(strPort);
-
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown", customSourceTags),
         port, prefix, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), formatter, whitelistRegex,
@@ -222,9 +228,11 @@ public class PushAgent extends AbstractAgent {
           return new GraphiteHostAnnotator(ch.remoteAddress().getHostName(), customSourceTags);
         }
       });
-      startAsManagedThread(new StringLineIngester(handler, graphiteHandler, port));
+      startAsManagedThread(new StringLineIngester(handler, graphiteHandler, port)
+          .withChildChannelOptions(childChannelOptions));
     } else {
-      startAsManagedThread(new StringLineIngester(graphiteHandler, port));
+      startAsManagedThread(new StringLineIngester(graphiteHandler, port)
+          .withChildChannelOptions(childChannelOptions));
     }
   }
 

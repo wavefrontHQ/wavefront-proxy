@@ -1,7 +1,10 @@
 package com.wavefront.ingester;
 
+import java.util.Map;
 import java.util.logging.Logger;
 import java.util.logging.Level;
+
+import javax.annotation.Nullable;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -31,12 +34,28 @@ public class StreamIngester implements Runnable {
   private final int listeningPort;
   private final FrameDecoderFactory frameDecoderFactory;
 
+  @Nullable
+  protected Map<ChannelOption<?>, ?> parentChannelOptions;
+  @Nullable
+  protected Map<ChannelOption<?>, ?> childChannelOptions;
+
   public StreamIngester(FrameDecoderFactory frameDecoderFactory,
                         ChannelHandler commandHandler, int port) {
     this.listeningPort = port;
     this.commandHandler = commandHandler;
     this.frameDecoderFactory = frameDecoderFactory;
   }
+
+  public StreamIngester withParentChannelOptions(Map<ChannelOption<?>, ?> parentChannelOptions) {
+    this.parentChannelOptions = parentChannelOptions;
+    return this;
+  }
+
+  public StreamIngester withChildChannelOptions(Map<ChannelOption<?>, ?> childChannelOptions) {
+    this.childChannelOptions = childChannelOptions;
+    return this;
+  }
+
 
   public void run() {
     // Configure the server.
