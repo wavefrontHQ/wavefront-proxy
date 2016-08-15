@@ -567,19 +567,18 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       // pull the pushdata back apart to split and put back together
       List<PostPushDataResultTask> splitTasks = Lists.newArrayList();
 
-      List<String> pushDatum = StringLineIngester.unjoinPushData(pushData);
+      List<Integer> dataIndex = StringLineIngester.indexPushData(pushData);
 
-      int numDatum = pushDatum.size();
+      int numDatum = dataIndex.size() / 2;
       if (numDatum > 1) {
         // in this case, at least split the strings in 2 batches.  batch size must be less
         // than splitBatchSize
         int stride = Math.min(splitBatchSize, (int) Math.ceil((float) numDatum / 2.0));
         int endingIndex = 0;
-        for (int startingIndex = 0; endingIndex < numDatum; startingIndex += stride) {
-          endingIndex = Math.min(numDatum, startingIndex + stride);
+        for (int startingIndex = 0; endingIndex < numDatum - 1; startingIndex += stride) {
+          endingIndex = Math.min(numDatum, startingIndex + stride) - 1;
           splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
-              StringLineIngester.joinPushData(new ArrayList<>(
-                  pushDatum.subList(startingIndex, endingIndex)))));
+              pushData.substring(dataIndex.get(startingIndex * 2), dataIndex.get(endingIndex * 2 + 1))));
         }
       } else {
         // 1 or 0
