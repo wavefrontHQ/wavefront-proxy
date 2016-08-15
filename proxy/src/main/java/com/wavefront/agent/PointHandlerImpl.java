@@ -72,7 +72,7 @@ public class PointHandlerImpl implements PointHandler {
   }
 
   @Override
-  public void reportPoint(ReportPoint point, String debugLine) {
+  public void reportPoint(ReportPoint point, @Nullable String debugLine) {
     final PostPushDataTimedTask randomPostTask = getRandomPostTask();
     try {
       Object pointValue = point.getValue();
@@ -88,24 +88,28 @@ public class PointHandlerImpl implements PointHandler {
 
       if (!charactersAreValid(point.getMetric())) {
         illegalCharacterPoints.inc();
-        String errorMessage = "WF-400 " + port + ": Point metric has illegal character (" + debugLine + ")";
+        String errorMessage = "WF-400 " + port + ": Point metric has illegal character (" +
+            (debugLine == null ? pointToString(point) : debugLine) + ")";
         throw new IllegalArgumentException(errorMessage);
       }
 
       if (!annotationKeysAreValid(point)) {
-        String errorMessage = "WF-401 " + port + ": Point annotation key has illegal character (" + debugLine + ")";
+        String errorMessage = "WF-401 " + port + ": Point annotation key has illegal character (" +
+            (debugLine == null ? pointToString(point) : debugLine) + ")";
         throw new IllegalArgumentException(errorMessage);
       }
 
       // Each tag of the form "k=v" must be < 256
       for (Map.Entry<String, String> tag : point.getAnnotations().entrySet()) {
         if (tag.getKey().length() + tag.getValue().length() >= 255) {
-          throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue());
+          throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue() + "(" +
+              (debugLine == null ? pointToString(point) : debugLine) + ")");
         }
       }
       if (!pointInRange(point)) {
         outOfRangePointTimes.inc();
-        String errorMessage = "WF-402 " + port + ": Point outside of reasonable time frame (" + debugLine + ")";
+        String errorMessage = "WF-402 " + port + ": Point outside of reasonable time frame (" +
+            (debugLine == null ? pointToString(point) : debugLine) + ")";
         throw new IllegalArgumentException(errorMessage);
       }
       if ((validationLevel != null) && (!validationLevel.equals(VALIDATION_NO_VALIDATION))) {
@@ -113,7 +117,8 @@ public class PointHandlerImpl implements PointHandler {
         switch (validationLevel) {
           case VALIDATION_NUMERIC_ONLY:
             if (!(pointValue instanceof Long) && !(pointValue instanceof Double)) {
-              String errorMessage = "WF-403 " + port + ": Was not long/double object (" + debugLine + ")";
+              String errorMessage = "WF-403 " + port + ": Was not long/double object (" +
+                  (debugLine == null ? pointToString(point) : debugLine) + ")";
               throw new IllegalArgumentException(errorMessage);
             }
             break;
@@ -128,14 +133,15 @@ public class PointHandlerImpl implements PointHandler {
     } catch (IllegalArgumentException e) {
       this.handleBlockedPoint(e.getMessage());
     } catch (Exception ex) {
-      logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point (" + debugLine + ")", ex);
+      logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point (" +
+          (debugLine == null ? pointToString(point) : debugLine) + ")", ex);
     }
   }
 
   @Override
   public void reportPoints(List<ReportPoint> points) {
     for (final ReportPoint point : points) {
-      reportPoint(point, pointToString(point));
+      reportPoint(point, null);
     }
   }
 

@@ -2,6 +2,8 @@ package com.wavefront.agent;
 
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 import sunnylabs.report.ReportPoint;
 
 /**
@@ -14,9 +16,9 @@ public interface PointHandler {
    * Send a point for reporting.
    *
    * @param point     Point to report.
-   * @param debugLine Debug information to print to console when the line is rejected.
+   * @param debugLine Debug information to print to console when the line is rejected. If null, then
    */
-  void reportPoint(ReportPoint point, String debugLine);
+  void reportPoint(ReportPoint point, @Nullable String debugLine);
 
   /**
    * Send a collection of points for reporting.
