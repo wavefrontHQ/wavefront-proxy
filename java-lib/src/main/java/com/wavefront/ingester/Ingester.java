@@ -4,6 +4,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -51,6 +52,11 @@ public abstract class Ingester implements Runnable {
    */
   protected ChannelInitializer initializer;
 
+  @Nullable
+  protected Map<ChannelOption<?>, ?> parentChannelOptions;
+  @Nullable
+  protected Map<ChannelOption<?>, ?> childChannelOptions;
+
   public Ingester(@Nullable List<Function<Channel, ChannelHandler>> decoders,
                   ChannelHandler commandHandler, int port) {
     this.listeningPort = port;
@@ -65,6 +71,16 @@ public abstract class Ingester implements Runnable {
   public Ingester(ChannelInitializer initializer, int port) {
     this.listeningPort = port;
     this.initializer = initializer;
+  }
+
+  public Ingester withParentChannelOptions(Map<ChannelOption<?>, ?> parentChannelOptions) {
+    this.parentChannelOptions = parentChannelOptions;
+    return this;
+  }
+
+  public Ingester withChildChannelOptions(Map<ChannelOption<?>, ?> childChannelOptions) {
+    this.childChannelOptions = childChannelOptions;
+    return this;
   }
 
   /**

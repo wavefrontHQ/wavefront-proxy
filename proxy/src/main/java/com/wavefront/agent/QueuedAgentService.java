@@ -75,6 +75,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private static int splitBatchSize = MAX_SPLIT_BATCH_SIZE;
   private static double retryBackoffBaseSeconds = 2.0;
   private boolean lastKnownQueueSizeIsPositive = true;
+  private final ExecutorService executorService;
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
   private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
       TimeUnit.MINUTES);
@@ -115,6 +116,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         registerTypeHierarchyAdapter(ResubmissionTask.class, new ResubmissionTaskDeserializer()).create();
     this.wrapped = service;
     this.taskQueues = Lists.newArrayListWithExpectedSize(retryThreads);
+    this.executorService = executorService;
     for (int i = 0; i < retryThreads; i++) {
       final int threadId = i;
       File buffer = new File(bufferFile + "." + i);
@@ -286,6 +288,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         return getQueuedTasksCount();
       }
     });
+  }
+
+  public void shutdown() {
+    executorService.shutdown();
   }
 
   public static void setRetryBackoffBaseSeconds(double newSecs) {

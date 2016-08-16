@@ -8,6 +8,7 @@ import org.apache.commons.daemon.DaemonInitException;
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class PushAgentDaemon implements Daemon {
+
     private PushAgent agent;
     private DaemonContext daemonContext;
 
@@ -24,7 +25,7 @@ public class PushAgentDaemon implements Daemon {
 
     @Override
     public void stop() throws Exception {
-
+        agent.shutdown();
     }
 
     @Override

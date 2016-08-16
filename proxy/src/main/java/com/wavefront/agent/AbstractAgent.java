@@ -213,6 +213,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--javaNetConnection"}, description = "If true, use JRE's own http client when making connections instead of Apache HTTP Client")
   protected boolean javaNetConnection = false;
 
+  @Parameter(names = {"--soLingerTime"}, description = "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
+  protected int soLingerTime = -1;
+
   @Parameter(names = {"--proxyHost"}, description = "Proxy host for routing traffic through a http proxy")
   protected String proxyHost = null;
 
@@ -232,6 +235,8 @@ public abstract class AbstractAgent {
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
+  protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
+  protected final List<ScheduledExecutorService> managedExecutors = new ArrayList<>();
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -279,6 +284,8 @@ public abstract class AbstractAgent {
 
   protected abstract void startListeners();
 
+  protected abstract void stopListeners();
+
   private void loadListenerConfigurationFile() throws IOException {
     // If they've specified a push configuration file, override the command line values
     if (pushConfigFile != null) {
@@ -319,6 +326,7 @@ public abstract class AbstractAgent {
         proxyPassword = prop.getProperty("proxyPassword", proxyPassword);
         proxyUser = prop.getProperty("proxyUser", proxyUser);
         javaNetConnection = Boolean.valueOf(prop.getProperty("javaNetConnection", String.valueOf(javaNetConnection)));
+        soLingerTime = Integer.parseInt(prop.getProperty("soLingerTime", String.valueOf(soLingerTime)));
         splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
             String.valueOf(splitPushWhenRateLimited)));
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
@@ -644,12 +652,14 @@ public abstract class AbstractAgent {
     logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for data received on " +
         "port: " + port);
     ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
+    managedExecutors.add(es);
     for (int i = 0; i < flushThreads; i++) {
       final PostPushDataTimedTask postPushDataTimedTask =
           new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port, i);
       es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
           TimeUnit.MILLISECONDS);
       toReturn[i] = postPushDataTimedTask;
+      managedTasks.add(postPushDataTimedTask);
     }
     return toReturn;
   }
@@ -666,4 +676,21 @@ public abstract class AbstractAgent {
       // cannot throw or else configuration update thread would die.
     }
   }
+
+  public void shutdown() {
+    logger.info("Shutting down: Stopping listeners...");
+    stopListeners();
+    logger.info("Shutting down: Stopping schedulers...");
+    agentAPI.shutdown();
+    auxiliaryExecutor.shutdown();
+    for (ScheduledExecutorService executor : managedExecutors) {
+      executor.shutdown();
+    }
+    logger.info("Shutting down: Flushing pending points...");
+    for (PostPushDataTimedTask task : managedTasks) {
+      task.drainBuffersToQueue();
+    }
+    logger.info("Shutdown complete");
+  }
+
 }
