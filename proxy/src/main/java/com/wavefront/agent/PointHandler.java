@@ -16,7 +16,8 @@ public interface PointHandler {
    * Send a point for reporting.
    *
    * @param point     Point to report.
-   * @param debugLine Debug information to print to console when the line is rejected. If null, then
+   * @param debugLine Debug information to print to console when the line is rejected.
+   *                  If null, then use the entire point converted to string.
    */
   void reportPoint(ReportPoint point, @Nullable String debugLine);
 
