@@ -221,6 +221,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                 } finally {
                   if (removeTask) taskQueue.remove();
                 }
+                taskQueue.wait(50); // release lock for 50ms  
               }
             }
           } catch (Throwable ex) {
