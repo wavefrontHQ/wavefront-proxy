@@ -71,7 +71,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   private final Gson resubmissionTaskMarshaller;
   private final AgentAPI wrapped;
-  private final List<TaskQueue<ResubmissionTask>> taskQueues;
+  private final List<ResubmissionTaskQueue> taskQueues;
   private static int splitBatchSize = MAX_SPLIT_BATCH_SIZE;
   private static double retryBackoffBaseSeconds = 2.0;
   private boolean lastKnownQueueSizeIsPositive = true;
@@ -125,7 +125,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           logger.warning("Retry buffer has been purged: " + buffer.getAbsolutePath());
         }
       }
-      final TaskQueue<ResubmissionTask> taskQueue = new TaskQueue<>(
+      final ResubmissionTaskQueue taskQueue = new ResubmissionTaskQueue(
           new FileObjectQueue<>(buffer, new FileObjectQueue.Converter<ResubmissionTask>() {
             @Override
             public ResubmissionTask from(byte[] bytes) throws IOException {
@@ -169,7 +169,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
               logger.warning("[RETRY THREAD " + threadId + "] TASK STARTING");
             }
             while (taskQueue.size() > 0 && taskQueue.size() > failures) {
-              synchronized (taskQueue) {
+              try {
+                taskQueue.getLockObject().lock();
                 ResubmissionTask task = taskQueue.peek();
                 boolean removeTask = true;
                 try {
@@ -221,7 +222,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                 } finally {
                   if (removeTask) taskQueue.remove();
                 }
-                taskQueue.wait(50); // release lock for 50ms  
+              } finally {
+                taskQueue.getLockObject().unlock();
               }
             }
           } catch (Throwable ex) {
@@ -253,9 +255,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         @Override
         public void run() {
           List<Integer> queueSizes = Lists.newArrayList(Lists.transform(taskQueues,
-              new Function<TaskQueue<ResubmissionTask>, Integer>() {
+              new Function<ResubmissionTaskQueue, Integer>() {
                 @Override
-                public Integer apply(TaskQueue<ResubmissionTask> input) {
+                public Integer apply(ResubmissionTaskQueue input) {
                   return input.size();
                 }
               }
@@ -307,16 +309,16 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   public long getQueuedTasksCount() {
     long toReturn = 0;
-    for (TaskQueue<ResubmissionTask> taskQueue : taskQueues) {
+    for (ResubmissionTaskQueue taskQueue : taskQueues) {
       toReturn += taskQueue.size();
     }
     return toReturn;
   }
 
-  private TaskQueue<ResubmissionTask> getSmallestQueue() {
+  private ResubmissionTaskQueue getSmallestQueue() {
     int size = Integer.MAX_VALUE;
-    TaskQueue<ResubmissionTask> toReturn = null;
-    for (TaskQueue<ResubmissionTask> queue : taskQueues) {
+    ResubmissionTaskQueue toReturn = null;
+    for (ResubmissionTaskQueue queue : taskQueues) {
       if (queue.size() == 0) {
         return queue;
       } else if (queue.size() < size) {
@@ -452,15 +454,18 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   private void addTaskToSmallestQueue(ResubmissionTask taskToRetry) {
-    TaskQueue<ResubmissionTask> queue = getSmallestQueue();
+    ResubmissionTaskQueue queue = getSmallestQueue();
     if (queue != null) {
-      synchronized (queue) {
+      try {
+        queue.getLockObject().lock();
         try {
           queue.add(taskToRetry);
         } catch (FileException e) {
           logger.log(Level.WARNING,
               "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
         }
+      } finally {
+        queue.getLockObject().unlock();
       }
     } else {
       logger.warning("CRITICAL (Losing points!): WF-2: No retry queues found.");
