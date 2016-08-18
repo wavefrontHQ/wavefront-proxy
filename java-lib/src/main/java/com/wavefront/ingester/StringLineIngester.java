@@ -70,4 +70,18 @@ public class StringLineIngester extends TcpIngester {
   public static String joinPushData(List<String> pushData) {
     return StringUtils.join(pushData, PUSH_DATA_DELIMETER);
   }
+
+  public static List<Integer> indexPushData(String pushData) {
+    List<Integer> index = new ArrayList<>();
+    index.add(0);
+    int lastIndex = pushData.indexOf(PUSH_DATA_DELIMETER);
+    final int delimiterLength = PUSH_DATA_DELIMETER.length();
+    while (lastIndex != -1) {
+      index.add(lastIndex);
+      index.add(lastIndex + delimiterLength);
+      lastIndex = pushData.indexOf(PUSH_DATA_DELIMETER, lastIndex + delimiterLength);
+    }
+    index.add(pushData.length());
+    return index;
+  }
 }
