@@ -169,8 +169,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
               logger.warning("[RETRY THREAD " + threadId + "] TASK STARTING");
             }
             while (taskQueue.size() > 0 && taskQueue.size() > failures) {
+              taskQueue.getLockObject().lock();
               try {
-                taskQueue.getLockObject().lock();
                 ResubmissionTask task = taskQueue.peek();
                 boolean removeTask = true;
                 try {
@@ -456,14 +456,12 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private void addTaskToSmallestQueue(ResubmissionTask taskToRetry) {
     ResubmissionTaskQueue queue = getSmallestQueue();
     if (queue != null) {
+      queue.getLockObject().lock();
       try {
-        queue.getLockObject().lock();
-        try {
-          queue.add(taskToRetry);
-        } catch (FileException e) {
-          logger.log(Level.WARNING,
-              "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
-        }
+        queue.add(taskToRetry);
+      } catch (FileException e) {
+        logger.log(Level.WARNING,
+            "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
       } finally {
         queue.getLockObject().unlock();
       }
