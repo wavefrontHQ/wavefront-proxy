@@ -17,26 +17,26 @@ service_name=$(basename "$0")
 # shellcheck source=/dev/null
 [[ -f "/etc/sysconfig/$service_name" ]] && . /etc/sysconfig/"$service_name"
 
-desc="Wavefront Proxy"
+desc=${DESC:-Wavefront Proxy}
 user="wavefront"
-wavefront_dir="/opt/$user"
-proxy_dir="$wavefront_dir/wavefront-proxy"
+wavefront_dir="/opt/wavefront"
+proxy_dir=${PROXY_DIR:-$wavefront_dir/wavefront-proxy}
 export JAVA_HOME="$proxy_dir/jre"
-conf_file="$proxy_dir/conf/wavefront.conf"
-log_file="/var/log/wavefront.log"
-daemon_log_file="/var/log/wavefront-daemon.log"
+conf_file=${CONF_FILE:-$proxy_dir/conf/wavefront.conf}
+log_file=${LOG_FILE:-/var/log/wavefront.log}
+daemon_log_file=${DAEMON_LOG_FILE:-/var/log/wavefront-daemon.log}
 err_file=$log_file
-pid_file="/var/run/$service_name.pid"
-agent_jar="$proxy_dir/bin/wavefront-push-agent.jar"
+pid_file=${PID_FILE:-/var/run/$service_name.pid}
+agent_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-push-agent.jar}
 class="com.wavefront.agent.PushAgentDaemon"
-daemon_args="-f $conf_file --buffer $proxy_dir/bin/buffer"
+app_args=${APP_ARGS:--f $conf_file}
 java_args=${JAVA_ARGS:--XX:+AggressiveHeap}
 
 proxy_launch_conf="/opt/wavefront/wavefront-proxy/conf/wavefront_proxy_launch.conf"
 if [[ -r $proxy_launch_conf ]]; then
 	>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 	>&2 echo "Using deprecated wavefront_proxy_launch.conf, this will go away in the future."
-	>&2 echo "Please parameterize custom java arguments by overrding JAVA_ARGS in /etc/systconfig/$service_name."
+	>&2 echo "Please parameterize custom java arguments by overrding JAVA_ARGS in /etc/sysconfig/$service_name."
 	>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 	java_args=$(grep -ve '[[:space:]]*#' $proxy_launch_conf | tr '\n' ' ' | sed -e 's/^[[:space:]]*//' | sed -e 's/[[:space:]]*$//')
 fi
@@ -45,8 +45,8 @@ jsvc=$proxy_dir/bin/jsvc
 
 jsvc_exec()
 {
-	cd "$(dirname $agent_jar)"
-	[[ ! -f "$log_file" ]] && touch "$log_file" && chown $user:$user "$log_file"
+	cd "$(dirname "$agent_jar")"
+	[[ ! -f "$log_file" ]] && touch "$log_file" && chown "$user":"$user" "$log_file"
 	# shellcheck disable=SC2086
 	$jsvc \
 		-user $user \
@@ -60,7 +60,7 @@ jsvc_exec()
 		-debug \
 		$1 \
 		$class \
-		$daemon_args &> $daemon_log_file
+		$app_args &> $daemon_log_file
 	if [[ $? -ne 0 ]]; then
 		echo "There was a problem, see $err_file and $daemon_log_file"
 	fi
