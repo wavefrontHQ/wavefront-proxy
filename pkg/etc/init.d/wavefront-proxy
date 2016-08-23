@@ -32,13 +32,17 @@ class="com.wavefront.agent.PushAgentDaemon"
 app_args=${APP_ARGS:--f $conf_file}
 java_args=${JAVA_ARGS:--XX:+AggressiveHeap}
 
+# Legacy support for overrding JVM args in wavefront_proxy_launch.conf.
 proxy_launch_conf="/opt/wavefront/wavefront-proxy/conf/wavefront_proxy_launch.conf"
 if [[ -r $proxy_launch_conf ]]; then
-	>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-	>&2 echo "Using deprecated wavefront_proxy_launch.conf, this will go away in the future."
-	>&2 echo "Please parameterize custom java arguments by overrding JAVA_ARGS in /etc/sysconfig/$service_name."
-	>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-	java_args=$(grep -ve '[[:space:]]*#' $proxy_launch_conf | tr '\n' ' ' | sed -e 's/^[[:space:]]*//' | sed -e 's/[[:space:]]*$//')
+	replacement_java_args=$(grep -ve '[[:space:]]*#' $proxy_launch_conf | tr '\n' ' ' | sed -e 's/^[[:space:]]*//' | sed -e 's/[[:space:]]*$//')
+	if [[ "$replacement_java_args" != "-XX:+AggressiveHeap" ]]; then
+		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+		>&2 echo "Using deprecated wavefront_proxy_launch.conf, this will go away in the future."
+		>&2 echo "Please parameterize custom java arguments by overrding JAVA_ARGS in /etc/sysconfig/$service_name."
+		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+		java_args=$replacement_java_args
+	fi
 fi
 
 jsvc=$proxy_dir/bin/jsvc
@@ -86,10 +90,11 @@ stop)
 	echo "Done"
 ;;
 restart)
-	echo "Restarting $desc"
 	if [[ -f "$pid_file" ]]; then
+		echo "Stopping $desc"
 		jsvc_exec "-stop"
 	fi
+	echo "Starting $desc"
 	jsvc_exec
 	echo "Done"
 ;;
