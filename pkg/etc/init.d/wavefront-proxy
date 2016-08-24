@@ -14,8 +14,9 @@
 #############################
 service_name=$(basename "$0")
 # Source custom settings
+sysconfig="/etc/sysconfig/$service_name"
 # shellcheck source=/dev/null
-[[ -f "/etc/sysconfig/$service_name" ]] && . /etc/sysconfig/"$service_name"
+[[ -f "$sysconfig" ]] && . $sysconfig
 
 desc=${DESC:-Wavefront Proxy}
 user="wavefront"
@@ -38,8 +39,7 @@ if [[ -r $proxy_launch_conf ]]; then
 	replacement_java_args=$(grep -ve '[[:space:]]*#' $proxy_launch_conf | tr '\n' ' ' | sed -e 's/^[[:space:]]*//' | sed -e 's/[[:space:]]*$//')
 	if [[ "$replacement_java_args" != "-XX:+AggressiveHeap" ]]; then
 		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-		>&2 echo "Using deprecated wavefront_proxy_launch.conf, this will go away in the future."
-		>&2 echo "Please parameterize custom java arguments by overrding JAVA_ARGS in /etc/sysconfig/$service_name."
+		>&2 echo "Using wavefront_proxy_launch.conf for JAVA_ARGS, which will override anything specified in $sysconfig."
 		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 		java_args=$replacement_java_args
 	fi
