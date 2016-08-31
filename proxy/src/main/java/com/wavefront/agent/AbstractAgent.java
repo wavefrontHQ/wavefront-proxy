@@ -228,6 +228,10 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--proxyPassword"}, description = "If proxy authentication is necessary, this is the password that will be passed along")
   protected String proxyPassword = null;
 
+  @Parameter(names = {"--discardPoints"}, description = "Discard points older than certain hours. By default discard point older than 1 year")
+  protected static long discardPoints = 8760; // number of hours in a year
+
+
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
@@ -336,6 +340,7 @@ public abstract class AbstractAgent {
         ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
         picklePorts = prop.getProperty("picklePorts", picklePorts);
         bufferFile = prop.getProperty("buffer", bufferFile);
+        discardPoints=Long.parseLong(prop.getProperty("discardPoints",String.valueOf(discardPoints)));
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);

@@ -172,7 +172,8 @@ public class PointHandlerImpl implements PointHandler {
     randomPostTask.incrementBlockedPoints();
   }
 
-  private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
+  //private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
+  private static final long MILLIS_DISCARD = DateUtils.MILLIS_PER_DAY * (PushAgent.discardPoints/24);
 
   @VisibleForTesting
   static boolean annotationKeysAreValid(ReportPoint point) {
@@ -226,9 +227,8 @@ public class PointHandlerImpl implements PointHandler {
   static boolean pointInRange(ReportPoint point) {
     long pointTime = point.getTimestamp();
     long rightNow = System.currentTimeMillis();
-
-    // within 1 year ago and 1 day ahead
-    return (pointTime > (rightNow - MILLIS_IN_YEAR)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
+    //discard points older than certain hours (default one year) and  1 day ahead
+    return (pointTime > (rightNow - MILLIS_DISCARD)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
   }
 
   private static String pointToStringSB(ReportPoint point) {
