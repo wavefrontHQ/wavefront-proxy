@@ -71,10 +71,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   private final Gson resubmissionTaskMarshaller;
   private final AgentAPI wrapped;
-  private final List<TaskQueue<ResubmissionTask>> taskQueues;
+  private final List<ResubmissionTaskQueue> taskQueues;
   private static int splitBatchSize = MAX_SPLIT_BATCH_SIZE;
   private static double retryBackoffBaseSeconds = 2.0;
   private boolean lastKnownQueueSizeIsPositive = true;
+  private final ExecutorService executorService;
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
   private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
       TimeUnit.MINUTES);
@@ -115,6 +116,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         registerTypeHierarchyAdapter(ResubmissionTask.class, new ResubmissionTaskDeserializer()).create();
     this.wrapped = service;
     this.taskQueues = Lists.newArrayListWithExpectedSize(retryThreads);
+    this.executorService = executorService;
     for (int i = 0; i < retryThreads; i++) {
       final int threadId = i;
       File buffer = new File(bufferFile + "." + i);
@@ -123,7 +125,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           logger.warning("Retry buffer has been purged: " + buffer.getAbsolutePath());
         }
       }
-      final TaskQueue<ResubmissionTask> taskQueue = new TaskQueue<>(
+      final ResubmissionTaskQueue taskQueue = new ResubmissionTaskQueue(
           new FileObjectQueue<>(buffer, new FileObjectQueue.Converter<ResubmissionTask>() {
             @Override
             public ResubmissionTask from(byte[] bytes) throws IOException {
@@ -167,7 +169,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
               logger.warning("[RETRY THREAD " + threadId + "] TASK STARTING");
             }
             while (taskQueue.size() > 0 && taskQueue.size() > failures) {
-              synchronized (taskQueue) {
+              taskQueue.getLockObject().lock();
+              try {
                 ResubmissionTask task = taskQueue.peek();
                 boolean removeTask = true;
                 try {
@@ -191,7 +194,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                     if (Throwables.getRootCause(ex) instanceof RejectedExecutionException) {
                       // this should either split and remove the original task or keep it at front
                       // it also should not try any more tasks
-                      logger.warning("[RETRY THREAD " + threadId + "] Wavefront server quiesced (406 response). Will " +
+                      logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected the submission. Will " +
                           "attempt later: " + ex);
                       if (splitPushWhenRateLimited) {
                         List<? extends ResubmissionTask> splitTasks = task.splitTask();
@@ -219,6 +222,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                 } finally {
                   if (removeTask) taskQueue.remove();
                 }
+              } finally {
+                taskQueue.getLockObject().unlock();
               }
             }
           } catch (Throwable ex) {
@@ -250,9 +255,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         @Override
         public void run() {
           List<Integer> queueSizes = Lists.newArrayList(Lists.transform(taskQueues,
-              new Function<TaskQueue<ResubmissionTask>, Integer>() {
+              new Function<ResubmissionTaskQueue, Integer>() {
                 @Override
-                public Integer apply(TaskQueue<ResubmissionTask> input) {
+                public Integer apply(ResubmissionTaskQueue input) {
                   return input.size();
                 }
               }
@@ -288,6 +293,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     });
   }
 
+  public void shutdown() {
+    executorService.shutdown();
+  }
+
   public static void setRetryBackoffBaseSeconds(double newSecs) {
     retryBackoffBaseSeconds = Math.min(newSecs, MAX_RETRY_BACKOFF_BASE_SECONDS);
     retryBackoffBaseSeconds = Math.max(retryBackoffBaseSeconds, 1.0);
@@ -300,16 +309,16 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   public long getQueuedTasksCount() {
     long toReturn = 0;
-    for (TaskQueue<ResubmissionTask> taskQueue : taskQueues) {
+    for (ResubmissionTaskQueue taskQueue : taskQueues) {
       toReturn += taskQueue.size();
     }
     return toReturn;
   }
 
-  private TaskQueue<ResubmissionTask> getSmallestQueue() {
+  private ResubmissionTaskQueue getSmallestQueue() {
     int size = Integer.MAX_VALUE;
-    TaskQueue<ResubmissionTask> toReturn = null;
-    for (TaskQueue<ResubmissionTask> queue : taskQueues) {
+    ResubmissionTaskQueue toReturn = null;
+    for (ResubmissionTaskQueue queue : taskQueues) {
       if (queue.size() == 0) {
         return queue;
       } else if (queue.size() < size) {
@@ -445,15 +454,16 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   private void addTaskToSmallestQueue(ResubmissionTask taskToRetry) {
-    TaskQueue<ResubmissionTask> queue = getSmallestQueue();
+    ResubmissionTaskQueue queue = getSmallestQueue();
     if (queue != null) {
-      synchronized (queue) {
-        try {
-          queue.add(taskToRetry);
-        } catch (FileException e) {
-          logger.log(Level.WARNING,
-              "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
-        }
+      queue.getLockObject().lock();
+      try {
+        queue.add(taskToRetry);
+      } catch (FileException e) {
+        logger.log(Level.WARNING,
+            "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
+      } finally {
+        queue.getLockObject().unlock();
       }
     } else {
       logger.warning("CRITICAL (Losing points!): WF-2: No retry queues found.");
@@ -467,6 +477,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus());
         } else if (response.getStatus() == Response.Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode()) {
           throw new QueuedPushTooLargeException("Request too large: " + response.getStatus());
+        } else if (response.getStatus() == 407 || response.getStatus() == 408) {
+          throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus() +
+              " the agent is unclaimed, perhaps the token used does not have the proper permissions to" +
+              " register the agent? (or a token wasn't provided properly?)");
         } else {
           throw new RuntimeException("Server error: " + response.getStatus());
         }
@@ -563,19 +577,18 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       // pull the pushdata back apart to split and put back together
       List<PostPushDataResultTask> splitTasks = Lists.newArrayList();
 
-      List<String> pushDatum = StringLineIngester.unjoinPushData(pushData);
+      List<Integer> dataIndex = StringLineIngester.indexPushData(pushData);
 
-      int numDatum = pushDatum.size();
+      int numDatum = dataIndex.size() / 2;
       if (numDatum > 1) {
         // in this case, at least split the strings in 2 batches.  batch size must be less
         // than splitBatchSize
         int stride = Math.min(splitBatchSize, (int) Math.ceil((float) numDatum / 2.0));
         int endingIndex = 0;
-        for (int startingIndex = 0; endingIndex < numDatum; startingIndex += stride) {
-          endingIndex = Math.min(numDatum, startingIndex + stride);
+        for (int startingIndex = 0; endingIndex < numDatum - 1; startingIndex += stride) {
+          endingIndex = Math.min(numDatum, startingIndex + stride) - 1;
           splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
-              StringLineIngester.joinPushData(new ArrayList<>(
-                  pushDatum.subList(startingIndex, endingIndex)))));
+              pushData.substring(dataIndex.get(startingIndex * 2), dataIndex.get(endingIndex * 2 + 1))));
         }
       } else {
         // 1 or 0

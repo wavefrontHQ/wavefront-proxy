@@ -33,8 +33,8 @@ public class Wavefront implements WavefrontSender {
   private final InetSocketAddress address;
   private final SocketFactory socketFactory;
 
-  private Socket socket;
-  private Writer writer;
+  private volatile Socket socket;
+  private volatile Writer writer;
   private AtomicInteger failures = new AtomicInteger();
   /**
    * Source to use if there's none.
@@ -135,6 +135,7 @@ public class Wavefront implements WavefrontSender {
   private void internalSend(String name, double value, @Nullable Long timestamp, String source,
                             @Nullable Map<String, String> pointTags) throws IOException {
     if (!isConnected()) {
+      this.socket = null;
       try {
         connect();
       } catch (IllegalStateException ex) {
@@ -147,31 +148,33 @@ public class Wavefront implements WavefrontSender {
     if (StringUtils.isBlank(source)) {
       throw new IllegalArgumentException("source cannot be blank");
     }
+    final StringBuilder sb = new StringBuilder();
     try {
-      writer.write(sanitize(name));
-      writer.write(' ');
-      writer.write(Double.toString(value));
+      sb.append(sanitize(name));
+      sb.append(' ');
+      sb.append(Double.toString(value));
       if (timestamp != null) {
-        writer.write(' ');
-        writer.write(Long.toString(timestamp));
+        sb.append(' ');
+        sb.append(Long.toString(timestamp));
       }
-      writer.write(" host=");
-      writer.write(sanitize(source));
+      sb.append(" host=");
+      sb.append(sanitize(source));
       if (pointTags != null) {
-        for (Map.Entry<String, String> tag : pointTags.entrySet()) {
+        for (final Map.Entry<String, String> tag : pointTags.entrySet()) {
           if (StringUtils.isBlank(tag.getKey())) {
             throw new IllegalArgumentException("point tag key cannot be blank");
           }
           if (StringUtils.isBlank(tag.getValue())) {
             throw new IllegalArgumentException("point tag value cannot be blank");
           }
-          writer.write(" ");
-          writer.write(sanitize(tag.getKey()));
-          writer.write("=");
-          writer.write(sanitize(tag.getValue()));
+          sb.append(' ');
+          sb.append(sanitize(tag.getKey()));
+          sb.append('=');
+          sb.append(sanitize(tag.getValue()));
         }
       }
-      writer.write('\n');
+      sb.append('\n');
+      writer.write(sb.toString());
     } catch (IOException e) {
       failures.incrementAndGet();
       throw e;
@@ -195,7 +198,7 @@ public class Wavefront implements WavefrontSender {
     IOException exception = null;
     try {
       flush();
-    } catch(IOException ex) {
+    } catch (IOException ex) {
       exception = ex;
     }
 

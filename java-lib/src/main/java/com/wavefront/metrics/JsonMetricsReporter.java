@@ -10,12 +10,10 @@ import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Map;
@@ -113,7 +111,7 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
       outputStream.close();
       System.out.println("Reporting complete: " + urlc.getResponseCode());
       reports.inc();
-    } catch (IOException | URISyntaxException e) {
+    } catch (Throwable e) {
       e.printStackTrace();
       errors.inc();
     } finally {

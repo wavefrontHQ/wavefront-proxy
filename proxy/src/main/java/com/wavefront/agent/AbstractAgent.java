@@ -2,6 +2,7 @@ package com.wavefront.agent;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
@@ -21,13 +22,13 @@ import com.yammer.metrics.core.Gauge;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.SocketConfig;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
-import org.jboss.resteasy.client.jaxrs.engines.URLConnectionEngine;
 import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJacksonProvider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
@@ -37,12 +38,15 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.UUID;
@@ -54,6 +58,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.HttpsURLConnection;
 
 /**
@@ -68,6 +73,12 @@ public abstract class AbstractAgent {
   private static final Gson GSON = new Gson();
   private static final int GRAPHITE_LISTENING_PORT = 2878;
   private static final int OPENTSDB_LISTENING_PORT = 4242;
+
+  protected static final SSLSocketFactoryImpl SSL_SOCKET_FACTORY = new SSLSocketFactoryImpl(
+      HttpsURLConnection.getDefaultSSLSocketFactory(), 60000);
+
+  protected static final SSLConnectionSocketFactoryImpl SSL_CONNECTION_SOCKET_FACTORY = new
+      SSLConnectionSocketFactoryImpl(SSLConnectionSocketFactory.getSystemSocketFactory(), 60000);
 
   @Parameter(names = {"-f", "--file"}, description =
       "Proxy configuration file")
@@ -193,11 +204,29 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
   protected String customSourceTagsProperty = "fqdn";
 
+  @Parameter(names = {"--agentMetricsPointTags"}, description = "Additional point tags and their respective values to be included into internal agent's metrics (comma-separated list, ex: dc=west,env=prod)")
+  protected String agentMetricsPointTags = null;
+
   @Parameter(names = {"--ephemeral"}, description = "If true, this agent is removed from Wavefront after 24 hours of inactivity.")
   protected boolean ephemeral = false;
 
   @Parameter(names = {"--javaNetConnection"}, description = "If true, use JRE's own http client when making connections instead of Apache HTTP Client")
   protected boolean javaNetConnection = false;
+
+  @Parameter(names = {"--soLingerTime"}, description = "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
+  protected int soLingerTime = -1;
+
+  @Parameter(names = {"--proxyHost"}, description = "Proxy host for routing traffic through a http proxy")
+  protected String proxyHost = null;
+
+  @Parameter(names = {"--proxyPort"}, description = "Proxy port for routing traffic through a http proxy")
+  protected int proxyPort = 0;
+
+  @Parameter(names = {"--proxyUser"}, description = "If proxy authentication is necessary, this is the username that will be passed along")
+  protected String proxyUser = null;
+
+  @Parameter(names = {"--proxyPassword"}, description = "If proxy authentication is necessary, this is the password that will be passed along")
+  protected String proxyPassword = null;
 
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
@@ -206,6 +235,8 @@ public abstract class AbstractAgent {
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
+  protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
+  protected final List<ScheduledExecutorService> managedExecutors = new ArrayList<>();
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -253,6 +284,8 @@ public abstract class AbstractAgent {
 
   protected abstract void startListeners();
 
+  protected abstract void stopListeners();
+
   private void loadListenerConfigurationFile() throws IOException {
     // If they've specified a push configuration file, override the command line values
     if (pushConfigFile != null) {
@@ -288,12 +321,18 @@ public abstract class AbstractAgent {
         opentsdbPorts = prop.getProperty("opentsdbPorts", opentsdbPorts);
         opentsdbWhitelistRegex = prop.getProperty("opentsdbWhitelistRegex", opentsdbWhitelistRegex);
         opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
+        proxyHost = prop.getProperty("proxyHost", proxyHost);
+        proxyPort = Integer.parseInt(prop.getProperty("proxyPort", String.valueOf(proxyPort)));
+        proxyPassword = prop.getProperty("proxyPassword", proxyPassword);
+        proxyUser = prop.getProperty("proxyUser", proxyUser);
         javaNetConnection = Boolean.valueOf(prop.getProperty("javaNetConnection", String.valueOf(javaNetConnection)));
+        soLingerTime = Integer.parseInt(prop.getProperty("soLingerTime", String.valueOf(soLingerTime)));
         splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
             String.valueOf(splitPushWhenRateLimited)));
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
             String.valueOf(retryBackoffBaseSeconds)));
         customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
+        agentMetricsPointTags = prop.getProperty("agentMetricsPointTags", agentMetricsPointTags);
         ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
         picklePorts = prop.getProperty("picklePorts", picklePorts);
         bufferFile = prop.getProperty("buffer", bufferFile);
@@ -344,6 +383,27 @@ public abstract class AbstractAgent {
       // read build information.
       props = ResourceBundle.getBundle("build");
 
+      if (proxyHost != null) {
+        System.setProperty("http.proxyHost", proxyHost);
+        System.setProperty("https.proxyHost", proxyHost);
+        System.setProperty("http.proxyPort", String.valueOf(proxyPort));
+        System.setProperty("https.proxyPort", String.valueOf(proxyPort));
+      }
+      if (proxyUser != null && proxyPassword != null) {
+        Authenticator.setDefault(
+            new Authenticator() {
+              @Override
+              public PasswordAuthentication getPasswordAuthentication() {
+                if (getRequestorType() == RequestorType.PROXY) {
+                  return new PasswordAuthentication(proxyUser, proxyPassword.toCharArray());
+                } else {
+                  return null;
+                }
+              }
+            }
+        );
+      }
+
       // create List of custom tags from the configuration string
       String[] tags = customSourceTagsProperty.split(",");
       for (String tag : tags) {
@@ -351,7 +411,8 @@ public abstract class AbstractAgent {
         if (!customSourceTags.contains(tag)) {
           customSourceTags.add(tag);
         } else {
-          logger.warning("Custom source tag: " + tag + " was repeated. Check the customSourceTags property in wavefront.conf");
+          logger.warning("Custom source tag: " + tag + " was repeated. Check the customSourceTags property in " +
+              "wavefront.conf");
         }
       }
 
@@ -418,7 +479,7 @@ public abstract class AbstractAgent {
     factory.registerProvider(ResteasyJacksonProvider.class);
     ClientHttpEngine httpEngine;
     if (javaNetConnection) {
-      httpEngine = new URLConnectionEngine() {
+      httpEngine = new JavaNetConnectionEngine() {
         @Override
         protected HttpURLConnection createConnection(ClientInvocation request) throws IOException {
           HttpURLConnection connection = (HttpURLConnection) request.getUri().toURL().openConnection();
@@ -427,8 +488,7 @@ public abstract class AbstractAgent {
           connection.setReadTimeout(60000); // 60s
           if (connection instanceof HttpsURLConnection) {
             HttpsURLConnection secureConnection = (HttpsURLConnection) connection;
-            secureConnection.setSSLSocketFactory(new com.wavefront.agent.SSLSocketFactoryImpl(
-                secureConnection.getSSLSocketFactory(), 60000));
+            secureConnection.setSSLSocketFactory(SSL_SOCKET_FACTORY);
           }
           return connection;
         }
@@ -442,6 +502,7 @@ public abstract class AbstractAgent {
           setDefaultSocketConfig(
               SocketConfig.custom().
                   setSoTimeout(60000).build()).
+          setSSLSocketFactory(SSL_CONNECTION_SOCKET_FACTORY).
           setDefaultRequestConfig(
               RequestConfig.custom().
                   setContentCompressionEnabled(true).
@@ -450,7 +511,11 @@ public abstract class AbstractAgent {
                   setConnectionRequestTimeout(5000).
                   setSocketTimeout(60000).build()).
           build();
-      httpEngine = new ApacheHttpClient4Engine(httpClient, true);
+      final ApacheHttpClient4Engine apacheHttpClient4Engine = new ApacheHttpClient4Engine(httpClient, true);
+      // avoid using disk at all
+      apacheHttpClient4Engine.setFileUploadInMemoryThresholdLimit(100);
+      apacheHttpClient4Engine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
+      httpEngine = apacheHttpClient4Engine;
     }
     ResteasyClient client = new ResteasyClientBuilder().
         httpEngine(httpEngine).
@@ -553,7 +618,12 @@ public abstract class AbstractAgent {
         logger.warning("cannot compute remaining space in buffer file partition: " + t);
       }
 
-      JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(), true, true, true);
+      @Nullable Map<String, String> pointTags = null;
+      if (agentMetricsPointTags != null) {
+        pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
+      }
+      JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
+          true, true, true, pointTags);
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
           System.currentTimeMillis(), localAgent, agentMetrics, pushAgent, ephemeral);
     } catch (Exception ex) {
@@ -582,12 +652,14 @@ public abstract class AbstractAgent {
     logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for data received on " +
         "port: " + port);
     ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
+    managedExecutors.add(es);
     for (int i = 0; i < flushThreads; i++) {
       final PostPushDataTimedTask postPushDataTimedTask =
           new PostPushDataTimedTask(agentAPI, pushLogLevel, agentId, port, i);
       es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
           TimeUnit.MILLISECONDS);
       toReturn[i] = postPushDataTimedTask;
+      managedTasks.add(postPushDataTimedTask);
     }
     return toReturn;
   }
@@ -604,4 +676,21 @@ public abstract class AbstractAgent {
       // cannot throw or else configuration update thread would die.
     }
   }
+
+  public void shutdown() {
+    logger.info("Shutting down: Stopping listeners...");
+    stopListeners();
+    logger.info("Shutting down: Stopping schedulers...");
+    agentAPI.shutdown();
+    auxiliaryExecutor.shutdown();
+    for (ScheduledExecutorService executor : managedExecutors) {
+      executor.shutdown();
+    }
+    logger.info("Shutting down: Flushing pending points...");
+    for (PostPushDataTimedTask task : managedTasks) {
+      task.drainBuffersToQueue();
+    }
+    logger.info("Shutdown complete");
+  }
+
 }

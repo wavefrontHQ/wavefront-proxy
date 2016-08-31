@@ -22,6 +22,8 @@ if [[ $# -lt 3 ]]; then
 	die "Usage: $0 <jre_dir_path> <commons_daemon_path> <push_agent_jar_path>"
 fi
 
+git pull
+
 JRE=$1
 JRE=${JRE%/}
 [[ -d $JRE ]] || die "Bad JRE given."
@@ -40,15 +42,18 @@ PROXY_DIR=$WF_DIR/wavefront-proxy
 echo "Create build dirs..."
 mkdir build
 cp -r opt build/opt
-chmod 600 build/opt/wavefront/wavefront-proxy/conf/wavefront.conf
 cp -r etc build/etc
 cp -r usr build/usr
 
 echo "Stage the JRE..."
 cp -r $JRE $PROXY_DIR/jre
 
-echo "Make jsvc..."
+COMMONS_DAEMON_COMMIT="7747df1f0bc21175040afb3b9adcccb3f80a8701"
+echo "Make jsvc at $COMMONS_DAEMON_COMMIT..."
 cp -r $COMMONS_DAEMON $PROXY_DIR
+cd $PROXY_DIR/commons-daemon
+git pull
+git reset --hard $COMMONS_DAEMON_COMMIT
 JSVC_BUILD_DIR="$PROXY_DIR/commons-daemon/src/native/unix"
 cd $JSVC_BUILD_DIR
 support/buildconf.sh
@@ -57,6 +62,6 @@ make
 cd $PROXY_DIR/bin
 ln -s ../commons-daemon/src/native/unix/jsvc jsvc
 
-echo "Make the agent jar..."
+echo "Stage the agent jar..."
 cd $PROG_DIR
-cp $PUSH_AGENT_JAR $PROXY_DIR/bin
+cp $PUSH_AGENT_JAR $PROXY_DIR/bin/wavefront-push-agent.jar

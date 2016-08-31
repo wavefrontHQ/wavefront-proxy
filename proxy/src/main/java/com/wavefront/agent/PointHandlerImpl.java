@@ -2,8 +2,10 @@ package com.wavefront.agent;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import com.wavefront.common.Clock;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.lang.StringUtils;
@@ -34,6 +36,7 @@ public class PointHandlerImpl implements PointHandler {
 
   private final Counter outOfRangePointTimes;
   private final Counter illegalCharacterPoints;
+  private final Histogram receivedPointLag;
   private final String validationLevel;
   private final int port;
 
@@ -62,12 +65,14 @@ public class PointHandlerImpl implements PointHandler {
 
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
     this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
+    this.receivedPointLag = Metrics.newHistogram(
+        new MetricName("points." + String.valueOf(port) + ".received", "", "lag"));
 
     this.sendDataTasks = sendDataTasks;
   }
 
   @Override
-  public void reportPoint(ReportPoint point, String debugLine) {
+  public void reportPoint(ReportPoint point, @Nullable String debugLine) {
     final PostPushDataTimedTask randomPostTask = getRandomPostTask();
     try {
       Object pointValue = point.getValue();
@@ -83,24 +88,28 @@ public class PointHandlerImpl implements PointHandler {
 
       if (!charactersAreValid(point.getMetric())) {
         illegalCharacterPoints.inc();
-        String errorMessage = "WF-400 " + port + ": Point metric has illegal character (" + debugLine + ")";
+        String errorMessage = "WF-400 " + port + ": Point metric has illegal character (" +
+            (debugLine == null ? pointToString(point) : debugLine) + ")";
         throw new IllegalArgumentException(errorMessage);
       }
 
       if (!annotationKeysAreValid(point)) {
-        String errorMessage = "WF-401 " + port + ": Point annotation key has illegal character (" + debugLine + ")";
+        String errorMessage = "WF-401 " + port + ": Point annotation key has illegal character (" +
+            (debugLine == null ? pointToString(point) : debugLine) + ")";
         throw new IllegalArgumentException(errorMessage);
       }
 
       // Each tag of the form "k=v" must be < 256
       for (Map.Entry<String, String> tag : point.getAnnotations().entrySet()) {
         if (tag.getKey().length() + tag.getValue().length() >= 255) {
-          throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue());
+          throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue() + "(" +
+              (debugLine == null ? pointToString(point) : debugLine) + ")");
         }
       }
       if (!pointInRange(point)) {
         outOfRangePointTimes.inc();
-        String errorMessage = "WF-402 " + port + ": Point outside of reasonable time frame (" + debugLine + ")";
+        String errorMessage = "WF-402 " + port + ": Point outside of reasonable time frame (" +
+            (debugLine == null ? pointToString(point) : debugLine) + ")";
         throw new IllegalArgumentException(errorMessage);
       }
       if ((validationLevel != null) && (!validationLevel.equals(VALIDATION_NO_VALIDATION))) {
@@ -108,41 +117,50 @@ public class PointHandlerImpl implements PointHandler {
         switch (validationLevel) {
           case VALIDATION_NUMERIC_ONLY:
             if (!(pointValue instanceof Long) && !(pointValue instanceof Double)) {
-              String errorMessage = "WF-403 " + port + ": Was not long/double object (" + debugLine + ")";
+              String errorMessage = "WF-403 " + port + ": Was not long/double object (" +
+                  (debugLine == null ? pointToString(point) : debugLine) + ")";
               throw new IllegalArgumentException(errorMessage);
             }
             break;
         }
         randomPostTask.addPoint(pointToString(point));
+        receivedPointLag.update(Clock.now() - point.getTimestamp());
       } else {
         // No validation was requested by user; send forward.
         randomPostTask.addPoint(pointToString(point));
+        receivedPointLag.update(Clock.now() - point.getTimestamp());
       }
     } catch (IllegalArgumentException e) {
       this.handleBlockedPoint(e.getMessage());
     } catch (Exception ex) {
-      logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point (" + debugLine + ")", ex);
+      logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point (" +
+          (debugLine == null ? pointToString(point) : debugLine) + ")", ex);
     }
   }
 
   @Override
   public void reportPoints(List<ReportPoint> points) {
     for (final ReportPoint point : points) {
-      reportPoint(point, pointToString(point));
+      reportPoint(point, null);
     }
   }
 
   public PostPushDataTimedTask getRandomPostTask() {
+    // return the task with the lowest number of pending points and, if possible, not currently flushing to retry queue
     long min = Long.MAX_VALUE;
     PostPushDataTimedTask randomPostTask = null;
+    PostPushDataTimedTask firstChoicePostTask = null;
     for (int i = 0; i < this.sendDataTasks.length; i++) {
       long pointsToSend = this.sendDataTasks[i].getNumPointsToSend();
       if (pointsToSend < min) {
         min = pointsToSend;
         randomPostTask = this.sendDataTasks[i];
+        if (!this.sendDataTasks[i].getFlushingToQueueFlag()) {
+          firstChoicePostTask = this.sendDataTasks[i];
+        }
       }
     }
-    return randomPostTask;
+    return firstChoicePostTask == null ? randomPostTask : firstChoicePostTask;
   }
 
   @Override
@@ -213,17 +231,23 @@ public class PointHandlerImpl implements PointHandler {
     return (pointTime > (rightNow - MILLIS_IN_YEAR)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
   }
 
-  protected static String pointToString(ReportPoint point) {
-    String toReturn = String.format("\"%s\" %s %d source=\"%s\"",
-        point.getMetric().replaceAll("\"", "\\\""),
-        point.getValue(),
-        point.getTimestamp() / 1000,
-        point.getHost().replaceAll("\"", "\\\""));
+  private static String pointToStringSB(ReportPoint point) {
+    StringBuilder sb = new StringBuilder("\"")
+        .append(point.getMetric().replaceAll("\"", "\\\"")).append("\" ")
+        .append(point.getValue()).append(" ")
+        .append(point.getTimestamp() / 1000).append(" ")
+        .append("source=\"").append(point.getHost().replaceAll("\"", "\\\"")).append("\"");
     for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
-      toReturn += String.format(" \"%s\"=\"%s\"",
-          entry.getKey().replaceAll("\"", "\\\""),
-          entry.getValue().replaceAll("\"", "\\\""));
+      sb.append(" \"").append(entry.getKey().replaceAll("\"", "\\\"")).append("\"")
+          .append("=")
+          .append("\"").append(entry.getValue().replaceAll("\"", "\\\"")).append("\"");
     }
-    return toReturn;
+    return sb.toString();
+  }
+
+
+  @VisibleForTesting
+  static String pointToString(ReportPoint point) {
+    return pointToStringSB(point);
   }
 }

@@ -11,15 +11,19 @@ import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.Validate;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+
+import javax.annotation.Nullable;
 
 /**
  * Generator of metrics as a JSON node and outputting it to an output stream or returning a json node.
@@ -34,16 +38,21 @@ public abstract class JsonMetricsGenerator {
   private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
 
   public static void generateJsonMetrics(OutputStream outputStream, MetricsRegistry registry, boolean includeVMMetrics,
-                                         boolean includeBuildMetrics, boolean clearMetrics)
-      throws IOException {
+                                         boolean includeBuildMetrics, boolean clearMetrics) throws IOException {
     JsonGenerator json = factory.createGenerator(outputStream, JsonEncoding.UTF8);
-    writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics);
+    writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null);
   }
 
   public static JsonNode generateJsonMetrics(MetricsRegistry registry, boolean includeVMMetrics,
                                              boolean includeBuildMetrics, boolean clearMetrics) throws IOException {
+    return generateJsonMetrics(registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null);
+  }
+
+  public static JsonNode generateJsonMetrics(MetricsRegistry registry, boolean includeVMMetrics,
+                                             boolean includeBuildMetrics, boolean clearMetrics,
+                                             @Nullable Map<String, String> pointTags) throws IOException {
     TokenBuffer t = new TokenBuffer(new ObjectMapper());
-    writeJson(t, registry, includeVMMetrics, includeBuildMetrics, clearMetrics);
+    writeJson(t, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, pointTags);
     JsonParser parser = t.asParser();
     return parser.readValueAsTree();
   }
@@ -60,23 +69,35 @@ public abstract class JsonMetricsGenerator {
 
   public static void writeJson(JsonGenerator json, MetricsRegistry registry, boolean includeVMMetrics,
                                boolean includeBuildMetrics, boolean clearMetrics) throws IOException {
+    writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null);
+  }
+
+  public static void writeJson(JsonGenerator json, MetricsRegistry registry, boolean includeVMMetrics,
+                               boolean includeBuildMetrics, boolean clearMetrics,
+                               @Nullable Map<String, String> pointTags) throws IOException {
     json.writeStartObject();
     if (includeVMMetrics) {
-      writeVmMetrics(json);
+      writeVmMetrics(json, pointTags);
     }
     if (includeBuildMetrics) {
       try {
-        writeBuildMetrics(ResourceBundle.getBundle("build"), json);
+        writeBuildMetrics(ResourceBundle.getBundle("build"), json, pointTags);
       } catch (MissingResourceException ignored) {
       }
     }
-    writeRegularMetrics(new Processor(clearMetrics), json, registry, false);
+    writeRegularMetrics(new Processor(clearMetrics), json, registry, false, pointTags);
     json.writeEndObject();
     json.close();
   }
 
-  private static void writeBuildMetrics(ResourceBundle props, JsonGenerator json) throws IOException {
+  private static void writeBuildMetrics(ResourceBundle props, JsonGenerator json,
+                                        Map<String, String> pointTags) throws IOException {
     json.writeFieldName("build");
+    if (pointTags != null) {
+      json.writeStartObject();
+      writeTags(json, pointTags);
+      json.writeFieldName("value");
+    }
     json.writeStartObject();
     if (props.containsKey("build.version")) {
       // attempt to make a version string
@@ -99,6 +120,9 @@ public abstract class JsonMetricsGenerator {
       json.writeStringField("timestamp_raw", props.getString("maven.build.timestamp"));
     }
     json.writeEndObject();
+    if (pointTags != null) {
+      json.writeEndObject();
+    }
   }
 
   static int extractVersion(String versionStr) {
@@ -122,8 +146,13 @@ public abstract class JsonMetricsGenerator {
     return version;
   }
 
-  private static void writeVmMetrics(JsonGenerator json) throws IOException {
+  private static void writeVmMetrics(JsonGenerator json, @Nullable Map<String, String> pointTags) throws IOException {
     json.writeFieldName("jvm");
+    if (pointTags != null) {
+      json.writeStartObject();
+      writeTags(json, pointTags);
+      json.writeFieldName("value");
+    }
     json.writeStartObject();
     {
       json.writeFieldName("vm");
@@ -222,13 +251,34 @@ public abstract class JsonMetricsGenerator {
       json.writeEndObject();
     }
     json.writeEndObject();
+    if (pointTags != null) {
+      json.writeEndObject();
+    }
+  }
+
+  private static void writeTags(JsonGenerator json, Map<String, String> pointTags) throws IOException {
+    Validate.notNull(pointTags, "pointTags argument can't be null!");
+    json.writeFieldName("tags");
+    json.writeStartObject();
+    for (Map.Entry<String, String> tagEntry : pointTags.entrySet()) {
+      json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
+    }
+    json.writeEndObject();
   }
 
   public static void writeRegularMetrics(Processor processor, JsonGenerator json, MetricsRegistry registry,
                                          boolean showFullSamples) throws IOException {
+    writeRegularMetrics(processor, json, registry, showFullSamples, null);
+  }
+
+  public static void writeRegularMetrics(Processor processor, JsonGenerator json,
+                                         MetricsRegistry registry, boolean showFullSamples,
+                                         @Nullable Map<String, String> pointTags) throws IOException {
     for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : registry.groupedMetrics().entrySet()) {
       for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
-        if (subEntry.getKey() instanceof TaggedMetricName) {
+        boolean closeObjectRequired = false;
+        if (subEntry.getKey() instanceof TaggedMetricName || pointTags != null) {
+          closeObjectRequired = true;
           // write the hashcode since we need to support metrics with the same name but with different tags.
           // the server will remove the suffix.
           json.writeFieldName(sanitize(subEntry.getKey()) + "$" + subEntry.hashCode());
@@ -245,7 +295,14 @@ public abstract class JsonMetricsGenerator {
           json.writeStartObject();
           json.writeFieldName("tags");
           json.writeStartObject();
-          for (Map.Entry<String, String> tagEntry : ((TaggedMetricName) subEntry.getKey()).getTags().entrySet()) {
+          Map<String, String> tags = new HashMap<>();
+          if (pointTags != null) {
+            tags.putAll(pointTags);
+          }
+          if (subEntry.getKey() instanceof TaggedMetricName) {
+            tags.putAll(((TaggedMetricName) subEntry.getKey()).getTags());
+          }
+          for (Map.Entry<String, String> tagEntry : tags.entrySet()) {
             json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
           }
           json.writeEndObject();
@@ -259,7 +316,7 @@ public abstract class JsonMetricsGenerator {
           e.printStackTrace();
         }
         // need to close the object as well.
-        if (subEntry.getKey() instanceof TaggedMetricName) {
+        if (closeObjectRequired) {
           json.writeEndObject();
         }
       }
@@ -302,6 +359,8 @@ public abstract class JsonMetricsGenerator {
       Object gaugeValue = evaluateGauge(gauge);
       if (gaugeValue != null) {
         json.writeObject(gaugeValue);
+      } else {
+        json.writeNull();
       }
     }
 

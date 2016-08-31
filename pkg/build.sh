@@ -5,13 +5,27 @@ function die {
 	exit 1
 }
 
-if [[ $# -lt 3 ]]; then
-	die "Usage: $0 <fpm_target> <fpm_version> <fpm_iteration>"
-fi
+cd `dirname $0`
 
-FPM_TARGET=$1
-VERSION=$2
-ITERATION=$3
+if [[ $# -eq 3 ]]; then
+	FPM_TARGET=$1
+	VERSION=$2
+	ITERATION=$3
+elif [[ $# -eq 1 ]]; then
+	FPM_TARGET=$1
+	# Automatically get next version/iteration based on packagecloud and current repo.
+	MOST_RECENT_VERSION=$(git tag | grep wavefront- | sed -e 's/wavefront-//' | sort -V | tail -1 | tr -d '[[:space:]]')
+	YUM_VERSION=$(yum info wavefront-proxy | grep Version | cut -d: -f2 | tr -d '[[:space:]]')
+	YUM_ITERATION=$(yum info wavefront-proxy | grep Release | cut -d: -f2 | tr -d '[[:space:]]')
+	VERSION=$MOST_RECENT_VERSION
+	if [[ "$MOST_RECENT_VERSION" == "$YUM_VERSION" ]]; then
+		let "ITERATION=YUM_ITERATION+1"
+	else
+		ITERATION=1
+	fi
+else
+	die "Usage: $0 <fpm_target> [<fpm_version> <fpm_iteration>]"
+fi
 
 if [[ $FPM_TARGET == "deb" ]]; then
 	EXTRA_DIRS="usr"

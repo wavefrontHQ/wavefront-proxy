@@ -7,7 +7,6 @@ import datetime
 import BaseHTTPServer
 import pickle
 import re
-import requests
 import socket
 import struct
 import subprocess
@@ -18,6 +17,8 @@ import urllib2
 import Queue
 import dateutil
 import dateutil.tz
+
+import requests
 
 EPOCH = (datetime.datetime.utcfromtimestamp(0)
          .replace(tzinfo=dateutil.tz.tzutc()))
@@ -129,7 +130,7 @@ class TestAgentProxyBase(unittest.TestCase):
         self.current_test_name = None
 
     def setup_common(self, test_name, port, additional_args=None,
-                         conf_file=None):
+                     conf_file=None):
         """
         Unit Test setup function.  Sets up the fake wavefront endpoint
         and starts the agent.
@@ -171,7 +172,7 @@ class TestAgentProxyBase(unittest.TestCase):
                 '-Djava.rmi.server.hostname=192.168.56.101',
                 '../proxy/target/wavefront-push-agent.jar',
                 '-f', conf_file, '--purgeBuffer'
-                    ]
+               ]
         if additional_args:
             args.extend(additional_args)
         self.agent_process = subprocess.Popen(args, stdout=self.agent_stdout_fd,
@@ -373,8 +374,8 @@ class TestAgentProxyBase(unittest.TestCase):
 
         logfile_path = './test/proxy' + self.current_test_name + '.out'
         with open(logfile_path, 'r') as proxylog_fd:
-            print ('Checking |%s| has blocked message |%s|'
-                       % (logfile_path, message_re))
+            print ('Checking |%s| has blocked message |%s|' %
+                   (logfile_path, message_re))
             found = False
             iterations = 0
             while not found and iterations < 6:
@@ -431,9 +432,9 @@ class TestWriteHttpProxy(TestAgentProxyBase):
 
         # this is the contents we expect to see in the POST to the WF servers
         pushdata_expect = ["\"disk.sda.disk_octets.read\" 197141504 %d "
-                               "source=\"simple1.example.org\"" % (utcnow),
+                           "source=\"simple1.example.org\"" % (utcnow),
                            "\"disk.sda.disk_octets.write\" 175136768 %d "
-                               "source=\"simple1.example.org\"" % (utcnow)]
+                           "source=\"simple1.example.org\"" % (utcnow)]
 
         headers = {
             'Content-Type': 'application/json'
@@ -467,8 +468,7 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
         else:
             args = None
         self.setup_common(self.__class__.__name__ + '__' + self._testMethodName,
-                         4242,
-                         args)
+                          4242, args)
 
     def tearDown(self):
         self.teardown_common()
@@ -486,7 +486,7 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
 
         # check that it was sent on to the WF server
         pushdata_expect = [("\"test.test1.t1\" 0.14 %d source=\"localhost\"" %
-                                (utcnow))]
+                            (utcnow))]
         self.wait_for_push_data(pushdata_expect)
 
     def test_telnet_2(self):
@@ -499,14 +499,14 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
             tzinfo=dateutil.tz.tzutc()))
         putcmd = [('put test.test1.t1 %d 0.14 host=localhost\n' % (utcnow,)),
                   ('put test.test1.t2 %d 0.15 host=localhost\n' %
-                       (utcnow + 1000,))]
+                   (utcnow + 1000,))]
         self.send_messages_and_close(4242, putcmd)
 
         # check that it was sent on to the WF server
         pushdata_expect = [("\"test.test1.t1\" 0.14 %d source=\"localhost\"" %
-                                (utcnow)),
+                            (utcnow)),
                            ("\"test.test1.t2\" 0.15 %d source=\"localhost\"" %
-                                (utcnow + 1000))]
+                            (utcnow + 1000))]
         self.wait_for_push_data(pushdata_expect)
 
     def test_telnet_parallel_1(self):
@@ -519,14 +519,14 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
             tzinfo=dateutil.tz.tzutc()))
         putcmd = [('put test.test1.t1 %d 0.14 host=localhost\n' % (utcnow,)),
                   ('put test.test1.t2 %d 0.15 host=localhost\n' %
-                       (utcnow + 1000,))]
+                   (utcnow + 1000,))]
         self.send_message_parallel(4242, putcmd)
 
         # check that it was sent on to the WF server
         pushdata_expect = [("\"test.test1.t1\" 0.14 %d source=\"localhost\"" %
-                                (utcnow)),
+                            (utcnow)),
                            ("\"test.test1.t2\" 0.15 %d source=\"localhost\"" %
-                                (utcnow + 1000))]
+                            (utcnow + 1000))]
         self.wait_for_push_data(pushdata_expect)
 
     def test_telnet_parallel_2(self):
@@ -543,10 +543,10 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
             putcmds = []
             for i in range(1000):
                 putcmds.append('put test.test1.%d.t%d %d %d.0 '
-                                   'host=localhost\n' % (j, i, utcnow, i))
+                               'host=localhost\n' % (j, i, utcnow, i))
                 expected_putcmds.append('"test.test1.%d.t%d" %d.0 %d '
-                                            'source="localhost"' %
-                                            (j, i, i, utcnow))
+                                        'source="localhost"' %
+                                        (j, i, i, utcnow))
             # add on a version command every 1000
             putcmds.append('version\n')
 
@@ -609,9 +609,9 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
                       headers=headers)
 
         pushdata_expect = ['"sys.cpu.nice" 18 %d source="web01"'
-                               ' "dc"="lga"' % ((utcnow - 3000) / 1000),
+                           ' "dc"="lga"' % ((utcnow - 3000) / 1000),
                            '"sys.cpu.nice" 9 %d source="web02"'
-                               ' "dc"="lga"' % (utcnow / 1000)]
+                           ' "dc"="lga"' % (utcnow / 1000)]
         self.wait_for_push_data(pushdata_expect)
 
     def test_http_with_single_element(self):
@@ -634,10 +634,10 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
 
         headers = {'content-type': 'application/json'}
         requests.post('http://localhost:4242/api/put',
-                        data=body, headers=headers)
+                      data=body, headers=headers)
 
         pushdata_expect = [('"sys.cpu.nice" 18 %d source="web01"'
-                                ' "dc"="lga"') % (utcnow / 1000)]
+                            ' "dc"="lga"') % (utcnow / 1000)]
         self.wait_for_push_data(pushdata_expect)
 
     def test_http_with_version(self):
@@ -669,7 +669,7 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
 
         # check that it was sent on to the WF server
         pushdata_expect = [('"test_prefix_1.test.test1.t1" 0.14 %d '
-                                'source="localhost"' % (utcnow))]
+                            'source="localhost"' % (utcnow))]
         self.wait_for_push_data(pushdata_expect)
 
     def test_host_name_too_long(self):
@@ -679,10 +679,10 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
         """
 
         # create hostname
-        hostname = []
+        hostname_chars = []
         for _ in range(1024):
-            hostname.append('h')
-        hostname = ''.join(hostname)
+            hostname_chars.append('h')
+        hostname = ''.join(hostname_chars)
 
         # send PUT
         utcnow = unix_time_seconds(datetime.datetime.utcnow().replace(
@@ -696,7 +696,7 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
 
         # check log file for blocked point
         self.assert_blocked_point_in_log('WF-301:.*Host.*too long.*' +
-                                              hostname, False)
+                                         hostname, False)
 
     def test_metric_name_too_long(self):
         """
@@ -705,10 +705,10 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
         """
 
         # create metric name
-        metric_name = []
+        metric_name_chars = []
         for _ in range(1024):
-            metric_name.append('m')
-        metric_name = ''.join(metric_name)
+            metric_name_chars.append('m')
+        metric_name = ''.join(metric_name_chars)
 
         # send PUT
         utcnow = unix_time_seconds(datetime.datetime.utcnow().replace(
@@ -722,7 +722,7 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
 
         # check log file for blocked point
         self.assert_blocked_point_in_log('WF-301: Metric name is too long.*' +
-                                              metric_name, False)
+                                         metric_name, False)
 
     def test_metric_invalid_characters(self):
         """
@@ -733,9 +733,9 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
         # create metric names to test
         metric_names = {
             ('foo-./0123456789.ABCDEFGHIJKLMNOPQRSTUVWXYZ.'
-                 'abcdefghijklmnopqrstuvwxyz_'): True,
+             'abcdefghijklmnopqrstuvwxyz_'): True,
             ('~abc-./0123456789.ABCDEFGHIJKLMNOPQRSTUVWXYZ.'
-                 'abcdefghijklmnopqrstuvwxyz_'): True,
+             'abcdefghijklmnopqrstuvwxyz_'): True,
             '01234.ABCD.~abc': False,
             'A=BC.123': False,
             'abc7*.123': False,
@@ -754,7 +754,7 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
             if expected:
                 # check that it was sent on to the WF server
                 pushdata_expect = [("\"%s\" 0.14 %d source=\"localhost\"" %
-                                (metric, utcnow))]
+                                    (metric, utcnow))]
                 self.wait_for_push_data(pushdata_expect)
 
             else:
@@ -790,7 +790,7 @@ class TestProxyWavefrontFormat(TestAgentProxyBase):
 
         # check that it was sent on to the WF server
         pushdata_expect = [("\"test.test2.t1\" 0.214 %d source=\"%s\"" %
-                                (utcnow, 'localhost'))]
+                            (utcnow, 'localhost'))]
         self.wait_for_push_data(pushdata_expect)
 
     def test_simple_no_ts_1(self):
@@ -806,7 +806,7 @@ class TestProxyWavefrontFormat(TestAgentProxyBase):
 
         # check that it was sent on to the WF server
         pushdata_expect = [("\"test.test2.t1\" 0.214 %d source=\"%s\"" %
-                                (utcnow, 'localhost'))]
+                            (utcnow, 'localhost'))]
         self.wait_for_push_data(pushdata_expect)
 
     def test_parallel_1(self):
@@ -823,9 +823,9 @@ class TestProxyWavefrontFormat(TestAgentProxyBase):
             cmds = []
             for i in range(1000):
                 cmds.append('test.test2.t%d %d.0 %d source=%s\n' %
-                                (j, i, utcnow, 'localhost'))
+                            (j, i, utcnow, 'localhost'))
                 expected_cmds.append('"test.test2.t%d" %d.0 %d '
-                                         'source="localhost"' % (j, i, utcnow))
+                                     'source="localhost"' % (j, i, utcnow))
 
             self.send_message_parallel(2878, cmds)
         self.wait_for_push_data(expected_cmds)
@@ -862,7 +862,7 @@ class TestProxyGraphiteFormat(TestAgentProxyBase):
 
         # check that it was sent on to the WF server
         pushdata_expect = [("\"test.test1.t1\" 0.204 %d source=\"%s\"" %
-                                (utcnow, 'localhost'))]
+                            (utcnow, 'localhost'))]
         self.wait_for_push_data(pushdata_expect)
 
     def test_parallel_1(self):
@@ -879,9 +879,9 @@ class TestProxyGraphiteFormat(TestAgentProxyBase):
             cmds = []
             for i in range(1000):
                 cmds.append('test.%s.test1.t%d %d.0 %d\n' %
-                                ('localhost', j, i, utcnow))
+                            ('localhost', j, i, utcnow))
                 expected_cmds.append('"test.test1.t%d" %d.0 %d '
-                                         'source="localhost"' % (j, i, utcnow))
+                                     'source="localhost"' % (j, i, utcnow))
 
             self.send_message_parallel(2003, cmds)
         self.wait_for_push_data(expected_cmds)
@@ -921,7 +921,7 @@ class TestProxyGraphiteFormatWithOptionsSet(TestAgentProxyBase):
 
         # check that it was sent on to the WF server
         pushdata_expect = [("\"test.test1.t1\" 0.204 %d source=\"%s\"" %
-                                (utcnow, 'localhost.foo.bar'))]
+                            (utcnow, 'localhost.foo.bar'))]
         self.wait_for_push_data(pushdata_expect)
 
 class TestProxyGraphiteFormatWithOptionsSet2(TestAgentProxyBase):
@@ -959,7 +959,7 @@ class TestProxyGraphiteFormatWithOptionsSet2(TestAgentProxyBase):
 
         # check that it was sent on to the WF server
         pushdata_expect = [("\"test1.t1\" 0.204 %d source=\"%s\"" %
-                                (utcnow, 'localhost-foo-bar'))]
+                            (utcnow, 'localhost-foo-bar'))]
         self.wait_for_push_data(pushdata_expect)
 
 class TestPickleProtocolProxy(TestAgentProxyBase):
@@ -1051,11 +1051,11 @@ class TestPickleProtocolProxy(TestAgentProxyBase):
                 value_len = len(str(int(value)))
                 if value_len > 7:
                     value = (('%.' + str(precision) + 'E') %
-                                 (value)).replace('+', '').replace('E0', 'E')
+                             (value)).replace('+', '').replace('E0', 'E')
 
                 # "metric name" value ts source=hostname
                 expected.append('"%s" %s %d source="%s"' %
-                                    (metric_name, value, tstamp, host_name))
+                                (metric_name, value, tstamp, host_name))
 
         self.wait_for_push_data(expected)
 

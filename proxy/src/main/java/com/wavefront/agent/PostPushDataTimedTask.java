@@ -57,6 +57,7 @@ public class PostPushDataTimedTask implements Runnable {
   private int threadId;
   private static int pointsPerBatch = MAX_SPLIT_BATCH_SIZE;
   private String logLevel;
+  private boolean isFlushingToQueue = false;
 
   private ForceQueueEnabledAgentAPI agentAPI;
 
@@ -105,6 +106,10 @@ public class PostPushDataTimedTask implements Runnable {
 
   public long getNumPointsToSend() {
     return this.points.size();
+  }
+
+  public boolean getFlushingToQueueFlag() {
+    return isFlushingToQueue;
   }
 
   public long getNumApiCalls() {
@@ -167,27 +172,36 @@ public class PostPushDataTimedTask implements Runnable {
           // there are going to be too many points to be able to flush w/o the agent blowing up
           // drain the leftovers straight to the retry queue (i.e. to disk)
           // don't let anyone add any more to points while we're draining it.
-          while (points.size() > 0) {
-            List<String> pushData = createAgentPostBatch();
-            int pushDataPointCount = pushData.size();
-            if (pushDataPointCount > 0) {
-              agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
-                  System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
-                  StringLineIngester.joinPushData(pushData), true);
-
-              // update the counters as if this was a failed call to the API
-              this.pointsAttempted.inc(pushDataPointCount);
-              this.pointsQueued.inc(pushDataPointCount);
-              numApiCalls++;
-            } else {
-              // this is probably unnecessary
-              break;
-            }
-          }
+          drainBuffersToQueue();
         }
       }
     } catch (Throwable t) {
       logger.log(Level.SEVERE, "Unexpected error in flush loop", t);
+    }
+  }
+
+  public void drainBuffersToQueue() {
+    try {
+      isFlushingToQueue = true;
+      while (points.size() > 0) {
+        List<String> pushData = createAgentPostBatch();
+        int pushDataPointCount = pushData.size();
+        if (pushDataPointCount > 0) {
+          agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
+              System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
+              StringLineIngester.joinPushData(pushData), true);
+
+          // update the counters as if this was a failed call to the API
+          this.pointsAttempted.inc(pushDataPointCount);
+          this.pointsQueued.inc(pushDataPointCount);
+          numApiCalls++;
+        } else {
+          // this is probably unnecessary
+          break;
+        }
+      }
+    } finally {
+      isFlushingToQueue = false;
     }
   }
 

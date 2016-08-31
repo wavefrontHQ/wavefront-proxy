@@ -29,4 +29,4 @@ Build and run the docker container for building.
     docker cp my_container:/root/java/pkg/wavefront-proxy_3.8-1_amd64.deb .
 
 This will build the agent from head and package it into a deb or an rpm. The agent will use whatever JRE
-you bundle with it -- Wavefront uses Zulu 8.11.0.1 a8c3eea6250f.
+you bundle with it -- Wavefront uses Zulu 8.13.0.5 0f21d10ca4f1.

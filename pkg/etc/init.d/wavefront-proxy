@@ -12,69 +12,91 @@
 ### END INIT INFO
 
 #############################
+service_name=$(basename "$0")
+# Source custom settings
+sysconfig="/etc/sysconfig/$service_name"
+# shellcheck source=/dev/null
+[[ -f "$sysconfig" ]] && . $sysconfig
 
-DESC="Wavefront Proxy"
-APP_NAME="wavefront-proxy"
-USER="wavefront"
-WAVEFRONT_DIR="/opt/$USER"
-PROXY_DIR="$WAVEFRONT_DIR/wavefront-proxy"
-export JAVA_HOME="$PROXY_DIR/jre"
-CONF_FILE="$PROXY_DIR/conf/wavefront.conf"
-LOG_FILE="/var/log/wavefront.log"
-ERR_FILE=$LOG_FILE
-PID_FILE="/var/run/$APP_NAME.pid"
-AGENT_JAR="$PROXY_DIR/bin/wavefront-push-agent.jar"
-CLASS="com.wavefront.agent.PushAgentDaemon"
-ARGS="-f $CONF_FILE --buffer $PROXY_DIR/bin/buffer"
+desc=${DESC:-Wavefront Proxy}
+user="wavefront"
+wavefront_dir="/opt/wavefront"
+proxy_dir=${PROXY_DIR:-$wavefront_dir/wavefront-proxy}
+export JAVA_HOME="$proxy_dir/jre"
+conf_file=${CONF_FILE:-$proxy_dir/conf/wavefront.conf}
+log_file=${LOG_FILE:-/var/log/wavefront.log}
+daemon_log_file=${DAEMON_LOG_FILE:-/var/log/wavefront-daemon.log}
+err_file=$log_file
+pid_file=${PID_FILE:-/var/run/$service_name.pid}
+agent_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-push-agent.jar}
+class="com.wavefront.agent.PushAgentDaemon"
+app_args=${APP_ARGS:--f $conf_file}
+java_args=${JAVA_ARGS:--XX:+AggressiveHeap}
 
-PROXY_LAUNCH_CONF="/opt/wavefront/wavefront-proxy/conf/wavefront_proxy_launch.conf"
-JAVA_ARGS=""
-if [[ -r $PROXY_LAUNCH_CONF ]]; then
-	JAVA_ARGS=`grep -ve '[[:space:]]*#' $PROXY_LAUNCH_CONF | tr '\n' ' ' | sed -e 's/^[[:space:]]*//' | sed -e 's/[[:space:]]*$//'`
+# Legacy support for overrding JVM args in wavefront_proxy_launch.conf.
+proxy_launch_conf="/opt/wavefront/wavefront-proxy/conf/wavefront_proxy_launch.conf"
+if [[ -r $proxy_launch_conf ]]; then
+	replacement_java_args=$(grep -ve '[[:space:]]*#' $proxy_launch_conf | tr '\n' ' ' | sed -e 's/^[[:space:]]*//' | sed -e 's/[[:space:]]*$//')
+	if [[ "$replacement_java_args" != "-XX:+AggressiveHeap" ]]; then
+		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+		>&2 echo "Using wavefront_proxy_launch.conf for JAVA_ARGS, which will override anything specified in $sysconfig."
+		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+		java_args=$replacement_java_args
+	fi
 fi
 
-# In bash, the test binary "[" insists on colon expansion. So check JAVA_ARGS a different way.
-case "$JAVA_ARGS" in
-	("") JAVA_ARGS="-XX:+AggressiveHeap"
-esac
-
-JSVC=$PROXY_DIR/bin/jsvc
+jsvc=$proxy_dir/bin/jsvc
 
 jsvc_exec()
 {
-	cd $(dirname $AGENT_JAR)
-	$JSVC -user $USER -home $JAVA_HOME -cp $AGENT_JAR "$JAVA_ARGS" -outfile $LOG_FILE -errfile $ERR_FILE -pidfile $PID_FILE -wait 20 $1 $CLASS $ARGS
-	if [[ $? -eq 0 ]]; then
-		echo "Done."
-	else
-		echo "There was a problem, see $ERR_FILE"
+	cd "$(dirname "$agent_jar")"
+	[[ ! -f "$log_file" ]] && touch "$log_file" && chown "$user":"$user" "$log_file"
+	# shellcheck disable=SC2086
+	$jsvc \
+		-user $user \
+		-home $JAVA_HOME \
+		-cp $agent_jar \
+		$java_args \
+		-outfile $log_file \
+		-errfile $err_file \
+		-pidfile $pid_file \
+		-wait 20 \
+		-debug \
+		$1 \
+		$class \
+		$app_args &> $daemon_log_file
+	if [[ $? -ne 0 ]]; then
+		echo "There was a problem, see $err_file and $daemon_log_file"
 	fi
 }
 
 case "$1" in
 start)
-	echo "Starting $DESC"
+	echo "Starting $desc"
 	jsvc_exec
-	# The launched nanny process will create the PID_FILE shortly.
-	# Instead of blocking on that we silently succeed.
+	echo "Done"
 ;;
 status)
-	if [[ -f "$PID_FILE" ]]; then
-		echo "$DESC is running (PID $(cat $PID_FILE))"
+	if [[ -f "$pid_file" ]]; then
+		echo "$desc is running (PID $(cat "$pid_file"))"
 	else
-		echo "$DESC is not running."
+		echo "$desc is not running."
 		exit 3
 	fi
 ;;
 stop)
-	echo "Stopping $DESC"
+	echo "Stopping $desc"
 	jsvc_exec "-stop"
+	echo "Done"
 ;;
 restart)
-	if [[ -f "$PID_FILE" ]]; then
-		$0 "stop"
+	if [[ -f "$pid_file" ]]; then
+		echo "Stopping $desc"
+		jsvc_exec "-stop"
 	fi
-	$0 "start"
+	echo "Starting $desc"
+	jsvc_exec
+	echo "Done"
 ;;
 *)
 	echo "Usage: $0 {status | start | stop | restart}"

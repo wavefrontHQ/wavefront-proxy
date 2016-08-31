@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>3.21-SNAPSHOT</version>
+  <version>3.26-SNAPSHOT</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
@@ -55,7 +55,7 @@
     <java.version>1.7</java.version>
     <jetty.version>9.2.10.v20150310</jetty.version>
     <jackson.version>2.5.3</jackson.version>
-    <public.project.version>3.21-SNAPSHOT</public.project.version>
+    <public.project.version>3.26-SNAPSHOT</public.project.version>
   </properties>
 
   <build>
@@ -66,6 +66,13 @@
         <configuration>
           <source>${java.version}</source>
           <target>${java.version}</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>2.6</version>
+        <configuration>
+          <tarLongFileMode>gnu</tarLongFileMode>
         </configuration>
       </plugin>
       <plugin>
@@ -207,29 +214,6 @@
       </properties>
       <build>
         <plugins>
-          <!-- *** Temporary section begins - remove after Apache HttpClient upgrade to 4.5.3 -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-shade-plugin</artifactId>
-            <version>2.4.3</version>
-            <executions>
-              <execution>
-                <phase>package</phase>
-                <goals>
-                  <goal>shade</goal>
-                </goals>
-                <configuration>
-                  <relocations>
-                    <relocation>
-                      <pattern>com.wavefront.patches</pattern>
-                      <shadedPattern />
-                    </relocation>
-                  </relocations>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-          <!-- *** Temporary section ends -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>
