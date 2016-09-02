@@ -40,11 +40,15 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
+import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.PasswordAuthentication;
+import java.net.SocketException;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -267,19 +271,15 @@ public abstract class AbstractAgent {
   public AbstractAgent(boolean localAgent, boolean pushAgent) {
     this.pushAgent = pushAgent;
     this.localAgent = localAgent;
-    try {
-      this.hostname = InetAddress.getLocalHost().getCanonicalHostName();
-      Metrics.newGauge(ExpectedAgentMetric.BUFFER_BYTES_LEFT.metricName,
-          new Gauge<Long>() {
-            @Override
-            public Long value() {
-              return bufferSpaceLeft.get();
-            }
+    this.hostname = getLocalHostName();
+    Metrics.newGauge(ExpectedAgentMetric.BUFFER_BYTES_LEFT.metricName,
+        new Gauge<Long>() {
+          @Override
+          public Long value() {
+            return bufferSpaceLeft.get();
           }
-      );
-    } catch (UnknownHostException e) {
-      throw Throwables.propagate(e);
-    }
+        }
+    );
   }
 
   protected abstract void startListeners();
@@ -693,4 +693,29 @@ public abstract class AbstractAgent {
     logger.info("Shutdown complete");
   }
 
+  private String getLocalHostName() {
+    try {
+      return InetAddress.getLocalHost().getCanonicalHostName();
+    } catch (UnknownHostException e) {
+      try {
+        // if can't resolve local server name, use a real IPv4 address from the first available network interface
+        for (Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
+             nics.hasMoreElements();) {
+          NetworkInterface network = nics.nextElement();
+          if (!network.isUp() || network.isLoopback())
+            continue;
+          for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements();) {
+            InetAddress address = addresses.nextElement();
+            if (address.isAnyLocalAddress() || address.isLoopbackAddress() ||
+                address.isMulticastAddress() || !(address instanceof Inet4Address))
+              continue;
+            return (address.getHostAddress());
+          }
+        }
+      } catch (SocketException ex) {
+        // ignore and simply return "localhost"
+      }
+    }
+    return "localhost";
+  }
 }
