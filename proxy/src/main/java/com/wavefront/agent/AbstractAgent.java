@@ -688,7 +688,8 @@ public abstract class AbstractAgent {
     }
     logger.info("Shutting down: Flushing pending points...");
     for (PostPushDataTimedTask task : managedTasks) {
-      task.drainBuffersToQueue();
+      while (task.getNumPointsToSend() > 0)
+        task.drainBuffersToQueue();
     }
     logger.info("Shutdown complete");
   }

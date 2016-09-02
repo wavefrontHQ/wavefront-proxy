@@ -183,7 +183,10 @@ public class PostPushDataTimedTask implements Runnable {
   public void drainBuffersToQueue() {
     try {
       isFlushingToQueue = true;
-      while (points.size() > 0) {
+      // roughly limit number of points to flush to the the current buffer size (+1 blockSize max)
+      // if too many points arrive at the proxy while it's draining, they will be taken care of in the next run
+      int pointsToFlush = points.size();
+      while (pointsToFlush > 0) {
         List<String> pushData = createAgentPostBatch();
         int pushDataPointCount = pushData.size();
         if (pushDataPointCount > 0) {
@@ -195,8 +198,8 @@ public class PostPushDataTimedTask implements Runnable {
           this.pointsAttempted.inc(pushDataPointCount);
           this.pointsQueued.inc(pushDataPointCount);
           numApiCalls++;
+          pointsToFlush -= pushDataPointCount;
         } else {
-          // this is probably unnecessary
           break;
         }
       }
