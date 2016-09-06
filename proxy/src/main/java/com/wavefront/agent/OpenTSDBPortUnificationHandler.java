@@ -10,6 +10,7 @@ import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.metrics.JsonMetricsParser;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -86,7 +87,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-    blockMessage("WF-301", "Handler failed", cause);
+    blockMessage("WF-301", "Handler failed", cause, ctx);
   }
 
   @Override
@@ -99,11 +100,11 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
         } else if (message instanceof FullHttpRequest) {
           handleHttpMessage(ctx, message);
         } else {
-          blockMessage("WF-300", "Unexpected message type " + message.getClass().getName(), null);
+          blockMessage("WF-300", "Unexpected message type " + message.getClass().getName(), null, ctx);
         }
       }
     } catch (final Exception e) {
-      blockMessage("WF-300", "Failed to handle message", e);
+      blockMessage("WF-300", "Failed to handle message", e, ctx);
     }
   }
 
@@ -137,7 +138,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
       // http://opentsdb.net/docs/build/html/api_http/version.html
     } else {
       writeHttpResponse(request, ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported path");
-      blockMessage("WF-300", "Unexpected path '" + request.getUri() + "'", null);
+      blockMessage("WF-300", "Unexpected path '" + request.getUri() + "'", null, ctx);
     }
   }
 
@@ -161,7 +162,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
         throw new Exception("Failed to write version response", f.cause());
       }
     } else {
-      ChannelStringHandler.processPointLine(messageStr, decoder, pointHandler, whiteBlackList, null);
+      ChannelStringHandler.processPointLine(messageStr, decoder, pointHandler, whiteBlackList, null, ctx);
     }
   }
 
@@ -249,7 +250,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
       pointHandler.reportPoint(point, "OpenTSDB http json: " + PointHandlerImpl.pointToString(point));
       return true;
     } catch (final Exception e) {
-      blockMessage("WF-300", "Failed to add metric", e);
+      blockMessage("WF-300", "Failed to add metric", e, null);
       return false;
     }
   }
@@ -291,9 +292,16 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
    * @param messageId the error message ID
    * @param message   the error message
    * @param e         the exception (optional) that caused the message to be blocked
+   * @param ctx       ChannelHandlerContext (optional) to extract remote client ip
    */
-  private void blockMessage(final String messageId, final String message, @Nullable final Throwable e) {
+  private void blockMessage(final String messageId,
+                            final String message,
+                            @Nullable final Throwable e,
+                            @Nullable final ChannelHandlerContext ctx) {
     String errMsg = messageId + ": OpenTSDB: " + message;
+    if (ctx != null) {
+      errMsg = errMsg + "; remote: " + ((InetSocketAddress)ctx.channel().remoteAddress()).getHostString();
+    }
     if (e != null) {
       final Throwable rootCause = Throwables.getRootCause(e);
       errMsg = errMsg + "; reason: \"" + e.getMessage() + "\"";

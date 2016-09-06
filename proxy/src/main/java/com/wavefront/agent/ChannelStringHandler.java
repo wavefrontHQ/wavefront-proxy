@@ -8,6 +8,7 @@ import com.google.common.collect.Lists;
 import com.wavefront.common.MetricWhiteBlackList;
 import com.wavefront.ingester.Decoder;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -69,7 +70,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-    processPointLine(msg, decoder, pointHandler, linePredicate, transformer);
+    processPointLine(msg, decoder, pointHandler, linePredicate, transformer, ctx);
   }
 
   /**
@@ -80,7 +81,8 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
                                       Decoder<String> decoder,
                                       final PointHandler pointHandler,
                                       final Predicate<String> linePredicate,
-                                      @Nullable final Function<String, String> transformer) {
+                                      @Nullable final Function<String, String> transformer,
+                                      @Nullable final ChannelHandlerContext ctx) {
     // ignore empty lines.
     String msg = message;
     if (msg == null || msg.trim().length() == 0) return;
@@ -108,6 +110,9 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       if (rootCause != null && rootCause.getMessage() != null) {
         errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
       }
+      if (ctx != null) {
+        errMsg += "; remote: " + ((InetSocketAddress) ctx.channel().remoteAddress()).getHostString();
+      }
       pointHandler.handleBlockedPoint(errMsg);
     }
     pointHandler.reportPoints(points);
@@ -125,6 +130,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     if (rootCause != null && rootCause.getMessage() != null) {
       message += ", root cause: \"" + rootCause.getMessage() + "\"";
     }
+    message += "; remote: " + ((InetSocketAddress) ctx.channel().remoteAddress()).getHostString();
     pointHandler.handleBlockedPoint(message);
   }
 }
