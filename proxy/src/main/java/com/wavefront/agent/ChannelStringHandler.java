@@ -111,7 +111,10 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
         errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
       }
       if (ctx != null) {
-        errMsg += "; remote: " + ((InetSocketAddress) ctx.channel().remoteAddress()).getHostString();
+        InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+        if (remoteAddress != null) {
+          errMsg += "; remote: " + remoteAddress.getHostString();
+        }
       }
       pointHandler.handleBlockedPoint(errMsg);
     }
@@ -130,7 +133,10 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     if (rootCause != null && rootCause.getMessage() != null) {
       message += ", root cause: \"" + rootCause.getMessage() + "\"";
     }
-    message += "; remote: " + ((InetSocketAddress) ctx.channel().remoteAddress()).getHostString();
+    InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+    if (remoteAddress != null) {
+      message += "; remote: " + remoteAddress.getHostString();
+    }
     pointHandler.handleBlockedPoint(message);
   }
 }

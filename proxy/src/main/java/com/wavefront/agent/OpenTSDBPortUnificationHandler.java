@@ -300,7 +300,10 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
                             @Nullable final ChannelHandlerContext ctx) {
     String errMsg = messageId + ": OpenTSDB: " + message;
     if (ctx != null) {
-      errMsg = errMsg + "; remote: " + ((InetSocketAddress)ctx.channel().remoteAddress()).getHostString();
+      InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+      if (remoteAddress != null) {
+        errMsg += "; remote: " + remoteAddress.getHostString();
+      }
     }
     if (e != null) {
       final Throwable rootCause = Throwables.getRootCause(e);

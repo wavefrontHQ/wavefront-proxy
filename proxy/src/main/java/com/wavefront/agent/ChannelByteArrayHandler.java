@@ -76,7 +76,10 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
       if (rootCause != null && rootCause.getMessage() != null) {
         errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
       }
-      errMsg += "; remote: " + ((InetSocketAddress)ctx.channel().remoteAddress()).getHostString();
+      InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+      if (remoteAddress != null) {
+        errMsg += "; remote: " + remoteAddress.getHostString();
+      }
       logger.log(Level.WARNING, errMsg, e);
       pointHandler.handleBlockedPoint(errMsg);
     }
@@ -94,7 +97,10 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
     if (rootCause != null && rootCause.getMessage() != null) {
       message += ", root cause: \"" + rootCause.getMessage() + "\"";
     }
-    message += "; remote: " + ((InetSocketAddress)ctx.channel().remoteAddress()).getHostString();
+    InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+    if (remoteAddress != null) {
+      message += "; remote: " + remoteAddress.getHostString();
+    }
     pointHandler.handleBlockedPoint(message);
   }
 }
