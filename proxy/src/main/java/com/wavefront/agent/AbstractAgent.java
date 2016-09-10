@@ -380,8 +380,9 @@ public abstract class AbstractAgent {
       // 2. Read or create the unique Id for the daemon running on this machine.
       readOrCreateDaemonId();
 
-      // read build information.
+      // read build information and print version.
       props = ResourceBundle.getBundle("build");
+      logger.info("Starting proxy version " + props.getString("build.version"));
 
       if (proxyHost != null) {
         System.setProperty("http.proxyHost", proxyHost);
