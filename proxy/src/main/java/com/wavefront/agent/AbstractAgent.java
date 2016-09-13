@@ -339,8 +339,8 @@ public abstract class AbstractAgent {
         ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
         picklePorts = prop.getProperty("picklePorts", picklePorts);
         bufferFile = prop.getProperty("buffer", bufferFile);
-        discardPointsHours = Long.parseLong(prop.getProperty("discardPointsHours",String.valueOf(discardPointsHours)));
-        logger.warning("Discard points older than hours " + discardPointsHours);
+        discardPointsHours = Long.parseLong(prop.getProperty("discardPointsHours", String.valueOf(discardPointsHours)));
+        logger.warning("Discard points older than hours " + discardPointsHours + " hours");
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);

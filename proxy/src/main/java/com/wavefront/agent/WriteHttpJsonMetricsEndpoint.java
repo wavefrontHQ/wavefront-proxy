@@ -36,7 +36,7 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
                                       final int blockedPointsPerBatch,
                                       final long discardPointsHours,
                                       PostPushDataTimedTask[] postPushDataTimedTasks) {
-    super(port, validationLevel, blockedPointsPerBatch, discardPointsHours,postPushDataTimedTasks);
+    super(port, validationLevel, blockedPointsPerBatch, discardPointsHours, postPushDataTimedTasks);
     this.prefix = prefix;
     this.defaultHost = host;
   }

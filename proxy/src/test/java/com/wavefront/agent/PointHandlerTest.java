@@ -6,12 +6,14 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.commons.lang.time.DateUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
 import sunnylabs.report.ReportPoint;
+
 
 /**
  * @author Andrew Kao (andrew@wavefront.com), Jason Bau (jbau@wavefront.com)
@@ -85,30 +87,48 @@ public class PointHandlerTest {
 
     long millisPerYear = 31536000000L;
     long millisPerDay = 86400000L;
+    int port = 2878;
+    String validationLevel = "NUMERIC_ONLY";
+    int blockedPointsPerBatch = 0;
+    String prefix = null;
+    long discardPointsHours = 8760; // number of hours in a year
+    PostPushDataTimedTask[] postPushDataTimedTasks = null;
+
 
     // not in range if over a year ago
     ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear, 10L, "host", "table",
         new HashMap<String, String>());
-    Assert.assertFalse(PointHandlerImpl.pointInRange(rp));
+    PointHandlerImpl pthandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
+            discardPointsHours, postPushDataTimedTasks);
+    Assert.assertFalse(pthandler.pointInRange(rp));
 
     rp.setTimestamp(System.currentTimeMillis() - millisPerYear - 1);
-    Assert.assertFalse(PointHandlerImpl.pointInRange(rp));
+    Assert.assertFalse(pthandler.pointInRange(rp));
 
     // in range if within a year ago
     rp.setTimestamp(System.currentTimeMillis() - (millisPerYear / 2));
-    Assert.assertTrue(PointHandlerImpl.pointInRange(rp));
+    Assert.assertTrue(pthandler.pointInRange(rp));
 
     // in range for right now
     rp.setTimestamp(System.currentTimeMillis());
-    Assert.assertTrue(PointHandlerImpl.pointInRange(rp));
+    Assert.assertTrue(pthandler.pointInRange(rp));
 
     // in range if within a day in the future
     rp.setTimestamp(System.currentTimeMillis() + millisPerDay - 1);
-    Assert.assertTrue(PointHandlerImpl.pointInRange(rp));
+    Assert.assertTrue(pthandler.pointInRange(rp));
 
     // out of range for over a day in the future
     rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 2));
-    Assert.assertFalse(PointHandlerImpl.pointInRange(rp));
+    Assert.assertFalse(pthandler.pointInRange(rp));
+
+    //discard points older than 24 hours
+    discardPointsHours = 24;
+    PointHandlerImpl pthandler1 = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
+            discardPointsHours, postPushDataTimedTasks);
+    rp.setTimestamp(System.currentTimeMillis() - millisPerDay) ;
+    Assert.assertFalse(pthandler1.pointInRange(rp));
+
+
   }
 
   // This is a slow implementation of pointToString that is known to work to specification.

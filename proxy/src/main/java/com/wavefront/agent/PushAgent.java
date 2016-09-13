@@ -112,9 +112,6 @@ public class PushAgent extends AbstractAgent {
         if (strPort.trim().length() > 0) {
           try {
             int port = Integer.parseInt(strPort);
-            if (discardPointsHours == 0){
-              discardPointsHours = 8760; // number of hours in a year
-            }
             // will immediately start the server.
             JettyHttpContainerFactory.createServer(
                 new URI("http://localhost:" + strPort + "/"),
@@ -134,9 +131,6 @@ public class PushAgent extends AbstractAgent {
         if (strPort.trim().length() > 0) {
           try {
             int port = Integer.parseInt(strPort);
-            if (discardPointsHours == 0){
-              discardPointsHours = 8760; // number of hours in a year
-            }
             // will immediately start the server.
             JettyHttpContainerFactory.createServer(
                 new URI("http://localhost:" + strPort + "/"),
@@ -155,9 +149,6 @@ public class PushAgent extends AbstractAgent {
 
   protected void startOpenTsdbListener(String strPort) {
     final int port = Integer.parseInt(strPort);
-    if (discardPointsHours == 0){
-      discardPointsHours = 8760; // number of hours in a year
-    }
     final PostPushDataTimedTask[] flushTasks = getFlushTasks(port);
     ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
       @Override
@@ -175,15 +166,11 @@ public class PushAgent extends AbstractAgent {
 
   protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
     int port = Integer.parseInt(strPort);
-    if (discardPointsHours == 0){
-      discardPointsHours = 8760; // number of hours in a year
-    }
-
     // Set up a custom handler
     ChannelHandler handler = new ChannelByteArrayHandler(
         new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
         port, prefix, pushValidationLevel, pushBlockedSamples,
-        getFlushTasks(port),discardPointsHours, whitelistRegex, blacklistRegex);
+        getFlushTasks(port), discardPointsHours, whitelistRegex, blacklistRegex);
 
     // create a class to use for StreamIngester to get a new FrameDecoder
     // for each request (not shareable since it's storing how many bytes
@@ -226,9 +213,6 @@ public class PushAgent extends AbstractAgent {
   protected void startGraphiteListener(String strPort,
                                        @Nullable Function<String, String> formatter) {
     int port = Integer.parseInt(strPort);
-    if (discardPointsHours == 0){
-      discardPointsHours = 8760; // number of hours in a year
-    }
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown", customSourceTags),
         port, prefix, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), discardPointsHours, formatter, whitelistRegex,

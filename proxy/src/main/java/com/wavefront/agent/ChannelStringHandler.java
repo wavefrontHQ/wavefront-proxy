@@ -50,8 +50,8 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
                               @Nullable final String pointLineWhiteListRegex,
                               @Nullable final String pointLineBlackListRegex) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
-            discardPointsHours, postPushDataTimedTasks);
+    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix, discardPointsHours,
+            postPushDataTimedTasks);
     this.transformer = transformer;
     this.linePredicate = new MetricWhiteBlackList(pointLineWhiteListRegex,
         pointLineBlackListRegex,
