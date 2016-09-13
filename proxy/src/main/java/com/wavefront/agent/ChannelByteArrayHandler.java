@@ -46,7 +46,7 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
                                  @Nullable final String pointLineWhiteListRegex,
                                  @Nullable final String pointLineBlackListRegex) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,discardPointsHours,
+    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix, discardPointsHours,
         postPushDataTimedTasks);
     this.metricPredicate = new MetricWhiteBlackList(
       pointLineWhiteListRegex, pointLineBlackListRegex, String.valueOf(port));
