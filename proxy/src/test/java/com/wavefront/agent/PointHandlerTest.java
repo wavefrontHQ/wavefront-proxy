@@ -6,7 +6,6 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.commons.lang.time.DateUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
