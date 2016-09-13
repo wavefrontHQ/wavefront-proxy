@@ -55,7 +55,7 @@ public class PointHandlerImpl implements PointHandler {
                           final int blockedPointsPerBatch,
                           final long discardPointsHours,
                           final PostPushDataTimedTask[] sendDataTasks) {
-    this(port, validationLevel, blockedPointsPerBatch, null, discardPointsHours,sendDataTasks);
+    this(port, validationLevel, blockedPointsPerBatch, null, discardPointsHours, sendDataTasks);
   }
 
   public PointHandlerImpl(final int port,
