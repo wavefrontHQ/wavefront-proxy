@@ -42,7 +42,7 @@ public class PointHandlerImpl implements PointHandler {
   private long discardPointsHours = 8760; // Default one year
 
   //private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
-  private long millis_discard;
+  private double millis_discard;
 
   @Nullable
   private final String prefix;
@@ -69,7 +69,7 @@ public class PointHandlerImpl implements PointHandler {
     this.blockedPointsPerBatch = blockedPointsPerBatch;
     this.prefix = prefix;
     this.discardPointsHours = discardPointsHours;
-    millis_discard = DateUtils.MILLIS_PER_DAY * (this.discardPointsHours/24);
+    millis_discard = DateUtils.MILLIS_PER_DAY * ((double) this.discardPointsHours/24);
 
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
     this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
@@ -230,11 +230,11 @@ public class PointHandlerImpl implements PointHandler {
   }
 
   @VisibleForTesting
-   boolean pointInRange(ReportPoint point) {
+  boolean pointInRange(ReportPoint point) {
     long pointTime = point.getTimestamp();
     long rightNow = System.currentTimeMillis();
 
-    // within 1 year ago and 1 day ahead
+    // default is within 1 year ago and 1 day ahead. End user can discard points if older than certain hours
     return (pointTime > (rightNow - millis_discard)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
   }
 

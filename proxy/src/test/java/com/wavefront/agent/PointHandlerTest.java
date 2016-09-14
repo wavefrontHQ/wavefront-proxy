@@ -2,6 +2,7 @@ package com.wavefront.agent;
 
 import com.google.common.collect.ImmutableMap;
 
+import org.apache.commons.lang.time.DateUtils;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -12,7 +13,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import sunnylabs.report.ReportPoint;
-
 
 /**
  * @author Andrew Kao (andrew@wavefront.com), Jason Bau (jbau@wavefront.com)
@@ -122,12 +122,28 @@ public class PointHandlerTest {
 
     //discard points older than 24 hours
     discardPointsHours = 24;
-    PointHandlerImpl pthandler1 = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
+    PointHandlerImpl pthandler_24_hours = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
             discardPointsHours, postPushDataTimedTasks);
     rp.setTimestamp(System.currentTimeMillis() - millisPerDay) ;
-    Assert.assertFalse(pthandler1.pointInRange(rp));
+    Assert.assertFalse(pthandler_24_hours.pointInRange(rp));
 
+    //discard points older than 6 hours
+    discardPointsHours = 6;
+    double millis_discard = DateUtils.MILLIS_PER_DAY * ((double)discardPointsHours/24);
+    PointHandlerImpl pthandler_6_hours = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
+          discardPointsHours, postPushDataTimedTasks);
 
+    // not in range if over 6 hours ago
+    rp.setTimestamp(System.currentTimeMillis() - (long)millis_discard - 1) ;
+    Assert.assertFalse(pthandler_6_hours.pointInRange(rp));
+
+    // not in range if exactly 6 hours ago
+    rp.setTimestamp(System.currentTimeMillis() - (long)millis_discard) ;
+    Assert.assertFalse(pthandler_6_hours.pointInRange(rp));
+
+    // in range if exactly 6 hours - 1 millis ago
+    rp.setTimestamp(System.currentTimeMillis() - (long)millis_discard + 1) ;
+    Assert.assertTrue(pthandler_6_hours.pointInRange(rp));
   }
 
   // This is a slow implementation of pointToString that is known to work to specification.
