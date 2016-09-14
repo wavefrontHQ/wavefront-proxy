@@ -7,6 +7,7 @@ import com.google.common.collect.Lists;
 import com.wavefront.common.MetricWhiteBlackList;
 import com.wavefront.ingester.Decoder;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -75,6 +76,10 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
       if (rootCause != null && rootCause.getMessage() != null) {
         errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
       }
+      InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+      if (remoteAddress != null) {
+        errMsg += "; remote: " + remoteAddress.getHostString();
+      }
       logger.log(Level.WARNING, errMsg, e);
       pointHandler.handleBlockedPoint(errMsg);
     }
@@ -91,6 +96,10 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
         + cause.getMessage() + "\"";
     if (rootCause != null && rootCause.getMessage() != null) {
       message += ", root cause: \"" + rootCause.getMessage() + "\"";
+    }
+    InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+    if (remoteAddress != null) {
+      message += "; remote: " + remoteAddress.getHostString();
     }
     pointHandler.handleBlockedPoint(message);
   }
