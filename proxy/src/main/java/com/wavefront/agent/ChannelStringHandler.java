@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.ingester.Decoder;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -62,7 +63,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-    processPointLine(msg, decoder, pointHandler, pointLinePreprocessor, reportPointPreprocessor);
+    processPointLine(msg, decoder, pointHandler, pointLinePreprocessor, reportPointPreprocessor, ctx);
   }
 
   /**
@@ -73,7 +74,8 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
                                       Decoder<String> decoder,
                                       final PointHandler pointHandler,
                                       @Nullable final PointPreprocessor<String> pointLinePreprocessor,
-                                      @Nullable final PointPreprocessor<ReportPoint> reportPointPreprocessor) {
+                                      @Nullable final PointPreprocessor<ReportPoint> reportPointPreprocessor,
+                                      @Nullable final ChannelHandlerContext ctx) {
     // ignore empty lines.
     String msg = message;
     if (msg == null || msg.trim().length() == 0) return;
@@ -100,6 +102,12 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
           "\", reason: \"" + e.getMessage() + "\"";
       if (rootCause != null && rootCause.getMessage() != null) {
         errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
+      }
+      if (ctx != null) {
+        InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+        if (remoteAddress != null) {
+          errMsg += "; remote: " + remoteAddress.getHostString();
+        }
       }
       pointHandler.handleBlockedPoint(errMsg);
     }
@@ -128,6 +136,10 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
         + cause.getMessage() + "\"";
     if (rootCause != null && rootCause.getMessage() != null) {
       message += ", root cause: \"" + rootCause.getMessage() + "\"";
+    }
+    InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+    if (remoteAddress != null) {
+      message += "; remote: " + remoteAddress.getHostString();
     }
     pointHandler.handleBlockedPoint(message);
   }
