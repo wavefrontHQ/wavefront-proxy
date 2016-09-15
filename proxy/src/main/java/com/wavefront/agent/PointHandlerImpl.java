@@ -40,9 +40,6 @@ public class PointHandlerImpl implements PointHandler {
   private final String validationLevel;
   private final int port;
 
-  @Nullable
-  private final String prefix;
-
   protected final int blockedPointsPerBatch;
   protected final PostPushDataTimedTask[] sendDataTasks;
 
@@ -50,18 +47,9 @@ public class PointHandlerImpl implements PointHandler {
                           final String validationLevel,
                           final int blockedPointsPerBatch,
                           final PostPushDataTimedTask[] sendDataTasks) {
-    this(port, validationLevel, blockedPointsPerBatch, null, sendDataTasks);
-  }
-
-  public PointHandlerImpl(final int port,
-                          final String validationLevel,
-                          final int blockedPointsPerBatch,
-                          @Nullable final String prefix,
-                          final PostPushDataTimedTask[] sendDataTasks) {
     this.validationLevel = validationLevel;
     this.port = port;
     this.blockedPointsPerBatch = blockedPointsPerBatch;
-    this.prefix = prefix;
 
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
     this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
@@ -79,9 +67,6 @@ public class PointHandlerImpl implements PointHandler {
 
       validateHost(point.getHost());
 
-      if (prefix != null) {
-        point.setMetric(prefix + "." + point.getMetric());
-      }
       if (point.getMetric().length() >= 1024) {
         throw new IllegalArgumentException("WF-301: Metric name is too long: " + point.getMetric());
       }

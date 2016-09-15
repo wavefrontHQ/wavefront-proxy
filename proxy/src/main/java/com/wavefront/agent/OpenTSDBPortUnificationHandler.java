@@ -1,11 +1,10 @@
 package com.wavefront.agent;
 
-import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wavefront.common.MetricWhiteBlackList;
+import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.metrics.JsonMetricsParser;
 
@@ -59,24 +58,23 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
    */
   private final OpenTSDBDecoder decoder;
 
-  /**
-   * white list/ black list handler
-   */
-  private final Predicate<String> whiteBlackList;
+  @Nullable
+  private final PointPreprocessor<String> pointLinePreprocessor;
+  @Nullable
+  private final PointPreprocessor<ReportPoint> reportPointPreprocessor;
 
   OpenTSDBPortUnificationHandler(final OpenTSDBDecoder decoder,
                                  final int port,
-                                 final String prefix,
                                  final String validationLevel,
                                  final int blockedPointsPerBatch,
                                  final PostPushDataTimedTask[] postPushDataTimedTasks,
-                                 @Nullable final String pointLineWhiteListRegex,
-                                 @Nullable final String pointLineBlackListRegex) {
+                                 @Nullable final PointPreprocessor<String> pointLinePreprocessor,
+                                 @Nullable final PointPreprocessor<ReportPoint> reportPointPreprocessor) {
     this.decoder = decoder;
     this.pointHandler = new PointHandlerImpl(
-        port, validationLevel, blockedPointsPerBatch, prefix, postPushDataTimedTasks);
-    this.whiteBlackList = new MetricWhiteBlackList(
-        pointLineWhiteListRegex, pointLineBlackListRegex, String.valueOf(port));
+        port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
+    this.pointLinePreprocessor = pointLinePreprocessor;
+    this.reportPointPreprocessor = reportPointPreprocessor;
   }
 
   @Override
@@ -161,7 +159,8 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
         throw new Exception("Failed to write version response", f.cause());
       }
     } else {
-      ChannelStringHandler.processPointLine(messageStr, decoder, pointHandler, whiteBlackList, null);
+      ChannelStringHandler.processPointLine(messageStr, decoder, pointHandler,
+                                            pointLinePreprocessor, reportPointPreprocessor);
     }
   }
 

@@ -11,14 +11,27 @@ import com.google.gson.Gson;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
+import com.wavefront.agent.preprocessor.PointLineReplaceRegexTransformer;
+import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
+import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.agent.preprocessor.ReportPointAddTagIfNotExistsTransformer;
+import com.wavefront.agent.preprocessor.ReportPointAddTagTransformer;
+import com.wavefront.agent.preprocessor.ReportPointBlacklistRegexFilter;
+import com.wavefront.agent.preprocessor.ReportPointRenameTagTransformer;
+import com.wavefront.agent.preprocessor.ReportPointReplaceRegexTransformer;
+import com.wavefront.agent.preprocessor.ReportPointWhitelistRegexFilter;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Clock;
+import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.SocketConfig;
@@ -32,6 +45,7 @@ import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
 import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJacksonProvider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,6 +59,7 @@ import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -60,6 +75,8 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 import javax.net.ssl.HttpsURLConnection;
+
+import sunnylabs.report.ReportPoint;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
@@ -228,6 +245,10 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--proxyPassword"}, description = "If proxy authentication is necessary, this is the password that will be passed along")
   protected String proxyPassword = null;
 
+  @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
+  protected String preprocessorConfigFile = null;
+
+
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
@@ -237,6 +258,8 @@ public abstract class AbstractAgent {
   protected List<String> customSourceTags = new ArrayList<>();
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
   protected final List<ScheduledExecutorService> managedExecutors = new ArrayList<>();
+  protected final Map<String, PointPreprocessor<String>> pointLinePreprocessors = new HashMap<>();
+  protected final Map<String, PointPreprocessor<ReportPoint>> reportPointPreprocessors = new HashMap<>();
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -285,6 +308,152 @@ public abstract class AbstractAgent {
   protected abstract void startListeners();
 
   protected abstract void stopListeners();
+
+  private void loadPreprocessorConfigurationFile() throws IOException {
+    // convert blacklist/whitelist fields to filters for full backwards compatibility
+    // blacklistRegex and whitelistRegex are applied to pushListenerPorts, graphitePorts and picklePorts
+    if (whitelistRegex != null || blacklistRegex != null) {
+      String allPorts = StringUtils.join(new String[] {
+          pushListenerPorts == null ? "" : pushListenerPorts,
+          graphitePorts == null ? "" : graphitePorts,
+          picklePorts == null ? "" : picklePorts
+      }, ",");
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(allPorts);
+      for (String strPort : ports) {
+        initializePreprocessors(strPort);
+        if (blacklistRegex != null) {
+          pointLinePreprocessors.get(strPort).addFilter(
+              new PointLineBlacklistRegexFilter(blacklistRegex,
+                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
+              ));
+        }
+        if (whitelistRegex != null) {
+          pointLinePreprocessors.get(strPort).addFilter(
+              new PointLineWhitelistRegexFilter(whitelistRegex,
+                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
+              ));
+        }
+      }
+    }
+
+    // opentsdbBlacklistRegex and opentsdbWhitelistRegex are applied to opentsdbPorts only
+    if (opentsdbPorts != null && (opentsdbWhitelistRegex != null || opentsdbBlacklistRegex != null)) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(opentsdbPorts);
+      for (String strPort : ports) {
+        initializePreprocessors(strPort);
+        if (opentsdbBlacklistRegex != null) {
+          pointLinePreprocessors.get(strPort).addFilter(
+              new PointLineBlacklistRegexFilter(opentsdbBlacklistRegex,
+                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
+              ));
+        }
+        if (opentsdbWhitelistRegex != null) {
+          pointLinePreprocessors.get(strPort).addFilter(
+              new PointLineWhitelistRegexFilter(opentsdbWhitelistRegex,
+                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
+              ));
+        }
+      }
+    }
+
+    if (preprocessorConfigFile != null) {
+      FileInputStream stream = new FileInputStream(preprocessorConfigFile);
+      Yaml yaml = new Yaml();
+
+      Map<String, Map<String, Map<String, String>>> rulesByPort;
+      try {
+        rulesByPort = (Map<String, Map<String, Map<String, String>>>) yaml.load(stream);
+      } catch (ClassCastException e) {
+        logger.warning("Invalid preprocessor configuration file " + preprocessorConfigFile);
+        return;
+      }
+
+      int validRules = 0;
+      for (String strPort : rulesByPort.keySet()) {
+        try {
+          Integer.parseInt(strPort);
+        } catch (NumberFormatException ex) {
+          continue; // only load rules for numeric ports
+        }
+        initializePreprocessors(strPort);
+        Map<String, Map<String, String>> rules = rulesByPort.get(strPort);
+        for (String ruleKey: rules.keySet()) {
+          Map<String, String> rule = rules.get(ruleKey);
+          System.out.println("  Rule = " + rule);
+          try {
+            Counter counter = Metrics.newCounter(
+                new TaggedMetricName("preprocessor." + ruleKey, "count", "port", strPort));
+            if (rule.get("scope").equals("pointLine")) {
+              switch (rule.get("action")) {
+                case "replaceRegex":
+                  pointLinePreprocessors.get(strPort).addTransformer(
+                      new PointLineReplaceRegexTransformer(rule.get("match"), rule.get("replace"), counter));
+                  validRules++;
+                  break;
+                case "blacklistRegex":
+                  pointLinePreprocessors.get(strPort).addFilter(
+                      new PointLineBlacklistRegexFilter(rule.get("match"), counter));
+                  validRules++;
+                  break;
+                case "whitelistRegex":
+                  pointLinePreprocessors.get(strPort).addFilter(
+                      new PointLineBlacklistRegexFilter(rule.get("match"), counter));
+                  validRules++;
+                  break;
+              }
+            } else {
+              switch (rule.get("action")) {
+                case "replaceRegex":
+                  reportPointPreprocessors.get(strPort).addTransformer(
+                      new ReportPointReplaceRegexTransformer(
+                          rule.get("match"), rule.get("replace"), rule.get("scope"), counter));
+                  validRules++;
+                  break;
+                case "addTag":
+                  reportPointPreprocessors.get(strPort).addTransformer(
+                      new ReportPointAddTagTransformer(rule.get("value"), rule.get("scope"), counter));
+                  validRules++;
+                  break;
+                case "addTagIfNotExists":
+                  reportPointPreprocessors.get(strPort).addTransformer(
+                      new ReportPointAddTagIfNotExistsTransformer(rule.get("value"), rule.get("scope"), counter));
+                  validRules++;
+                  break;
+                case "renameTag":
+                  reportPointPreprocessors.get(strPort).addTransformer(
+                      new ReportPointRenameTagTransformer(
+                          rule.get("match"), rule.get("target"), rule.get("scope"), counter));
+                  validRules++;
+                  break;
+                case "blacklistRegex":
+                  reportPointPreprocessors.get(strPort).addFilter(
+                      new ReportPointBlacklistRegexFilter(rule.get("match"), rule.get("scope"), counter));
+                  validRules++;
+                  break;
+                case "whitelistRegex":
+                  reportPointPreprocessors.get(strPort).addFilter(
+                      new ReportPointWhitelistRegexFilter(rule.get("match"), rule.get("scope"), counter));
+                  validRules++;
+                  break;
+              }
+            }
+          } catch (IllegalArgumentException | NullPointerException ex) {
+            logger.warning("Unable to load rule " + ruleKey + " (port " + strPort + "): " + ex);
+          }
+        }
+      }
+      logger.warning("Loaded " + validRules + " rules from preprocessor confguration file " + preprocessorConfigFile);
+    }
+  }
+
+  protected void initializePreprocessors(String strPort) {
+    if (!pointLinePreprocessors.containsKey(strPort)) {
+      pointLinePreprocessors.put(strPort, new PointPreprocessor<String>());
+    }
+    if (!reportPointPreprocessors.containsKey(strPort)) {
+      reportPointPreprocessors.put(strPort, new PointPreprocessor<ReportPoint>());
+    }
+  }
 
   private void loadListenerConfigurationFile() throws IOException {
     // If they've specified a push configuration file, override the command line values
@@ -336,6 +505,7 @@ public abstract class AbstractAgent {
         ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
         picklePorts = prop.getProperty("picklePorts", picklePorts);
         bufferFile = prop.getProperty("buffer", bufferFile);
+        preprocessorConfigFile = prop.getProperty("preprocessorConfigFile", preprocessorConfigFile);
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
@@ -350,6 +520,8 @@ public abstract class AbstractAgent {
       if (blacklistRegex == null && graphiteBlacklistRegex != null) {
         blacklistRegex = graphiteBlacklistRegex;
       }
+
+      loadPreprocessorConfigurationFile();
 
       PostPushDataTimedTask.setPointsPerBatch(pushFlushMaxPoints);
       QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
@@ -382,6 +554,8 @@ public abstract class AbstractAgent {
 
       // read build information.
       props = ResourceBundle.getBundle("build");
+
+      logger.info("Starting proxy version " + props.getString("build.version"));
 
       if (proxyHost != null) {
         System.setProperty("http.proxyHost", proxyHost);

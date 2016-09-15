@@ -1,0 +1,93 @@
+##
+##  Wavefront proxy preprocessor rules configuration
+##
+##   Typically in /opt/wavefront/wavefront-proxy/conf/preprocessor_rules.yaml
+##
+## This file allows a more flexible configuration of different point filtering and altering rules
+##
+##############################################################################
+##
+## available action types:
+##   - replaceRegex: perform search/replace substitutions
+##   - whitelistRegex: reject all points not matching a regex pattern
+##   - blacklistRegex: reject all points matching a regex pattern
+##   - dropTag: remove a point tag. optional: remove tag only when its value matches a regex pattern.
+##   - addTag: add a new point tag. if such point tag already exists, an existing value will be replaced
+##   - addTagIfNotExists: add a new point tag, but don't overwrite an existing value if such point tag already exists
+##   - renameTag: rename a point tag, preserving its value. optional: rename it only when the point tag value matches
+##                a regex pattern. this functionality allows separating a point tag with mixed data into separate tags.
+##
+## scopes:
+##   - pointLine: applies to the whole point string before it's parsed, which makes it possible to correct
+##                specific issues in the data stream that would normally make the data point unparseable
+##   - metricName: applies to the metric name only (after the point is parsed)
+##   - sourceName: applies to the source name only (after the point is parsed)
+##   - <point tag>: any scope name other than the above three is considered a point tag key (after the point is parsed)
+##
+##
+## Notes:
+## - backslashes in regex patterns should be double-escaped
+## - rule names could be anything but they should be descriptive and unique within the same port - for every rule the
+##   proxy reports a counter metric, which represents the number of times a rule has been successfully applied to a
+##   point, and a rule name becomes part of the metric name (ex: ~agent.preprocessor.replace-badchars.count)
+## - multiple whitelistRegex rules are allowed, with a caveat: a point must satisfy all of these conditions
+##   to go through, so if it doesn't match at least one of the patterns, a point is blocked
+
+'all': &default  # use all rules defined here as "default"
+
+    # replace bad characters ("&", "$", "!") with underscores in the entire point line string
+    replace-badchars:
+      action  : replaceRegex
+      scope   : pointLine
+      match   : "[&\\$!]"
+      replace : "_"
+
+    # block all points with sourceName that starts with qa-statsd
+    block-qa-statsd:
+      action  : blacklistRegex
+      scope   : sourceName
+      match   : ^qa-statsd
+
+    # for "cluster" point tag replace all "-" characters with dots
+    cluster-name:
+      action  : replaceRegex
+      scope   : cluster
+      match   : "-"
+      replace : "."
+
+    # rename a point tag (optional: if its value matches a regex)
+    # (ex: with "^\d*$" regex that matches numeric values only, oldTag=123 will be renamed to numericTag=123,
+    # but oldTag=text123 will not be changed).
+    rule-renametag:
+      action  : renameTag
+      scope   : oldTag
+      match   : "^\\d*$"
+      target  : numericTag
+
+
+
+'2878':
+    # use all rules defined in "default"
+    <<: *default
+
+    # additional rules that apply only to port 2878:
+
+    # add a "newtagkey=1" point tag to all points
+    tag-all-metrics:
+      action  : addTag
+      scope   : newtagkey
+      value   : "1"
+
+    # remove "dc" point tag for points matching an optional regex
+    drop-dc-az456:
+      action  : dropTag
+      scope   : dc
+      match   : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3)
+
+
+'4242':
+    <<: *default
+
+
+'3878':
+    <<: *default

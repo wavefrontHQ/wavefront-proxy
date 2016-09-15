@@ -1,10 +1,9 @@
 package com.wavefront.agent;
 
-import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
-import com.wavefront.common.MetricWhiteBlackList;
+import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.ingester.Decoder;
 
 import java.util.List;
@@ -31,24 +30,21 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
   private final Decoder<byte[]> decoder;
   private final PointHandler pointHandler;
 
-  private final Predicate<String> metricPredicate;
+  @Nullable
+  private final PointPreprocessor<ReportPoint> reportPointPreprocessor;
 
   /**
    * Constructor.
    */
   ChannelByteArrayHandler(Decoder<byte[]> decoder,
                                  final int port,
-                                 final String prefix,
                                  final String validationLevel,
                                  final int blockedPointsPerBatch,
                                  final PostPushDataTimedTask[] postPushDataTimedTasks,
-                                 @Nullable final String pointLineWhiteListRegex,
-                                 @Nullable final String pointLineBlackListRegex) {
+                                 @Nullable final PointPreprocessor<ReportPoint> reportPointPreprocessor) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
-        postPushDataTimedTasks);
-    this.metricPredicate = new MetricWhiteBlackList(
-      pointLineWhiteListRegex, pointLineBlackListRegex, String.valueOf(port));
+    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
+    this.reportPointPreprocessor = reportPointPreprocessor;
   }
 
   @Override
@@ -62,9 +58,12 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
     try {
       decoder.decodeReportPoints(msg, points, "dummy");
       for (final ReportPoint point: points) {
-        if (!this.metricPredicate.apply(point.getMetric())) {
-          pointHandler.handleBlockedPoint(point.getMetric());
-          continue;
+        if (reportPointPreprocessor != null) {
+          if (!reportPointPreprocessor.filter(point)) {
+            pointHandler.handleBlockedPoint(point.toString());
+            continue;
+          }
+          reportPointPreprocessor.transform(point);
         }
         pointHandler.reportPoint(point, point.getMetric());
       }
