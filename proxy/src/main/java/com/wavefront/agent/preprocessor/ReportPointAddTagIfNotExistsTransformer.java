@@ -2,6 +2,7 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 
 import com.yammer.metrics.core.Counter;
 
@@ -10,29 +11,34 @@ import javax.annotation.Nullable;
 import sunnylabs.report.ReportPoint;
 
 /**
+ * Creates a new point tag with a specified value. If such point tag already exists, the value won't be overwritten.
+ *
  * Created by Vasily on 9/13/16.
  */
 public class ReportPointAddTagIfNotExistsTransformer implements Function<ReportPoint, ReportPoint> {
-  private final String patternReplace;
-  private final String scope;
+
+  private final String tag;
+  private final String value;
   private final Counter ruleAppliedCounter;
 
-  public ReportPointAddTagIfNotExistsTransformer(final String value,
-                                                 final String scope,
-                                                 @Nullable final Counter ruleAppliedCounter)
-  {
-    Preconditions.checkNotNull(scope);
-    Preconditions.checkNotNull(value);
-    Preconditions.checkArgument(!value.isEmpty());
-    this.patternReplace = value;
-    this.scope = scope;
+  public ReportPointAddTagIfNotExistsTransformer(final String tag,
+                                                 final String value,
+                                                 @Nullable final Counter ruleAppliedCounter) {
+    Preconditions.checkNotNull(tag, "[tag] can't be null");
+    Preconditions.checkNotNull(value, "[value] can't be null");
+    Preconditions.checkArgument(!value.isEmpty(), "[value] can't be blank");
+    this.value = value;
+    this.tag = tag;
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 
   @Override
   public ReportPoint apply(ReportPoint reportPoint) {
-    if (reportPoint.getAnnotations().get(scope) == null) {
-      reportPoint.getAnnotations().put(scope, patternReplace);
+    if (reportPoint.getAnnotations() == null) {
+      reportPoint.setAnnotations(Maps.<String, String>newHashMap());
+    }
+    if (reportPoint.getAnnotations().get(tag) == null) {
+      reportPoint.getAnnotations().put(tag, value);
       if (ruleAppliedCounter != null) {
         ruleAppliedCounter.inc();
       }

@@ -60,22 +60,18 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
   private final OpenTSDBDecoder decoder;
 
   @Nullable
-  private final PointPreprocessor<String> pointLinePreprocessor;
-  @Nullable
-  private final PointPreprocessor<ReportPoint> reportPointPreprocessor;
+  private final PointPreprocessor preprocessor;
 
   OpenTSDBPortUnificationHandler(final OpenTSDBDecoder decoder,
                                  final int port,
                                  final String validationLevel,
                                  final int blockedPointsPerBatch,
                                  final PostPushDataTimedTask[] postPushDataTimedTasks,
-                                 @Nullable final PointPreprocessor<String> pointLinePreprocessor,
-                                 @Nullable final PointPreprocessor<ReportPoint> reportPointPreprocessor) {
+                                 @Nullable final PointPreprocessor preprocessor) {
     this.decoder = decoder;
     this.pointHandler = new PointHandlerImpl(
         port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
-    this.pointLinePreprocessor = pointLinePreprocessor;
-    this.reportPointPreprocessor = reportPointPreprocessor;
+    this.preprocessor = preprocessor;
   }
 
   @Override
@@ -161,7 +157,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
       }
     } else {
       ChannelStringHandler.processPointLine(messageStr, decoder, pointHandler,
-                                            pointLinePreprocessor, reportPointPreprocessor, ctx);
+                                            preprocessor, ctx);
     }
   }
 

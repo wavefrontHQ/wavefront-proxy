@@ -1,7 +1,6 @@
 package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 
 import com.yammer.metrics.core.Counter;
 
@@ -12,18 +11,22 @@ import javax.annotation.Nullable;
 import sunnylabs.report.ReportPoint;
 
 /**
+ * Whitelist regex filter. Rejects a point if a specified component (metric, source, or point tag value, depending
+ * on the "scope" parameter) doesn't match the regex.
+ *
  * Created by Vasily on 9/13/16.
  */
-public class ReportPointWhitelistRegexFilter implements Predicate<ReportPoint> {
+public class ReportPointWhitelistRegexFilter extends AnnotatedPredicate<ReportPoint> {
+
   private final String scope;
   private final Pattern compiledPattern;
   private final Counter ruleAppliedCounter;
 
-  public ReportPointWhitelistRegexFilter(final String patternMatch,
-                                         final String scope,
+  public ReportPointWhitelistRegexFilter(final String scope,
+                                         final String patternMatch,
                                          @Nullable final Counter ruleAppliedCounter) {
-    Preconditions.checkNotNull(patternMatch);
-    Preconditions.checkNotNull(scope);
+    Preconditions.checkNotNull(patternMatch, "[match] can't be null");
+    Preconditions.checkNotNull(scope, "[scope] can't be null");
     this.scope = scope;
     this.compiledPattern = Pattern.compile(patternMatch);
     this.ruleAppliedCounter = ruleAppliedCounter;
@@ -49,13 +52,15 @@ public class ReportPointWhitelistRegexFilter implements Predicate<ReportPoint> {
         }
         break;
       default:
-        String tagValue = reportPoint.getAnnotations().get(scope);
-        if (tagValue != null) {
-          if (!compiledPattern.matcher(tagValue).matches()) {
-            if (ruleAppliedCounter != null) {
-              ruleAppliedCounter.inc();
+        if (reportPoint.getAnnotations() != null) {
+          String tagValue = reportPoint.getAnnotations().get(scope);
+          if (tagValue != null) {
+            if (!compiledPattern.matcher(tagValue).matches()) {
+              if (ruleAppliedCounter != null) {
+                ruleAppliedCounter.inc();
+              }
+              return false;
             }
-            return false;
           }
         }
     }

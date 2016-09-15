@@ -11,6 +11,8 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
+ * Replace regex transformer. Performs search and replace on an entire point line string
+ *
  * Created by Vasily on 9/13/16.
  */
 public class PointLineReplaceRegexTransformer implements Function<String, String> {
@@ -21,11 +23,10 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
 
   public PointLineReplaceRegexTransformer(final String patternMatch,
                                           final String patternReplace,
-                                          @Nullable final Counter ruleAppliedCounter)
-  {
-    Preconditions.checkNotNull(patternMatch);
-    Preconditions.checkNotNull(patternReplace);
-    Preconditions.checkArgument(!patternMatch.isEmpty());
+                                          @Nullable final Counter ruleAppliedCounter) {
+    Preconditions.checkNotNull(patternMatch, "[match] can't be null");
+    Preconditions.checkNotNull(patternReplace, "[replace] can't be null");
+    Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
     this.patternReplace = patternReplace;
     this.compiledPattern = Pattern.compile(patternMatch);
     this.ruleAppliedCounter = ruleAppliedCounter;
@@ -35,7 +36,7 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
   public String apply(String pointLine)
   {
     Matcher patternMatcher = compiledPattern.matcher(pointLine);
-    if (patternMatcher.matches()) {
+    if (patternMatcher.find()) {
       if (ruleAppliedCounter != null) {
         ruleAppliedCounter.inc();
       }

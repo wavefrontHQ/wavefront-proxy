@@ -32,7 +32,7 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
   private final PointHandler pointHandler;
 
   @Nullable
-  private final PointPreprocessor<ReportPoint> reportPointPreprocessor;
+  private final PointPreprocessor preprocessor;
 
   /**
    * Constructor.
@@ -42,10 +42,10 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
                                  final String validationLevel,
                                  final int blockedPointsPerBatch,
                                  final PostPushDataTimedTask[] postPushDataTimedTasks,
-                                 @Nullable final PointPreprocessor<ReportPoint> reportPointPreprocessor) {
+                                 @Nullable final PointPreprocessor preprocessor) {
     this.decoder = decoder;
     this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
-    this.reportPointPreprocessor = reportPointPreprocessor;
+    this.preprocessor = preprocessor;
   }
 
   @Override
@@ -59,12 +59,12 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
     try {
       decoder.decodeReportPoints(msg, points, "dummy");
       for (final ReportPoint point: points) {
-        if (reportPointPreprocessor != null) {
-          if (!reportPointPreprocessor.filter(point)) {
-            pointHandler.handleBlockedPoint(point.toString());
+        if (preprocessor != null) {
+          preprocessor.forReportPoint().transform(point);
+          if (!preprocessor.forReportPoint().filter(point)) {
+            pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
             continue;
           }
-          reportPointPreprocessor.transform(point);
         }
         pointHandler.reportPoint(point, point.getMetric());
       }

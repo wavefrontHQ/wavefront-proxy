@@ -8,6 +8,7 @@ import com.wavefront.ingester.Decoder;
 
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -33,9 +34,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
    * Transformer to transform each line.
    */
   @Nullable
-  private final PointPreprocessor<String> pointLinePreprocessor;
-  @Nullable
-  private final PointPreprocessor<ReportPoint> reportPointPreprocessor;
+  private final PointPreprocessor preprocessor;
   private final PointHandler pointHandler;
 
   public ChannelStringHandler(Decoder<String> decoder,
@@ -43,27 +42,23 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
                               final String validationLevel,
                               final int blockedPointsPerBatch,
                               final PostPushDataTimedTask[] postPushDataTimedTasks,
-                              @Nullable final PointPreprocessor<String> pointLinePreprocessor,
-                              @Nullable final PointPreprocessor<ReportPoint> reportPointPreprocessor) {
+                              @Nullable final PointPreprocessor preprocessor) {
     this.decoder = decoder;
     this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
-    this.pointLinePreprocessor = pointLinePreprocessor;
-    this.reportPointPreprocessor = reportPointPreprocessor;
+    this.preprocessor = preprocessor;
   }
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
-                              @Nullable final PointPreprocessor<String> pointLinePreprocessor,
-                              @Nullable final PointPreprocessor<ReportPoint> reportPointPreprocessor) {
+                              @Nullable final PointPreprocessor preprocessor) {
     this.decoder = decoder;
     this.pointHandler = pointhandler;
-    this.pointLinePreprocessor = pointLinePreprocessor;
-    this.reportPointPreprocessor = reportPointPreprocessor;
+    this.preprocessor = preprocessor;
   }
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-    processPointLine(msg, decoder, pointHandler, pointLinePreprocessor, reportPointPreprocessor, ctx);
+    processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
   }
 
   /**
@@ -73,22 +68,23 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   public static void processPointLine(final String message,
                                       Decoder<String> decoder,
                                       final PointHandler pointHandler,
-                                      @Nullable final PointPreprocessor<String> pointLinePreprocessor,
-                                      @Nullable final PointPreprocessor<ReportPoint> reportPointPreprocessor,
+                                      @Nullable final PointPreprocessor preprocessor,
                                       @Nullable final ChannelHandlerContext ctx) {
     // ignore empty lines.
     String msg = message;
     if (msg == null || msg.trim().length() == 0) return;
 
+    System.out.println("Received: " + msg);
+
     // transform the line if needed
-    if (pointLinePreprocessor != null) {
-      msg = pointLinePreprocessor.transform(msg);
+    if (preprocessor != null) {
+      msg = preprocessor.forPointLine().transform(msg);
     }
     String pointLine = msg.trim();
 
     // apply white/black lists after formatting
-    if (pointLinePreprocessor != null && !pointLinePreprocessor.filter(pointLine)) {
-      pointHandler.handleBlockedPoint(pointLine);
+    if (preprocessor != null && !preprocessor.forPointLine().filter(pointLine)) {
+      pointHandler.handleBlockedPoint(preprocessor.forPointLine().getLastFilterResult());
       return;
     }
 
@@ -113,17 +109,34 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     }
 
     // transform the point after parsing, and apply additional white/black lists if any
-    if (reportPointPreprocessor != null) {
+    if (preprocessor != null) {
       for (ReportPoint point : points) {
-        reportPointPreprocessor.transform(point);
-        if (!reportPointPreprocessor.filter(point)) {
-          pointHandler.handleBlockedPoint(pointLine);
+        preprocessor.forReportPoint().transform(point);
+        if (!preprocessor.forReportPoint().filter(point)) {
+          pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
           return;
         }
+        System.out.println("Outgoing: " + pointToStringSB(point));
       }
     }
     pointHandler.reportPoints(points);
   }
+
+  //// DELETE!!!!
+  private static String pointToStringSB(ReportPoint point) {
+    StringBuilder sb = new StringBuilder("\"")
+        .append(point.getMetric().replaceAll("\"", "\\\"")).append("\" ")
+        .append(point.getValue()).append(" ")
+        .append(point.getTimestamp() / 1000).append(" ")
+        .append("source=\"").append(point.getHost().replaceAll("\"", "\\\"")).append("\"");
+    for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
+      sb.append(" \"").append(entry.getKey().replaceAll("\"", "\\\"")).append("\"")
+          .append("=")
+          .append("\"").append(entry.getValue().replaceAll("\"", "\\\"")).append("\"");
+    }
+    return sb.toString();
+  }
+
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {

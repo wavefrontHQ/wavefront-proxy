@@ -149,9 +149,9 @@ public class PointHandlerImpl implements PointHandler {
   }
 
   @Override
-  public void handleBlockedPoint(String pointLine) {
+  public void handleBlockedPoint(@Nullable String pointLine) {
     final PostPushDataTimedTask randomPostTask = getRandomPostTask();
-    if (randomPostTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
+    if (pointLine != null && randomPostTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
       randomPostTask.addBlockedSample(pointLine);
     }
     randomPostTask.incrementBlockedPoints();

@@ -7,6 +7,7 @@ import com.google.common.base.Splitter;
 import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.GraphiteDecoder;
@@ -40,7 +41,6 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import sunnylabs.report.ReportPoint;
 
 /**
  * Push-only Agent.
@@ -84,8 +84,7 @@ public class PushAgent extends AbstractAgent {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(graphitePorts);
       for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
-          initializePreprocessors(strPort);
-          pointLinePreprocessors.get(strPort).addTransformer(0, graphiteFormatter);
+          preprocessors.forPort(strPort).forPointLine().addTransformer(0, graphiteFormatter);
           startGraphiteListener(strPort, graphiteFormatter);
           logger.info("listening on port: " + strPort + " for graphite metrics");
         }
@@ -151,9 +150,9 @@ public class PushAgent extends AbstractAgent {
   }
 
   protected void startOpenTsdbListener(final String strPort) {
-    initializePreprocessors(strPort);
     if (prefix != null && !prefix.isEmpty()) {
-      addMetricNamePrefixTransformer(strPort);
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(
+          new ReportPointAddPrefixTransformer(prefix));
     }
     final int port = Integer.parseInt(strPort);
     final PostPushDataTimedTask[] flushTasks = getFlushTasks(port);
@@ -162,8 +161,7 @@ public class PushAgent extends AbstractAgent {
       public void initChannel(SocketChannel ch) throws Exception {
         final ChannelHandler handler = new OpenTSDBPortUnificationHandler(
             new OpenTSDBDecoder("unknown", customSourceTags),
-            port, pushValidationLevel, pushBlockedSamples, flushTasks, pointLinePreprocessors.get(strPort),
-            reportPointPreprocessors.get(strPort));
+            port, pushValidationLevel, pushBlockedSamples, flushTasks, preprocessors.forPort(strPort));
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler));
       }
@@ -172,16 +170,17 @@ public class PushAgent extends AbstractAgent {
   }
 
   protected void startPickleListener(final String strPort, GraphiteFormatter formatter) {
-    initializePreprocessors(strPort);
     if (prefix != null && !prefix.isEmpty()) {
-      addMetricNamePrefixTransformer(strPort);
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(
+          new ReportPointAddPrefixTransformer(prefix));
     }
+
     int port = Integer.parseInt(strPort);
     // Set up a custom handler
     ChannelHandler handler = new ChannelByteArrayHandler(
         new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
         port, pushValidationLevel, pushBlockedSamples,
-        getFlushTasks(port), reportPointPreprocessors.get(strPort));
+        getFlushTasks(port), preprocessors.forPort(strPort));
 
     // create a class to use for StreamIngester to get a new FrameDecoder
     // for each request (not shareable since it's storing how many bytes
@@ -207,18 +206,15 @@ public class PushAgent extends AbstractAgent {
   /**
    * Registers a custom point handler on a particular port.
    *
-   * @param strPort                  The port to listen on.
-   * @param decoder                  The decoder to use.
-   * @param pointHandler             The handler to handle parsed ReportPoints.
-   * @param pointLinePreprocessor    Pre-processor (predicates and transform functions) for each line before parsing
-   * @param reportPointPreprocessor  Pre-processor for each report point after it's parsed from string
+   * @param strPort      The port to listen on.
+   * @param decoder      The decoder to use.
+   * @param pointHandler The handler to handle parsed ReportPoints.
+   * @param preprocessor Pre-processor (predicates and transform functions) for every point
    */
   protected void startCustomListener(String strPort, Decoder<String> decoder, PointHandler pointHandler,
-                                     @Nullable PointPreprocessor<String> pointLinePreprocessor,
-                                     @Nullable PointPreprocessor<ReportPoint> reportPointPreprocessor) {
+                                     @Nullable PointPreprocessor preprocessor) {
     int port = Integer.parseInt(strPort);
-    ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler,
-        pointLinePreprocessor, reportPointPreprocessor);
+    ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler, preprocessor);
     startAsManagedThread(new StringLineIngester(channelHandler, port).withChildChannelOptions(childChannelOptions));
   }
 
@@ -227,12 +223,13 @@ public class PushAgent extends AbstractAgent {
     int port = Integer.parseInt(strPort);
 
     if (prefix != null && !prefix.isEmpty()) {
-      addMetricNamePrefixTransformer(strPort);
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(
+          new ReportPointAddPrefixTransformer(prefix));
     }
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown", customSourceTags),
         port, pushValidationLevel, pushBlockedSamples, getFlushTasks(port),
-        pointLinePreprocessors.get(strPort), reportPointPreprocessors.get(strPort));
+        preprocessors.forPort(strPort));
 
     if (formatter == null) {
       List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);
@@ -306,16 +303,6 @@ public class PushAgent extends AbstractAgent {
     Thread thread = new Thread(target);
     managedThreads.add(thread);
     thread.start();
-  }
-
-  protected void addMetricNamePrefixTransformer(String strPort) {
-    reportPointPreprocessors.get(strPort).addTransformer(new Function<ReportPoint, ReportPoint>() {
-      @Override
-      public ReportPoint apply(ReportPoint reportPoint) {
-        reportPoint.setMetric(prefix + "." + reportPoint.getMetric());
-        return reportPoint;
-      }
-    });
   }
 
   @Override

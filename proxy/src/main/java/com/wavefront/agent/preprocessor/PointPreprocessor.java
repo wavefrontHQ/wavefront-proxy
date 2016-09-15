@@ -1,50 +1,22 @@
 package com.wavefront.agent.preprocessor;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.validation.constraints.NotNull;
+import sunnylabs.report.ReportPoint;
 
 /**
- * Created by Vasily on 9/13/16.
+ * A container class for both types of rules (point line-specific and parsed point-specific)
+ *
+ * Created by Vasily on 9/15/16.
  */
-public class PointPreprocessor<T> {
-  private final List<Function<T, T>> transformers = new ArrayList<>();
-  private final List<Predicate<T>> filters = new ArrayList<>();
+public class PointPreprocessor {
 
-  public T transform(@NotNull T point) {
-    for (final Function<T, T> func : transformers) {
-      point = func.apply(point);
-    }
-    return point;
+  private final Preprocessor<String> pointLinePreprocessor = new Preprocessor<>();
+  private final Preprocessor<ReportPoint> reportPointPreprocessor = new Preprocessor<>();
+
+  public Preprocessor<String> forPointLine() {
+    return pointLinePreprocessor;
   }
 
-  public boolean filter(@NotNull T point) {
-    for (final Predicate<T> predicate : filters) {
-      if (!predicate.apply(point)) {
-        return false;
-      }
-    }
-    return true;
+  public Preprocessor<ReportPoint> forReportPoint() {
+    return reportPointPreprocessor;
   }
-
-  public void addTransformer(Function<T, T> transformer) {
-    transformers.add(transformer);
-  }
-
-  public void addFilter(Predicate<T> filter) {
-    filters.add(filter);
-  }
-
-  public void addTransformer(int index, Function<T, T> transformer) {
-    transformers.add(index, transformer);
-  }
-
-  public void addFilter(int index, Predicate<T> filter) {
-    filters.add(index, filter);
-  }
-
 }

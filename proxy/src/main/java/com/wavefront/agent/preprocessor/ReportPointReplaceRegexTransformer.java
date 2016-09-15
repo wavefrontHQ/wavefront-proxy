@@ -13,6 +13,9 @@ import javax.annotation.Nullable;
 import sunnylabs.report.ReportPoint;
 
 /**
+ * Replace regex transformer. Performs search and replace on a specified component of a point (metric name,
+ * source name or a point tag value, depending on "scope" parameter.
+ *
  * Created by Vasily on 9/13/16.
  */
 public class ReportPointReplaceRegexTransformer implements Function<ReportPoint, ReportPoint> {
@@ -22,15 +25,14 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   private final Pattern compiledPattern;
   private final Counter ruleAppliedCounter;
 
-  public ReportPointReplaceRegexTransformer(final String patternMatch,
+  public ReportPointReplaceRegexTransformer(final String scope,
+                                            final String patternMatch,
                                             final String patternReplace,
-                                            final String scope,
-                                            @Nullable final Counter ruleAppliedCounter)
-  {
-    Preconditions.checkNotNull(scope);
-    Preconditions.checkNotNull(patternMatch);
-    Preconditions.checkNotNull(patternReplace);
-    Preconditions.checkArgument(!patternMatch.isEmpty());
+                                            @Nullable final Counter ruleAppliedCounter) {
+    Preconditions.checkNotNull(scope, "[scope] can't be null");
+    Preconditions.checkNotNull(patternMatch, "[match] can't be null");
+    Preconditions.checkNotNull(patternReplace, "[replace] can't be null");
+    Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
     this.patternReplace = patternReplace;
     this.scope = scope;
     this.compiledPattern = Pattern.compile(patternMatch);
@@ -43,7 +45,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     switch (scope) {
       case "metricName":
         patternMatcher = compiledPattern.matcher(reportPoint.getMetric());
-        if (patternMatcher.matches()) {
+        if (patternMatcher.find()) {
           reportPoint.setMetric(patternMatcher.replaceAll(patternReplace));
           if (ruleAppliedCounter != null) {
             ruleAppliedCounter.inc();
@@ -52,7 +54,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
         break;
       case "sourceName":
         patternMatcher = compiledPattern.matcher(reportPoint.getHost());
-        if (patternMatcher.matches()) {
+        if (patternMatcher.find()) {
           reportPoint.setHost(patternMatcher.replaceAll(patternReplace));
           if (ruleAppliedCounter != null) {
             ruleAppliedCounter.inc();
@@ -60,13 +62,15 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
         }
         break;
       default:
-        String tagValue = reportPoint.getAnnotations().get(scope);
-        if (tagValue != null) {
-          patternMatcher = compiledPattern.matcher(tagValue);
-          if (patternMatcher.matches()) {
-            reportPoint.getAnnotations().put(scope, patternMatcher.replaceAll(patternReplace));
-            if (ruleAppliedCounter != null) {
-              ruleAppliedCounter.inc();
+        if (reportPoint.getAnnotations() != null) {
+          String tagValue = reportPoint.getAnnotations().get(scope);
+          if (tagValue != null) {
+            patternMatcher = compiledPattern.matcher(tagValue);
+            if (patternMatcher.find()) {
+              reportPoint.getAnnotations().put(scope, patternMatcher.replaceAll(patternReplace));
+              if (ruleAppliedCounter != null) {
+                ruleAppliedCounter.inc();
+              }
             }
           }
         }
