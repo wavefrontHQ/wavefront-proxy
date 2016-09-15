@@ -38,6 +38,7 @@ public class Preprocessor<T> {
     return true;
   }
 
+  @Nullable
   public String getLastFilterResult() {
     return message;
   }

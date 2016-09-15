@@ -156,8 +156,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
         throw new Exception("Failed to write version response", f.cause());
       }
     } else {
-      ChannelStringHandler.processPointLine(messageStr, decoder, pointHandler,
-                                            preprocessor, ctx);
+      ChannelStringHandler.processPointLine(messageStr, decoder, pointHandler, preprocessor, ctx);
     }
   }
 

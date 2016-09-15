@@ -240,7 +240,6 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
   protected String preprocessorConfigFile = null;
 
-
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
@@ -447,8 +446,6 @@ public abstract class AbstractAgent {
 
       // read build information and print version.
       props = ResourceBundle.getBundle("build");
-      logger.info("Starting proxy version " + props.getString("build.version"));
-
       logger.info("Starting proxy version " + props.getString("build.version"));
 
       if (proxyHost != null) {

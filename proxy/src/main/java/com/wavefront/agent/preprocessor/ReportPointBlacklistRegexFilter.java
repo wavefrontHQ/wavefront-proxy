@@ -20,6 +20,7 @@ public class ReportPointBlacklistRegexFilter extends AnnotatedPredicate<ReportPo
 
   private final String scope;
   private final Pattern compiledPattern;
+  @Nullable
   private final Counter ruleAppliedCounter;
 
   public ReportPointBlacklistRegexFilter(final String scope,

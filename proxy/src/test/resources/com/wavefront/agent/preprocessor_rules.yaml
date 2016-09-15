@@ -1,3 +1,5 @@
+## set of preprocessor rules for unit tests
+
 'all': &default
 
     # only allow points that contain "foo" substring anywhere in the point line

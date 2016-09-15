@@ -19,6 +19,7 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
 
   private final String patternReplace;
   private final Pattern compiledPattern;
+  @Nullable
   private final Counter ruleAppliedCounter;
 
   public PointLineReplaceRegexTransformer(final String patternMatch,

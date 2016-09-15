@@ -19,6 +19,7 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
 
   private final String tag;
   private final String value;
+  @Nullable
   private final Counter ruleAppliedCounter;
 
   public ReportPointAddTagTransformer(final String tag,

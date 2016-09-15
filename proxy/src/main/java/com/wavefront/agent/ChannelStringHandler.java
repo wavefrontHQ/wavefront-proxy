@@ -74,8 +74,6 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     String msg = message;
     if (msg == null || msg.trim().length() == 0) return;
 
-    System.out.println("Received: " + msg);
-
     // transform the line if needed
     if (preprocessor != null) {
       msg = preprocessor.forPointLine().transform(msg);
@@ -116,27 +114,10 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
           pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
           return;
         }
-        System.out.println("Outgoing: " + pointToStringSB(point));
       }
     }
     pointHandler.reportPoints(points);
   }
-
-  //// DELETE!!!!
-  private static String pointToStringSB(ReportPoint point) {
-    StringBuilder sb = new StringBuilder("\"")
-        .append(point.getMetric().replaceAll("\"", "\\\"")).append("\" ")
-        .append(point.getValue()).append(" ")
-        .append(point.getTimestamp() / 1000).append(" ")
-        .append("source=\"").append(point.getHost().replaceAll("\"", "\\\"")).append("\"");
-    for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
-      sb.append(" \"").append(entry.getKey().replaceAll("\"", "\\\"")).append("\"")
-          .append("=")
-          .append("\"").append(entry.getValue().replaceAll("\"", "\\\"")).append("\"");
-    }
-    return sb.toString();
-  }
-
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {

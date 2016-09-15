@@ -151,8 +151,7 @@ public class PushAgent extends AbstractAgent {
 
   protected void startOpenTsdbListener(final String strPort) {
     if (prefix != null && !prefix.isEmpty()) {
-      preprocessors.forPort(strPort).forReportPoint().addTransformer(
-          new ReportPointAddPrefixTransformer(prefix));
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     final int port = Integer.parseInt(strPort);
     final PostPushDataTimedTask[] flushTasks = getFlushTasks(port);
@@ -169,12 +168,10 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions));
   }
 
-  protected void startPickleListener(final String strPort, GraphiteFormatter formatter) {
+  protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
     if (prefix != null && !prefix.isEmpty()) {
-      preprocessors.forPort(strPort).forReportPoint().addTransformer(
-          new ReportPointAddPrefixTransformer(prefix));
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
-
     int port = Integer.parseInt(strPort);
     // Set up a custom handler
     ChannelHandler handler = new ChannelByteArrayHandler(
@@ -206,10 +203,10 @@ public class PushAgent extends AbstractAgent {
   /**
    * Registers a custom point handler on a particular port.
    *
-   * @param strPort      The port to listen on.
-   * @param decoder      The decoder to use.
-   * @param pointHandler The handler to handle parsed ReportPoints.
-   * @param preprocessor Pre-processor (predicates and transform functions) for every point
+   * @param strPort       The port to listen on.
+   * @param decoder       The decoder to use.
+   * @param pointHandler  The handler to handle parsed ReportPoints.
+   * @param preprocessor  Pre-processor (predicates and transform functions) for every point
    */
   protected void startCustomListener(String strPort, Decoder<String> decoder, PointHandler pointHandler,
                                      @Nullable PointPreprocessor preprocessor) {
@@ -223,13 +220,11 @@ public class PushAgent extends AbstractAgent {
     int port = Integer.parseInt(strPort);
 
     if (prefix != null && !prefix.isEmpty()) {
-      preprocessors.forPort(strPort).forReportPoint().addTransformer(
-          new ReportPointAddPrefixTransformer(prefix));
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown", customSourceTags),
-        port, pushValidationLevel, pushBlockedSamples, getFlushTasks(port),
-        preprocessors.forPort(strPort));
+        port, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), preprocessors.forPort(strPort));
 
     if (formatter == null) {
       List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);

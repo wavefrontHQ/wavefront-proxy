@@ -16,7 +16,8 @@ public abstract class AnnotatedPredicate<T> implements Predicate<T> {
   /**
    * If special handling is needed based on the result of apply(), override getMessage() to return more details
    */
-  public @Nullable String getMessage(T input) {
+  @Nullable
+  public String getMessage(T input) {
     return null;
   }
 }

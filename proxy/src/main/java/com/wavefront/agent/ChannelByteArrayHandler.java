@@ -60,6 +60,11 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
       decoder.decodeReportPoints(msg, points, "dummy");
       for (final ReportPoint point: points) {
         if (preprocessor != null) {
+          // backwards compatibility: apply "pointLine" rules to metric name
+          if (!preprocessor.forPointLine().filter(point.getMetric())) {
+            pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+            continue;
+          }
           preprocessor.forReportPoint().transform(point);
           if (!preprocessor.forReportPoint().filter(point)) {
             pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());

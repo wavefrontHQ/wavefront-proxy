@@ -19,6 +19,7 @@ public class ReportPointAddTagIfNotExistsTransformer implements Function<ReportP
 
   private final String tag;
   private final String value;
+  @Nullable
   private final Counter ruleAppliedCounter;
 
   public ReportPointAddTagIfNotExistsTransformer(final String tag,

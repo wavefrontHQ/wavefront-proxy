@@ -19,7 +19,9 @@ import sunnylabs.report.ReportPoint;
 public class ReportPointDropTagTransformer implements Function<ReportPoint, ReportPoint> {
 
   private final String tag;
+  @Nullable
   private final Pattern compiledPattern;
+  @Nullable
   private final Counter ruleAppliedCounter;
 
   public ReportPointDropTagTransformer(final String tag,

@@ -20,7 +20,9 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
 
   private final String tag;
   private final String newTag;
+  @Nullable
   private final Pattern compiledPattern;
+  @Nullable
   private final Counter ruleAppliedCounter;
 
   public ReportPointRenameTagTransformer(final String tag,

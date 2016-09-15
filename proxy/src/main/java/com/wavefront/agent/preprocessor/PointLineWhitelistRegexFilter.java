@@ -16,6 +16,7 @@ import javax.annotation.Nullable;
 public class PointLineWhitelistRegexFilter extends AnnotatedPredicate<String> {
 
   private final Pattern compiledPattern;
+  @Nullable
   private final Counter ruleAppliedCounter;
 
   public PointLineWhitelistRegexFilter(final String patternMatch,

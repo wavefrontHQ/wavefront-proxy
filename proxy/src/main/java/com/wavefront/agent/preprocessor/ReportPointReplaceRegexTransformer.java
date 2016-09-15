@@ -23,6 +23,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   private final String patternReplace;
   private final String scope;
   private final Pattern compiledPattern;
+  @Nullable
   private final Counter ruleAppliedCounter;
 
   public ReportPointReplaceRegexTransformer(final String scope,
