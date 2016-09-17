@@ -21,8 +21,7 @@ public class PointLineBlacklistRegexFilter extends AnnotatedPredicate<String> {
 
   public PointLineBlacklistRegexFilter(final String patternMatch,
                                        @Nullable final Counter ruleAppliedCounter) {
-    Preconditions.checkNotNull(patternMatch, "[match] can't be null");
-    this.compiledPattern = Pattern.compile(patternMatch);
+    this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 

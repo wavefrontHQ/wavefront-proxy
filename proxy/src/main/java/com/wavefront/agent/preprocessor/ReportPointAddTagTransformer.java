@@ -25,11 +25,10 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
   public ReportPointAddTagTransformer(final String tag,
                                       final String value,
                                       @Nullable final Counter ruleAppliedCounter) {
-    Preconditions.checkNotNull(tag, "[tag] can't be null");
+    this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     Preconditions.checkNotNull(value, "[value] can't be null");
     Preconditions.checkArgument(!value.isEmpty(), "[value] can't be blank");
     this.value = value;
-    this.tag = tag;
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 

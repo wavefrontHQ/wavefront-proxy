@@ -45,6 +45,14 @@
 
 'all': &default  # use all rules defined here as "default"
 
+  # replace bad characters ("&", "$", "!") with underscores in the entire point line string
+  ################################################################
+  example-replace-badchars:
+    action  : replaceRegex
+    scope   : pointLine
+    search  : "[&\\$!]"
+    replace : "_"
+
   ## only allow points that contain "prod" substring anywhere in the point line
   ################################################################
   #example-allow-only-prod:
@@ -72,14 +80,6 @@
   #  action  : blacklistRegex
   #  scope   : datacenter
   #  match   : "west.*"
-
-  ## replace bad characters ("&", "$", "!") with underscores in the entire point line string
-  ################################################################
-  #example-replace-badchars:
-  #  action  : replaceRegex
-  #  scope   : pointLine
-  #  search  : "[&\\$!]"
-  #  replace : "_"
 
   ## remove "metrictest." from the metric name
   ################################################################

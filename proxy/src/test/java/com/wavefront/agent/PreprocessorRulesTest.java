@@ -3,6 +3,7 @@ package com.wavefront.agent;
 import com.google.common.collect.Lists;
 
 import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
+import com.wavefront.agent.preprocessor.AnnotatedPredicate;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineReplaceRegexTransformer;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
@@ -13,15 +14,19 @@ import com.wavefront.agent.preprocessor.ReportPointBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.ReportPointDropTagTransformer;
 import com.wavefront.agent.preprocessor.ReportPointRenameTagTransformer;
 import com.wavefront.agent.preprocessor.ReportPointReplaceRegexTransformer;
+import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.preprocessor.ReportPointWhitelistRegexFilter;
 import com.wavefront.ingester.GraphiteDecoder;
 
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -43,50 +48,98 @@ public class PreprocessorRulesTest {
     config.loadFromStream(stream);
   }
 
+  @Test
+  public void testPointInRangeCorrectForTimeRanges() throws NoSuchMethodException, InvocationTargetException,
+      IllegalAccessException {
+
+    long millisPerYear = 31536000000L;
+    long millisPerDay = 86400000L;
+
+    AnnotatedPredicate<ReportPoint> pointInRange1year = new ReportPointTimestampInRangeFilter(8760);
+
+    // not in range if over a year ago
+    ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear, 10L, "host", "table",
+        new HashMap<String, String>());
+    Assert.assertFalse(pointInRange1year.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() - millisPerYear - 1);
+    Assert.assertFalse(pointInRange1year.apply(rp));
+
+    // in range if within a year ago
+    rp.setTimestamp(System.currentTimeMillis() - (millisPerYear / 2));
+    Assert.assertTrue(pointInRange1year.apply(rp));
+
+    // in range for right now
+    rp.setTimestamp(System.currentTimeMillis());
+    Assert.assertTrue(pointInRange1year.apply(rp));
+
+    // in range if within a day in the future
+    rp.setTimestamp(System.currentTimeMillis() + millisPerDay - 1);
+    Assert.assertTrue(pointInRange1year.apply(rp));
+
+    // out of range for over a day in the future
+    rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 2));
+    Assert.assertFalse(pointInRange1year.apply(rp));
+
+    // now test with 1 day limit
+    AnnotatedPredicate<ReportPoint> pointInRange1day = new ReportPointTimestampInRangeFilter(24);
+
+    rp.setTimestamp(System.currentTimeMillis() - millisPerDay - 1);
+    Assert.assertFalse(pointInRange1day.apply(rp));
+
+    // in range if within 1 day ago
+    rp.setTimestamp(System.currentTimeMillis() - (millisPerDay / 2));
+    Assert.assertTrue(pointInRange1day.apply(rp));
+
+    // in range for right now
+    rp.setTimestamp(System.currentTimeMillis());
+    Assert.assertTrue(pointInRange1day.apply(rp));
+  }
+
   @Test(expected = NullPointerException.class)
-  public void testInvalidPointLineRule1() {
+  public void testLineReplaceRegexNullMatchThrows() {
     // try to create a regex replace rule with a null match pattern
     PointLineReplaceRegexTransformer invalidRule = new PointLineReplaceRegexTransformer(null, "foo", null);
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testInvalidPointLineRule2() {
+  public void testLineReplaceRegexBlankMatchThrows() {
     // try to create a regex replace rule with a blank match pattern
     PointLineReplaceRegexTransformer invalidRule = new PointLineReplaceRegexTransformer("", "foo", null);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testInvalidPointLineRule3() {
+  public void testLineWhitelistRegexNullMatchThrows() {
     // try to create a whitelist rule with a null match pattern
     PointLineWhitelistRegexFilter invalidRule = new PointLineWhitelistRegexFilter(null, null);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testInvalidPointLineRule4() {
+  public void testLineBlacklistRegexNullMatchThrows() {
     // try to create a blacklist rule with a null match pattern
     PointLineBlacklistRegexFilter invalidRule = new PointLineBlacklistRegexFilter(null, null);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testInvalidReportPointRule1() {
+  public void testPointBlacklistRegexNullScopeThrows() {
     // try to create a blacklist rule with a null scope
     ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter(null, "foo", null);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testInvalidReportPointRule2() {
+  public void testPointBlacklistRegexNullMatchThrows() {
     // try to create a blacklist rule with a null pattern
     ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter("foo", null, null);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testInvalidReportPointRule3() {
+  public void testPointWhitelistRegexNullScopeThrows() {
     // try to create a whitelist rule with a null scope
     ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter(null, "foo", null);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testInvalidReportPointRule4() {
+  public void testPointWhitelistRegexNullMatchThrows() {
     // try to create a blacklist rule with a null pattern
     ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter("foo", null, null);
   }
@@ -114,29 +167,26 @@ public class PreprocessorRulesTest {
 
   @Test
   public void testReportPointRules() {
-    Map<String, String> annotations = new TreeMap<>();
-    annotations.put("foo", "bar");
-    annotations.put("boo", "baz");
-    ReportPoint point = new ReportPoint("some metric", 1469751813000L, 10L, "host", "table", annotations);
-    String expectedPoint0 = "\"some metric\" 10 1469751813 source=\"host\" \"boo\"=\"baz\" \"foo\"=\"bar\"";
+    String pointLine = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\" \"foo\"=\"bar\"";
+    ReportPoint point = parsePointLine(pointLine);
 
     // try to remove a point tag when value doesn't match the regex - shouldn't change
     new ReportPointDropTagTransformer("foo", "bar(never|match)", null).apply(point);
-    assertEquals(expectedPoint0, PointHandlerImpl.pointToString(point));
+    assertEquals(pointLine, PointHandlerImpl.pointToString(point));
 
     // try to remove a point tag when value does match the regex - should work
     new ReportPointDropTagTransformer("foo", "ba.", null).apply(point);
-    String expectedPoint1 = "\"some metric\" 10 1469751813 source=\"host\" \"boo\"=\"baz\"";
+    String expectedPoint1 = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\"";
     assertEquals(expectedPoint1, PointHandlerImpl.pointToString(point));
 
     // try to remove a point tag without a regex specified - should work
     new ReportPointDropTagTransformer("boo", null, null).apply(point);
-    String expectedPoint2 = "\"some metric\" 10 1469751813 source=\"host\"";
+    String expectedPoint2 = "\"some metric\" 10.0 1469751813 source=\"host\"";
     assertEquals(expectedPoint2, PointHandlerImpl.pointToString(point));
 
     // add a point tag back
     new ReportPointAddTagTransformer("boo", "baz", null).apply(point);
-    String expectedPoint3 = "\"some metric\" 10 1469751813 source=\"host\" \"boo\"=\"baz\"";
+    String expectedPoint3 = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\"";
     assertEquals(expectedPoint3, PointHandlerImpl.pointToString(point));
 
     // try to add a duplicate point tag - shouldn't change
@@ -145,16 +195,16 @@ public class PreprocessorRulesTest {
 
     // add another point tag back - should work this time
     new ReportPointAddTagIfNotExistsTransformer("foo", "bar", null).apply(point);
-    assertEquals(expectedPoint0, PointHandlerImpl.pointToString(point));
+    assertEquals(pointLine, PointHandlerImpl.pointToString(point));
 
     // rename a point tag - should work
     new ReportPointRenameTagTransformer("foo", "qux", null, null).apply(point);
-    String expectedPoint4 = "\"some metric\" 10 1469751813 source=\"host\" \"boo\"=\"baz\" \"qux\"=\"bar\"";
+    String expectedPoint4 = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint4, PointHandlerImpl.pointToString(point));
 
     // rename a point tag matching the regex - should work
     new ReportPointRenameTagTransformer("boo", "foo", "b[a-z]z", null).apply(point);
-    String expectedPoint5 = "\"some metric\" 10 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
+    String expectedPoint5 = "\"some metric\" 10.0 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint5, PointHandlerImpl.pointToString(point));
 
     // try to rename a point tag that doesn't match the regex - shouldn't change
@@ -171,7 +221,7 @@ public class PreprocessorRulesTest {
 
     // add metrics prefix - should work
     new ReportPointAddPrefixTransformer("prefix").apply(point);
-    String expectedPoint6 = "\"prefix.some metric\" 10 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
+    String expectedPoint6 = "\"prefix.some metric\" 10.0 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint6, PointHandlerImpl.pointToString(point));
 
     // replace regex in metric name, no matches - shouldn't change
@@ -180,22 +230,22 @@ public class PreprocessorRulesTest {
 
     // replace regex in metric name - shouldn't affect anything else
     new ReportPointReplaceRegexTransformer("metricName", "o", "0", null).apply(point);
-    String expectedPoint7 = "\"prefix.s0me metric\" 10 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
+    String expectedPoint7 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint7, PointHandlerImpl.pointToString(point));
 
     // replace regex in source name - shouldn't affect anything else
     new ReportPointReplaceRegexTransformer("sourceName", "o", "0", null).apply(point);
-    String expectedPoint8 = "\"prefix.s0me metric\" 10 1469751813 source=\"h0st\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
+    String expectedPoint8 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint8, PointHandlerImpl.pointToString(point));
 
     // replace regex in a point tag value - shouldn't affect anything else
     new ReportPointReplaceRegexTransformer("foo", "b", "z", null).apply(point);
-    String expectedPoint9 = "\"prefix.s0me metric\" 10 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"bar\"";
+    String expectedPoint9 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint9, PointHandlerImpl.pointToString(point));
 
     // replace regex in a point tag value with matching groups
     new ReportPointReplaceRegexTransformer("qux", "([a-c][a-c]).", "$1z", null).apply(point);
-    String expectedPoint10 = "\"prefix.s0me metric\" 10 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"baz\"";
+    String expectedPoint10 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"baz\"";
     assertEquals(expectedPoint10, PointHandlerImpl.pointToString(point));
   }
 
@@ -235,9 +285,9 @@ public class PreprocessorRulesTest {
     config.forPort("2878").forReportPoint().transform(testPoint1);
     config.forPort("4242").forReportPoint().transform(testPoint1a);
     String expectedPoint1 = "\"collectd.cpu.loadavg.1m\" 7.0 1459527231 " +
-        "source=\"hostname\" \"boo\"=\"baz\" \"baz\"=\"bar\" \"newtagkey\"=\"1\"";
+        "source=\"hostname\" \"baz\"=\"bar\" \"boo\"=\"baz\" \"newtagkey\"=\"1\"";
     String expectedPoint1a = "\"collectd.cpu.loadavg.1m\" 7.0 1459527231 " +
-        "source=\"hostname\" \"boo\"=\"baz\" \"baz\"=\"bar\"";
+        "source=\"hostname\" \"baz\"=\"bar\" \"boo\"=\"baz\"";
     assertEquals(expectedPoint1, PointHandlerImpl.pointToString(testPoint1));
     assertEquals(expectedPoint1a, PointHandlerImpl.pointToString(testPoint1a));
 
@@ -249,7 +299,7 @@ public class PreprocessorRulesTest {
     ReportPoint testPoint5 = parsePointLine(pointLine5);
     config.forPort("2878").forReportPoint().transform(testPoint5);
     String expectedPoint5 = "\"metric\" 7.0 1459527231 source=\"src\" " +
-        "\"baz\"=\"bar\" \"newtagkey\"=\"1\" \"datacenter\"=\"az1\" \"bar\"=\"baz.baz.baz\" \"qux\"=\"123z\"";
+        "\"bar\"=\"baz.baz.baz\" \"baz\"=\"bar\" \"datacenter\"=\"az1\" \"newtagkey\"=\"1\" \"qux\"=\"123z\"";
     assertEquals(expectedPoint5, PointHandlerImpl.pointToString(testPoint5));
 
     // in this test the following should happen:
@@ -269,6 +319,9 @@ public class PreprocessorRulesTest {
   private ReportPoint parsePointLine(String pointLine) {
     List<ReportPoint> points = Lists.newArrayListWithExpectedSize(1);
     decoder.decodeReportPoints(pointLine, points, "dummy");
-    return points.get(0);
+    ReportPoint point = points.get(0);
+    // convert annotations to TreeMap so the result is deterministic
+    point.setAnnotations(new TreeMap<>(point.getAnnotations()));
+    return point;
   }
 }

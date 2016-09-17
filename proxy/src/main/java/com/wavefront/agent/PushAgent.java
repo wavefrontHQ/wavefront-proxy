@@ -8,6 +8,7 @@ import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
+import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.GraphiteDecoder;
@@ -73,7 +74,7 @@ public class PushAgent extends AbstractAgent {
     if (pushListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
       for (String strPort : ports) {
-        startGraphiteListener(strPort, null);
+        startGraphiteListener(strPort, false);
       }
     }
     GraphiteFormatter graphiteFormatter = null;
@@ -85,7 +86,7 @@ public class PushAgent extends AbstractAgent {
       for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
           preprocessors.forPort(strPort).forPointLine().addTransformer(0, graphiteFormatter);
-          startGraphiteListener(strPort, graphiteFormatter);
+          startGraphiteListener(strPort, true);
           logger.info("listening on port: " + strPort + " for graphite metrics");
         }
       }
@@ -112,14 +113,16 @@ public class PushAgent extends AbstractAgent {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(httpJsonPorts);
       for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
+          preprocessors.forPort(strPort).forReportPoint()
+              .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
           try {
             int port = Integer.parseInt(strPort);
             // will immediately start the server.
             JettyHttpContainerFactory.createServer(
                 new URI("http://localhost:" + strPort + "/"),
                 new ResourceConfig(JacksonFeature.class).
-                    register(new JsonMetricsEndpoint(port, hostname, prefix,
-                        pushValidationLevel, pushBlockedSamples, getFlushTasks(port))), true);
+                    register(new JsonMetricsEndpoint(port, hostname, prefix, pushValidationLevel,
+                        pushBlockedSamples, getFlushTasks(port), preprocessors.forPort(strPort))), true);
             logger.info("listening on port: " + strPort + " for HTTP JSON metrics");
           } catch (URISyntaxException e) {
             throw new RuntimeException("Unable to bind to: " + strPort + " for HTTP JSON metrics", e);
@@ -131,6 +134,8 @@ public class PushAgent extends AbstractAgent {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonPorts);
       for (String strPort : ports) {
         if (strPort.trim().length() > 0) {
+          preprocessors.forPort(strPort).forReportPoint()
+              .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
           try {
             int port = Integer.parseInt(strPort);
             // will immediately start the server.
@@ -138,7 +143,7 @@ public class PushAgent extends AbstractAgent {
                 new URI("http://localhost:" + strPort + "/"),
                 new ResourceConfig(JacksonFeature.class).
                     register(new WriteHttpJsonMetricsEndpoint(port, hostname, prefix,
-                        pushValidationLevel, pushBlockedSamples, getFlushTasks(port))),
+                        pushValidationLevel, pushBlockedSamples, getFlushTasks(port), preprocessors.forPort(strPort))),
                 true);
             logger.info("listening on port: " + strPort + " for Write HTTP JSON metrics");
           } catch (URISyntaxException e) {
@@ -153,6 +158,8 @@ public class PushAgent extends AbstractAgent {
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
+    preprocessors.forPort(strPort).forReportPoint()
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
     final int port = Integer.parseInt(strPort);
     final PostPushDataTimedTask[] flushTasks = getFlushTasks(port);
     ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
@@ -172,6 +179,8 @@ public class PushAgent extends AbstractAgent {
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
+    preprocessors.forPort(strPort).forReportPoint()
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
     int port = Integer.parseInt(strPort);
     // Set up a custom handler
     ChannelHandler handler = new ChannelByteArrayHandler(
@@ -215,18 +224,19 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(new StringLineIngester(channelHandler, port).withChildChannelOptions(childChannelOptions));
   }
 
-  protected void startGraphiteListener(String strPort,
-                                       @Nullable Function<String, String> formatter) {
+  protected void startGraphiteListener(String strPort, boolean withCustomFormatter) {
     int port = Integer.parseInt(strPort);
 
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
+    preprocessors.forPort(strPort).forReportPoint()
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown", customSourceTags),
         port, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), preprocessors.forPort(strPort));
 
-    if (formatter == null) {
+    if (!withCustomFormatter) {
       List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);
       handler.add(new Function<Channel, ChannelHandler>() {
         @Override

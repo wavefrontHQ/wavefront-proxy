@@ -3,6 +3,7 @@ package com.wavefront.agent;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.metrics.JsonMetricsParser;
 
@@ -34,14 +35,18 @@ public class JsonMetricsEndpoint extends PointHandlerImpl {
   @Nullable
   private final String prefix;
   private final String defaultHost;
+  @Nullable
+  private final PointPreprocessor preprocessor;
 
   public JsonMetricsEndpoint(final int port, final String host,
                              @Nullable
                              final String prefix, final String validationLevel, final int blockedPointsPerBatch,
-                             PostPushDataTimedTask[] postPushDataTimedTasks) {
+                             PostPushDataTimedTask[] postPushDataTimedTasks,
+                             @Nullable final PointPreprocessor preprocessor) {
     super(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
     this.prefix = prefix;
     this.defaultHost = host;
+    this.preprocessor = preprocessor;
   }
 
   @POST
@@ -75,6 +80,13 @@ public class JsonMetricsEndpoint extends PointHandlerImpl {
         Map<String, String> newAnnotations = Maps.newHashMap(tags);
         newAnnotations.putAll(point.getAnnotations());
         point.setAnnotations(newAnnotations);
+      }
+      if (preprocessor != null) {
+        if (!preprocessor.forReportPoint().filter(point)) {
+          handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+          continue;
+        }
+        preprocessor.forReportPoint().transform(point);
       }
       reportPoint(point, "json: " + pointToString(point));
     }

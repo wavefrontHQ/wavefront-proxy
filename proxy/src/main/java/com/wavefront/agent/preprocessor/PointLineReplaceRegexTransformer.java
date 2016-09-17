@@ -26,9 +26,8 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
                                           final String patternReplace,
                                           @Nullable final Counter ruleAppliedCounter) {
     Preconditions.checkNotNull(patternMatch, "[match] can't be null");
-    Preconditions.checkNotNull(patternReplace, "[replace] can't be null");
     Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
-    this.patternReplace = patternReplace;
+    this.patternReplace = Preconditions.checkNotNull(patternReplace, "[replace] can't be null");
     this.compiledPattern = Pattern.compile(patternMatch);
     this.ruleAppliedCounter = ruleAppliedCounter;
   }

@@ -27,8 +27,7 @@ public class ReportPointDropTagTransformer implements Function<ReportPoint, Repo
   public ReportPointDropTagTransformer(final String tag,
                                        @Nullable final String patternMatch,
                                        @Nullable final Counter ruleAppliedCounter) {
-    Preconditions.checkNotNull(tag, "[tag] can't be null");
-    this.tag = tag;
+    this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.compiledPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     this.ruleAppliedCounter = ruleAppliedCounter;
   }

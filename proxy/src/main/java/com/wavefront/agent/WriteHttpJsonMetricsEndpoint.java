@@ -1,6 +1,7 @@
 package com.wavefront.agent;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.wavefront.agent.preprocessor.PointPreprocessor;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,14 +30,18 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
   @Nullable
   private final String prefix;
   private final String defaultHost;
+  @Nullable
+  private final PointPreprocessor preprocessor;
 
   public WriteHttpJsonMetricsEndpoint(final int port, final String host,
                                       @Nullable
                                       final String prefix, final String validationLevel,
-                                      final int blockedPointsPerBatch, PostPushDataTimedTask[] postPushDataTimedTasks) {
+                                      final int blockedPointsPerBatch, PostPushDataTimedTask[] postPushDataTimedTasks,
+                                      @Nullable final PointPreprocessor preprocessor) {
     super(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
     this.prefix = prefix;
     this.defaultHost = host;
+    this.preprocessor = preprocessor;
   }
 
   @POST
@@ -88,6 +93,12 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
             builder.setValue(value.asLong());
           }
           ReportPoint point = builder.build();
+          if (preprocessor != null) {
+            if (!preprocessor.forReportPoint().filter(point)) {
+              handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+            }
+            preprocessor.forReportPoint().transform(point);
+          }
           reportPoint(point, "write_http json: " + pointToString(point));
           index++;
         }

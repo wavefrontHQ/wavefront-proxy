@@ -29,11 +29,10 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
                                          final String newTag,
                                          @Nullable final String patternMatch,
                                          @Nullable final Counter ruleAppliedCounter) {
-    Preconditions.checkNotNull(tag, "[tag] can't be null");
+    this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     Preconditions.checkNotNull(newTag, "[newtag] can't be null");
     Preconditions.checkArgument(!newTag.isEmpty(), "[newtag] can't be blank");
     this.newTag = newTag;
-    this.tag = tag;
     this.compiledPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     this.ruleAppliedCounter = ruleAppliedCounter;
   }

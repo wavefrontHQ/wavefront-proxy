@@ -240,6 +240,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
   protected String preprocessorConfigFile = null;
 
+  @Parameter(names = {"--dataBackfillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for back-dated points. Default is 8760 (1 year)")
+  protected int dataBackfillCutoffHours = 8760;
+
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
@@ -398,6 +401,8 @@ public abstract class AbstractAgent {
         picklePorts = prop.getProperty("picklePorts", picklePorts);
         bufferFile = prop.getProperty("buffer", bufferFile);
         preprocessorConfigFile = prop.getProperty("preprocessorConfigFile", preprocessorConfigFile);
+        dataBackfillCutoffHours = Integer.parseInt(prop.getProperty("dataBackfillCutoffHours",
+            String.valueOf(dataBackfillCutoffHours)));
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);

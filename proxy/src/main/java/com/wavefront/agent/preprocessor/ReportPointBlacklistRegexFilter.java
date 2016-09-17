@@ -26,10 +26,8 @@ public class ReportPointBlacklistRegexFilter extends AnnotatedPredicate<ReportPo
   public ReportPointBlacklistRegexFilter(final String scope,
                                          final String patternMatch,
                                          @Nullable final Counter ruleAppliedCounter) {
-    Preconditions.checkNotNull(patternMatch, "[match] can't be null");
-    Preconditions.checkNotNull(scope, "[scope] can't be null");
-    this.scope = scope;
-    this.compiledPattern = Pattern.compile(patternMatch);
+    this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
+    this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 
