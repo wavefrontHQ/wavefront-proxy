@@ -11,7 +11,10 @@
 # Required-Stop:
 ### END INIT INFO
 
-#############################
+################################################################################
+# File any issues here: https://github.com/wavefrontHQ/java/issues.
+################################################################################
+
 service_name=$(basename "$0")
 # Source custom settings
 sysconfig="/etc/sysconfig/$service_name"
@@ -33,7 +36,9 @@ class="com.wavefront.agent.PushAgentDaemon"
 app_args=${APP_ARGS:--f $conf_file}
 java_args=${JAVA_ARGS:--XX:+AggressiveHeap}
 
-# Legacy support for overrding JVM args in wavefront_proxy_launch.conf.
+# Legacy support for overrding JVM args in wavefront_proxy_launch.conf. We don't ship this starting in 3.25,
+# use /etc/sysconfig/wavefront-proxy for all configuration instead (this is a RHEL idiom, but it will work
+# just as well in debian flavors).
 proxy_launch_conf="/opt/wavefront/wavefront-proxy/conf/wavefront_proxy_launch.conf"
 if [[ -r $proxy_launch_conf ]]; then
 	replacement_java_args=$(grep -ve '[[:space:]]*#' $proxy_launch_conf | tr '\n' ' ' | sed -e 's/^[[:space:]]*//' | sed -e 's/[[:space:]]*$//')
@@ -51,6 +56,7 @@ jsvc_exec()
 {
 	cd "$(dirname "$agent_jar")"
 	[[ ! -f "$log_file" ]] && touch "$log_file" && chown "$user":"$user" "$log_file"
+	# We want word splitting below, as we're building up a command line.
 	# shellcheck disable=SC2086
 	$jsvc \
 		-user $user \
