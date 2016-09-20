@@ -13,6 +13,7 @@ RUN apt-get -y update
 RUN apt-get install -y curl
 RUN curl -SLO https://github.com/Yelp/dumb-init/releases/download/v1.1.3/dumb-init_1.1.3_amd64.deb
 RUN dpkg -i dumb-init_*.deb
+RUN rm dumb-init_*.deb
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Download wavefront. Merely extract the debian, don't want to try running startup scripts.
