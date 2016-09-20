@@ -2,10 +2,11 @@ FROM ubuntu:14.04
 
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
-#  WAVEFRONT_URL  (required)
-#  WAVEFRONT_TOKEN  (required)
-#  WAVEFRONT_HOSTNAME
-#  WAVEFRONT_USE_GRAPHITE
+#  WAVEFRONT_URL           (required)
+#  WAVEFRONT_TOKEN         (required)
+#  JAVA_HEAP_USAGE         (defualt is 4G)
+#  WAVEFRONT_HOSTNAME      (default is the docker containers hostname)
+#  WAVEFRONT_USE_GRAPHITE  (default is false)
 
 # Dumb-init
 RUN apt-get -y update
