@@ -98,12 +98,15 @@ if [[ $response =~ ^[Yy]$ ]]; then
 	sed -ri 's,^#graphitePorts(.*),graphitePorts\1,g' $CONF_FILE
 	sed -ri 's,^#graphiteFormat(.*),graphiteFormat\1,g' $CONF_FILE
 	sed -ri 's,^#graphiteDelimiters(.*),graphiteDelimiters\1,g' $CONF_FILE
-	/etc/init.d/$APP_BASE-proxy restart
 else
 	echo "Disabling Graphite settings"
 	sed -ri 's,^graphitePorts(.*),#graphitePorts\1,g' $CONF_FILE
 	sed -ri 's,^graphiteFormat(.*),#graphiteFormat\1,g' $CONF_FILE
 	sed -ri 's,^graphiteDelimiters(.*),#graphiteDelimiters\1,g' $CONF_FILE
+fi
+
+DO_SERVICE_RESTART=${DO_SERVICE_RESTART:-true}
+if [[ "$DO_SERVICE_RESTART" == "true" ]]; then
 	/etc/init.d/$APP_BASE-proxy restart
 fi
 
