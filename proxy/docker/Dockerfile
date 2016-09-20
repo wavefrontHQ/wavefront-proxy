@@ -31,7 +31,6 @@ EXPOSE 3878
 EXPOSE 2878
 EXPOSE 4242
 
-RUN adduser --disabled-password --gecos '' newuser
 ENV PATH=/opt/wavefront/wavefront-proxy/jre/bin:$PATH
 ENV WAVEFRONT_USE_GRAPHITE=false
 ADD run.sh run.sh
