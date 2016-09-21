@@ -18,4 +18,6 @@ java \
 	-Xmx$java_heap_usage -Xms$java_heap_usage \
 	-jar /opt/wavefront/wavefront-proxy/bin/wavefront-push-agent.jar \
 	-f /opt/wavefront/wavefront-proxy/conf/wavefront.conf \
-	>> $logfile 2>&1
+	2>&1 | tee $logfile
+
+tail -f $logfile
