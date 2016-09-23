@@ -39,6 +39,10 @@ public class PointHandlerImpl implements PointHandler {
   private final Histogram receivedPointLag;
   private final String validationLevel;
   private final int port;
+  private final long discardPointsHours;
+
+  //private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
+  private final double millisDiscard;
 
   @Nullable
   private final String prefix;
@@ -49,19 +53,23 @@ public class PointHandlerImpl implements PointHandler {
   public PointHandlerImpl(final int port,
                           final String validationLevel,
                           final int blockedPointsPerBatch,
+                          final long discardPointsHours,
                           final PostPushDataTimedTask[] sendDataTasks) {
-    this(port, validationLevel, blockedPointsPerBatch, null, sendDataTasks);
+    this(port, validationLevel, blockedPointsPerBatch, null, discardPointsHours, sendDataTasks);
   }
 
   public PointHandlerImpl(final int port,
                           final String validationLevel,
                           final int blockedPointsPerBatch,
                           @Nullable final String prefix,
+                          final long discardPointsHours,
                           final PostPushDataTimedTask[] sendDataTasks) {
     this.validationLevel = validationLevel;
     this.port = port;
     this.blockedPointsPerBatch = blockedPointsPerBatch;
     this.prefix = prefix;
+    this.discardPointsHours = discardPointsHours;
+    this.millisDiscard = DateUtils.MILLIS_PER_DAY * ((double) this.discardPointsHours/24);
 
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
     this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
@@ -172,7 +180,6 @@ public class PointHandlerImpl implements PointHandler {
     randomPostTask.incrementBlockedPoints();
   }
 
-  private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
 
   @VisibleForTesting
   static boolean annotationKeysAreValid(ReportPoint point) {
@@ -223,12 +230,12 @@ public class PointHandlerImpl implements PointHandler {
   }
 
   @VisibleForTesting
-  static boolean pointInRange(ReportPoint point) {
+  boolean pointInRange(ReportPoint point) {
     long pointTime = point.getTimestamp();
     long rightNow = System.currentTimeMillis();
 
-    // within 1 year ago and 1 day ahead
-    return (pointTime > (rightNow - MILLIS_IN_YEAR)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
+    // default is within 1 year ago and 1 day ahead. End user can discard points if older than certain hours
+    return (pointTime > (rightNow - millisDiscard)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
   }
 
   private static String pointToStringSB(ReportPoint point) {
