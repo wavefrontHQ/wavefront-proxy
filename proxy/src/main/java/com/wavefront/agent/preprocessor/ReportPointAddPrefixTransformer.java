@@ -3,6 +3,7 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 
 import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 
 import sunnylabs.report.ReportPoint;
 
@@ -21,7 +22,7 @@ public class ReportPointAddPrefixTransformer implements Function<ReportPoint, Re
   }
 
   @Override
-  public ReportPoint apply(ReportPoint reportPoint) {
+  public ReportPoint apply(@NotNull ReportPoint reportPoint) {
     if (prefix != null && !prefix.isEmpty()) {
       reportPoint.setMetric(prefix + "." + reportPoint.getMetric());
     }

@@ -6,6 +6,8 @@ import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.lang.time.DateUtils;
 
+import javax.validation.constraints.NotNull;
+
 import sunnylabs.report.ReportPoint;
 
 /**
@@ -25,7 +27,7 @@ public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<Report
   }
 
   @Override
-  public boolean apply(ReportPoint point) {
+  public boolean apply(@NotNull ReportPoint point) {
     long pointTime = point.getTimestamp();
     long rightNow = System.currentTimeMillis();
 

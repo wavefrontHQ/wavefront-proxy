@@ -7,6 +7,7 @@ import com.google.common.collect.Maps;
 import com.yammer.metrics.core.Counter;
 
 import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 
 import sunnylabs.report.ReportPoint;
 
@@ -26,14 +27,14 @@ public class ReportPointAddTagIfNotExistsTransformer implements Function<ReportP
                                                  final String value,
                                                  @Nullable final Counter ruleAppliedCounter) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
-    Preconditions.checkNotNull(value, "[value] can't be null");
+    this.value = Preconditions.checkNotNull(value, "[value] can't be null");
+    Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");
     Preconditions.checkArgument(!value.isEmpty(), "[value] can't be blank");
-    this.value = value;
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 
   @Override
-  public ReportPoint apply(ReportPoint reportPoint) {
+  public ReportPoint apply(@NotNull ReportPoint reportPoint) {
     if (reportPoint.getAnnotations() == null) {
       reportPoint.setAnnotations(Maps.<String, String>newHashMap());
     }

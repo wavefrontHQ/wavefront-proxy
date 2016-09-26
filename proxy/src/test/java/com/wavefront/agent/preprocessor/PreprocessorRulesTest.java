@@ -1,21 +1,7 @@
-package com.wavefront.agent;
+package com.wavefront.agent.preprocessor;
 
 import com.google.common.collect.Lists;
 
-import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
-import com.wavefront.agent.preprocessor.AnnotatedPredicate;
-import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
-import com.wavefront.agent.preprocessor.PointLineReplaceRegexTransformer;
-import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
-import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
-import com.wavefront.agent.preprocessor.ReportPointAddTagIfNotExistsTransformer;
-import com.wavefront.agent.preprocessor.ReportPointAddTagTransformer;
-import com.wavefront.agent.preprocessor.ReportPointBlacklistRegexFilter;
-import com.wavefront.agent.preprocessor.ReportPointDropTagTransformer;
-import com.wavefront.agent.preprocessor.ReportPointRenameTagTransformer;
-import com.wavefront.agent.preprocessor.ReportPointReplaceRegexTransformer;
-import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
-import com.wavefront.agent.preprocessor.ReportPointWhitelistRegexFilter;
 import com.wavefront.ingester.GraphiteDecoder;
 
 import org.junit.Assert;
@@ -172,85 +158,85 @@ public class PreprocessorRulesTest {
 
     // try to remove a point tag when value doesn't match the regex - shouldn't change
     new ReportPointDropTagTransformer("foo", "bar(never|match)", null).apply(point);
-    assertEquals(pointLine, PointHandlerImpl.pointToString(point));
+    assertEquals(pointLine, referencePointToStringImpl(point));
 
     // try to remove a point tag when value does match the regex - should work
     new ReportPointDropTagTransformer("foo", "ba.", null).apply(point);
     String expectedPoint1 = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\"";
-    assertEquals(expectedPoint1, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint1, referencePointToStringImpl(point));
 
     // try to remove a point tag without a regex specified - should work
     new ReportPointDropTagTransformer("boo", null, null).apply(point);
     String expectedPoint2 = "\"some metric\" 10.0 1469751813 source=\"host\"";
-    assertEquals(expectedPoint2, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint2, referencePointToStringImpl(point));
 
     // add a point tag back
     new ReportPointAddTagTransformer("boo", "baz", null).apply(point);
     String expectedPoint3 = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\"";
-    assertEquals(expectedPoint3, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint3, referencePointToStringImpl(point));
 
     // try to add a duplicate point tag - shouldn't change
     new ReportPointAddTagIfNotExistsTransformer("boo", "bar", null).apply(point);
-    assertEquals(expectedPoint3, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint3, referencePointToStringImpl(point));
 
     // add another point tag back - should work this time
     new ReportPointAddTagIfNotExistsTransformer("foo", "bar", null).apply(point);
-    assertEquals(pointLine, PointHandlerImpl.pointToString(point));
+    assertEquals(pointLine, referencePointToStringImpl(point));
 
     // rename a point tag - should work
     new ReportPointRenameTagTransformer("foo", "qux", null, null).apply(point);
     String expectedPoint4 = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\" \"qux\"=\"bar\"";
-    assertEquals(expectedPoint4, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint4, referencePointToStringImpl(point));
 
     // rename a point tag matching the regex - should work
     new ReportPointRenameTagTransformer("boo", "foo", "b[a-z]z", null).apply(point);
     String expectedPoint5 = "\"some metric\" 10.0 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
-    assertEquals(expectedPoint5, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint5, referencePointToStringImpl(point));
 
     // try to rename a point tag that doesn't match the regex - shouldn't change
     new ReportPointRenameTagTransformer("foo", "boo", "wat", null).apply(point);
-    assertEquals(expectedPoint5, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint5, referencePointToStringImpl(point));
 
     // add null metrics prefix - shouldn't change
     new ReportPointAddPrefixTransformer(null).apply(point);
-    assertEquals(expectedPoint5, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint5, referencePointToStringImpl(point));
 
     // add blank metrics prefix - shouldn't change
     new ReportPointAddPrefixTransformer("").apply(point);
-    assertEquals(expectedPoint5, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint5, referencePointToStringImpl(point));
 
     // add metrics prefix - should work
     new ReportPointAddPrefixTransformer("prefix").apply(point);
     String expectedPoint6 = "\"prefix.some metric\" 10.0 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
-    assertEquals(expectedPoint6, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint6, referencePointToStringImpl(point));
 
     // replace regex in metric name, no matches - shouldn't change
     new ReportPointReplaceRegexTransformer("metricName", "Z", "", null).apply(point);
-    assertEquals(expectedPoint6, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint6, referencePointToStringImpl(point));
 
     // replace regex in metric name - shouldn't affect anything else
     new ReportPointReplaceRegexTransformer("metricName", "o", "0", null).apply(point);
     String expectedPoint7 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
-    assertEquals(expectedPoint7, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint7, referencePointToStringImpl(point));
 
     // replace regex in source name - shouldn't affect anything else
     new ReportPointReplaceRegexTransformer("sourceName", "o", "0", null).apply(point);
     String expectedPoint8 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
-    assertEquals(expectedPoint8, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint8, referencePointToStringImpl(point));
 
     // replace regex in a point tag value - shouldn't affect anything else
     new ReportPointReplaceRegexTransformer("foo", "b", "z", null).apply(point);
     String expectedPoint9 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"bar\"";
-    assertEquals(expectedPoint9, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint9, referencePointToStringImpl(point));
 
     // replace regex in a point tag value with matching groups
     new ReportPointReplaceRegexTransformer("qux", "([a-c][a-c]).", "$1z", null).apply(point);
     String expectedPoint10 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"baz\"";
-    assertEquals(expectedPoint10, PointHandlerImpl.pointToString(point));
+    assertEquals(expectedPoint10, referencePointToStringImpl(point));
   }
 
   @Test
-  public void agentPreprocessorForPointLineTest() {
+  public void testAgentPreprocessorForPointLine() {
 
     // test point line transformers
     String testPoint1 = "collectd.#cpu#.&load$avg^.1m 7 1459527231 source=source$hostname foo=bar boo=baz";
@@ -266,7 +252,7 @@ public class PreprocessorRulesTest {
   }
 
   @Test
-  public void agentPreprocessorForReportPointTest() {
+  public void testAgentPreprocessorForReportPoint() {
     ReportPoint testPoint1 = parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz");
     assertTrue(config.forPort("2878").forReportPoint().filter(testPoint1));
 
@@ -288,19 +274,17 @@ public class PreprocessorRulesTest {
         "source=\"hostname\" \"baz\"=\"bar\" \"boo\"=\"baz\" \"newtagkey\"=\"1\"";
     String expectedPoint1a = "\"collectd.cpu.loadavg.1m\" 7.0 1459527231 " +
         "source=\"hostname\" \"baz\"=\"bar\" \"boo\"=\"baz\"";
-    assertEquals(expectedPoint1, PointHandlerImpl.pointToString(testPoint1));
-    assertEquals(expectedPoint1a, PointHandlerImpl.pointToString(testPoint1a));
+    assertEquals(expectedPoint1, referencePointToStringImpl(testPoint1));
+    assertEquals(expectedPoint1a, referencePointToStringImpl(testPoint1a));
 
     // in this test the following should happen:
     // - rename foo tag to baz
     // - "metrictest." prefix gets dropped from the metric name
     // - replace dashes with dots in bar tag
-    String pointLine5 = "metrictest.metric 7 1459527231 source=src foo=bar datacenter=az1 bar=baz-baz-baz qux=123z";
-    ReportPoint testPoint5 = parsePointLine(pointLine5);
-    config.forPort("2878").forReportPoint().transform(testPoint5);
     String expectedPoint5 = "\"metric\" 7.0 1459527231 source=\"src\" " +
         "\"bar\"=\"baz.baz.baz\" \"baz\"=\"bar\" \"datacenter\"=\"az1\" \"newtagkey\"=\"1\" \"qux\"=\"123z\"";
-    assertEquals(expectedPoint5, PointHandlerImpl.pointToString(testPoint5));
+    assertEquals(expectedPoint5, applyAllTransformers(
+        "metrictest.metric 7 1459527231 source=src foo=bar datacenter=az1 bar=baz-baz-baz qux=123z", "2878"));
 
     // in this test the following should happen:
     // - rename tag foo to baz
@@ -308,12 +292,50 @@ public class PreprocessorRulesTest {
     // - drop dc1 tag
     // - drop datacenter tag as it matches az[4-6]
     // - rename qux tag to numericTag
-    String pointLine6 = "some.metric 7 1459527231 source=hostname foo=bar dc1=baz datacenter=az4 qux=12345";
-    ReportPoint testPoint6 = parsePointLine(pointLine6);
-    config.forPort("2878").forReportPoint().transform(testPoint6);
     String expectedPoint6 = "\"some.metric\" 7.0 1459527231 source=\"hostname\" " +
         "\"baz\"=\"bar\" \"newtagkey\"=\"1\" \"numericTag\"=\"12345\"";
-    assertEquals(expectedPoint6, PointHandlerImpl.pointToString(testPoint6));
+    assertEquals(expectedPoint6, applyAllTransformers(
+        "some.metric 7 1459527231 source=hostname foo=bar dc1=baz datacenter=az4 qux=12345", "2878"));
+  }
+
+  @Test
+  public void testAllFilters() {
+    assertTrue(applyAllFilters("valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=baz", "1111"));
+    assertTrue(applyAllFilters("valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=b_r boo=baz", "1111"));
+    assertTrue(applyAllFilters("valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=b_r boo=baz", "1111"));
+    assertFalse(applyAllFilters("invalid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=baz", "1111"));
+    assertFalse(applyAllFilters("valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar baz=boo", "1111"));
+    assertFalse(applyAllFilters("valid.metric.loadavg.1m 7 1459527231 source=h.dev.corp foo=bar boo=baz", "1111"));
+    assertFalse(applyAllFilters("valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=stop", "1111"));
+    assertFalse(applyAllFilters("loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=baz", "1111"));
+  }
+
+  private boolean applyAllFilters(String pointLine, String strPort) {
+    if (!config.forPort(strPort).forPointLine().filter(pointLine))
+      return false;
+    ReportPoint point = parsePointLine(pointLine);
+    return config.forPort(strPort).forReportPoint().filter(point);
+  }
+
+  private String applyAllTransformers(String pointLine, String strPort) {
+    String transformedPointLine = config.forPort(strPort).forPointLine().transform(pointLine);
+    ReportPoint point = parsePointLine(transformedPointLine);
+    config.forPort(strPort).forReportPoint().transform(point);
+    return referencePointToStringImpl(point);
+  }
+
+  private static String referencePointToStringImpl(ReportPoint point) {
+    String toReturn = String.format("\"%s\" %s %d source=\"%s\"",
+        point.getMetric().replaceAll("\"", "\\\""),
+        point.getValue(),
+        point.getTimestamp() / 1000,
+        point.getHost().replaceAll("\"", "\\\""));
+    for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
+      toReturn += String.format(" \"%s\"=\"%s\"",
+          entry.getKey().replaceAll("\"", "\\\""),
+          entry.getValue().replaceAll("\"", "\\\""));
+    }
+    return toReturn;
   }
 
   private ReportPoint parsePointLine(String pointLine) {

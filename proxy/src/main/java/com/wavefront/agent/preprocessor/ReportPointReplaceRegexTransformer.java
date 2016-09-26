@@ -9,6 +9,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 
 import sunnylabs.report.ReportPoint;
 
@@ -30,16 +31,16 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
                                             final String patternMatch,
                                             final String patternReplace,
                                             @Nullable final Counter ruleAppliedCounter) {
-    Preconditions.checkNotNull(patternMatch, "[match] can't be null");
+    this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
     Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
+    Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
     this.patternReplace = Preconditions.checkNotNull(patternReplace, "[replace] can't be null");
-    this.compiledPattern = Pattern.compile(patternMatch);
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 
   @Override
-  public ReportPoint apply(ReportPoint reportPoint) {
+  public ReportPoint apply(@NotNull ReportPoint reportPoint) {
     Matcher patternMatcher;
     switch (scope) {
       case "metricName":

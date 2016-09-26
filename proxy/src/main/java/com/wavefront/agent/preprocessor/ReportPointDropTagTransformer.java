@@ -5,9 +5,12 @@ import com.google.common.base.Preconditions;
 
 import com.yammer.metrics.core.Counter;
 
+import java.util.Iterator;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 
 import sunnylabs.report.ReportPoint;
 
@@ -18,32 +21,38 @@ import sunnylabs.report.ReportPoint;
  */
 public class ReportPointDropTagTransformer implements Function<ReportPoint, ReportPoint> {
 
-  private final String tag;
   @Nullable
-  private final Pattern compiledPattern;
+  private final Pattern compiledTagPattern;
+  @Nullable
+  private final Pattern compiledValuePattern;
   @Nullable
   private final Counter ruleAppliedCounter;
 
   public ReportPointDropTagTransformer(final String tag,
                                        @Nullable final String patternMatch,
                                        @Nullable final Counter ruleAppliedCounter) {
-    this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
-    this.compiledPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
+    this.compiledTagPattern = Pattern.compile(Preconditions.checkNotNull(tag, "[tag] can't be null"));
+    Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");
+    this.compiledValuePattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 
   @Override
-  public ReportPoint apply(ReportPoint reportPoint) {
-    if (reportPoint.getAnnotations() == null) {
+  public ReportPoint apply(@NotNull ReportPoint reportPoint) {
+    if (reportPoint.getAnnotations() == null || compiledTagPattern == null) {
       return reportPoint;
     }
-    String tagValue = reportPoint.getAnnotations().get(tag);
-    if (tagValue == null || (compiledPattern != null && !compiledPattern.matcher(tagValue).matches())) {
-      return reportPoint;
-    }
-    reportPoint.getAnnotations().remove(tag);
-    if (ruleAppliedCounter != null) {
-      ruleAppliedCounter.inc();
+    Iterator<Map.Entry<String, String>> iterator = reportPoint.getAnnotations().entrySet().iterator();
+    while (iterator.hasNext()) {
+      Map.Entry<String, String> entry = iterator.next();
+      if (compiledTagPattern.matcher(entry.getKey()).matches()) {
+        if (compiledValuePattern == null || compiledValuePattern.matcher(entry.getValue()).matches()) {
+          iterator.remove();
+          if (ruleAppliedCounter != null) {
+            ruleAppliedCounter.inc();
+          }
+        }
+      }
     }
     return reportPoint;
   }

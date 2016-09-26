@@ -8,6 +8,7 @@ import com.yammer.metrics.core.Counter;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 
 import sunnylabs.report.ReportPoint;
 
@@ -30,15 +31,15 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
                                          @Nullable final String patternMatch,
                                          @Nullable final Counter ruleAppliedCounter) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
-    Preconditions.checkNotNull(newTag, "[newtag] can't be null");
+    this.newTag = Preconditions.checkNotNull(newTag, "[newtag] can't be null");
+    Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");
     Preconditions.checkArgument(!newTag.isEmpty(), "[newtag] can't be blank");
-    this.newTag = newTag;
     this.compiledPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 
   @Override
-  public ReportPoint apply(ReportPoint reportPoint) {
+  public ReportPoint apply(@NotNull ReportPoint reportPoint) {
     if (reportPoint.getAnnotations() == null) {
       return reportPoint;
     }

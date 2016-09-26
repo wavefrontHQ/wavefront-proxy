@@ -22,6 +22,7 @@ public class PointLineWhitelistRegexFilter extends AnnotatedPredicate<String> {
   public PointLineWhitelistRegexFilter(final String patternMatch,
                                        @Nullable final Counter ruleAppliedCounter) {
     this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
+    Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 
