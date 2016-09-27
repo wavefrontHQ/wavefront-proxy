@@ -30,9 +30,9 @@ public class AgentPreprocessorConfiguration {
   private final Map<String, PointPreprocessor> portMap = new HashMap<>();
 
   @VisibleForTesting
-  int totalInvalidRules;
+  int totalInvalidRules = 0;
   @VisibleForTesting
-  int totalValidRules;
+  int totalValidRules = 0;
 
   public PointPreprocessor forPort(final String strPort) {
     PointPreprocessor preprocessor = portMap.get(strPort);
@@ -61,13 +61,12 @@ public class AgentPreprocessorConfiguration {
   }
 
   public void loadFromStream(InputStream stream) {
+    totalValidRules = 0;
+    totalInvalidRules = 0;
     Yaml yaml = new Yaml();
-    Map<String, Object> rulesByPort;
     try {
       //noinspection unchecked
-      rulesByPort = (Map<String, Object>) yaml.load(stream);
-      totalValidRules = 0;
-      totalInvalidRules = 0;
+      Map<String, Object> rulesByPort = (Map<String, Object>) yaml.load(stream);
       for (String strPort : rulesByPort.keySet()) {
         int validRules = 0;
         //noinspection unchecked
