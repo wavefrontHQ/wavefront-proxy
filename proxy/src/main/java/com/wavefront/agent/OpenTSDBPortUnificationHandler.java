@@ -52,7 +52,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
    * The point handler that takes report metrics one data point at a time and handles batching and
    * retries, etc
    */
-  private final PointHandlerImpl pointHandler;
+  private final PointHandler pointHandler;
 
   /**
    * OpenTSDB decoder object
@@ -63,14 +63,10 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
   private final PointPreprocessor preprocessor;
 
   OpenTSDBPortUnificationHandler(final OpenTSDBDecoder decoder,
-                                 final int port,
-                                 final String validationLevel,
-                                 final int blockedPointsPerBatch,
-                                 final PostPushDataTimedTask[] postPushDataTimedTasks,
+                                 final PointHandler pointHandler,
                                  @Nullable final PointPreprocessor preprocessor) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandlerImpl(
-        port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
+    this.pointHandler = pointHandler;
     this.preprocessor = preprocessor;
   }
 
@@ -190,7 +186,6 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
    * @see <a href="http://opentsdb.net/docs/build/html/api_http/put.html">OpenTSDB /api/put documentation</a>
    */
   private boolean reportMetric(final JsonNode metric) {
-    final PostPushDataTimedTask randomPostTask = this.pointHandler.getRandomPostTask();
     try {
       String metricName = metric.get("metric").textValue();
       JsonNode tags = metric.get("tags");
@@ -228,8 +223,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
       builder.setTimestamp(ts);
       JsonNode value = metric.get("value");
       if (value == null) {
-        randomPostTask.incrementBlockedPoints();
-        logger.warning("Skipping.  Missing 'value' in JSON node.");
+        pointHandler.handleBlockedPoint("Skipping.  Missing 'value' in JSON node.");
         return false;
       }
       if (value.isDouble()) {

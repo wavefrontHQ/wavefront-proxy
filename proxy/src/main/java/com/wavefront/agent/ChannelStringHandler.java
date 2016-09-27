@@ -8,7 +8,6 @@ import com.wavefront.ingester.Decoder;
 
 import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -38,17 +37,6 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   private final PointHandler pointHandler;
 
   public ChannelStringHandler(Decoder<String> decoder,
-                              final int port,
-                              final String validationLevel,
-                              final int blockedPointsPerBatch,
-                              final PostPushDataTimedTask[] postPushDataTimedTasks,
-                              @Nullable final PointPreprocessor preprocessor) {
-    this.decoder = decoder;
-    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
-    this.preprocessor = preprocessor;
-  }
-
-  public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
                               @Nullable final PointPreprocessor preprocessor) {
     this.decoder = decoder;
@@ -71,19 +59,19 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
                                       @Nullable final PointPreprocessor preprocessor,
                                       @Nullable final ChannelHandlerContext ctx) {
     // ignore empty lines.
-    String msg = message;
-    if (msg == null || msg.trim().length() == 0) return;
+    if (message == null) return;
+    String pointLine = message.trim();
+    if (pointLine.isEmpty()) return;
 
     // transform the line if needed
     if (preprocessor != null) {
-      msg = preprocessor.forPointLine().transform(msg);
-    }
-    String pointLine = msg.trim();
+      pointLine = preprocessor.forPointLine().transform(pointLine);
 
-    // apply white/black lists after formatting
-    if (preprocessor != null && !preprocessor.forPointLine().filter(pointLine)) {
-      pointHandler.handleBlockedPoint(preprocessor.forPointLine().getLastFilterResult());
-      return;
+      // apply white/black lists after formatting
+      if (!preprocessor.forPointLine().filter(pointLine)) {
+        pointHandler.handleBlockedPoint(preprocessor.forPointLine().getLastFilterResult());
+        return;
+      }
     }
 
     // decode the line into report points

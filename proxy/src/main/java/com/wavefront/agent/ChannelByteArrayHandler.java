@@ -38,13 +38,10 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
    * Constructor.
    */
   ChannelByteArrayHandler(Decoder<byte[]> decoder,
-                                 final int port,
-                                 final String validationLevel,
-                                 final int blockedPointsPerBatch,
-                                 final PostPushDataTimedTask[] postPushDataTimedTasks,
-                                 @Nullable final PointPreprocessor preprocessor) {
+                          final PointHandler pointHandler,
+                          @Nullable final PointPreprocessor preprocessor) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
+    this.pointHandler = pointHandler;
     this.preprocessor = preprocessor;
   }
 

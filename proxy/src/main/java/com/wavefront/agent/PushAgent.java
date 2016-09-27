@@ -167,7 +167,8 @@ public class PushAgent extends AbstractAgent {
       public void initChannel(SocketChannel ch) throws Exception {
         final ChannelHandler handler = new OpenTSDBPortUnificationHandler(
             new OpenTSDBDecoder("unknown", customSourceTags),
-            port, pushValidationLevel, pushBlockedSamples, flushTasks, preprocessors.forPort(strPort));
+            new PointHandlerImpl(port, pushValidationLevel, pushBlockedSamples, flushTasks),
+            preprocessors.forPort(strPort));
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler));
       }
@@ -185,8 +186,8 @@ public class PushAgent extends AbstractAgent {
     // Set up a custom handler
     ChannelHandler handler = new ChannelByteArrayHandler(
         new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
-        port, pushValidationLevel, pushBlockedSamples,
-        getFlushTasks(port), preprocessors.forPort(strPort));
+        new PointHandlerImpl(port, pushValidationLevel, pushBlockedSamples, getFlushTasks(port)),
+        preprocessors.forPort(strPort));
 
     // create a class to use for StreamIngester to get a new FrameDecoder
     // for each request (not shareable since it's storing how many bytes
@@ -233,8 +234,10 @@ public class PushAgent extends AbstractAgent {
     preprocessors.forPort(strPort).forReportPoint()
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
     // Set up a custom graphite handler, with no formatter
-    ChannelHandler graphiteHandler = new ChannelStringHandler(new GraphiteDecoder("unknown", customSourceTags),
-        port, pushValidationLevel, pushBlockedSamples, getFlushTasks(port), preprocessors.forPort(strPort));
+    ChannelHandler graphiteHandler = new ChannelStringHandler(
+        new GraphiteDecoder("unknown", customSourceTags),
+        new PointHandlerImpl(port, pushValidationLevel, pushBlockedSamples, getFlushTasks(port)),
+        preprocessors.forPort(strPort));
 
     if (!withCustomFormatter) {
       List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);
