@@ -1,11 +1,9 @@
 package com.wavefront.agent;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
-import com.wavefront.common.MetricWhiteBlackList;
+import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.ingester.Decoder;
 
 import java.net.InetSocketAddress;
@@ -35,42 +33,20 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
    * Transformer to transform each line.
    */
   @Nullable
-  private final Function<String, String> transformer;
+  private final PointPreprocessor preprocessor;
   private final PointHandler pointHandler;
-
-  private final Predicate<String> linePredicate;
-
-  public ChannelStringHandler(Decoder<String> decoder,
-                              final int port,
-                              final String prefix,
-                              final String validationLevel,
-                              final int blockedPointsPerBatch,
-                              final PostPushDataTimedTask[] postPushDataTimedTasks,
-                              @Nullable final Function<String, String> transformer,
-                              @Nullable final String pointLineWhiteListRegex,
-                              @Nullable final String pointLineBlackListRegex) {
-    this.decoder = decoder;
-    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
-        postPushDataTimedTasks);
-    this.transformer = transformer;
-    this.linePredicate = new MetricWhiteBlackList(pointLineWhiteListRegex,
-        pointLineBlackListRegex,
-        String.valueOf(port));
-  }
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
-                              final Predicate<String> linePredicate,
-                              @Nullable final Function<String, String> transformer) {
+                              @Nullable final PointPreprocessor preprocessor) {
     this.decoder = decoder;
     this.pointHandler = pointhandler;
-    this.transformer = transformer;
-    this.linePredicate = linePredicate;
+    this.preprocessor = preprocessor;
   }
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-    processPointLine(msg, decoder, pointHandler, linePredicate, transformer, ctx);
+    processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
   }
 
   /**
@@ -80,23 +56,22 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   public static void processPointLine(final String message,
                                       Decoder<String> decoder,
                                       final PointHandler pointHandler,
-                                      final Predicate<String> linePredicate,
-                                      @Nullable final Function<String, String> transformer,
+                                      @Nullable final PointPreprocessor preprocessor,
                                       @Nullable final ChannelHandlerContext ctx) {
     // ignore empty lines.
-    String msg = message;
-    if (msg == null || msg.trim().length() == 0) return;
+    if (message == null) return;
+    String pointLine = message.trim();
+    if (pointLine.isEmpty()) return;
 
     // transform the line if needed
-    if (transformer != null) {
-      msg = transformer.apply(msg);
-    }
-    String pointLine = msg.trim();
+    if (preprocessor != null) {
+      pointLine = preprocessor.forPointLine().transform(pointLine);
 
-    // apply white/black lists after formatting
-    if (!linePredicate.apply(pointLine)) {
-      pointHandler.handleBlockedPoint(pointLine);
-      return;
+      // apply white/black lists after formatting
+      if (!preprocessor.forPointLine().filter(pointLine)) {
+        pointHandler.handleBlockedPoint(preprocessor.forPointLine().getLastFilterResult());
+        return;
+      }
     }
 
     // decode the line into report points
@@ -117,6 +92,17 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
         }
       }
       pointHandler.handleBlockedPoint(errMsg);
+    }
+
+    // transform the point after parsing, and apply additional white/black lists if any
+    if (preprocessor != null) {
+      for (ReportPoint point : points) {
+        preprocessor.forReportPoint().transform(point);
+        if (!preprocessor.forReportPoint().filter(point)) {
+          pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+          return;
+        }
+      }
     }
     pointHandler.reportPoints(points);
   }

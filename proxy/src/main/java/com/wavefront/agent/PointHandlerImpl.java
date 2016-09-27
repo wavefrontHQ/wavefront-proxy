@@ -9,7 +9,6 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DateUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -34,14 +33,10 @@ public class PointHandlerImpl implements PointHandler {
   public static final String VALIDATION_NO_VALIDATION = "NO_VALIDATION";  // Validate nothing
   public static final String VALIDATION_NUMERIC_ONLY = "NUMERIC_ONLY";    // Validate/send numerics; block text
 
-  private final Counter outOfRangePointTimes;
   private final Counter illegalCharacterPoints;
   private final Histogram receivedPointLag;
   private final String validationLevel;
   private final int port;
-
-  @Nullable
-  private final String prefix;
 
   protected final int blockedPointsPerBatch;
   protected final PostPushDataTimedTask[] sendDataTasks;
@@ -50,20 +45,10 @@ public class PointHandlerImpl implements PointHandler {
                           final String validationLevel,
                           final int blockedPointsPerBatch,
                           final PostPushDataTimedTask[] sendDataTasks) {
-    this(port, validationLevel, blockedPointsPerBatch, null, sendDataTasks);
-  }
-
-  public PointHandlerImpl(final int port,
-                          final String validationLevel,
-                          final int blockedPointsPerBatch,
-                          @Nullable final String prefix,
-                          final PostPushDataTimedTask[] sendDataTasks) {
     this.validationLevel = validationLevel;
     this.port = port;
     this.blockedPointsPerBatch = blockedPointsPerBatch;
-    this.prefix = prefix;
 
-    this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
     this.illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
     this.receivedPointLag = Metrics.newHistogram(
         new MetricName("points." + String.valueOf(port) + ".received", "", "lag"));
@@ -79,9 +64,6 @@ public class PointHandlerImpl implements PointHandler {
 
       validateHost(point.getHost());
 
-      if (prefix != null) {
-        point.setMetric(prefix + "." + point.getMetric());
-      }
       if (point.getMetric().length() >= 1024) {
         throw new IllegalArgumentException("WF-301: Metric name is too long: " + point.getMetric());
       }
@@ -105,12 +87,6 @@ public class PointHandlerImpl implements PointHandler {
           throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue() + "(" +
               (debugLine == null ? pointToString(point) : debugLine) + ")");
         }
-      }
-      if (!pointInRange(point)) {
-        outOfRangePointTimes.inc();
-        String errorMessage = "WF-402 " + port + ": Point outside of reasonable time frame (" +
-            (debugLine == null ? pointToString(point) : debugLine) + ")";
-        throw new IllegalArgumentException(errorMessage);
       }
       if ((validationLevel != null) && (!validationLevel.equals(VALIDATION_NO_VALIDATION))) {
         // Is it the right type of point?
@@ -164,15 +140,13 @@ public class PointHandlerImpl implements PointHandler {
   }
 
   @Override
-  public void handleBlockedPoint(String pointLine) {
+  public void handleBlockedPoint(@Nullable String pointLine) {
     final PostPushDataTimedTask randomPostTask = getRandomPostTask();
-    if (randomPostTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
+    if (pointLine != null && randomPostTask.getBlockedSampleSize() < this.blockedPointsPerBatch) {
       randomPostTask.addBlockedSample(pointLine);
     }
     randomPostTask.incrementBlockedPoints();
   }
-
-  private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
 
   @VisibleForTesting
   static boolean annotationKeysAreValid(ReportPoint point) {
@@ -220,15 +194,6 @@ public class PointHandlerImpl implements PointHandler {
       throw new IllegalArgumentException("WF-301: Host is too long: " + host);
     }
 
-  }
-
-  @VisibleForTesting
-  static boolean pointInRange(ReportPoint point) {
-    long pointTime = point.getTimestamp();
-    long rightNow = System.currentTimeMillis();
-
-    // within 1 year ago and 1 day ahead
-    return (pointTime > (rightNow - MILLIS_IN_YEAR)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
   }
 
   private static String pointToStringSB(ReportPoint point) {

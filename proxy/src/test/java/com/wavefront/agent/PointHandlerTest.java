@@ -79,38 +79,6 @@ public class PointHandlerTest {
 
   }
 
-  @Test
-  public void testPointInRangeCorrectForTimeRanges() throws NoSuchMethodException, InvocationTargetException,
-      IllegalAccessException {
-
-    long millisPerYear = 31536000000L;
-    long millisPerDay = 86400000L;
-
-    // not in range if over a year ago
-    ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear, 10L, "host", "table",
-        new HashMap<String, String>());
-    Assert.assertFalse(PointHandlerImpl.pointInRange(rp));
-
-    rp.setTimestamp(System.currentTimeMillis() - millisPerYear - 1);
-    Assert.assertFalse(PointHandlerImpl.pointInRange(rp));
-
-    // in range if within a year ago
-    rp.setTimestamp(System.currentTimeMillis() - (millisPerYear / 2));
-    Assert.assertTrue(PointHandlerImpl.pointInRange(rp));
-
-    // in range for right now
-    rp.setTimestamp(System.currentTimeMillis());
-    Assert.assertTrue(PointHandlerImpl.pointInRange(rp));
-
-    // in range if within a day in the future
-    rp.setTimestamp(System.currentTimeMillis() + millisPerDay - 1);
-    Assert.assertTrue(PointHandlerImpl.pointInRange(rp));
-
-    // out of range for over a day in the future
-    rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 2));
-    Assert.assertFalse(PointHandlerImpl.pointInRange(rp));
-  }
-
   // This is a slow implementation of pointToString that is known to work to specification.
   private static String referenceImpl(ReportPoint point) {
     String toReturn = String.format("\"%s\" %s %d source=\"%s\"",

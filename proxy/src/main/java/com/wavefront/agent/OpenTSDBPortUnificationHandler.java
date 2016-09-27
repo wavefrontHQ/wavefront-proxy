@@ -1,11 +1,10 @@
 package com.wavefront.agent;
 
-import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wavefront.common.MetricWhiteBlackList;
+import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.metrics.JsonMetricsParser;
 
@@ -53,31 +52,22 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
    * The point handler that takes report metrics one data point at a time and handles batching and
    * retries, etc
    */
-  private final PointHandlerImpl pointHandler;
+  private final PointHandler pointHandler;
 
   /**
    * OpenTSDB decoder object
    */
   private final OpenTSDBDecoder decoder;
 
-  /**
-   * white list/ black list handler
-   */
-  private final Predicate<String> whiteBlackList;
+  @Nullable
+  private final PointPreprocessor preprocessor;
 
   OpenTSDBPortUnificationHandler(final OpenTSDBDecoder decoder,
-                                 final int port,
-                                 final String prefix,
-                                 final String validationLevel,
-                                 final int blockedPointsPerBatch,
-                                 final PostPushDataTimedTask[] postPushDataTimedTasks,
-                                 @Nullable final String pointLineWhiteListRegex,
-                                 @Nullable final String pointLineBlackListRegex) {
+                                 final PointHandler pointHandler,
+                                 @Nullable final PointPreprocessor preprocessor) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandlerImpl(
-        port, validationLevel, blockedPointsPerBatch, prefix, postPushDataTimedTasks);
-    this.whiteBlackList = new MetricWhiteBlackList(
-        pointLineWhiteListRegex, pointLineBlackListRegex, String.valueOf(port));
+    this.pointHandler = pointHandler;
+    this.preprocessor = preprocessor;
   }
 
   @Override
@@ -162,7 +152,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
         throw new Exception("Failed to write version response", f.cause());
       }
     } else {
-      ChannelStringHandler.processPointLine(messageStr, decoder, pointHandler, whiteBlackList, null, ctx);
+      ChannelStringHandler.processPointLine(messageStr, decoder, pointHandler, preprocessor, ctx);
     }
   }
 
@@ -196,7 +186,6 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
    * @see <a href="http://opentsdb.net/docs/build/html/api_http/put.html">OpenTSDB /api/put documentation</a>
    */
   private boolean reportMetric(final JsonNode metric) {
-    final PostPushDataTimedTask randomPostTask = this.pointHandler.getRandomPostTask();
     try {
       String metricName = metric.get("metric").textValue();
       JsonNode tags = metric.get("tags");
@@ -234,8 +223,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
       builder.setTimestamp(ts);
       JsonNode value = metric.get("value");
       if (value == null) {
-        randomPostTask.incrementBlockedPoints();
-        logger.warning("Skipping.  Missing 'value' in JSON node.");
+        pointHandler.handleBlockedPoint("Skipping.  Missing 'value' in JSON node.");
         return false;
       }
       if (value.isDouble()) {

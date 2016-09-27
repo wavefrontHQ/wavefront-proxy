@@ -31,7 +31,8 @@ public interface PointHandler {
   /**
    * Called when a blocked line is encountered.
    *
-   * @param pointLine Line encountered.
+   * @param pointLine Line encountered. If null, it will increment the blocked points counter
+   *                  but won't write to the log
    */
-  void handleBlockedPoint(String pointLine);
+  void handleBlockedPoint(@Nullable String pointLine);
 }

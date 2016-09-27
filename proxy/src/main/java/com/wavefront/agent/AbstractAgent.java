@@ -11,14 +11,19 @@ import com.google.gson.Gson;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
+import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
+import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Clock;
+import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.SocketConfig;
@@ -232,6 +237,12 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--proxyPassword"}, description = "If proxy authentication is necessary, this is the password that will be passed along")
   protected String proxyPassword = null;
 
+  @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
+  protected String preprocessorConfigFile = null;
+
+  @Parameter(names = {"--dataBackfillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for back-dated points. Default is 8760 (1 year)")
+  protected int dataBackfillCutoffHours = 8760;
+
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
@@ -241,6 +252,7 @@ public abstract class AbstractAgent {
   protected List<String> customSourceTags = new ArrayList<>();
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
   protected final List<ScheduledExecutorService> managedExecutors = new ArrayList<>();
+  protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -285,6 +297,58 @@ public abstract class AbstractAgent {
   protected abstract void startListeners();
 
   protected abstract void stopListeners();
+
+  private void initPreprocessors() throws IOException {
+    // convert blacklist/whitelist fields to filters for full backwards compatibility
+    // blacklistRegex and whitelistRegex are applied to pushListenerPorts, graphitePorts and picklePorts
+    if (whitelistRegex != null || blacklistRegex != null) {
+      String allPorts = StringUtils.join(new String[] {
+          pushListenerPorts == null ? "" : pushListenerPorts,
+          graphitePorts == null ? "" : graphitePorts,
+          picklePorts == null ? "" : picklePorts
+      }, ",");
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(allPorts);
+      for (String strPort : ports) {
+        if (blacklistRegex != null) {
+          preprocessors.forPort(strPort).forPointLine().addFilter(
+              new PointLineBlacklistRegexFilter(blacklistRegex,
+                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
+              ));
+        }
+        if (whitelistRegex != null) {
+          preprocessors.forPort(strPort).forPointLine().addFilter(
+              new PointLineWhitelistRegexFilter(whitelistRegex,
+                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
+              ));
+        }
+      }
+    }
+
+    // opentsdbBlacklistRegex and opentsdbWhitelistRegex are applied to opentsdbPorts only
+    if (opentsdbPorts != null && (opentsdbWhitelistRegex != null || opentsdbBlacklistRegex != null)) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(opentsdbPorts);
+      for (String strPort : ports) {
+        if (opentsdbBlacklistRegex != null) {
+          preprocessors.forPort(strPort).forPointLine().addFilter(
+              new PointLineBlacklistRegexFilter(opentsdbBlacklistRegex,
+                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
+              ));
+        }
+        if (opentsdbWhitelistRegex != null) {
+          preprocessors.forPort(strPort).forPointLine().addFilter(
+              new PointLineWhitelistRegexFilter(opentsdbWhitelistRegex,
+                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
+              ));
+        }
+      }
+    }
+
+    if (preprocessorConfigFile != null) {
+      FileInputStream stream = new FileInputStream(preprocessorConfigFile);
+      preprocessors.loadFromStream(stream);
+      logger.info("Preprocessor configuration loaded from " + preprocessorConfigFile);
+    }
+  }
 
   private void loadListenerConfigurationFile() throws IOException {
     // If they've specified a push configuration file, override the command line values
@@ -336,6 +400,9 @@ public abstract class AbstractAgent {
         ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
         picklePorts = prop.getProperty("picklePorts", picklePorts);
         bufferFile = prop.getProperty("buffer", bufferFile);
+        preprocessorConfigFile = prop.getProperty("preprocessorConfigFile", preprocessorConfigFile);
+        dataBackfillCutoffHours = Integer.parseInt(prop.getProperty("dataBackfillCutoffHours",
+            String.valueOf(dataBackfillCutoffHours)));
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
@@ -350,6 +417,8 @@ public abstract class AbstractAgent {
       if (blacklistRegex == null && graphiteBlacklistRegex != null) {
         blacklistRegex = graphiteBlacklistRegex;
       }
+
+      initPreprocessors();
 
       PostPushDataTimedTask.setPointsPerBatch(pushFlushMaxPoints);
       QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
