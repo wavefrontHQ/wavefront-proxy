@@ -1,7 +1,7 @@
 ##
 ##  Wavefront proxy preprocessor rules configuration
 ##
-##   Typically in /opt/wavefront/wavefront-proxy/conf/preprocessor_rules.yaml
+##   Typically in /etc/wavefront/wavefront-proxy/conf/preprocessor_rules.yaml
 ##
 ## This file allows a more flexible configuration of different point filtering and altering rules.
 ##
