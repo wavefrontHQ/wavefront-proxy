@@ -25,7 +25,7 @@ desc=${DESC:-Wavefront Proxy}
 user="wavefront"
 wavefront_dir="/opt/wavefront"
 proxy_dir=${PROXY_DIR:-$wavefront_dir/wavefront-proxy}
-config_dir=${CONFIG_DIR:-/etc/wavefront/wavefront-proxy/conf}
+config_dir=${CONFIG_DIR:-/etc/wavefront/wavefront-proxy}
 export JAVA_HOME="$proxy_dir/jre"
 conf_file=$CONF_FILE
 if [[ -z $conf_file ]]; then

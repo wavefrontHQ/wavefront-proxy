@@ -16,4 +16,4 @@ java_heap_usage=${JAVA_HEAP_USAGE:-4G}
 java \
 	-Xmx$java_heap_usage -Xms$java_heap_usage \
 	-jar /opt/wavefront/wavefront-proxy/bin/wavefront-push-agent.jar \
-	-f /etc/wavefront/wavefront-proxy/conf/wavefront.conf
+	-f /etc/wavefront/wavefront-proxy/wavefront.conf
