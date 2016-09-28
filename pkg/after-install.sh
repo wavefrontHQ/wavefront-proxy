@@ -5,6 +5,8 @@ group="wavefront"
 service_name="wavefront-proxy"
 spool_dir="/var/spool/wavefront-proxy"
 wavefront_dir="/opt/wavefront"
+conf_dir="/etc/wavefront"
+jre_dir="$wavefront_dir/$service_name/jre"
 
 # Set up wavefront user.
 if ! groupmod $group &> /dev/null; then
@@ -26,6 +28,7 @@ fi
 
 # Allow system user to write .wavefront_id/buffer files to install dir.
 chown $user:$group $wavefront_dir/$service_name
+chown $user:$group $conf_dir/$service_name
 
 # If there is an errant pre-3.9 agent running, we need to kill it. This is
 # required for a clean upgrade from pre-3.9 to 3.9+.
@@ -35,6 +38,13 @@ if [[ -f $old_pid_file ]]; then
 	kill -9 "$pid" || true
 	rm $old_pid_file
 fi
+
+# curl -s https://github.com/wavefrontHQ/install/releases/download/1.1/install_jvm.tar.gz | tar -xfO | bash
+[[ -d $jre_dir ]] || mkdir -p $jre_dir
+echo "Downloading and installing Zulu JVM 8.13.0.5"
+curl -L --silent -o /tmp/jvm.tar.gz http://cdn.azul.com/zulu/bin/zulu8.13.0.5-jdk8.0.72-linux_x64.tar.gz
+tar -xf /tmp/jvm.tar.gz --strip 1  -C $jre_dir
+rm /tmp/jvm.tar.gz
 
 service $service_name restart
 

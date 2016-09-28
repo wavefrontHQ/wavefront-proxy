@@ -9,8 +9,7 @@
 
 
 APP_BASE=wavefront
-APP_HOME=/opt/$APP_BASE/$APP_BASE-proxy
-CONF_FILE=$APP_HOME/conf/$APP_BASE.conf
+CONF_FILE=/etc/$APP_BASE/$APP_BASE-proxy/conf/$APP_BASE.conf
 DEFAULT_URL=https://metrics.wavefront.com/api/
 DEFAULT_HOSTNAME=`hostname`
 
