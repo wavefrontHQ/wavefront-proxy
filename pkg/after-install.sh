@@ -39,12 +39,7 @@ if [[ -f $old_pid_file ]]; then
 	rm $old_pid_file
 fi
 
-# curl -s https://github.com/wavefrontHQ/install/releases/download/1.1/install_jvm.tar.gz | tar -xfO | bash
-[[ -d $jre_dir ]] || mkdir -p $jre_dir
-echo "Downloading and installing Zulu JVM 8.13.0.5"
-curl -L --silent -o /tmp/jvm.tar.gz http://cdn.azul.com/zulu/bin/zulu8.13.0.5-jdk8.0.72-linux_x64.tar.gz
-tar -xf /tmp/jvm.tar.gz --strip 1  -C $jre_dir
-rm /tmp/jvm.tar.gz
+curl -s https://github.com/wavefrontHQ/java/raw/master/pkg/install_jre.sh | bash
 
 service $service_name restart
 
