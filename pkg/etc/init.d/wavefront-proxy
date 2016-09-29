@@ -32,10 +32,10 @@ if [[ -z $conf_file ]]; then
     legacy_config_dir=$proxy_dir/conf
     if [[ -r "$legacy_config_dir/wavefront.conf" ]]; then
         conf_file="$legacy_config_dir/wavefront.conf"
-		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-		>&2 echo "WARNING: Using wavefront.conf file found in its old location ($legacy_config_dir)."
-		>&2 echo "To suppress this warning message, please move wavefront.conf to $config_dir."
-		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        >&2 echo "WARNING: Using wavefront.conf file found in its old location ($legacy_config_dir)."
+        >&2 echo "To suppress this warning message, please move wavefront.conf to $config_dir."
+        >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     else
         conf_file="$config_dir/wavefront.conf"
     fi

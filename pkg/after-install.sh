@@ -30,6 +30,14 @@ fi
 chown $user:$group $wavefront_dir/$service_name
 chown $user:$group $conf_dir/$service_name
 
+if [[ ! -f $conf_dir/$service_name/wavefront.conf ]]; then
+    cp $conf_dir/$service_name/wavefront.conf.default $conf_dir/$service_name/wavefront.conf
+fi
+
+if [[ ! -f $conf_dir/$service_name/preprocessor_rules.yaml ]]; then
+    cp $conf_dir/$service_name/preprocessor_rules.yaml.default $conf_dir/$service_name/preprocessor_rules.yaml
+fi
+
 # If there is an errant pre-3.9 agent running, we need to kill it. This is
 # required for a clean upgrade from pre-3.9 to 3.9+.
 old_pid_file="/var/run/wavefront.pid"
@@ -39,7 +47,7 @@ if [[ -f $old_pid_file ]]; then
 	rm $old_pid_file
 fi
 
-curl -s https://github.com/wavefrontHQ/java/raw/master/pkg/install_jre.sh | bash
+curl -s https://github.com/wavefrontHQ/install/raw/1.1/install_jre.sh | bash
 
 service $service_name restart
 

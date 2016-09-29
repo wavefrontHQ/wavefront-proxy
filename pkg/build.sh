@@ -38,7 +38,6 @@ fpm \
 	--before-remove before-remove.sh \
 	--after-remove after-remove.sh \
 	--architecture amd64 \
-	--config-files etc/wavefront/wavefront-proxy \
 	--deb-no-default-config-files \
 	--deb-priority optional \
 	--depends curl \
