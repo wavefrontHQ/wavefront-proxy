@@ -47,7 +47,7 @@ if [[ -f $old_pid_file ]]; then
 	rm $old_pid_file
 fi
 
-curl -s https://github.com/wavefrontHQ/install/raw/1.1/install_jre.sh | bash
+curl -s https://github.com/wavefrontHQ/java/raw/wavefront-3.26/pkg/install_jre.sh | bash
 
 service $service_name restart
 
