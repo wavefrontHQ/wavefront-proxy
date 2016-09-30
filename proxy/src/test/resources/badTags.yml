@@ -1,0 +1,9 @@
+counters:
+  - pattern: "operation %{WORD:op} took %{NUMBER:value} seconds in DC=%{WORD:dc}.*AZ=%{WORD:az}"
+    metricName: "%{op}.totalSeconds"
+    tagKeys:
+      - "theDC"
+      - "theAZ"
+    tagValueLabels:
+      - "dc"
+      # Missing entry!

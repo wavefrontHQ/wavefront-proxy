@@ -16,6 +16,14 @@ protocol Reporting {
     map<string> annotations = {};
   }
 
+  // The parts of a ReportPoint that uniquely identify a timeseries to wavefront.
+  record TimeSeries {
+    string metric;
+    string host = "unknown";
+    string table = "tsdb";
+    @java-class("java.util.TreeMap") map<string> annotations = {};
+  }
+
   record IndexUpdate {
     string table;
     bytes metricKey;

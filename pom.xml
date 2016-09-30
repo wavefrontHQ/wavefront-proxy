@@ -54,7 +54,7 @@
 
     <java.version>1.7</java.version>
     <jetty.version>9.2.10.v20150310</jetty.version>
-    <jackson.version>2.5.3</jackson.version>
+    <jackson.version>2.7.4</jackson.version>
     <public.project.version>3.26-SNAPSHOT</public.project.version>
   </properties>
 
@@ -187,7 +187,7 @@
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-handler</artifactId>
-        <version>4.0.35.Final</version>
+        <version>4.1.5.Final</version>
       </dependency>
       <dependency>
         <groupId>com.google.code.findbugs</groupId>

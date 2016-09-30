@@ -6,6 +6,7 @@ import com.google.common.base.Splitter;
 
 import com.beust.jcommander.internal.Lists;
 import com.wavefront.agent.formatter.GraphiteFormatter;
+import com.wavefront.agent.logsharvesting.FilebeatListener;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
@@ -22,6 +23,7 @@ import com.wavefront.ingester.TcpIngester;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.logstash.beats.Server;
 
 import java.io.IOException;
 import java.net.URI;
@@ -152,6 +154,20 @@ public class PushAgent extends AbstractAgent {
         }
       }
     }
+
+    if (filebeatPort != null) {
+      final Server filebeatServer = new Server(filebeatPort);
+      filebeatServer.setMessageListener(new FilebeatListener(
+          new PointHandlerImpl(filebeatPort, pushValidationLevel, pushBlockedSamples, getFlushTasks(filebeatPort)),
+          logsIngestionConfig, hostname, prefix, true));
+      startAsManagedThread(() -> {
+        try {
+          filebeatServer.listen();
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      });
+    }
   }
 
   protected void startOpenTsdbListener(final String strPort) {
@@ -213,10 +229,10 @@ public class PushAgent extends AbstractAgent {
   /**
    * Registers a custom point handler on a particular port.
    *
-   * @param strPort       The port to listen on.
-   * @param decoder       The decoder to use.
-   * @param pointHandler  The handler to handle parsed ReportPoints.
-   * @param preprocessor  Pre-processor (predicates and transform functions) for every point
+   * @param strPort      The port to listen on.
+   * @param decoder      The decoder to use.
+   * @param pointHandler The handler to handle parsed ReportPoints.
+   * @param preprocessor Pre-processor (predicates and transform functions) for every point
    */
   protected void startCustomListener(String strPort, Decoder<String> decoder, PointHandler pointHandler,
                                      @Nullable PointPreprocessor preprocessor) {
