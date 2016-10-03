@@ -47,7 +47,13 @@ if [[ -f $old_pid_file ]]; then
 	rm $old_pid_file
 fi
 
-curl -s https://github.com/wavefrontHQ/java/raw/wavefront-3.26/pkg/install_jre.sh | bash
+[[ -d $jre_dir ]] || mkdir -p $jre_dir
+
+echo "Downloading and installing Zulu JRE"
+
+curl -L --silent -o /tmp/jre.tar.gz https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz
+tar -xf /tmp/jre.tar.gz --strip 1 -C $jre_dir
+rm /tmp/jre.tar.gz
 
 service $service_name restart
 
