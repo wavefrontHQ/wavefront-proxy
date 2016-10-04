@@ -6,11 +6,24 @@ protocol Reporting {
     DOUBLE, LONG, STRING, NUMERICAL
   }
 
+  enum HistogramType {
+    TDIGEST, DOUBLE_TRUNCATE
+  }
+
+  record Histogram {
+    // Number of milliseconds that samples cover
+    int duration;
+    // Histogram is a list of sample bins and counts
+    HistogramType type;
+    array<double> bins;
+    array<int> counts;
+  }
+
   record ReportPoint {
     string metric;
     // Milliseconds since 1970
     long timestamp;
-    union { double, long, string } value;
+    union { double, long, string, Histogram } value;
     string host = "unknown";
     string table = "tsdb";
     map<string> annotations = {};

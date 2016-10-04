@@ -61,6 +61,16 @@ Literal
   | STAR)+
   ;
 
+BinType
+  : '!M'
+  | '!H'
+  | '!D'
+  ;
+
+Weight
+  : '#' Number
+  ;
+
 fragment
 Letter
   : 'a'..'z'
