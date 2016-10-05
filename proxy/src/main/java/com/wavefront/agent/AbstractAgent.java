@@ -207,6 +207,21 @@ public abstract class AbstractAgent {
   protected int histogramDayAccumulationInterval = 3600;
 
   @Parameter(
+      names = {"--histogramDistListenerPorts"},
+      description = "Comma-separated list of ports to listen on. Defaults to none.")
+  protected String histogramDistListenerPorts = "";
+
+  @Parameter(
+      names = {"--histogramDistAccumulators"},
+      description = "Number of accumulators per distribution port")
+  protected int histogramDistAccumulators = Runtime.getRuntime().availableProcessors();
+
+  @Parameter(
+      names = {"--histogramDistAccumulationInterval"},
+      description = "Number of seconds to keep a new distribution bin open for new samples.")
+  protected int histogramDistAccumulationInterval = 30;
+
+  @Parameter(
       names = {"--histogramAccumulatorSize"},
       description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
           "source and tags concatenation.")
@@ -477,6 +492,13 @@ public abstract class AbstractAgent {
         histogramDayAccumulationInterval = Integer.parseInt(prop.getProperty(
             "histogramDayAccumulationInterval",
             String.valueOf(histogramDayAccumulationInterval)));
+        histogramDistListenerPorts = prop.getProperty("histogramDistListenerPorts", histogramDistListenerPorts);
+        histogramDistAccumulators = Integer.parseInt(prop.getProperty(
+            "histogramDistAccumulators",
+            String.valueOf(histogramDistAccumulators)));
+        histogramDistAccumulationInterval = Integer.parseInt(prop.getProperty(
+            "histogramDistAccumulationInterval",
+            String.valueOf(histogramDistAccumulationInterval)));
         histogramAccumulatorSize = Long.parseLong(prop.getProperty(
             "histogramAccumulatorSize",
             String.valueOf(histogramAccumulatorSize)));

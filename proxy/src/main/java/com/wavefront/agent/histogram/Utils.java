@@ -47,9 +47,9 @@ public final class Utils {
    * Standard supported aggregation Granularities.
    */
   public enum Granularity {
-    MINUTE((int)DateUtils.MILLIS_PER_MINUTE),
-    HOUR((int)DateUtils.MILLIS_PER_HOUR),
-    DAY((int)DateUtils.MILLIS_PER_DAY);
+    MINUTE((int) DateUtils.MILLIS_PER_MINUTE),
+    HOUR((int) DateUtils.MILLIS_PER_HOUR),
+    DAY((int) DateUtils.MILLIS_PER_DAY);
 
     private final int inMillis;
 
@@ -74,6 +74,16 @@ public final class Utils {
      */
     public int getBinId(long timeMillis) {
       return (int) (timeMillis / inMillis);
+    }
+
+    public static Granularity fromMillis(long millis) {
+      if (millis <= 60 * 1000) {
+        return MINUTE;
+      } else if (millis <= 60 * 60 * 1000) {
+        return HOUR;
+      } else {
+        return DAY;
+      }
     }
   }
 
@@ -109,7 +119,7 @@ public final class Utils {
    * Creates a {@link ReportPoint} from a {@link HistogramKey} - {@link AgentDigest} pair
    *
    * @param histogramKey the key, defining metric, source, annotations, duration and start-time
-   * @param agentDigest the digest defining the centroids
+   * @param agentDigest  the digest defining the centroids
    * @return the corresponding point
    */
   static ReportPoint pointFromKeyAndDigest(HistogramKey histogramKey, AgentDigest agentDigest) {
@@ -142,7 +152,7 @@ public final class Utils {
       this.binId = binId;
       this.metric = metric;
       this.source = source;
-      this.tags = ((tags== null || tags.length == 0) ? null : tags);
+      this.tags = ((tags == null || tags.length == 0) ? null : tags);
     }
 
     private HistogramKey() {

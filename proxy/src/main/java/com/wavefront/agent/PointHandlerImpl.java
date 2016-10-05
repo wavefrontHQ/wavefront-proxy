@@ -122,9 +122,6 @@ public class PointHandlerImpl implements PointHandler {
     randomPostTask.incrementBlockedPoints();
   }
 
-  private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
-
-
   private static String pointToStringSB(ReportPoint point) {
     if (point.getValue() instanceof Double || point.getValue() instanceof Long || point.getValue() instanceof String) {
       StringBuilder sb = new StringBuilder("\"")

@@ -30,9 +30,20 @@ public class HistogramDecoder implements Decoder<String> {
       .appendAnnotationsConsumer()
       .build();
 
+  private final String defaultHostName;
+
+  public HistogramDecoder() {
+    this("unknown");
+  }
+
+  public HistogramDecoder(String defaultHostName) {
+    this.defaultHostName = defaultHostName;
+  }
+
+
   @Override
   public void decodeReportPoints(String msg, List<ReportPoint> out, String customerId) {
-    ReportPoint point = FORMAT.drive(msg, null, customerId, new ArrayList<>());
+    ReportPoint point = FORMAT.drive(msg, defaultHostName, customerId, new ArrayList<>());
     if (point != null) {
       out.add(point);
     }

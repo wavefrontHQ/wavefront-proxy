@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
+import com.tdunning.math.stats.TDigest;
 import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.Validation;
 import com.wavefront.agent.histogram.Utils;
@@ -20,11 +21,14 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import sunnylabs.report.Histogram;
 import sunnylabs.report.ReportPoint;
 
+import static com.wavefront.agent.histogram.Utils.Granularity.fromMillis;
+
 /**
- * Histogram accumulation task. Parses samples in Graphite/Wavefront notation from its input queue and accumulates them
- * in {@link AgentDigest}.
+ * Histogram accumulation task. Parses {@link ReportPoint} based on the passed in {@link Decoder} from its input queue
+ * and accumulates them in {@link AgentDigest}.
  *
  * @author Tim Schmidt (tim@wavefront.com).
  */
@@ -42,8 +46,9 @@ public class AccumulationTask implements Runnable {
   private final short compression;
 
   // Metrics
-  private final Counter histogramCounter = Metrics.newCounter(new MetricName("histogram", "", "created"));
-  private final Counter accumulationCounter = Metrics.newCounter(new MetricName("histogram", "", "added"));
+  private final Counter binCreatedCounter = Metrics.newCounter(new MetricName("histogram", "", "bin_created"));
+  private final Counter eventCounter = Metrics.newCounter(new MetricName("histogram", "", "event_added"));
+  private final Counter histogramCounter = Metrics.newCounter(new MetricName("histogram", "", "histogram_added"));
   private final Counter ignoredCounter = Metrics.newCounter(new MetricName("histogram", "", "ignored"));
 
   public AccumulationTask(ObjectQueue<List<String>> input,
@@ -62,6 +67,24 @@ public class AccumulationTask implements Runnable {
     this.ttlMillis = ttlMillis;
     this.granularity = granularity;
     this.compression = compression;
+  }
+
+  private static void add(final TDigest target, final Histogram source) {
+    List<Double> means = source.getBins();
+    List<Integer> counts = source.getCounts();
+
+    if (means != null && counts != null) {
+      int len = Math.min(means.size(), counts.size());
+
+      for (int i = 0; i < len; ++i) {
+        Integer count = counts.get(i);
+        Double mean = means.get(i);
+
+        if (count != null && count > 0 && mean != null && Double.isFinite(mean)) {
+          target.add(mean, count);
+        }
+      }
+    }
   }
 
   @Override
@@ -98,23 +121,45 @@ public class AccumulationTask implements Runnable {
               line,
               validationLevel);
 
-          // Get key
-          Utils.HistogramKey histogramKey = Utils.makeKey(event, granularity);
-          double value = (Double) event.getValue();
+          if (event.getValue() instanceof Double) {
+            // Get key
+            Utils.HistogramKey histogramKey = Utils.makeKey(event, granularity);
+            double value = (Double) event.getValue();
+            eventCounter.inc();
 
-          // atomic update
-          digests.compute(histogramKey, (k, v) -> {
-            accumulationCounter.inc();
-            if (v == null) {
-              histogramCounter.inc();
-              AgentDigest t = new AgentDigest(compression, System.currentTimeMillis() + ttlMillis);
-              t.add(value);
-              return t;
-            } else {
-              v.add(value);
-              return v;
-            }
-          });
+            // atomic update
+            digests.compute(histogramKey, (k, v) -> {
+              if (v == null) {
+                binCreatedCounter.inc();
+                AgentDigest t = new AgentDigest(compression, System.currentTimeMillis() + ttlMillis);
+                t.add(value);
+                return t;
+              } else {
+                v.add(value);
+                return v;
+              }
+            });
+          } else if (event.getValue() instanceof Histogram) {
+            Histogram value = (Histogram) event.getValue();
+            Utils.Granularity granularity = fromMillis(value.getDuration());
+
+            // Key
+            Utils.HistogramKey histogramKey = Utils.makeKey(event, granularity);
+            histogramCounter.inc();
+
+            // atomic update
+            digests.compute(histogramKey, (k, v) -> {
+              if (v == null) {
+                binCreatedCounter.inc();
+                AgentDigest t = new AgentDigest(compression, System.currentTimeMillis() + ttlMillis);
+                add(t, value);
+                return t;
+              } else {
+                add(v, value);
+                return v;
+              }
+            });
+          }
         } catch (Exception e) {
           if (!(e instanceof IllegalArgumentException)) {
             logger.log(Level.SEVERE, "Unexpected error while parsing/accumulating sample: " + e.getMessage(), e);
@@ -124,9 +169,9 @@ public class AccumulationTask implements Runnable {
             blockedPointsHandler.handleBlockedPoint(e.getMessage());
           }
         }
-      }
+      } // end point processing
       input.remove();
-    }
+    } // end batch processing
   }
 
   @Override
@@ -141,8 +186,8 @@ public class AccumulationTask implements Runnable {
         ", ttlMillis=" + ttlMillis +
         ", granularity=" + granularity +
         ", compression=" + compression +
-        ", histogramCounter=" + histogramCounter +
-        ", accumulationCounter=" + accumulationCounter +
+        ", histogramCounter=" + binCreatedCounter +
+        ", accumulationCounter=" + eventCounter +
         ", ignoredCounter=" + ignoredCounter +
         '}';
   }

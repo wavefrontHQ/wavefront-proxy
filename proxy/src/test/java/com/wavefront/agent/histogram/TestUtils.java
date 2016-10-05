@@ -18,14 +18,25 @@ public final class TestUtils {
     // final abstract...
   }
 
+
   public static long DEFAULT_TIME_MILLIS =
       TimeUnit.MINUTES.toMillis(TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis()));
   public static double DEFAULT_VALUE = 1D;
 
+  /**
+   * Creates a histogram accumulation key for given metric at minute granularity and DEFAULT_TIME_MILLIS
+   */
   public static HistogramKey makeKey(String metric) {
+    return makeKey(metric, Granularity.MINUTE);
+  }
+
+  /**
+   * Creates a histogram accumulation key for a given metric and granularity around DEFAULT_TIME_MILLIS
+   */
+  public static HistogramKey makeKey(String metric, Granularity granularity) {
     return Utils.makeKey(
         ReportPoint.newBuilder().setMetric(metric).setTimestamp(DEFAULT_TIME_MILLIS).setValue(DEFAULT_VALUE).build(),
-        Granularity.MINUTE);
+        granularity);
   }
 
 
@@ -39,6 +50,6 @@ public final class TestUtils {
     assertThat(key.getSource()).isEqualTo(point.getHost());
     assertThat(key.getTagsAsMap()).isEqualTo(point.getAnnotations());
     assertThat(key.getBinTimeMillis()).isEqualTo(point.getTimestamp());
-    assertThat(key.getBinDurationInMillis()).isEqualTo(((Histogram)point.getValue()).getDuration());
+    assertThat(key.getBinDurationInMillis()).isEqualTo(((Histogram) point.getValue()).getDuration());
   }
 }

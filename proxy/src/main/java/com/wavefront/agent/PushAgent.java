@@ -29,6 +29,7 @@ import com.wavefront.api.agent.Constants;
 import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.GraphiteHostAnnotator;
+import com.wavefront.ingester.HistogramDecoder;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.ingester.PickleProtocolDecoder;
 import com.wavefront.ingester.StreamIngester;
@@ -116,7 +117,15 @@ public class PushAgent extends AbstractAgent {
           Collections.emptyIterator() :
           Splitter.on(",").omitEmptyStrings().trimResults().split(histogramDaysListenerPorts).iterator();
 
-      if /*Histograms enabled*/ (histDayPorts.hasNext() || histHourPorts.hasNext() || histMinPorts.hasNext()) {
+      Iterator<String> histDistPorts = Strings.isNullOrEmpty(histogramDistListenerPorts) ?
+          Collections.emptyIterator() :
+          Splitter.on(",").omitEmptyStrings().trimResults().split(histogramDistListenerPorts).iterator();
+
+      if /*Histograms enabled*/ (
+          histDayPorts.hasNext()
+              || histHourPorts.hasNext()
+              || histMinPorts.hasNext()
+              || histDistPorts.hasNext()) {
         if (histogramCompression < 20 || histogramCompression > 1000) {
           logger.log(Level.WARNING, "Histogram compression (" +
               histogramCompression + ") outside of supported range [20;1000], will be clamped.");
@@ -165,10 +174,15 @@ public class PushAgent extends AbstractAgent {
         // Input queue factory
         TapeDeck<List<String>> accumulatorDeck = new TapeDeck<>(TapeStringListConverter.get());
 
+        // Decoders
+        Decoder<String> sampleDecoder = new GraphiteDecoder("unknown", customSourceTags);
+        Decoder<String> distributionDecoder = new HistogramDecoder("unknown");
+
         // Minute ports...
         histMinPorts.forEachRemaining(port -> {
           startHistogramListener(
               port,
+              sampleDecoder,
               histogramHandler,
               cachedAccumulator,
               baseDirectory,
@@ -184,6 +198,7 @@ public class PushAgent extends AbstractAgent {
         histHourPorts.forEachRemaining(port -> {
           startHistogramListener(
               port,
+              sampleDecoder,
               histogramHandler,
               cachedAccumulator,
               baseDirectory,
@@ -199,6 +214,7 @@ public class PushAgent extends AbstractAgent {
         histDayPorts.forEachRemaining(port -> {
           startHistogramListener(
               port,
+              sampleDecoder,
               histogramHandler,
               cachedAccumulator,
               baseDirectory,
@@ -206,6 +222,22 @@ public class PushAgent extends AbstractAgent {
               accumulatorDeck,
               TimeUnit.SECONDS.toMillis(histogramDayAccumulationInterval),
               histogramDayAccumulators
+          );
+          logger.info("listening on port: " + port + " for histogram samples, accumulating to the day");
+        });
+
+        // Distribution ports...
+        histDistPorts.forEachRemaining(port -> {
+          startHistogramListener(
+              port,
+              distributionDecoder,
+              histogramHandler,
+              cachedAccumulator,
+              baseDirectory,
+              Utils.Granularity.DAY, // Ignored...
+              accumulatorDeck,
+              TimeUnit.SECONDS.toMillis(histogramDistAccumulationInterval),
+              histogramDistAccumulators
           );
           logger.info("listening on port: " + port + " for histogram samples, accumulating to the day");
         });
@@ -350,10 +382,10 @@ public class PushAgent extends AbstractAgent {
   /**
    * Registers a custom point handler on a particular port.
    *
-   * @param strPort       The port to listen on.
-   * @param decoder       The decoder to use.
-   * @param pointHandler  The handler to handle parsed ReportPoints.
-   * @param preprocessor  Pre-processor (predicates and transform functions) for every point
+   * @param strPort      The port to listen on.
+   * @param decoder      The decoder to use.
+   * @param pointHandler The handler to handle parsed ReportPoints.
+   * @param preprocessor Pre-processor (predicates and transform functions) for every point
    */
   protected void startCustomListener(String strPort, Decoder<String> decoder, PointHandler pointHandler,
                                      @Nullable PointPreprocessor preprocessor) {
@@ -393,12 +425,12 @@ public class PushAgent extends AbstractAgent {
     }
   }
 
-
   /**
    * Needs to set up a queueing handler and a consumer/lexer for the queue
    */
   protected void startHistogramListener(
       String portAsString,
+      Decoder<String> decoder,
       PointHandler handler,
       AccumulationCache accumulationCache,
       File directory,
@@ -418,7 +450,7 @@ public class PushAgent extends AbstractAgent {
       AccumulationTask scanTask = new AccumulationTask(
           receiveTape,
           accumulationCache.getCache().asMap(),
-          new GraphiteDecoder("unknown", customSourceTags),
+          decoder,
           handler,
           Validation.Level.valueOf(pushValidationLevel),
           timeToLiveMillis,

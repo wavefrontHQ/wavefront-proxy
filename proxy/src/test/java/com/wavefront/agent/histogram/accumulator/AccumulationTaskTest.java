@@ -7,10 +7,10 @@ import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.Validation;
-import com.wavefront.agent.histogram.TestUtils;
 import com.wavefront.agent.histogram.Utils;
 import com.wavefront.agent.histogram.Utils.HistogramKey;
 import com.wavefront.ingester.GraphiteDecoder;
+import com.wavefront.ingester.HistogramDecoder;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -25,6 +25,7 @@ import sunnylabs.report.ReportPoint;
 import static com.google.common.truth.Truth.assertThat;
 import static com.wavefront.agent.histogram.TestUtils.DEFAULT_TIME_MILLIS;
 import static com.wavefront.agent.histogram.TestUtils.DEFAULT_VALUE;
+import static com.wavefront.agent.histogram.TestUtils.makeKey;
 import static com.wavefront.agent.histogram.Utils.Granularity.*;
 
 /**
@@ -36,16 +37,26 @@ public class AccumulationTaskTest {
   private ObjectQueue<List<String>> in;
   private ConcurrentMap<HistogramKey, AgentDigest> out;
   private List<String> badPointsOut;
-  private AccumulationTask subject;
+  private AccumulationTask eventSubject, histoSubject;
   private final static long TTL = 30L;
-  private final static  short COMPRESSION = 100;
+  private final static short COMPRESSION = 100;
 
-  private String lineA = "keyA " + DEFAULT_VALUE + " " + DEFAULT_TIME_MILLIS;
-  private String lineB = "keyB " + DEFAULT_VALUE + " " + DEFAULT_TIME_MILLIS;
-  private String lineC = "keyC " + DEFAULT_VALUE + " " + DEFAULT_TIME_MILLIS;
-  private HistogramKey keyA = TestUtils.makeKey("keyA");
-  private HistogramKey keyB = TestUtils.makeKey("keyB");
-  private HistogramKey keyC = TestUtils.makeKey("keyC");
+  private String lineA = "minKeyA " + DEFAULT_VALUE + " " + DEFAULT_TIME_MILLIS;
+  private String lineB = "minKeyB " + DEFAULT_VALUE + " " + DEFAULT_TIME_MILLIS;
+  private String lineC = "minKeyC " + DEFAULT_VALUE + " " + DEFAULT_TIME_MILLIS;
+
+  private String histoMinLineA = "!M " + DEFAULT_TIME_MILLIS + " #2 20 #5 70 #6 123 minKeyA";
+  private String histoMinLineB = "!M " + DEFAULT_TIME_MILLIS + " #1 10 #2 1000 #3 1000 minKeyB";
+  private String histoHourLineA = "!H " + DEFAULT_TIME_MILLIS + " #11 10 #9 1000 #17 1000 hourKeyA";
+  private String histoDayLineA = "!D " + DEFAULT_TIME_MILLIS + " #5 10 #5 1000 #5 1000 dayKeyA";
+
+
+  private HistogramKey minKeyA = makeKey("minKeyA");
+  private HistogramKey minKeyB = makeKey("minKeyB");
+  private HistogramKey minKeyC = makeKey("minKeyC");
+  private HistogramKey hourKeyA = makeKey("hourKeyA", HOUR);
+  private HistogramKey dayKeyA = makeKey("dayKeyA", DAY);
+
 
   @Before
   public void setUp() throws Exception {
@@ -53,26 +64,38 @@ public class AccumulationTaskTest {
     out = new ConcurrentHashMap<>();
     badPointsOut = Lists.newArrayList();
 
-    subject = new AccumulationTask(
+    PointHandler pointHandler = new PointHandler() {
+      @Override
+      public void reportPoint(ReportPoint point, String debugLine) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public void reportPoints(List<ReportPoint> points) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public void handleBlockedPoint(String pointLine) {
+        badPointsOut.add(pointLine);
+      }
+    };
+
+    eventSubject = new AccumulationTask(
         in,
         out,
         new GraphiteDecoder("unknown", ImmutableList.of()),
-        new PointHandler() {
-          @Override
-          public void reportPoint(ReportPoint point, String debugLine) {
-            throw new UnsupportedOperationException();
-          }
+        pointHandler,
+        Validation.Level.NUMERIC_ONLY,
+        TTL,
+        MINUTE,
+        COMPRESSION);
 
-          @Override
-          public void reportPoints(List<ReportPoint> points) {
-            throw new UnsupportedOperationException();
-          }
-
-          @Override
-          public void handleBlockedPoint(String pointLine) {
-            badPointsOut.add(pointLine);
-          }
-        },
+    histoSubject = new AccumulationTask(
+        in,
+        out,
+        new HistogramDecoder(),
+        pointHandler,
         Validation.Level.NUMERIC_ONLY,
         TTL,
         MINUTE,
@@ -83,24 +106,26 @@ public class AccumulationTaskTest {
   public void testSingleLine() {
     in.add(ImmutableList.of(lineA));
 
-    subject.run();
+    eventSubject.run();
 
-    assertThat(out.get(keyA)).isNotNull();
-    assertThat(out.get(keyA).size()).isEqualTo(1);
+    assertThat(badPointsOut).hasSize(0);
+    assertThat(out.get(minKeyA)).isNotNull();
+    assertThat(out.get(minKeyA).size()).isEqualTo(1);
   }
 
   @Test
   public void testMultipleLines() {
     in.add(ImmutableList.of(lineA, lineB, lineC));
 
-    subject.run();
+    eventSubject.run();
 
-    assertThat(out.get(keyA)).isNotNull();
-    assertThat(out.get(keyA).size()).isEqualTo(1);
-    assertThat(out.get(keyB)).isNotNull();
-    assertThat(out.get(keyB).size()).isEqualTo(1);
-    assertThat(out.get(keyC)).isNotNull();
-    assertThat(out.get(keyC).size()).isEqualTo(1);
+    assertThat(badPointsOut).hasSize(0);
+    assertThat(out.get(minKeyA)).isNotNull();
+    assertThat(out.get(minKeyA).size()).isEqualTo(1);
+    assertThat(out.get(minKeyB)).isNotNull();
+    assertThat(out.get(minKeyB).size()).isEqualTo(1);
+    assertThat(out.get(minKeyC)).isNotNull();
+    assertThat(out.get(minKeyC).size()).isEqualTo(1);
   }
 
   @Test
@@ -110,7 +135,7 @@ public class AccumulationTaskTest {
         "min0 1 " + (DEFAULT_TIME_MILLIS - 60000),
         "min1 1 " + DEFAULT_TIME_MILLIS));
 
-    subject.run();
+    eventSubject.run();
 
     HistogramKey min0 = Utils.makeKey(ReportPoint.newBuilder()
         .setMetric("min0")
@@ -122,6 +147,7 @@ public class AccumulationTaskTest {
         .setTimestamp(DEFAULT_TIME_MILLIS)
         .setValue(1).build(), MINUTE);
 
+    assertThat(badPointsOut).hasSize(0);
     assertThat(out.get(min0)).isNotNull();
     assertThat(out.get(min0).size()).isEqualTo(2);
     assertThat(out.get(min1)).isNotNull();
@@ -132,22 +158,85 @@ public class AccumulationTaskTest {
   public void testAccumulation() {
     in.add(ImmutableList.of(lineA, lineA, lineA));
 
-    subject.run();
+    eventSubject.run();
 
-    assertThat(out.get(keyA)).isNotNull();
-    assertThat(out.get(keyA).size()).isEqualTo(3);
+    assertThat(out.get(minKeyA)).isNotNull();
+    assertThat(out.get(minKeyA).size()).isEqualTo(3);
   }
 
   @Test
   public void testAccumulateWithBadLine() {
     in.add(ImmutableList.of("This is not really a valid sample", lineA, lineA, lineA));
 
-    subject.run();
+    eventSubject.run();
 
     assertThat(badPointsOut).hasSize(1);
     assertThat(badPointsOut.get(0)).contains("This is not really a valid sample");
 
-    assertThat(out.get(keyA)).isNotNull();
-    assertThat(out.get(keyA).size()).isEqualTo(3);
+    assertThat(out.get(minKeyA)).isNotNull();
+    assertThat(out.get(minKeyA).size()).isEqualTo(3);
+  }
+
+  @Test
+  public void testHistogramLine() {
+    in.add(ImmutableList.of(histoMinLineA));
+
+    histoSubject.run();
+
+    assertThat(badPointsOut).hasSize(0);
+    assertThat(out.get(minKeyA)).isNotNull();
+    assertThat(out.get(minKeyA).size()).isEqualTo(13);
+  }
+
+  @Test
+  public void testHistogramAccumulation() {
+    in.add(ImmutableList.of(histoMinLineA, histoMinLineA, histoMinLineA));
+
+    histoSubject.run();
+
+    assertThat(badPointsOut).hasSize(0);
+    assertThat(out.get(minKeyA)).isNotNull();
+    assertThat(out.get(minKeyA).size()).isEqualTo(39);
+  }
+
+  @Test
+  public void testHistogramAccumulationMultipleGranularities() {
+    in.add(ImmutableList.of(histoMinLineA, histoHourLineA, histoDayLineA));
+
+    histoSubject.run();
+
+    assertThat(badPointsOut).hasSize(0);
+    assertThat(out.get(minKeyA)).isNotNull();
+    assertThat(out.get(minKeyA).size()).isEqualTo(13);
+    assertThat(out.get(hourKeyA)).isNotNull();
+    assertThat(out.get(hourKeyA).size()).isEqualTo(37);
+    assertThat(out.get(dayKeyA)).isNotNull();
+    assertThat(out.get(dayKeyA).size()).isEqualTo(15);
+  }
+
+  @Test
+  public void testHistogramMultiBinAccumulation() {
+    in.add(ImmutableList.of(histoMinLineA, histoMinLineB, histoMinLineA, histoMinLineB));
+
+    histoSubject.run();
+
+    assertThat(badPointsOut).hasSize(0);
+    assertThat(out.get(minKeyA)).isNotNull();
+    assertThat(out.get(minKeyA).size()).isEqualTo(26);
+    assertThat(out.get(minKeyB)).isNotNull();
+    assertThat(out.get(minKeyB).size()).isEqualTo(12);
+  }
+
+  @Test
+  public void testHistogramAccumulationWithBadLine() {
+    in.add(ImmutableList.of(histoMinLineA, "not really valid...", histoMinLineA));
+
+    histoSubject.run();
+
+    assertThat(badPointsOut).hasSize(1);
+    assertThat(badPointsOut.get(0)).contains("not really valid...");
+
+    assertThat(out.get(minKeyA)).isNotNull();
+    assertThat(out.get(minKeyA).size()).isEqualTo(26);
   }
 }
