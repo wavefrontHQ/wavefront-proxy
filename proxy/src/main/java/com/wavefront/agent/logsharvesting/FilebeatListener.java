@@ -8,6 +8,7 @@ import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
+import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Metric;
@@ -47,41 +48,20 @@ public class FilebeatListener implements IMessageListener {
    * @param logsIngestionConfig configuration object for logs harvesting
    * @param hostname            hostname for meta-metrics (so, for this proxy)
    * @param prefix              all harvested metrics start with this prefix
-   * @param reportMetaMetrics   if true, report meta-metrics. parameterized so we can turn off for testing
    */
   public FilebeatListener(PointHandler pointHandler, LogsIngestionConfig logsIngestionConfig, String hostname,
-                          String prefix, boolean reportMetaMetrics) {
+                          String prefix) {
     this.pointHandler = pointHandler;
     this.hostname = hostname;
     this.prefix = prefix;
     this.logsIngestionConfig = logsIngestionConfig;
     this.metricsRegistry = new MetricsRegistry();
     // Meta metrics.
-    this.received = metricsRegistry.newCounter(FilebeatListener.class, "received");
-    this.evicted = metricsRegistry.newCounter(FilebeatListener.class, "evicted");
-    this.unparsed = metricsRegistry.newCounter(FilebeatListener.class, "unparsed");
-    this.parsed = metricsRegistry.newCounter(FilebeatListener.class, "parsed");
-    this.batchesProcessed = metricsRegistry.newCounter(FilebeatListener.class, "unparsed");
-
-    if (reportMetaMetrics) {
-      Timer t = new Timer();
-      t.scheduleAtFixedRate(new TimerTask() {
-        @Override
-        public void run() {
-          pointHandler.reportPoint(ReportPoint.newBuilder().setMetric("~agent.logsharvesting.received")
-              .setHost(hostname).setValue(received.count()).setTimestamp(System.currentTimeMillis()).build(), null);
-          pointHandler.reportPoint(ReportPoint.newBuilder().setMetric("~agent.logsharvesting.evicted")
-              .setHost(hostname).setValue(evicted.count()).setTimestamp(System.currentTimeMillis()).build(), null);
-          pointHandler.reportPoint(ReportPoint.newBuilder().setMetric("~agent.logsharvesting.unparsed")
-              .setHost(hostname).setValue(unparsed.count()).setTimestamp(System.currentTimeMillis()).build(), null);
-          pointHandler.reportPoint(ReportPoint.newBuilder().setMetric("~agent.logsharvesting.parsed")
-              .setHost(hostname).setValue(parsed.count()).setTimestamp(System.currentTimeMillis()).build(), null);
-          pointHandler.reportPoint(ReportPoint.newBuilder().setMetric("~agent.logsharvesting.batchesProcessed")
-              .setHost(hostname).setValue(batchesProcessed.count())
-              .setTimestamp(System.currentTimeMillis()).build(), null);
-        }
-      }, 1000, 1000);
-    }
+    this.received = Metrics.newCounter(FilebeatListener.class, "logsharvesting.received");
+    this.evicted = Metrics.newCounter(FilebeatListener.class, "logsharvesting.evicted");
+    this.unparsed = Metrics.newCounter(FilebeatListener.class, "logsharvesting.unparsed");
+    this.parsed = Metrics.newCounter(FilebeatListener.class, "logsharvesting.parsed");
+    this.batchesProcessed = Metrics.newCounter(FilebeatListener.class, "logsharvesting.unparsed");
 
     // Set up user specified metric harvesting.
     this.metricCache = Caffeine.<MetricName, Metric>newBuilder()

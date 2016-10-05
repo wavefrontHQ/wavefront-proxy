@@ -176,7 +176,7 @@ public abstract class AbstractAgent {
   protected String writeHttpJsonPorts = "";
 
   @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
-  protected Integer filebeatPort = null;
+  protected Integer filebeatPort = 0;
 
   @Parameter(names = {"--hostname"}, description = "Hostname for the agent. Defaults to FQDN of machine.")
   protected String hostname;

@@ -50,7 +50,7 @@ public class FilebeatListenerTest {
     logsIngestionConfig.verify();
     mockPointHandler = createMock(PointHandler.class);
     filebeatListenerUnderTest = new FilebeatListener(
-        mockPointHandler, logsIngestionConfig, "myhostname", null, false);
+        mockPointHandler, logsIngestionConfig, "myhostname", null);
   }
 
   private void recieveLog(String log) {
@@ -76,7 +76,7 @@ public class FilebeatListenerTest {
   public void testPrefixIsApplied() throws Exception {
     setup("test.yml");
     filebeatListenerUnderTest = new FilebeatListener(
-        mockPointHandler, logsIngestionConfig, "myhostname", "myPrefix", false);
+        mockPointHandler, logsIngestionConfig, "myhostname", "myPrefix");
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "myPrefix.plainCounter", ImmutableMap.of())));
