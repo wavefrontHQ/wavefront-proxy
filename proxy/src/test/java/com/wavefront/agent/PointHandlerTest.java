@@ -107,10 +107,14 @@ public class PointHandlerTest {
     testReportPointToStringHelper(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
         new HashMap<String, String>()));
     // Quote in metric name
-    testReportPointToStringHelper(new ReportPoint("some\"metric", 1469751813000L, 10L, "host", "table",
-        new HashMap<String, String>()));
+    Assert.assertEquals("\"some\\\"metric\" 10 1469751813 source=\"host\"",
+        PointHandlerImpl.pointToString(new ReportPoint("some\"metric", 1469751813000L, 10L, "host", "table",
+            new HashMap<String, String>()))
+    );
     // Quote in tags
-    testReportPointToStringHelper(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
-        ImmutableMap.of("foo\"", "\"bar", "bo\"o", "baz")));
+    Assert.assertEquals("\"some metric\" 10 1469751813 source=\"host\" \"foo\\\"\"=\"\\\"bar\" \"bo\\\"o\"=\"baz\"",
+        PointHandlerImpl.pointToString(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
+            ImmutableMap.of("foo\"", "\"bar", "bo\"o", "baz")))
+    );
   }
 }
