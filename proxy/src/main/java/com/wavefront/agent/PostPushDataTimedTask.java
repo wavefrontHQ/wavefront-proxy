@@ -38,6 +38,8 @@ public class PostPushDataTimedTask implements Runnable {
   private List<String> points = new ArrayList<>();
   private final Object pointsMutex = new Object();
   private final List<String> blockedSamples = new ArrayList<>();
+
+  private final String pushFormat;
   private final Object blockedSamplesMutex = new Object();
 
   private RateLimiter warningMessageRateLimiter = RateLimiter.create(0.2);
@@ -53,8 +55,7 @@ public class PostPushDataTimedTask implements Runnable {
   private long numApiCalls = 0;
 
   private UUID daemonId;
-  private int port;
-  private int threadId;
+  private String handle;
   private static int pointsPerBatch = MAX_SPLIT_BATCH_SIZE;
   private String logLevel;
   private boolean isFlushingToQueue = false;
@@ -120,22 +121,21 @@ public class PostPushDataTimedTask implements Runnable {
     return daemonId;
   }
 
-  public PostPushDataTimedTask(ForceQueueEnabledAgentAPI agentAPI, String logLevel,
-                               UUID daemonId, int port, int threadId) {
+  public PostPushDataTimedTask(String pushFormat, ForceQueueEnabledAgentAPI agentAPI, String logLevel,
+                               UUID daemonId, String handle, int threadId) {
+    this.pushFormat = pushFormat;
     this.logLevel = logLevel;
     this.daemonId = daemonId;
-    this.port = port;
-    this.threadId = threadId;
-
+    this.handle = handle;
     this.agentAPI = agentAPI;
 
-    this.pointsAttempted = Metrics.newCounter(new MetricName("points." + String.valueOf(port), "", "sent"));
-    this.pointsQueued = Metrics.newCounter(new MetricName("points." + String.valueOf(port), "", "queued"));
-    this.pointsBlocked = Metrics.newCounter(new MetricName("points." + String.valueOf(port), "", "blocked"));
-    this.pointsReceived = Metrics.newCounter(new MetricName("points." + String.valueOf(port), "", "received"));
+    this.pointsAttempted = Metrics.newCounter(new MetricName("points." + handle, "", "sent"));
+    this.pointsQueued = Metrics.newCounter(new MetricName("points." + handle, "", "queued"));
+    this.pointsBlocked = Metrics.newCounter(new MetricName("points." + handle, "", "blocked"));
+    this.pointsReceived = Metrics.newCounter(new MetricName("points." + handle, "", "received"));
     this.batchesSent = Metrics.newCounter(
-        new MetricName("push." + String.valueOf(port) + ".thread-" + String.valueOf(threadId), "", "batches"));
-    this.batchSendTime = Metrics.newTimer(new MetricName("push." + String.valueOf(port), "", "duration"),
+        new MetricName("push." + String.valueOf(handle) + ".thread-" + String.valueOf(threadId), "", "batches"));
+    this.batchSendTime = Metrics.newTimer(new MetricName("push." + handle, "", "duration"),
         TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
   }
 
@@ -149,8 +149,11 @@ public class PostPushDataTimedTask implements Runnable {
         TimerContext timerContext = this.batchSendTime.time();
         Response response = null;
         try {
-          response = agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
-              System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
+          response = agentAPI.postPushData(
+              daemonId,
+              Constants.GRAPHITE_BLOCK_WORK_UNIT,
+              System.currentTimeMillis(),
+              pushFormat,
               StringLineIngester.joinPushData(current));
           int pointsInList = current.size();
           this.pointsAttempted.inc(pointsInList);
@@ -230,16 +233,16 @@ public class PostPushDataTimedTask implements Runnable {
     }
 
     if (logLevel.equals(LOG_DETAILED)) {
-      logger.warning("[" + port + "] (DETAILED): sending " + current.size() + " valid points; " +
+      logger.warning("[" + handle + "] (DETAILED): sending " + current.size() + " valid points; " +
           "queue size:" + points.size() + "; total attempted points: " +
           getAttemptedPoints() + "; total blocked: " + this.pointsBlocked.count());
     }
     if (((numIntervals % INTERVALS_PER_SUMMARY) == 0) && (!logLevel.equals(LOG_NONE))) {
-      logger.warning("[" + port + "] (SUMMARY): points attempted: " + getAttemptedPoints() +
+      logger.warning("[" + handle + "] (SUMMARY): points attempted: " + getAttemptedPoints() +
           "; blocked: " + this.pointsBlocked.count());
       if (currentBlockedSamples != null) {
         for (String blockedLine : currentBlockedSamples) {
-          logger.warning("[" + port + "] blocked input: [" + blockedLine + "]");
+          logger.warning("[" + handle + "] blocked input: [" + blockedLine + "]");
         }
       }
     }

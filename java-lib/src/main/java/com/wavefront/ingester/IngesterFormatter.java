@@ -1,5 +1,6 @@
 package com.wavefront.ingester;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -14,8 +15,10 @@ import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 import org.antlr.v4.runtime.Token;
+import org.apache.commons.lang.time.DateUtils;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -24,7 +27,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import queryserver.parser.DSWrapperLexer;
+import sunnylabs.report.Histogram;
+import sunnylabs.report.HistogramType;
 import sunnylabs.report.ReportPoint;
+
+import static com.google.common.base.MoreObjects.firstNonNull;
 
 /**
  * Builder pattern for creating new ingestion formats. Inspired by the date time formatters in
@@ -191,6 +198,21 @@ public class IngesterFormatter {
       return this;
     }
 
+    public IngesterFormatBuilder binType() {
+      elements.add(new BinType());
+      return this;
+    }
+
+    public IngesterFormatBuilder centroids() {
+      elements.add(new GuardedLoop(new Centroid(), Centroid.expectedToken(), false));
+      return this;
+    }
+
+    public IngesterFormatBuilder adjustTimestamp() {
+      elements.add(new TimestampAdjuster());
+      return this;
+    }
+
     public IngesterFormatter build() {
       return new IngesterFormatter(elements);
     }
@@ -221,6 +243,137 @@ public class IngesterFormatter {
     }
   }
 
+  public static class BinType implements FormatterElement {
+
+
+    @Override
+    public void consume(Queue<Token> tokenQueue, ReportPoint point) {
+      {
+        Token peek = tokenQueue.peek();
+
+        if (peek == null) {
+          throw new RuntimeException("Expected BinType, found EOF");
+        }
+        if (peek.getType() != DSWrapperLexer.BinType) {
+          throw new RuntimeException("Expected BinType, found " + peek.getText());
+        }
+      }
+
+      int durationMillis = 0;
+      String binType = tokenQueue.poll().getText();
+
+      switch (binType) {
+        case "!M":
+          durationMillis = (int) DateUtils.MILLIS_PER_MINUTE;
+          break;
+        case "!H":
+          durationMillis = (int) DateUtils.MILLIS_PER_HOUR;
+          break;
+        case "!D":
+          durationMillis = (int) DateUtils.MILLIS_PER_DAY;
+          break;
+        default:
+          throw new RuntimeException("Unknown BinType " + binType);
+      }
+
+      Histogram h = firstNonNull((Histogram) point.getValue(), new Histogram());
+      h.setDuration(durationMillis);
+      h.setType(HistogramType.TDIGEST);
+      point.setValue(h);
+    }
+  }
+
+  public static class Centroid implements FormatterElement {
+
+    public static int expectedToken() {
+      return DSWrapperLexer.Weight;
+    }
+
+    @Override
+    public void consume(Queue<Token> tokenQueue, ReportPoint point) {
+      {
+        Token peek = tokenQueue.peek();
+
+        Preconditions.checkNotNull(peek, "Expected Count, got EOF");
+        Preconditions.checkArgument(peek.getType() == DSWrapperLexer.Weight, "Expected Count, got " + peek.getText());
+      }
+
+      String countStr = tokenQueue.poll().getText();
+      int count;
+      try {
+        count = Integer.parseInt(countStr.substring(1));
+      } catch (NumberFormatException e) {
+        throw new RuntimeException("Could not parse count " + countStr);
+      }
+
+      WHITESPACE_ELEMENT.consume(tokenQueue, point);
+
+      // Mean
+      double mean = parseValue(tokenQueue, "centroid mean");
+
+      Histogram h = firstNonNull((Histogram) point.getValue(), new Histogram());
+      List<Double> bins = firstNonNull(h.getBins(), new ArrayList<>());
+      bins.add(mean);
+      h.setBins(bins);
+
+      List<Integer> counts = firstNonNull(h.getCounts(), new ArrayList<>());
+      counts.add(count);
+      h.setCounts(counts);
+      point.setValue(h);
+    }
+  }
+
+  /**
+   * Similar to {@link Loop}, but expects a configurable non-whitespace {@link Token}
+   */
+  public static class GuardedLoop implements FormatterElement {
+    private final FormatterElement element;
+    private final int acceptedToken;
+    private final boolean optional;
+
+    public GuardedLoop(FormatterElement element, int acceptedToken, boolean optional) {
+      this.element = element;
+      this.acceptedToken = acceptedToken;
+      this.optional = optional;
+    }
+
+    @Override
+    public void consume(Queue<Token> tokenQueue, ReportPoint point) {
+      boolean satisfied = optional;
+      while (!tokenQueue.isEmpty()) {
+        WHITESPACE_ELEMENT.consume(tokenQueue, point);
+        if (tokenQueue.peek() == null || tokenQueue.peek().getType() != acceptedToken) {
+          break;
+        }
+        satisfied = true;
+        element.consume(tokenQueue, point);
+      }
+
+      if (!satisfied) {
+        throw new RuntimeException("Expected at least one element, got none");
+      }
+    }
+  }
+
+  /**
+   * Pins the point's timestamp to the beginning of the respective interval
+   */
+  public static class TimestampAdjuster implements FormatterElement {
+
+    @Override
+    public void consume(Queue<Token> tokenQueue, ReportPoint point) {
+      Preconditions.checkArgument(point.getValue() != null
+              && point.getTimestamp() != null
+              && point.getValue() instanceof Histogram
+              && ((Histogram) point.getValue()).getDuration() != null,
+          "Expected a histogram point with timestamp and histogram duration");
+
+      long duration = ((Histogram) point.getValue()).getDuration();
+      point.setTimestamp((point.getTimestamp() / duration) * duration);
+    }
+  }
+
+
   public static class Tag implements FormatterElement {
 
     @Override
@@ -247,35 +400,61 @@ public class IngesterFormatter {
     }
   }
 
+  private static double parseValue(Queue<Token> tokenQueue, String name) {
+    String value = "";
+    Token current = tokenQueue.poll();
+    if (current == null) throw new RuntimeException("Invalid " + name + ", found EOF");
+    if (current.getType() == DSWrapperLexer.MinusSign) {
+      current = tokenQueue.poll();
+      value = "-";
+    }
+    if (current == null) throw new RuntimeException("Invalid " + name + ", found EOF");
+    if (current.getType() == DSWrapperLexer.Quoted) {
+      if (!value.equals("")) {
+        throw new RuntimeException("Invalid " + name + ": " + value + current.getText());
+      }
+      value += unquote(current.getText());
+    } else if (current.getType() == DSWrapperLexer.Letters ||
+        current.getType() == DSWrapperLexer.Literal ||
+        current.getType() == DSWrapperLexer.Number) {
+      value += current.getText();
+    } else {
+      throw new RuntimeException("Invalid " + name + ": " + current.getText());
+    }
+    try {
+      return Double.parseDouble(value);
+    } catch (NumberFormatException nef) {
+      throw new RuntimeException("Invalid " + name + ": " + value);
+    }
+  }
+
   public static class Value implements FormatterElement {
 
     @Override
     public void consume(Queue<Token> tokenQueue, ReportPoint point) {
-      String value = "";
-      Token current = tokenQueue.poll();
-      if (current == null) throw new RuntimeException("Invalid metric value, found EOF");
-      if (current.getType() == DSWrapperLexer.MinusSign) {
-        current = tokenQueue.poll();
-        value = "-";
-      }
-      if (current == null) throw new RuntimeException("Invalid metric value, found EOF");
-      if (current.getType() == DSWrapperLexer.Quoted) {
-        if (!value.equals("")) {
-          throw new RuntimeException("invalid metric value: " + value + current.getText());
-        }
-        value += unquote(current.getText());
-      } else if (current.getType() == DSWrapperLexer.Letters ||
-          current.getType() == DSWrapperLexer.Literal ||
-          current.getType() == DSWrapperLexer.Number) {
-        value += current.getText();
+      point.setValue(parseValue(tokenQueue, "metric value"));
+    }
+  }
+
+  private static Long parseTimestamp(Queue<Token> tokenQueue, boolean optional) {
+    Token peek = tokenQueue.peek();
+    if (peek == null || peek.getType() != DSWrapperLexer.Number) {
+      if (optional) return null;
+      else throw new RuntimeException("Expected timestamp, found " + (peek == null ? "EOF" : peek.getText()));
+    }
+    try {
+      Double timestamp = Double.parseDouble(tokenQueue.poll().getText());
+      Long timestampLong = timestamp.longValue();
+      // see if it has 13 digits.
+      if (timestampLong.toString().length() == 13) {
+        // milliseconds.
+        return timestamp.longValue();
       } else {
-        throw new RuntimeException("invalid metric value: " + current.getText());
+        // treat it as seconds.
+        return (long) (1000.0 * timestamp);
       }
-      try {
-        point.setValue(Double.parseDouble(value));
-      } catch (NumberFormatException nef) {
-        throw new RuntimeException("invalid metric value: " + value);
-      }
+    } catch (NumberFormatException nfe) {
+      throw new RuntimeException("Invalid timestamp value: " + peek.getText());
     }
   }
 
@@ -289,28 +468,11 @@ public class IngesterFormatter {
 
     @Override
     public void consume(Queue<Token> tokenQueue, ReportPoint point) {
-      Token peek = tokenQueue.peek();
-      if (peek == null) {
-        if (optional) return;
-        else throw new RuntimeException("Expecting timestamp, found EOF");
-      }
-      if (peek.getType() == DSWrapperLexer.Number) {
-        try {
-          Double timestamp = Double.parseDouble(tokenQueue.poll().getText());
-          Long timestampLong = timestamp.longValue();
-          // see if it has 13 digits.
-          if (timestampLong.toString().length() == 13) {
-            // milliseconds.
-            point.setTimestamp(timestamp.longValue());
-          } else {
-            // treat it as seconds.
-            point.setTimestamp((long) (1000.0 * timestamp));
-          }
-        } catch (NumberFormatException nfe) {
-          throw new RuntimeException("Invalid timestamp value: " + peek.getText());
-        }
-      } else if (!optional) {
-        throw new RuntimeException("Expecting timestamp, found: " + peek.getText());
+      Long timestamp = parseTimestamp(tokenQueue, optional);
+
+      // Do not override with null on satisfied
+      if (timestamp != null) {
+        point.setTimestamp(timestamp);
       }
     }
   }

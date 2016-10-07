@@ -17,6 +17,11 @@ public abstract class Constants {
    * Formatted for graphite head (without customer id in the metric name).
    */
   public static final String PUSH_FORMAT_GRAPHITE_V2 = "graphite_v2";
+
+  /**
+   * Wavefront histogram format
+   */
+  public static final String PUSH_FORMAT_HISTOGRAM = "histogram";
   /**
    * Work unit id for blocks of graphite-formatted data.
    */
