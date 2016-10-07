@@ -26,7 +26,7 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Configure agent
 ENV DO_SERVICE_RESTART=false
-RUN echo '\nephemeral=true' >> /opt/wavefront/wavefront-proxy/conf/wavefront.conf
+RUN echo '\nephemeral=true' >> /etc/wavefront/wavefront-proxy/wavefront.conf
 
 # Run the agent
 EXPOSE 3878

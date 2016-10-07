@@ -5,6 +5,8 @@ group="wavefront"
 service_name="wavefront-proxy"
 spool_dir="/var/spool/wavefront-proxy"
 wavefront_dir="/opt/wavefront"
+conf_dir="/etc/wavefront"
+jre_dir="$wavefront_dir/$service_name/jre"
 
 # Set up wavefront user.
 if ! groupmod $group &> /dev/null; then
@@ -26,6 +28,15 @@ fi
 
 # Allow system user to write .wavefront_id/buffer files to install dir.
 chown $user:$group $wavefront_dir/$service_name
+chown $user:$group $conf_dir/$service_name
+
+if [[ ! -f $conf_dir/$service_name/wavefront.conf ]]; then
+    cp $conf_dir/$service_name/wavefront.conf.default $conf_dir/$service_name/wavefront.conf
+fi
+
+if [[ ! -f $conf_dir/$service_name/preprocessor_rules.yaml ]]; then
+    cp $conf_dir/$service_name/preprocessor_rules.yaml.default $conf_dir/$service_name/preprocessor_rules.yaml
+fi
 
 # If there is an errant pre-3.9 agent running, we need to kill it. This is
 # required for a clean upgrade from pre-3.9 to 3.9+.
@@ -35,6 +46,14 @@ if [[ -f $old_pid_file ]]; then
 	kill -9 "$pid" || true
 	rm $old_pid_file
 fi
+
+[[ -d $jre_dir ]] || mkdir -p $jre_dir
+
+echo "Downloading and installing Zulu JRE"
+
+curl -L --silent -o /tmp/jre.tar.gz https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz
+tar -xf /tmp/jre.tar.gz --strip 1 -C $jre_dir
+rm /tmp/jre.tar.gz
 
 service $service_name restart
 
