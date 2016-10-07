@@ -25,8 +25,21 @@ desc=${DESC:-Wavefront Proxy}
 user="wavefront"
 wavefront_dir="/opt/wavefront"
 proxy_dir=${PROXY_DIR:-$wavefront_dir/wavefront-proxy}
+config_dir=${CONFIG_DIR:-/etc/wavefront/wavefront-proxy}
 export JAVA_HOME="$proxy_dir/jre"
-conf_file=${CONF_FILE:-$proxy_dir/conf/wavefront.conf}
+conf_file=$CONF_FILE
+if [[ -z $conf_file ]]; then
+    legacy_config_dir=$proxy_dir/conf
+    if [[ -r "$legacy_config_dir/wavefront.conf" ]]; then
+        conf_file="$legacy_config_dir/wavefront.conf"
+        >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        >&2 echo "WARNING: Using wavefront.conf file found in its old location ($legacy_config_dir)."
+        >&2 echo "To suppress this warning message, please move wavefront.conf to $config_dir."
+        >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    else
+        conf_file="$config_dir/wavefront.conf"
+    fi
+fi
 log_file=${LOG_FILE:-/var/log/wavefront.log}
 daemon_log_file=${DAEMON_LOG_FILE:-/var/log/wavefront-daemon.log}
 err_file=$log_file

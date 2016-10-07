@@ -33,7 +33,7 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
   @Nullable
   private final PointPreprocessor preprocessor;
 
-  public WriteHttpJsonMetricsEndpoint(final int port, final String host,
+  public WriteHttpJsonMetricsEndpoint(final String port, final String host,
                                       @Nullable
                                       final String prefix, final String validationLevel,
                                       final int blockedPointsPerBatch, PostPushDataTimedTask[] postPushDataTimedTasks,

@@ -2,64 +2,87 @@ package com.wavefront.agent;
 
 import com.google.common.collect.ImmutableMap;
 
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.time.DateUtils;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
+import jersey.repackaged.com.google.common.collect.ImmutableList;
+import sunnylabs.report.Histogram;
+import sunnylabs.report.HistogramType;
 import sunnylabs.report.ReportPoint;
+
+import static com.google.common.truth.Truth.assertThat;
 
 /**
  * @author Andrew Kao (andrew@wavefront.com), Jason Bau (jbau@wavefront.com)
  */
 public class PointHandlerTest {
+  private ReportPoint histogramPoint;
 
-  private static final Logger logger = LoggerFactory.getLogger(PointHandlerTest.class);
+  @Before
+  public void setUp() {
+    Histogram h = Histogram.newBuilder()
+        .setType(HistogramType.TDIGEST)
+        .setBins(ImmutableList.of(10D, 20D))
+        .setCounts(ImmutableList.of(2, 4))
+        .setDuration((int) DateUtils.MILLIS_PER_MINUTE)
+        .build();
+    histogramPoint = ReportPoint.newBuilder()
+        .setTable("customer")
+        .setValue(h)
+        .setMetric("TestMetric")
+        .setHost("TestSource")
+        .setTimestamp(1469751813000L)
+        .setAnnotations(ImmutableMap.of("keyA", "valueA", "keyB", "valueB"))
+        .build();
+  }
 
   @Test
   public void testPointIllegalChars() {
     String input = "metric1";
-    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertTrue(Validation.charactersAreValid(input));
 
     input = "good.metric2";
-    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertTrue(Validation.charactersAreValid(input));
 
     input = "good-metric3";
-    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertTrue(Validation.charactersAreValid(input));
 
     input = "good_metric4";
-    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertTrue(Validation.charactersAreValid(input));
 
     input = "good,metric5";
-    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertTrue(Validation.charactersAreValid(input));
 
     input = "good/metric6";
-    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertTrue(Validation.charactersAreValid(input));
 
     input = "~good.metric7";
-    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertTrue(Validation.charactersAreValid(input));
 
     input = "abcdefghijklmnopqrstuvwxyz.0123456789,/_-ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    Assert.assertTrue(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertTrue(Validation.charactersAreValid(input));
 
     input = "abcdefghijklmnopqrstuvwxyz.0123456789,/_-ABCDEFGHIJKLMNOPQRSTUVWXYZ~";
-    Assert.assertFalse(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertFalse(Validation.charactersAreValid(input));
 
     input = "as;df";
-    Assert.assertFalse(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertFalse(Validation.charactersAreValid(input));
 
     input = "as:df";
-    Assert.assertFalse(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertFalse(Validation.charactersAreValid(input));
 
     input = "as df";
-    Assert.assertFalse(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertFalse(Validation.charactersAreValid(input));
 
     input = "as'df";
-    Assert.assertFalse(PointHandlerImpl.charactersAreValid(input));
+    Assert.assertFalse(Validation.charactersAreValid(input));
   }
 
   @Test
@@ -72,11 +95,10 @@ public class PointHandlerTest {
 
     ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis(), 10L, "host", "table",
         goodMap);
-    Assert.assertTrue(PointHandlerImpl.annotationKeysAreValid(rp));
+    Assert.assertTrue(Validation.annotationKeysAreValid(rp));
 
     rp.setAnnotations(badMap);
-    Assert.assertFalse(PointHandlerImpl.annotationKeysAreValid(rp));
-
+    Assert.assertFalse(Validation.annotationKeysAreValid(rp));
   }
 
   // This is a slow implementation of pointToString that is known to work to specification.
@@ -107,10 +129,68 @@ public class PointHandlerTest {
     testReportPointToStringHelper(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
         new HashMap<String, String>()));
     // Quote in metric name
-    testReportPointToStringHelper(new ReportPoint("some\"metric", 1469751813000L, 10L, "host", "table",
-        new HashMap<String, String>()));
+    Assert.assertEquals("\"some\\\"metric\" 10 1469751813 source=\"host\"",
+        PointHandlerImpl.pointToString(new ReportPoint("some\"metric", 1469751813000L, 10L, "host", "table",
+            new HashMap<String, String>()))
+    );
     // Quote in tags
-    testReportPointToStringHelper(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
-        ImmutableMap.of("foo\"", "\"bar", "bo\"o", "baz")));
+    Assert.assertEquals("\"some metric\" 10 1469751813 source=\"host\" \"foo\\\"\"=\"\\\"bar\" \"bo\\\"o\"=\"baz\"",
+        PointHandlerImpl.pointToString(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
+            ImmutableMap.of("foo\"", "\"bar", "bo\"o", "baz")))
+    );
+  }
+
+  @Test
+  public void testReportPointToString_stringValue() {
+    histogramPoint.setValue("Test");
+
+    String subject = PointHandlerImpl.pointToString(histogramPoint);
+    assertThat(subject).isEqualTo("\"TestMetric\" Test 1469751813 source=\"TestSource\" \"keyA\"=\"valueA\" \"keyB\"=\"valueB\"");
+  }
+
+
+  @Test
+  public void testHistogramReportPointToString() {
+    String subject = PointHandlerImpl.pointToString(histogramPoint);
+
+    assertThat(subject).isEqualTo("!M 1469751813 #2 10.0 #4 20.0 \"TestMetric\" source=\"TestSource\" \"keyA\"=\"valueA\" \"keyB\"=\"valueB\"");
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testHistogramReportPointToString_unsupportedDuration() {
+    ((Histogram)histogramPoint.getValue()).setDuration(13);
+
+    PointHandlerImpl.pointToString(histogramPoint);
+  }
+
+  @Test
+  public void testHistogramReportPointToString_binCountMismatch() {
+    ((Histogram)histogramPoint.getValue()).setCounts(ImmutableList.of(10));
+
+    String subject = PointHandlerImpl.pointToString(histogramPoint);
+    assertThat(subject).isEqualTo("!M 1469751813 #10 10.0 \"TestMetric\" source=\"TestSource\" \"keyA\"=\"valueA\" \"keyB\"=\"valueB\"");
+  }
+
+  @Test
+  public void testHistogramReportPointToString_quotesInMetric() {
+    histogramPoint.setMetric("Test\"Metric");
+
+    String subject = PointHandlerImpl.pointToString(histogramPoint);
+    assertThat(subject).isEqualTo("!M 1469751813 #2 10.0 #4 20.0 \"Test\\\"Metric\" source=\"TestSource\" \"keyA\"=\"valueA\" \"keyB\"=\"valueB\"");
+  }
+
+  @Test
+  public void testHistogramReportPointToString_quotesInTags() {
+    histogramPoint.setAnnotations(ImmutableMap.of("K\"ey", "V\"alue"));
+
+    String subject = PointHandlerImpl.pointToString(histogramPoint);
+    assertThat(subject).isEqualTo("!M 1469751813 #2 10.0 #4 20.0 \"TestMetric\" source=\"TestSource\" \"K\\\"ey\"=\"V\\\"alue\"");
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testHistogramReportPointToString_BadValue() {
+    ReportPoint p = new ReportPoint("m", 1469751813L, new ArrayUtils(), "h", "c", ImmutableMap.of());
+
+    PointHandlerImpl.pointToString(p);
   }
 }

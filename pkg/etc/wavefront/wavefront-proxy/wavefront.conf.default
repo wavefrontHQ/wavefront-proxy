@@ -1,7 +1,7 @@
 #
 # Wavefront proxy configuration file
 #
-#   Typically in /opt/wavefront/wavefront-proxy/conf/wavefront.conf
+#   Typically in /etc/wavefront/wavefront-proxy/wavefront.conf
 #
 #   For help with your configuration, email support@wavefront.com
 #
@@ -101,7 +101,7 @@ customSourceTags=fqdn, hostname
 #writeHttpJsonListenerPorts=4878
 
 ## ID file for agent
-idFile=/opt/wavefront/wavefront-proxy/.wavefront_id
+idFile=/etc/wavefront/wavefront-proxy/.wavefront_id
 
 ## Default location of buffer.* files for saving failed transmission for retry.
 buffer=/var/spool/wavefront-proxy/buffer
@@ -136,7 +136,7 @@ buffer=/var/spool/wavefront-proxy/buffer
 #soLingerTime=0
 
 ## Path to the optional config file with preprocessor rules (advanced regEx replacements and whitelist/blacklists)
-#preprocessorConfigFile=/opt/wavefront/wavefront-proxy/conf/preprocessor_rules.yaml
+#preprocessorConfigFile=/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml
 
 ## This setting defines the cut-off point for what is considered a valid timestamp for back-dated points.
 ## Default (and recommended) value is 8760 (1 year), so all the data points from more than 1 year ago will be rejected.

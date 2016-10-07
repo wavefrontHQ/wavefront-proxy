@@ -13,7 +13,7 @@ The recommended (and by far the easiest) way to install the most recent release 
 
 ### Using Linux Packages
 
-We have pre-build packages for popular Linux distros. Packages for released versions are available at https://packagecloud.io/wavefrontHQ/proxy, release candidate versions are available at https://packagecloud.io/wavefront/proxy-next.
+We have pre-build packages for popular Linux distros. Packages for released versions are available at https://packagecloud.io/wavefront/proxy, release candidate versions are available at https://packagecloud.io/wavefront/proxy-next.
 
 ### Building your own
 
