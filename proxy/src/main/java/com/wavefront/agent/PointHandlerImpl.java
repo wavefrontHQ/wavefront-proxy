@@ -125,14 +125,14 @@ public class PointHandlerImpl implements PointHandler {
   private static String pointToStringSB(ReportPoint point) {
     if (point.getValue() instanceof Double || point.getValue() instanceof Long || point.getValue() instanceof String) {
       StringBuilder sb = new StringBuilder("\"")
-          .append(point.getMetric().replaceAll("\"", "\\\"")).append("\" ")
+          .append(point.getMetric().replace("\"", "\\\"")).append("\" ")
           .append(point.getValue()).append(" ")
           .append(point.getTimestamp() / 1000).append(" ")
-          .append("source=\"").append(point.getHost().replaceAll("\"", "\\\"")).append("\"");
+          .append("source=\"").append(point.getHost().replace("\"", "\\\"")).append("\"");
       for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
-        sb.append(" \"").append(entry.getKey().replaceAll("\"", "\\\"")).append("\"")
+        sb.append(" \"").append(entry.getKey().replace("\"", "\\\"")).append("\"")
             .append("=")
-            .append("\"").append(entry.getValue().replaceAll("\"", "\\\"")).append("\"");
+            .append("\"").append(entry.getValue().replace("\"", "\\\"")).append("\"");
       }
       return sb.toString();
     } else if (point.getValue() instanceof sunnylabs.report.Histogram){
@@ -167,14 +167,14 @@ public class PointHandlerImpl implements PointHandler {
       }
 
       // Metric
-      sb.append('"').append(point.getMetric().replaceAll("\"", "\\\"")).append("\" ");
+      sb.append('"').append(point.getMetric().replace("\"", "\\\"")).append("\" ");
 
       // Source
-      sb.append("source=\"").append(point.getHost().replaceAll("\"", "\\\"")).append("\"");
+      sb.append("source=\"").append(point.getHost().replace("\"", "\\\"")).append("\"");
       for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
-        sb.append(" \"").append(entry.getKey().replaceAll("\"", "\\\"")).append("\"")
+        sb.append(" \"").append(entry.getKey().replace("\"", "\\\"")).append("\"")
             .append("=")
-            .append("\"").append(entry.getValue().replaceAll("\"", "\\\"")).append("\"");
+            .append("\"").append(entry.getValue().replace("\"", "\\\"")).append("\"");
       }
 
       return sb.toString();
