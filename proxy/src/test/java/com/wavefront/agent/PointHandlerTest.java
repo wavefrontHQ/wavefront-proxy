@@ -176,7 +176,7 @@ public class PointHandlerTest {
     histogramPoint.setMetric("Test\"Metric");
 
     String subject = PointHandlerImpl.pointToString(histogramPoint);
-    assertThat(subject).isEqualTo("!M 1469751813 #2 10.0 #4 20.0 \"Test\"Metric\" source=\"TestSource\" \"keyA\"=\"valueA\" \"keyB\"=\"valueB\"");
+    assertThat(subject).isEqualTo("!M 1469751813 #2 10.0 #4 20.0 \"Test\\\"Metric\" source=\"TestSource\" \"keyA\"=\"valueA\" \"keyB\"=\"valueB\"");
   }
 
   @Test
@@ -184,7 +184,7 @@ public class PointHandlerTest {
     histogramPoint.setAnnotations(ImmutableMap.of("K\"ey", "V\"alue"));
 
     String subject = PointHandlerImpl.pointToString(histogramPoint);
-    assertThat(subject).isEqualTo("!M 1469751813 #2 10.0 #4 20.0 \"TestMetric\" source=\"TestSource\" \"K\"ey\"=\"V\"alue\"");
+    assertThat(subject).isEqualTo("!M 1469751813 #2 10.0 #4 20.0 \"TestMetric\" source=\"TestSource\" \"K\\\"ey\"=\"V\\\"alue\"");
   }
 
   @Test(expected = RuntimeException.class)
