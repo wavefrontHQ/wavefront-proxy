@@ -408,6 +408,20 @@ public class GraphiteDecoderTest {
     assertEquals(4.0, point.getValue());
   }
 
+  @Test
+  public void testNumberLookingTagValue2() {
+    GraphiteDecoder decoder = new GraphiteDecoder(emptyCustomSourceTags);
+    List<ReportPoint> out = Lists.newArrayList();
+    decoder.decodeReportPoints("vm.guest.virtualDisk.mediumSeeks.latest 4.00 1439250320 " +
+        "host=iadprdhyp02.iad.corp.com version=\"1.0.0\\\"-030051.d0e485f\"", out, "customer");
+    ReportPoint point = out.get(0);
+    assertEquals("customer", point.getTable());
+    assertEquals("vm.guest.virtualDisk.mediumSeeks.latest", point.getMetric());
+    assertEquals("iadprdhyp02.iad.corp.com", point.getHost());
+    assertEquals("1.0.0\"-030051.d0e485f", point.getAnnotations().get("version"));
+    assertEquals(4.0, point.getValue());
+  }
+
   @Ignore
   @Test
   public void testBenchmark() throws Exception {
