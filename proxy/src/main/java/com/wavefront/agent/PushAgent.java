@@ -325,8 +325,10 @@ public class PushAgent extends AbstractAgent {
 
     if (filebeatPort > 0) {
       final Server filebeatServer = new Server(filebeatPort);
+      final String filebeatPortStr = String.valueOf(filebeatPort);
       filebeatServer.setMessageListener(new FilebeatListener(
-          new PointHandlerImpl(filebeatPort, pushValidationLevel, pushBlockedSamples, getFlushTasks(filebeatPort)),
+          new PointHandlerImpl(
+              filebeatPortStr, pushValidationLevel, pushBlockedSamples, getFlushTasks(filebeatPortStr)),
           logsIngestionConfig, hostname, prefix));
       startAsManagedThread(() -> {
         try {
