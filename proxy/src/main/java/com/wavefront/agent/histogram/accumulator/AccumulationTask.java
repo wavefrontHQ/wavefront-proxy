@@ -13,6 +13,7 @@ import com.wavefront.ingester.Decoder;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -25,6 +26,7 @@ import sunnylabs.report.Histogram;
 import sunnylabs.report.ReportPoint;
 
 import static com.wavefront.agent.histogram.Utils.Granularity.fromMillis;
+import static java.lang.System.nanoTime;
 
 /**
  * Histogram accumulation task. Parses {@link ReportPoint} based on the passed in {@link Decoder} from its input queue
@@ -50,6 +52,7 @@ public class AccumulationTask implements Runnable {
   private final Counter eventCounter = Metrics.newCounter(new MetricName("histogram", "", "event_added"));
   private final Counter histogramCounter = Metrics.newCounter(new MetricName("histogram", "", "histogram_added"));
   private final Counter ignoredCounter = Metrics.newCounter(new MetricName("histogram", "", "ignored"));
+  private final WavefrontHistogram batchProcessTime = WavefrontHistogram.get(new MetricName("histogram.batch", "", "process_nanos"));
 
   public AccumulationTask(ObjectQueue<List<String>> input,
                           ConcurrentMap<Utils.HistogramKey, AgentDigest> digests,
@@ -91,6 +94,7 @@ public class AccumulationTask implements Runnable {
   public void run() {
     List<String> lines;
     while ((lines = input.peek()) != null) {
+      long startNanos = nanoTime();
       for (String line : lines) {
         try {
           // Ignore empty lines
@@ -171,6 +175,7 @@ public class AccumulationTask implements Runnable {
         }
       } // end point processing
       input.remove();
+      batchProcessTime.update(nanoTime() - startNanos);
     } // end batch processing
   }
 

@@ -3,6 +3,7 @@ package com.yammer.metrics.core;
 import com.google.common.annotations.VisibleForTesting;
 
 import com.tdunning.math.stats.AVLTreeDigest;
+import com.tdunning.math.stats.Centroid;
 import com.tdunning.math.stats.TDigest;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.stats.Sample;
@@ -12,6 +13,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.function.Supplier;
+
+import static com.google.common.collect.Iterables.getFirst;
+import static com.google.common.collect.Iterables.getLast;
+import static java.lang.Double.MAX_VALUE;
+import static java.lang.Double.MIN_VALUE;
+import static java.lang.Double.NaN;
 
 /**
  * Wavefront implementation of {@link Histogram}.
@@ -64,7 +71,6 @@ public class WavefrontHistogram extends Histogram implements Metric {
 
   private WavefrontHistogram(TDigestSample sample, Supplier<Long> millis) {
     super(sample);
-//    this.sample = sample;
     this.millis = millis;
     this.bins = new LinkedList<>();
   }
@@ -98,6 +104,28 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   @Override
+  public double mean() {
+    Collection<Centroid> centroids = snapshot().centroids();
+    return centroids.stream().mapToDouble(c -> (c.count() * c.mean()) / centroids.size()).sum();
+  }
+
+  public synchronized double min() {
+    // This is a lie if the winning centroid's weight > 1
+    return bins.stream()
+        .map(b->b.dist.centroids())
+        .mapToDouble(cs-> getFirst(cs, new Centroid(MAX_VALUE)).mean())
+        .min().orElse(NaN);
+  }
+
+  public synchronized double max() {
+    //This is a lie if the winning centroid's weight > 1
+    return bins.stream()
+        .map(b->b.dist.centroids())
+        .mapToDouble(cs-> getLast(cs, new Centroid(MIN_VALUE)).mean())
+        .max().orElse(NaN);
+  }
+
+  @Override
   public synchronized long count() {
     return bins.stream().mapToLong(bin -> bin.dist.size()).sum();
   }
@@ -110,11 +138,16 @@ public class WavefrontHistogram extends Histogram implements Metric {
     }
   }
 
-  @Override
-  public synchronized Snapshot getSnapshot() {
+  private synchronized TDigest snapshot() {
     final TDigest snapshot = new AVLTreeDigest(ACCURACY);
 
-    bins.forEach(bin->snapshot.add(bin.dist));
+    bins.forEach(bin -> snapshot.add(bin.dist));
+    return snapshot;
+  }
+
+  @Override
+  public Snapshot getSnapshot() {
+    final TDigest snapshot = snapshot();
 
     return new Snapshot(new double[0]) {
       @Override
