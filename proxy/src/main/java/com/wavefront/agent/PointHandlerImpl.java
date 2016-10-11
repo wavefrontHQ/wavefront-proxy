@@ -3,13 +3,12 @@ package com.wavefront.agent;
 import com.google.common.annotations.VisibleForTesting;
 
 import com.wavefront.common.Clock;
-import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.time.DateUtils;
-import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -57,8 +56,7 @@ public class PointHandlerImpl implements PointHandler {
     this.blockedPointsPerBatch = blockedPointsPerBatch;
     this.prefix = prefix;
 
-    this.receivedPointLag = Metrics.newHistogram(
-        new MetricName("points." + handle + ".received", "", "lag"));
+    this.receivedPointLag = WavefrontHistogram.get(new MetricName("points." + handle + ".received", "", "lag"));
 
     this.sendDataTasks = sendDataTasks;
   }

@@ -7,14 +7,17 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
+import com.tdunning.math.stats.Centroid;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.Validate;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.MissingResourceException;
@@ -331,8 +334,7 @@ public abstract class JsonMetricsGenerator {
       this.clear = clear;
     }
 
-    @Override
-    public void processHistogram(MetricName name, Histogram histogram, Context context) throws Exception {
+    private void internalProcessYammerHistogram(Histogram histogram, Context context) throws Exception {
       final JsonGenerator json = context.json;
       json.writeStartObject();
       {
@@ -345,6 +347,49 @@ public abstract class JsonMetricsGenerator {
         if (clear) histogram.clear();
       }
       json.writeEndObject();
+    }
+
+    private void internalProcessWavefrontHistogram(WavefrontHistogram hist, Context context) throws Exception {
+      final JsonGenerator json = context.json;
+      json.writeStartObject();
+      json.writeArrayFieldStart("bins");
+      for (WavefrontHistogram.MinuteBin bin : hist.bins(clear)) {
+
+        final Collection<Centroid> centroids = bin.getDist().centroids();
+
+        json.writeStartObject();
+        // Count
+        json.writeNumberField("count", bin.getDist().size());
+        // Start
+        json.writeNumberField("startMillis", bin.getMinMillis());
+        // Duration
+        json.writeNumberField("durationMillis", 60 * 1000);
+        // Means
+        json.writeArrayFieldStart("means");
+        for (Centroid c : centroids) {
+          json.writeNumber(c.mean());
+        }
+        json.writeEndArray();
+        // Counts
+        json.writeArrayFieldStart("counts");
+        for (Centroid c : centroids) {
+          json.writeNumber(c.count());
+        }
+        json.writeEndArray();
+
+        json.writeEndObject();
+      }
+      json.writeEndArray();
+      json.writeEndObject();
+    }
+
+    @Override
+    public void processHistogram(MetricName name, Histogram histogram, Context context) throws Exception {
+      if (histogram instanceof WavefrontHistogram) {
+        internalProcessWavefrontHistogram((WavefrontHistogram) histogram, context);
+      } else /*Treat as standard yammer histogram */ {
+        internalProcessYammerHistogram(histogram, context);
+      }
     }
 
     @Override
