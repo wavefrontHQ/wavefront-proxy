@@ -93,10 +93,12 @@ public class MetricMatcher extends Configuration {
   }
 
   private String dynamicMetricName(Map<String, Object> replacements) {
+    if (!metricName.contains("%{")) return metricName;
     String dynamicName = metricName;
     for (String key : replacements.keySet()) {
       String value = (String) replacements.get(key);
-      dynamicName = dynamicName.replaceAll("[%][{]" + key + "[}]", value);
+      if (value == null) continue;
+      dynamicName = dynamicName.replace("%{" + key + "}", value);
     }
     return dynamicName;
   }
