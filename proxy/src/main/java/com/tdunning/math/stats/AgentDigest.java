@@ -2,8 +2,8 @@ package com.tdunning.math.stats;
 
 import com.google.common.base.Preconditions;
 
-import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.core.io.IORuntimeException;
@@ -417,7 +417,7 @@ public class AgentDigest extends AbstractTDigest {
   public static class AgentDigestMarshaller implements SizedReader<AgentDigest>, SizedWriter<AgentDigest>, ReadResolvable<AgentDigestMarshaller> {
     private static final AgentDigestMarshaller INSTANCE = new AgentDigestMarshaller();
     private static final com.yammer.metrics.core.Histogram accumulatorValueSizes =
-        Metrics.newHistogram(new MetricName("histogram", "", "accumulatorValueSize"));
+        WavefrontHistogram.get(new MetricName("histogram", "", "accumulatorValueSize"));
 
 
     private AgentDigestMarshaller() {

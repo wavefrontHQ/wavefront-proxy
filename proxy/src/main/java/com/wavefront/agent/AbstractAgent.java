@@ -88,12 +88,6 @@ public abstract class AbstractAgent {
 
   private static final int OPENTSDB_LISTENING_PORT = 4242;
 
-  protected static final SSLSocketFactoryImpl SSL_SOCKET_FACTORY = new SSLSocketFactoryImpl(
-      HttpsURLConnection.getDefaultSSLSocketFactory(), 60000);
-
-  protected static final SSLConnectionSocketFactoryImpl SSL_CONNECTION_SOCKET_FACTORY = new
-      SSLConnectionSocketFactoryImpl(SSLConnectionSocketFactory.getSystemSocketFactory(), 60000);
-
   @Parameter(names = {"-f", "--file"}, description =
       "Proxy configuration file")
   private String pushConfigFile = null;
@@ -337,6 +331,15 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--proxyPassword"}, description = "If proxy authentication is necessary, this is the password that will be passed along")
   protected String proxyPassword = null;
 
+  @Parameter(names = {"--httpUserAgent"}, description = "Override User-Agent in request headers")
+  protected String httpUserAgent = null;
+
+  @Parameter(names = {"--httpConnectTimeout"}, description = "Connect timeout in milliseconds (default: 5000)")
+  protected int httpConnectTimeout = 5000;
+
+  @Parameter(names = {"--httpRequestTimeout"}, description = "Request timeout in milliseconds (default: 60000)")
+  protected int httpRequestTimeout = 60000;
+
   @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
   protected String preprocessorConfigFile = null;
 
@@ -550,6 +553,13 @@ public abstract class AbstractAgent {
         proxyPort = Integer.parseInt(prop.getProperty("proxyPort", String.valueOf(proxyPort)));
         proxyPassword = prop.getProperty("proxyPassword", proxyPassword);
         proxyUser = prop.getProperty("proxyUser", proxyUser);
+        httpUserAgent = prop.getProperty("httpUserAgent", httpUserAgent);
+        httpConnectTimeout = Integer.parseInt(prop.getProperty(
+            "httpConnectTimeout",
+            String.valueOf(httpConnectTimeout)));
+        httpRequestTimeout = Integer.parseInt(prop.getProperty(
+            "httpRequestTimeout",
+            String.valueOf(httpRequestTimeout)));
         javaNetConnection = Boolean.valueOf(prop.getProperty("javaNetConnection", String.valueOf(javaNetConnection)));
         soLingerTime = Integer.parseInt(prop.getProperty("soLingerTime", String.valueOf(soLingerTime)));
         splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
@@ -711,18 +721,24 @@ public abstract class AbstractAgent {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
     factory.registerProvider(ResteasyJacksonProvider.class);
+    if (httpUserAgent == null) {
+      httpUserAgent = "Wavefront-Proxy/" + props.getString("build.version");
+    }
     ClientHttpEngine httpEngine;
     if (javaNetConnection) {
       httpEngine = new JavaNetConnectionEngine() {
         @Override
         protected HttpURLConnection createConnection(ClientInvocation request) throws IOException {
           HttpURLConnection connection = (HttpURLConnection) request.getUri().toURL().openConnection();
+          connection.setRequestProperty("User-Agent", httpUserAgent);
           connection.setRequestMethod(request.getMethod());
-          connection.setConnectTimeout(5000); // 5s
-          connection.setReadTimeout(60000); // 60s
+          connection.setConnectTimeout(httpConnectTimeout); // 5s
+          connection.setReadTimeout(httpRequestTimeout); // 60s
           if (connection instanceof HttpsURLConnection) {
             HttpsURLConnection secureConnection = (HttpsURLConnection) connection;
-            secureConnection.setSSLSocketFactory(SSL_SOCKET_FACTORY);
+            secureConnection.setSSLSocketFactory(new SSLSocketFactoryImpl(
+                HttpsURLConnection.getDefaultSSLSocketFactory(),
+                httpRequestTimeout));
           }
           return connection;
         }
@@ -730,20 +746,23 @@ public abstract class AbstractAgent {
     } else {
       HttpClient httpClient = HttpClientBuilder.create().
           useSystemProperties().
+          setUserAgent(httpUserAgent).
           setMaxConnTotal(200).
           setMaxConnPerRoute(100).
           setConnectionTimeToLive(1, TimeUnit.MINUTES).
           setDefaultSocketConfig(
               SocketConfig.custom().
-                  setSoTimeout(60000).build()).
-          setSSLSocketFactory(SSL_CONNECTION_SOCKET_FACTORY).
+                  setSoTimeout(httpRequestTimeout).build()).
+          setSSLSocketFactory(new SSLConnectionSocketFactoryImpl(
+              SSLConnectionSocketFactory.getSystemSocketFactory(),
+              httpRequestTimeout)).
           setDefaultRequestConfig(
               RequestConfig.custom().
                   setContentCompressionEnabled(true).
                   setRedirectsEnabled(true).
-                  setConnectTimeout(5000).
-                  setConnectionRequestTimeout(5000).
-                  setSocketTimeout(60000).build()).
+                  setConnectTimeout(httpConnectTimeout).
+                  setConnectionRequestTimeout(httpConnectTimeout).
+                  setSocketTimeout(httpRequestTimeout).build()).
           build();
       final ApacheHttpClient4Engine apacheHttpClient4Engine = new ApacheHttpClient4Engine(httpClient, true);
       // avoid using disk at all
