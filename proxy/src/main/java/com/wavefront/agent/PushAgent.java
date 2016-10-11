@@ -323,7 +323,7 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
-    if (filebeatPort > 0) {
+    if (filebeatPort > 0 && logsIngestionConfig != null) {
       final Server filebeatServer = new Server(filebeatPort);
       final String filebeatPortStr = String.valueOf(filebeatPort);
       filebeatServer.setMessageListener(new FilebeatListener(

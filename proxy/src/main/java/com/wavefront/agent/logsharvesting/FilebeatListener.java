@@ -57,11 +57,11 @@ public class FilebeatListener implements IMessageListener {
     this.logsIngestionConfig = logsIngestionConfig;
     this.metricsRegistry = new MetricsRegistry();
     // Meta metrics.
-    this.received = Metrics.newCounter(FilebeatListener.class, "logsharvesting.received");
-    this.evicted = Metrics.newCounter(FilebeatListener.class, "logsharvesting.evicted");
-    this.unparsed = Metrics.newCounter(FilebeatListener.class, "logsharvesting.unparsed");
-    this.parsed = Metrics.newCounter(FilebeatListener.class, "logsharvesting.parsed");
-    this.batchesProcessed = Metrics.newCounter(FilebeatListener.class, "logsharvesting.unparsed");
+    this.received = Metrics.newCounter(new MetricName("logsharvesting", "", "received"));
+    this.evicted = Metrics.newCounter(new MetricName("logsharvesting", "", "evicted"));
+    this.unparsed = Metrics.newCounter(new MetricName("logsharvesting", "", "unparsed"));
+    this.parsed = Metrics.newCounter(new MetricName("logsharvesting", "", "parsed"));
+    this.batchesProcessed = Metrics.newCounter(new MetricName("logsharvesting", "", "batchesProcessed"));
 
     // Set up user specified metric harvesting.
     this.metricCache = Caffeine.<MetricName, Metric>newBuilder()
