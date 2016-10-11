@@ -11,16 +11,17 @@ import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.agent.histogram.HistogramLineIngester;
+import com.wavefront.agent.histogram.MapLoader;
 import com.wavefront.agent.histogram.PointHandlerDispatcher;
+import com.wavefront.agent.histogram.QueuingChannelHandler;
+import com.wavefront.agent.histogram.Utils;
 import com.wavefront.agent.histogram.Utils.HistogramKey;
 import com.wavefront.agent.histogram.Utils.HistogramKeyMarshaller;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.AccumulationTask;
-import com.wavefront.agent.histogram.MapLoader;
-import com.wavefront.agent.histogram.QueuingChannelHandler;
 import com.wavefront.agent.histogram.tape.TapeDeck;
-import com.wavefront.agent.histogram.Utils;
 import com.wavefront.agent.histogram.tape.TapeStringListConverter;
+import com.wavefront.agent.logsharvesting.FilebeatListener;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
@@ -40,6 +41,7 @@ import com.yammer.metrics.reporting.ConsoleReporter;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.logstash.beats.Server;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,8 +53,8 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 import javax.annotation.Nullable;
@@ -319,6 +321,22 @@ public class PushAgent extends AbstractAgent {
           }
         }
       }
+    }
+
+    if (filebeatPort > 0 && logsIngestionConfig != null) {
+      final Server filebeatServer = new Server(filebeatPort);
+      final String filebeatPortStr = String.valueOf(filebeatPort);
+      filebeatServer.setMessageListener(new FilebeatListener(
+          new PointHandlerImpl(
+              filebeatPortStr, pushValidationLevel, pushBlockedSamples, getFlushTasks(filebeatPortStr)),
+          logsIngestionConfig, hostname, prefix));
+      startAsManagedThread(() -> {
+        try {
+          filebeatServer.listen();
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      });
     }
   }
 

@@ -11,6 +11,9 @@ import com.google.gson.Gson;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
@@ -260,6 +263,9 @@ public abstract class AbstractAgent {
       "data. Binds, by default, to none.")
   protected String writeHttpJsonPorts = "";
 
+  @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
+  protected Integer filebeatPort = 0;
+
   @Parameter(names = {"--hostname"}, description = "Hostname for the agent. Defaults to FQDN of machine.")
   protected String hostname;
 
@@ -340,6 +346,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--dataBackfillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for back-dated points. Default is 8760 (1 year)")
   protected int dataBackfillCutoffHours = 8760;
 
+  @Parameter(names = {"--logsIngestionConfigFile"}, description = "Location of logs ingestions config yaml file.")
+  protected String logsIngestionConfigFile = null;
+
   @Parameter(description = "Unparsed parameters")
   protected List<String> unparsed_params;
 
@@ -356,6 +365,8 @@ public abstract class AbstractAgent {
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
+
+  protected LogsIngestionConfig logsIngestionConfig;
 
   /**
    * Executors for support tasks.
@@ -402,7 +413,7 @@ public abstract class AbstractAgent {
     // convert blacklist/whitelist fields to filters for full backwards compatibility
     // blacklistRegex and whitelistRegex are applied to pushListenerPorts, graphitePorts and picklePorts
     if (whitelistRegex != null || blacklistRegex != null) {
-      String allPorts = StringUtils.join(new String[] {
+      String allPorts = StringUtils.join(new String[]{
           pushListenerPorts == null ? "" : pushListenerPorts,
           graphitePorts == null ? "" : graphitePorts,
           picklePorts == null ? "" : picklePorts
@@ -448,6 +459,14 @@ public abstract class AbstractAgent {
       preprocessors.loadFromStream(stream);
       logger.info("Preprocessor configuration loaded from " + preprocessorConfigFile);
     }
+  }
+
+  private void loadLogsIngestionConfig() throws IOException {
+    if (logsIngestionConfigFile == null) {
+      return;
+    }
+    ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+    logsIngestionConfig = objectMapper.readValue(new File(logsIngestionConfigFile), LogsIngestionConfig.class);
   }
 
   private void loadListenerConfigurationFile() throws IOException {
@@ -555,6 +574,8 @@ public abstract class AbstractAgent {
         preprocessorConfigFile = prop.getProperty("preprocessorConfigFile", preprocessorConfigFile);
         dataBackfillCutoffHours = Integer.parseInt(prop.getProperty("dataBackfillCutoffHours",
             String.valueOf(dataBackfillCutoffHours)));
+        filebeatPort = Integer.parseInt(prop.getProperty("filebeatPort", String.valueOf(filebeatPort)));
+        logsIngestionConfigFile = prop.getProperty("logsIngestionConfigFile", logsIngestionConfigFile);
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
@@ -595,8 +616,9 @@ public abstract class AbstractAgent {
        * Configuration Setup.
        * ------------------------------------------------------------------------------------ */
 
-      // 1. Load the listener configuration, if it exists
+      // 1. Load the listener configurations.
       loadListenerConfigurationFile();
+      loadLogsIngestionConfig();
 
       // 2. Read or create the unique Id for the daemon running on this machine.
       readOrCreateDaemonId();
@@ -929,18 +951,18 @@ public abstract class AbstractAgent {
     logger.info("Shutdown complete");
   }
 
-  private String getLocalHostName() {
+  private static String getLocalHostName() {
     try {
       return InetAddress.getLocalHost().getCanonicalHostName();
     } catch (UnknownHostException e) {
       try {
         // if can't resolve local server name, use a real IPv4 address from the first available network interface
         for (Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
-             nics.hasMoreElements();) {
+             nics.hasMoreElements(); ) {
           NetworkInterface network = nics.nextElement();
           if (!network.isUp() || network.isLoopback())
             continue;
-          for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements();) {
+          for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements(); ) {
             InetAddress address = addresses.nextElement();
             if (address.isAnyLocalAddress() || address.isLoopbackAddress() ||
                 address.isMulticastAddress() || !(address instanceof Inet4Address))
