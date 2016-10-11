@@ -137,4 +137,31 @@ public class FilebeatListenerTest {
         getPoints(1, "foo and 42"),
         contains(PointMatchers.matches(42L, "customPatternCounter", ImmutableMap.of())));
   }
+
+  @Test
+  public void testParseValueFromCombinedApacheLog() throws Exception {
+    setup("test.yml");
+    assertThat(
+        getPoints(3,
+            "52.34.54.96 - - [11/Oct/2016:06:35:45 +0000] \"GET /api/alert/summary HTTP/1.0\" " +
+                "200 632 \"https://dev-2b.corp.wavefront.com/chart\" " +
+                "\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) " +
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36\""
+            ),
+        containsInAnyOrder(
+            ImmutableList.of(
+                PointMatchers.matches(632L, "apacheBytes", ImmutableMap.of()),
+                PointMatchers.matches(632L, "apacheBytes2", ImmutableMap.of()),
+                PointMatchers.matches(200.0, "apacheStatus", ImmutableMap.of())
+            )
+        ));
+  }
+
+  @Test
+  public void testIncrementCounterWithImplied1() throws Exception {
+    setup("test.yml");
+    assertThat(
+        getPoints(1, "impliedCounter"),
+        contains(PointMatchers.matches(1L, "impliedCounter", ImmutableMap.of())));
+  }
 }

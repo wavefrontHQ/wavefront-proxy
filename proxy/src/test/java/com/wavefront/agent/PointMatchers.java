@@ -14,6 +14,7 @@ import sunnylabs.report.ReportPoint;
 public class PointMatchers {
 
   private static String mapToString(Map<String, String> map) {
+    if (map.size() == 0) return "";
     StringBuilder sb = new StringBuilder();
     for (Map.Entry<String, String> entry : map.entrySet()) {
       sb.append(entry.getKey()).append("=").append(entry.getValue()).append(", ");

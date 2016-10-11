@@ -78,7 +78,8 @@ public class LogsIngestionConfig extends Configuration {
     for (MetricMatcher p : gauges) {
       p.setPatternsFile(patternsFile());
       p.verify();
-      ensure(p.hasCapture("value"), "Must have a capture with label 'value' for a gauge.");
+      ensure(p.hasCapture(p.getValueLabel()),
+          "Must have a capture with label '" + p.getValueLabel() + "' for this gauge.");
     }
 
   }

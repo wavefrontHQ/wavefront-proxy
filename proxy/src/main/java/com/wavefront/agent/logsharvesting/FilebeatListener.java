@@ -118,7 +118,6 @@ public class FilebeatListener implements IMessageListener {
       readMetric(Counter.class, timeSeries, output[0]);
       success = true;
     }
-    if (success) return;
 
     for (MetricMatcher metricMatcher : logsIngestionConfig.gauges) {
       TimeSeries timeSeries = metricMatcher.timeSeries(filebeatMessage, output);
@@ -126,9 +125,8 @@ public class FilebeatListener implements IMessageListener {
       readMetric(Gauge.class, timeSeries, output[0]);
       success = true;
     }
-    if (success) return;
 
-    unparsed.inc();
+    if (!success) unparsed.inc();
   }
 
   private void readMetric(Class clazz, TimeSeries timeSeries, Double value) {

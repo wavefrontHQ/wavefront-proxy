@@ -15,10 +15,21 @@ counters:
     tagValueLabels:
       - "dc"
       - "az"
+  - pattern: "impliedCounter"
+    metricName: "impliedCounter"
+  - pattern: "%{COMBINEDAPACHELOG}"
+    metricName: "apacheBytes"
+    valueLabel: "bytes"
+  - pattern: "%{COMBINEDAPACHELOG}"
+    metricName: "apacheBytes2"
+    valueLabel: "bytes"
 
 gauges:
   - pattern: "gauges %{NUMBER:value}"
     metricName: "myGauge"
+  - pattern: "%{COMBINEDAPACHELOG}"
+    metricName: "apacheStatus"
+    valueLabel: "response"
 
 
 additionalPatterns:

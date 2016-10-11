@@ -59,7 +59,16 @@ public class MetricMatcher extends Configuration {
    */
   @JsonProperty
   private List<String> tagValueLabels = ImmutableList.of();
+  /**
+   * The label which is used to parse a telemetry datum from the log line.
+   */
+  @JsonProperty
+  private String valueLabel = "value";
   private Grok grok = null;
+
+  public String getValueLabel() {
+    return valueLabel;
+  }
 
   private String patternsFile = null;
 
@@ -103,8 +112,8 @@ public class MetricMatcher extends Configuration {
     match.captures();
     if (match.getEnd() == 0) return null;
     if (output != null) {
-      if (match.toMap().containsKey("value")) {
-        output[0] = Double.parseDouble((String) match.toMap().get("value"));
+      if (match.toMap().containsKey(valueLabel)) {
+        output[0] = Double.parseDouble((String) match.toMap().get(valueLabel));
       } else {
         output[0] = null;
       }
@@ -116,13 +125,13 @@ public class MetricMatcher extends Configuration {
     Map<String, String> tags = Maps.newTreeMap();
     for (int i = 0; i < tagKeys.size(); i++) {
       String tagKey = tagKeys.get(i);
-      String valueLabel = tagValueLabels.get(i);
-      if (!match.toMap().containsKey(valueLabel)) {
+      String tagValueLabel = tagValueLabels.get(i);
+      if (!match.toMap().containsKey(tagValueLabel)) {
         // What happened? We shouldn't have had matchEnd != 0 above...
         logger.severe("Application error: unparsed tag key.");
         continue;
       }
-      String value = (String) match.toMap().get(valueLabel);
+      String value = (String) match.toMap().get(tagValueLabel);
       tags.put(tagKey, value);
     }
     builder.setAnnotations(tags);
@@ -138,7 +147,7 @@ public class MetricMatcher extends Configuration {
   public void verify() throws ConfigurationException {
     ensure(StringUtils.isNotBlank(pattern), "pattern must not be empty.");
     ensure(StringUtils.isNotBlank(metricName), "metric name must not be empty.");
-    ensure(tagKeys.size() == tagValueLabels.size(), "keys and valueLabels must be parallel arrays.");
+    ensure(tagKeys.size() == tagValueLabels.size(), "tagKeys and tagValueLabels must be parallel arrays.");
   }
 
 }
