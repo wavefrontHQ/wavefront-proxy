@@ -56,7 +56,7 @@ public class FilebeatListenerTest {
     ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
     logsIngestionConfig = objectMapper.readValue(configFile, LogsIngestionConfig.class);
     logsIngestionConfig.aggregationIntervalSeconds = 5;
-    logsIngestionConfig.verify();
+    logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(PointHandler.class);
     filebeatListenerUnderTest = new FilebeatListener(
         mockPointHandler, logsIngestionConfig, null, () -> now);

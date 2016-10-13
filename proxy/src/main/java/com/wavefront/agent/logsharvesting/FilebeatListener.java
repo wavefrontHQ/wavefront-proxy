@@ -36,7 +36,7 @@ import sunnylabs.report.TimeSeries;
 public class FilebeatListener implements IMessageListener {
   protected static final Logger logger = Logger.getLogger(FilebeatListener.class.getCanonicalName());
   private final FlushProcessor flushProcessor;
-  private static ReadProcessor readProcessor = new ReadProcessor();
+  private static final ReadProcessor readProcessor = new ReadProcessor();
   private final PointHandler pointHandler;
   private final MetricsRegistry metricsRegistry;
   private final LogsIngestionConfig logsIngestionConfig;
@@ -51,6 +51,7 @@ public class FilebeatListener implements IMessageListener {
    * @param pointHandler        Play parsed metrics and meta-metrics to this
    * @param logsIngestionConfig configuration object for logs harvesting
    * @param prefix              all harvested metrics start with this prefix
+   * @param currentMillis       supplier of the current time in millis
    */
   public FilebeatListener(PointHandler pointHandler, LogsIngestionConfig logsIngestionConfig,
                           String prefix, Supplier<Long> currentMillis) {
@@ -164,22 +165,14 @@ public class FilebeatListener implements IMessageListener {
   }
 
   @Override
-  public void onNewConnection(ChannelHandlerContext ctx) {
-
-  }
+  public void onNewConnection(ChannelHandlerContext ctx) {}
 
   @Override
-  public void onConnectionClose(ChannelHandlerContext ctx) {
-
-  }
+  public void onConnectionClose(ChannelHandlerContext ctx) {}
 
   @Override
-  public void onException(ChannelHandlerContext ctx, Throwable cause) {
-
-  }
+  public void onException(ChannelHandlerContext ctx, Throwable cause) {}
 
   @Override
-  public void onChannelInitializeException(ChannelHandlerContext ctx, Throwable cause) {
-
-  }
+  public void onChannelInitializeException(ChannelHandlerContext ctx, Throwable cause) {}
 }

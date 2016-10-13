@@ -10,5 +10,5 @@ public abstract class Configuration {
     }
   }
 
-  public abstract void verify() throws ConfigurationException;
+  public abstract void verifyAndInit() throws ConfigurationException;
 }

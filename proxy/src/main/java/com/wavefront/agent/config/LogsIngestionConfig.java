@@ -63,9 +63,8 @@ public class LogsIngestionConfig extends Configuration {
     }
   }
 
-  // HACK: this must be called for the additional patterns feature to work.
   @Override
-  public void verify() throws ConfigurationException {
+  public void verifyAndInit() throws ConfigurationException {
     Grok grok = new Grok();
     for (String pattern : additionalPatterns) {
       String[] parts = pattern.split(" ");
@@ -80,20 +79,19 @@ public class LogsIngestionConfig extends Configuration {
     ensure(aggregationIntervalSeconds > 0, "aggregationIntervalSeconds must be positive.");
     for (MetricMatcher p : counters) {
       p.setPatternsFile(patternsFile());
-      p.verify();
+      p.verifyAndInit();
     }
     for (MetricMatcher p : gauges) {
       p.setPatternsFile(patternsFile());
-      p.verify();
+      p.verifyAndInit();
       ensure(p.hasCapture(p.getValueLabel()),
           "Must have a capture with label '" + p.getValueLabel() + "' for this gauge.");
     }
     for (MetricMatcher p : histograms) {
       p.setPatternsFile(patternsFile());
-      p.verify();
+      p.verifyAndInit();
       ensure(p.hasCapture(p.getValueLabel()),
           "Must have a capture with label '" + p.getValueLabel() + "' for this histogram.");
     }
-
   }
 }

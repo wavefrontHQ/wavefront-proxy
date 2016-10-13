@@ -146,7 +146,7 @@ public class MetricMatcher extends Configuration {
 
 
   @Override
-  public void verify() throws ConfigurationException {
+  public void verifyAndInit() throws ConfigurationException {
     ensure(StringUtils.isNotBlank(pattern), "pattern must not be empty.");
     ensure(StringUtils.isNotBlank(metricName), "metric name must not be empty.");
     ensure(tagKeys.size() == tagValueLabels.size(), "tagKeys and tagValueLabels must be parallel arrays.");
