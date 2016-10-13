@@ -23,6 +23,10 @@ public class FlushProcessorContext {
     return timeSeries;
   }
 
+  public String getMetricName() {
+    return timeSeries.getMetric();
+  }
+
   public PointHandler getPointHandler() {
     return pointHandler;
   }

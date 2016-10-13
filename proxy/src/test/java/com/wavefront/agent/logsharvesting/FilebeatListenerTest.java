@@ -2,6 +2,7 @@ package com.wavefront.agent.logsharvesting;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +20,7 @@ import org.logstash.beats.Message;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -50,7 +52,7 @@ public class FilebeatListenerTest {
     logsIngestionConfig.verify();
     mockPointHandler = createMock(PointHandler.class);
     filebeatListenerUnderTest = new FilebeatListener(
-        mockPointHandler, logsIngestionConfig, "myhostname", null);
+        mockPointHandler, logsIngestionConfig, null);
   }
 
   private void recieveLog(String log) {
@@ -76,7 +78,7 @@ public class FilebeatListenerTest {
   public void testPrefixIsApplied() throws Exception {
     setup("test.yml");
     filebeatListenerUnderTest = new FilebeatListener(
-        mockPointHandler, logsIngestionConfig, "myhostname", "myPrefix");
+        mockPointHandler, logsIngestionConfig, "myPrefix");
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "myPrefix.plainCounter", ImmutableMap.of())));
@@ -163,5 +165,28 @@ public class FilebeatListenerTest {
     assertThat(
         getPoints(1, "impliedCounter"),
         contains(PointMatchers.matches(1L, "impliedCounter", ImmutableMap.of())));
+  }
+
+  @Test
+  public void testHistogram() throws Exception {
+    setup("test.yml");
+    String[] lines = new String[100];
+    for (int i = 1; i < 101; i++) {
+      lines[i - 1] = "histo " + i;
+    }
+    assertThat(
+        getPoints(9, lines),
+        containsInAnyOrder(ImmutableList.of(
+            PointMatchers.almostMatches(100.0, "myHisto.count", ImmutableMap.of()),
+            PointMatchers.almostMatches(1.0, "myHisto.min", ImmutableMap.of()),
+            PointMatchers.almostMatches(100.0, "myHisto.max", ImmutableMap.of()),
+            PointMatchers.almostMatches(50.5, "myHisto.mean", ImmutableMap.of()),
+            PointMatchers.almostMatches(50.5, "myHisto.median", ImmutableMap.of()),
+            PointMatchers.almostMatches(75.75, "myHisto.p75", ImmutableMap.of()),
+            PointMatchers.almostMatches(95.95, "myHisto.p95", ImmutableMap.of()),
+            PointMatchers.almostMatches(99.99, "myHisto.p99", ImmutableMap.of()),
+            PointMatchers.almostMatches(100.0, "myHisto.p999", ImmutableMap.of())
+        ))
+    );
   }
 }

@@ -329,7 +329,7 @@ public class PushAgent extends AbstractAgent {
       filebeatServer.setMessageListener(new FilebeatListener(
           new PointHandlerImpl(
               filebeatPortStr, pushValidationLevel, pushBlockedSamples, getFlushTasks(filebeatPortStr)),
-          logsIngestionConfig, hostname, prefix));
+          logsIngestionConfig, prefix));
       startAsManagedThread(() -> {
         try {
           filebeatServer.listen();

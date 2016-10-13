@@ -11,6 +11,7 @@ import com.wavefront.agent.config.MetricMatcher;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
@@ -40,19 +41,18 @@ public class FilebeatListener implements IMessageListener {
   private final MetricsRegistry metricsRegistry;
   private final LogsIngestionConfig logsIngestionConfig;
   private final LoadingCache<MetricName, Metric> metricCache;
-  private final Counter received, evicted, unparsed, batchesProcessed, parsed;
-  private final String hostname, prefix;
+  private final Counter received, evicted, unparsed, parsed;
+  private final String prefix;
+  private final Timer flushTimer;
 
   /**
    * @param pointHandler        Play parsed metrics and meta-metrics to this
    * @param logsIngestionConfig configuration object for logs harvesting
-   * @param hostname            hostname for meta-metrics (so, for this proxy)
    * @param prefix              all harvested metrics start with this prefix
    */
-  public FilebeatListener(PointHandler pointHandler, LogsIngestionConfig logsIngestionConfig, String hostname,
+  public FilebeatListener(PointHandler pointHandler, LogsIngestionConfig logsIngestionConfig,
                           String prefix) {
     this.pointHandler = pointHandler;
-    this.hostname = hostname;
     this.prefix = prefix;
     this.logsIngestionConfig = logsIngestionConfig;
     this.metricsRegistry = new MetricsRegistry();
@@ -61,12 +61,10 @@ public class FilebeatListener implements IMessageListener {
     this.evicted = Metrics.newCounter(new MetricName("logsharvesting", "", "evicted"));
     this.unparsed = Metrics.newCounter(new MetricName("logsharvesting", "", "unparsed"));
     this.parsed = Metrics.newCounter(new MetricName("logsharvesting", "", "parsed"));
-    this.batchesProcessed = Metrics.newCounter(new MetricName("logsharvesting", "", "batchesProcessed"));
 
     // Set up user specified metric harvesting.
     this.metricCache = Caffeine.<MetricName, Metric>newBuilder()
         .softValues()
-        .expireAfterWrite(logsIngestionConfig.aggregationIntervalSeconds, TimeUnit.SECONDS)
         .removalListener((key, value, cause) -> {
           MetricName metricName = (MetricName) key;
           Metric metric = (Metric) value;
@@ -85,6 +83,20 @@ public class FilebeatListener implements IMessageListener {
           }
         })
         .build(new MetricCacheLoader(this.metricsRegistry));
+
+    flushTimer = new Timer();
+    long flushMillis = TimeUnit.SECONDS.toMillis(logsIngestionConfig.aggregationIntervalSeconds);
+    flushTimer.schedule(new TimerTask() {
+      @Override
+      public void run() {
+        try {
+          flush();
+        } catch (Exception e) {
+          logger.severe("Error flushing: " + e.getMessage());
+          e.printStackTrace();
+        }
+      }
+    }, flushMillis, flushMillis);
   }
 
   /**
@@ -123,6 +135,13 @@ public class FilebeatListener implements IMessageListener {
       TimeSeries timeSeries = metricMatcher.timeSeries(filebeatMessage, output);
       if (timeSeries == null) continue;
       readMetric(Gauge.class, timeSeries, output[0]);
+      success = true;
+    }
+
+    for (MetricMatcher metricMatcher : logsIngestionConfig.histograms) {
+      TimeSeries timeSeries = metricMatcher.timeSeries(filebeatMessage, output);
+      if (timeSeries == null) continue;
+      readMetric(Histogram.class, timeSeries, output[0]);
       success = true;
     }
 

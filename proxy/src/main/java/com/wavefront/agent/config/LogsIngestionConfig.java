@@ -29,6 +29,8 @@ public class LogsIngestionConfig extends Configuration {
   @JsonProperty
   public List<MetricMatcher> gauges = ImmutableList.of();
   @JsonProperty
+  public List<MetricMatcher> histograms = ImmutableList.of();
+  @JsonProperty
   public List<String> additionalPatterns = ImmutableList.of();
 
   private String patternsFile = null;
@@ -80,6 +82,12 @@ public class LogsIngestionConfig extends Configuration {
       p.verify();
       ensure(p.hasCapture(p.getValueLabel()),
           "Must have a capture with label '" + p.getValueLabel() + "' for this gauge.");
+    }
+    for (MetricMatcher p : histograms) {
+      p.setPatternsFile(patternsFile());
+      p.verify();
+      ensure(p.hasCapture(p.getValueLabel()),
+          "Must have a capture with label '" + p.getValueLabel() + "' for this histogram.");
     }
 
   }

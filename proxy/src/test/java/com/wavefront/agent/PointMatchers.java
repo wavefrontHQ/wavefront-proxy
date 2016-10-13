@@ -56,4 +56,26 @@ public class PointMatchers {
     };
   }
 
+  public static Matcher<ReportPoint> almostMatches(double value, String metricName, Map<String, String> tags) {
+    return new BaseMatcher<ReportPoint>() {
+
+      @Override
+      public boolean matches(Object o) {
+        ReportPoint me = (ReportPoint) o;
+        double given = (double) me.getValue();
+        return Math.abs(value - given) < 0.001
+            && me.getMetric().equals(metricName)
+            && mapsEqual(me.getAnnotations(), tags);
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText(
+            "Value should approximately equal " + value + " and have metric name " + metricName + " and tags "
+                + mapToString(tags));
+
+      }
+    };
+  }
+
 }
