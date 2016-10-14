@@ -16,8 +16,8 @@ import java.util.function.Supplier;
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class MetricCacheLoader implements CacheLoader<MetricName, Metric> {
-  private MetricsRegistry metricsRegistry;
-  private Supplier<Long> currentMillis;
+  private final MetricsRegistry metricsRegistry;
+  private final Supplier<Long> currentMillis;
 
   MetricCacheLoader(MetricsRegistry metricsRegistry, Supplier<Long> currentMillis) {
     this.metricsRegistry = metricsRegistry;
