@@ -23,6 +23,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -91,8 +92,7 @@ public class FilebeatListener implements IMessageListener {
         try {
           flush();
         } catch (Exception e) {
-          logger.severe("Error flushing: " + e.getMessage());
-          e.printStackTrace();
+          logger.log(Level.SEVERE, "Uncaught exception when flushing metrics", e);
         }
       }
     }, flushMillis, flushMillis);
