@@ -58,6 +58,7 @@ if [[ -r $proxy_launch_conf ]]; then
 	if [[ "$replacement_java_args" != "-XX:+AggressiveHeap" ]]; then
 		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 		>&2 echo "Using wavefront_proxy_launch.conf for JAVA_ARGS, which will override anything specified in $sysconfig."
+		>&2 echo "To suppress this warning message, please specify java args in $sysconfig."
 		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 		java_args=$replacement_java_args
 	fi
@@ -76,6 +77,7 @@ jsvc_exec()
 		-home $JAVA_HOME \
 		-cp $agent_jar \
 		$java_args \
+		-XX:OnOutOfMemoryError="kill -SIGHUP %p" \
 		-outfile $log_file \
 		-errfile $err_file \
 		-pidfile $pid_file \
