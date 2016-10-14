@@ -9,6 +9,8 @@ import java.time.temporal.TemporalAccessor;
 import java.util.Date;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 /**
  * Abstraction for {@link org.logstash.beats.Message}
  *
@@ -31,6 +33,7 @@ public class FilebeatMessage {
     if (getTimestampMillis() == null) throw new MalformedMessageException("No timestamp metadata.");
   }
 
+  @Nullable
   public Long getTimestampMillis() {
     if (timestampMillis == null) {
       if (!this.messageData.containsKey("@timestamp")) return null;

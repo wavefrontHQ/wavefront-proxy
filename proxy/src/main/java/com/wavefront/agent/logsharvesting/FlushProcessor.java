@@ -25,10 +25,10 @@ import sunnylabs.report.ReportPoint;
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
-public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
+class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
 
-  private Counter sentCounter;
-  private Supplier<Long> currentMillis;
+  private final Counter sentCounter;
+  private final Supplier<Long> currentMillis;
 
   FlushProcessor(Counter sentCounter, Supplier<Long> currentMillis) {
     this.sentCounter = sentCounter;
@@ -87,7 +87,9 @@ public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
   public void processGauge(MetricName name, Gauge<?> gauge, FlushProcessorContext context) throws Exception {
     @SuppressWarnings("unchecked")
     ChangeableGauge<Double> changeableGauge = (ChangeableGauge<Double>) gauge;
-    context.report(changeableGauge.value());
+    Double value = changeableGauge.value();
+    if (value == null || value.isInfinite() || value.isNaN()) return;
+    context.report(value);
     sentCounter.inc();
   }
 }
