@@ -1,9 +1,13 @@
 package com.wavefront.agent;
 
+import com.yammer.metrics.core.WavefrontHistogram;
+
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import sunnylabs.report.ReportPoint;

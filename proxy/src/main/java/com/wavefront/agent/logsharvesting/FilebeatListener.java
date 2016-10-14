@@ -4,7 +4,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
@@ -15,6 +14,7 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
@@ -22,10 +22,10 @@ import org.logstash.beats.Message;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import io.netty.channel.ChannelHandlerContext;
-import sunnylabs.report.ReportPoint;
 import sunnylabs.report.TimeSeries;
 
 /**
@@ -35,15 +35,17 @@ import sunnylabs.report.TimeSeries;
  */
 public class FilebeatListener implements IMessageListener {
   protected static final Logger logger = Logger.getLogger(FilebeatListener.class.getCanonicalName());
-  private static final FlushProcessor flushProcessor = new FlushProcessor();
+  private final FlushProcessor flushProcessor;
   private static ReadProcessor readProcessor = new ReadProcessor();
   private final PointHandler pointHandler;
   private final MetricsRegistry metricsRegistry;
   private final LogsIngestionConfig logsIngestionConfig;
   private final LoadingCache<MetricName, Metric> metricCache;
-  private final Counter received, evicted, unparsed, parsed;
+  private final Counter received, unparsed, parsed, sent, malformed;
+  private final Histogram drift;
   private final String prefix;
   private final Timer flushTimer;
+  private final Supplier<Long> currentMillis;
 
   /**
    * @param pointHandler        Play parsed metrics and meta-metrics to this
@@ -51,38 +53,34 @@ public class FilebeatListener implements IMessageListener {
    * @param prefix              all harvested metrics start with this prefix
    */
   public FilebeatListener(PointHandler pointHandler, LogsIngestionConfig logsIngestionConfig,
-                          String prefix) {
+                          String prefix, Supplier<Long> currentMillis) {
     this.pointHandler = pointHandler;
     this.prefix = prefix;
     this.logsIngestionConfig = logsIngestionConfig;
     this.metricsRegistry = new MetricsRegistry();
     // Meta metrics.
     this.received = Metrics.newCounter(new MetricName("logsharvesting", "", "received"));
-    this.evicted = Metrics.newCounter(new MetricName("logsharvesting", "", "evicted"));
     this.unparsed = Metrics.newCounter(new MetricName("logsharvesting", "", "unparsed"));
     this.parsed = Metrics.newCounter(new MetricName("logsharvesting", "", "parsed"));
+    this.malformed = Metrics.newCounter(new MetricName("logsharvesting", "", "malformed"));
+    this.sent = Metrics.newCounter(new MetricName("logsharvesting", "", "sent"));
+    this.drift = Metrics.newHistogram(new MetricName("logsharvesting", "", "drift"));
+    this.currentMillis = currentMillis;
+    this.flushProcessor = new FlushProcessor(sent, this.currentMillis);
 
     // Set up user specified metric harvesting.
     this.metricCache = Caffeine.<MetricName, Metric>newBuilder()
-        .softValues()
+        .expireAfterAccess(logsIngestionConfig.expiryMillis, TimeUnit.MILLISECONDS)
         .removalListener((key, value, cause) -> {
-          MetricName metricName = (MetricName) key;
-          Metric metric = (Metric) value;
-          if (cause == RemovalCause.COLLECTED) {
+          if (key instanceof MetricName) {
+            MetricName metricName = (MetricName) key;
             metricsRegistry.removeMetric(metricName);
-            evicted.inc();
-          } else if (metric != null) {
-            try {
-              metric.processWith(flushProcessor, metricName, new FlushProcessorContext(
-                  TimeSeriesUtils.fromMetricName(metricName), prefix, this.pointHandler));
-            } catch (Exception e) {
-              e.printStackTrace();
-            }
           } else {
-            logger.severe("Null metric retrieved from cache: " + metricName.toString());
+            logger.severe("Unknown entry removed from metricsCache: " +
+                (key == null ? "null" : key.getClass().getName()));
           }
         })
-        .build(new MetricCacheLoader(this.metricsRegistry));
+        .build(new MetricCacheLoader(this.metricsRegistry, this.currentMillis));
 
     flushTimer = new Timer();
     long flushMillis = TimeUnit.SECONDS.toMillis(logsIngestionConfig.aggregationIntervalSeconds);
@@ -106,7 +104,7 @@ public class FilebeatListener implements IMessageListener {
   synchronized void flush() throws Exception {
     for (MetricName metricName : metricCache.asMap().keySet()) {
       Metric metric = metricCache.get(metricName);
-      metric.processWith(new FlushProcessor(), metricName,
+      metric.processWith(flushProcessor, metricName,
           new FlushProcessorContext(TimeSeriesUtils.fromMetricName(metricName), prefix, pointHandler));
     }
   }
@@ -120,7 +118,12 @@ public class FilebeatListener implements IMessageListener {
       filebeatMessage = new FilebeatMessage(message);
     } catch (MalformedMessageException exn) {
       logger.severe("Malformed message received from filebeat, dropping.");
+      malformed.inc();
       return;
+    }
+
+    if (filebeatMessage.getTimestampMillis() != null) {
+      drift.update(System.currentTimeMillis() - filebeatMessage.getTimestampMillis());
     }
 
     Double[] output = {null};
@@ -141,10 +144,10 @@ public class FilebeatListener implements IMessageListener {
     for (MetricMatcher metricMatcher : logsIngestionConfig.histograms) {
       TimeSeries timeSeries = metricMatcher.timeSeries(filebeatMessage, output);
       if (timeSeries == null) continue;
-      readMetric(Histogram.class, timeSeries, output[0]);
+      readMetric(logsIngestionConfig.useWavefrontHistograms ? WavefrontHistogram.class : Histogram.class,
+          timeSeries, output[0]);
       success = true;
     }
-
     if (!success) unparsed.inc();
   }
 

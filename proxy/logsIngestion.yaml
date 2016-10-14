@@ -1,4 +1,4 @@
 aggregationIntervalSeconds: 4
 counters:
-  - pattern: "%{COMBINEDAPACHELOG}%{GREEDYDATA:extra_fields}"
+  - pattern: "%{COMBINEDAPACHELOG}"
     metricName: "development.combined_apache_log_lines"

@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import oi.thekraken.grok.api.Grok;
 import oi.thekraken.grok.api.exception.GrokException;
@@ -32,6 +33,10 @@ public class LogsIngestionConfig extends Configuration {
   public List<MetricMatcher> histograms = ImmutableList.of();
   @JsonProperty
   public List<String> additionalPatterns = ImmutableList.of();
+  @JsonProperty
+  public long expiryMillis = TimeUnit.HOURS.toMillis(1);
+  @JsonProperty
+  public boolean useWavefrontHistograms = false;
 
   private String patternsFile = null;
   private Object patternsFileLock = new Object();

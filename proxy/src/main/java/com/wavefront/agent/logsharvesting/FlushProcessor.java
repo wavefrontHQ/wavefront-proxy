@@ -12,17 +12,28 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricProcessor;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.List;
+import java.util.function.Supplier;
 
+import sunnylabs.report.HistogramType;
 import sunnylabs.report.ReportPoint;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
+
+  private Counter sentCounter;
+  private Supplier<Long> currentMillis;
+
+  FlushProcessor(Counter sentCounter, Supplier<Long> currentMillis) {
+    this.sentCounter = sentCounter;
+    this.currentMillis = currentMillis;
+  }
 
   @Override
   public void processMeter(MetricName name, Metered meter, FlushProcessorContext context) throws Exception {
@@ -31,36 +42,40 @@ public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
 
   @Override
   public void processCounter(MetricName name, Counter counter, FlushProcessorContext context) throws Exception {
-    context.getPointHandler().reportPoint(
-        context.reportPointBuilder()
-            .setValue(counter.count())
-            .setTimestamp(System.currentTimeMillis()).build(),
-        null);
+    context.report(counter.count());
+    sentCounter.inc();
   }
 
   @Override
   public void processHistogram(MetricName name, Histogram histogram, FlushProcessorContext context) throws Exception {
-    // HACK. Convert histogram to/from JSON using wavefront libraries to explode the yammer histogram
-    // into canonical wavefront gauges, e.g. foo.count, foo.min, foo.max, ...
-    List<ReportPoint> reportPoints = Lists.newLinkedList();
-    JsonNode jsonNode = JsonMetricsGenerator.generateJsonMetrics(new SingleMetricRegistry(histogram),
-        false, false, false);
-    JsonMetricsParser.report(
-        context.getTimeSeries().getTable(), "", jsonNode, reportPoints, context.getTimeSeries().getHost(),
-        System.currentTimeMillis());
-    // We now have a list of points like "foo.*.count, foo.*.min, ..."
-    for (ReportPoint template : reportPoints) {
-      int idx = template.getMetric().lastIndexOf('.');
-      Double value = template.getValue() instanceof Long
-          ? (Long) template.getValue() * 1.0
-          : (Double) template.getValue();
-      String baseName = template.getMetric().substring(idx);
-      ReportPoint reportPoint = context.reportPointBuilder()
-          .setValue(value)
-          .setMetric(context.getMetricName() + baseName)
-          .setTimestamp(System.currentTimeMillis()).build();
-      context.getPointHandler().reportPoint(reportPoint, null);
+    if (histogram instanceof WavefrontHistogram) {
+      WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
+      sunnylabs.report.Histogram.Builder builder = sunnylabs.report.Histogram.newBuilder();
+      builder.setBins(Lists.newLinkedList());
+      builder.setCounts(Lists.newLinkedList());
+      long minMillis = Long.MAX_VALUE;
+      if (wavefrontHistogram.count() == 0) return;
+      for (WavefrontHistogram.MinuteBin minuteBin : wavefrontHistogram.bins(true)) {
+        builder.getBins().add(minuteBin.getDist().quantile(.5));
+        builder.getCounts().add(Math.toIntExact(minuteBin.getDist().size()));
+        minMillis = Long.min(minMillis, minuteBin.getMinMillis());
+      }
+      builder.setType(HistogramType.TDIGEST);
+      builder.setDuration(Math.toIntExact(currentMillis.get() - minMillis));
+      context.report(builder.build());
+    } else {
+      context.reportSubMetric(histogram.count(), "count");
+      context.reportSubMetric(histogram.min(), "min");
+      context.reportSubMetric(histogram.max(), "max");
+      context.reportSubMetric(histogram.mean(), "mean");
+      context.reportSubMetric(histogram.getSnapshot().getMedian(), "median");
+      context.reportSubMetric(histogram.getSnapshot().get75thPercentile(), "p75");
+      context.reportSubMetric(histogram.getSnapshot().get95thPercentile(), "p95");
+      context.reportSubMetric(histogram.getSnapshot().get99thPercentile(), "p99");
+      context.reportSubMetric(histogram.getSnapshot().get999thPercentile(), "p999");
+      histogram.clear();
     }
+    sentCounter.inc();
   }
 
   @Override
@@ -70,12 +85,9 @@ public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
 
   @Override
   public void processGauge(MetricName name, Gauge<?> gauge, FlushProcessorContext context) throws Exception {
+    @SuppressWarnings("unchecked")
     ChangeableGauge<Double> changeableGauge = (ChangeableGauge<Double>) gauge;
-    context.getPointHandler().reportPoint(
-        context.reportPointBuilder()
-            .setValue(changeableGauge.value())
-            .setTimestamp(System.currentTimeMillis()).build(),
-        null);
-
+    context.report(changeableGauge.value());
+    sentCounter.inc();
   }
 }

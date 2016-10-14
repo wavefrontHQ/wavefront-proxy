@@ -2,6 +2,11 @@ package com.wavefront.agent.logsharvesting;
 
 import org.logstash.beats.Message;
 
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAccessor;
+import java.util.Date;
 import java.util.Map;
 
 /**
@@ -14,6 +19,7 @@ public class FilebeatMessage {
   private final Map messageData;
   private final Map beatData;
   private final String logLine;
+  private Long timestampMillis = null;
 
   public FilebeatMessage(Message wrapped) throws MalformedMessageException {
     this.wrapped = wrapped;
@@ -22,6 +28,21 @@ public class FilebeatMessage {
     this.beatData = (Map) this.messageData.get("beat");
     if (!this.messageData.containsKey("message")) throw new MalformedMessageException("No log line in message.");
     this.logLine = (String) this.messageData.get("message");
+    if (getTimestampMillis() == null) throw new MalformedMessageException("No timestamp metadata.");
+  }
+
+  public Long getTimestampMillis() {
+    if (timestampMillis == null) {
+      if (!this.messageData.containsKey("@timestamp")) return null;
+      String timestampStr = (String) this.messageData.get("@timestamp");
+      try {
+        TemporalAccessor accessor = DateTimeFormatter.ISO_DATE_TIME.parse(timestampStr);
+        timestampMillis = Date.from(Instant.from(accessor)).getTime();
+      } catch (DateTimeParseException e) {
+        return null;
+      }
+    }
+    return timestampMillis;
   }
 
   public String getLogLine() {
