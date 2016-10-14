@@ -20,8 +20,7 @@ import oi.thekraken.grok.api.exception.GrokException;
 import sunnylabs.report.TimeSeries;
 
 /**
- * A configuration for the Wavefront Proxy. A single MetricMatcher defines how to transform a log line into
- * a timeseries data point, see {@link #timeSeries(FilebeatMessage, Double[])}.
+ * Object defining transformation between a log line into structured telemetry data.
  *
  * @author Mori Bellamy (mori@wavefront.com)
  */
@@ -104,7 +103,7 @@ public class MetricMatcher extends Configuration {
   }
 
   /**
-   * Convert the given message to a timeSeries and a telemetry datum
+   * Convert the given message to a timeSeries and a telemetry datum.
    *
    * @param filebeatMessage The filebeat message to convert.
    * @param output          The telemetry parsed from the filebeat message.

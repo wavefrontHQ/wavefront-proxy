@@ -9,7 +9,7 @@ import sunnylabs.report.TimeSeries;
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
-class FlushProcessorContext {
+public class FlushProcessorContext {
   private TimeSeries timeSeries;
   private PointHandler pointHandler;
   private String prefix;
