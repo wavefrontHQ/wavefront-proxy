@@ -2,6 +2,7 @@ package com.wavefront.agent.logsharvesting;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +11,7 @@ import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.PointMatchers;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 import org.easymock.Capture;
 import org.easymock.CaptureType;
@@ -19,10 +21,13 @@ import org.logstash.beats.Message;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 import oi.thekraken.grok.api.exception.GrokException;
+import sunnylabs.report.Histogram;
 import sunnylabs.report.ReportPoint;
 
 import static org.easymock.EasyMock.createMock;
@@ -33,6 +38,9 @@ import static org.easymock.EasyMock.verify;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -41,32 +49,42 @@ public class FilebeatListenerTest {
   private LogsIngestionConfig logsIngestionConfig;
   private FilebeatListener filebeatListenerUnderTest;
   private PointHandler mockPointHandler;
+  private Long now = 1476408638L;  // 6:30PM california time Oct 13 2016
 
   private void setup(String configPath) throws IOException, GrokException, ConfigurationException {
     File configFile = new File(FilebeatListenerTest.class.getClassLoader().getResource(configPath).getPath());
     ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
     logsIngestionConfig = objectMapper.readValue(configFile, LogsIngestionConfig.class);
     logsIngestionConfig.aggregationIntervalSeconds = 5;
-    logsIngestionConfig.verify();
+    logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(PointHandler.class);
     filebeatListenerUnderTest = new FilebeatListener(
-        mockPointHandler, logsIngestionConfig, "myhostname", null);
+        mockPointHandler, logsIngestionConfig, null, () -> now);
   }
 
   private void recieveLog(String log) {
     Map<String, Object> data = Maps.newHashMap();
     data.put("message", log);
     data.put("beat", Maps.newHashMap());
+    data.put("@timestamp", "2016-10-13T20:43:45.172Z");
     filebeatListenerUnderTest.onNewMessage(null, new Message(0, data));
   }
 
+
   private List<ReportPoint> getPoints(int numPoints, String... logLines) throws Exception {
+    return getPoints(numPoints, 0, logLines);
+  }
+
+  private List<ReportPoint> getPoints(int numPoints, int lagPerLogLine, String... logLines) throws Exception {
     Capture<ReportPoint> reportPointCapture = Capture.newInstance(CaptureType.ALL);
     reset(mockPointHandler);
     mockPointHandler.reportPoint(EasyMock.capture(reportPointCapture), EasyMock.isNull(String.class));
     expectLastCall().times(numPoints);
     replay(mockPointHandler);
-    for (String line : logLines) recieveLog(line);
+    for (String line : logLines) {
+      recieveLog(line);
+      now += lagPerLogLine;
+    }
     filebeatListenerUnderTest.flush();
     verify(mockPointHandler);
     return reportPointCapture.getValues();
@@ -76,7 +94,7 @@ public class FilebeatListenerTest {
   public void testPrefixIsApplied() throws Exception {
     setup("test.yml");
     filebeatListenerUnderTest = new FilebeatListener(
-        mockPointHandler, logsIngestionConfig, "myhostname", "myPrefix");
+        mockPointHandler, logsIngestionConfig, "myPrefix", () -> now);
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "myPrefix.plainCounter", ImmutableMap.of())));
@@ -163,5 +181,59 @@ public class FilebeatListenerTest {
     assertThat(
         getPoints(1, "impliedCounter"),
         contains(PointMatchers.matches(1L, "impliedCounter", ImmutableMap.of())));
+  }
+
+  @Test
+  public void testHistogram() throws Exception {
+    setup("test.yml");
+    String[] lines = new String[100];
+    for (int i = 1; i < 101; i++) {
+      lines[i - 1] = "histo " + i;
+    }
+    assertThat(
+        getPoints(9, lines),
+        containsInAnyOrder(ImmutableList.of(
+            PointMatchers.almostMatches(100.0, "myHisto.count", ImmutableMap.of()),
+            PointMatchers.almostMatches(1.0, "myHisto.min", ImmutableMap.of()),
+            PointMatchers.almostMatches(100.0, "myHisto.max", ImmutableMap.of()),
+            PointMatchers.almostMatches(50.5, "myHisto.mean", ImmutableMap.of()),
+            PointMatchers.almostMatches(50.5, "myHisto.median", ImmutableMap.of()),
+            PointMatchers.almostMatches(75.75, "myHisto.p75", ImmutableMap.of()),
+            PointMatchers.almostMatches(95.95, "myHisto.p95", ImmutableMap.of()),
+            PointMatchers.almostMatches(99.99, "myHisto.p99", ImmutableMap.of()),
+            PointMatchers.almostMatches(100.0, "myHisto.p999", ImmutableMap.of())
+        ))
+    );
+  }
+
+  @Test
+  public void testWavefrontHistogram() throws Exception {
+    setup("histos.yml");
+    String[] lines = new String[100];
+    for (int i = 1; i < 101; i++) {
+      lines[i - 1] = "histo " + i;
+    }
+    ReportPoint reportPoint = getPoints(1, lines).get(0);
+    assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
+    Histogram wavefrontHistogram = (Histogram) reportPoint.getValue();
+    assertThat(wavefrontHistogram.getBins(), hasSize(1));
+    assertThat(wavefrontHistogram.getBins(), contains(50.5));
+    assertThat(wavefrontHistogram.getCounts(), hasSize(1));
+    assertThat(wavefrontHistogram.getCounts(), contains(100));
+  }
+
+  @Test
+  public void testWavefrontHistogramMultipleCentroids() throws Exception {
+    setup("histos.yml");
+    String[] lines = new String[60];
+    for (int i = 1; i < 61; i++) {
+      lines[i - 1] = "histo " + i;
+    }
+    ReportPoint reportPoint = getPoints(1, 1000, lines).get(0);
+    assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
+    Histogram wavefrontHistogram = (Histogram) reportPoint.getValue();
+    assertThat(wavefrontHistogram.getBins(), hasSize(2));
+    assertThat(wavefrontHistogram.getCounts(), hasSize(2));
+    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(60));
   }
 }

@@ -1,4 +1,5 @@
 # Wavefront Proxy
+[![Javadocs](http://javadoc.io/badge/com.wavefront/proxy.svg)](http://javadoc.io/doc/com.wavefront/proxy)
 
 The Wavefront proxy is a light-weight Java application that you send your metrics to. It handles authentication and the transmission of your metrics to your Wavefront instance.
 

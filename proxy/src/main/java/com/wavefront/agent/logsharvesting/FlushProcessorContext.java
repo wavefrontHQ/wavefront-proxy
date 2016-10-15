@@ -2,6 +2,7 @@ package com.wavefront.agent.logsharvesting;
 
 import com.wavefront.agent.PointHandler;
 
+import sunnylabs.report.Histogram;
 import sunnylabs.report.ReportPoint;
 import sunnylabs.report.TimeSeries;
 
@@ -12,26 +13,43 @@ public class FlushProcessorContext {
   private TimeSeries timeSeries;
   private PointHandler pointHandler;
   private String prefix;
+  private final long timestamp;
 
-  public FlushProcessorContext(TimeSeries timeSeries, String prefix, PointHandler pointHandler) {
+  FlushProcessorContext(TimeSeries timeSeries, String prefix, PointHandler pointHandler) {
     this.timeSeries = TimeSeries.newBuilder(timeSeries).build();
     this.pointHandler = pointHandler;
     this.prefix = prefix;
+    timestamp = System.currentTimeMillis();
   }
 
-  public TimeSeries getTimeSeries() {
-    return timeSeries;
+  String getMetricName() {
+    return timeSeries.getMetric();
   }
 
-  public PointHandler getPointHandler() {
-    return pointHandler;
-  }
-
-  public ReportPoint.Builder reportPointBuilder() {
+  private ReportPoint.Builder reportPointBuilder() {
     return ReportPoint.newBuilder()
         .setHost(timeSeries.getHost())
         .setAnnotations(timeSeries.getAnnotations())
+        .setTimestamp(timestamp)
         .setMetric(prefix == null ? timeSeries.getMetric() : prefix + "." + timeSeries.getMetric());
+  }
+
+  void report(double value) {
+    pointHandler.reportPoint(reportPointBuilder().setValue(value).build(), null);
+  }
+
+  void report(long value) {
+    pointHandler.reportPoint(reportPointBuilder().setValue(value).build(), null);
+  }
+
+  void report(Histogram value) {
+    pointHandler.reportPoint(reportPointBuilder().setValue(value).build(), null);
+  }
+
+  void reportSubMetric(double value, String subMetric) {
+    ReportPoint.Builder builder = reportPointBuilder();
+    pointHandler.reportPoint(
+        builder.setValue(value).setMetric(builder.getMetric() + "." + subMetric).build(), null);
   }
 
 }

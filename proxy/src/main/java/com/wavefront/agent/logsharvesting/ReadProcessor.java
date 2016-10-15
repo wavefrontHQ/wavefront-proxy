@@ -26,7 +26,7 @@ public class ReadProcessor implements MetricProcessor<ReadProcessorContext> {
 
   @Override
   public void processHistogram(MetricName name, Histogram histogram, ReadProcessorContext context) throws Exception {
-    throw new NotImplementedException();
+    histogram.update(Math.round(context.getValue()));
   }
 
   @Override

@@ -1,9 +1,13 @@
 package com.wavefront.agent;
 
+import com.yammer.metrics.core.WavefrontHistogram;
+
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import sunnylabs.report.ReportPoint;
@@ -50,6 +54,28 @@ public class PointMatchers {
       public void describeTo(Description description) {
         description.appendText(
             "Value should equal " + value.toString() + " and have metric name " + metricName + " and tags "
+                + mapToString(tags));
+
+      }
+    };
+  }
+
+  public static Matcher<ReportPoint> almostMatches(double value, String metricName, Map<String, String> tags) {
+    return new BaseMatcher<ReportPoint>() {
+
+      @Override
+      public boolean matches(Object o) {
+        ReportPoint me = (ReportPoint) o;
+        double given = (double) me.getValue();
+        return Math.abs(value - given) < 0.001
+            && me.getMetric().equals(metricName)
+            && mapsEqual(me.getAnnotations(), tags);
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText(
+            "Value should approximately equal " + value + " and have metric name " + metricName + " and tags "
                 + mapToString(tags));
 
       }

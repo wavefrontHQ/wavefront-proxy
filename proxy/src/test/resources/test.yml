@@ -31,6 +31,10 @@ gauges:
     metricName: "apacheStatus"
     valueLabel: "response"
 
+histograms:
+  - pattern: "histo %{NUMBER:value}"
+    metricName: "myHisto"
+
 
 additionalPatterns:
   - "MYPATTERN %{WORD:myword} and %{NUMBER:value}"

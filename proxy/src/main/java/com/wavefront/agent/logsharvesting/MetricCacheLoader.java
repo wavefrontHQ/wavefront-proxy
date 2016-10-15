@@ -8,15 +8,20 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
+import com.yammer.metrics.core.WavefrontHistogram;
+
+import java.util.function.Supplier;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class MetricCacheLoader implements CacheLoader<MetricName, Metric> {
-  private MetricsRegistry metricsRegistry;
+  private final MetricsRegistry metricsRegistry;
+  private final Supplier<Long> currentMillis;
 
-  MetricCacheLoader(MetricsRegistry metricsRegistry) {
+  MetricCacheLoader(MetricsRegistry metricsRegistry, Supplier<Long> currentMillis) {
     this.metricsRegistry = metricsRegistry;
+    this.currentMillis = currentMillis;
   }
 
   @Override
@@ -27,6 +32,8 @@ public class MetricCacheLoader implements CacheLoader<MetricName, Metric> {
       return metricsRegistry.newHistogram(key, false);
     } else if (key.getType().equals(Gauge.class.getTypeName())) {
       return metricsRegistry.newGauge(key, new ChangeableGauge<Double>());
+    } else if (key.getType().equals(WavefrontHistogram.class.getTypeName())) {
+      return WavefrontHistogram.get(metricsRegistry, key, this.currentMillis);
     }
     throw new RuntimeException("Unsupported metric type: " + key.getType());
   }
