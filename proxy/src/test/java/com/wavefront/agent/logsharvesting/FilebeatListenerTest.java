@@ -2,7 +2,6 @@ package com.wavefront.agent.logsharvesting;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,18 +10,16 @@ import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.PointMatchers;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
-import com.yammer.metrics.core.WavefrontHistogram;
 
 import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
+import org.junit.After;
 import org.junit.Test;
 import org.logstash.beats.Message;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +29,7 @@ import sunnylabs.report.ReportPoint;
 
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.mock;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
@@ -55,7 +53,7 @@ public class FilebeatListenerTest {
     File configFile = new File(FilebeatListenerTest.class.getClassLoader().getResource(configPath).getPath());
     ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
     logsIngestionConfig = objectMapper.readValue(configFile, LogsIngestionConfig.class);
-    logsIngestionConfig.aggregationIntervalSeconds = 5;
+    logsIngestionConfig.aggregationIntervalSeconds = 10000; // HACK: Never call flush automatically.
     logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(PointHandler.class);
     filebeatListenerUnderTest = new FilebeatListener(
@@ -70,6 +68,14 @@ public class FilebeatListenerTest {
     filebeatListenerUnderTest.onNewMessage(null, new Message(0, data));
   }
 
+  @After
+  public void cleanup() {
+    filebeatListenerUnderTest = null;
+  }
+
+  private void tick(int millis) {
+    now += millis;
+  }
 
   private List<ReportPoint> getPoints(int numPoints, String... logLines) throws Exception {
     return getPoints(numPoints, 0, logLines);
@@ -83,7 +89,7 @@ public class FilebeatListenerTest {
     replay(mockPointHandler);
     for (String line : logLines) {
       recieveLog(line);
-      now += lagPerLogLine;
+      tick(lagPerLogLine);
     }
     filebeatListenerUnderTest.flush();
     verify(mockPointHandler);
@@ -165,7 +171,7 @@ public class FilebeatListenerTest {
                 "200 632 \"https://dev-2b.corp.wavefront.com/chart\" " +
                 "\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) " +
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36\""
-            ),
+        ),
         containsInAnyOrder(
             ImmutableList.of(
                 PointMatchers.matches(632L, "apacheBytes", ImmutableMap.of()),
@@ -179,8 +185,11 @@ public class FilebeatListenerTest {
   public void testIncrementCounterWithImplied1() throws Exception {
     setup("test.yml");
     assertThat(
-        getPoints(1, "impliedCounter"),
-        contains(PointMatchers.matches(1L, "impliedCounter", ImmutableMap.of())));
+        getPoints(1, "plainCounter"),
+        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+    assertThat(
+        getPoints(1, "plainCounter"),
+        contains(PointMatchers.matches(2L, "plainCounter", ImmutableMap.of())));
   }
 
   @Test
@@ -235,5 +244,22 @@ public class FilebeatListenerTest {
     assertThat(wavefrontHistogram.getBins(), hasSize(2));
     assertThat(wavefrontHistogram.getCounts(), hasSize(2));
     assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(60));
+  }
+
+  @Test
+  public void testExpiry() throws Exception {
+    setup("expiry.yml");
+    assertThat(
+        getPoints(1, "plainCounter"),
+        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+    tick(5);
+    // Flush, so that the FilebeatListener can notice this metric should be evicted.
+    filebeatListenerUnderTest.flush();
+    // HACK: Give the removal listener time to fire. On a MBP, this test has more than 4 9s reliability.
+    Thread.sleep(10);
+    // Should have expired, so started a new counter.
+    assertThat(
+        getPoints(1, "plainCounter"),
+        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
   }
 }

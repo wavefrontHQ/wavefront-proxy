@@ -1,7 +1,9 @@
 package com.wavefront.agent.logsharvesting;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
 
+import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.wavefront.agent.PointHandler;
@@ -19,12 +21,16 @@ import com.yammer.metrics.core.WavefrontHistogram;
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
+import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.annotation.Nonnull;
 
 import io.netty.channel.ChannelHandlerContext;
 import sunnylabs.report.TimeSeries;
@@ -42,6 +48,8 @@ public class FilebeatListener implements IMessageListener {
   private final MetricsRegistry metricsRegistry;
   private final LogsIngestionConfig logsIngestionConfig;
   private final LoadingCache<MetricName, Metric> metricCache;
+  // Keep track of the last timestamp we read each metric name from the log stream.
+  private final ConcurrentHashMap<MetricName, Long> lastReadTime;
   private final Counter received, unparsed, parsed, sent, malformed;
   private final Histogram drift;
   private final String prefix;
@@ -69,10 +77,10 @@ public class FilebeatListener implements IMessageListener {
     this.drift = Metrics.newHistogram(new MetricName("logsharvesting", "", "drift"));
     this.currentMillis = currentMillis;
     this.flushProcessor = new FlushProcessor(sent, this.currentMillis);
+    this.lastReadTime = new ConcurrentHashMap<>();
 
     // Set up user specified metric harvesting.
     this.metricCache = Caffeine.<MetricName, Metric>newBuilder()
-        .expireAfterAccess(logsIngestionConfig.expiryMillis, TimeUnit.MILLISECONDS)
         .removalListener((key, value, cause) -> {
           if (key instanceof MetricName) {
             MetricName metricName = (MetricName) key;
@@ -105,8 +113,17 @@ public class FilebeatListener implements IMessageListener {
   synchronized void flush() throws Exception {
     for (MetricName metricName : metricCache.asMap().keySet()) {
       Metric metric = metricCache.get(metricName);
-      metric.processWith(flushProcessor, metricName,
-          new FlushProcessorContext(TimeSeriesUtils.fromMetricName(metricName), prefix, pointHandler));
+      if (!lastReadTime.containsKey(metricName)) {
+        logger.severe("Application Error! Flushing a metric we haven't read before.");
+        continue;
+      }
+      long lrt = lastReadTime.get(metricName);
+      if (currentMillis.get() - lrt > logsIngestionConfig.expiryMillis) {
+        metricCache.asMap().remove(metricName);
+      } else {
+        metric.processWith(flushProcessor, metricName,
+            new FlushProcessorContext(TimeSeriesUtils.fromMetricName(metricName), prefix, pointHandler));
+      }
     }
   }
 
@@ -124,7 +141,7 @@ public class FilebeatListener implements IMessageListener {
     }
 
     if (filebeatMessage.getTimestampMillis() != null) {
-      drift.update(System.currentTimeMillis() - filebeatMessage.getTimestampMillis());
+      drift.update(currentMillis.get() - filebeatMessage.getTimestampMillis());
     }
 
     Double[] output = {null};
@@ -154,6 +171,7 @@ public class FilebeatListener implements IMessageListener {
 
   private void readMetric(Class clazz, TimeSeries timeSeries, Double value) {
     MetricName metricName = TimeSeriesUtils.toMetricName(clazz, timeSeries);
+    lastReadTime.put(metricName, currentMillis.get());
     Metric metric = metricCache.get(metricName);
     try {
       metric.processWith(readProcessor, metricName, new ReadProcessorContext(value));
@@ -165,14 +183,18 @@ public class FilebeatListener implements IMessageListener {
   }
 
   @Override
-  public void onNewConnection(ChannelHandlerContext ctx) {}
+  public void onNewConnection(ChannelHandlerContext ctx) {
+  }
 
   @Override
-  public void onConnectionClose(ChannelHandlerContext ctx) {}
+  public void onConnectionClose(ChannelHandlerContext ctx) {
+  }
 
   @Override
-  public void onException(ChannelHandlerContext ctx, Throwable cause) {}
+  public void onException(ChannelHandlerContext ctx, Throwable cause) {
+  }
 
   @Override
-  public void onChannelInitializeException(ChannelHandlerContext ctx, Throwable cause) {}
+  public void onChannelInitializeException(ChannelHandlerContext ctx, Throwable cause) {
+  }
 }
