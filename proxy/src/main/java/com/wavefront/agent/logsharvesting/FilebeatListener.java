@@ -52,10 +52,11 @@ public class FilebeatListener implements IMessageListener {
   private final MetricsReporter metricsReporter;
 
   /**
-   * @param pointHandler        Play parsed metrics and meta-metrics to this
-   * @param logsIngestionConfig configuration object for logs harvesting
-   * @param prefix              all harvested metrics start with this prefix
-   * @param currentMillis       supplier of the current time in millis
+   * @param pointHandler              Play parsed metrics and meta-metrics to this
+   * @param logsIngestionConfig       configuration object for logs harvesting
+   * @param prefix                    all harvested metrics start with this prefix
+   * @param currentMillis             supplier of the current time in millis
+   * @param metricsReapIntervalMillis millisecond interval for scanning old metrics to remove from the registry.
    */
   public FilebeatListener(PointHandler pointHandler, LogsIngestionConfig logsIngestionConfig,
                           String prefix, Supplier<Long> currentMillis, int metricsReapIntervalMillis) {
