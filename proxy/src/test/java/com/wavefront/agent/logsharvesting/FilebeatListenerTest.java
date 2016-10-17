@@ -57,7 +57,7 @@ public class FilebeatListenerTest {
     logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(PointHandler.class);
     filebeatListenerUnderTest = new FilebeatListener(
-        mockPointHandler, logsIngestionConfig, null, () -> now);
+        mockPointHandler, logsIngestionConfig, null, () -> now, 10000);
   }
 
   private void recieveLog(String log) {
@@ -91,7 +91,7 @@ public class FilebeatListenerTest {
       recieveLog(line);
       tick(lagPerLogLine);
     }
-    filebeatListenerUnderTest.flush();
+    filebeatListenerUnderTest.getMetricsReporter().run();
     verify(mockPointHandler);
     return reportPointCapture.getValues();
   }
@@ -100,7 +100,7 @@ public class FilebeatListenerTest {
   public void testPrefixIsApplied() throws Exception {
     setup("test.yml");
     filebeatListenerUnderTest = new FilebeatListener(
-        mockPointHandler, logsIngestionConfig, "myPrefix", () -> now);
+        mockPointHandler, logsIngestionConfig, "myPrefix", () -> now, 1000);
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "myPrefix.plainCounter", ImmutableMap.of())));
@@ -252,14 +252,26 @@ public class FilebeatListenerTest {
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
-    tick(5);
-    // Flush, so that the FilebeatListener can notice this metric should be evicted.
-    filebeatListenerUnderTest.flush();
-    // HACK: Give the removal listener time to fire. On a MBP, this test has more than 4 9s reliability.
-    Thread.sleep(10);
+
+    tick(2);  // ExpiryMillis is 1 in expiry.yml
+    filebeatListenerUnderTest.reapOldMetrics();
     // Should have expired, so started a new counter.
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+  }
+
+  @Test
+  public void testExpiryIsNotEager() throws Exception {
+    setup("expiry.yml");
+    assertThat(
+        getPoints(1, "plainCounter"),
+        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+
+    filebeatListenerUnderTest.reapOldMetrics();  // No tick here, so should be noop.
+    // Should have expired, so started a new counter.
+    assertThat(
+        getPoints(1, "plainCounter"),
+        contains(PointMatchers.matches(2L, "plainCounter", ImmutableMap.of())));
   }
 }

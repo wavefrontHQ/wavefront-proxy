@@ -1,9 +1,7 @@
 package com.wavefront.agent.logsharvesting;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 
-import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.wavefront.agent.PointHandler;
@@ -21,16 +19,13 @@ import com.yammer.metrics.core.WavefrontHistogram;
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
-import java.util.HashMap;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.annotation.Nonnull;
 
 import io.netty.channel.ChannelHandlerContext;
 import sunnylabs.report.TimeSeries;
@@ -53,8 +48,8 @@ public class FilebeatListener implements IMessageListener {
   private final Counter received, unparsed, parsed, sent, malformed;
   private final Histogram drift;
   private final String prefix;
-  private final Timer flushTimer;
   private final Supplier<Long> currentMillis;
+  private final MetricsReporter metricsReporter;
 
   /**
    * @param pointHandler        Play parsed metrics and meta-metrics to this
@@ -63,7 +58,7 @@ public class FilebeatListener implements IMessageListener {
    * @param currentMillis       supplier of the current time in millis
    */
   public FilebeatListener(PointHandler pointHandler, LogsIngestionConfig logsIngestionConfig,
-                          String prefix, Supplier<Long> currentMillis) {
+                          String prefix, Supplier<Long> currentMillis, int metricsReapIntervalMillis) {
     this.pointHandler = pointHandler;
     this.prefix = prefix;
     this.logsIngestionConfig = logsIngestionConfig;
@@ -76,55 +71,41 @@ public class FilebeatListener implements IMessageListener {
     this.sent = Metrics.newCounter(new MetricName("logsharvesting", "", "sent"));
     this.drift = Metrics.newHistogram(new MetricName("logsharvesting", "", "drift"));
     this.currentMillis = currentMillis;
-    this.flushProcessor = new FlushProcessor(sent, this.currentMillis);
+    this.flushProcessor = new FlushProcessor(sent, currentMillis);
     this.lastReadTime = new ConcurrentHashMap<>();
 
     // Set up user specified metric harvesting.
     this.metricCache = Caffeine.<MetricName, Metric>newBuilder()
-        .removalListener((key, value, cause) -> {
-          if (key instanceof MetricName) {
-            MetricName metricName = (MetricName) key;
-            metricsRegistry.removeMetric(metricName);
-          } else {
-            logger.severe("Unknown entry removed from metricsCache: " +
-                (key == null ? "null" : key.getClass().getName()));
-          }
-        })
-        .build(new MetricCacheLoader(this.metricsRegistry, this.currentMillis));
+        .build(new MetricCacheLoader(metricsRegistry, currentMillis));
 
-    flushTimer = new Timer();
-    long flushMillis = TimeUnit.SECONDS.toMillis(logsIngestionConfig.aggregationIntervalSeconds);
-    flushTimer.schedule(new TimerTask() {
+    // Continually flush user metrics to Wavefront.
+    this.metricsReporter = new MetricsReporter(
+        metricsRegistry, flushProcessor, "FilebeatMetricsReporter", pointHandler, prefix);
+    this.metricsReporter.start(logsIngestionConfig.aggregationIntervalSeconds, TimeUnit.SECONDS);
+
+    // Continually pace the lastReadTime map, removing stale entries.
+    new Timer().schedule(new TimerTask() {
       @Override
       public void run() {
-        try {
-          flush();
-        } catch (Exception e) {
-          logger.log(Level.SEVERE, "Uncaught exception when flushing metrics", e);
-        }
+        reapOldMetrics();
       }
-    }, flushMillis, flushMillis);
+    }, metricsReapIntervalMillis, metricsReapIntervalMillis);
   }
 
-  /**
-   * Send currently aggregated points to the sink.
-   */
   @VisibleForTesting
-  synchronized void flush() throws Exception {
-    for (MetricName metricName : metricCache.asMap().keySet()) {
-      Metric metric = metricCache.get(metricName);
-      if (!lastReadTime.containsKey(metricName)) {
-        logger.severe("Application Error! Flushing a metric we haven't read before.");
-        continue;
-      }
-      long lrt = lastReadTime.get(metricName);
-      if (currentMillis.get() - lrt > logsIngestionConfig.expiryMillis) {
-        metricCache.asMap().remove(metricName);
-      } else {
-        metric.processWith(flushProcessor, metricName,
-            new FlushProcessorContext(TimeSeriesUtils.fromMetricName(metricName), prefix, pointHandler));
+  void reapOldMetrics() {
+    for (Map.Entry<MetricName, Long> entry : lastReadTime.entrySet()) {
+      if (currentMillis.get() - entry.getValue() > logsIngestionConfig.expiryMillis) {
+        metricCache.asMap().remove(entry.getKey());
+        metricsRegistry.removeMetric(entry.getKey());
+        lastReadTime.remove(entry.getKey());
       }
     }
+  }
+
+  @VisibleForTesting
+  MetricsReporter getMetricsReporter() {
+    return metricsReporter;
   }
 
   @Override
