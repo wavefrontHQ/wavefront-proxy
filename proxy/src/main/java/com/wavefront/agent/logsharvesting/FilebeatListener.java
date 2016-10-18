@@ -52,7 +52,7 @@ public class FilebeatListener implements IMessageListener {
   private final MetricsReporter metricsReporter;
 
   /**
-   * @param pointHandler              Play parsed metrics and meta-metrics to this
+   * @param pointHandler              play parsed metrics
    * @param logsIngestionConfig       configuration object for logs harvesting
    * @param prefix                    all harvested metrics start with this prefix
    * @param currentMillis             supplier of the current time in millis
