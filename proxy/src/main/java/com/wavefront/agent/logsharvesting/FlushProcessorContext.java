@@ -10,10 +10,10 @@ import sunnylabs.report.TimeSeries;
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class FlushProcessorContext {
+  private final long timestamp;
   private TimeSeries timeSeries;
   private PointHandler pointHandler;
   private String prefix;
-  private final long timestamp;
 
   FlushProcessorContext(TimeSeries timeSeries, String prefix, PointHandler pointHandler) {
     this.timeSeries = TimeSeries.newBuilder(timeSeries).build();

@@ -19,9 +19,6 @@ import com.yammer.metrics.core.WavefrontHistogram;
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -37,14 +34,12 @@ import sunnylabs.report.TimeSeries;
  */
 public class FilebeatListener implements IMessageListener {
   protected static final Logger logger = Logger.getLogger(FilebeatListener.class.getCanonicalName());
-  private final FlushProcessor flushProcessor;
   private static final ReadProcessor readProcessor = new ReadProcessor();
+  private final FlushProcessor flushProcessor;
   private final PointHandler pointHandler;
   private final MetricsRegistry metricsRegistry;
   private final LogsIngestionConfig logsIngestionConfig;
   private final LoadingCache<MetricName, Metric> metricCache;
-  // Keep track of the last timestamp we read each metric name from the log stream.
-  private final ConcurrentHashMap<MetricName, Long> lastReadTime;
   private final Counter received, unparsed, parsed, sent, malformed;
   private final Histogram drift;
   private final String prefix;
@@ -52,14 +47,13 @@ public class FilebeatListener implements IMessageListener {
   private final MetricsReporter metricsReporter;
 
   /**
-   * @param pointHandler              play parsed metrics
-   * @param logsIngestionConfig       configuration object for logs harvesting
-   * @param prefix                    all harvested metrics start with this prefix
-   * @param currentMillis             supplier of the current time in millis
-   * @param metricsReapIntervalMillis millisecond interval for scanning old metrics to remove from the registry.
+   * @param pointHandler        play parsed metrics
+   * @param logsIngestionConfig configuration object for logs harvesting
+   * @param prefix              all harvested metrics start with this prefix
+   * @param currentMillis       supplier of the current time in millis
    */
   public FilebeatListener(PointHandler pointHandler, LogsIngestionConfig logsIngestionConfig,
-                          String prefix, Supplier<Long> currentMillis, int metricsReapIntervalMillis) {
+                          String prefix, Supplier<Long> currentMillis) {
     this.pointHandler = pointHandler;
     this.prefix = prefix;
     this.logsIngestionConfig = logsIngestionConfig;
@@ -73,40 +67,33 @@ public class FilebeatListener implements IMessageListener {
     this.drift = Metrics.newHistogram(new MetricName("logsharvesting", "", "drift"));
     this.currentMillis = currentMillis;
     this.flushProcessor = new FlushProcessor(sent, currentMillis);
-    this.lastReadTime = new ConcurrentHashMap<>();
 
     // Set up user specified metric harvesting.
     this.metricCache = Caffeine.<MetricName, Metric>newBuilder()
+        .expireAfterAccess(logsIngestionConfig.expiryMillis, TimeUnit.MILLISECONDS)
+        .<MetricName, Metric>removalListener((metricName, metric, reason) -> {
+          if (metricName == null || metric == null) {
+            logger.severe("Application error, pulled null key or value from metricCache.");
+            return;
+          }
+          metricsRegistry.removeMetric(metricName);
+        })
         .build(new MetricCacheLoader(metricsRegistry, currentMillis));
 
     // Continually flush user metrics to Wavefront.
     this.metricsReporter = new MetricsReporter(
         metricsRegistry, flushProcessor, "FilebeatMetricsReporter", pointHandler, prefix);
     this.metricsReporter.start(logsIngestionConfig.aggregationIntervalSeconds, TimeUnit.SECONDS);
-
-    // Continually pace the lastReadTime map, removing stale entries.
-    new Timer().schedule(new TimerTask() {
-      @Override
-      public void run() {
-        reapOldMetrics();
-      }
-    }, metricsReapIntervalMillis, metricsReapIntervalMillis);
-  }
-
-  @VisibleForTesting
-  void reapOldMetrics() {
-    for (Map.Entry<MetricName, Long> entry : lastReadTime.entrySet()) {
-      if (currentMillis.get() - entry.getValue() > logsIngestionConfig.expiryMillis) {
-        metricCache.asMap().remove(entry.getKey());
-        metricsRegistry.removeMetric(entry.getKey());
-        lastReadTime.remove(entry.getKey());
-      }
-    }
   }
 
   @VisibleForTesting
   MetricsReporter getMetricsReporter() {
     return metricsReporter;
+  }
+
+  @VisibleForTesting
+  LoadingCache<MetricName, Metric> getMetricCache() {
+    return metricCache;
   }
 
   @Override
@@ -153,7 +140,6 @@ public class FilebeatListener implements IMessageListener {
 
   private void readMetric(Class clazz, TimeSeries timeSeries, Double value) {
     MetricName metricName = TimeSeriesUtils.toMetricName(clazz, timeSeries);
-    lastReadTime.put(metricName, currentMillis.get());
     Metric metric = metricCache.get(metricName);
     try {
       metric.processWith(readProcessor, metricName, new ReadProcessorContext(value));

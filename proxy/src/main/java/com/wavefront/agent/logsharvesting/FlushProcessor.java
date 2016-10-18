@@ -1,26 +1,20 @@
 package com.wavefront.agent.logsharvesting;
 
 import com.beust.jcommander.internal.Lists;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.wavefront.metrics.JsonMetricsGenerator;
-import com.wavefront.metrics.JsonMetricsParser;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Metered;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricProcessor;
-import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.WavefrontHistogram;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-import java.util.List;
 import java.util.function.Supplier;
 
 import sunnylabs.report.HistogramType;
-import sunnylabs.report.ReportPoint;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)

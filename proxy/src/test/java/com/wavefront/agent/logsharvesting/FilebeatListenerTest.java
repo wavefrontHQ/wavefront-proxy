@@ -29,7 +29,6 @@ import sunnylabs.report.ReportPoint;
 
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.mock;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
@@ -56,8 +55,7 @@ public class FilebeatListenerTest {
     logsIngestionConfig.aggregationIntervalSeconds = 10000; // HACK: Never call flush automatically.
     logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(PointHandler.class);
-    filebeatListenerUnderTest = new FilebeatListener(
-        mockPointHandler, logsIngestionConfig, null, () -> now, 10000);
+    filebeatListenerUnderTest = new FilebeatListener(mockPointHandler, logsIngestionConfig, null, () -> now);
   }
 
   private void recieveLog(String log) {
@@ -99,8 +97,7 @@ public class FilebeatListenerTest {
   @Test
   public void testPrefixIsApplied() throws Exception {
     setup("test.yml");
-    filebeatListenerUnderTest = new FilebeatListener(
-        mockPointHandler, logsIngestionConfig, "myPrefix", () -> now, 1000);
+    filebeatListenerUnderTest = new FilebeatListener(mockPointHandler, logsIngestionConfig, "myPrefix", () -> now);
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "myPrefix.plainCounter", ImmutableMap.of())));
@@ -248,14 +245,14 @@ public class FilebeatListenerTest {
 
   @Test
   public void testExpiry() throws Exception {
-    setup("expiry.yml");
+    setup("expiry-short.yml");
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
 
-    tick(2);  // ExpiryMillis is 1 in expiry.yml
-    filebeatListenerUnderTest.reapOldMetrics();
-    // Should have expired, so started a new counter.
+    Thread.sleep(100);  // HACK: 10ms sleep gives caffeine entry time to get invalidated.
+    filebeatListenerUnderTest.getMetricCache().cleanUp();  // Should have expired, so started a new counter.
+
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
@@ -263,13 +260,14 @@ public class FilebeatListenerTest {
 
   @Test
   public void testExpiryIsNotEager() throws Exception {
-    setup("expiry.yml");
+    setup("expiry-long.yml");
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
 
-    filebeatListenerUnderTest.reapOldMetrics();  // No tick here, so should be noop.
-    // Should have expired, so started a new counter.
+    Thread.sleep(100);  // HACK: 10ms sleep gives caffeine entry time to get invalidated.
+    filebeatListenerUnderTest.getMetricCache().cleanUp();  // Should be a noop.
+
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(2L, "plainCounter", ImmutableMap.of())));

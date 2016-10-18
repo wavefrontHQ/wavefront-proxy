@@ -8,7 +8,6 @@ import com.yammer.metrics.reporting.AbstractPollingReporter;
 
 import java.util.Map;
 import java.util.SortedMap;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
