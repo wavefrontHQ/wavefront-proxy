@@ -250,7 +250,7 @@ public class FilebeatListenerTest {
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
 
-    Thread.sleep(100);  // HACK: 10ms sleep gives caffeine entry time to get invalidated.
+    Thread.sleep(100);  // HACK: 100ms sleep gives caffeine entry time to get invalidated.
     filebeatListenerUnderTest.getMetricCache().cleanUp();  // Should have expired, so started a new counter.
 
     assertThat(
@@ -265,7 +265,7 @@ public class FilebeatListenerTest {
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
 
-    Thread.sleep(100);  // HACK: 10ms sleep gives caffeine entry time to get invalidated.
+    Thread.sleep(100);  // HACK: 100ms sleep gives caffeine entry time to get invalidated.
     filebeatListenerUnderTest.getMetricCache().cleanUp();  // Should be a noop.
 
     assertThat(
