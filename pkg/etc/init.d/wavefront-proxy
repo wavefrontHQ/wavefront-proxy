@@ -77,7 +77,7 @@ jsvc_exec()
 		-home $JAVA_HOME \
 		-cp $agent_jar \
 		$java_args \
-		-XX:OnOutOfMemoryError="kill -SIGHUP %p" \
+		-XX:OnOutOfMemoryError="kill -1 %p" \
 		-outfile $log_file \
 		-errfile $err_file \
 		-pidfile $pid_file \
