@@ -15,8 +15,6 @@ counters:
     tagValueLabels:
       - "dc"
       - "az"
-  - pattern: "impliedCounter"
-    metricName: "impliedCounter"
   - pattern: "%{COMBINEDAPACHELOG}"
     metricName: "apacheBytes"
     valueLabel: "bytes"
