@@ -28,6 +28,9 @@ gauges:
   - pattern: "%{COMBINEDAPACHELOG}"
     metricName: "apacheStatus"
     valueLabel: "response"
+  - pattern: '%{LOGLEVEL}: \[%{NUMBER:port}\] %{GREEDYDATA} points attempted: %{NUMBER:pointsAttempted}'
+    metricName: "wavefrontPointsSent.%{port}"
+    valueLabel: "pointsAttempted"
 
 histograms:
   - pattern: "histo %{NUMBER:value}"

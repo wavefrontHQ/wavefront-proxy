@@ -82,7 +82,7 @@ public class FilebeatListenerTest {
   private List<ReportPoint> getPoints(int numPoints, int lagPerLogLine, String... logLines) throws Exception {
     Capture<ReportPoint> reportPointCapture = Capture.newInstance(CaptureType.ALL);
     reset(mockPointHandler);
-    mockPointHandler.reportPoint(EasyMock.capture(reportPointCapture), EasyMock.isNull(String.class));
+    mockPointHandler.reportPoint(EasyMock.capture(reportPointCapture), EasyMock.notNull(String.class));
     expectLastCall().times(numPoints);
     replay(mockPointHandler);
     for (String line : logLines) {
@@ -213,6 +213,15 @@ public class FilebeatListenerTest {
   }
 
   @Test
+  public void testProxyLogLine() throws Exception {
+    setup("test.yml");
+    assertThat(
+        getPoints(1, "WARNING: [2878] (SUMMARY): points attempted: 859432; blocked: 0"),
+        contains(PointMatchers.matches(859432.0, "wavefrontPointsSent.2878", ImmutableMap.of()))
+    );
+  }
+
+  @Test
   public void testWavefrontHistogram() throws Exception {
     setup("histos.yml");
     String[] lines = new String[100];
@@ -271,5 +280,10 @@ public class FilebeatListenerTest {
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(2L, "plainCounter", ImmutableMap.of())));
+  }
+
+  @Test(expected = ConfigurationException.class)
+  public void testBadName() throws Exception {
+    setup("badName.yml");
   }
 }

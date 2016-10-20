@@ -34,22 +34,25 @@ public class FlushProcessorContext {
         .setMetric(prefix == null ? timeSeries.getMetric() : prefix + "." + timeSeries.getMetric());
   }
 
+  void report(ReportPoint reportPoint) {
+    pointHandler.reportPoint(reportPoint, reportPoint.toString());
+  }
+
   void report(double value) {
-    pointHandler.reportPoint(reportPointBuilder().setValue(value).build(), null);
+    report(reportPointBuilder().setValue(value).build());
   }
 
   void report(long value) {
-    pointHandler.reportPoint(reportPointBuilder().setValue(value).build(), null);
+    report(reportPointBuilder().setValue(value).build());
   }
 
   void report(Histogram value) {
-    pointHandler.reportPoint(reportPointBuilder().setValue(value).build(), null);
+    report(reportPointBuilder().setValue(value).build());
   }
 
   void reportSubMetric(double value, String subMetric) {
     ReportPoint.Builder builder = reportPointBuilder();
-    pointHandler.reportPoint(
-        builder.setValue(value).setMetric(builder.getMetric() + "." + subMetric).build(), null);
+    report(builder.setValue(value).setMetric(builder.getMetric() + "." + subMetric).build());
   }
 
 }

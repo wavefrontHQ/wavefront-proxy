@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.wavefront.agent.Validation;
 import com.wavefront.agent.logsharvesting.FilebeatMessage;
 
 import org.apache.commons.lang3.StringUtils;
@@ -148,6 +149,8 @@ public class MetricMatcher extends Configuration {
   public void verifyAndInit() throws ConfigurationException {
     ensure(StringUtils.isNotBlank(pattern), "pattern must not be empty.");
     ensure(StringUtils.isNotBlank(metricName), "metric name must not be empty.");
+    String fauxMetricName = metricName.replaceAll("%\\{.*\\}", "");
+    ensure(Validation.charactersAreValid(fauxMetricName), "Metric name has illegal characters: " + metricName);
     ensure(tagKeys.size() == tagValueLabels.size(), "tagKeys and tagValueLabels must be parallel arrays.");
   }
 

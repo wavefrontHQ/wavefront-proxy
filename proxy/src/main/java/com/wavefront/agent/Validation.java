@@ -49,7 +49,7 @@ public class Validation {
     }
   }
 
-  static boolean charactersAreValid(String input) {
+  public static boolean charactersAreValid(String input) {
     // Legal characters are 44-57 (,-./ and numbers), 65-90 (upper), 97-122 (lower), 95 (_)
     int l = input.length();
     if (l == 0) {
