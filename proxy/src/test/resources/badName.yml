@@ -1,0 +1,3 @@
+counters:
+  - pattern: "doesntMatter"
+    metricName: "$illegalCharacter"
