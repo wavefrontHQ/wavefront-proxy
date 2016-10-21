@@ -31,5 +31,5 @@ Build and run the docker container for building.
 This will build the agent from head and package it into a deb or an rpm. The after-install.sh script will download and install Zulu 8.13.0.5 0f21d10ca4f1 JRE by default, so to bundle the package with a JRE of your choice instead, run the following commands inside the docker container right before build.sh:
 
     sed -ri 's,^curl(.*),#curl\1,g' /opt/wavefront-java-repo/pkg/after-install.sh
-    cp -r /opt/jre /opt/wavefront-java-repo/pkg/build/opt/wavefront/wavefront-proxy/jre
+    cp -r /opt/jre /opt/wavefront-java-repo/pkg/build/opt/wavefront/wavefront-proxy/proxy-jre
 
