@@ -6,7 +6,7 @@ service_name="wavefront-proxy"
 spool_dir="/var/spool/wavefront-proxy"
 wavefront_dir="/opt/wavefront"
 conf_dir="/etc/wavefront"
-jre_dir="$wavefront_dir/$service_name/jre"
+jre_dir="$wavefront_dir/$service_name/proxy-jre"
 
 # Set up wavefront user.
 if ! groupmod $group &> /dev/null; then

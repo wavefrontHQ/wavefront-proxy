@@ -26,7 +26,7 @@ user="wavefront"
 wavefront_dir="/opt/wavefront"
 proxy_dir=${PROXY_DIR:-$wavefront_dir/wavefront-proxy}
 config_dir=${CONFIG_DIR:-/etc/wavefront/wavefront-proxy}
-export JAVA_HOME="$proxy_dir/jre"
+export JAVA_HOME="$proxy_dir/proxy-jre"
 conf_file=$CONF_FILE
 if [[ -z $conf_file ]]; then
     legacy_config_dir=$proxy_dir/conf
