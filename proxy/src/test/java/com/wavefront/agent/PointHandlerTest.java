@@ -101,33 +101,12 @@ public class PointHandlerTest {
     Assert.assertFalse(Validation.annotationKeysAreValid(rp));
   }
 
-  // This is a slow implementation of pointToString that is known to work to specification.
-  private static String referenceImpl(ReportPoint point) {
-    String toReturn = String.format("\"%s\" %s %d source=\"%s\"",
-        point.getMetric().replaceAll("\"", "\\\""),
-        point.getValue(),
-        point.getTimestamp() / 1000,
-        point.getHost().replaceAll("\"", "\\\""));
-    for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
-      toReturn += String.format(" \"%s\"=\"%s\"",
-          entry.getKey().replaceAll("\"", "\\\""),
-          entry.getValue().replaceAll("\"", "\\\""));
-    }
-    return toReturn;
-  }
-
-  private void testReportPointToStringHelper(ReportPoint rp) {
-    Assert.assertEquals(referenceImpl(rp), PointHandlerImpl.pointToString(rp));
-  }
-
   @Test
   public void testReportPointToString() {
-    // Vanilla point
-    testReportPointToStringHelper(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
-        ImmutableMap.of("foo", "bar", "boo", "baz")));
-    // No tags
-    testReportPointToStringHelper(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
-        new HashMap<String, String>()));
+    // Common case.
+    Assert.assertEquals("\"some metric\" 10 1469751813 source=\"host\" \"foo\"=\"bar\" \"boo\"=\"baz\"",
+        PointHandlerImpl.pointToString(new ReportPoint("some metric",1469751813000L, 10L, "host", "table",
+            ImmutableMap.of("foo", "bar", "boo", "baz"))));
     // Quote in metric name
     Assert.assertEquals("\"some\\\"metric\" 10 1469751813 source=\"host\"",
         PointHandlerImpl.pointToString(new ReportPoint("some\"metric", 1469751813000L, 10L, "host", "table",
