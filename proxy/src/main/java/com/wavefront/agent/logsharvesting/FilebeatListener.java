@@ -39,7 +39,7 @@ public class FilebeatListener implements IMessageListener {
   private final MetricsRegistry metricsRegistry;
   // A map from "true" to the currently loaded logs ingestion config.
   private final LoadingCache<Boolean, LogsIngestionConfig> logsIngestionConfigLoadingCache;
-  private String lastIngestionConfig = "";
+  private LogsIngestionConfig lastIngestionConfig;
   private final LoadingCache<MetricName, Metric> metricCache;
   private final Counter received, unparsed, parsed, sent, malformed;
   private final Histogram drift;
@@ -59,12 +59,13 @@ public class FilebeatListener implements IMessageListener {
         .expireAfterWrite(5, TimeUnit.SECONDS)
         .build((ignored) -> {
           LogsIngestionConfig nextConfig = logsIngestionConfigSupplier.get();
-          String nextString = nextConfig.toString();
-          if (!lastIngestionConfig.equals(nextString)) {
-            lastIngestionConfig = nextString;
-            logger.info("Loaded new config: " + lastIngestionConfig);
+          if (nextConfig != null) {
+            if (!lastIngestionConfig.toString().equals(nextConfig.toString())) {
+              lastIngestionConfig = nextConfig;
+              logger.info("Loaded new config: " + lastIngestionConfig.toString());
+            }
           }
-          return logsIngestionConfigSupplier.get();
+          return lastIngestionConfig;
         });
     LogsIngestionConfig logsIngestionConfig = logsIngestionConfigLoadingCache.get(true);
 
