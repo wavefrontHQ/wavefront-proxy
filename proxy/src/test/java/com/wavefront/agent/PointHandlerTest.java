@@ -107,6 +107,10 @@ public class PointHandlerTest {
     Assert.assertEquals("\"some metric\" 10 1469751813 source=\"host\" \"foo\"=\"bar\" \"boo\"=\"baz\"",
         PointHandlerImpl.pointToString(new ReportPoint("some metric",1469751813000L, 10L, "host", "table",
             ImmutableMap.of("foo", "bar", "boo", "baz"))));
+    Assert.assertEquals("\"some metric\" 10 1469751813 source=\"host\"",
+        PointHandlerImpl.pointToString(new ReportPoint("some metric",1469751813000L, 10L, "host", "table",
+            ImmutableMap.of())));
+
     // Quote in metric name
     Assert.assertEquals("\"some\\\"metric\" 10 1469751813 source=\"host\"",
         PointHandlerImpl.pointToString(new ReportPoint("some\"metric", 1469751813000L, 10L, "host", "table",
