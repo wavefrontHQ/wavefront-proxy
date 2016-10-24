@@ -64,6 +64,7 @@ public class PostPushDataTimedTask implements Runnable {
 
   private UUID daemonId;
   private String handle;
+  private final int threadId;
   private long pushFlushInterval;
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private static int pointsPerBatch = MAX_SPLIT_BATCH_SIZE;
@@ -143,6 +144,7 @@ public class PostPushDataTimedTask implements Runnable {
     this.logLevel = logLevel;
     this.daemonId = daemonId;
     this.handle = handle;
+    this.threadId = threadId;
     this.pushFlushInterval = pushFlushInterval;
     this.agentAPI = agentAPI;
     this.pushRateLimiter = pushRateLimiter;
@@ -177,6 +179,10 @@ public class PostPushDataTimedTask implements Runnable {
             this.permitsDenied.inc(batchSize);
             // if proxy rate limit exceeded, try again in 250..500ms (to introduce some degree of fairness)
             nextRunMillis = 250 + (int) (Math.random() * 250);
+            if (warningMessageRateLimiter.tryAcquire()) {
+              logger.warning("[FLUSH THREAD " + threadId + "]: WF-4 Proxy rate limit exceeded " +
+                  "(pending points: " + points.size() + "), will retry");
+            }
             return;
           }
           current = createAgentPostBatch();
@@ -210,8 +216,8 @@ public class PostPushDataTimedTask implements Runnable {
 
         if (points.size() > memoryBufferLimit) {
           if (warningMessageRateLimiter.tryAcquire()) {
-            logger.warning("WF-3 Too many pending points (" + points.size() + "), block size: " +
-                pointsPerBatch + ". flushing to retry queue");
+            logger.warning("[FLUSH THREAD " + threadId + "]: WF-3 Too many pending points (" + points.size() +
+                "), block size: " + pointsPerBatch + ". flushing to retry queue");
           }
 
           // there are going to be too many points to be able to flush w/o the agent blowing up

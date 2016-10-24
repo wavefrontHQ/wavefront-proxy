@@ -877,14 +877,21 @@ public abstract class AbstractAgent {
     AgentConfiguration newConfig;
     try {
       logger.info("fetching configuration from server at: " + server);
-      File buffer = new File(bufferFile).getAbsoluteFile();
+      long maxAvailableSpace = 0;
       try {
-        while (buffer != null && buffer.getUsableSpace() == 0) {
-          buffer = buffer.getParentFile();
+        File bufferDirectory = new File(bufferFile).getAbsoluteFile();
+        while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
+          bufferDirectory = bufferDirectory.getParentFile();
         }
-        if (buffer != null) {
-          // the amount of space is limited by the number of retryThreads.
-          bufferSpaceLeft.set(Math.min((long) Integer.MAX_VALUE * retryThreads, buffer.getUsableSpace()));
+        for (int i = 0; i < retryThreads; i++) {
+          File buffer = new File(bufferFile + "." + i);
+          if (buffer.exists()) {
+            maxAvailableSpace += Integer.MAX_VALUE - buffer.length(); // 2GB max file size minus size used
+          }
+        }
+        if (bufferDirectory != null) {
+          // lesser of: available disk space or available buffer space
+          bufferSpaceLeft.set(Math.min(maxAvailableSpace, bufferDirectory.getUsableSpace()));
         }
       } catch (Throwable t) {
         logger.warning("cannot compute remaining space in buffer file partition: " + t);
