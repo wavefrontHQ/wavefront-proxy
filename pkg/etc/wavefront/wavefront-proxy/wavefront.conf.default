@@ -64,6 +64,14 @@ pushFlushMaxPoints=40000
 # Milliseconds between flushes to the Wavefront servers. Typically 1000.
 pushFlushInterval=1000
 
+## Limit rate at the proxy (averaged over 1 minute). Default: do not throttle
+#pushRateLimit=20000
+
+## Max number of points that can stay in memory buffers before spooling to disk. Defaults to 16 * pushFlushMaxPoints,
+## minimum allowed size: pushFlushMaxPoints. Setting this value lower than default reduces memory usage but will force
+# the proxy to spool to disk more frequently if you have points arriving at the proxy in short bursts.
+#pushMemoryBufferLimit=6400000
+
 # If there are blocked points, how many lines to print to the log every 10 flushes. Typically 5.
 pushBlockedSamples=5
 
@@ -134,6 +142,10 @@ buffer=/var/spool/wavefront-proxy/buffer
 #
 ## The following setting enables SO_LINGER with the specified linger time in seconds (SO_LINGER disabled by default)
 #soLingerTime=0
+## HTTP connect timeout (in milliseconds). Default: 5s (5000)
+#httpConnectTimeout=5000
+## HTTP request timeout (in milliseconds). Default: 20s (20000)
+#httpRequestTimeout=20000
 
 ## Path to the optional config file with preprocessor rules (advanced regEx replacements and whitelist/blacklists)
 #preprocessorConfigFile=/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml
