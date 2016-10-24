@@ -19,7 +19,6 @@ import com.yammer.metrics.core.WavefrontHistogram;
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -38,25 +37,37 @@ public class FilebeatListener implements IMessageListener {
   private final FlushProcessor flushProcessor;
   private final PointHandler pointHandler;
   private final MetricsRegistry metricsRegistry;
-  private final LogsIngestionConfig logsIngestionConfig;
+  // A map from "true" to the currently loaded logs ingestion config.
+  private final LoadingCache<Boolean, LogsIngestionConfig> logsIngestionConfigLoadingCache;
+  private String lastIngestionConfig = "";
   private final LoadingCache<MetricName, Metric> metricCache;
   private final Counter received, unparsed, parsed, sent, malformed;
   private final Histogram drift;
-  private final String prefix;
   private final Supplier<Long> currentMillis;
   private final MetricsReporter metricsReporter;
 
   /**
-   * @param pointHandler        play parsed metrics
-   * @param logsIngestionConfig configuration object for logs harvesting
-   * @param prefix              all harvested metrics start with this prefix
-   * @param currentMillis       supplier of the current time in millis
+   * @param pointHandler                play parsed metrics
+   * @param logsIngestionConfigSupplier supplied configuration object for logs harvesting. May be reloaded
+   * @param prefix                      all harvested metrics start with this prefix
+   * @param currentMillis               supplier of the current time in millis
    */
-  public FilebeatListener(PointHandler pointHandler, LogsIngestionConfig logsIngestionConfig,
+  public FilebeatListener(PointHandler pointHandler, Supplier<LogsIngestionConfig> logsIngestionConfigSupplier,
                           String prefix, Supplier<Long> currentMillis) {
     this.pointHandler = pointHandler;
-    this.prefix = prefix;
-    this.logsIngestionConfig = logsIngestionConfig;
+    this.logsIngestionConfigLoadingCache = Caffeine.<Boolean, LogsIngestionConfig>newBuilder()
+        .expireAfterWrite(5, TimeUnit.SECONDS)
+        .build((ignored) -> {
+          LogsIngestionConfig nextConfig = logsIngestionConfigSupplier.get();
+          String nextString = nextConfig.toString();
+          if (!lastIngestionConfig.equals(nextString)) {
+            lastIngestionConfig = nextString;
+            logger.info("Loaded new config: " + lastIngestionConfig);
+          }
+          return logsIngestionConfigSupplier.get();
+        });
+    LogsIngestionConfig logsIngestionConfig = logsIngestionConfigLoadingCache.get(true);
+
     this.metricsRegistry = new MetricsRegistry();
     // Meta metrics.
     this.received = Metrics.newCounter(new MetricName("logsharvesting", "", "received"));
@@ -112,6 +123,8 @@ public class FilebeatListener implements IMessageListener {
     if (filebeatMessage.getTimestampMillis() != null) {
       drift.update(currentMillis.get() - filebeatMessage.getTimestampMillis());
     }
+
+    LogsIngestionConfig logsIngestionConfig = logsIngestionConfigLoadingCache.get(true);
 
     Double[] output = {null};
     for (MetricMatcher metricMatcher : logsIngestionConfig.counters) {
