@@ -6,6 +6,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
+import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.gson.Gson;
 
 import com.beust.jcommander.JCommander;
@@ -139,6 +140,16 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points in a single push flush. Defaults" +
       " to 50,000")
   protected int pushFlushMaxPoints = 50000;
+
+  @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
+      "do not throttle.")
+  protected int pushRateLimit = Integer.MAX_VALUE;
+
+  @Parameter(names = {"--pushMemoryBufferLimit"}, description = "Max number of points that can stay in memory buffers" +
+      " before spooling to disk. Defaults to 16 * pushFlushMaxPoints, minimum size: pushFlushMaxPoints. Setting this " +
+      " value lower than default reduces memory usage but will force the proxy to spool to disk more frequently if " +
+      " you have points arriving at the proxy in short bursts")
+  protected int pushMemoryBufferLimit = 16 * pushFlushMaxPoints;
 
   @Parameter(names = {"--pushBlockedSamples"}, description = "Max number of blocked samples to print to log. Defaults" +
       " to 0.")
@@ -337,8 +348,8 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--httpConnectTimeout"}, description = "Connect timeout in milliseconds (default: 5000)")
   protected int httpConnectTimeout = 5000;
 
-  @Parameter(names = {"--httpRequestTimeout"}, description = "Request timeout in milliseconds (default: 60000)")
-  protected int httpRequestTimeout = 60000;
+  @Parameter(names = {"--httpRequestTimeout"}, description = "Request timeout in milliseconds (default: 20000)")
+  protected int httpRequestTimeout = 20000;
 
   @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
   protected String preprocessorConfigFile = null;
@@ -357,8 +368,8 @@ public abstract class AbstractAgent {
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
-  protected final List<ScheduledExecutorService> managedExecutors = new ArrayList<>();
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
+  protected RecyclableRateLimiter pushRateLimiter = RecyclableRateLimiter.create(10000000, 60);
 
   protected final ScheduledExecutorService histogramExecutor =
       Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
@@ -376,13 +387,16 @@ public abstract class AbstractAgent {
   private final Runnable updateConfiguration = new Runnable() {
     @Override
     public void run() {
+      long startTime = System.currentTimeMillis();
       try {
         AgentConfiguration config = fetchConfig();
         if (config != null) {
           processConfiguration(config);
         }
       } finally {
-        auxiliaryExecutor.schedule(this, 60, TimeUnit.SECONDS);
+        // schedule the next run in 1 minute, compensated for the time taken to check in
+        long nextRun = Math.max(5000, 60000 - (System.currentTimeMillis() - startTime));
+        auxiliaryExecutor.schedule(this, nextRun, TimeUnit.MILLISECONDS);
       }
     }
   };
@@ -486,6 +500,9 @@ public abstract class AbstractAgent {
             String.valueOf(pushFlushInterval)));
         pushFlushMaxPoints = Integer.parseInt(prop.getProperty("pushFlushMaxPoints",
             String.valueOf(pushFlushMaxPoints)));
+        pushRateLimit = Integer.parseInt(prop.getProperty("pushRateLimit", String.valueOf(pushRateLimit)));
+        pushMemoryBufferLimit = Integer.parseInt(prop.getProperty("pushMemoryBufferLimit",
+            String.valueOf(16 * pushFlushMaxPoints)));
         pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
             String.valueOf(pushBlockedSamples)));
         pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
@@ -593,7 +610,9 @@ public abstract class AbstractAgent {
 
       initPreprocessors();
 
+      pushRateLimiter.setRate(pushRateLimit);
       PostPushDataTimedTask.setPointsPerBatch(pushFlushMaxPoints);
+      PostPushDataTimedTask.setMemoryBufferLimit(pushMemoryBufferLimit);
       QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
       QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
     }
@@ -790,7 +809,7 @@ public abstract class AbstractAgent {
             toReturn.setName("submission worker: " + counter.getAndIncrement());
             return toReturn;
           }
-        }), purgeBuffer, agentId, splitPushWhenRateLimited, pushLogLevel);
+        }), purgeBuffer, agentId, splitPushWhenRateLimited, pushLogLevel, pushRateLimiter);
   }
 
   /**
@@ -908,13 +927,10 @@ public abstract class AbstractAgent {
     PostPushDataTimedTask[] toReturn = new PostPushDataTimedTask[flushThreads];
     logger.info("Using " + flushThreads + " flush threads to send batched " + pushFormat +
         " data to Wavefront for data received on port: " + handle);
-    ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
-    managedExecutors.add(es);
     for (int i = 0; i < flushThreads; i++) {
       final PostPushDataTimedTask postPushDataTimedTask =
-          new PostPushDataTimedTask(pushFormat, agentAPI, pushLogLevel, agentId, handle, i);
-      es.scheduleWithFixedDelay(postPushDataTimedTask, pushFlushInterval, pushFlushInterval,
-          TimeUnit.MILLISECONDS);
+          new PostPushDataTimedTask(pushFormat, agentAPI, pushLogLevel, agentId, handle,
+              i, pushRateLimiter, pushFlushInterval);
       toReturn[i] = postPushDataTimedTask;
       managedTasks.add(postPushDataTimedTask);
     }
@@ -940,9 +956,7 @@ public abstract class AbstractAgent {
     logger.info("Shutting down: Stopping schedulers...");
     agentAPI.shutdown();
     auxiliaryExecutor.shutdown();
-    for (ScheduledExecutorService executor : managedExecutors) {
-      executor.shutdown();
-    }
+    managedTasks.forEach(PostPushDataTimedTask::shutdown);
     logger.info("Shutting down: Flushing pending points...");
     for (PostPushDataTimedTask task : managedTasks) {
       while (task.getNumPointsToSend() > 0)

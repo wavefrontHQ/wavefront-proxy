@@ -23,5 +23,7 @@ public abstract class ResubmissionTask<T extends ResubmissionTask<T>> implements
    */
   protected UUID currentAgentId = null;
 
+  public abstract int size();
+
   public abstract List<T> splitTask();
 }

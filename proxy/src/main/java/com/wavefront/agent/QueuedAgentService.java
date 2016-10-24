@@ -7,6 +7,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -14,7 +15,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.squareup.tape.FileException;
 import com.squareup.tape.FileObjectQueue;
 import com.squareup.tape.TaskInjector;
-import com.squareup.tape.TaskQueue;
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.AgentConfiguration;
@@ -22,9 +22,11 @@ import com.wavefront.api.agent.ShellOutputDTO;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 
 import java.io.ByteArrayInputStream;
@@ -36,7 +38,6 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -79,6 +80,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
   private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
       TimeUnit.MINUTES);
+  private Counter permitsGranted = Metrics.newCounter(new MetricName("limiter", "", "permits-granted"));
+  private Counter permitsRetried = Metrics.newCounter(new MetricName("limiter", "", "permits-retried"));
   /**
    * Biases result sizes to the last 5 minutes heavily. This histogram does not see all result
    * sizes. The executor only ever processes one posting at any given time and drops the rest.
@@ -106,7 +109,16 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   public QueuedAgentService(AgentAPI service, String bufferFile, final int retryThreads,
                             final ScheduledExecutorService executorService, boolean purge,
                             final UUID agentId, final boolean splitPushWhenRateLimited,
-                            final String logLevel)
+                            final String logLevel) throws IOException {
+    this(service, bufferFile, retryThreads, executorService, purge,
+        agentId, splitPushWhenRateLimited, logLevel, RecyclableRateLimiter.create(Integer.MAX_VALUE, 60));
+  }
+
+
+  public QueuedAgentService(AgentAPI service, String bufferFile, final int retryThreads,
+                            final ScheduledExecutorService executorService, boolean purge,
+                            final UUID agentId, final boolean splitPushWhenRateLimited,
+                            final String logLevel, final RecyclableRateLimiter pushRateLimiter)
       throws IOException {
     if (retryThreads <= 0) {
       logger.warning("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
@@ -164,6 +176,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         public void run() {
           int successes = 0;
           int failures = 0;
+          boolean rateLimiting = false;
           try {
             if (logLevel.equals("DETAILED")) {
               logger.warning("[RETRY THREAD " + threadId + "] TASK STARTING");
@@ -172,13 +185,25 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
               taskQueue.getLockObject().lock();
               try {
                 ResubmissionTask task = taskQueue.peek();
+                int taskSize = 0;
+                if (pushRateLimiter.getAvailablePermits() < pushRateLimiter.getRate()) {
+                  // if there's less than 1 second worth of accumulated credits, don't process the backlog queue
+                  rateLimiting = true;
+                  break;
+                }
+
                 boolean removeTask = true;
                 try {
                   if (task != null) {
+                    taskSize = task.size();
+                    pushRateLimiter.acquire(taskSize);
+                    permitsGranted.inc(taskSize);
                     task.execute(null);
                     successes++;
                   }
                 } catch (Exception ex) {
+                  pushRateLimiter.recyclePermits(taskSize);
+                  permitsRetried.inc(taskSize);
                   failures++;
                   //noinspection ThrowableResultOfMethodCallIgnored
                   if (Throwables.getRootCause(ex) instanceof QueuedPushTooLargeException) {
@@ -229,19 +254,29 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           } catch (Throwable ex) {
             logger.log(Level.WARNING, "[RETRY THREAD " + threadId + "] unexpected exception", ex);
           } finally {
-            if (successes == 0 && failures != 0) {
-              backoffExponent = Math.min(4, backoffExponent + 1); // caps at 2*base^4
+            if (rateLimiting) {
+              if (logLevel.equals("DETAILED")) {
+                logger.warning("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
+                    ", Failed Batches: " + failures);
+                logger.warning("[RETRY THREAD " + threadId + "] Rate limit reached, will re-attempt later");
+              }
+              // if proxy rate limit exceeded, try again in 250..500ms (to introduce some degree of fairness)
+              executorService.schedule(this, 250 + (int) (Math.random() * 250), TimeUnit.MILLISECONDS);
             } else {
-              backoffExponent = 1;
+              if (successes == 0 && failures != 0) {
+                backoffExponent = Math.min(4, backoffExponent + 1); // caps at 2*base^4
+              } else {
+                backoffExponent = 1;
+              }
+              long next = (long) ((Math.random() + 1.0) *
+                  Math.pow(retryBackoffBaseSeconds, backoffExponent));
+              if (logLevel.equals("DETAILED")) {
+                logger.warning("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
+                    ", Failed Batches: " + failures);
+                logger.warning("[RETRY THREAD " + threadId + "] RESCHEDULING in " + next);
+              }
+              executorService.schedule(this, next, TimeUnit.SECONDS);
             }
-            long next = (long) ((Math.random() + 1.0) *
-                Math.pow(retryBackoffBaseSeconds, backoffExponent));
-            if (logLevel.equals("DETAILED")) {
-              logger.warning("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
-                  ", Failed Batches: " + failures);
-              logger.warning("[RETRY THREAD " + threadId + "] RESCHEDULING in " + next);
-            }
-            executorService.schedule(this, next, TimeUnit.SECONDS);
           }
         }
       };
@@ -418,7 +453,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       addTaskToSmallestQueue(task);
       return Response.status(Response.Status.NOT_ACCEPTABLE).build();
     } else {
-
       try {
         resultPostingMeter.mark();
         parsePostingResponse(wrapped.postPushData(agentId, workUnitId, currentMillis, format, pushData));
@@ -543,6 +577,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       // doesn't make sense to split this, so just return a new task
       return of(new PostWorkUnitResultTask(agentId, workUnitId, hostId, shellOutputDTO));
     }
+
+    @Override
+    public int size() {
+      return 1;
+    }
   }
 
   public static class PostPushDataResultTask extends ResubmissionTask<PostPushDataResultTask> {
@@ -596,6 +635,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       }
 
       return splitTasks;
+    }
+
+    @Override
+    public int size() {
+      return StringLineIngester.pushDataSize(pushData);
     }
 
     @VisibleForTesting

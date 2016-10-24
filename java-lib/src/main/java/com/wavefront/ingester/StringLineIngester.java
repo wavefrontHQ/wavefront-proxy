@@ -84,4 +84,12 @@ public class StringLineIngester extends TcpIngester {
     index.add(pushData.length());
     return index;
   }
+
+  public static int pushDataSize(String pushData) {
+    int length = StringUtils.countMatches(pushData, PUSH_DATA_DELIMETER);
+    return length > 0
+        ? length + 1
+        : (pushData.length() > 0 ? 1 : 0);
+
+  }
 }
