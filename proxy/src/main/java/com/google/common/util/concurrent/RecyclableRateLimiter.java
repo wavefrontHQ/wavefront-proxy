@@ -60,8 +60,10 @@ public class RecyclableRateLimiter extends RateLimiter {
   }
 
   public double getAvailablePermits() {
-    resync(stopwatch.readMicros());
-    return storedPermits;
+    synchronized (mutex) {
+      resync(stopwatch.readMicros());
+      return storedPermits;
+    }
   }
 
   public void recyclePermits(int permits) {
