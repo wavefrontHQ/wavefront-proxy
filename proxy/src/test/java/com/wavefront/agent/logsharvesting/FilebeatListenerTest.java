@@ -55,7 +55,7 @@ public class FilebeatListenerTest {
     logsIngestionConfig.aggregationIntervalSeconds = 10000; // HACK: Never call flush automatically.
     logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(PointHandler.class);
-    filebeatListenerUnderTest = new FilebeatListener(mockPointHandler, logsIngestionConfig, null, () -> now);
+    filebeatListenerUnderTest = new FilebeatListener(mockPointHandler, () -> logsIngestionConfig, null, () -> now);
   }
 
   private void recieveLog(String log) {
@@ -97,7 +97,8 @@ public class FilebeatListenerTest {
   @Test
   public void testPrefixIsApplied() throws Exception {
     setup("test.yml");
-    filebeatListenerUnderTest = new FilebeatListener(mockPointHandler, logsIngestionConfig, "myPrefix", () -> now);
+    filebeatListenerUnderTest = new FilebeatListener(
+        mockPointHandler, () -> logsIngestionConfig, "myPrefix", () -> now);
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "myPrefix.plainCounter", ImmutableMap.of())));

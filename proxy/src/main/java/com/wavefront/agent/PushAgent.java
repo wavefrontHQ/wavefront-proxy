@@ -10,6 +10,7 @@ import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.wavefront.agent.config.ConfigurationException;
+import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.agent.histogram.HistogramLineIngester;
 import com.wavefront.agent.histogram.MapLoader;
@@ -324,6 +325,7 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
+    LogsIngestionConfig logsIngestionConfig = loadLogsIngestionConfig();
     if (filebeatPort > 0 && logsIngestionConfig != null) {
       try {
         logsIngestionConfig.verifyAndInit();
@@ -332,7 +334,7 @@ public class PushAgent extends AbstractAgent {
         filebeatServer.setMessageListener(new FilebeatListener(
             new PointHandlerImpl(
                 filebeatPortStr, pushValidationLevel, pushBlockedSamples, getFlushTasks(filebeatPortStr)),
-            logsIngestionConfig, prefix, System::currentTimeMillis));
+            this::loadLogsIngestionConfig, prefix, System::currentTimeMillis));
         startAsManagedThread(() -> {
           try {
             filebeatServer.listen();
@@ -341,7 +343,7 @@ public class PushAgent extends AbstractAgent {
           }
         });
       } catch (ConfigurationException e) {
-        logger.severe("Cannot start logsIngestion: " + e.getMessage());
+        logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
       }
     }
   }
