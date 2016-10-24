@@ -60,8 +60,9 @@ public class FilebeatListener implements IMessageListener {
         .build((ignored) -> {
           LogsIngestionConfig nextConfig = logsIngestionConfigSupplier.get();
           if (nextConfig != null) {
-            if (!lastIngestionConfig.toString().equals(nextConfig.toString())) {
+            if (lastIngestionConfig == null || !lastIngestionConfig.toString().equals(nextConfig.toString())) {
               lastIngestionConfig = nextConfig;
+              lastIngestionConfig.verifyAndInit();
               logger.info("Loaded new config: " + lastIngestionConfig.toString());
             }
           }
