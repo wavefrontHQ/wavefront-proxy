@@ -459,15 +459,16 @@ public abstract class AbstractAgent {
     }
   }
 
+  // Returns null on any exception, and logs the exception.
   protected LogsIngestionConfig loadLogsIngestionConfig() {
-    if (logsIngestionConfigFile == null) {
-      return null;
-    }
-    ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
     try {
+      if (logsIngestionConfigFile == null) {
+        return null;
+      }
+      ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
       return objectMapper.readValue(new File(logsIngestionConfigFile), LogsIngestionConfig.class);
-    } catch (IOException e) {
-      logger.log(Level.SEVERE, "Cannot load logs ingestion config file", e);
+    } catch (Exception e) {
+      logger.log(Level.SEVERE, "Could not load logs ingestion config", e);
       return null;
     }
   }
