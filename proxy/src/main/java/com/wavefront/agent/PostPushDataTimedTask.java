@@ -167,31 +167,14 @@ public class PostPushDataTimedTask implements Runnable {
   public void run() {
     long nextRunMillis = this.pushFlushInterval;
     try {
-      int batchSize;
-      List<String> current = null;
+      List<String> current = createAgentPostBatch();
       batchesAttempted.inc();
-      numIntervals++;
-
-      synchronized (pointsMutex) {
-        batchSize = Math.min(points.size(), pointsPerBatch);
-        if (batchSize != 0) {
-          if (!pushRateLimiter.tryAcquire(batchSize)) {
-            this.permitsDenied.inc(batchSize);
-            // if proxy rate limit exceeded, try again in 250..500ms (to introduce some degree of fairness)
-            nextRunMillis = 250 + (int) (Math.random() * 250);
-            if (warningMessageRateLimiter.tryAcquire()) {
-              logger.warning("[FLUSH THREAD " + threadId + "]: WF-4 Proxy rate limit exceeded " +
-                  "(pending points: " + points.size() + "), will retry");
-            }
-            return;
-          }
-          current = createAgentPostBatch();
-          this.permitsGranted.inc(batchSize);
-        }
+      if (current.size() == 0) {
+        return;
       }
-      logPostBatchStats(current);
+      if (pushRateLimiter.tryAcquire(current.size())) {
+        this.permitsGranted.inc(current.size());
 
-      if (batchSize != 0) {
         TimerContext timerContext = this.batchSendTime.time();
         Response response = null;
         try {
@@ -225,6 +208,17 @@ public class PostPushDataTimedTask implements Runnable {
           // don't let anyone add any more to points while we're draining it.
           drainBuffersToQueue();
         }
+      } else {
+        this.permitsDenied.inc(current.size());
+        // if proxy rate limit exceeded, try again in 250..500ms (to introduce some degree of fairness)
+        nextRunMillis = 250 + (int) (Math.random() * 250);
+        if (warningMessageRateLimiter.tryAcquire()) {
+          logger.warning("[FLUSH THREAD " + threadId + "]: WF-4 Proxy rate limit exceeded " +
+              "(pending points: " + points.size() + "), will retry");
+        }
+        synchronized (pointsMutex) { // return the batch to the beginning of the queue
+          points.addAll(0, current);
+        }
       }
     } catch (Throwable t) {
       logger.log(Level.SEVERE, "Unexpected error in flush loop", t);
@@ -245,7 +239,6 @@ public class PostPushDataTimedTask implements Runnable {
       int pointsToFlush = points.size();
       while (pointsToFlush > 0) {
         List<String> pushData = createAgentPostBatch();
-        logPostBatchStats(pushData);
         int pushDataPointCount = pushData.size();
         if (pushDataPointCount > 0) {
           agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
@@ -267,8 +260,17 @@ public class PostPushDataTimedTask implements Runnable {
     }
   }
 
-  private void logPostBatchStats(@Nullable List<String> postBatch) {
+  private List<String> createAgentPostBatch() {
+    List<String> current;
     List<String> currentBlockedSamples = null;
+    int blockSize;
+    synchronized (pointsMutex) {
+      blockSize = Math.min(points.size(), pointsPerBatch);
+      current = points.subList(0, blockSize);
+
+      numIntervals += 1;
+      points = new ArrayList<>(points.subList(blockSize, points.size()));
+    }
     if (((numIntervals % INTERVALS_PER_SUMMARY) == 0) && !blockedSamples.isEmpty()) {
       synchronized (blockedSamplesMutex) {
         // Copy this to a temp structure that we can iterate over for printing below
@@ -280,8 +282,8 @@ public class PostPushDataTimedTask implements Runnable {
     }
 
     if (logLevel.equals(LOG_DETAILED)) {
-      logger.warning("[" + handle + "] (DETAILED): sending " + (postBatch == null ? 0 : postBatch.size()) +
-          " valid points; queue size:" + points.size() + "; total attempted points: " +
+      logger.warning("[" + handle + "] (DETAILED): sending " + current.size() + " valid points; " +
+          "queue size:" + points.size() + "; total attempted points: " +
           getAttemptedPoints() + "; total blocked: " + this.pointsBlocked.count());
     }
     if (((numIntervals % INTERVALS_PER_SUMMARY) == 0) && (!logLevel.equals(LOG_NONE))) {
@@ -292,16 +294,6 @@ public class PostPushDataTimedTask implements Runnable {
           logger.warning("[" + handle + "] blocked input: [" + blockedLine + "]");
         }
       }
-    }
-  }
-
-  private List<String> createAgentPostBatch() {
-    List<String> current;
-    int blockSize;
-    synchronized (pointsMutex) {
-      blockSize = Math.min(points.size(), pointsPerBatch);
-      current = points.subList(0, blockSize);
-      points = new ArrayList<>(points.subList(blockSize, points.size()));
     }
     return current;
   }
