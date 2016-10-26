@@ -377,8 +377,6 @@ public abstract class AbstractAgent {
   protected final boolean localAgent;
   protected final boolean pushAgent;
 
-  protected LogsIngestionConfig logsIngestionConfig;
-
   /**
    * Executors for support tasks.
    */
@@ -475,12 +473,18 @@ public abstract class AbstractAgent {
     }
   }
 
-  private void loadLogsIngestionConfig() throws IOException {
-    if (logsIngestionConfigFile == null) {
-      return;
+  // Returns null on any exception, and logs the exception.
+  protected LogsIngestionConfig loadLogsIngestionConfig() {
+    try {
+      if (logsIngestionConfigFile == null) {
+        return null;
+      }
+      ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+      return objectMapper.readValue(new File(logsIngestionConfigFile), LogsIngestionConfig.class);
+    } catch (Exception e) {
+      logger.log(Level.SEVERE, "Could not load logs ingestion config", e);
+      return null;
     }
-    ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
-    logsIngestionConfig = objectMapper.readValue(new File(logsIngestionConfigFile), LogsIngestionConfig.class);
   }
 
   private void loadListenerConfigurationFile() throws IOException {

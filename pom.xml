@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>3.27-SNAPSHOT</version>
+  <version>3.28-SNAPSHOT</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
@@ -57,7 +57,7 @@
     <jetty.version>9.2.10.v20150310</jetty.version>
     <jackson.version>2.7.4</jackson.version>
     <netty.version>4.0.35.Final</netty.version>
-    <public.project.version>3.27-SNAPSHOT</public.project.version>
+    <public.project.version>3.28-SNAPSHOT</public.project.version>
   </properties>
 
   <build>

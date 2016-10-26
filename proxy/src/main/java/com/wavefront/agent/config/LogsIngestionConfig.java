@@ -134,6 +134,12 @@ public class LogsIngestionConfig extends Configuration {
   @JsonProperty
   public boolean useWavefrontHistograms = false;
 
+  /**
+   * How often to check this config file for updates.
+   */
+  @JsonProperty
+  public int configReloadIntervalSeconds = 5;
+
   private String patternsFile = null;
   private Object patternsFileLock = new Object();
 

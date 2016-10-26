@@ -8,6 +8,7 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.WavefrontHistogram;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateUtils;
 
 import java.util.List;
@@ -120,18 +121,29 @@ public class PointHandlerImpl implements PointHandler {
     randomPostTask.incrementBlockedPoints();
   }
 
+  private static String quote = "\"";
+  private static String escapedQuote = "\\\"";
+
+  private static String escapeQuotes(String raw) {
+    return StringUtils.replace(raw, quote, escapedQuote);
+  }
+
+  private static void appendTagMap(StringBuilder sb, Map<String, String> tags) {
+    for (Map.Entry<String, String> entry : tags.entrySet()) {
+      sb.append(' ').append(quote).append(escapeQuotes(entry.getKey())).append(quote)
+          .append("=")
+          .append(quote).append(escapeQuotes(entry.getValue())).append(quote);
+    }
+  }
+
   private static String pointToStringSB(ReportPoint point) {
     if (point.getValue() instanceof Double || point.getValue() instanceof Long || point.getValue() instanceof String) {
-      StringBuilder sb = new StringBuilder("\"")
-          .append(point.getMetric().replace("\"", "\\\"")).append("\" ")
+      StringBuilder sb = new StringBuilder(quote)
+          .append(escapeQuotes(point.getMetric())).append(quote).append(" ")
           .append(point.getValue()).append(" ")
           .append(point.getTimestamp() / 1000).append(" ")
-          .append("source=\"").append(point.getHost().replace("\"", "\\\"")).append("\"");
-      for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
-        sb.append(" \"").append(entry.getKey().replace("\"", "\\\"")).append("\"")
-            .append("=")
-            .append("\"").append(entry.getValue().replace("\"", "\\\"")).append("\"");
-      }
+          .append("source=").append(quote).append(escapeQuotes(point.getHost())).append(quote);
+      appendTagMap(sb, point.getAnnotations());
       return sb.toString();
     } else if (point.getValue() instanceof sunnylabs.report.Histogram){
       sunnylabs.report.Histogram h = (sunnylabs.report.Histogram) point.getValue();
@@ -165,16 +177,11 @@ public class PointHandlerImpl implements PointHandler {
       }
 
       // Metric
-      sb.append('"').append(point.getMetric().replace("\"", "\\\"")).append("\" ");
+      sb.append(quote).append(escapeQuotes(point.getMetric())).append(quote).append(" ");
 
       // Source
-      sb.append("source=\"").append(point.getHost().replace("\"", "\\\"")).append("\"");
-      for (Map.Entry<String, String> entry : point.getAnnotations().entrySet()) {
-        sb.append(" \"").append(entry.getKey().replace("\"", "\\\"")).append("\"")
-            .append("=")
-            .append("\"").append(entry.getValue().replace("\"", "\\\"")).append("\"");
-      }
-
+      sb.append("source=").append(quote).append(escapeQuotes(point.getHost())).append(quote);
+      appendTagMap(sb, point.getAnnotations());
       return sb.toString();
     }
     throw new RuntimeException("Unsupported value class: " + point.getValue().getClass().getCanonicalName());
