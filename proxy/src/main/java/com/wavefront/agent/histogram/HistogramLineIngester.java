@@ -36,7 +36,7 @@ public class HistogramLineIngester extends ChannelInitializer implements Runnabl
    * Default number of seconds before the channel idle timeout handler closes the connection.
    */
   private static final int CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT = (int) TimeUnit.DAYS.toSeconds(1);
-  private static final int MAXIMUM_FRAME_LENGTH = 4096;
+  private static final int MAXIMUM_FRAME_LENGTH = 16384;
   private static final int MAXIMUM_OUTSTANDING_CONNECTIONS = 1024;
 
   private static final AtomicLong connectionId = new AtomicLong(0);
@@ -86,7 +86,7 @@ public class HistogramLineIngester extends ChannelInitializer implements Runnabl
     // Add decoders and timeout, add handler()
     ChannelPipeline pipeline = ch.pipeline();
     pipeline.addLast(
-        new LineBasedFrameDecoder(MAXIMUM_FRAME_LENGTH, true, true),
+        new LineBasedFrameDecoder(MAXIMUM_FRAME_LENGTH, true, false),
         new StringDecoder(Charsets.UTF_8),
         new IdleStateHandler(CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT, 0, 0),
         new ChannelDuplexHandler() {
