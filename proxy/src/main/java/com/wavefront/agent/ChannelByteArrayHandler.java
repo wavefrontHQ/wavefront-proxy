@@ -5,8 +5,10 @@ import com.google.common.collect.Lists;
 
 import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.ingester.Decoder;
+import com.wavefront.ingester.GraphiteDecoder;
 
 import java.net.InetSocketAddress;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,6 +35,7 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
 
   @Nullable
   private final PointPreprocessor preprocessor;
+  private final GraphiteDecoder recoder;
 
   /**
    * Constructor.
@@ -43,6 +46,7 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
     this.decoder = decoder;
     this.pointHandler = pointHandler;
     this.preprocessor = preprocessor;
+    this.recoder = new GraphiteDecoder(Collections.emptyList());
   }
 
   @Override
@@ -55,20 +59,16 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
     List<ReportPoint> points = Lists.newArrayListWithExpectedSize(1);
     try {
       decoder.decodeReportPoints(msg, points, "dummy");
-      for (final ReportPoint point: points) {
-        if (preprocessor != null) {
-          // backwards compatibility: apply "pointLine" rules to metric name
-          if (!preprocessor.forPointLine().filter(point.getMetric())) {
-            pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
-            continue;
-          }
-          preprocessor.forReportPoint().transform(point);
-          if (!preprocessor.forReportPoint().filter(point)) {
-            pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
-            continue;
-          }
+      for (ReportPoint point: points) {
+        if (preprocessor != null && preprocessor.forPointLine().hasTransformers()) {
+          String pointLine = PointHandlerImpl.pointToString(point);
+          pointLine = preprocessor.forPointLine().transform(pointLine);
+          List<ReportPoint> parsedPoints = Lists.newArrayListWithExpectedSize(1);
+          recoder.decodeReportPoints(pointLine, parsedPoints, "dummy");
+          parsedPoints.forEach(this::preprocessAndReportPoint);
+        } else {
+          preprocessAndReportPoint(point);
         }
-        pointHandler.reportPoint(point, point.getMetric());
       }
     } catch (final Exception e) {
       final Throwable rootCause = Throwables.getRootCause(e);
@@ -84,6 +84,24 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
       logger.log(Level.WARNING, errMsg, e);
       pointHandler.handleBlockedPoint(errMsg);
     }
+  }
+
+  private void preprocessAndReportPoint(ReportPoint point) {
+    if (preprocessor == null) {
+      pointHandler.reportPoint(point, point.getMetric());
+      return;
+    }
+    // backwards compatibility: apply "pointLine" rules to metric name
+    if (!preprocessor.forPointLine().filter(point.getMetric())) {
+      pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+      return;
+    }
+    preprocessor.forReportPoint().transform(point);
+    if (!preprocessor.forReportPoint().filter(point)) {
+      pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+      return;
+    }
+    pointHandler.reportPoint(point, point.getMetric());
   }
 
   @Override

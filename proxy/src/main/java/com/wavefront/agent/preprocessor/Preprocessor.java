@@ -38,6 +38,14 @@ public class Preprocessor<T> {
     return true;
   }
 
+  public boolean hasFilters() {
+    return filters.size() > 0;
+  }
+
+  public boolean hasTransformers() {
+    return transformers.size() > 0;
+  }
+
   @Nullable
   public String getLastFilterResult() {
     return message;
