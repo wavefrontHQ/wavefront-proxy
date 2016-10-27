@@ -23,19 +23,23 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
 
   private final String patternReplace;
   private final String scope;
-  private final Pattern compiledPattern;
+  private final Pattern compiledSearchPattern;
+  @Nullable
+  private final Pattern compiledMatchPattern;
   @Nullable
   private final Counter ruleAppliedCounter;
 
   public ReportPointReplaceRegexTransformer(final String scope,
-                                            final String patternMatch,
+                                            final String patternSearch,
                                             final String patternReplace,
+                                            @Nullable final String patternMatch,
                                             @Nullable final Counter ruleAppliedCounter) {
-    this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
-    Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
+    this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
+    Preconditions.checkArgument(!patternSearch.isEmpty(), "[search] can't be blank");
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
     this.patternReplace = Preconditions.checkNotNull(patternReplace, "[replace] can't be null");
+    this.compiledMatchPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 
@@ -44,7 +48,10 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     Matcher patternMatcher;
     switch (scope) {
       case "metricName":
-        patternMatcher = compiledPattern.matcher(reportPoint.getMetric());
+        if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getMetric()).matches()) {
+          break;
+        }
+        patternMatcher = compiledSearchPattern.matcher(reportPoint.getMetric());
         if (patternMatcher.find()) {
           reportPoint.setMetric(patternMatcher.replaceAll(patternReplace));
           if (ruleAppliedCounter != null) {
@@ -53,7 +60,10 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
         }
         break;
       case "sourceName":
-        patternMatcher = compiledPattern.matcher(reportPoint.getHost());
+        if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getHost()).matches()) {
+          break;
+        }
+        patternMatcher = compiledSearchPattern.matcher(reportPoint.getHost());
         if (patternMatcher.find()) {
           reportPoint.setHost(patternMatcher.replaceAll(patternReplace));
           if (ruleAppliedCounter != null) {
@@ -65,7 +75,10 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
         if (reportPoint.getAnnotations() != null) {
           String tagValue = reportPoint.getAnnotations().get(scope);
           if (tagValue != null) {
-            patternMatcher = compiledPattern.matcher(tagValue);
+            if (compiledMatchPattern != null && !compiledMatchPattern.matcher(tagValue).matches()) {
+              break;
+            }
+            patternMatcher = compiledSearchPattern.matcher(tagValue);
             if (patternMatcher.find()) {
               reportPoint.getAnnotations().put(scope, patternMatcher.replaceAll(patternReplace));
               if (ruleAppliedCounter != null) {

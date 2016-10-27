@@ -195,14 +195,6 @@
       replace : ""
       tag     : tag
 
-    # match does not apply
-    - rule    : test-replaceRegex-7
-      action  : replaceRegex
-      scope   : pointLine
-      match   : "foo"
-      search  : "foo"
-      replace : ""
-
     # newtag does not apply
     - rule    : test-replaceRegex-8
       action  : replaceRegex

@@ -80,9 +80,10 @@ public class AgentPreprocessorConfiguration {
             if (rule.get("scope") != null && rule.get("scope").equals("pointLine")) {
               switch (rule.get("action")) {
                 case "replaceRegex":
-                  allowArguments(rule, "rule", "action", "scope", "search", "replace");
+                  allowArguments(rule, "rule", "action", "scope", "search", "replace", "match");
                   this.forPort(strPort).forPointLine().addTransformer(
-                      new PointLineReplaceRegexTransformer(rule.get("search"), rule.get("replace"), counter));
+                      new PointLineReplaceRegexTransformer(
+                          rule.get("search"), rule.get("replace"), rule.get("match"), counter));
                   break;
                 case "blacklistRegex":
                   allowArguments(rule, "rule", "action", "scope", "match");
@@ -101,10 +102,10 @@ public class AgentPreprocessorConfiguration {
             } else {
               switch (rule.get("action")) {
                 case "replaceRegex":
-                  allowArguments(rule, "rule", "action", "scope", "search", "replace");
+                  allowArguments(rule, "rule", "action", "scope", "search", "replace", "match");
                   this.forPort(strPort).forReportPoint().addTransformer(
                       new ReportPointReplaceRegexTransformer(
-                          rule.get("scope"), rule.get("search"), rule.get("replace"), counter));
+                          rule.get("scope"), rule.get("search"), rule.get("replace"), rule.get("match"), counter));
                   break;
                 case "addTag":
                   allowArguments(rule, "rule", "action", "tag", "value");

@@ -85,13 +85,13 @@ public class PreprocessorRulesTest {
   @Test(expected = NullPointerException.class)
   public void testLineReplaceRegexNullMatchThrows() {
     // try to create a regex replace rule with a null match pattern
-    PointLineReplaceRegexTransformer invalidRule = new PointLineReplaceRegexTransformer(null, "foo", null);
+    PointLineReplaceRegexTransformer invalidRule = new PointLineReplaceRegexTransformer(null, "foo", null, null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testLineReplaceRegexBlankMatchThrows() {
     // try to create a regex replace rule with a blank match pattern
-    PointLineReplaceRegexTransformer invalidRule = new PointLineReplaceRegexTransformer("", "foo", null);
+    PointLineReplaceRegexTransformer invalidRule = new PointLineReplaceRegexTransformer("", "foo", null, null);
   }
 
   @Test(expected = NullPointerException.class)
@@ -135,13 +135,16 @@ public class PreprocessorRulesTest {
     String testPoint1 = "collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz";
     String testPoint2 = "collectd.#cpu#.&loadavg^.1m 7 1459527231 source=source$hostname foo=bar boo=baz";
 
-    PointLineReplaceRegexTransformer rule1 = new PointLineReplaceRegexTransformer("(boo)=baz", "$1=qux", null);
-    PointLineReplaceRegexTransformer rule2 = new PointLineReplaceRegexTransformer("[#&\\$\\^]", "", null);
+    PointLineReplaceRegexTransformer rule1 = new PointLineReplaceRegexTransformer("(boo)=baz", "$1=qux", null, null);
+    PointLineReplaceRegexTransformer rule2 = new PointLineReplaceRegexTransformer("[#&\\$\\^]", "", null, null);
     PointLineBlacklistRegexFilter rule3 = new PointLineBlacklistRegexFilter(".*source=source.*", null);
     PointLineWhitelistRegexFilter rule4 = new PointLineWhitelistRegexFilter(".*source=source.*", null);
+    PointLineReplaceRegexTransformer rule5 = new PointLineReplaceRegexTransformer("cpu", "gpu", ".*hostname.*", null);
+    PointLineReplaceRegexTransformer rule6 = new PointLineReplaceRegexTransformer("cpu", "gpu", ".*nomatch.*", null);
 
     String expectedPoint1 = "collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=qux";
     String expectedPoint2 = "collectd.cpu.loadavg.1m 7 1459527231 source=sourcehostname foo=bar boo=baz";
+    String expectedPoint5 = "collectd.gpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz";
 
     assertEquals(expectedPoint1, rule1.apply(testPoint1));
     assertEquals(expectedPoint2, rule2.apply(testPoint2));
@@ -149,6 +152,8 @@ public class PreprocessorRulesTest {
     assertFalse(rule3.apply(testPoint2));
     assertFalse(rule4.apply(testPoint1));
     assertTrue(rule4.apply(testPoint2));
+    assertEquals(expectedPoint5, rule5.apply(testPoint1));
+    assertEquals(testPoint1, rule6.apply(testPoint1));
   }
 
   @Test
@@ -211,26 +216,26 @@ public class PreprocessorRulesTest {
     assertEquals(expectedPoint6, referencePointToStringImpl(point));
 
     // replace regex in metric name, no matches - shouldn't change
-    new ReportPointReplaceRegexTransformer("metricName", "Z", "", null).apply(point);
+    new ReportPointReplaceRegexTransformer("metricName", "Z", "", null, null).apply(point);
     assertEquals(expectedPoint6, referencePointToStringImpl(point));
 
     // replace regex in metric name - shouldn't affect anything else
-    new ReportPointReplaceRegexTransformer("metricName", "o", "0", null).apply(point);
+    new ReportPointReplaceRegexTransformer("metricName", "o", "0", null, null).apply(point);
     String expectedPoint7 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint7, referencePointToStringImpl(point));
 
     // replace regex in source name - shouldn't affect anything else
-    new ReportPointReplaceRegexTransformer("sourceName", "o", "0", null).apply(point);
+    new ReportPointReplaceRegexTransformer("sourceName", "o", "0", null, null).apply(point);
     String expectedPoint8 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint8, referencePointToStringImpl(point));
 
     // replace regex in a point tag value - shouldn't affect anything else
-    new ReportPointReplaceRegexTransformer("foo", "b", "z", null).apply(point);
+    new ReportPointReplaceRegexTransformer("foo", "b", "z", null, null).apply(point);
     String expectedPoint9 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint9, referencePointToStringImpl(point));
 
     // replace regex in a point tag value with matching groups
-    new ReportPointReplaceRegexTransformer("qux", "([a-c][a-c]).", "$1z", null).apply(point);
+    new ReportPointReplaceRegexTransformer("qux", "([a-c][a-c]).", "$1z", null, null).apply(point);
     String expectedPoint10 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"baz\"";
     assertEquals(expectedPoint10, referencePointToStringImpl(point));
   }
