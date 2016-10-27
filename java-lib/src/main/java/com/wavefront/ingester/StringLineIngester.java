@@ -50,7 +50,7 @@ public class StringLineIngester extends TcpIngester {
     copy.add(0, new Function<Channel, ChannelHandler>() {
       @Override
       public ChannelHandler apply(Channel input) {
-        return new LineBasedFrameDecoder(4096, true, true);
+        return new LineBasedFrameDecoder(4096, true, false);
       }
     });
     copy.add(1, new Function<Channel, ChannelHandler>() {

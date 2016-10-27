@@ -467,7 +467,7 @@ public class PushAgent extends AbstractAgent {
     List<ChannelHandler> handlers = new ArrayList<>();
 
     for (int i = 0; i < fanout; ++i) {
-      File tapeFile = new File(directory, granularity.name() + "_" + portAsString + "_" + i);
+      File tapeFile = new File(directory, "Port_" + portAsString + "_" + i);
       ObjectQueue<List<String>> receiveTape = receiveDeck.getTape(tapeFile);
 
       // Set-up scanner
