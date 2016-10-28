@@ -17,11 +17,22 @@ public abstract class Configuration {
 
   private static ObjectMapper objectMapper = new ObjectMapper();
 
+  @Override
   public String toString() {
     try {
       return objectMapper.writeValueAsString(this);
     } catch (JsonProcessingException e) {
       return super.toString();
     }
+  }
+
+  @Override
+  public int hashCode() {
+    return toString().hashCode();
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    return getClass().equals(other.getClass()) && toString().equals(other.toString());
   }
 }
