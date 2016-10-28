@@ -32,6 +32,7 @@ public class LogsIngestionConfigManager {
     this.removalListener = removalListener;
     lastParsedConfig = logsIngestionConfigSupplier.get();
     if (lastParsedConfig == null) throw new ConfigurationException("Could not load initial config.");
+    lastParsedConfig.verifyAndInit();
     this.logsIngestionConfigLoadingCache = Caffeine.<Boolean, LogsIngestionConfig>newBuilder()
         .expireAfterWrite(lastParsedConfig.configReloadIntervalSeconds, TimeUnit.SECONDS)
         .build((ignored) -> {
