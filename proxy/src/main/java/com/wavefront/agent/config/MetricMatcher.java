@@ -70,6 +70,10 @@ public class MetricMatcher extends Configuration {
     return valueLabel;
   }
 
+  public String getPattern() {
+    return pattern;
+  }
+
   private String patternsFile = null;
 
   public void setPatternsFile(String patternsFile) {
@@ -98,7 +102,7 @@ public class MetricMatcher extends Configuration {
     for (String key : replacements.keySet()) {
       String value = (String) replacements.get(key);
       if (value == null) continue;
-      dynamicName = dynamicName.replace("%{" + key + "}", value);
+      dynamicName = StringUtils.replace(dynamicName, "%{" + key + "}", value);
     }
     return dynamicName;
   }

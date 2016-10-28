@@ -2,6 +2,7 @@ package com.wavefront.agent.logsharvesting;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +11,7 @@ import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.PointMatchers;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
+import com.wavefront.agent.config.MetricMatcher;
 
 import org.easymock.Capture;
 import org.easymock.CaptureType;
@@ -47,11 +49,15 @@ public class FilebeatListenerTest {
   private FilebeatListener filebeatListenerUnderTest;
   private PointHandler mockPointHandler;
   private Long now = 1476408638L;  // 6:30PM california time Oct 13 2016
+  private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+
+  private LogsIngestionConfig parseConfigFile(String configPath) throws IOException {
+    File configFile = new File(FilebeatListenerTest.class.getClassLoader().getResource(configPath).getPath());
+    return objectMapper.readValue(configFile, LogsIngestionConfig.class);
+  }
 
   private void setup(String configPath) throws IOException, GrokException, ConfigurationException {
-    File configFile = new File(FilebeatListenerTest.class.getClassLoader().getResource(configPath).getPath());
-    ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
-    logsIngestionConfig = objectMapper.readValue(configFile, LogsIngestionConfig.class);
+    logsIngestionConfig = parseConfigFile(configPath);
     logsIngestionConfig.aggregationIntervalSeconds = 10000; // HACK: Never call flush automatically.
     logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(PointHandler.class);
@@ -82,8 +88,10 @@ public class FilebeatListenerTest {
   private List<ReportPoint> getPoints(int numPoints, int lagPerLogLine, String... logLines) throws Exception {
     Capture<ReportPoint> reportPointCapture = Capture.newInstance(CaptureType.ALL);
     reset(mockPointHandler);
-    mockPointHandler.reportPoint(EasyMock.capture(reportPointCapture), EasyMock.notNull(String.class));
-    expectLastCall().times(numPoints);
+    if (numPoints > 0) {
+      mockPointHandler.reportPoint(EasyMock.capture(reportPointCapture), EasyMock.notNull(String.class));
+      expectLastCall().times(numPoints);
+    }
     replay(mockPointHandler);
     for (String line : logLines) {
       recieveLog(line);
@@ -112,6 +120,33 @@ public class FilebeatListenerTest {
   @Test(expected = ConfigurationException.class)
   public void testTagsNonParallelArrays() throws Exception {
     setup("badTags.yml");
+  }
+
+  @Test
+  public void testHotloadedConfigClearsOldMetrics() throws Exception {
+    setup("test.yml");
+    assertThat(
+        getPoints(1, "plainCounter"),
+        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+    assertThat(
+        getPoints(2, "plainCounter", "counterWithValue 42"),
+        containsInAnyOrder(
+            ImmutableList.of(
+                PointMatchers.matches(42L, "counterWithValue", ImmutableMap.of()),
+                PointMatchers.matches(2L, "plainCounter", ImmutableMap.of()))));
+    List<MetricMatcher> counters = Lists.newCopyOnWriteArrayList(logsIngestionConfig.counters);
+    int oldSize = counters.size();
+    counters.removeIf((metricMatcher -> metricMatcher.getPattern().equals("plainCounter")));
+    assertThat(counters, hasSize(oldSize - 1));
+    // Get a new config file because the SUT has a reference to the old one, and we'll be monkey patching
+    // this one.
+    logsIngestionConfig = parseConfigFile("test.yml");
+    logsIngestionConfig.verifyAndInit();
+    logsIngestionConfig.counters = counters;
+    filebeatListenerUnderTest.logsIngestionConfigManager.forceConfigReload();
+    assertThat(
+        getPoints(1, "plainCounter"),
+        contains(PointMatchers.matches(42L, "counterWithValue", ImmutableMap.of())));
   }
 
   @Test

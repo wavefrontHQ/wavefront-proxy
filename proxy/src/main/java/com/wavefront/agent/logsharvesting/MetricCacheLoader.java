@@ -12,6 +12,8 @@ import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.util.function.Supplier;
 
+import javax.annotation.Nonnull;
+
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
@@ -25,7 +27,7 @@ public class MetricCacheLoader implements CacheLoader<MetricName, Metric> {
   }
 
   @Override
-  public Metric load(MetricName key) throws Exception {
+  public Metric load(@Nonnull MetricName key) {
     if (key.getType().equals(Counter.class.getTypeName())) {
       return metricsRegistry.newCounter(key);
     } else if (key.getType().equals(Histogram.class.getTypeName())) {
