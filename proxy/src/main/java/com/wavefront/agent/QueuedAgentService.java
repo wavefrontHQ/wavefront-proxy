@@ -7,14 +7,13 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.squareup.tape.FileException;
 import com.squareup.tape.FileObjectQueue;
-import com.squareup.tape.TaskInjector;
-import com.squareup.tape.TaskQueue;
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.AgentConfiguration;
@@ -27,16 +26,18 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.MetricsRegistry;
 
+import net.jpountz.lz4.LZ4BlockInputStream;
+import net.jpountz.lz4.LZ4BlockOutputStream;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.Reader;
-import java.io.Writer;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -49,7 +50,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
@@ -89,8 +89,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
    * A single threaded bounded work queue to update result posting sizes.
    */
   private ExecutorService resultPostingSizerExecutorService = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.SECONDS,
-      new ArrayBlockingQueue<Runnable>(1));
-
+      new ArrayBlockingQueue<>(1));
+  /**
+   * Only size postings once every 5 seconds.
+   */
+  private final RateLimiter resultSizingRateLimier = RateLimiter.create(0.2);
   /**
    * @return bytes per minute for requests submissions. Null if no data is available yet.
    */
@@ -130,8 +133,14 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             @Override
             public ResubmissionTask from(byte[] bytes) throws IOException {
               try {
-                Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
-                return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
+                if (bytes.length > 2 && bytes[0] == (byte) 0x1f && bytes[1] == (byte) 0x8b) {
+                  // gzip signature detected (backwards compatibility mode)
+                  Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
+                  return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
+                } else {
+                  ObjectInputStream ois = new ObjectInputStream(new LZ4BlockInputStream(new ByteArrayInputStream(bytes)));
+                  return (ResubmissionTask) ois.readObject();
+                }
               } catch (Throwable t) {
                 logger.warning("Failed to read a single retry submission from buffer, ignoring: " + t);
                 return null;
@@ -140,20 +149,16 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
             @Override
             public void toStream(ResubmissionTask o, OutputStream bytes) throws IOException {
-              GZIPOutputStream gzipOutputStream = new GZIPOutputStream(bytes);
-              Writer writer = new OutputStreamWriter(gzipOutputStream);
-              resubmissionTaskMarshaller.toJson(o, writer);
-              writer.close();
-              gzipOutputStream.finish();
-              gzipOutputStream.close();
+              LZ4BlockOutputStream lz4OutputStream = new LZ4BlockOutputStream(bytes);
+              ObjectOutputStream oos = new ObjectOutputStream(lz4OutputStream);
+              oos.writeObject(o);
+              oos.close();
+              lz4OutputStream.close();
             }
           }),
-          new TaskInjector<ResubmissionTask>() {
-            @Override
-            public void injectMembers(ResubmissionTask task) {
-              task.service = wrapped;
-              task.currentAgentId = agentId;
-            }
+          task -> {
+            task.service = wrapped;
+            task.currentAgentId = agentId;
           }
       );
 
@@ -330,28 +335,26 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   private Runnable getPostingSizerTask(final ResubmissionTask task) {
-    return new Runnable() {
-      @Override
-      public void run() {
-        try {
-          ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-          GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream);
-          Writer writer = new OutputStreamWriter(gzipOutputStream);
-          resubmissionTaskMarshaller.toJson(task, writer);
-          writer.close();
-          gzipOutputStream.finish();
-          gzipOutputStream.close();
-          resultPostingSizes.update(outputStream.size());
-        } catch (Throwable t) {
-          // ignored. this is a stats task.
-        }
+    return () -> {
+      try {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        LZ4BlockOutputStream lz4OutputStream = new LZ4BlockOutputStream(outputStream);
+        ObjectOutputStream oos = new ObjectOutputStream(lz4OutputStream);
+        oos.writeObject(task);
+        oos.close();
+        lz4OutputStream.close();
+        resultPostingSizes.update(outputStream.size());
+      } catch (Throwable t) {
+        // ignored. this is a stats task.
       }
     };
   }
 
   private void scheduleTaskForSizing(ResubmissionTask task) {
     try {
-      resultPostingSizerExecutorService.submit(getPostingSizerTask(task));
+      if (resultSizingRateLimier.tryAcquire()) {
+        resultPostingSizerExecutorService.submit(getPostingSizerTask(task));
+      }
     } catch (RejectedExecutionException ex) {
       // ignored.
     } catch (RuntimeException ex) {
