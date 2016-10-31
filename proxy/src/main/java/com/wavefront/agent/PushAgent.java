@@ -10,7 +10,6 @@ import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.wavefront.agent.config.ConfigurationException;
-import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.agent.histogram.HistogramLineIngester;
 import com.wavefront.agent.histogram.MapLoader;
@@ -38,7 +37,6 @@ import com.wavefront.ingester.PickleProtocolDecoder;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.ingester.TcpIngester;
-import com.yammer.metrics.reporting.ConsoleReporter;
 
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
@@ -135,9 +133,6 @@ public class PushAgent extends AbstractAgent {
               histogramCompression + ") outside of supported range [20;1000], will be clamped.");
           histogramCompression = (short) Math.min(1000, (short) Math.max(20, histogramCompression));
         }
-
-        // Print metrics to console for debug purposes TODO remove
-        ConsoleReporter.enable(20L, TimeUnit.SECONDS);
 
         // Check directory
         File baseDirectory = new File(histogramStateDirectory);
