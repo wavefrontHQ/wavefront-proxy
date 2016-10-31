@@ -226,6 +226,9 @@ public class PostPushDataTimedTask implements Runnable {
     }
   }
 
+  /**
+   * Shut down the scheduler for this task (prevent future scheduled runs)
+   */
   public void shutdown() {
     scheduler.shutdown();
   }

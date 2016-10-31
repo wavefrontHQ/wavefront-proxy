@@ -85,6 +85,11 @@ public class StringLineIngester extends TcpIngester {
     return index;
   }
 
+  /**
+   * Calculates the number of points in the pushData payload
+   * @param pushData a delimited string with the points payload
+   * @return number of points
+   */
   public static int pushDataSize(String pushData) {
     int length = StringUtils.countMatches(pushData, PUSH_DATA_DELIMETER);
     return length > 0

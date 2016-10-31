@@ -59,6 +59,11 @@ public class RecyclableRateLimiter extends RateLimiter {
     this.setRate(permitsPerSecond);
   }
 
+  /**
+   * Get the number of accumulated permits
+   *
+   * @return number of accumulated permits
+   */
   public double getAvailablePermits() {
     synchronized (mutex) {
       resync(stopwatch.readMicros());
@@ -66,6 +71,11 @@ public class RecyclableRateLimiter extends RateLimiter {
     }
   }
 
+  /**
+   * Return the specified number of permits back to the pool
+   *
+   * @param permits number of permits to return
+   */
   public void recyclePermits(int permits) {
     synchronized (mutex) {
       long nowMicros = stopwatch.readMicros();
@@ -81,6 +91,7 @@ public class RecyclableRateLimiter extends RateLimiter {
     }
   }
 
+  @Override
   final void doSetRate(double permitsPerSecond, long nowMicros) {
     synchronized (mutex) {
       resync(nowMicros);
