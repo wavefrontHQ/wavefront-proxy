@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.io.Reader;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -48,7 +47,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.zip.GZIPInputStream;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
@@ -133,8 +131,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             @Override
             public ResubmissionTask from(byte[] bytes) throws IOException {
               try {
-                Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
-                return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
+                ObjectInputStream ois = new ObjectInputStream(new LZ4BlockInputStream(new ByteArrayInputStream(bytes)));
+                return (ResubmissionTask) ois.readObject();
               } catch (Throwable t) {
                 logger.warning("Failed to read a single retry submission from buffer, ignoring: " + t);
                 return null;
@@ -143,10 +141,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
             @Override
             public void toStream(ResubmissionTask o, OutputStream bytes) throws IOException {
-              GZIPOutputStream gzipOutputStream = new GZIPOutputStream(bytes);
-              Writer writer = new OutputStreamWriter(gzipOutputStream);
-              resubmissionTaskMarshaller.toJson(o, writer);
-              writer.close();
+              LZ4BlockOutputStream gzipOutputStream = new LZ4BlockOutputStream(bytes);
+              ObjectOutputStream oos = new ObjectOutputStream(gzipOutputStream);
+              oos.writeObject(o);
+              oos.close();
               gzipOutputStream.finish();
               gzipOutputStream.close();
             }
@@ -334,7 +332,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       try {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         LZ4BlockOutputStream lz4OutputStream = new LZ4BlockOutputStream(outputStream);
-        ObjectOutputStream oos = new ObjectOutputStream(gzipOutputStream);
+        ObjectOutputStream oos = new ObjectOutputStream(lz4OutputStream);
         oos.writeObject(task);
         oos.close();
         lz4OutputStream.finish();
