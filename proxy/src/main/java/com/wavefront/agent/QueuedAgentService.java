@@ -90,6 +90,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
    */
   private ExecutorService resultPostingSizerExecutorService = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.SECONDS,
       new ArrayBlockingQueue<>(1));
+
   /**
    * Only size postings once every 5 seconds.
    */
@@ -138,7 +139,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                   Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
                   return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
                 } else {
-                  ObjectInputStream ois = new ObjectInputStream(new LZ4BlockInputStream(new ByteArrayInputStream(bytes)));
+                  ObjectInputStream ois = new ObjectInputStream(
+                      new LZ4BlockInputStream(new ByteArrayInputStream(bytes)));
                   return (ResubmissionTask) ois.readObject();
                 }
               } catch (Throwable t) {
