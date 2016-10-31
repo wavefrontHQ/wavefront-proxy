@@ -33,7 +33,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -89,7 +88,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
    * A single threaded bounded work queue to update result posting sizes.
    */
   private ExecutorService resultPostingSizerExecutorService = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.SECONDS,
-      new ArrayBlockingQueue<>(1));
+      new ArrayBlockingQueue<Runnable>(1));
 
   /**
    * Only size postings once every 5 seconds.
@@ -134,15 +133,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             @Override
             public ResubmissionTask from(byte[] bytes) throws IOException {
               try {
-                if (bytes.length > 2 && bytes[0] == (byte) 0x1f && bytes[1] == (byte) 0x8b) {
-                  // gzip signature detected (backwards compatibility mode)
-                  Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
-                  return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
-                } else {
-                  ObjectInputStream ois = new ObjectInputStream(
-                      new LZ4BlockInputStream(new ByteArrayInputStream(bytes)));
-                  return (ResubmissionTask) ois.readObject();
-                }
+                Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
+                return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
               } catch (Throwable t) {
                 logger.warning("Failed to read a single retry submission from buffer, ignoring: " + t);
                 return null;
@@ -151,11 +143,12 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
             @Override
             public void toStream(ResubmissionTask o, OutputStream bytes) throws IOException {
-              LZ4BlockOutputStream lz4OutputStream = new LZ4BlockOutputStream(bytes);
-              ObjectOutputStream oos = new ObjectOutputStream(lz4OutputStream);
-              oos.writeObject(o);
-              oos.close();
-              lz4OutputStream.close();
+              GZIPOutputStream gzipOutputStream = new GZIPOutputStream(bytes);
+              Writer writer = new OutputStreamWriter(gzipOutputStream);
+              resubmissionTaskMarshaller.toJson(o, writer);
+              writer.close();
+              gzipOutputStream.finish();
+              gzipOutputStream.close();
             }
           }),
           task -> {
@@ -341,9 +334,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       try {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         LZ4BlockOutputStream lz4OutputStream = new LZ4BlockOutputStream(outputStream);
-        ObjectOutputStream oos = new ObjectOutputStream(lz4OutputStream);
+        ObjectOutputStream oos = new ObjectOutputStream(gzipOutputStream);
         oos.writeObject(task);
         oos.close();
+        lz4OutputStream.finish();
         lz4OutputStream.close();
         resultPostingSizes.update(outputStream.size());
       } catch (Throwable t) {

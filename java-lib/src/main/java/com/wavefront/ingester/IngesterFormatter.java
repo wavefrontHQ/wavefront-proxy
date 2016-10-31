@@ -1,8 +1,6 @@
 package com.wavefront.ingester;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -25,6 +23,7 @@ import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import queryserver.parser.DSWrapperLexer;
 import sunnylabs.report.Histogram;
@@ -88,13 +87,8 @@ public class IngesterFormatter {
     // we don't expect the graphite format to change anytime soon.
 
     // filter all EOF tokens first.
-    Queue<Token> queue = new ArrayDeque<>(Lists.newArrayList(Iterables.filter(tokens,
-        new Predicate<Token>() {
-          @Override
-          public boolean apply(Token input) {
-            return input.getType() != Lexer.EOF;
-          }
-        })));
+    Queue<Token> queue = tokens.stream().filter(t -> t.getType() != Lexer.EOF).collect(
+        Collectors.toCollection(ArrayDeque::new));
     ReportPoint point = new ReportPoint();
     point.setTable(customerId);
     // if the point has a timestamp, this would be overriden
