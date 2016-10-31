@@ -1,8 +1,8 @@
 package com.wavefront.ingester;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
@@ -13,29 +13,27 @@ import io.netty.handler.codec.MessageToMessageDecoder;
  */
 public class GraphiteHostAnnotator extends MessageToMessageDecoder<String> {
 
-  private final Pattern sourceExistencePattern;
   private final String hostName;
+  private final List<String> sourceTags = new ArrayList<>();
 
-  public GraphiteHostAnnotator(String hostName, List<String> customSourceTags) {
+  public GraphiteHostAnnotator(String hostName, final List<String> customSourceTags) {
     this.hostName = hostName;
-    StringBuffer pattern = new StringBuffer(".+(");
-    for (String tag : customSourceTags) {
-      pattern.append(tag);
-      pattern.append("|");
-    }
-    pattern.append("source|host)=[^\\s].+");
-    sourceExistencePattern = Pattern.compile(pattern.toString(), Pattern.CASE_INSENSITIVE);
+    this.sourceTags.add("source=");
+    this.sourceTags.add("host=");
+    this.sourceTags.addAll(customSourceTags.stream().map(customTag -> customTag + "=").collect(Collectors.toList()));
   }
 
   // Decode from a possibly host-annotated graphite string to a definitely host-annotated graphite string.
   @Override
   protected void decode(ChannelHandlerContext ctx, String msg, List<Object> out) throws Exception {
-    Matcher m = sourceExistencePattern.matcher(msg);
-    if (m.matches()) {
-      // Has a source; add without change
-      out.add(msg);
-    } else {
-      out.add(msg + " source=" + hostName);
+    for (String tag : sourceTags) {
+      int strIndex = msg.indexOf(tag);
+      // if a source tags is found and is followed by a non-whitespace tag value, add without change
+      if (strIndex > -1 && msg.length() - strIndex - tag.length() > 0 && msg.charAt(strIndex + tag.length()) > ' ') {
+        out.add(msg);
+        return;
+      }
     }
+    out.add(msg + " source=" + hostName);
   }
 }
