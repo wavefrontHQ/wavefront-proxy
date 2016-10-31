@@ -10,8 +10,6 @@ import com.yammer.metrics.core.MetricProcessor;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.WavefrontHistogram;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 import java.util.function.Supplier;
 
 import sunnylabs.report.HistogramType;
@@ -31,7 +29,7 @@ class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
 
   @Override
   public void processMeter(MetricName name, Metered meter, FlushProcessorContext context) throws Exception {
-    throw new NotImplementedException();
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -74,7 +72,7 @@ class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
 
   @Override
   public void processTimer(MetricName name, Timer timer, FlushProcessorContext context) throws Exception {
-    throw new NotImplementedException();
+    throw new UnsupportedOperationException();
   }
 
   @Override

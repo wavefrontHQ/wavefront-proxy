@@ -8,15 +8,13 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricProcessor;
 import com.yammer.metrics.core.Timer;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class ReadProcessor implements MetricProcessor<ReadProcessorContext> {
   @Override
   public void processMeter(MetricName name, Metered meter, ReadProcessorContext context) throws Exception {
-    throw new NotImplementedException();
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -31,7 +29,7 @@ public class ReadProcessor implements MetricProcessor<ReadProcessorContext> {
 
   @Override
   public void processTimer(MetricName name, Timer timer, ReadProcessorContext context) throws Exception {
-    throw new NotImplementedException();
+    throw new UnsupportedOperationException();
   }
 
   @Override
