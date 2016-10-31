@@ -1,6 +1,7 @@
 package com.wavefront.agent.logsharvesting;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
@@ -20,8 +21,7 @@ import com.yammer.metrics.core.WavefrontHistogram;
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -41,13 +41,15 @@ public class FilebeatListener implements IMessageListener {
   private final PointHandler pointHandler;
   private final MetricsRegistry metricsRegistry;
   // A map from "true" to the currently loaded logs ingestion config.
-  private final LoadingCache<Boolean, LogsIngestionConfig> logsIngestionConfigLoadingCache;
-  private LogsIngestionConfig lastIngestionConfig;
-  private final LoadingCache<MetricName, Metric> metricCache;
+  @VisibleForTesting
+  final LogsIngestionConfigManager logsIngestionConfigManager;
+  private LoadingCache<MetricName, Metric> metricCache;
   private final Counter received, unparsed, parsed, sent, malformed;
   private final Histogram drift;
   private final Supplier<Long> currentMillis;
   private final MetricsReporter metricsReporter;
+  // Keys are MetricMatcher.toString(), values are TimeSeries that the given metric matcher has emitted.
+  private final LoadingCache<MetricMatcher, List<MetricName>> timeSeriesForMetricMatchers;
 
   /**
    * @param pointHandler                play parsed metrics
@@ -59,35 +61,18 @@ public class FilebeatListener implements IMessageListener {
    */
   public FilebeatListener(PointHandler pointHandler, Supplier<LogsIngestionConfig> logsIngestionConfigSupplier,
                           String prefix, Supplier<Long> currentMillis) throws ConfigurationException {
-    // Parse initial config. We'll throw an exception if the very first config
-    // is bad, which will abort future attempts at parsing logs.
-    lastIngestionConfig = logsIngestionConfigSupplier.get();
-    if (lastIngestionConfig == null) {
-      throw new ConfigurationException("Could not get initial config for FilebeatListener.");
-    }
-    lastIngestionConfig.verifyAndInit();  // Might throw.
-    logger.info("Loaded initial config: " + lastIngestionConfig.toString());
-    // Set up hotloading. Any bad configs are ignored and an error is logged.
-    this.logsIngestionConfigLoadingCache = Caffeine.<Boolean, LogsIngestionConfig>newBuilder()
-        .expireAfterWrite(lastIngestionConfig.configReloadIntervalSeconds, TimeUnit.SECONDS)
-        .build((ignored) -> {
-          LogsIngestionConfig nextConfig = logsIngestionConfigSupplier.get();
-          if (nextConfig == null) {
-            logger.warning("Could not load a new logs ingestion config file, check above for a stack trace.");
-          } else if (!lastIngestionConfig.toString().equals(nextConfig.toString())) {
-            nextConfig.verifyAndInit();  // If it throws, we keep the last (good) config.
-            lastIngestionConfig = nextConfig;
-            logger.info("Loaded new config: " + lastIngestionConfig.toString());
+    this.timeSeriesForMetricMatchers = Caffeine.<MetricMatcher, List<TimeSeries>>newBuilder()
+        .build((ignored) -> Lists.newLinkedList());
+    this.metricsRegistry = new MetricsRegistry();
+    logsIngestionConfigManager = new LogsIngestionConfigManager(
+        logsIngestionConfigSupplier,
+        (removedMetricMatcher -> {
+          List<MetricName> removedMetricNames = timeSeriesForMetricMatchers.get(removedMetricMatcher);
+          for (MetricName removed : removedMetricNames) {
+            metricCache.invalidate(removed);
           }
-          return lastIngestionConfig;
-        });
-    // Force reloads every N seconds, so we can log helpful messages to the user.
-    new Timer().schedule(new TimerTask() {
-      @Override
-      public void run() {
-        logsIngestionConfigLoadingCache.get(true);
-      }
-    }, lastIngestionConfig.aggregationIntervalSeconds, lastIngestionConfig.aggregationIntervalSeconds);
+          timeSeriesForMetricMatchers.invalidate(removedMetricMatcher);
+        }));
 
     // Logs harvesting metrics.
     this.received = Metrics.newCounter(new MetricName("logsharvesting", "", "received"));
@@ -100,10 +85,10 @@ public class FilebeatListener implements IMessageListener {
     this.flushProcessor = new FlushProcessor(sent, currentMillis);
 
     // Set up user specified metric harvesting.
+    LogsIngestionConfig config = logsIngestionConfigManager.getConfig();
     this.pointHandler = pointHandler;
-    this.metricsRegistry = new MetricsRegistry();
     this.metricCache = Caffeine.<MetricName, Metric>newBuilder()
-        .expireAfterAccess(lastIngestionConfig.expiryMillis, TimeUnit.MILLISECONDS)
+        .expireAfterAccess(config.expiryMillis, TimeUnit.MILLISECONDS)
         .<MetricName, Metric>removalListener((metricName, metric, reason) -> {
           if (metricName == null || metric == null) {
             logger.severe("Application error, pulled null key or value from metricCache.");
@@ -116,7 +101,7 @@ public class FilebeatListener implements IMessageListener {
     // Continually flush user metrics to Wavefront.
     this.metricsReporter = new MetricsReporter(
         metricsRegistry, flushProcessor, "FilebeatMetricsReporter", pointHandler, prefix);
-    this.metricsReporter.start(lastIngestionConfig.aggregationIntervalSeconds, TimeUnit.SECONDS);
+    this.metricsReporter.start(config.aggregationIntervalSeconds, TimeUnit.SECONDS);
   }
 
   @VisibleForTesting
@@ -146,34 +131,35 @@ public class FilebeatListener implements IMessageListener {
       drift.update(currentMillis.get() - filebeatMessage.getTimestampMillis());
     }
 
-    LogsIngestionConfig logsIngestionConfig = logsIngestionConfigLoadingCache.get(true);
+    LogsIngestionConfig logsIngestionConfig = logsIngestionConfigManager.getConfig();
 
-    Double[] output = {null};
     for (MetricMatcher metricMatcher : logsIngestionConfig.counters) {
-      TimeSeries timeSeries = metricMatcher.timeSeries(filebeatMessage, output);
-      if (timeSeries == null) continue;
-      readMetric(Counter.class, timeSeries, output[0]);
-      success = true;
+      success |= maybeIngestLog(Counter.class, metricMatcher, filebeatMessage);
     }
 
     for (MetricMatcher metricMatcher : logsIngestionConfig.gauges) {
-      TimeSeries timeSeries = metricMatcher.timeSeries(filebeatMessage, output);
-      if (timeSeries == null) continue;
-      readMetric(Gauge.class, timeSeries, output[0]);
-      success = true;
+      success |= maybeIngestLog(Gauge.class, metricMatcher, filebeatMessage);
     }
 
     for (MetricMatcher metricMatcher : logsIngestionConfig.histograms) {
-      TimeSeries timeSeries = metricMatcher.timeSeries(filebeatMessage, output);
-      if (timeSeries == null) continue;
-      readMetric(logsIngestionConfig.useWavefrontHistograms ? WavefrontHistogram.class : Histogram.class,
-          timeSeries, output[0]);
-      success = true;
+      success |= maybeIngestLog(
+          logsIngestionConfig.useWavefrontHistograms ? WavefrontHistogram.class : Histogram.class,
+          metricMatcher, filebeatMessage);
     }
+
     if (!success) unparsed.inc();
   }
 
-  private void readMetric(Class clazz, TimeSeries timeSeries, Double value) {
+  private boolean maybeIngestLog(Class<?> clazz, MetricMatcher metricMatcher, FilebeatMessage filebeatMessage) {
+    Double[] output = {null};
+    TimeSeries timeSeries = metricMatcher.timeSeries(filebeatMessage, output);
+    if (timeSeries == null) return false;
+    MetricName metricName = readMetric(clazz, timeSeries, output[0]);
+    timeSeriesForMetricMatchers.get(metricMatcher).add(metricName);
+    return true;
+  }
+
+  private MetricName readMetric(Class clazz, TimeSeries timeSeries, Double value) {
     MetricName metricName = TimeSeriesUtils.toMetricName(clazz, timeSeries);
     Metric metric = metricCache.get(metricName);
     try {
@@ -183,6 +169,7 @@ public class FilebeatListener implements IMessageListener {
       e.printStackTrace();
     }
     parsed.inc();
+    return metricName;
   }
 
   @Override
