@@ -33,9 +33,11 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.io.Reader;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -47,6 +49,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.zip.GZIPInputStream;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
@@ -131,6 +134,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             @Override
             public ResubmissionTask from(byte[] bytes) throws IOException {
               try {
+                if (bytes.length > 2 && bytes[0] == (byte) 0x1f && bytes[1] == (byte) 0x8b) {
+                  // gzip signature detected (backwards compatibility mode)
+                  Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
+                  return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
+                }
                 ObjectInputStream ois = new ObjectInputStream(new LZ4BlockInputStream(new ByteArrayInputStream(bytes)));
                 return (ResubmissionTask) ois.readObject();
               } catch (Throwable t) {
