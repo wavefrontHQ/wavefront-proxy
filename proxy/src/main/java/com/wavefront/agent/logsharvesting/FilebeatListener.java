@@ -1,28 +1,22 @@
 package com.wavefront.agent.logsharvesting;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricsRegistry;
-import com.yammer.metrics.core.WavefrontHistogram;
 
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
@@ -39,17 +33,14 @@ public class FilebeatListener implements IMessageListener {
   private static final ReadProcessor readProcessor = new ReadProcessor();
   private final FlushProcessor flushProcessor;
   private final PointHandler pointHandler;
-  private final MetricsRegistry metricsRegistry;
   // A map from "true" to the currently loaded logs ingestion config.
   @VisibleForTesting
   final LogsIngestionConfigManager logsIngestionConfigManager;
-  private LoadingCache<MetricName, Metric> metricCache;
   private final Counter received, unparsed, parsed, sent, malformed;
   private final Histogram drift;
   private final Supplier<Long> currentMillis;
   private final MetricsReporter metricsReporter;
-  // Keys are MetricMatcher.toString(), values are TimeSeries that the given metric matcher has emitted.
-  private final LoadingCache<MetricMatcher, List<MetricName>> timeSeriesForMetricMatchers;
+  private EvictingMetricsRegistry evictingMetricsRegistry;
 
   /**
    * @param pointHandler                play parsed metrics
@@ -61,18 +52,13 @@ public class FilebeatListener implements IMessageListener {
    */
   public FilebeatListener(PointHandler pointHandler, Supplier<LogsIngestionConfig> logsIngestionConfigSupplier,
                           String prefix, Supplier<Long> currentMillis) throws ConfigurationException {
-    this.timeSeriesForMetricMatchers = Caffeine.<MetricMatcher, List<TimeSeries>>newBuilder()
-        .build((ignored) -> Lists.newLinkedList());
-    this.metricsRegistry = new MetricsRegistry();
     logsIngestionConfigManager = new LogsIngestionConfigManager(
         logsIngestionConfigSupplier,
-        (removedMetricMatcher -> {
-          List<MetricName> removedMetricNames = timeSeriesForMetricMatchers.get(removedMetricMatcher);
-          for (MetricName removed : removedMetricNames) {
-            metricCache.invalidate(removed);
-          }
-          timeSeriesForMetricMatchers.invalidate(removedMetricMatcher);
-        }));
+        removedMetricMatcher -> evictingMetricsRegistry.evict(removedMetricMatcher));
+    LogsIngestionConfig logsIngestionConfig = logsIngestionConfigManager.getConfig();
+
+    this.evictingMetricsRegistry = new EvictingMetricsRegistry(
+        logsIngestionConfig.expiryMillis, logsIngestionConfig.useWavefrontHistograms, currentMillis);
 
     // Logs harvesting metrics.
     this.received = Metrics.newCounter(new MetricName("logsharvesting", "", "received"));
@@ -87,31 +73,16 @@ public class FilebeatListener implements IMessageListener {
     // Set up user specified metric harvesting.
     LogsIngestionConfig config = logsIngestionConfigManager.getConfig();
     this.pointHandler = pointHandler;
-    this.metricCache = Caffeine.<MetricName, Metric>newBuilder()
-        .expireAfterAccess(config.expiryMillis, TimeUnit.MILLISECONDS)
-        .<MetricName, Metric>removalListener((metricName, metric, reason) -> {
-          if (metricName == null || metric == null) {
-            logger.severe("Application error, pulled null key or value from metricCache.");
-            return;
-          }
-          metricsRegistry.removeMetric(metricName);
-        })
-        .build(new MetricCacheLoader(metricsRegistry, currentMillis));
 
     // Continually flush user metrics to Wavefront.
     this.metricsReporter = new MetricsReporter(
-        metricsRegistry, flushProcessor, "FilebeatMetricsReporter", pointHandler, prefix);
+        evictingMetricsRegistry.metricsRegistry(), flushProcessor, "FilebeatMetricsReporter", pointHandler, prefix);
     this.metricsReporter.start(config.aggregationIntervalSeconds, TimeUnit.SECONDS);
   }
 
   @VisibleForTesting
   MetricsReporter getMetricsReporter() {
     return metricsReporter;
-  }
-
-  @VisibleForTesting
-  LoadingCache<MetricName, Metric> getMetricCache() {
-    return metricCache;
   }
 
   @Override
@@ -134,42 +105,39 @@ public class FilebeatListener implements IMessageListener {
     LogsIngestionConfig logsIngestionConfig = logsIngestionConfigManager.getConfig();
 
     for (MetricMatcher metricMatcher : logsIngestionConfig.counters) {
-      success |= maybeIngestLog(Counter.class, metricMatcher, filebeatMessage);
+      success |= maybeIngestLog(evictingMetricsRegistry::getCounter, metricMatcher, filebeatMessage);
     }
 
     for (MetricMatcher metricMatcher : logsIngestionConfig.gauges) {
-      success |= maybeIngestLog(Gauge.class, metricMatcher, filebeatMessage);
+      success |= maybeIngestLog(evictingMetricsRegistry::getGauge, metricMatcher, filebeatMessage);
     }
 
     for (MetricMatcher metricMatcher : logsIngestionConfig.histograms) {
-      success |= maybeIngestLog(
-          logsIngestionConfig.useWavefrontHistograms ? WavefrontHistogram.class : Histogram.class,
-          metricMatcher, filebeatMessage);
+      success |= maybeIngestLog(evictingMetricsRegistry::getHistogram, metricMatcher, filebeatMessage);
     }
 
-    if (!success) unparsed.inc();
+    if (success) {
+      parsed.inc();
+    } else {
+      unparsed.inc();
+    }
   }
 
-  private boolean maybeIngestLog(Class<?> clazz, MetricMatcher metricMatcher, FilebeatMessage filebeatMessage) {
+  private boolean maybeIngestLog(
+      BiFunction<MetricName, MetricMatcher, Metric> metricLoader, MetricMatcher metricMatcher,
+      FilebeatMessage filebeatMessage) {
     Double[] output = {null};
     TimeSeries timeSeries = metricMatcher.timeSeries(filebeatMessage, output);
     if (timeSeries == null) return false;
-    MetricName metricName = readMetric(clazz, timeSeries, output[0]);
-    timeSeriesForMetricMatchers.get(metricMatcher).add(metricName);
-    return true;
-  }
-
-  private MetricName readMetric(Class clazz, TimeSeries timeSeries, Double value) {
-    MetricName metricName = TimeSeriesUtils.toMetricName(clazz, timeSeries);
-    Metric metric = metricCache.get(metricName);
+    MetricName metricName = TimeSeriesUtils.toMetricName(timeSeries);
+    Metric metric = metricLoader.apply(metricName, metricMatcher);
     try {
-      metric.processWith(readProcessor, metricName, new ReadProcessorContext(value));
+      metric.processWith(readProcessor, metricName, new ReadProcessorContext(output[0]));
     } catch (Exception e) {
       logger.severe("Could not process metric " + metricName.toString());
       e.printStackTrace();
     }
-    parsed.inc();
-    return metricName;
+    return true;
   }
 
   @Override

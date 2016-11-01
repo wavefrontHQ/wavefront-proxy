@@ -23,8 +23,8 @@ public class TimeSeriesUtils {
     return datumReader.read(null, decoder);
   }
 
-  public static MetricName toMetricName(Class type, TimeSeries timeSeries) {
-    return new MetricName("group", type.getTypeName(), timeSeries.toString());
+  public static MetricName toMetricName(TimeSeries timeSeries) {
+    return new MetricName("group", "type", timeSeries.toString());
   }
 
 }

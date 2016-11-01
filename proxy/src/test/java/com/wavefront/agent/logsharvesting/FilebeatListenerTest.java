@@ -41,6 +41,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.notNullValue;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -170,6 +171,12 @@ public class FilebeatListenerTest {
     );
   }
 
+  @Test(expected = ClassCastException.class)
+  public void testDuplicateMetric() throws Exception {
+    setup("dupe.yml");
+    assertThat(getPoints(2, "plainCounter", "plainGauge 42"), notNullValue());
+  }
+
   @Test
   public void testDynamicLabels() throws Exception {
     setup("test.yml");
@@ -287,38 +294,6 @@ public class FilebeatListenerTest {
     assertThat(wavefrontHistogram.getBins(), hasSize(2));
     assertThat(wavefrontHistogram.getCounts(), hasSize(2));
     assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(60));
-  }
-
-  @Ignore  // This test is flaky on overloaded machines.
-  @Test
-  public void testExpiry() throws Exception {
-    setup("expiry-short.yml");
-    assertThat(
-        getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
-
-    Thread.sleep(100);  // HACK: 100ms sleep gives caffeine entry time to get invalidated.
-    filebeatListenerUnderTest.getMetricCache().cleanUp();  // Should have expired, so started a new counter.
-
-    assertThat(
-        getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
-  }
-
-  @Ignore  // This test is flaky on overloaded machines.
-  @Test
-  public void testExpiryIsNotEager() throws Exception {
-    setup("expiry-long.yml");
-    assertThat(
-        getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
-
-    Thread.sleep(100);  // HACK: 100ms sleep gives caffeine entry time to get invalidated.
-    filebeatListenerUnderTest.getMetricCache().cleanUp();  // Should be a noop.
-
-    assertThat(
-        getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(2L, "plainCounter", ImmutableMap.of())));
   }
 
   @Test(expected = ConfigurationException.class)

@@ -1,0 +1,7 @@
+counters:
+  - pattern: "plainCounter"
+    metricName: "plainCounter"
+
+gauges:
+  - pattern: "plainGauge %{NUMBER:value}"
+    metricName: "plainCounter"
