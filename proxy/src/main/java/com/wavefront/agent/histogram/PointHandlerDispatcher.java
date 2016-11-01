@@ -6,13 +6,17 @@ import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.PointHandler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import sunnylabs.report.ReportPoint;
+
+import static java.lang.System.nanoTime;
 
 /**
  * Dispatch task for marshalling "ripe" digests for shipment to the agent to a point handler.
@@ -22,7 +26,11 @@ import sunnylabs.report.ReportPoint;
 public class PointHandlerDispatcher implements Runnable {
   private final static Logger logger = Logger.getLogger(PointHandlerDispatcher.class.getCanonicalName());
 
-  private final Counter dispatchCounter = Metrics.newCounter(new MetricName("histogram", "", "dispatched"));
+  private final Counter dispatchCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "dispatched"));
+  private final Counter dispatchErrorCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "dispatch_errors"));
+  private final Histogram accumulatorSize = WavefrontHistogram.get(new MetricName("histogram.accumulator", "", "size"));
+  private final Histogram dispatchProcessTime = WavefrontHistogram.get(new MetricName("histogram.accumulator", "", "dispatch_process_nanos"));
+  private final Histogram dispatchLagMillis = WavefrontHistogram.get(new MetricName("histogram.accumulator", "", "dispatch_lag_millis"));
 
   private final ConcurrentMap<Utils.HistogramKey, AgentDigest> digests;
   private final PointHandler output;
@@ -44,6 +52,9 @@ public class PointHandlerDispatcher implements Runnable {
 
   @Override
   public void run() {
+    accumulatorSize.update(digests.size());
+
+    long startNanos = nanoTime();
     for (Utils.HistogramKey key : digests.keySet()) {
       digests.compute(key, (k, v) -> {
         if (v == null) {
@@ -56,12 +67,15 @@ public class PointHandlerDispatcher implements Runnable {
             output.reportPoint(out, k.toString());
             dispatchCounter.inc();
           } catch (Exception e) {
+            dispatchErrorCounter.inc();
             logger.log(Level.SEVERE, "Failed dispatching entry " + k, e);
           }
+          dispatchLagMillis.update(clock.millisSinceEpoch() - v.getDispatchTimeMillis());
           return null;
         }
         return v;
       });
     }
+    dispatchProcessTime.update(nanoTime() - startNanos);
   }
 }

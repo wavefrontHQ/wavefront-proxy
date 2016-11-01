@@ -48,11 +48,15 @@ public class AccumulationTask implements Runnable {
   private final short compression;
 
   // Metrics
-  private final Counter binCreatedCounter = Metrics.newCounter(new MetricName("histogram", "", "bin_created"));
-  private final Counter eventCounter = Metrics.newCounter(new MetricName("histogram", "", "event_added"));
-  private final Counter histogramCounter = Metrics.newCounter(new MetricName("histogram", "", "histogram_added"));
-  private final Counter ignoredCounter = Metrics.newCounter(new MetricName("histogram", "", "ignored"));
-  private final WavefrontHistogram batchProcessTime = WavefrontHistogram.get(new MetricName("histogram.batch", "", "process_nanos"));
+  private final Counter binCreatedCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "bin_created"));
+  private final Counter eventCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "sample_added"));
+  private final Counter histogramCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "histogram_added"));
+  private final Counter ignoredCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "ignored"));
+  private final WavefrontHistogram batchProcessTime = WavefrontHistogram.get(new MetricName("histogram.accumulator", "", "batch_process_nanos"));
+  private final WavefrontHistogram histogramBinCount = WavefrontHistogram.get(new MetricName("histogram.accumulator", "", "histogram_bins"));
+  private final WavefrontHistogram histogramSampleCount = WavefrontHistogram.get(new MetricName("histogram.accumulator", "", "histogram_samples"));
+
+
 
   public AccumulationTask(ObjectQueue<List<String>> input,
                           ConcurrentMap<Utils.HistogramKey, AgentDigest> digests,
@@ -146,6 +150,9 @@ public class AccumulationTask implements Runnable {
           } else if (event.getValue() instanceof Histogram) {
             Histogram value = (Histogram) event.getValue();
             Utils.Granularity granularity = fromMillis(value.getDuration());
+
+            histogramBinCount.update(value.getCounts().size());
+            histogramSampleCount.update(value.getCounts().stream().mapToLong(x->x).sum());
 
             // Key
             Utils.HistogramKey histogramKey = Utils.makeKey(event, granularity);
