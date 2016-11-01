@@ -141,12 +141,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
             @Override
             public void toStream(ResubmissionTask o, OutputStream bytes) throws IOException {
-              LZ4BlockOutputStream gzipOutputStream = new LZ4BlockOutputStream(bytes);
-              ObjectOutputStream oos = new ObjectOutputStream(gzipOutputStream);
+              LZ4BlockOutputStream lz4BlockOutputStream = new LZ4BlockOutputStream(bytes);
+              ObjectOutputStream oos = new ObjectOutputStream(lz4BlockOutputStream);
               oos.writeObject(o);
               oos.close();
-              gzipOutputStream.finish();
-              gzipOutputStream.close();
+              lz4BlockOutputStream.close();
             }
           }),
           task -> {
