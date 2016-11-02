@@ -187,7 +187,7 @@ public class PushAgent extends AbstractAgent {
               baseDirectory,
               Utils.Granularity.MINUTE,
               accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramMinuteAccumulationInterval),
+              TimeUnit.SECONDS.toMillis(histogramMinuteFlushSecs),
               histogramMinuteAccumulators
           );
           logger.info("listening on port: " + port + " for histogram samples, accumulating to the minute");
@@ -203,7 +203,7 @@ public class PushAgent extends AbstractAgent {
               baseDirectory,
               Utils.Granularity.HOUR,
               accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramHourAccumulationInterval),
+              TimeUnit.SECONDS.toMillis(histogramHourFlushSecs),
               histogramHourAccumulators
           );
           logger.info("listening on port: " + port + " for histogram samples, accumulating to the hour");
@@ -219,7 +219,7 @@ public class PushAgent extends AbstractAgent {
               baseDirectory,
               Utils.Granularity.DAY,
               accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramDayAccumulationInterval),
+              TimeUnit.SECONDS.toMillis(histogramDayFlushSecs),
               histogramDayAccumulators
           );
           logger.info("listening on port: " + port + " for histogram samples, accumulating to the day");
@@ -235,7 +235,7 @@ public class PushAgent extends AbstractAgent {
               baseDirectory,
               Utils.Granularity.DAY, // Ignored...
               accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramDistAccumulationInterval),
+              TimeUnit.SECONDS.toMillis(histogramDistFlushSecs),
               histogramDistAccumulators
           );
           logger.info("listening on port: " + port + " for histogram samples, accumulating to the day");

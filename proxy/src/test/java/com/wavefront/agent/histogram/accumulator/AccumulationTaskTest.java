@@ -165,6 +165,18 @@ public class AccumulationTaskTest {
   }
 
   @Test
+  public void testAccumulationNoTime() {
+    HistogramKey noTimeKey = makeKey("noTimeKey");
+
+    in.add(ImmutableList.of("noTimeKey 100"));
+
+    eventSubject.run();
+
+    assertThat(out.get(noTimeKey)).isNotNull();
+    assertThat(out.get(noTimeKey).size()).isEqualTo(1);
+  }
+
+  @Test
   public void testAccumulateWithBadLine() {
     in.add(ImmutableList.of("This is not really a valid sample", lineA, lineA, lineA));
 
