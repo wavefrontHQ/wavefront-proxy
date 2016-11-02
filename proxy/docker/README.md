@@ -1,4 +1,4 @@
-Just run this docker image with the following environment variabled defined, e.g. The Proxy will accept Wavefront formatted message on port 2878 and OpenTSDB formatted messages on port 4242.
+The Proxy will accept Wavefront formatted message on port 2878 and OpenTSDB formatted messages on port 4242. Just run this docker image with the following environment variabled defined, e.g. 
 
     docker build -t wavefront-proxy .
     docker run \
