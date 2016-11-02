@@ -250,72 +250,61 @@ public class PushAgent extends AbstractAgent {
       graphiteFormatter = new GraphiteFormatter(graphiteFormat, graphiteDelimiters, graphiteFieldsToRemove);
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(graphitePorts);
       for (String strPort : ports) {
-        if (strPort.trim().length() > 0) {
-          preprocessors.forPort(strPort).forPointLine().addTransformer(0, graphiteFormatter);
-          startGraphiteListener(strPort, true);
-          logger.info("listening on port: " + strPort + " for graphite metrics");
-        }
+        preprocessors.forPort(strPort).forPointLine().addTransformer(0, graphiteFormatter);
+        startGraphiteListener(strPort, true);
+        logger.info("listening on port: " + strPort + " for graphite metrics");
       }
     }
     if (opentsdbPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(opentsdbPorts);
       for (String strPort : ports) {
-        if (strPort.trim().length() > 0) {
-          startOpenTsdbListener(strPort);
-          logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
-        }
+        startOpenTsdbListener(strPort);
+        logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
       }
     }
     if (picklePorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(picklePorts);
       for (String strPort : ports) {
-        if (strPort.trim().length() > 0) {
-          startPickleListener(strPort, graphiteFormatter);
-          logger.info("listening on port: " + strPort + " for pickle protocol metrics");
-        }
+        startPickleListener(strPort, graphiteFormatter);
+        logger.info("listening on port: " + strPort + " for pickle protocol metrics");
       }
     }
     if (httpJsonPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(httpJsonPorts);
       for (String strPort : ports) {
-        strPort = strPort.trim();
-        if (strPort.length() > 0) {
-          preprocessors.forPort(strPort).forReportPoint()
-              .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
-          try {
-            // will immediately start the server.
-            JettyHttpContainerFactory.createServer(
-                new URI("http://localhost:" + strPort + "/"),
-                new ResourceConfig(JacksonFeature.class).
-                    register(new JsonMetricsEndpoint(strPort, hostname, prefix,
-                        pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort))), true);
-            logger.info("listening on port: " + strPort + " for HTTP JSON metrics");
-          } catch (URISyntaxException e) {
-            throw new RuntimeException("Unable to bind to: " + strPort + " for HTTP JSON metrics", e);
-          }
+        preprocessors.forPort(strPort).forReportPoint()
+            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+        try {
+          // will immediately start the server.
+          JettyHttpContainerFactory.createServer(
+              new URI("http://localhost:" + strPort + "/"),
+              new ResourceConfig(JacksonFeature.class).
+                  register(new JsonMetricsEndpoint(strPort, hostname, prefix,
+                      pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort))),
+              true);
+          logger.info("listening on port: " + strPort + " for HTTP JSON metrics");
+        } catch (URISyntaxException e) {
+          throw new RuntimeException("Unable to bind to: " + strPort + " for HTTP JSON metrics", e);
         }
       }
     }
     if (writeHttpJsonPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonPorts);
       for (String strPort : ports) {
-        strPort = strPort.trim();
-        if (strPort.length() > 0) {
-          preprocessors.forPort(strPort).forReportPoint()
-              .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+        preprocessors.forPort(strPort).forReportPoint()
+            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
 
-          try {
-            // will immediately start the server.
-            JettyHttpContainerFactory.createServer(
-                new URI("http://localhost:" + strPort + "/"),
-                new ResourceConfig(JacksonFeature.class).
-                    register(new WriteHttpJsonMetricsEndpoint(strPort, hostname, prefix,
-                        pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort))),
-                true);
-            logger.info("listening on port: " + strPort + " for Write HTTP JSON metrics");
-          } catch (URISyntaxException e) {
-            throw new RuntimeException("Unable to bind to: " + strPort + " for Write HTTP JSON metrics", e);
-          }
+        try {
+          // will immediately start the server.
+          JettyHttpContainerFactory.createServer(
+              new URI("http://localhost:" + strPort + "/"),
+              new ResourceConfig(JacksonFeature.class).
+                  register(new WriteHttpJsonMetricsEndpoint(strPort, hostname, prefix,
+                      pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort))),
+              true);
+          logger.info("listening on port: " + strPort + " for Write HTTP JSON metrics");
+        } catch (URISyntaxException e) {
+          throw new RuntimeException("Unable to bind to: " + strPort + " for Write HTTP JSON metrics", e);
         }
       }
     }
