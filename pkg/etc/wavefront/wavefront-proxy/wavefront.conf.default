@@ -204,3 +204,8 @@ buffer=/var/spool/wavefront-proxy/buffer
 #avgHistogramKeyBytes=50
 ## Average number of bytes in a encoded distribution/accumulation.
 #avgHistogramDigestBytes=500
+## Whether to persist received histogram messages to disk. WARNING only disable this, if loss of unprocessed sample data
+## on agent shutdown is acceptable.
+#persistMessages=true
+## Whether to persist accumulation state. WARNING any unflushed histograms will be lost on agent shutdown if disabled
+#persistAccumulator=true

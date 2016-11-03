@@ -33,6 +33,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
   private final double avgValueSize;
   private final KM keyMarshaller;
   private final VM valueMarshaller;
+  private final boolean doPersist;
   private final LoadingCache<File, ChronicleMap<K, V>> maps =
       CacheBuilder.newBuilder().build(new CacheLoader<File, ChronicleMap<K, V>>() {
 
@@ -58,6 +59,13 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
 
         @Override
         public ChronicleMap<K, V> load(File file) throws Exception {
+          if (!doPersist) {
+            logger.log(
+                Level.WARNING,
+                "Accumulator persistence is disabled, unflushed histograms will be lost on agent shutdown."
+            );
+            return newInMemoryMap();
+          }
 
           try {
             if (file.exists()) {
@@ -112,6 +120,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
    * @param avgValueSize the average marshaled value size in bytes
    * @param keyMarshaller the key codec
    * @param valueMarshaller the value codec
+   * @param doPersist whether to persist the map
    */
   public MapLoader(Class<K> keyClass,
                    Class<V> valueClass,
@@ -119,7 +128,8 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
                    double avgKeySize,
                    double avgValueSize,
                    KM keyMarshaller,
-                   VM valueMarshaller) {
+                   VM valueMarshaller,
+                   boolean doPersist) {
     this.keyClass = keyClass;
     this.valueClass = valueClass;
     this.entries = entries;
@@ -127,6 +137,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
     this.avgValueSize = avgValueSize;
     this.keyMarshaller = keyMarshaller;
     this.valueMarshaller = valueMarshaller;
+    this.doPersist = doPersist;
   }
 
   public ChronicleMap<K, V> get(File f) {
@@ -149,6 +160,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
         ", avgValueSize=" + avgValueSize +
         ", keyMarshaller=" + keyMarshaller +
         ", valueMarshaller=" + valueMarshaller +
+        ", doPersist=" + doPersist +
         ", maps=" + maps +
         '}';
   }

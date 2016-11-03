@@ -50,7 +50,8 @@ public class MapLoaderTest {
         200,
         1000,
         HistogramKeyMarshaller.get(),
-        AgentDigestMarshaller.get());
+        AgentDigestMarshaller.get(),
+        true);
   }
 
   @After
@@ -78,7 +79,8 @@ public class MapLoaderTest {
         200,
         1000,
         HistogramKeyMarshaller.get(),
-        AgentDigestMarshaller.get());
+        AgentDigestMarshaller.get(),
+        true);
 
     map = loader.get(file);
 
@@ -118,6 +120,24 @@ public class MapLoaderTest {
     assertThat(((VanillaChronicleMap)map).file()).isNull();
     testPutRemove(map);
   }
+
+  @Test
+  public void testDoNotPersist() throws IOException {
+    loader = new MapLoader<>(
+        HistogramKey.class,
+        AgentDigest.class,
+        100,
+        200,
+        1000,
+        HistogramKeyMarshaller.get(),
+        AgentDigestMarshaller.get(),
+        false);
+
+    ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
+    assertThat(((VanillaChronicleMap)map).file()).isNull();
+    testPutRemove(map);
+  }
+
 
   // NOTE: Chronicle's repair attempt takes >1min for whatever reason.
   @Ignore

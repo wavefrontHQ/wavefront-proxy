@@ -10,7 +10,9 @@ import com.squareup.tape.InMemoryObjectQueue;
 import com.squareup.tape.ObjectQueue;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.io.File;
 import java.io.RandomAccessFile;
@@ -30,28 +32,35 @@ public class TapeDeck<T> {
   private static final Logger logger = Logger.getLogger(TapeDeck.class.getCanonicalName());
 
   private final LoadingCache<File, ObjectQueue<T>> queues;
+  private final boolean doPersist;
 
   /**
    * @param converter payload (de-)/serializer.
+   * @param doPersist whether to persist the queue
    */
-  public TapeDeck(final FileObjectQueue.Converter<T> converter) {
-
+  public TapeDeck(final FileObjectQueue.Converter<T> converter, boolean doPersist) {
+    this.doPersist = doPersist;
     queues = CacheBuilder.newBuilder().build(new CacheLoader<File, ObjectQueue<T>>() {
       @Override
       public ObjectQueue<T> load(@NotNull File file) throws Exception {
 
         ObjectQueue<T> queue;
 
-        // We need exclusive ownership of the file for this deck.
-        // This is really no guarantee that we have exclusive access to the file (see e.g. goo.gl/i4S7ha)
-        try {
-          queue = new FileObjectQueue<>(file, converter);
-          FileChannel channel = new RandomAccessFile(file, "rw").getChannel();
-          Preconditions.checkNotNull(channel.tryLock());
-        } catch (Exception e) {
-          logger.log(Level.SEVERE, "Error while loading persisted Tape Queue" + file, e);
-          logger.log(Level.WARNING, "Falling back to an in-memory queue for file '" + file +
-              "'. Please move or delete the file and restart the agent.");
+        if (doPersist) {
+
+          // We need exclusive ownership of the file for this deck.
+          // This is really no guarantee that we have exclusive access to the file (see e.g. goo.gl/i4S7ha)
+          try {
+            queue = new FileObjectQueue<>(file, converter);
+            FileChannel channel = new RandomAccessFile(file, "rw").getChannel();
+            Preconditions.checkNotNull(channel.tryLock());
+          } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error while loading persisted Tape Queue" + file, e);
+            logger.log(Level.WARNING, "Falling back to an in-memory queue for file '" + file +
+                "'. Please move or delete the file and restart the agent.");
+            queue = new InMemoryObjectQueue<>();
+          }
+        } else {
           queue = new InMemoryObjectQueue<>();
         }
 
@@ -74,6 +83,7 @@ public class TapeDeck<T> {
   public String toString() {
     return "TapeDeck{" +
         "queues=" + queues +
+        ", doPersist=" + doPersist +
         '}';
   }
 
@@ -85,11 +95,13 @@ public class TapeDeck<T> {
     private final Counter addCounter;
     private final Counter removeCounter;
     private final Counter peekCounter;
+    private final Histogram queueSize;
 
     ReportingObjectQueueWrapper(ObjectQueue<T> backingQueue, String title) {
       this.addCounter = Metrics.newCounter(new MetricName("tape." + title, "", "add"));
       this.removeCounter = Metrics.newCounter(new MetricName("tape." + title, "", "remove"));
       this.peekCounter = Metrics.newCounter(new MetricName("tape." + title, "", "peek"));
+      this.queueSize = WavefrontHistogram.get(new MetricName("tape." + title, "", "size"));
 
       this.backingQueue = backingQueue;
     }
@@ -113,6 +125,7 @@ public class TapeDeck<T> {
     public T peek() {
       peekCounter.inc();
       synchronized (this) {
+        queueSize.update(size());
         return backingQueue.peek();
       }
     }

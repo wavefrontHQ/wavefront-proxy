@@ -166,14 +166,11 @@ public class AccumulationTaskTest {
 
   @Test
   public void testAccumulationNoTime() {
-    HistogramKey noTimeKey = makeKey("noTimeKey");
-
     in.add(ImmutableList.of("noTimeKey 100"));
 
     eventSubject.run();
 
-    assertThat(out.get(noTimeKey)).isNotNull();
-    assertThat(out.get(noTimeKey).size()).isEqualTo(1);
+    assertThat(out).hasSize(1);
   }
 
   @Test

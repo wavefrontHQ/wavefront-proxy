@@ -34,7 +34,7 @@ public class TapeDeckTest {
     } catch (IOException e) {
       e.printStackTrace();
     }
-    deck = new TapeDeck<>(TapeStringListConverter.get());
+    deck = new TapeDeck<>(TapeStringListConverter.get(), true);
   }
 
   @After
@@ -68,6 +68,15 @@ public class TapeDeckTest {
     tape.remove();
     assertThat(addCalls.get()).isEqualTo(1);
     assertThat(removeCalls.get()).isEqualTo(1);
+  }
+
+  @Test
+  public void testFileDoNotPersist() throws IOException {
+    file.delete();
+    deck = new TapeDeck<>(TapeStringListConverter.get(), false);
+
+    ObjectQueue<List<String>> q = deck.getTape(file);
+    testTape(q);
   }
 
   @Test
