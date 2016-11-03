@@ -166,7 +166,7 @@ public abstract class AbstractAgent {
 
   @Parameter(
       names = {"--histogramAccumulatorResolveInterval"},
-      description = "Directory for persistent agent state, must be writable.")
+      description = "Interval to write-back accumulation changes to disk in millis.")
   protected long histogramAccumulatorResolveInterval = 100;
 
   @Parameter(
@@ -180,9 +180,9 @@ public abstract class AbstractAgent {
   protected int histogramMinuteAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(
-      names = {"--histogramMinuteAccumulationInterval"},
+      names = {"--histogramMinuteFlushSecs"},
       description = "Number of seconds to keep a minute granularity accumulator open for new samples.")
-  protected int histogramMinuteAccumulationInterval = 30;
+  protected int histogramMinuteFlushSecs = 70;
 
   @Parameter(
       names = {"--histogramHoursListenerPorts"},
@@ -195,9 +195,9 @@ public abstract class AbstractAgent {
   protected int histogramHourAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(
-      names = {"--histogramHourAccumulationInterval"},
+      names = {"--histogramHourFlushSecs"},
       description = "Number of seconds to keep an hour granularity accumulator open for new samples.")
-  protected int histogramHourAccumulationInterval = 600;
+  protected int histogramHourFlushSecs = 4200;
 
   @Parameter(
       names = {"--histogramDaysListenerPorts"},
@@ -210,9 +210,9 @@ public abstract class AbstractAgent {
   protected int histogramDayAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(
-      names = {"--histogramDayAccumulationInterval"},
+      names = {"--histogramDayFlushSecs"},
       description = "Number of seconds to keep a day granularity accumulator open for new samples.")
-  protected int histogramDayAccumulationInterval = 3600;
+  protected int histogramDayFlushSecs = 18000;
 
   @Parameter(
       names = {"--histogramDistListenerPorts"},
@@ -225,26 +225,25 @@ public abstract class AbstractAgent {
   protected int histogramDistAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(
-      names = {"--histogramDistAccumulationInterval"},
+      names = {"--histogramDistFlushSecs"},
       description = "Number of seconds to keep a new distribution bin open for new samples.")
-  protected int histogramDistAccumulationInterval = 30;
+  protected int histogramDistFlushSecs = 70;
 
   @Parameter(
       names = {"--histogramAccumulatorSize"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
-          "source and tags concatenation.")
+      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins")
   protected long histogramAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--avgHistogramKeyBytes"},
       description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
           "source and tags concatenation.")
-  protected int avgHistogramKeyBytes = 200;
+  protected int avgHistogramKeyBytes = 50;
 
   @Parameter(
       names = {"--avgHistogramDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
-  protected int avgHistogramDigestBytes = 1000;
+  protected int avgHistogramDigestBytes = 500;
 
   @Parameter(
       names = {"--histogramCompression"},
@@ -518,30 +517,30 @@ public abstract class AbstractAgent {
         histogramMinuteAccumulators = Integer.parseInt(prop.getProperty(
             "histogramMinuteAccumulators",
             String.valueOf(histogramMinuteAccumulators)));
-        histogramMinuteAccumulationInterval = Integer.parseInt(prop.getProperty(
-            "histogramMinuteAccumulationInterval",
-            String.valueOf(histogramMinuteAccumulationInterval)));
+        histogramMinuteFlushSecs = Integer.parseInt(prop.getProperty(
+            "histogramMinuteFlushSecs",
+            String.valueOf(histogramMinuteFlushSecs)));
         histogramHoursListenerPorts = prop.getProperty("histogramHoursListenerPorts", histogramHoursListenerPorts);
         histogramHourAccumulators = Integer.parseInt(prop.getProperty(
             "histogramHourAccumulators",
             String.valueOf(histogramHourAccumulators)));
-        histogramHourAccumulationInterval = Integer.parseInt(prop.getProperty(
-            "histogramHourAccumulationInterval",
-            String.valueOf(histogramHourAccumulationInterval)));
+        histogramHourFlushSecs = Integer.parseInt(prop.getProperty(
+            "histogramHourFlushSecs",
+            String.valueOf(histogramHourFlushSecs)));
         histogramDaysListenerPorts = prop.getProperty("histogramDaysListenerPorts", histogramDaysListenerPorts);
         histogramDayAccumulators = Integer.parseInt(prop.getProperty(
             "histogramDayAccumulators",
             String.valueOf(histogramDayAccumulators)));
-        histogramDayAccumulationInterval = Integer.parseInt(prop.getProperty(
-            "histogramDayAccumulationInterval",
-            String.valueOf(histogramDayAccumulationInterval)));
+        histogramDayFlushSecs = Integer.parseInt(prop.getProperty(
+            "histogramDayFlushSecs",
+            String.valueOf(histogramDayFlushSecs)));
         histogramDistListenerPorts = prop.getProperty("histogramDistListenerPorts", histogramDistListenerPorts);
         histogramDistAccumulators = Integer.parseInt(prop.getProperty(
             "histogramDistAccumulators",
             String.valueOf(histogramDistAccumulators)));
-        histogramDistAccumulationInterval = Integer.parseInt(prop.getProperty(
-            "histogramDistAccumulationInterval",
-            String.valueOf(histogramDistAccumulationInterval)));
+        histogramDistFlushSecs = Integer.parseInt(prop.getProperty(
+            "histogramDistFlushSecs",
+            String.valueOf(histogramDistFlushSecs)));
         histogramAccumulatorSize = Long.parseLong(prop.getProperty(
             "histogramAccumulatorSize",
             String.valueOf(histogramAccumulatorSize)));
