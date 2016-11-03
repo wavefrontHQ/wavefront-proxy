@@ -96,7 +96,7 @@ public class Wavefront implements WavefrontSender {
     if (socket != null) {
       throw new IllegalStateException("Already connected");
     }
-    InetSocketAddress address = this.address;
+    InetSocketAddress address = new InetSocketAddress(this.address.getHostName(), this.address.getPort());
     if (address.getAddress() == null) {
       throw new UnknownHostException(address.getHostName());
     }
