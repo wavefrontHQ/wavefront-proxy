@@ -505,8 +505,21 @@ public abstract class AbstractAgent {
         pushFlushMaxPoints = Integer.parseInt(prop.getProperty("pushFlushMaxPoints",
             String.valueOf(pushFlushMaxPoints)));
         pushRateLimit = Integer.parseInt(prop.getProperty("pushRateLimit", String.valueOf(pushRateLimit)));
+        retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)));
+        flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));
+
+        /*
+          default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of available heap
+          memory. we're making a more conservative estimate for the "25%" number, budgeting 200 characters (400 bytes)
+          per point line.
+         */
+        long calculatedMemoryBufferLimit = Math.min(16 * pushFlushMaxPoints,
+            Runtime.getRuntime().maxMemory() / 4 / flushThreads / 400);
         pushMemoryBufferLimit = Integer.parseInt(prop.getProperty("pushMemoryBufferLimit",
-            String.valueOf(16 * pushFlushMaxPoints)));
+            String.valueOf(calculatedMemoryBufferLimit)));
+        logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
+        logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
+
         pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
             String.valueOf(pushBlockedSamples)));
         pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
@@ -555,8 +568,6 @@ public abstract class AbstractAgent {
             "histogramCompression",
             String.valueOf(histogramCompression)));
 
-        retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)));
-        flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));
         httpJsonPorts = prop.getProperty("jsonListenerPorts", httpJsonPorts);
         writeHttpJsonPorts = prop.getProperty("writeHttpJsonListenerPorts", writeHttpJsonPorts);
         graphitePorts = prop.getProperty("graphitePorts", graphitePorts);
@@ -743,7 +754,9 @@ public abstract class AbstractAgent {
   protected AgentAPI createAgentService() {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
-    factory.registerProvider(ResteasyJacksonProvider.class);
+    if (!factory.getClasses().contains(ResteasyJacksonProvider.class)) {
+      factory.registerProvider(ResteasyJacksonProvider.class);
+    }
     if (httpUserAgent == null) {
       httpUserAgent = "Wavefront-Proxy/" + props.getString("build.version");
     }
