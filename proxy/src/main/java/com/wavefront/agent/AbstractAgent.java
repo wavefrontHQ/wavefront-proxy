@@ -5,6 +5,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.gson.Gson;
@@ -505,21 +506,6 @@ public abstract class AbstractAgent {
         pushFlushMaxPoints = Integer.parseInt(prop.getProperty("pushFlushMaxPoints",
             String.valueOf(pushFlushMaxPoints)));
         pushRateLimit = Integer.parseInt(prop.getProperty("pushRateLimit", String.valueOf(pushRateLimit)));
-        retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)));
-        flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));
-
-        /*
-          default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of available heap
-          memory. we're making a more conservative estimate for the "25%" number, budgeting 200 characters (400 bytes)
-          per point line.
-         */
-        long calculatedMemoryBufferLimit = Math.min(16 * pushFlushMaxPoints,
-            Runtime.getRuntime().maxMemory() / 4 / flushThreads / 400);
-        pushMemoryBufferLimit = Integer.parseInt(prop.getProperty("pushMemoryBufferLimit",
-            String.valueOf(calculatedMemoryBufferLimit)));
-        logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
-        logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
-
         pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
             String.valueOf(pushBlockedSamples)));
         pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
@@ -568,6 +554,8 @@ public abstract class AbstractAgent {
             "histogramCompression",
             String.valueOf(histogramCompression)));
 
+        retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)));
+        flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));
         httpJsonPorts = prop.getProperty("jsonListenerPorts", httpJsonPorts);
         writeHttpJsonPorts = prop.getProperty("writeHttpJsonListenerPorts", writeHttpJsonPorts);
         graphitePorts = prop.getProperty("graphitePorts", graphitePorts);
@@ -608,6 +596,21 @@ public abstract class AbstractAgent {
             String.valueOf(dataBackfillCutoffHours)));
         filebeatPort = Integer.parseInt(prop.getProperty("filebeatPort", String.valueOf(filebeatPort)));
         logsIngestionConfigFile = prop.getProperty("logsIngestionConfigFile", logsIngestionConfigFile);
+
+        /*
+          default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of available heap
+          memory. 25% is chosen heuristically as a safe number for scenarios with limited system resources (4 CPU cores
+          or less, heap size less than 4GB) to prevent OOM. this is a conservative estimate, budgeting 200 characters
+          (400 bytes) per per point line. Also, it shouldn't be less than 1 batch size (pushFlushMaxPoints).
+         */
+        int listeningPorts = Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts));
+        long calculatedMemoryBufferLimit = Math.max(Math.min(16 * pushFlushMaxPoints,
+            Runtime.getRuntime().maxMemory() / listeningPorts / 4 / flushThreads / 400), pushFlushMaxPoints);
+        logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
+        pushMemoryBufferLimit = Integer.parseInt(prop.getProperty("pushMemoryBufferLimit",
+            String.valueOf(calculatedMemoryBufferLimit)));
+        logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
+
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
