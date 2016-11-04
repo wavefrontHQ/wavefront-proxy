@@ -3,6 +3,7 @@ package com.wavefront.agent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
 
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,6 +27,7 @@ import sunnylabs.report.ReportPoint;
 public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
 
   protected static final Logger logger = Logger.getLogger("agent");
+  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   @Nullable
   private final String prefix;
@@ -95,6 +97,11 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
           ReportPoint point = builder.build();
           if (preprocessor != null) {
             if (!preprocessor.forReportPoint().filter(point)) {
+              if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+                blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+              } else {
+                blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+              }
               handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
             }
             preprocessor.forReportPoint().transform(point);

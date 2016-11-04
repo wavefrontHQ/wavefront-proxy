@@ -40,8 +40,7 @@ if [[ -z $conf_file ]]; then
         conf_file="$config_dir/wavefront.conf"
     fi
 fi
-log_file=${LOG_FILE:-/var/log/wavefront.log}
-daemon_log_file=${DAEMON_LOG_FILE:-/var/log/wavefront-daemon.log}
+daemon_log_file=${DAEMON_LOG_FILE:-/var/log/wavefront/wavefront-daemon.log}
 err_file=$log_file
 pid_file=${PID_FILE:-/var/run/$service_name.pid}
 agent_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-push-agent.jar}
@@ -69,7 +68,6 @@ jsvc=$proxy_dir/bin/jsvc
 jsvc_exec()
 {
 	cd "$(dirname "$agent_jar")"
-	[[ ! -f "$log_file" ]] && touch "$log_file" && chown "$user":"$user" "$log_file"
 	# We want word splitting below, as we're building up a command line.
 	# shellcheck disable=SC2086
 	$jsvc \
@@ -78,7 +76,7 @@ jsvc_exec()
 		-cp $agent_jar \
 		$java_args \
 		-XX:OnOutOfMemoryError="kill -1 %p" \
-		-outfile $log_file \
+		-Dlog4j.configurationFile=$config_dir/log4j2.xml
 		-errfile $err_file \
 		-pidfile $pid_file \
 		-wait 20 \

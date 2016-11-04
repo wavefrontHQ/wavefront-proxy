@@ -21,7 +21,7 @@ import java.util.logging.Logger;
  */
 public class PickleProtocolDecoder implements Decoder<byte[]> {
 
-  protected static final Logger logger = Logger.getLogger("agent");
+  protected static final Logger logger = Logger.getLogger(PickleProtocolDecoder.class.getCanonicalName());
 
   private final int port;
   private final String defaultHostName;

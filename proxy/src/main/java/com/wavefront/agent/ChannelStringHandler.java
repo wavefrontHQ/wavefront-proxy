@@ -25,7 +25,7 @@ import sunnylabs.report.ReportPoint;
 @ChannelHandler.Sharable
 public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
-  private static final Logger logger = Logger.getLogger(ChannelStringHandler.class.getCanonicalName());
+  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   private final Decoder<String> decoder;
 
@@ -69,6 +69,11 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
       // apply white/black lists after formatting
       if (!preprocessor.forPointLine().filter(pointLine)) {
+        if (preprocessor.forPointLine().getLastFilterResult() != null) {
+          blockedPointsLogger.warning(pointLine);
+        } else {
+          blockedPointsLogger.info(pointLine);
+        }
         pointHandler.handleBlockedPoint(preprocessor.forPointLine().getLastFilterResult());
         return;
       }
@@ -91,6 +96,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
           errMsg += "; remote: " + remoteAddress.getHostString();
         }
       }
+      blockedPointsLogger.warning(pointLine);
       pointHandler.handleBlockedPoint(errMsg);
     }
 
@@ -99,6 +105,11 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       for (ReportPoint point : points) {
         preprocessor.forReportPoint().transform(point);
         if (!preprocessor.forReportPoint().filter(point)) {
+          if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+            blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+          } else {
+            blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+          }
           pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
           return;
         }

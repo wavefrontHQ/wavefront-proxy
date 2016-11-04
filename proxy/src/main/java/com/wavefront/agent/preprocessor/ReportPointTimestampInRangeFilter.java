@@ -6,6 +6,7 @@ import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.lang.time.DateUtils;
 
+import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 
 import sunnylabs.report.ReportPoint;
@@ -18,8 +19,10 @@ import sunnylabs.report.ReportPoint;
  */
 public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<ReportPoint> {
 
-  private int cutoffHours;
+  private final int cutoffHours;
   private final Counter outOfRangePointTimes;
+  @Nullable
+  private String message = null;
 
   public ReportPointTimestampInRangeFilter(final int cutoffHours) {
     this.cutoffHours = cutoffHours;
@@ -28,6 +31,7 @@ public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<Report
 
   @Override
   public boolean apply(@NotNull ReportPoint point) {
+    this.message = null;
     long pointTime = point.getTimestamp();
     long rightNow = System.currentTimeMillis();
 
@@ -36,12 +40,13 @@ public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<Report
         (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
     if (!pointInRange) {
       outOfRangePointTimes.inc();
+      this.message = "WF-402: Point outside of reasonable timeframe (" + point.toString() + ")";
     }
     return pointInRange;
   }
 
   @Override
   public String getMessage(ReportPoint point) {
-    return this.apply(point) ? null : "WF-402: Point outside of reasonable timeframe (" + point.toString() + ")";
+    return this.message;
   }
 }

@@ -42,7 +42,9 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -112,22 +114,23 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     return (long) (resultPostingSizes.mean() * resultPostingMeter.fifteenMinuteRate());
   }
 
+  @Deprecated
   public QueuedAgentService(AgentAPI service, String bufferFile, final int retryThreads,
                             final ScheduledExecutorService executorService, boolean purge,
                             final UUID agentId, final boolean splitPushWhenRateLimited,
                             final String logLevel) throws IOException {
     this(service, bufferFile, retryThreads, executorService, purge,
-        agentId, splitPushWhenRateLimited, logLevel, RecyclableRateLimiter.create(Integer.MAX_VALUE, 60));
+        agentId, splitPushWhenRateLimited, RecyclableRateLimiter.create(Integer.MAX_VALUE, 60));
   }
 
 
   public QueuedAgentService(AgentAPI service, String bufferFile, final int retryThreads,
                             final ScheduledExecutorService executorService, boolean purge,
                             final UUID agentId, final boolean splitPushWhenRateLimited,
-                            final String logLevel, final RecyclableRateLimiter pushRateLimiter)
+                            final RecyclableRateLimiter pushRateLimiter)
       throws IOException {
     if (retryThreads <= 0) {
-      logger.warning("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
+      logger.severe("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
           "setting retryThreads to a value > 0");
     }
     resubmissionTaskMarshaller = new GsonBuilder().
@@ -185,9 +188,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           int failures = 0;
           boolean rateLimiting = false;
           try {
-            if (logLevel.equals("DETAILED")) {
-              logger.warning("[RETRY THREAD " + threadId + "] TASK STARTING");
-            }
+            logger.fine("[RETRY THREAD " + threadId + "] TASK STARTING");
             while (taskQueue.size() > 0 && taskQueue.size() > failures) {
               taskQueue.getLockObject().lock();
               try {
@@ -238,9 +239,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                       }
                       break;
                     } else {
-                      logger.log(Level.WARNING,
-                          "[RETRY THREAD " + threadId + "] cannot submit data to Wavefront servers. Will " +
-                              "re-attempt later", ex);
+                      logger.log(Level.WARNING, "[RETRY THREAD " + threadId + "] cannot submit data to Wavefront servers. Will " +
+                          "re-attempt later", ex);
                     }
                   // this can potentially cause a duplicate task to be injected (but since submission is mostly
                   // idempotent it's not really a big deal)
@@ -248,7 +248,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                   task.currentAgentId = null;
                   taskQueue.add(task);
                   if (failures > 10) {
-                    logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will re-attempt later");
+                    logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will " +
+                        "re-attempt later");
                     break;
                   }
                 } finally {
@@ -262,11 +263,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             logger.log(Level.WARNING, "[RETRY THREAD " + threadId + "] unexpected exception", ex);
           } finally {
             if (rateLimiting) {
-              if (logLevel.equals("DETAILED")) {
-                logger.warning("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
-                    ", Failed Batches: " + failures);
-                logger.warning("[RETRY THREAD " + threadId + "] Rate limit reached, will re-attempt later");
-              }
+              logger.fine("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
+                  ", Failed Batches: " + failures);
+              logger.fine("[RETRY THREAD " + threadId + "] Rate limit reached, will re-attempt later");
               // if proxy rate limit exceeded, try again in 250..500ms (to introduce some degree of fairness)
               executorService.schedule(this, 250 + (int) (Math.random() * 250), TimeUnit.MILLISECONDS);
             } else {
@@ -277,11 +276,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
               }
               long next = (long) ((Math.random() + 1.0) *
                   Math.pow(retryBackoffBaseSeconds, backoffExponent));
-              if (logLevel.equals("DETAILED")) {
-                logger.warning("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
-                    ", Failed Batches: " + failures);
-                logger.warning("[RETRY THREAD " + threadId + "] RESCHEDULING in " + next);
-              }
+              logger.fine("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
+                  ", Failed Batches: " + failures);
+              logger.fine("[RETRY THREAD " + threadId + "] RESCHEDULING in " + next);
               executorService.schedule(this, next, TimeUnit.SECONDS);
             }
           }
@@ -311,10 +308,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             }
           }).isPresent()) {
             lastKnownQueueSizeIsPositive = true;
-            logger.warning("current retry queue sizes: [" + Joiner.on("/").join(queueSizes) + "]");
+            logger.info("current retry queue sizes: [" + Joiner.on("/").join(queueSizes) + "]");
           } else if (lastKnownQueueSizeIsPositive) {
             lastKnownQueueSizeIsPositive = false;
-            logger.warning("retry queue has been cleared");
+            logger.info("retry queue has been cleared");
           }
         }
       }, 0, 5, TimeUnit.SECONDS);
@@ -488,7 +485,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         return resubmissionTasks;
       }
     }
-    logger.warning("Cannot post push data result to Wavefront servers. Will enqueue and retry later: " + failureException);
+    logger.warning("Cannot post push data result to Wavefront servers. " +
+        "Will enqueue and retry later: " + failureException);
     addTaskToSmallestQueue(taskToRetry);
     return Collections.emptyList();
   }
@@ -500,13 +498,12 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       try {
         queue.add(taskToRetry);
       } catch (FileException e) {
-        logger.log(Level.WARNING,
-            "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
+        logger.log(Level.SEVERE, "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
       } finally {
         queue.getLockObject().unlock();
       }
     } else {
-      logger.warning("CRITICAL (Losing points!): WF-2: No retry queues found.");
+      logger.severe("CRITICAL (Losing points!): WF-2: No retry queues found.");
     }
   }
 
@@ -518,9 +515,26 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         } else if (response.getStatus() == Response.Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode()) {
           throw new QueuedPushTooLargeException("Request too large: " + response.getStatus());
         } else if (response.getStatus() == 407 || response.getStatus() == 408) {
-          throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus() +
-              " the agent is unclaimed, perhaps the token used does not have the proper permissions to" +
-              " register the agent? (or a token wasn't provided properly?)");
+          boolean isWavefrontResponse = false;
+          // check if the HTTP 407/408 response was actually received from Wavefront - if it's a JSON object
+          // containing "code" key, with value equal to the HTTP response code, it's most likely from us.
+          try {
+            Map<String, Object> resp = new HashMap<>();
+            resp = (Map<String, Object>) new Gson().fromJson(response.readEntity(String.class), resp.getClass());
+            if (resp.containsKey("code") && resp.get("code") instanceof Number &&
+                ((Number) resp.get("code")).intValue() == response.getStatus()) {
+              isWavefrontResponse = true;
+            }
+          } catch (Exception ex) {
+            // ignore
+          }
+          if (isWavefrontResponse) {
+            throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus() +
+                " unclaimed agent - please verify that your token is valid and has Agent Management permission!");
+          } else {
+            throw new RuntimeException("HTTP " + response.getStatus() + ": Please verify your " +
+                "network/HTTP proxy settings!");
+          }
         } else {
           throw new RuntimeException("Server error: " + response.getStatus());
         }

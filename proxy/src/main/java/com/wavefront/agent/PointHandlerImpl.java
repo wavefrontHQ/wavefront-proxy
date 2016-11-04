@@ -29,6 +29,7 @@ import static com.wavefront.agent.Validation.validatePoint;
 public class PointHandlerImpl implements PointHandler {
 
   private static final Logger logger = Logger.getLogger(PointHandlerImpl.class.getCanonicalName());
+  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   private final Histogram receivedPointLag;
   private final String validationLevel;
@@ -80,6 +81,7 @@ public class PointHandlerImpl implements PointHandler {
       receivedPointLag.update(Clock.now() - point.getTimestamp());
 
     } catch (IllegalArgumentException e) {
+      blockedPointsLogger.warning(pointToString(point));
       this.handleBlockedPoint(e.getMessage());
     } catch (Exception ex) {
       logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point (" +

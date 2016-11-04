@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO">
+    <Properties>
+        <Property name="log-path">/var/log/wavefront</Property>
+    </Properties>
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout>
+                <!-- Use the pattern below to output log in the same format as older versions
+                <pattern>%d{MMM d, yyyy h:mm:ss a} %C{10} %M%n%p{WARN=WARNING, DEBUG=FINE, ERROR=SEVERE}: %m%n</pattern>
+                -->
+                <pattern>%d %-5level [%c{1}:%M] %m%n</pattern>
+            </PatternLayout>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Logger name="RawBlockedPoints" level="WARN" additivity="false">
+        </Logger>
+        <Root level="INFO">
+            <AppenderRef ref="Console" />
+        </Root>
+    </Loggers>
+</Configuration>
