@@ -32,11 +32,6 @@ public class PostPushDataTimedTask implements Runnable {
 
   private static final int MAX_SPLIT_BATCH_SIZE = 50000; // same value as default pushFlushMaxPoints
 
-  /**
-   * Print summary once a minute (across all threads, we don't need that many duplicates)
-   */
-  private static final RateLimiter summaryMessageRateLimiter = RateLimiter.create(0.017);
-
   private List<String> points = new ArrayList<>();
   private final Object pointsMutex = new Object();
   private final List<String> blockedSamples = new ArrayList<>();
@@ -48,6 +43,11 @@ public class PostPushDataTimedTask implements Runnable {
    * Warn about exceeding the rate limit no more than once per 10 seconds (per thread)
    */
   private final RateLimiter warningMessageRateLimiter = RateLimiter.create(0.1);
+
+  /**
+   * Print summary once a minute
+   */
+  private final RateLimiter summaryMessageRateLimiter = RateLimiter.create(0.017);
 
   /**
    * Write a sample of blocked points to log once a minute
