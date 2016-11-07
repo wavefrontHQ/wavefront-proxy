@@ -8,7 +8,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -82,22 +81,6 @@ public class TapeDeckTest {
   @Test
   public void testFileDoesNotExist() throws IOException {
     file.delete();
-    ObjectQueue<List<String>> q = deck.getTape(file);
-    testTape(q);
-  }
-
-  @Test
-  public void testEmptyFile() throws IOException {
-    ObjectQueue<List<String>> q = deck.getTape(file);
-    testTape(q);
-  }
-
-  @Test
-  public void testBadFileFallsbackToMemoryQueue() throws IOException {
-    FileOutputStream fos = new FileOutputStream(file);
-    fos.write("Nonsense".getBytes());
-    fos.flush();
-
     ObjectQueue<List<String>> q = deck.getTape(file);
     testTape(q);
   }

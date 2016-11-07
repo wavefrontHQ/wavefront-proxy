@@ -88,36 +88,10 @@ public class MapLoaderTest {
   }
 
   @Test
-  public void testWrongMapTypeWithEntries() throws IOException {
-    ChronicleMap<String, String> stringMap = ChronicleMap
-        .of(String.class, String.class)
-        .entries(10)
-        .averageKey("test")
-        .averageValue("what do I know")
-        .createPersistedTo(file);
-
-    stringMap.put("This", "could go wrong...");
-
-    ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
-    map.put(key, digest);
-    assertThat(map).containsKey(key);
-    assertThat(((VanillaChronicleMap)map).file()).isNull();
-  }
-
-  @Test
   public void testFileDoesNotExist() throws IOException {
     file.delete();
     ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
     assertThat(((VanillaChronicleMap)map).file()).isNotNull();
-    testPutRemove(map);
-  }
-
-  @Test
-  public void testInvalidPath() throws IOException {
-    file.delete();
-    file = new File("//");
-    ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
-    assertThat(((VanillaChronicleMap)map).file()).isNull();
     testPutRemove(map);
   }
 

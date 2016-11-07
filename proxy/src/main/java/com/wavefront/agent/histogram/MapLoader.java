@@ -102,10 +102,11 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
           } catch (Exception e) {
             logger.log(
                 Level.SEVERE,
-                "Failed to load/create map at '" + file.getAbsolutePath() +
-                    "', falling back to an in-memory map. Reason: ",
+                "Failed to load/create map from '" + file.getAbsolutePath() +
+                    "'. Please move or delete the file and restart the agent! Reason: ",
                 e);
-            return newInMemoryMap();
+            System.exit(-1);
+            return null;
           }
         }
       });

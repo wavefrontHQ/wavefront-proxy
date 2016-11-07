@@ -55,10 +55,10 @@ public class TapeDeck<T> {
             FileChannel channel = new RandomAccessFile(file, "rw").getChannel();
             Preconditions.checkNotNull(channel.tryLock());
           } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error while loading persisted Tape Queue" + file, e);
-            logger.log(Level.WARNING, "Falling back to an in-memory queue for file '" + file +
-                "'. Please move or delete the file and restart the agent.");
-            queue = new InMemoryObjectQueue<>();
+            logger.log(Level.SEVERE, "Error while loading persisted Tape Queue for file " + file +
+                ". Please move or delete the file and restart the agent.", e);
+            System.exit(-1);
+            queue = null;
           }
         } else {
           queue = new InMemoryObjectQueue<>();
