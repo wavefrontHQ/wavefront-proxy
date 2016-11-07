@@ -208,15 +208,14 @@ public class PostPushDataTimedTask implements Runnable {
         }
 
         if (points.size() > memoryBufferLimit) {
-          if (warningMessageRateLimiter.tryAcquire()) {
-            logger.warning("[FLUSH THREAD " + threadId + "]: WF-3 Too many pending points (" + points.size() +
-                "), block size: " + pointsPerBatch + ". flushing to retry queue");
-          }
-
           // there are going to be too many points to be able to flush w/o the agent blowing up
           // drain the leftovers straight to the retry queue (i.e. to disk)
           // don't let anyone add any more to points while we're draining it.
+          logger.warning("[FLUSH THREAD " + threadId + "]: WF-3 Too many pending points (" + points.size() +
+              "), block size: " + pointsPerBatch + ". flushing to retry queue");
           drainBuffersToQueue();
+          logger.info("[FLUSH THREAD " + threadId + "]: flushing to retry queue complete. " +
+              "Pending points: " + points.size());
         }
       } else {
         this.permitsDenied.inc(current.size());
