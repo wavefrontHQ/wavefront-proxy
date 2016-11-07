@@ -110,7 +110,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"-l", "--loglevel"}, description =
       "Log level for push data (NONE/SUMMARY/DETAILED); NONE is default")
-  protected String pushLogLevel = null;
+  protected String pushLogLevel = "NONE";
 
   @Parameter(names = {"-v", "--validationlevel"}, description =
       "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY/TEXT_ONLY/ALL); NO_VALIDATION is default")
