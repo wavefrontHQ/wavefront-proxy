@@ -109,14 +109,14 @@ public class WavefrontHistogram extends Histogram implements Metric {
   /**
    * Bulk-update this histogram with a set of centroids.
    *
-   * @param means the centroid values
+   * @param means  the centroid values
    * @param counts the centroid weights/sample counts
    */
   public synchronized void bulkUpdate(List<Double> means, List<Integer> counts) {
-    if (means != null &&  counts != null) {
+    if (means != null && counts != null) {
       int n = Math.min(means.size(), counts.size());
       MinuteBin current = getCurrent();
-      for (int i=0; i<n; ++i) {
+      for (int i = 0; i < n; ++i) {
         current.dist.add(means.get(i), counts.get(i));
       }
     }
@@ -136,16 +136,16 @@ public class WavefrontHistogram extends Histogram implements Metric {
   public synchronized double min() {
     // This is a lie if the winning centroid's weight > 1
     return bins.stream()
-        .map(b->b.dist.centroids())
-        .mapToDouble(cs-> getFirst(cs, new Centroid(MAX_VALUE)).mean())
+        .map(b -> b.dist.centroids())
+        .mapToDouble(cs -> getFirst(cs, new Centroid(MAX_VALUE)).mean())
         .min().orElse(NaN);
   }
 
   public synchronized double max() {
     //This is a lie if the winning centroid's weight > 1
     return bins.stream()
-        .map(b->b.dist.centroids())
-        .mapToDouble(cs-> getLast(cs, new Centroid(MIN_VALUE)).mean())
+        .map(b -> b.dist.centroids())
+        .mapToDouble(cs -> getLast(cs, new Centroid(MIN_VALUE)).mean())
         .max().orElse(NaN);
   }
 
