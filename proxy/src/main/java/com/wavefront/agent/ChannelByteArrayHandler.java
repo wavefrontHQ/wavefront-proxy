@@ -27,8 +27,8 @@ import sunnylabs.report.ReportPoint;
  */
 @ChannelHandler.Sharable
 class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
-  private static final Logger logger = Logger.getLogger(
-      ChannelByteArrayHandler.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(ChannelByteArrayHandler.class.getCanonicalName());
+  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   private final Decoder<byte[]> decoder;
   private final PointHandler pointHandler;
@@ -93,11 +93,21 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
     }
     // backwards compatibility: apply "pointLine" rules to metric name
     if (!preprocessor.forPointLine().filter(point.getMetric())) {
-      pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+      if (preprocessor.forPointLine().getLastFilterResult() != null) {
+        blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+      } else {
+        blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+      }
+      pointHandler.handleBlockedPoint(preprocessor.forPointLine().getLastFilterResult());
       return;
     }
     preprocessor.forReportPoint().transform(point);
     if (!preprocessor.forReportPoint().filter(point)) {
+      if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+        blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+      } else {
+        blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+      }
       pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
       return;
     }

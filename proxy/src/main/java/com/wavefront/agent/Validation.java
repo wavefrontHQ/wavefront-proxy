@@ -28,9 +28,6 @@ public class Validation {
     NUMERIC_ONLY
   }
 
-  private static final long MILLIS_IN_YEAR = DateUtils.MILLIS_PER_DAY * 365;
-
-  private final static Counter outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
   private final static Counter illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
 
   /**
@@ -78,15 +75,6 @@ public class Validation {
     return true;
   }
 
-  static boolean pointInRange(ReportPoint point) {
-    long pointTime = point.getTimestamp();
-    long rightNow = System.currentTimeMillis();
-
-    // within 1 year ago and 1 day ahead
-    return (pointTime > (rightNow - MILLIS_IN_YEAR)) && (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
-  }
-
-
   public static void validatePoint(
       ReportPoint point,
       String source,
@@ -118,11 +106,6 @@ public class Validation {
           throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue());
         }
       }
-    }
-    if (!pointInRange(point)) {
-      outOfRangePointTimes.inc();
-      String errorMessage = "WF-402 " + source + ": Point outside of reasonable time frame (" + debugLine + ")";
-      throw new IllegalArgumentException(errorMessage);
     }
 
     if ((validationLevel != null) && (!validationLevel.equals(NO_VALIDATION))) {

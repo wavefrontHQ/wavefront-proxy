@@ -10,6 +10,7 @@ import com.wavefront.metrics.JsonMetricsParser;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.Consumes;
@@ -31,6 +32,8 @@ import sunnylabs.report.ReportPoint;
  */
 @Path("/")
 public class JsonMetricsEndpoint extends PointHandlerImpl {
+
+  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   @Nullable
   private final String prefix;
@@ -83,6 +86,11 @@ public class JsonMetricsEndpoint extends PointHandlerImpl {
       }
       if (preprocessor != null) {
         if (!preprocessor.forReportPoint().filter(point)) {
+          if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+            blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+          } else {
+            blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+          }
           handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
           continue;
         }

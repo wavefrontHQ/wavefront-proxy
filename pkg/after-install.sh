@@ -6,6 +6,7 @@ service_name="wavefront-proxy"
 spool_dir="/var/spool/wavefront-proxy"
 wavefront_dir="/opt/wavefront"
 conf_dir="/etc/wavefront"
+log_dir="/var/log/wavefront"
 jre_dir="$wavefront_dir/$service_name/proxy-jre"
 
 # Set up wavefront user.
@@ -18,6 +19,9 @@ fi
 
 # Create spool directory if it does not exist.
 [[ -d $spool_dir ]] || mkdir -p $spool_dir && chown $user:$group $spool_dir
+
+# Create log directory if it does not exist
+[[ -d $log_dir ]] || mkdir -p $log_dir && chown $user:$group $log_dir
 
 # Configure agent to start on reboot.
 if [[ -f /etc/debian_version ]]; then
@@ -37,6 +41,11 @@ fi
 if [[ ! -f $conf_dir/$service_name/preprocessor_rules.yaml ]]; then
     cp $conf_dir/$service_name/preprocessor_rules.yaml.default $conf_dir/$service_name/preprocessor_rules.yaml
 fi
+
+if [[ ! -f $conf_dir/$service_name/log4j2.xml ]]; then
+    cp $conf_dir/$service_name/log4j2.xml.default $conf_dir/$service_name/log4j2.xml
+fi
+
 
 # If there is an errant pre-3.9 agent running, we need to kill it. This is
 # required for a clean upgrade from pre-3.9 to 3.9+.

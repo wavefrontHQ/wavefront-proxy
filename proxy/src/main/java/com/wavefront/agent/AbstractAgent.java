@@ -50,13 +50,13 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.Authenticator;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.PasswordAuthentication;
 import java.net.SocketException;
-import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -75,6 +75,9 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 import javax.net.ssl.HttpsURLConnection;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.NotAuthorizedException;
+import javax.ws.rs.ProcessingException;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
@@ -646,6 +649,25 @@ public abstract class AbstractAgent {
       PostPushDataTimedTask.setMemoryBufferLimit(pushMemoryBufferLimit);
       QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
       QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
+
+      // for backwards compatibility - if pushLogLevel is defined in the config file, change log level programmatically
+      Level level = null;
+      switch (pushLogLevel) {
+        case "NONE":
+          level = Level.WARNING;
+          break;
+        case "SUMMARY":
+          level = Level.INFO;
+          break;
+        case "DETAILED":
+          level = Level.FINE;
+          break;
+      }
+      if (level != null) {
+        Logger.getLogger("agent").setLevel(level);
+        Logger.getLogger(PostPushDataTimedTask.class.getCanonicalName()).setLevel(level);
+        Logger.getLogger(QueuedAgentService.class.getCanonicalName()).setLevel(level);
+      }
     }
   }
 
@@ -656,6 +678,10 @@ public abstract class AbstractAgent {
    */
   public void start(String[] args) throws IOException {
     try {
+      // read build information and print version.
+      props = ResourceBundle.getBundle("build");
+      logger.info("Starting proxy version " + props.getString("build.version"));
+
       logger.info("Arguments: " + Joiner.on(", ").join(args));
       new JCommander(this, args);
       if (unparsed_params != null) {
@@ -672,10 +698,6 @@ public abstract class AbstractAgent {
 
       // 2. Read or create the unique Id for the daemon running on this machine.
       readOrCreateDaemonId();
-
-      // read build information and print version.
-      props = ResourceBundle.getBundle("build");
-      logger.info("Starting proxy version " + props.getString("build.version"));
 
       if (proxyHost != null) {
         System.setProperty("http.proxyHost", proxyHost);
@@ -743,14 +765,6 @@ public abstract class AbstractAgent {
         config = fetchConfig();
         logger.info("scheduling regular configuration polls");
         auxiliaryExecutor.schedule(updateConfiguration, 10, TimeUnit.SECONDS);
-
-        URI url = URI.create(server);
-        if (url.getPath().endsWith("/api/")) {
-          String configurationLogMessage = "TO CONFIGURE THIS PROXY AGENT, USE THIS KEY: " + agentId;
-          logger.warning(Strings.repeat("*", configurationLogMessage.length()));
-          logger.warning(configurationLogMessage);
-          logger.warning(Strings.repeat("*", configurationLogMessage.length()));
-        }
       }
       // 6. Setup work units and targets based on the configuration.
       if (config != null) {
@@ -842,7 +856,7 @@ public abstract class AbstractAgent {
             toReturn.setName("submission worker: " + counter.getAndIncrement());
             return toReturn;
           }
-        }), purgeBuffer, agentId, splitPushWhenRateLimited, pushLogLevel, pushRateLimiter);
+        }), purgeBuffer, agentId, splitPushWhenRateLimited, pushRateLimiter);
   }
 
   /**
@@ -901,35 +915,44 @@ public abstract class AbstractAgent {
     }
   }
 
+  private void fetchConfigError(String errMsg, @Nullable String secondErrMsg) {
+    logger.severe(Strings.repeat("*", errMsg.length()));
+    logger.severe(errMsg);
+    if (secondErrMsg != null) {
+      logger.severe(secondErrMsg);
+    }
+    logger.severe(Strings.repeat("*", errMsg.length()));
+  }
+
   /**
    * Fetch configuration of the daemon from remote server.
    *
    * @return Fetched configuration. {@code null} if the configuration is invalid.
    */
   private AgentConfiguration fetchConfig() {
-    AgentConfiguration newConfig;
+    AgentConfiguration newConfig = null;
+    logger.info("fetching configuration from server at: " + server);
+    long maxAvailableSpace = 0;
     try {
-      logger.info("fetching configuration from server at: " + server);
-      long maxAvailableSpace = 0;
-      try {
-        File bufferDirectory = new File(bufferFile).getAbsoluteFile();
-        while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
-          bufferDirectory = bufferDirectory.getParentFile();
-        }
-        for (int i = 0; i < retryThreads; i++) {
-          File buffer = new File(bufferFile + "." + i);
-          if (buffer.exists()) {
-            maxAvailableSpace += Integer.MAX_VALUE - buffer.length(); // 2GB max file size minus size used
-          }
-        }
-        if (bufferDirectory != null) {
-          // lesser of: available disk space or available buffer space
-          bufferSpaceLeft.set(Math.min(maxAvailableSpace, bufferDirectory.getUsableSpace()));
-        }
-      } catch (Throwable t) {
-        logger.warning("cannot compute remaining space in buffer file partition: " + t);
+      File bufferDirectory = new File(bufferFile).getAbsoluteFile();
+      while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
+        bufferDirectory = bufferDirectory.getParentFile();
       }
+      for (int i = 0; i < retryThreads; i++) {
+        File buffer = new File(bufferFile + "." + i);
+        if (buffer.exists()) {
+          maxAvailableSpace += Integer.MAX_VALUE - buffer.length(); // 2GB max file size minus size used
+        }
+      }
+      if (bufferDirectory != null) {
+        // lesser of: available disk space or available buffer space
+        bufferSpaceLeft.set(Math.min(maxAvailableSpace, bufferDirectory.getUsableSpace()));
+      }
+    } catch (Throwable t) {
+      logger.warning("cannot compute remaining space in buffer file partition: " + t);
+    }
 
+    try {
       @Nullable Map<String, String> pointTags = null;
       if (agentMetricsPointTags != null) {
         pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
@@ -938,8 +961,39 @@ public abstract class AbstractAgent {
           true, true, true, pointTags);
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
           System.currentTimeMillis(), localAgent, agentMetrics, pushAgent, ephemeral);
+    } catch (NotAuthorizedException ex) {
+      fetchConfigError("HTTP 401 Unauthorized: Please verify that your server and token settings",
+          "are correct and that the token has Agent Management permission!");
+      return null;
+    } catch (ClientErrorException ex) {
+      if (ex.getResponse().getStatus() == 407) {
+        fetchConfigError("HTTP 407 Proxy Authentication Required: Please verify that proxyUser and proxyPassword",
+            "settings are correct and make sure your HTTP proxy is not rate limiting!");
+        return null;
+      }
+      if (ex.getResponse().getStatus() == 404) {
+        fetchConfigError("HTTP 404 Not Found: Please verify that your server setting is correct: " + server, null);
+        return null;
+      }
+      fetchConfigError("HTTP " + ex.getResponse().getStatus() + " error: Unable to retrieve proxy agent configuration!",
+          server + ": " + Throwables.getRootCause(ex).getMessage());
+      return null;
+    } catch (ProcessingException ex) {
+      if (Throwables.getRootCause(ex) instanceof UnknownHostException) {
+        fetchConfigError("Unknown host: " + server + ". Please verify your DNS and network settings!", null);
+        return null;
+      }
+      if (Throwables.getRootCause(ex) instanceof ConnectException) {
+        fetchConfigError("Unable to connect to " + server + ": " + Throwables.getRootCause(ex).getMessage(),
+            "Please verify your network/firewall settings!");
+        return null;
+      }
+      fetchConfigError("Request processing error: Unable to retrieve proxy agent configuration!",
+          server + ": " + Throwables.getRootCause(ex));
+      return null;
     } catch (Exception ex) {
-      logger.warning("cannot fetch proxy agent configuration from remote server: " + Throwables.getRootCause(ex));
+      fetchConfigError("Unable to retrieve proxy agent configuration from remote server!",
+          server + ": " + Throwables.getRootCause(ex));
       return null;
     }
     if (newConfig.currentTime != null) {
@@ -969,8 +1023,7 @@ public abstract class AbstractAgent {
         " data to Wavefront for data received on port: " + handle);
     for (int i = 0; i < flushThreads; i++) {
       final PostPushDataTimedTask postPushDataTimedTask =
-          new PostPushDataTimedTask(pushFormat, agentAPI, pushLogLevel, agentId, handle,
-              i, pushRateLimiter, pushFlushInterval);
+          new PostPushDataTimedTask(pushFormat, agentAPI, agentId, handle, i, pushRateLimiter, pushFlushInterval);
       toReturn[i] = postPushDataTimedTask;
       managedTasks.add(postPushDataTimedTask);
     }

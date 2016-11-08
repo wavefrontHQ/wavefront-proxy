@@ -498,17 +498,13 @@ public class PushAgent extends AbstractAgent {
           // if the collector is in charge and it provided a setting, use it
           QueuedAgentService.setSplitBatchSize(pointsPerBatch.intValue());
           PostPushDataTimedTask.setPointsPerBatch(pointsPerBatch.intValue());
-          if (pushLogLevel.equals("DETAILED")) {
-            logger.info("Agent push batch set to (remotely) " + pointsPerBatch);
-          }
+          logger.fine("Agent push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
         QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
         PostPushDataTimedTask.setPointsPerBatch(pushFlushMaxPoints);
-        if (pushLogLevel.equals("DETAILED")) {
-          logger.info("Agent push batch set to (locally) " + pushFlushMaxPoints);
-        }
+        logger.fine("Agent push batch set to (locally) " + pushFlushMaxPoints);
       }
 
       if (config.getCollectorSetsRetryBackoff() != null &&
@@ -516,17 +512,13 @@ public class PushAgent extends AbstractAgent {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
           QueuedAgentService.setRetryBackoffBaseSeconds(config.getRetryBackoffBaseSeconds());
-          if (pushLogLevel.equals("DETAILED")) {
-            logger.info("Agent backoff base set to (remotely) " +
+          logger.fine("Agent backoff base set to (remotely) " +
                 config.getRetryBackoffBaseSeconds());
-          }
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
         QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
-        if (pushLogLevel.equals("DETAILED")) {
-          logger.info("Agent backoff base set to (locally) " + retryBackoffBaseSeconds);
-        }
+        logger.fine("Agent backoff base set to (locally) " + retryBackoffBaseSeconds);
       }
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.

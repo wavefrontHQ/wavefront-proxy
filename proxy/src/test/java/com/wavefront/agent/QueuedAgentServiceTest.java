@@ -1,6 +1,7 @@
 package com.wavefront.agent;
 
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.squareup.tape.TaskInjector;
 import com.wavefront.agent.QueuedAgentService.PostPushDataResultTask;
@@ -61,7 +62,7 @@ public class QueuedAgentServiceTest {
             toReturn.setName("unit test submission worker: " + counter.getAndIncrement());
             return toReturn;
           }
-        }), true, newAgentId, false, "NONE");
+        }), true, newAgentId, false, RecyclableRateLimiter.create(Integer.MAX_VALUE, 60));
   }
 
   // postWorkUnitResult
