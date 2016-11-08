@@ -5,6 +5,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.gson.Gson;
@@ -504,8 +505,6 @@ public abstract class AbstractAgent {
         pushFlushMaxPoints = Integer.parseInt(prop.getProperty("pushFlushMaxPoints",
             String.valueOf(pushFlushMaxPoints)));
         pushRateLimit = Integer.parseInt(prop.getProperty("pushRateLimit", String.valueOf(pushRateLimit)));
-        pushMemoryBufferLimit = Integer.parseInt(prop.getProperty("pushMemoryBufferLimit",
-            String.valueOf(16 * pushFlushMaxPoints)));
         pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
             String.valueOf(pushBlockedSamples)));
         pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
@@ -596,6 +595,21 @@ public abstract class AbstractAgent {
             String.valueOf(dataBackfillCutoffHours)));
         filebeatPort = Integer.parseInt(prop.getProperty("filebeatPort", String.valueOf(filebeatPort)));
         logsIngestionConfigFile = prop.getProperty("logsIngestionConfigFile", logsIngestionConfigFile);
+
+        /*
+          default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of available heap
+          memory. 25% is chosen heuristically as a safe number for scenarios with limited system resources (4 CPU cores
+          or less, heap size less than 4GB) to prevent OOM. this is a conservative estimate, budgeting 200 characters
+          (400 bytes) per per point line. Also, it shouldn't be less than 1 batch size (pushFlushMaxPoints).
+         */
+        int listeningPorts = Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts));
+        long calculatedMemoryBufferLimit = Math.max(Math.min(16 * pushFlushMaxPoints,
+            Runtime.getRuntime().maxMemory() / listeningPorts / 4 / flushThreads / 400), pushFlushMaxPoints);
+        logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
+        pushMemoryBufferLimit = Integer.parseInt(prop.getProperty("pushMemoryBufferLimit",
+            String.valueOf(calculatedMemoryBufferLimit)));
+        logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
+
         logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
@@ -742,7 +756,9 @@ public abstract class AbstractAgent {
   protected AgentAPI createAgentService() {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
-    factory.registerProvider(ResteasyJacksonProvider.class);
+    if (!factory.getClasses().contains(ResteasyJacksonProvider.class)) {
+      factory.registerProvider(ResteasyJacksonProvider.class);
+    }
     if (httpUserAgent == null) {
       httpUserAgent = "Wavefront-Proxy/" + props.getString("build.version");
     }
