@@ -18,6 +18,7 @@ import org.logstash.beats.Message;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -142,17 +143,21 @@ public class FilebeatListener implements IMessageListener {
 
   @Override
   public void onNewConnection(ChannelHandlerContext ctx) {
+    logger.info("New filebeat connection.");
   }
 
   @Override
   public void onConnectionClose(ChannelHandlerContext ctx) {
+    logger.info("Filebeat connection closed.");
   }
 
   @Override
   public void onException(ChannelHandlerContext ctx, Throwable cause) {
+    logger.log(Level.SEVERE, "Caught error processing beats data.", cause);
   }
 
   @Override
   public void onChannelInitializeException(ChannelHandlerContext ctx, Throwable cause) {
+    logger.log(Level.SEVERE, "Caught initializing beats data processor.", cause);
   }
 }
