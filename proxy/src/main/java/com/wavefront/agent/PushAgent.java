@@ -134,10 +134,12 @@ public class PushAgent extends AbstractAgent {
           histogramCompression = (short) Math.min(1000, (short) Math.max(20, histogramCompression));
         }
 
-        // Check directory
         File baseDirectory = new File(histogramStateDirectory);
-        checkArgument(baseDirectory.isDirectory(), baseDirectory.getAbsolutePath() + " must be a directory!");
-        checkArgument(baseDirectory.canWrite(), baseDirectory.getAbsolutePath() + " must be write-able!");
+        if (persistMessages || persistAccumulator) {
+          // Check directory
+          checkArgument(baseDirectory.isDirectory(), baseDirectory.getAbsolutePath() + " must be a directory!");
+          checkArgument(baseDirectory.canWrite(), baseDirectory.getAbsolutePath() + " must be write-able!");
+        }
 
         // Accumulator
         MapLoader<HistogramKey, AgentDigest, HistogramKeyMarshaller, AgentDigestMarshaller> mapLoader = new MapLoader<>(
@@ -147,7 +149,8 @@ public class PushAgent extends AbstractAgent {
             avgHistogramKeyBytes,
             avgHistogramDigestBytes,
             HistogramKeyMarshaller.get(),
-            AgentDigestMarshaller.get());
+            AgentDigestMarshaller.get(),
+            persistAccumulator);
 
         File accumulationFile = new File(baseDirectory, "accumulator");
         ConcurrentMap<HistogramKey, AgentDigest> accumulator = mapLoader.get(accumulationFile);
@@ -171,7 +174,7 @@ public class PushAgent extends AbstractAgent {
         histogramExecutor.scheduleWithFixedDelay(dispatchTask, 100L, 1L, TimeUnit.MICROSECONDS);
 
         // Input queue factory
-        TapeDeck<List<String>> accumulatorDeck = new TapeDeck<>(TapeStringListConverter.get());
+        TapeDeck<List<String>> accumulatorDeck = new TapeDeck<>(TapeStringListConverter.get(), persistMessages);
 
         // Decoders
         Decoder<String> sampleDecoder = new GraphiteDecoder("unknown", customSourceTags);
@@ -187,7 +190,7 @@ public class PushAgent extends AbstractAgent {
               baseDirectory,
               Utils.Granularity.MINUTE,
               accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramMinuteAccumulationInterval),
+              TimeUnit.SECONDS.toMillis(histogramMinuteFlushSecs),
               histogramMinuteAccumulators
           );
           logger.info("listening on port: " + port + " for histogram samples, accumulating to the minute");
@@ -203,7 +206,7 @@ public class PushAgent extends AbstractAgent {
               baseDirectory,
               Utils.Granularity.HOUR,
               accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramHourAccumulationInterval),
+              TimeUnit.SECONDS.toMillis(histogramHourFlushSecs),
               histogramHourAccumulators
           );
           logger.info("listening on port: " + port + " for histogram samples, accumulating to the hour");
@@ -219,7 +222,7 @@ public class PushAgent extends AbstractAgent {
               baseDirectory,
               Utils.Granularity.DAY,
               accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramDayAccumulationInterval),
+              TimeUnit.SECONDS.toMillis(histogramDayFlushSecs),
               histogramDayAccumulators
           );
           logger.info("listening on port: " + port + " for histogram samples, accumulating to the day");
@@ -235,7 +238,7 @@ public class PushAgent extends AbstractAgent {
               baseDirectory,
               Utils.Granularity.DAY, // Ignored...
               accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramDistAccumulationInterval),
+              TimeUnit.SECONDS.toMillis(histogramDistFlushSecs),
               histogramDistAccumulators
           );
           logger.info("listening on port: " + port + " for histogram samples, accumulating to the day");

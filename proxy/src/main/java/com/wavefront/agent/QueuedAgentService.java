@@ -85,6 +85,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
       TimeUnit.MINUTES);
   private Counter permitsGranted = Metrics.newCounter(new MetricName("limiter", "", "permits-granted"));
+  private Counter permitsDenied = Metrics.newCounter(new MetricName("limiter", "", "permits-denied"));
   private Counter permitsRetried = Metrics.newCounter(new MetricName("limiter", "", "permits-retried"));
   /**
    * Biases result sizes to the last 5 minutes heavily. This histogram does not see all result
@@ -193,19 +194,21 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
               taskQueue.getLockObject().lock();
               try {
                 ResubmissionTask task = taskQueue.peek();
-                int taskSize = 0;
+                int taskSize = task == null ? 0 : task.size();
                 if (pushRateLimiter.getAvailablePermits() < pushRateLimiter.getRate()) {
                   // if there's less than 1 second worth of accumulated credits, don't process the backlog queue
                   rateLimiting = true;
+                  permitsDenied.inc(taskSize);
                   break;
                 }
 
+                if (taskSize > 0) {
+                  pushRateLimiter.acquire(taskSize);
+                  permitsGranted.inc(taskSize);
+                }
                 boolean removeTask = true;
                 try {
                   if (task != null) {
-                    taskSize = task.size();
-                    pushRateLimiter.acquire(taskSize);
-                    permitsGranted.inc(taskSize);
                     task.execute(null);
                     successes++;
                   }

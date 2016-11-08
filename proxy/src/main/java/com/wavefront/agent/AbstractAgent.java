@@ -5,6 +5,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.gson.Gson;
@@ -169,7 +170,7 @@ public abstract class AbstractAgent {
 
   @Parameter(
       names = {"--histogramAccumulatorResolveInterval"},
-      description = "Directory for persistent agent state, must be writable.")
+      description = "Interval to write-back accumulation changes to disk in millis.")
   protected long histogramAccumulatorResolveInterval = 100;
 
   @Parameter(
@@ -183,9 +184,9 @@ public abstract class AbstractAgent {
   protected int histogramMinuteAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(
-      names = {"--histogramMinuteAccumulationInterval"},
+      names = {"--histogramMinuteFlushSecs"},
       description = "Number of seconds to keep a minute granularity accumulator open for new samples.")
-  protected int histogramMinuteAccumulationInterval = 30;
+  protected int histogramMinuteFlushSecs = 70;
 
   @Parameter(
       names = {"--histogramHoursListenerPorts"},
@@ -198,9 +199,9 @@ public abstract class AbstractAgent {
   protected int histogramHourAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(
-      names = {"--histogramHourAccumulationInterval"},
+      names = {"--histogramHourFlushSecs"},
       description = "Number of seconds to keep an hour granularity accumulator open for new samples.")
-  protected int histogramHourAccumulationInterval = 600;
+  protected int histogramHourFlushSecs = 4200;
 
   @Parameter(
       names = {"--histogramDaysListenerPorts"},
@@ -213,9 +214,9 @@ public abstract class AbstractAgent {
   protected int histogramDayAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(
-      names = {"--histogramDayAccumulationInterval"},
+      names = {"--histogramDayFlushSecs"},
       description = "Number of seconds to keep a day granularity accumulator open for new samples.")
-  protected int histogramDayAccumulationInterval = 3600;
+  protected int histogramDayFlushSecs = 18000;
 
   @Parameter(
       names = {"--histogramDistListenerPorts"},
@@ -228,26 +229,35 @@ public abstract class AbstractAgent {
   protected int histogramDistAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(
-      names = {"--histogramDistAccumulationInterval"},
+      names = {"--histogramDistFlushSecs"},
       description = "Number of seconds to keep a new distribution bin open for new samples.")
-  protected int histogramDistAccumulationInterval = 30;
+  protected int histogramDistFlushSecs = 70;
 
   @Parameter(
       names = {"--histogramAccumulatorSize"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
-          "source and tags concatenation.")
+      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins")
   protected long histogramAccumulatorSize = 100000L;
 
   @Parameter(
       names = {"--avgHistogramKeyBytes"},
       description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
           "source and tags concatenation.")
-  protected int avgHistogramKeyBytes = 200;
+  protected int avgHistogramKeyBytes = 50;
 
   @Parameter(
       names = {"--avgHistogramDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
-  protected int avgHistogramDigestBytes = 1000;
+  protected int avgHistogramDigestBytes = 500;
+
+  @Parameter(
+      names = {"--persistMessages"},
+      description = "Whether histogram samples or distributions should be persisted to disk")
+  protected boolean persistMessages = true;
+
+  @Parameter(
+      names = {"--persistAccumulator"},
+      description = "Whether the accumulator should persist to disk")
+  protected boolean persistAccumulator = true;
 
   @Parameter(
       names = {"--histogramCompression"},
@@ -508,8 +518,6 @@ public abstract class AbstractAgent {
         pushFlushMaxPoints = Integer.parseInt(prop.getProperty("pushFlushMaxPoints",
             String.valueOf(pushFlushMaxPoints)));
         pushRateLimit = Integer.parseInt(prop.getProperty("pushRateLimit", String.valueOf(pushRateLimit)));
-        pushMemoryBufferLimit = Integer.parseInt(prop.getProperty("pushMemoryBufferLimit",
-            String.valueOf(16 * pushFlushMaxPoints)));
         pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
             String.valueOf(pushBlockedSamples)));
         pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
@@ -521,30 +529,30 @@ public abstract class AbstractAgent {
         histogramMinuteAccumulators = Integer.parseInt(prop.getProperty(
             "histogramMinuteAccumulators",
             String.valueOf(histogramMinuteAccumulators)));
-        histogramMinuteAccumulationInterval = Integer.parseInt(prop.getProperty(
-            "histogramMinuteAccumulationInterval",
-            String.valueOf(histogramMinuteAccumulationInterval)));
+        histogramMinuteFlushSecs = Integer.parseInt(prop.getProperty(
+            "histogramMinuteFlushSecs",
+            String.valueOf(histogramMinuteFlushSecs)));
         histogramHoursListenerPorts = prop.getProperty("histogramHoursListenerPorts", histogramHoursListenerPorts);
         histogramHourAccumulators = Integer.parseInt(prop.getProperty(
             "histogramHourAccumulators",
             String.valueOf(histogramHourAccumulators)));
-        histogramHourAccumulationInterval = Integer.parseInt(prop.getProperty(
-            "histogramHourAccumulationInterval",
-            String.valueOf(histogramHourAccumulationInterval)));
+        histogramHourFlushSecs = Integer.parseInt(prop.getProperty(
+            "histogramHourFlushSecs",
+            String.valueOf(histogramHourFlushSecs)));
         histogramDaysListenerPorts = prop.getProperty("histogramDaysListenerPorts", histogramDaysListenerPorts);
         histogramDayAccumulators = Integer.parseInt(prop.getProperty(
             "histogramDayAccumulators",
             String.valueOf(histogramDayAccumulators)));
-        histogramDayAccumulationInterval = Integer.parseInt(prop.getProperty(
-            "histogramDayAccumulationInterval",
-            String.valueOf(histogramDayAccumulationInterval)));
+        histogramDayFlushSecs = Integer.parseInt(prop.getProperty(
+            "histogramDayFlushSecs",
+            String.valueOf(histogramDayFlushSecs)));
         histogramDistListenerPorts = prop.getProperty("histogramDistListenerPorts", histogramDistListenerPorts);
         histogramDistAccumulators = Integer.parseInt(prop.getProperty(
             "histogramDistAccumulators",
             String.valueOf(histogramDistAccumulators)));
-        histogramDistAccumulationInterval = Integer.parseInt(prop.getProperty(
-            "histogramDistAccumulationInterval",
-            String.valueOf(histogramDistAccumulationInterval)));
+        histogramDistFlushSecs = Integer.parseInt(prop.getProperty(
+            "histogramDistFlushSecs",
+            String.valueOf(histogramDistFlushSecs)));
         histogramAccumulatorSize = Long.parseLong(prop.getProperty(
             "histogramAccumulatorSize",
             String.valueOf(histogramAccumulatorSize)));
@@ -557,6 +565,10 @@ public abstract class AbstractAgent {
         histogramCompression = Short.parseShort(prop.getProperty(
             "histogramCompression",
             String.valueOf(histogramCompression)));
+        persistAccumulator =
+            Boolean.parseBoolean(prop.getProperty("persistAccumulator", String.valueOf(persistAccumulator)));
+        persistMessages =
+            Boolean.parseBoolean(prop.getProperty("persistMessages", String.valueOf(persistMessages)));
 
         retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)));
         flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));
@@ -600,7 +612,22 @@ public abstract class AbstractAgent {
             String.valueOf(dataBackfillCutoffHours)));
         filebeatPort = Integer.parseInt(prop.getProperty("filebeatPort", String.valueOf(filebeatPort)));
         logsIngestionConfigFile = prop.getProperty("logsIngestionConfigFile", logsIngestionConfigFile);
-        logger.info("Loaded configuration file " + pushConfigFile);
+
+        /*
+          default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of available heap
+          memory. 25% is chosen heuristically as a safe number for scenarios with limited system resources (4 CPU cores
+          or less, heap size less than 4GB) to prevent OOM. this is a conservative estimate, budgeting 200 characters
+          (400 bytes) per per point line. Also, it shouldn't be less than 1 batch size (pushFlushMaxPoints).
+         */
+        int listeningPorts = Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts));
+        long calculatedMemoryBufferLimit = Math.max(Math.min(16 * pushFlushMaxPoints,
+            Runtime.getRuntime().maxMemory() / listeningPorts / 4 / flushThreads / 400), pushFlushMaxPoints);
+        logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
+        pushMemoryBufferLimit = Integer.parseInt(prop.getProperty("pushMemoryBufferLimit",
+            String.valueOf(calculatedMemoryBufferLimit)));
+        logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
+
+        logger.warning("Loaded configuration file " + pushConfigFile);
       } catch (Throwable exception) {
         logger.severe("Could not load configuration file " + pushConfigFile);
         throw exception;

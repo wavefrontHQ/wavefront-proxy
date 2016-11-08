@@ -165,6 +165,15 @@ public class AccumulationTaskTest {
   }
 
   @Test
+  public void testAccumulationNoTime() {
+    in.add(ImmutableList.of("noTimeKey 100"));
+
+    eventSubject.run();
+
+    assertThat(out).hasSize(1);
+  }
+
+  @Test
   public void testAccumulateWithBadLine() {
     in.add(ImmutableList.of("This is not really a valid sample", lineA, lineA, lineA));
 

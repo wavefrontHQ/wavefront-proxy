@@ -153,3 +153,59 @@ buffer=/var/spool/wavefront-proxy/buffer
 ## This setting defines the cut-off point for what is considered a valid timestamp for back-dated points.
 ## Default (and recommended) value is 8760 (1 year), so all the data points from more than 1 year ago will be rejected.
 #dataBackfillCutoffHours=8760
+
+## The following settings are used to configure histogram ingestion:
+## Histograms can be ingested in wavefront scalar and distribution format. For scalar samples ports can be specified for
+## minute, hour and day granularity. Granularity for the distribution format is encoded inline.
+
+## Wavefront format, minute aggregation:
+## Comma-separated list of ports to listen on.
+#histogramMinsListenerPorts=5000,5001
+## Number of accumulators per minute port
+#histogramMinuteAccumulators=2
+## Time-to-live in seconds for a minute granularity accumulation on the proxy (before the intermediary is shipped to WF).
+# histogramMinuteFlushSecs=70
+
+## Wavefront format, hour aggregation:
+## Comma-separated list of ports to listen on.
+#histogramHoursListenerPorts==6000,6001
+## Number of accumulators per hour port
+#histogramHourAccumulators=2
+## Time-to-live in seconds for an hour granularity accumulation on the proxy (before the intermediary is shipped to WF).
+#histogramHourFlushSecs=4200
+
+## Wavefront format, day aggregation:
+## Comma-separated list of ports to listen on.
+#histogramDaysListenerPorts==7000,7001
+## Number of accumulators per day port
+#histogramDayAccumulators=2
+## Time-to-live in seconds for a day granularity accumulation on the proxy (before the intermediary is shipped to WF).
+#histogramDayFlushSecs=18000
+
+## Distribution format:
+## Comma-separated list of ports to listen on.
+#histogramDistListenerPorts==8000,8001
+## Number of accumulators per distribution port
+#histogramDistAccumulators=2
+## Time-to-live in seconds for a distribution granularity accumulation on the proxy (before the intermediary is shipped
+## to WF).
+#histogramDistFlushSecs=70
+
+## Accumulation parameters
+## Bounds the number of centroids per histogram. Must be in [20;1000]
+#histogramCompression = 100
+## Directory for persistent agent state, must be writable.
+#histogramStateDirectory="/var/tmp"
+## Interval to write-back accumulation changes to disk in millis
+#histogramAccumulatorResolveInterval = 100
+## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins
+#histogramAccumulatorSize=100000
+## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
+#avgHistogramKeyBytes=50
+## Average number of bytes in a encoded distribution/accumulation.
+#avgHistogramDigestBytes=500
+## Whether to persist received histogram messages to disk. WARNING only disable this, if loss of unprocessed sample data
+## on agent shutdown is acceptable.
+#persistMessages=true
+## Whether to persist accumulation state. WARNING any unflushed histograms will be lost on agent shutdown if disabled
+#persistAccumulator=true
