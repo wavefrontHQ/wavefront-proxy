@@ -1,5 +1,7 @@
 package com.wavefront.metrics;
 
+import com.google.common.collect.ImmutableList;
+
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
@@ -142,5 +144,41 @@ public class JsonMetricsGeneratorTest {
     String json = generate(false, false, false);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":1,\"startMillis\":60000,\"durationMillis\":60000,\"means\":[100.0],\"counts\":[1]},{\"count\":1,\"startMillis\":120000,\"durationMillis\":60000,\"means\":[1000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":180000,\"durationMillis\":60000,\"means\":[10000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":240000,\"durationMillis\":60000,\"means\":[100000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":300000,\"durationMillis\":60000,\"means\":[100001.0],\"counts\":[1]},{\"count\":1,\"startMillis\":360000,\"durationMillis\":60000,\"means\":[100011.0],\"counts\":[1]},{\"count\":1,\"startMillis\":420000,\"durationMillis\":60000,\"means\":[100111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":480000,\"durationMillis\":60000,\"means\":[101111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":540000,\"durationMillis\":60000,\"means\":[111111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":600000,\"durationMillis\":60000,\"means\":[111112.0],\"counts\":[1]}]}}");
+  }
+
+  @Test
+  public void testWavefrontHistogramBulkUpdate() throws IOException {
+    WavefrontHistogram wh = WavefrontHistogram.get(testRegistry, new MetricName("test", "", "metric"), time::get);
+
+    wh.bulkUpdate(ImmutableList.of(15d, 30d, 45d), ImmutableList.of(1, 5, 1));
+
+    String json = generate(false, false, false);
+
+    assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":7,\"startMillis\":0,\"durationMillis\":60000,\"means\":[15.0,30.0,45.0],\"counts\":[1,5,1]}]}}");
+  }
+
+  @Test
+  public void testWavefrontHistogramBulkUpdateHandlesMismatchedLengths() throws IOException {
+    WavefrontHistogram wh = WavefrontHistogram.get(testRegistry, new MetricName("test", "", "metric"), time::get);
+
+    wh.bulkUpdate(ImmutableList.of(15d, 30d, 45d, 100d), ImmutableList.of(1, 5, 1));
+    wh.bulkUpdate(ImmutableList.of(1d, 2d, 3d), ImmutableList.of(1, 1, 1, 9));
+
+    String json = generate(false, false, false);
+
+    assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":10,\"startMillis\":0,\"durationMillis\":60000,\"means\":[1.0,2.0,3.0,15.0,30.0,45.0],\"counts\":[1,1,1,1,5,1]}]}}");
+  }
+
+  @Test
+  public void testWavefrontHistogramBulkUpdateHandlesNullParams() throws IOException {
+    WavefrontHistogram wh = WavefrontHistogram.get(testRegistry, new MetricName("test", "", "metric"), time::get);
+
+    wh.bulkUpdate(null, ImmutableList.of(1, 5, 1));
+    wh.bulkUpdate(ImmutableList.of(15d, 30d, 45d, 100d), null);
+    wh.bulkUpdate(null, null);
+
+    String json = generate(false, false, false);
+
+    assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[]}}");
   }
 }

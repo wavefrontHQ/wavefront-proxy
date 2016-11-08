@@ -12,6 +12,7 @@ import com.yammer.metrics.stats.Snapshot;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Supplier;
 
 import static com.google.common.collect.Iterables.getFirst;
@@ -90,17 +91,40 @@ public class WavefrontHistogram extends Histogram implements Metric {
     update((long) value);
   }
 
-  @Override
-  public synchronized void update(long value) {
-
+  /**
+   * Helper to retrieve the current bin. Assumes proper synchronization.
+   */
+  private MinuteBin getCurrent() {
     long minMillis = minMillis();
+
     if (bins.isEmpty() || bins.getLast().minMillis != minMillis) {
       bins.add(new MinuteBin(minMillis));
       if (bins.size() > MAX_BINS) {
         bins.removeFirst();
       }
     }
-    bins.getLast().dist.add(value);
+    return bins.getLast();
+  }
+
+  /**
+   * Bulk-update this histogram with a set of centroids.
+   *
+   * @param means the centroid values
+   * @param counts the centroid weights/sample counts
+   */
+  public synchronized void bulkUpdate(List<Double> means, List<Integer> counts) {
+    if (means != null &&  counts != null) {
+      int n = Math.min(means.size(), counts.size());
+      MinuteBin current = getCurrent();
+      for (int i=0; i<n; ++i) {
+        current.dist.add(means.get(i), counts.get(i));
+      }
+    }
+  }
+
+  @Override
+  public synchronized void update(long value) {
+    getCurrent().dist.add(value);
   }
 
   @Override
