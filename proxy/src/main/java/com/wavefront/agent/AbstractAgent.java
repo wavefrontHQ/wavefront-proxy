@@ -247,6 +247,16 @@ public abstract class AbstractAgent {
   protected int avgHistogramDigestBytes = 500;
 
   @Parameter(
+      names = {"--persistMessages"},
+      description = "Whether histogram samples or distributions should be persisted to disk")
+  protected boolean persistMessages = true;
+
+  @Parameter(
+      names = {"--persistAccumulator"},
+      description = "Whether the accumulator should persist to disk")
+  protected boolean persistAccumulator = true;
+
+  @Parameter(
       names = {"--histogramCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
   protected short histogramCompression = 100;
@@ -552,6 +562,10 @@ public abstract class AbstractAgent {
         histogramCompression = Short.parseShort(prop.getProperty(
             "histogramCompression",
             String.valueOf(histogramCompression)));
+        persistAccumulator =
+            Boolean.parseBoolean(prop.getProperty("persistAccumulator", String.valueOf(persistAccumulator)));
+        persistMessages =
+            Boolean.parseBoolean(prop.getProperty("persistMessages", String.valueOf(persistMessages)));
 
         retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)));
         flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));

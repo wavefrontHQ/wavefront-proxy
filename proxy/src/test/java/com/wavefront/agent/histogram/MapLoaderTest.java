@@ -50,7 +50,8 @@ public class MapLoaderTest {
         200,
         1000,
         HistogramKeyMarshaller.get(),
-        AgentDigestMarshaller.get());
+        AgentDigestMarshaller.get(),
+        true);
   }
 
   @After
@@ -78,28 +79,12 @@ public class MapLoaderTest {
         200,
         1000,
         HistogramKeyMarshaller.get(),
-        AgentDigestMarshaller.get());
+        AgentDigestMarshaller.get(),
+        true);
 
     map = loader.get(file);
 
     assertThat(map).containsKey(key);
-  }
-
-  @Test
-  public void testWrongMapTypeWithEntries() throws IOException {
-    ChronicleMap<String, String> stringMap = ChronicleMap
-        .of(String.class, String.class)
-        .entries(10)
-        .averageKey("test")
-        .averageValue("what do I know")
-        .createPersistedTo(file);
-
-    stringMap.put("This", "could go wrong...");
-
-    ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
-    map.put(key, digest);
-    assertThat(map).containsKey(key);
-    assertThat(((VanillaChronicleMap)map).file()).isNull();
   }
 
   @Test
@@ -111,13 +96,22 @@ public class MapLoaderTest {
   }
 
   @Test
-  public void testInvalidPath() throws IOException {
-    file.delete();
-    file = new File("//");
+  public void testDoNotPersist() throws IOException {
+    loader = new MapLoader<>(
+        HistogramKey.class,
+        AgentDigest.class,
+        100,
+        200,
+        1000,
+        HistogramKeyMarshaller.get(),
+        AgentDigestMarshaller.get(),
+        false);
+
     ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
     assertThat(((VanillaChronicleMap)map).file()).isNull();
     testPutRemove(map);
   }
+
 
   // NOTE: Chronicle's repair attempt takes >1min for whatever reason.
   @Ignore
