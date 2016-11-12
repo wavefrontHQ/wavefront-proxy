@@ -157,6 +157,8 @@ buffer=/var/spool/wavefront-proxy/buffer
 ## The following settings are used to configure histogram ingestion:
 ## Histograms can be ingested in wavefront scalar and distribution format. For scalar samples ports can be specified for
 ## minute, hour and day granularity. Granularity for the distribution format is encoded inline.
+## Before using any of these settings, reach out to Wavefront Support to ensure your account is enabled for native Histogram
+## support.
 
 ## Wavefront format, minute aggregation:
 ## Comma-separated list of ports to listen on.
