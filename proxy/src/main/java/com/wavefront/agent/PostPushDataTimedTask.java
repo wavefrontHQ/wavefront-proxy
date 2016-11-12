@@ -182,7 +182,7 @@ public class PostPushDataTimedTask implements Runnable {
       if (current.size() == 0) {
         return;
       }
-      if (pushRateLimiter.tryAcquire(current.size())) {
+      if (pushRateLimiter == null || pushRateLimiter.tryAcquire(current.size())) {
         this.permitsGranted.inc(current.size());
 
         TimerContext timerContext = this.batchSendTime.time();
@@ -197,8 +197,10 @@ public class PostPushDataTimedTask implements Runnable {
           int pointsInList = current.size();
           this.pointsAttempted.inc(pointsInList);
           if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
-            this.pushRateLimiter.recyclePermits(pointsInList);
-            this.permitsRetried.inc(pointsInList);
+            if (pushRateLimiter != null) {
+              this.pushRateLimiter.recyclePermits(pointsInList);
+              this.permitsRetried.inc(pointsInList);
+            }
             this.pointsQueued.inc(pointsInList);
           }
         } finally {

@@ -7,8 +7,8 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -134,6 +134,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       logger.severe("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
           "setting retryThreads to a value > 0");
     }
+    if (pushRateLimiter != null) {
+      logger.info("Pushing to Wavefront with average PPS: " + String.valueOf(pushRateLimiter.getRate()));
+    } else {
+      logger.info("Pushing to Wavefront without user defined rate limit.");
+    }
     resubmissionTaskMarshaller = new GsonBuilder().
         registerTypeHierarchyAdapter(ResubmissionTask.class, new ResubmissionTaskDeserializer()).create();
     this.wrapped = service;
@@ -195,17 +200,18 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
               try {
                 ResubmissionTask task = taskQueue.peek();
                 int taskSize = task == null ? 0 : task.size();
-                if (pushRateLimiter.getAvailablePermits() < pushRateLimiter.getRate()) {
+                if (pushRateLimiter != null && pushRateLimiter.getAvailablePermits() < pushRateLimiter.getRate()) {
                   // if there's less than 1 second worth of accumulated credits, don't process the backlog queue
                   rateLimiting = true;
                   permitsDenied.inc(taskSize);
                   break;
                 }
 
-                if (taskSize > 0) {
+                if (pushRateLimiter != null && taskSize > 0) {
                   pushRateLimiter.acquire(taskSize);
                   permitsGranted.inc(taskSize);
                 }
+
                 boolean removeTask = true;
                 try {
                   if (task != null) {
@@ -213,8 +219,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                     successes++;
                   }
                 } catch (Exception ex) {
-                  pushRateLimiter.recyclePermits(taskSize);
-                  permitsRetried.inc(taskSize);
+                  if (pushRateLimiter != null) {
+                    pushRateLimiter.recyclePermits(taskSize);
+                    permitsRetried.inc(taskSize);
+                  }
                   failures++;
                   //noinspection ThrowableResultOfMethodCallIgnored
                   if (Throwables.getRootCause(ex) instanceof QueuedPushTooLargeException) {

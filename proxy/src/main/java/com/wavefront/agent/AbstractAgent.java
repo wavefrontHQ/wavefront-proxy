@@ -147,7 +147,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
-  protected int pushRateLimit = Integer.MAX_VALUE;
+  protected int pushRateLimit = -1;
 
   @Parameter(names = {"--pushMemoryBufferLimit"}, description = "Max number of points that can stay in memory buffers" +
       " before spooling to disk. Defaults to 16 * pushFlushMaxPoints, minimum size: pushFlushMaxPoints. Setting this " +
@@ -382,7 +382,7 @@ public abstract class AbstractAgent {
   protected List<String> customSourceTags = new ArrayList<>();
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
-  protected RecyclableRateLimiter pushRateLimiter = RecyclableRateLimiter.create(10000000, 60);
+  protected RecyclableRateLimiter pushRateLimiter = null;
 
   protected final ScheduledExecutorService histogramExecutor =
       Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
@@ -644,7 +644,9 @@ public abstract class AbstractAgent {
 
       initPreprocessors();
 
-      pushRateLimiter.setRate(pushRateLimit);
+      if (pushRateLimit > 0) {
+        pushRateLimiter = RecyclableRateLimiter.create(pushRateLimit, 60);
+      }
       PostPushDataTimedTask.setPointsPerBatch(pushFlushMaxPoints);
       PostPushDataTimedTask.setMemoryBufferLimit(pushMemoryBufferLimit);
       QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
