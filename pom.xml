@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>3.28-SNAPSHOT</version>
+  <version>4.0</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
