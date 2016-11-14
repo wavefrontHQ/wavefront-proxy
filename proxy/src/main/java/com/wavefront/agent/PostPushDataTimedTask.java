@@ -183,7 +183,7 @@ public class PostPushDataTimedTask implements Runnable {
         return;
       }
       if (pushRateLimiter == null || pushRateLimiter.tryAcquire(current.size())) {
-        this.permitsGranted.inc(current.size());
+        if (pushRateLimiter != null) this.permitsGranted.inc(current.size());
 
         TimerContext timerContext = this.batchSendTime.time();
         Response response = null;
