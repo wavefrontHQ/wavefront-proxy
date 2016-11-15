@@ -14,7 +14,6 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.WavefrontHistogram;
 
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -47,7 +46,7 @@ public class EvictingMetricsRegistry {
           }
           metricsRegistry.removeMetric(metricName);
         }).build();
-    this.metricNamesForMetricMatchers = Caffeine.<MetricMatcher, List<MetricName>>newBuilder()
+    this.metricNamesForMetricMatchers = Caffeine.<MetricMatcher, Set<MetricName>>newBuilder()
         .build((metricMatcher) -> Sets.newHashSet());
   }
 
