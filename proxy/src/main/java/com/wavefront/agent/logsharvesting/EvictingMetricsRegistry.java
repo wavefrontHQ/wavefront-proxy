@@ -1,6 +1,6 @@
 package com.wavefront.agent.logsharvesting;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -14,7 +14,7 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.WavefrontHistogram;
 
-import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -29,7 +29,7 @@ public class EvictingMetricsRegistry {
   protected static final Logger logger = Logger.getLogger(EvictingMetricsRegistry.class.getCanonicalName());
   private final MetricsRegistry metricsRegistry;
   private final Cache<MetricName, Metric> metricCache;
-  private final LoadingCache<MetricMatcher, List<MetricName>> metricNamesForMetricMatchers;
+  private final LoadingCache<MetricMatcher, Set<MetricName>> metricNamesForMetricMatchers;
   private final boolean wavefrontHistograms;
   private final Supplier<Long> nowMillis;
 
@@ -46,8 +46,8 @@ public class EvictingMetricsRegistry {
           }
           metricsRegistry.removeMetric(metricName);
         }).build();
-    this.metricNamesForMetricMatchers = Caffeine.<MetricMatcher, List<MetricName>>newBuilder()
-        .build((metricMatcher) -> Lists.newLinkedList());
+    this.metricNamesForMetricMatchers = Caffeine.<MetricMatcher, Set<MetricName>>newBuilder()
+        .build((metricMatcher) -> Sets.newHashSet());
   }
 
   public Counter getCounter(MetricName metricName, MetricMatcher metricMatcher) {
