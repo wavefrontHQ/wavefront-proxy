@@ -119,6 +119,13 @@
       tag     : datacenter
       match   : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
 
+    - rule    : example-extract-metric-prefix
+      action  : extractTag
+      source  : metricName
+      tag     : prefix
+      search  : "^(some).*"
+      replace : "$1"
+
 
 '4242':
 

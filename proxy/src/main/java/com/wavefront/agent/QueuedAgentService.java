@@ -121,7 +121,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                             final UUID agentId, final boolean splitPushWhenRateLimited,
                             final String logLevel) throws IOException {
     this(service, bufferFile, retryThreads, executorService, purge,
-        agentId, splitPushWhenRateLimited, RecyclableRateLimiter.create(Integer.MAX_VALUE, 60));
+        agentId, splitPushWhenRateLimited, (RecyclableRateLimiter) null);
   }
 
 

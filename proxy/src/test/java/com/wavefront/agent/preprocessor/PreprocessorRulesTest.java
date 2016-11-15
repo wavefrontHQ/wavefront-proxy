@@ -298,7 +298,7 @@ public class PreprocessorRulesTest {
     // - drop datacenter tag as it matches az[4-6]
     // - rename qux tag to numericTag
     String expectedPoint6 = "\"some.metric\" 7.0 1459527231 source=\"hostname\" " +
-        "\"baz\"=\"bar\" \"newtagkey\"=\"1\" \"numericTag\"=\"12345\"";
+        "\"baz\"=\"bar\" \"newtagkey\"=\"1\" \"numericTag\"=\"12345\" \"prefix\"=\"some\"";
     assertEquals(expectedPoint6, applyAllTransformers(
         "some.metric 7 1459527231 source=hostname foo=bar dc1=baz datacenter=az4 qux=12345", "2878"));
   }

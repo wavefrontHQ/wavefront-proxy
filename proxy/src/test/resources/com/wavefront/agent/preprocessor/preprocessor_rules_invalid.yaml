@@ -511,7 +511,6 @@
       value   : "1"
       match   : match
 
-
     # test renameTag
 
     # missing tag
@@ -574,3 +573,102 @@
       newtag  : newtag
       value   : "1"
 
+
+    # test extractTag
+
+    # missing tag
+    - rule    : test-extractTag-1
+      action  : extractTag
+      match   : tag
+      source  : metricName
+      search  : tag
+      replace : replace
+
+    # null tag
+    - rule    : test-extractTag-2
+      action  : extractTag
+      tag     :
+      match   : tag
+      source  : metricName
+      search  : tag
+      replace : replace
+
+    # empty tag
+    - rule    : test-extractTag-3
+      action  : extractTag
+      tag     : ""
+      match   : match
+      source  : metricName
+      search  : tag
+      replace : replace
+
+    # missing source
+    - rule    : test-extractTag-4
+      action  : extractTag
+      tag     : tag
+      match   : match
+      search  : tag
+      replace : replace
+
+    # empty source
+    - rule    : test-extractTag-5
+      action  : extractTag
+      tag     : tag
+      source  : ""
+      match   : match
+      search  : tag
+      replace : replace
+
+    # missing search
+    - rule    : test-extractTag-6
+      action  : extractTag
+      tag     : tag
+      source  : metricName
+      match   : match
+      replace : replace
+
+    # empty search
+    - rule    : test-extractTag-7
+      action  : extractTag
+      tag     : tag
+      source  : metricName
+      match   : match
+      search  : ""
+      replace : replace
+
+    # missing replace
+    - rule    : test-extractTag-8
+      action  : extractTag
+      tag     : tag
+      source  : metricName
+      match   : match
+      search  : tag
+
+    # null replace
+    - rule    : test-extractTag-9
+      action  : extractTag
+      tag     : tag
+      source  : metricName
+      match   : match
+      search  : tag
+      replace :
+
+    # scope does not apply
+    - rule    : test-extractTag-10
+      action  : extractTag
+      scope   : tag
+      tag     : tag
+      source  : metricName
+      match   : match
+      search  : tag
+      replace : ""
+
+    # value does not apply
+    - rule    : test-extractTag-10
+      action  : extractTag
+      tag     : tag
+      source  : metricName
+      match   : match
+      search  : tag
+      replace : ""
+      value   : "1"

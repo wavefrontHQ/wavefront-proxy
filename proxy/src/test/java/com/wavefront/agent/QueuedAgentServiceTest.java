@@ -62,7 +62,7 @@ public class QueuedAgentServiceTest {
             toReturn.setName("unit test submission worker: " + counter.getAndIncrement());
             return toReturn;
           }
-        }), true, newAgentId, false, RecyclableRateLimiter.create(Integer.MAX_VALUE, 60));
+        }), true, newAgentId, false, (RecyclableRateLimiter) null);
   }
 
   // postWorkUnitResult
