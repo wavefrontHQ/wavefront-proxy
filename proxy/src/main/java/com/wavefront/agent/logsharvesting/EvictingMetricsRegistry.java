@@ -1,6 +1,5 @@
 package com.wavefront.agent.logsharvesting;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -16,7 +15,6 @@ import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
