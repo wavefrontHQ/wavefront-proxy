@@ -16,6 +16,7 @@
 ##   - dropTag: remove a point tag. optional: remove tag only when its value matches a regex pattern (full match))
 ##   - addTag: add a new point tag. if such point tag already exists, an existing value will be replaced
 ##   - addTagIfNotExists: add a new point tag, but don't overwrite an existing value if such point tag already exists
+##   - extractTag: create a new point tag based on a metric name, source name or another point tag
 ##   - renameTag: rename a point tag, preserving its value. optional: rename it only when the point tag value matches
 ##                a regex pattern (full match). this functionality allows separating a point tag with mixed data into
 ##                separate tags.

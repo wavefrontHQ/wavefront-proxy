@@ -74,7 +74,8 @@ public class AgentPreprocessorConfiguration {
         for (Map<String, String> rule : rules) {
           try {
             requireArguments(rule, "rule", "action");
-            allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "tag", "newtag", "value");
+            allowArguments(rule, "rule", "action", "scope", "search", "replace", "match",
+                "tag", "newtag", "value", "source");
             Counter counter = Metrics.newCounter(new TaggedMetricName("preprocessor." +
                 rule.get("rule").replaceAll("[^a-z0-9_-]", ""), "count", "port", strPort));
             if (rule.get("scope") != null && rule.get("scope").equals("pointLine")) {
@@ -121,6 +122,12 @@ public class AgentPreprocessorConfiguration {
                   allowArguments(rule, "rule", "action", "tag", "match");
                   this.forPort(strPort).forReportPoint().addTransformer(
                       new ReportPointDropTagTransformer(rule.get("tag"), rule.get("match"), counter));
+                  break;
+                case "extractTag":
+                  allowArguments(rule, "rule", "action", "tag", "source", "search", "replace", "match");
+                  this.forPort(strPort).forReportPoint().addTransformer(
+                      new ReportPointExtractTagTransformer(rule.get("tag"), rule.get("source"), rule.get("search"),
+                          rule.get("replace"), rule.get("match"), counter));
                   break;
                 case "renameTag":
                   allowArguments(rule, "rule", "action", "tag", "newtag", "match");
