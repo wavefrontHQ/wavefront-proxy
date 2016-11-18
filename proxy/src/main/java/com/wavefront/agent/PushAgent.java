@@ -22,7 +22,9 @@ import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.AccumulationTask;
 import com.wavefront.agent.histogram.tape.TapeDeck;
 import com.wavefront.agent.histogram.tape.TapeStringListConverter;
-import com.wavefront.agent.logsharvesting.FilebeatListener;
+import com.wavefront.agent.logsharvesting.FilebeatIngester;
+import com.wavefront.agent.logsharvesting.LogsIngester;
+import com.wavefront.agent.logsharvesting.RawLogsIngester;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
@@ -312,25 +314,44 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
-    if (filebeatPort > 0) {
+    // Logs ingestion.
+    if (loadLogsIngestionConfig() != null) {
+      logger.info("Loading logs ingestion.");
       try {
-        final Server filebeatServer = new Server(filebeatPort);
-        final String filebeatPortStr = String.valueOf(filebeatPort);
-        filebeatServer.setMessageListener(new FilebeatListener(
+        final LogsIngester logsIngester = new LogsIngester(
             new PointHandlerImpl(
-                filebeatPortStr, pushValidationLevel, pushBlockedSamples, getFlushTasks(filebeatPortStr)),
-            this::loadLogsIngestionConfig, prefix, System::currentTimeMillis));
-        startAsManagedThread(() -> {
-          try {
-            filebeatServer.listen();
-          } catch (InterruptedException e) {
-            e.printStackTrace();
-          }
-        });
+                "logs-ingester", pushValidationLevel, pushBlockedSamples, getFlushTasks("logs-ingester")),
+            this::loadLogsIngestionConfig, prefix, System::currentTimeMillis);
+
+        if (filebeatPort > 0) {
+          final Server filebeatServer = new Server(filebeatPort);
+          filebeatServer.setMessageListener(new FilebeatIngester(logsIngester, System::currentTimeMillis));
+          startAsManagedThread(() -> {
+            try {
+              filebeatServer.listen();
+            } catch (InterruptedException e) {
+              logger.log(Level.SEVERE, "Filebeat server interrupted.", e);
+            }
+          });
+        }
+
+        if (rawLogsPort > 0) {
+          RawLogsIngester rawLogsIngester = new RawLogsIngester(logsIngester, rawLogsPort, System::currentTimeMillis);
+          startAsManagedThread(() -> {
+            try {
+              rawLogsIngester.listen();
+            } catch (InterruptedException e) {
+              logger.log(Level.SEVERE, "Raw logs server interrupted.", e);
+            }
+          });
+        }
       } catch (ConfigurationException e) {
         logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
       }
+    } else {
+      logger.info("Not loading logs ingestion -- no config specified.");
     }
+
   }
 
   protected void startOpenTsdbListener(final String strPort) {

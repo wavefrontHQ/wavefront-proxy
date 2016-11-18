@@ -16,7 +16,7 @@ import javax.annotation.Nullable;
  *
  * @author Mori Bellamy (mori@wavefront.com)
  */
-public class FilebeatMessage {
+public class FilebeatMessage implements LogsMessage {
   private final Message wrapped;
   private final Map messageData;
   private final Map beatData;
@@ -33,6 +33,7 @@ public class FilebeatMessage {
     if (getTimestampMillis() == null) throw new MalformedMessageException("No timestamp metadata.");
   }
 
+  @Override
   @Nullable
   public Long getTimestampMillis() {
     if (timestampMillis == null) {
@@ -48,10 +49,12 @@ public class FilebeatMessage {
     return timestampMillis;
   }
 
+  @Override
   public String getLogLine() {
     return logLine;
   }
 
+  @Override
   public String hostOrDefault(String fallbackHost) {
     if (this.beatData.containsKey("hostname")) {
       return (String) this.beatData.get("hostname");

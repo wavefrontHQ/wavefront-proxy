@@ -2,3 +2,5 @@ aggregationIntervalSeconds: 4
 counters:
   - pattern: "%{COMBINEDAPACHELOG}"
     metricName: "development.combined_apache_log_lines"
+  - pattern: "counter %{WORD:name} %{NUMBER:value}"
+    metricName: "myCounter.%{name}"
