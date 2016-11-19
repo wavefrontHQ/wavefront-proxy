@@ -8,8 +8,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.function.Supplier;
 
-import javax.annotation.Nullable;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;

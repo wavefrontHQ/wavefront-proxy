@@ -25,7 +25,7 @@ public class FilebeatIngester implements IMessageListener {
   private Supplier<Long> currentMillis;
 
   public FilebeatIngester(LogsIngester logsIngester, Supplier<Long> currentMillis) {
-   this.logsIngester = logsIngester;
+    this.logsIngester = logsIngester;
     this.received = Metrics.newCounter(new MetricName("logsharvesting", "", "filebeat-received"));
     this.malformed = Metrics.newCounter(new MetricName("logsharvesting", "", "filebeat-malformed"));
     this.drift = Metrics.newHistogram(new MetricName("logsharvesting", "", "filebeat-drift"));

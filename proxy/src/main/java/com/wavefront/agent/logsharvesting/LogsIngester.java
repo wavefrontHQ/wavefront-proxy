@@ -8,12 +8,8 @@ import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
-
-import org.logstash.beats.IMessageListener;
-import org.logstash.beats.Message;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -21,7 +17,6 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import io.netty.channel.ChannelHandlerContext;
 import sunnylabs.report.TimeSeries;
 
 /**
