@@ -96,12 +96,6 @@ public class LogsIngesterTest {
 
   private void receiveLog(String log) {
     LogsMessage logsMessage = new LogsMessage() {
-      @Nullable
-      @Override
-      public Long getTimestampMillis() {
-        return now;
-      }
-
       @Override
       public String getLogLine() {
         return log;

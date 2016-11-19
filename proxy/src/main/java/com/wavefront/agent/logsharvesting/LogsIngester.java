@@ -116,8 +116,7 @@ public class LogsIngester {
     try {
       metric.processWith(readProcessor, metricName, new ReadProcessorContext(output[0]));
     } catch (Exception e) {
-      logger.severe("Could not process metric " + metricName.toString());
-      e.printStackTrace();
+      logger.log(Level.SEVERE, "Could not process metric " + metricName.toString(), e);
     }
     return true;
   }

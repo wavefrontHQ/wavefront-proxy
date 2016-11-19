@@ -33,7 +33,6 @@ public class FilebeatMessage implements LogsMessage {
     if (getTimestampMillis() == null) throw new MalformedMessageException("No timestamp metadata.");
   }
 
-  @Override
   @Nullable
   public Long getTimestampMillis() {
     if (timestampMillis == null) {

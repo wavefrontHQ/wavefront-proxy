@@ -1,5 +1,9 @@
 package com.wavefront.agent.logsharvesting;
 
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.function.Supplier;
@@ -27,11 +31,13 @@ public class RawLogsIngester {
   private LogsIngester logsIngester;
   private int port;
   private Supplier<Long> now;
+  private Counter received;
 
   public RawLogsIngester(LogsIngester logsIngester, int port, Supplier<Long> now) {
     this.logsIngester = logsIngester;
     this.port = port;
     this.now = now;
+    this.received = Metrics.newCounter(new MetricName("logsharvesting", "", "raw-received"));
   }
 
   public void listen() throws InterruptedException {
@@ -50,11 +56,6 @@ public class RawLogsIngester {
 
   public void ingestLog(ChannelHandlerContext ctx, String log) {
     logsIngester.ingestLog(new LogsMessage() {
-      @Override
-      public Long getTimestampMillis() {
-        return now.get();
-      }
-
       @Override
       public String getLogLine() {
         return log;
@@ -81,6 +82,7 @@ public class RawLogsIngester {
       channelPipeline.addLast("logsIngestionHandler", new SimpleChannelInboundHandler<String>() {
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
+          received.inc();
           ingestLog(ctx, msg);
         }
       });
