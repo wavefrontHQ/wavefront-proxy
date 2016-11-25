@@ -6,7 +6,7 @@ import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wavefront.agent.Validation;
-import com.wavefront.agent.logsharvesting.FilebeatMessage;
+import com.wavefront.agent.logsharvesting.LogsMessage;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.annotation.ThreadSafe;
@@ -110,11 +110,11 @@ public class MetricMatcher extends Configuration {
   /**
    * Convert the given message to a timeSeries and a telemetry datum.
    *
-   * @param filebeatMessage The filebeat message to convert.
+   * @param logsMessage     The message to convert.
    * @param output          The telemetry parsed from the filebeat message.
    */
-  public TimeSeries timeSeries(FilebeatMessage filebeatMessage, Double[] output) throws NumberFormatException {
-    Match match = grok().match(filebeatMessage.getLogLine());
+  public TimeSeries timeSeries(LogsMessage logsMessage, Double[] output) throws NumberFormatException {
+    Match match = grok().match(logsMessage.getLogLine());
     match.captures();
     if (match.getEnd() == 0) return null;
     if (output != null) {
@@ -127,7 +127,7 @@ public class MetricMatcher extends Configuration {
     TimeSeries.Builder builder = TimeSeries.newBuilder();
     String dynamicName = dynamicMetricName(match.toMap());
     // Important to use a tree map for tags, since we need a stable ordering for the serialization
-    // into the FilebeatListener.metricsCache.
+    // into the LogsIngester.metricsCache.
     Map<String, String> tags = Maps.newTreeMap();
     for (int i = 0; i < tagKeys.size(); i++) {
       String tagKey = tagKeys.get(i);
@@ -141,7 +141,7 @@ public class MetricMatcher extends Configuration {
       tags.put(tagKey, value);
     }
     builder.setAnnotations(tags);
-    return builder.setMetric(dynamicName).setHost(filebeatMessage.hostOrDefault("filebeat")).build();
+    return builder.setMetric(dynamicName).setHost(logsMessage.hostOrDefault("parsed-logs")).build();
   }
 
   public boolean hasCapture(String label) {

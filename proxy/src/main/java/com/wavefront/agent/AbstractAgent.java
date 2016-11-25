@@ -290,6 +290,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
   protected Integer filebeatPort = 0;
 
+  @Parameter(names = {"--rawLogsPort"}, description = "Port on which to listen for raw logs data.")
+  protected Integer rawLogsPort = 0;
+
   @Parameter(names = {"--hostname"}, description = "Hostname for the agent. Defaults to FQDN of machine.")
   protected String hostname;
 
@@ -611,6 +614,7 @@ public abstract class AbstractAgent {
         dataBackfillCutoffHours = Integer.parseInt(prop.getProperty("dataBackfillCutoffHours",
             String.valueOf(dataBackfillCutoffHours)));
         filebeatPort = Integer.parseInt(prop.getProperty("filebeatPort", String.valueOf(filebeatPort)));
+        rawLogsPort = Integer.parseInt(prop.getProperty("rawLogsPort", String.valueOf(rawLogsPort)));
         logsIngestionConfigFile = prop.getProperty("logsIngestionConfigFile", logsIngestionConfigFile);
 
         /*

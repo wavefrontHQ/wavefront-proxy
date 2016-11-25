@@ -17,15 +17,20 @@ import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
 import org.junit.After;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.logstash.beats.Message;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
+import javax.annotation.Nullable;
+
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
 import oi.thekraken.grok.api.exception.GrokException;
 import sunnylabs.report.Histogram;
 import sunnylabs.report.ReportPoint;
@@ -46,15 +51,17 @@ import static org.hamcrest.Matchers.notNullValue;
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
-public class FilebeatListenerTest {
+public class LogsIngesterTest {
   private LogsIngestionConfig logsIngestionConfig;
-  private FilebeatListener filebeatListenerUnderTest;
+  private LogsIngester logsIngesterUnderTest;
+  private FilebeatIngester filebeatIngesterUnderTest;
+  private RawLogsIngester rawLogsIngesterUnderTest;
   private PointHandler mockPointHandler;
   private Long now = 1476408638L;  // 6:30PM california time Oct 13 2016
   private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
 
   private LogsIngestionConfig parseConfigFile(String configPath) throws IOException {
-    File configFile = new File(FilebeatListenerTest.class.getClassLoader().getResource(configPath).getPath());
+    File configFile = new File(LogsIngesterTest.class.getClassLoader().getResource(configPath).getPath());
     return objectMapper.readValue(configFile, LogsIngestionConfig.class);
   }
 
@@ -63,20 +70,49 @@ public class FilebeatListenerTest {
     logsIngestionConfig.aggregationIntervalSeconds = 10000; // HACK: Never call flush automatically.
     logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(PointHandler.class);
-    filebeatListenerUnderTest = new FilebeatListener(mockPointHandler, () -> logsIngestionConfig, null, () -> now);
+    logsIngesterUnderTest = new LogsIngester(mockPointHandler, () -> logsIngestionConfig, null, () -> now);
+    filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, () -> now);
+    rawLogsIngesterUnderTest = new RawLogsIngester(logsIngesterUnderTest, -1, () -> now);
   }
 
-  private void recieveLog(String log) {
+  private void receiveFilebeatLog(String log) {
     Map<String, Object> data = Maps.newHashMap();
     data.put("message", log);
     data.put("beat", Maps.newHashMap());
     data.put("@timestamp", "2016-10-13T20:43:45.172Z");
-    filebeatListenerUnderTest.onNewMessage(null, new Message(0, data));
+    filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
+  }
+
+  private void receiveRawLog(String log) {
+    ChannelHandlerContext ctx = EasyMock.createMock(ChannelHandlerContext.class);
+    Channel channel = EasyMock.createMock(Channel.class);
+    EasyMock.expect(ctx.channel()).andReturn(channel);
+    // Hack: Returning a mock SocketAddress simply causes the fallback to be used in getHostOrDefault.
+    EasyMock.expect(channel.remoteAddress()).andReturn(EasyMock.createMock(SocketAddress.class));
+    EasyMock.replay(ctx, channel);
+    rawLogsIngesterUnderTest.ingestLog(ctx, log);
+    EasyMock.verify(ctx, channel);
+  }
+
+  private void receiveLog(String log) {
+    LogsMessage logsMessage = new LogsMessage() {
+      @Override
+      public String getLogLine() {
+        return log;
+      }
+
+      @Override
+      public String hostOrDefault(String fallbackHost) {
+        return "testHost";
+      }
+    };
+    logsIngesterUnderTest.ingestLog(logsMessage);
   }
 
   @After
   public void cleanup() {
-    filebeatListenerUnderTest = null;
+    logsIngesterUnderTest = null;
+    filebeatIngesterUnderTest = null;
   }
 
   private void tick(int millis) {
@@ -84,10 +120,11 @@ public class FilebeatListenerTest {
   }
 
   private List<ReportPoint> getPoints(int numPoints, String... logLines) throws Exception {
-    return getPoints(numPoints, 0, logLines);
+    return getPoints(numPoints, 0, this::receiveLog, logLines);
   }
 
-  private List<ReportPoint> getPoints(int numPoints, int lagPerLogLine, String... logLines) throws Exception {
+  private List<ReportPoint> getPoints(int numPoints, int lagPerLogLine, Consumer<String> consumer, String... logLines)
+      throws Exception {
     Capture<ReportPoint> reportPointCapture = Capture.newInstance(CaptureType.ALL);
     reset(mockPointHandler);
     if (numPoints > 0) {
@@ -96,10 +133,10 @@ public class FilebeatListenerTest {
     }
     replay(mockPointHandler);
     for (String line : logLines) {
-      recieveLog(line);
+      consumer.accept(line);
       tick(lagPerLogLine);
     }
-    filebeatListenerUnderTest.getMetricsReporter().run();
+    logsIngesterUnderTest.getMetricsReporter().run();
     verify(mockPointHandler);
     return reportPointCapture.getValues();
   }
@@ -107,11 +144,27 @@ public class FilebeatListenerTest {
   @Test
   public void testPrefixIsApplied() throws Exception {
     setup("test.yml");
-    filebeatListenerUnderTest = new FilebeatListener(
+    logsIngesterUnderTest = new LogsIngester(
         mockPointHandler, () -> logsIngestionConfig, "myPrefix", () -> now);
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "myPrefix.plainCounter", ImmutableMap.of())));
+  }
+
+  @Test
+  public void testFilebeatIngester() throws Exception {
+    setup("test.yml");
+    assertThat(
+        getPoints(1, 0, this::receiveFilebeatLog, "plainCounter"),
+        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+  }
+
+  @Test
+  public void testRawLogsIngester() throws Exception {
+    setup("test.yml");
+    assertThat(
+        getPoints(1, 0, this::receiveRawLog, "plainCounter"),
+        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
   }
 
   @Test(expected = ConfigurationException.class)
@@ -145,7 +198,7 @@ public class FilebeatListenerTest {
     logsIngestionConfig = parseConfigFile("test.yml");
     logsIngestionConfig.verifyAndInit();
     logsIngestionConfig.counters = counters;
-    filebeatListenerUnderTest.logsIngestionConfigManager.forceConfigReload();
+    logsIngesterUnderTest.logsIngestionConfigManager.forceConfigReload();
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(42L, "counterWithValue", ImmutableMap.of())));
@@ -288,7 +341,7 @@ public class FilebeatListenerTest {
     for (int i = 1; i < 61; i++) {
       lines[i - 1] = "histo " + i;
     }
-    ReportPoint reportPoint = getPoints(1, 1000, lines).get(0);
+    ReportPoint reportPoint = getPoints(1, 1000, this::receiveLog, lines).get(0);
     assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
     Histogram wavefrontHistogram = (Histogram) reportPoint.getValue();
     assertThat(wavefrontHistogram.getBins(), hasSize(2));
