@@ -4,7 +4,7 @@ FROM ubuntu:14.04
 # these variables:
 #  WAVEFRONT_URL           (required)
 #  WAVEFRONT_TOKEN         (required)
-#  JAVA_HEAP_USAGE         (defualt is 4G)
+#  JAVA_HEAP_USAGE         (default is 4G)
 #  WAVEFRONT_HOSTNAME      (default is the docker containers hostname)
 #  WAVEFRONT_USE_GRAPHITE  (default is false)
 
@@ -17,16 +17,22 @@ RUN rm dumb-init_*.deb
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Download wavefront. Merely extract the debian, don't want to try running startup scripts.
-RUN curl -SLO https://packagecloud.io/wavefront/proxy/packages/ubuntu/trusty/wavefront-proxy_3.24-1_amd64.deb/download
+RUN curl -SLO https://packagecloud.io/wavefront/proxy/packages/ubuntu/trusty/wavefront-proxy_4.1-1_amd64.deb/download
 RUN dpkg -x download /
 RUN rm download
+# Download and install JRE, since it's no longer bundled with the proxy
+RUN mkdir /opt/wavefront/wavefront-proxy/jre
+RUN curl -s https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz | tar -xz --strip 1 -C /opt/wavefront/wavefront-proxy/jre
 
 # Clean up APT when done.
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Configure agent
 ENV DO_SERVICE_RESTART=false
+RUN cp /etc/wavefront/wavefront-proxy/wavefront.conf.default /etc/wavefront/wavefront-proxy/wavefront.conf
+RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
 RUN echo '\nephemeral=true' >> /etc/wavefront/wavefront-proxy/wavefront.conf
+RUN echo '\nflushThreads=6' >> /etc/wavefront/wavefront-proxy/wavefront.conf
 
 # Run the agent
 EXPOSE 3878
