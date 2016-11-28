@@ -29,8 +29,8 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Configure agent
 ENV DO_SERVICE_RESTART=false
-COPY /etc/wavefront/wavefront-proxy/wavefront.conf.default /etc/wavefront/wavefront-proxy/wavefront.conf
-COPY /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
+RUN cp /etc/wavefront/wavefront-proxy/wavefront.conf.default /etc/wavefront/wavefront-proxy/wavefront.conf
+RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
 RUN echo '\nephemeral=true' >> /etc/wavefront/wavefront-proxy/wavefront.conf
 RUN echo '\nflushThreads=6' >> /etc/wavefront/wavefront-proxy/wavefront.conf
 
