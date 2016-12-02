@@ -30,10 +30,12 @@ public class PointHandlerImpl implements PointHandler {
 
   private static final Logger logger = Logger.getLogger(PointHandlerImpl.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
+  private static final Logger validPointsLogger = Logger.getLogger("RawValidPoints");
 
   private final Histogram receivedPointLag;
   private final String validationLevel;
   private final String handle;
+  private final boolean logPoints;
 
   @Nullable
   private final String prefix;
@@ -57,6 +59,8 @@ public class PointHandlerImpl implements PointHandler {
     this.handle = handle;
     this.blockedPointsPerBatch = blockedPointsPerBatch;
     this.prefix = prefix;
+    String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
+    this.logPoints = logPointsProperty == null || logPointsProperty.equalsIgnoreCase("true");
 
     this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle + ".received", "", "lag"));
 
@@ -77,7 +81,13 @@ public class PointHandlerImpl implements PointHandler {
           validationLevel == null ? null : Validation.Level.valueOf(validationLevel));
 
       // No validation was requested by user; send forward.
-      randomPostTask.addPoint(pointToString(point));
+      String strPoint = pointToString(point);
+      if (logPoints) {
+        // we log valid points only if system property wavefront.proxy.logpoints is true
+        // this is done to prevent introducing overhead and accidentally logging points to the main log
+        validPointsLogger.info(strPoint);
+      }
+      randomPostTask.addPoint(strPoint);
       receivedPointLag.update(Clock.now() - point.getTimestamp());
 
     } catch (IllegalArgumentException e) {

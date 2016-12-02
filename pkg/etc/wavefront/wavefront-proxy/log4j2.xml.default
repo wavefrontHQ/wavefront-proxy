@@ -50,6 +50,8 @@
             <AppenderRef ref="BlockedPointsFile"/>
             -->
         </Logger>
+        <Logger name="RawValidPoints" level="DEBUG" additivity="false">
+        </Logger>
         <Root level="INFO">
             <AppenderRef ref="RollingFile"/>
             <AppenderRef ref="Console" />
