@@ -1,6 +1,5 @@
 @namespace("sunnylabs.report")
 protocol Reporting {
-  import idl "Events.avdl";
 
   enum DataType {
     DOUBLE, LONG, STRING, NUMERICAL
