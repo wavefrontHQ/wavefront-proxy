@@ -402,14 +402,17 @@ public abstract class AbstractAgent {
     @Override
     public void run() {
       long startTime = System.currentTimeMillis();
+      boolean isRetry = false;
       try {
         AgentConfiguration config = fetchConfig();
         if (config != null) {
           processConfiguration(config);
+        } else {
+          isRetry = true;
         }
       } finally {
-        // schedule the next run in 1 minute, compensated for the time taken to check in
-        long nextRun = Math.max(5000, 60000 - (System.currentTimeMillis() - startTime));
+        // schedule the next run in 1 minute, compensated for the time taken to check in. if failed, retry in 500ms
+        long nextRun = isRetry ? 500 : Math.max(5000, 60000 - (System.currentTimeMillis() - startTime));
         auxiliaryExecutor.schedule(this, nextRun, TimeUnit.MILLISECONDS);
       }
     }
