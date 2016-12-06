@@ -127,12 +127,12 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--retryThreads"}, description = "Number of threads retrying failed transmissions. Defaults to " +
       "the number of processors (min. 4). Buffer files are maxed out at 2G each so increasing the number of retry " +
       "threads effectively governs the maximum amount of space the agent will use to buffer points locally")
-  protected int retryThreads = Math.max(4, Runtime.getRuntime().availableProcessors());
+  protected int retryThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
       "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
       "small to the server and wasting connections. This setting is per listening port.")
-  protected int flushThreads = Math.max(4, Runtime.getRuntime().availableProcessors());
+  protected int flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(names = {"--purgeBuffer"}, description = "Whether to purge the retry buffer on start-up. Defaults to " +
       "false.")
@@ -818,6 +818,7 @@ public abstract class AbstractAgent {
     } else {
       HttpClient httpClient = HttpClientBuilder.create().
           useSystemProperties().
+          disableAutomaticRetries().
           setUserAgent(httpUserAgent).
           setMaxConnTotal(200).
           setMaxConnPerRoute(100).
