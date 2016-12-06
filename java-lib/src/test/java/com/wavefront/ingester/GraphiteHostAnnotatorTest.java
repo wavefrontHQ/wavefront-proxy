@@ -67,7 +67,7 @@ public class GraphiteHostAnnotatorTest {
     List<Object> out = new LinkedList<Object>();
     String msg = "test.metric 1 foo=bar";
     handler.decode(null, msg, out);
-    assertEquals("test.metric 1 foo=bar source=test.host.com", out.get(0));
+    assertEquals("test.metric 1 foo=bar source=\"test.host.com\"", out.get(0));
   }
 
   @Ignore
