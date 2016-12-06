@@ -127,12 +127,12 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--retryThreads"}, description = "Number of threads retrying failed transmissions. Defaults to " +
       "the number of processors (min. 4). Buffer files are maxed out at 2G each so increasing the number of retry " +
       "threads effectively governs the maximum amount of space the agent will use to buffer points locally")
-  protected int retryThreads = Math.max(4, Runtime.getRuntime().availableProcessors());
+  protected int retryThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
       "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
       "small to the server and wasting connections. This setting is per listening port.")
-  protected int flushThreads = Math.max(4, Runtime.getRuntime().availableProcessors());
+  protected int flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(names = {"--purgeBuffer"}, description = "Whether to purge the retry buffer on start-up. Defaults to " +
       "false.")
@@ -402,14 +402,17 @@ public abstract class AbstractAgent {
     @Override
     public void run() {
       long startTime = System.currentTimeMillis();
+      boolean isRetry = false;
       try {
         AgentConfiguration config = fetchConfig();
         if (config != null) {
           processConfiguration(config);
+        } else {
+          isRetry = true;
         }
       } finally {
-        // schedule the next run in 1 minute, compensated for the time taken to check in
-        long nextRun = Math.max(5000, 60000 - (System.currentTimeMillis() - startTime));
+        // schedule the next run in 1 minute, compensated for the time taken to check in. if failed, retry in 500ms
+        long nextRun = isRetry ? 500 : Math.max(5000, 60000 - (System.currentTimeMillis() - startTime));
         auxiliaryExecutor.schedule(this, nextRun, TimeUnit.MILLISECONDS);
       }
     }
@@ -818,6 +821,7 @@ public abstract class AbstractAgent {
     } else {
       HttpClient httpClient = HttpClientBuilder.create().
           useSystemProperties().
+          disableAutomaticRetries().
           setUserAgent(httpUserAgent).
           setMaxConnTotal(200).
           setMaxConnPerRoute(100).
@@ -1065,27 +1069,33 @@ public abstract class AbstractAgent {
   }
 
   private static String getLocalHostName() {
+    InetAddress localAddress = null;
     try {
-      return InetAddress.getLocalHost().getCanonicalHostName();
-    } catch (UnknownHostException e) {
-      try {
-        // if can't resolve local server name, use a real IPv4 address from the first available network interface
-        for (Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
-             nics.hasMoreElements(); ) {
-          NetworkInterface network = nics.nextElement();
-          if (!network.isUp() || network.isLoopback())
+      Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
+      while (nics.hasMoreElements()) {
+        NetworkInterface network = nics.nextElement();
+        if (!network.isUp() || network.isLoopback()) {
+          continue;
+        }
+        for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements(); ) {
+          InetAddress address = addresses.nextElement();
+          if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isMulticastAddress()) {
             continue;
-          for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements(); ) {
-            InetAddress address = addresses.nextElement();
-            if (address.isAnyLocalAddress() || address.isLoopbackAddress() ||
-                address.isMulticastAddress() || !(address instanceof Inet4Address))
-              continue;
-            return (address.getHostAddress());
+          }
+          if (address instanceof Inet4Address) { // prefer ipv4
+            localAddress = address;
+            break;
+          }
+          if (localAddress == null) {
+            localAddress = address;
           }
         }
-      } catch (SocketException ex) {
-        // ignore and simply return "localhost"
       }
+    } catch (SocketException ex) {
+      // ignore
+    }
+    if (localAddress != null) {
+      return localAddress.getCanonicalHostName();
     }
     return "localhost";
   }

@@ -34,6 +34,6 @@ public class GraphiteHostAnnotator extends MessageToMessageDecoder<String> {
         return;
       }
     }
-    out.add(msg + " source=" + hostName);
+    out.add(msg + " source=\"" + hostName + "\"");
   }
 }
