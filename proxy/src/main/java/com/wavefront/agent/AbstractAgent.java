@@ -1074,12 +1074,14 @@ public abstract class AbstractAgent {
       Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
       while (nics.hasMoreElements()) {
         NetworkInterface network = nics.nextElement();
-        if (!network.isUp() || network.isLoopback())
+        if (!network.isUp() || network.isLoopback()) {
           continue;
+        }
         for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements(); ) {
           InetAddress address = addresses.nextElement();
-          if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isMulticastAddress())
+          if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isMulticastAddress()) {
             continue;
+          }
           if (address instanceof Inet4Address) { // prefer ipv4
             localAddress = address;
             break;
