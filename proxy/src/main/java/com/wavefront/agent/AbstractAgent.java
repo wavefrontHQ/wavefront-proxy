@@ -1065,27 +1065,31 @@ public abstract class AbstractAgent {
   }
 
   private static String getLocalHostName() {
+    InetAddress localAddress = null;
     try {
-      return InetAddress.getLocalHost().getCanonicalHostName();
-    } catch (UnknownHostException e) {
-      try {
-        // if can't resolve local server name, use a real IPv4 address from the first available network interface
-        for (Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
-             nics.hasMoreElements(); ) {
-          NetworkInterface network = nics.nextElement();
-          if (!network.isUp() || network.isLoopback())
+      Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
+      while (nics.hasMoreElements()) {
+        NetworkInterface network = nics.nextElement();
+        if (!network.isUp() || network.isLoopback())
+          continue;
+        for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements(); ) {
+          InetAddress address = addresses.nextElement();
+          if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isMulticastAddress())
             continue;
-          for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements(); ) {
-            InetAddress address = addresses.nextElement();
-            if (address.isAnyLocalAddress() || address.isLoopbackAddress() ||
-                address.isMulticastAddress() || !(address instanceof Inet4Address))
-              continue;
-            return (address.getHostAddress());
+          if (address instanceof Inet4Address) { // prefer ipv4
+            localAddress = address;
+            break;
+          }
+          if (localAddress == null) {
+            localAddress = address;
           }
         }
-      } catch (SocketException ex) {
-        // ignore and simply return "localhost"
       }
+    } catch (SocketException ex) {
+      // ignore
+    }
+    if (localAddress != null) {
+      return localAddress.getCanonicalHostName();
     }
     return "localhost";
   }
