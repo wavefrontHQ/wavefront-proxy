@@ -60,7 +60,7 @@ public class PointHandlerImpl implements PointHandler {
     this.blockedPointsPerBatch = blockedPointsPerBatch;
     this.prefix = prefix;
     String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
-    this.logPoints = logPointsProperty == null || logPointsProperty.equalsIgnoreCase("true");
+    this.logPoints = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
 
     this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle + ".received", "", "lag"));
 
