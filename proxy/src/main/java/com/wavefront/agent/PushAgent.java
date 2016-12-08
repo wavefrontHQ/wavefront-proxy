@@ -446,7 +446,9 @@ public class PushAgent extends AbstractAgent {
         @Override
         public ChannelHandler apply(Channel input) {
           SocketChannel ch = (SocketChannel) input;
-          return new GraphiteHostAnnotator(ch.remoteAddress().getHostName(), customSourceTags);
+          return new GraphiteHostAnnotator(disableRdnsLookup
+              ? ch.remoteAddress().getAddress().getHostAddress()
+              : ch.remoteAddress().getHostName(), customSourceTags);
         }
       });
       startAsManagedThread(new StringLineIngester(handler, graphiteHandler, port)

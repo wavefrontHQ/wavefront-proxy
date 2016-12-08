@@ -340,6 +340,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--ephemeral"}, description = "If true, this agent is removed from Wavefront after 24 hours of inactivity.")
   protected boolean ephemeral = false;
 
+  @Parameter(names = {"--disableRdnsLookup"}, description = "When receiving Wavefront-formatted data without source/host specified, use remote IP address as source instead of trying to resolve the DNS name. Default false.")
+  protected boolean disableRdnsLookup = false;
+
   @Parameter(names = {"--javaNetConnection"}, description = "If true, use JRE's own http client when making connections instead of Apache HTTP Client")
   protected boolean javaNetConnection = false;
 
@@ -611,6 +614,8 @@ public abstract class AbstractAgent {
         customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
         agentMetricsPointTags = prop.getProperty("agentMetricsPointTags", agentMetricsPointTags);
         ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
+        disableRdnsLookup = Boolean.parseBoolean(prop.getProperty("disableRdnsLookup",
+            String.valueOf(disableRdnsLookup)));
         picklePorts = prop.getProperty("picklePorts", picklePorts);
         bufferFile = prop.getProperty("buffer", bufferFile);
         preprocessorConfigFile = prop.getProperty("preprocessorConfigFile", preprocessorConfigFile);
