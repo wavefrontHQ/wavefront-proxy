@@ -15,7 +15,7 @@
 # File any issues here: https://github.com/wavefrontHQ/java/issues.
 ################################################################################
 
-service_name=$(basename "$0")
+service_name="wavefront-proxy"
 # Source custom settings
 sysconfig="/etc/sysconfig/$service_name"
 # shellcheck source=/dev/null
