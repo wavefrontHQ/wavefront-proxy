@@ -35,7 +35,11 @@ chown $user:$group $wavefront_dir/$service_name
 chown $user:$group $conf_dir/$service_name
 
 if [[ ! -f $conf_dir/$service_name/wavefront.conf ]]; then
-    cp $conf_dir/$service_name/wavefront.conf.default $conf_dir/$service_name/wavefront.conf
+    if [[ -f $wavefront_dir/$service_name/conf/wavefront.conf ]]; then
+        cp $wavefront_dir/$service_name/conf/wavefront.conf $conf_dir/$service_name/wavefront.conf
+    else
+        cp $conf_dir/$service_name/wavefront.conf.default $conf_dir/$service_name/wavefront.conf
+    fi
 fi
 
 if [[ ! -f $conf_dir/$service_name/preprocessor_rules.yaml ]]; then
@@ -54,6 +58,23 @@ if [[ -f $old_pid_file ]]; then
 	pid=$(cat $old_pid_file)
 	kill -9 "$pid" || true
 	rm $old_pid_file
+fi
+
+# Stop the 3.24/4.1 service if was started during boot, since it is running with a different .pid file.
+old_pid_file="/var/run/S99wavefront.pid"
+if [[ -f $old_pid_file ]]; then
+    if [[ -f /etc/rc2.d/S99wavefront-proxy ]]; then
+        /etc/rc2.d/S99wavefront-proxy stop
+    fi
+    if [[ -f /etc/rc.d/rc2.d/S99wavefront-proxy ]]; then
+        /etc/rc.d/rc2.d/S99wavefront-proxy stop
+    fi
+    # if stopping didn't work, we'll have to kill the process
+    if [[ -f $old_pid_file ]]; then
+        pid=$(cat $old_pid_file)
+	    kill -9 "$pid" || true
+	    rm $old_pid_file
+	fi
 fi
 
 [[ -d $jre_dir ]] || mkdir -p $jre_dir
