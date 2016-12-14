@@ -98,6 +98,14 @@
   #  scope   : exampleCluster
   #  search  : "-"
   #  replace : "."
+  
+  # remove the string in the second position of a metric name
+  ################################################################
+  #- rule    : example-remove-second-position
+  #  action  : replaceRegex
+  #  scope   : metricName
+  #  search  : "([^\\.]+)(\\..+?)(\\..*)"
+  #  replace : "$1$3"
 
   ## rename a point tag
   ################################################################
