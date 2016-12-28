@@ -61,7 +61,7 @@ if [[ -f $old_pid_file ]]; then
 fi
 
 # Stop the 3.24/4.1 service if was started during boot, since it is running with a different .pid file.
-old_pid_file="/var/run/S99wavefront.pid"
+old_pid_file="/var/run/S99wavefront-proxy.pid"
 if [[ -f $old_pid_file ]]; then
     if [[ -f /etc/rc2.d/S99wavefront-proxy ]]; then
         /etc/rc2.d/S99wavefront-proxy stop
