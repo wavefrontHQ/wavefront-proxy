@@ -9,6 +9,7 @@ import java.io.Writer;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.Map;
@@ -142,6 +143,21 @@ public class Wavefront implements WavefrontSender {
         // already connected.
       }
     }
+    try {
+      internalSend0(name, value, timestamp, source, pointTags);
+    } catch (SocketException ex) { // retry at least once on SocketExceptions
+      this.socket = null;
+      try {
+        connect();
+      } catch (IllegalStateException e) {
+        // already connected.
+      }
+      internalSend0(name, value, timestamp, source, pointTags);
+    }
+  }
+
+  private void internalSend0(String name, double value, @Nullable Long timestamp, String source,
+                             @Nullable Map<String, String> pointTags) throws IOException {
     if (StringUtils.isBlank(name)) {
       throw new IllegalArgumentException("metric name cannot be blank");
     }
@@ -157,7 +173,7 @@ public class Wavefront implements WavefrontSender {
         sb.append(' ');
         sb.append(Long.toString(timestamp));
       }
-      sb.append(" host=");
+      sb.append(" source=");
       sb.append(sanitize(source));
       if (pointTags != null) {
         for (final Map.Entry<String, String> tag : pointTags.entrySet()) {
@@ -170,11 +186,12 @@ public class Wavefront implements WavefrontSender {
           sb.append(' ');
           sb.append(sanitize(tag.getKey()));
           sb.append('=');
-          sb.append(sanitize(tag.getValue()));
+          sb.append(quote(tag.getValue())); // spaces are allowed in point tag values
         }
       }
       sb.append('\n');
       writer.write(sb.toString());
+      writer.flush();
     } catch (IOException e) {
       failures.incrementAndGet();
       throw e;
@@ -214,11 +231,15 @@ public class Wavefront implements WavefrontSender {
 
   static String sanitize(String s) {
     final String whitespaceSanitized = WHITESPACE.matcher(s).replaceAll("-");
+    return quote(whitespaceSanitized);
+  }
+
+  private static String quote(String s) {
     if (s.contains("\"") || s.contains("'")) {
       // for single quotes, once we are double-quoted, single quotes can exist happily inside it.
-      return "\"" + whitespaceSanitized.replaceAll("\"", "\\\\\"") + "\"";
+      return "\"" + s.replaceAll("\"", "\\\\\"") + "\"";
     } else {
-      return "\"" + whitespaceSanitized + "\"";
+      return "\"" + s + "\"";
     }
   }
 }
