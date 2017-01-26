@@ -63,6 +63,33 @@ if [[ -r $proxy_launch_conf ]]; then
 	fi
 fi
 
+if [[ ! -r $JAVA_HOME/bin/java ]]; then
+
+    echo "JRE not found - trying to download and install"
+
+    [[ -d $JAVA_HOME ]] || mkdir -p $JAVA_HOME
+
+    echo "Checking $conf_file for HTTP proxy settings"
+    proxy_host=$(grep "^\s*proxyHost=" $conf_file | cut -d'=' -f2)
+    proxy_port=$(grep "^\s*proxyPort=" $conf_file | cut -d'=' -f2)
+    proxy_user=$(grep "^\s*proxyUser=" $conf_file | cut -d'=' -f2)
+    proxy_password=$(grep "^\s*proxyPassword=" $conf_file | cut -d'=' -f2)
+
+    if [[ -n $proxy_host && -n $proxy_port ]]; then
+        echo "Using HTTP proxy $proxy_host:$proxy_port"
+        proxy_args="--proxy $proxy_host:$proxy_port"
+        if [[ -n $proxy_user && -n $proxy_password ]]; then
+            echo "Authenticating as $proxy_user"
+            proxy_args+=" --proxy-user $proxy_user:$proxy_password"
+        fi
+    else
+        echo "No HTTP proxy configuration detected - attempting direct download"
+    fi
+    curl -L --silent -o /tmp/jre.tar.gz $proxy_args https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz
+    tar -xf /tmp/jre.tar.gz --strip 1 -C $JAVA_HOME
+    rm /tmp/jre.tar.gz
+fi
+
 jsvc=$proxy_dir/bin/jsvc
 
 jsvc_exec()

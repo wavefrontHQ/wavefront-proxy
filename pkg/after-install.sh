@@ -82,9 +82,9 @@ fi
 
 echo "Downloading and installing Zulu JRE"
 
-curl -L --silent -o /tmp/jre.tar.gz https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz
-tar -xf /tmp/jre.tar.gz --strip 1 -C $jre_dir
-rm /tmp/jre.tar.gz
+curl -L --silent -o /tmp/jre.tar.gz https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz || true
+tar -xf /tmp/jre.tar.gz --strip 1 -C $jre_dir || true
+rm /tmp/jre.tar.gz || true
 
 service $service_name restart
 
