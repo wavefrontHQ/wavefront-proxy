@@ -1,7 +1,5 @@
 package com.wavefront.integrations;
 
-import org.apache.commons.lang.StringUtils;
-
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -142,10 +140,10 @@ public class Wavefront implements WavefrontSender {
         // already connected.
       }
     }
-    if (StringUtils.isBlank(name)) {
+    if (isBlank(name)) {
       throw new IllegalArgumentException("metric name cannot be blank");
     }
-    if (StringUtils.isBlank(source)) {
+    if (isBlank(source)) {
       throw new IllegalArgumentException("source cannot be blank");
     }
     final StringBuilder sb = new StringBuilder();
@@ -161,10 +159,10 @@ public class Wavefront implements WavefrontSender {
       sb.append(sanitize(source));
       if (pointTags != null) {
         for (final Map.Entry<String, String> tag : pointTags.entrySet()) {
-          if (StringUtils.isBlank(tag.getKey())) {
+          if (isBlank(tag.getKey())) {
             throw new IllegalArgumentException("point tag key cannot be blank");
           }
-          if (StringUtils.isBlank(tag.getValue())) {
+          if (isBlank(tag.getValue())) {
             throw new IllegalArgumentException("point tag value cannot be blank");
           }
           sb.append(' ');
@@ -220,5 +218,17 @@ public class Wavefront implements WavefrontSender {
     } else {
       return "\"" + whitespaceSanitized + "\"";
     }
+  }
+
+  private static boolean isBlank(String s) {
+    if (s == null || s.isEmpty()) {
+      return true;
+    }
+    for (int i = 0; i < s.length(); i++) {
+      if (!Character.isWhitespace(s.charAt(i))) {
+        return false;
+      }
+    }
+    return true;
   }
 }
