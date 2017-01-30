@@ -26,7 +26,8 @@ user="wavefront"
 wavefront_dir="/opt/wavefront"
 proxy_dir=${PROXY_DIR:-$wavefront_dir/wavefront-proxy}
 config_dir=${CONFIG_DIR:-/etc/wavefront/wavefront-proxy}
-export JAVA_HOME="$proxy_dir/proxy-jre"
+proxy_jre_dir="$proxy_dir/proxy-jre"
+export JAVA_HOME=${PROXY_JAVA_HOME:-$proxy_jre_dir}
 conf_file=$CONF_FILE
 if [[ -z $conf_file ]]; then
     legacy_config_dir=$proxy_dir/conf
@@ -61,6 +62,16 @@ if [[ -r $proxy_launch_conf ]]; then
 		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 		java_args=$replacement_java_args
 	fi
+fi
+
+# Workaround for environments with locked-down internet access where approved traffic goes through HTTP proxy.
+# If JRE cannot be found in $proxy_jre_dir (most likely because its download failed during installation), and
+# $PROXY_JAVA_HOME pointing to a user-defined JRE is not defined either, we'll try to read HTTP proxy settings
+# from wavefront.conf, if any, and try to download the JRE again. Ideally we should go back to bundling JRE
+# and not having to worry about accessibility of external resources.
+if [[ -z "$PROXY_JAVA_HOME" && ! -r $proxy_jre_dir/bin/java ]]; then
+    echo "JRE not found - trying to download and install"
+    download_jre
 fi
 
 jsvc=$proxy_dir/bin/jsvc
@@ -122,3 +133,27 @@ restart)
 	echo "Usage: $0 {status | start | stop | restart}"
 	exit 1
 esac
+
+download_jre() {
+    [[ -d $proxy_jre_dir ]] || mkdir -p $proxy_jre_dir
+
+    echo "Checking $conf_file for HTTP proxy settings"
+    proxy_host=$(grep "^\s*proxyHost=" $conf_file | cut -d'=' -f2)
+    proxy_port=$(grep "^\s*proxyPort=" $conf_file | cut -d'=' -f2)
+    proxy_user=$(grep "^\s*proxyUser=" $conf_file | cut -d'=' -f2)
+    proxy_password=$(grep "^\s*proxyPassword=" $conf_file | cut -d'=' -f2)
+
+    if [[ -n $proxy_host && -n $proxy_port ]]; then
+        echo "Using HTTP proxy $proxy_host:$proxy_port"
+        proxy_args="--proxy $proxy_host:$proxy_port"
+        if [[ -n $proxy_user && -n $proxy_password ]]; then
+            echo "Authenticating as $proxy_user"
+            proxy_args+=" --proxy-user $proxy_user:$proxy_password"
+        fi
+    else
+        echo "No HTTP proxy configuration detected - attempting direct download"
+    fi
+    curl -L --silent -o /tmp/jre.tar.gz $proxy_args https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz
+    tar -xf /tmp/jre.tar.gz --strip 1 -C $proxy_jre_dir
+    rm /tmp/jre.tar.gz
+}
