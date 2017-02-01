@@ -387,7 +387,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         ObjectOutputStream oos = new ObjectOutputStream(lz4OutputStream);
         oos.writeObject(task);
         oos.close();
-        lz4OutputStream.finish();
         lz4OutputStream.close();
         resultPostingSizes.update(outputStream.size());
       } catch (Throwable t) {
