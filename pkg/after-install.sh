@@ -23,6 +23,11 @@ fi
 # Create log directory if it does not exist
 [[ -d $log_dir ]] || mkdir -p $log_dir && chown $user:$group $log_dir
 
+touch $log_dir/wavefront-daemon.log
+touch $log_dir/wavefront-error.log
+chown $user:$group $log_dir/wavefront-daemon.log
+chown $user:$group $log_dir/wavefront-error.log
+
 # Configure agent to start on reboot.
 if [[ -f /etc/debian_version ]]; then
 	update-rc.d $service_name defaults 99
@@ -79,12 +84,6 @@ if [[ -f $old_pid_file ]]; then
 fi
 
 [[ -d $jre_dir ]] || mkdir -p $jre_dir
-
-echo "Downloading and installing Zulu JRE"
-
-curl -L --silent -o /tmp/jre.tar.gz https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz || true
-tar -xf /tmp/jre.tar.gz --strip 1 -C $jre_dir || true
-rm /tmp/jre.tar.gz || true
 
 service $service_name restart
 

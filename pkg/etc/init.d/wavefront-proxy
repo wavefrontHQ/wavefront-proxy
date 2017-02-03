@@ -102,7 +102,14 @@ jsvc=$proxy_dir/bin/jsvc
 
 jsvc_exec()
 {
+    if [[ ! $1 == "-stop" ]]; then
+        > $daemon_log_file
+        > $err_file
+    fi
+
 	cd "$(dirname "$agent_jar")"
+
+    set +e
 	# We want word splitting below, as we're building up a command line.
 	# shellcheck disable=SC2086
 	$jsvc \
@@ -114,12 +121,13 @@ jsvc_exec()
 		-Dlog4j.configurationFile=$config_dir/log4j2.xml \
 		-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
 		-errfile $err_file \
+		-outfile $daemon_log_file \
 		-pidfile $pid_file \
 		-wait 20 \
 		-debug \
 		$1 \
 		$class \
-		$app_args &> $daemon_log_file
+		$app_args
 	if [[ $? -ne 0 ]]; then
 		echo "There was a problem, see $err_file and $daemon_log_file"
 	fi
