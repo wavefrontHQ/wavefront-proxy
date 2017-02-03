@@ -23,15 +23,8 @@ fi
 # Create log directory if it does not exist
 [[ -d $log_dir ]] || mkdir -p $log_dir && chown $user:$group $log_dir
 
-# if jsvc logs don't exist, create empty files
-if [[ ! -f $log_dir/wavefront-daemon.log ]]; then
-    > $log_dir/wavefront-daemon.log
-fi
-
-if [[ ! -f $log_dir/wavefront-error.log ]]; then
-    > $log_dir/wavefront-error.log
-fi
-
+touch $log_dir/wavefront-daemon.log
+touch $log_dir/wavefront-error.log
 chown $user:$group $log_dir/wavefront-daemon.log
 chown $user:$group $log_dir/wavefront-error.log
 
