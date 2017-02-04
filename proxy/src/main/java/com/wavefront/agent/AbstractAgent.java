@@ -509,6 +509,8 @@ public abstract class AbstractAgent {
     }
   }
 
+
+
   private void loadListenerConfigurationFile() throws IOException {
     // If they've specified a push configuration file, override the command line values
     if (pushConfigFile != null) {
@@ -523,64 +525,64 @@ public abstract class AbstractAgent {
         hostname = prop.getProperty("hostname", hostname);
         idFile = prop.getProperty("idFile", idFile);
         pushFlushInterval = Integer.parseInt(prop.getProperty("pushFlushInterval",
-            String.valueOf(pushFlushInterval)));
+            String.valueOf(pushFlushInterval)).trim());
         pushFlushMaxPoints = Integer.parseInt(prop.getProperty("pushFlushMaxPoints",
-            String.valueOf(pushFlushMaxPoints)));
-        pushRateLimit = Integer.parseInt(prop.getProperty("pushRateLimit", String.valueOf(pushRateLimit)));
+            String.valueOf(pushFlushMaxPoints)).trim());
+        pushRateLimit = Integer.parseInt(prop.getProperty("pushRateLimit", String.valueOf(pushRateLimit)).trim());
         pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
-            String.valueOf(pushBlockedSamples)));
+            String.valueOf(pushBlockedSamples)).trim());
         pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
         histogramStateDirectory = prop.getProperty("histogramStateDirectory", histogramStateDirectory);
         histogramAccumulatorResolveInterval = Long.parseLong(prop.getProperty(
             "histogramAccumulatorResolveInterval",
-            String.valueOf(histogramAccumulatorResolveInterval)));
+            String.valueOf(histogramAccumulatorResolveInterval)).trim());
         histogramMinsListenerPorts = prop.getProperty("histogramMinsListenerPorts", histogramMinsListenerPorts);
         histogramMinuteAccumulators = Integer.parseInt(prop.getProperty(
             "histogramMinuteAccumulators",
-            String.valueOf(histogramMinuteAccumulators)));
+            String.valueOf(histogramMinuteAccumulators)).trim());
         histogramMinuteFlushSecs = Integer.parseInt(prop.getProperty(
             "histogramMinuteFlushSecs",
-            String.valueOf(histogramMinuteFlushSecs)));
+            String.valueOf(histogramMinuteFlushSecs)).trim());
         histogramHoursListenerPorts = prop.getProperty("histogramHoursListenerPorts", histogramHoursListenerPorts);
         histogramHourAccumulators = Integer.parseInt(prop.getProperty(
             "histogramHourAccumulators",
-            String.valueOf(histogramHourAccumulators)));
+            String.valueOf(histogramHourAccumulators)).trim());
         histogramHourFlushSecs = Integer.parseInt(prop.getProperty(
             "histogramHourFlushSecs",
-            String.valueOf(histogramHourFlushSecs)));
+            String.valueOf(histogramHourFlushSecs)).trim());
         histogramDaysListenerPorts = prop.getProperty("histogramDaysListenerPorts", histogramDaysListenerPorts);
         histogramDayAccumulators = Integer.parseInt(prop.getProperty(
             "histogramDayAccumulators",
-            String.valueOf(histogramDayAccumulators)));
+            String.valueOf(histogramDayAccumulators)).trim());
         histogramDayFlushSecs = Integer.parseInt(prop.getProperty(
             "histogramDayFlushSecs",
-            String.valueOf(histogramDayFlushSecs)));
+            String.valueOf(histogramDayFlushSecs)).trim());
         histogramDistListenerPorts = prop.getProperty("histogramDistListenerPorts", histogramDistListenerPorts);
         histogramDistAccumulators = Integer.parseInt(prop.getProperty(
             "histogramDistAccumulators",
-            String.valueOf(histogramDistAccumulators)));
+            String.valueOf(histogramDistAccumulators)).trim());
         histogramDistFlushSecs = Integer.parseInt(prop.getProperty(
             "histogramDistFlushSecs",
-            String.valueOf(histogramDistFlushSecs)));
+            String.valueOf(histogramDistFlushSecs)).trim());
         histogramAccumulatorSize = Long.parseLong(prop.getProperty(
             "histogramAccumulatorSize",
-            String.valueOf(histogramAccumulatorSize)));
+            String.valueOf(histogramAccumulatorSize)).trim());
         avgHistogramKeyBytes = Integer.parseInt(prop.getProperty(
             "avgHistogramKeyBytes",
-            String.valueOf(avgHistogramKeyBytes)));
+            String.valueOf(avgHistogramKeyBytes)).trim());
         avgHistogramDigestBytes = Integer.parseInt(prop.getProperty(
             "avgHistogramDigestBytes",
-            String.valueOf(avgHistogramDigestBytes)));
+            String.valueOf(avgHistogramDigestBytes)).trim());
         histogramCompression = Short.parseShort(prop.getProperty(
             "histogramCompression",
-            String.valueOf(histogramCompression)));
+            String.valueOf(histogramCompression)).trim());
         persistAccumulator =
-            Boolean.parseBoolean(prop.getProperty("persistAccumulator", String.valueOf(persistAccumulator)));
+            Boolean.parseBoolean(prop.getProperty("persistAccumulator", String.valueOf(persistAccumulator)).trim());
         persistMessages =
-            Boolean.parseBoolean(prop.getProperty("persistMessages", String.valueOf(persistMessages)));
+            Boolean.parseBoolean(prop.getProperty("persistMessages", String.valueOf(persistMessages)).trim());
 
-        retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)));
-        flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));
+        retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)).trim());
+        flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)).trim());
         httpJsonPorts = prop.getProperty("jsonListenerPorts", httpJsonPorts);
         writeHttpJsonPorts = prop.getProperty("writeHttpJsonListenerPorts", writeHttpJsonPorts);
         graphitePorts = prop.getProperty("graphitePorts", graphitePorts);
@@ -595,34 +597,36 @@ public abstract class AbstractAgent {
         opentsdbWhitelistRegex = prop.getProperty("opentsdbWhitelistRegex", opentsdbWhitelistRegex);
         opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
         proxyHost = prop.getProperty("proxyHost", proxyHost);
-        proxyPort = Integer.parseInt(prop.getProperty("proxyPort", String.valueOf(proxyPort)));
+        proxyPort = Integer.parseInt(prop.getProperty("proxyPort", String.valueOf(proxyPort)).trim());
         proxyPassword = prop.getProperty("proxyPassword", proxyPassword);
         proxyUser = prop.getProperty("proxyUser", proxyUser);
         httpUserAgent = prop.getProperty("httpUserAgent", httpUserAgent);
         httpConnectTimeout = Integer.parseInt(prop.getProperty(
             "httpConnectTimeout",
-            String.valueOf(httpConnectTimeout)));
+            String.valueOf(httpConnectTimeout)).trim());
         httpRequestTimeout = Integer.parseInt(prop.getProperty(
             "httpRequestTimeout",
-            String.valueOf(httpRequestTimeout)));
-        javaNetConnection = Boolean.valueOf(prop.getProperty("javaNetConnection", String.valueOf(javaNetConnection)));
-        soLingerTime = Integer.parseInt(prop.getProperty("soLingerTime", String.valueOf(soLingerTime)));
+            String.valueOf(httpRequestTimeout)).trim());
+        javaNetConnection = Boolean.valueOf(prop.getProperty(
+            "javaNetConnection",
+            String.valueOf(javaNetConnection)).trim());
+        soLingerTime = Integer.parseInt(prop.getProperty("soLingerTime", String.valueOf(soLingerTime)).trim());
         splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
-            String.valueOf(splitPushWhenRateLimited)));
+            String.valueOf(splitPushWhenRateLimited)).trim());
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
-            String.valueOf(retryBackoffBaseSeconds)));
+            String.valueOf(retryBackoffBaseSeconds)).trim());
         customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
         agentMetricsPointTags = prop.getProperty("agentMetricsPointTags", agentMetricsPointTags);
-        ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
+        ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)).trim());
         disableRdnsLookup = Boolean.parseBoolean(prop.getProperty("disableRdnsLookup",
-            String.valueOf(disableRdnsLookup)));
+            String.valueOf(disableRdnsLookup)).trim());
         picklePorts = prop.getProperty("picklePorts", picklePorts);
         bufferFile = prop.getProperty("buffer", bufferFile);
         preprocessorConfigFile = prop.getProperty("preprocessorConfigFile", preprocessorConfigFile);
         dataBackfillCutoffHours = Integer.parseInt(prop.getProperty("dataBackfillCutoffHours",
-            String.valueOf(dataBackfillCutoffHours)));
-        filebeatPort = Integer.parseInt(prop.getProperty("filebeatPort", String.valueOf(filebeatPort)));
-        rawLogsPort = Integer.parseInt(prop.getProperty("rawLogsPort", String.valueOf(rawLogsPort)));
+            String.valueOf(dataBackfillCutoffHours)).trim());
+        filebeatPort = Integer.parseInt(prop.getProperty("filebeatPort", String.valueOf(filebeatPort)).trim());
+        rawLogsPort = Integer.parseInt(prop.getProperty("rawLogsPort", String.valueOf(rawLogsPort)).trim());
         logsIngestionConfigFile = prop.getProperty("logsIngestionConfigFile", logsIngestionConfigFile);
 
         /*
@@ -636,7 +640,7 @@ public abstract class AbstractAgent {
             Runtime.getRuntime().maxMemory() / listeningPorts / 4 / flushThreads / 400), pushFlushMaxPoints);
         logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
         pushMemoryBufferLimit = Integer.parseInt(prop.getProperty("pushMemoryBufferLimit",
-            String.valueOf(calculatedMemoryBufferLimit)));
+            String.valueOf(calculatedMemoryBufferLimit)).trim());
         logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
 
         logger.warning("Loaded configuration file " + pushConfigFile);
