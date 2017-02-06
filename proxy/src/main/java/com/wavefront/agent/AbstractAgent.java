@@ -49,6 +49,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryNotificationInfo;
+import java.lang.management.MemoryPoolMXBean;
+import java.lang.management.MemoryType;
 import java.net.Authenticator;
 import java.net.ConnectException;
 import java.net.HttpURLConnection;
@@ -74,6 +78,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
+import javax.management.NotificationEmitter;
 import javax.net.ssl.HttpsURLConnection;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.NotAuthorizedException;
@@ -389,6 +394,7 @@ public abstract class AbstractAgent {
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
   protected RecyclableRateLimiter pushRateLimiter = null;
+  protected final MemoryPoolMXBean tenuredGenPool = getTenuredGenPool();
 
   protected final ScheduledExecutorService histogramExecutor =
       Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
@@ -762,6 +768,9 @@ public abstract class AbstractAgent {
       // 4. Start the (push) listening endpoints
       startListeners();
 
+      // set up OoM memory guard
+      setupMemoryGuard();
+
       // 5. Poll or read the configuration file to use.
       AgentConfiguration config;
       if (configFile != null) {
@@ -1107,5 +1116,32 @@ public abstract class AbstractAgent {
       return localAddress.getCanonicalHostName();
     }
     return "localhost";
+  }
+
+  private MemoryPoolMXBean getTenuredGenPool() {
+    for (MemoryPoolMXBean pool : ManagementFactory.getMemoryPoolMXBeans()) {
+      if (pool.getType() == MemoryType.HEAP && pool.isUsageThresholdSupported()) {
+        return pool;
+      }
+    }
+    return null;
+  }
+
+  private void setupMemoryGuard() {
+    if (tenuredGenPool == null) return;
+    tenuredGenPool.setUsageThreshold((long) (tenuredGenPool.getUsage().getMax() * 0.9));
+
+    NotificationEmitter emitter = (NotificationEmitter) ManagementFactory.getMemoryMXBean();
+    emitter.addNotificationListener((notification, obj) -> {
+      if (notification.getType().equals(
+          MemoryNotificationInfo.MEMORY_THRESHOLD_EXCEEDED)) {
+        logger.warning("Heap usage exceed 90% - draining buffers to disk!");
+        for (PostPushDataTimedTask task : managedTasks) {
+          while (task.getNumPointsToSend() > 0)
+            task.drainBuffersToQueue();
+        }
+        logger.info("Draining buffers to disk: finished");
+      }
+    }, null, null);
   }
 }
