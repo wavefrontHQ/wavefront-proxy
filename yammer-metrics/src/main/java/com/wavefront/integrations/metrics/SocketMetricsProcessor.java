@@ -1,7 +1,5 @@
 package com.wavefront.integrations.metrics;
 
-import com.google.common.base.Throwables;
-
 import com.wavefront.common.MetricsToTimeseries;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.core.Counter;
@@ -16,10 +14,7 @@ import com.yammer.metrics.core.Summarizable;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.WavefrontHistogram;
 
-import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.Socket;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -31,59 +26,15 @@ import java.util.logging.Logger;
  */
 public class SocketMetricsProcessor implements MetricProcessor<Void> {
   protected static final Logger logger = Logger.getLogger(SocketMetricsProcessor.class.getCanonicalName());
-  private String hostname;
-  private int port, wavefrontHistogramPort;
-  private BufferedOutputStream metricsStream, histogramsStream;
-  private Supplier<Long> timeSupplier;
+  private ReconnectingSocket metricsSocket, histogramsSocket;
+  private final Supplier<Long> timeSupplier;
 
   SocketMetricsProcessor(String hostname, int port, int wavefrontHistogramPort, Supplier<Long> timeSupplier)
       throws IOException {
-    this.hostname = hostname;
-    this.port = port;
-    this.wavefrontHistogramPort = wavefrontHistogramPort;
     this.timeSupplier = timeSupplier;
-    resetHistogramsSocket();
-    resetMetricsSocket();
+    this.metricsSocket = new ReconnectingSocket(hostname, port);
+    this.histogramsSocket = new ReconnectingSocket(hostname, wavefrontHistogramPort);
   }
-
-  private interface Func {
-    void run() throws IOException;
-  }
-
-  private void resetMetricsSocket() throws IOException {
-    metricsStream = new BufferedOutputStream(new Socket(hostname, port).getOutputStream());
-  }
-
-  private void resetHistogramsSocket() throws IOException {
-    histogramsStream = new BufferedOutputStream(new Socket(hostname, wavefrontHistogramPort).getOutputStream());
-  }
-
-  /**
-   * Try to send the given message. On failure, reset and try again. If _that_ fails, just rethrow the exception.
-   */
-  private void write(String message, OutputStream stream, Func reset) throws Exception {
-    try {
-      stream.write(message.getBytes());
-      stream.flush();
-    } catch (Exception e) {
-      try {
-        reset.run();
-        logger.info("Successfully reset connection to " + hostname);
-        stream.write(message.getBytes());
-      } catch (Exception e2) {
-        throw Throwables.propagate(e2);
-      }
-    }
-  }
-
-  private void writeMetric(String message) throws Exception {
-    write(message, metricsStream, this::resetMetricsSocket);
-  }
-
-  private void writeHistogram(String message) throws Exception {
-    write(message, histogramsStream, this::resetHistogramsSocket);
-  }
-
 
   /**
    * @return " k1=v1 k2=v2 ..." if metricName is an instance of TaggedMetricName. "" otherwise.
@@ -108,7 +59,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       sb.append(".").append(nameSuffix);
     }
     sb.append(" ").append(value).append(tagsForMetricName(metricName));
-    writeMetric(sb.append("\n").toString());
+    this.metricsSocket.write(sb.append("\n").toString());
   }
 
   private void writeExplodedMetric(MetricName name, Metric metric) throws Exception {
@@ -151,7 +102,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
         sb.append(" #").append(minuteBin.getDist().size()).append(" ").append(minuteBin.getDist().quantile(.5));
       }
       sb.append(" ").append(name.getName()).append(tagsForMetricName(name)).append("\n");
-      writeHistogram(sb.toString());
+      histogramsSocket.write(sb.toString());
     } else {
       writeMetric(name, "count", histogram.count());
       writeExplodedMetric(name, histogram);
@@ -166,5 +117,10 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
   @Override
   public void processGauge(MetricName name, Gauge<?> gauge, Void context) throws Exception {
     writeMetric(name, null, Double.valueOf(gauge.value().toString()));
+  }
+
+  public void flush() throws IOException {
+    metricsSocket.flush();
+    histogramsSocket.flush();
   }
 }

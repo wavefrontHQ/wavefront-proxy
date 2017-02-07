@@ -19,13 +19,11 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
 
   protected static final Logger logger = Logger.getLogger(WavefrontYammerMetricsReporter.class.getCanonicalName());
   private SocketMetricsProcessor socketMetricProcessor;
-  private Supplier<Long> timeSupplier;
 
   public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
                                         int wavefrontHistogramPort, Supplier<Long> timeSupplier)
       throws IOException {
     super(metricsRegistry, name);
-    this.timeSupplier = timeSupplier;
     this.socketMetricProcessor = new SocketMetricsProcessor(hostname, port, wavefrontHistogramPort, timeSupplier);
   }
 
@@ -37,8 +35,9 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
           subEntry.getValue().processWith(socketMetricProcessor, subEntry.getKey(), null);
         }
       }
+      socketMetricProcessor.flush();
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Cannot report point to Wavefront, Dropping!", e);
+      logger.log(Level.SEVERE, "Cannot report point to Wavefront! Trying again next iteration.", e);
     }
   }
 }

@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
-public class MetricsToTimeseries {
+public abstract class MetricsToTimeseries {
 
   public static Map<String, Double> explodeSummarizable(Summarizable metric) {
     return ImmutableMap.<String, Double>builder()
