@@ -85,7 +85,7 @@ public class WavefrontYammerMetricsReporterTest {
     counter.inc();
     counter.inc();
     wavefrontYammerMetricsReporter.run();
-    assertThat(receiveFromSocket(1, fromMetrics), contains(equalTo("mycount 2.0")));
+    assertThat(receiveFromSocket(1, fromMetrics), contains(equalTo("\"mycount\" 2.0")));
   }
 
   @Test(timeout = 1000)
@@ -96,7 +96,9 @@ public class WavefrontYammerMetricsReporterTest {
     counter.inc();
     counter.inc();
     wavefrontYammerMetricsReporter.run();
-    assertThat(receiveFromSocket(1, fromMetrics), contains(equalTo("mycounter 2.0 tag1=value1 tag2=value2")));
+    assertThat(
+        receiveFromSocket(1, fromMetrics),
+        contains(equalTo("\"mycounter\" 2.0 tag1=\"value1\" tag2=\"value2\"")));
   }
 
   @Test(timeout = 1000)
@@ -106,17 +108,17 @@ public class WavefrontYammerMetricsReporterTest {
     histogram.update(10);
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(11, fromMetrics), containsInAnyOrder(
-        equalTo("myhisto.count 2.0"),
-        equalTo("myhisto.min 1.0"),
-        equalTo("myhisto.max 10.0"),
-        equalTo("myhisto.mean 5.5"),
-        equalTo("myhisto.sum 11.0"),
-        startsWith("myhisto.stddev"),
-        equalTo("myhisto.median 5.5"),
-        equalTo("myhisto.p75 10.0"),
-        equalTo("myhisto.p95 10.0"),
-        equalTo("myhisto.p99 10.0"),
-        equalTo("myhisto.p999 10.0")
+        equalTo("\"myhisto.count\" 2.0"),
+        equalTo("\"myhisto.min\" 1.0"),
+        equalTo("\"myhisto.max\" 10.0"),
+        equalTo("\"myhisto.mean\" 5.5"),
+        equalTo("\"myhisto.sum\" 11.0"),
+        startsWith("\"myhisto.stddev\""),
+        equalTo("\"myhisto.median\" 5.5"),
+        equalTo("\"myhisto.p75\" 10.0"),
+        equalTo("\"myhisto.p95\" 10.0"),
+        equalTo("\"myhisto.p99\" 10.0"),
+        equalTo("\"myhisto.p999\" 10.0")
     ));
   }
 
@@ -129,7 +131,7 @@ public class WavefrontYammerMetricsReporterTest {
     }
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(1, fromHistograms), contains(equalTo(
-        "!M 1485224035 #101 50.0 myhisto tag1=value1 tag2=value2")));
+        "!M 1485224035 #101 50.0 \"myhisto\" tag1=\"value1\" tag2=\"value2\"")));
   }
 
   @Test(timeout = 1000)
@@ -139,11 +141,11 @@ public class WavefrontYammerMetricsReporterTest {
     meter.mark(42);
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(5, fromMetrics), containsInAnyOrder(
-        equalTo("mymeter.count 42.0"),
-        startsWith("mymeter.mean"),
-        startsWith("mymeter.m1"),
-        startsWith("mymeter.m5"),
-        startsWith("mymeter.m15")
+        equalTo("\"mymeter.count\" 42.0"),
+        startsWith("\"mymeter.mean\""),
+        startsWith("\"mymeter.m1\""),
+        startsWith("\"mymeter.m5\""),
+        startsWith("\"mymeter.m15\"")
     ));
   }
 
@@ -157,7 +159,7 @@ public class WavefrontYammerMetricsReporterTest {
           }
         });
     wavefrontYammerMetricsReporter.run();
-    assertThat(receiveFromSocket(1, fromMetrics), contains(equalTo("mygauge 13.0")));
+    assertThat(receiveFromSocket(1, fromMetrics), contains(equalTo("\"mygauge\" 13.0")));
   }
 
   @Test(timeout = 1000)
@@ -166,21 +168,21 @@ public class WavefrontYammerMetricsReporterTest {
     timer.time().stop();
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(15, fromMetrics), containsInAnyOrder(
-        startsWith("mytimer.count"),
-        startsWith("mytimer.min"),
-        startsWith("mytimer.max"),
-        startsWith("mytimer.mean"),
-        startsWith("mytimer.sum"),
-        startsWith("mytimer.stddev"),
-        startsWith("mytimer.median"),
-        startsWith("mytimer.p75"),
-        startsWith("mytimer.p95"),
-        startsWith("mytimer.p99"),
-        startsWith("mytimer.p999"),
-        startsWith("mytimer.m1"),
-        startsWith("mytimer.m5"),
-        startsWith("mytimer.m15"),
-        startsWith("mytimer.mean")
+        startsWith("\"mytimer.count\""),
+        startsWith("\"mytimer.min\""),
+        startsWith("\"mytimer.max\""),
+        startsWith("\"mytimer.mean\""),
+        startsWith("\"mytimer.sum\""),
+        startsWith("\"mytimer.stddev\""),
+        startsWith("\"mytimer.median\""),
+        startsWith("\"mytimer.p75\""),
+        startsWith("\"mytimer.p95\""),
+        startsWith("\"mytimer.p99\""),
+        startsWith("\"mytimer.p999\""),
+        startsWith("\"mytimer.m1\""),
+        startsWith("\"mytimer.m5\""),
+        startsWith("\"mytimer.m15\""),
+        startsWith("\"mytimer.mean\"")
     ));
   }
 

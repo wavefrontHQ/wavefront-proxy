@@ -44,7 +44,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       TaggedMetricName taggedMetricName = (TaggedMetricName) metricName;
       StringBuilder sb = new StringBuilder();
       for (Map.Entry<String, String> entry : taggedMetricName.getTags().entrySet()) {
-        sb.append(" ").append(entry.getKey()).append("=").append(entry.getValue());
+        sb.append(" ").append(entry.getKey()).append("=\"").append(entry.getValue()).append("\"");
       }
       return sb.toString();
     } else {
@@ -54,11 +54,11 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
 
   private void writeMetric(MetricName metricName, String nameSuffix, double value) throws Exception {
     StringBuilder sb = new StringBuilder();
-    sb.append(metricName.getName());
+    sb.append("\"").append(metricName.getName());
     if (nameSuffix != null && !nameSuffix.equals("")) {
       sb.append(".").append(nameSuffix);
     }
-    sb.append(" ").append(value).append(tagsForMetricName(metricName));
+    sb.append("\" ").append(value).append(tagsForMetricName(metricName));
     this.metricsSocket.write(sb.append("\n").toString());
   }
 
@@ -101,7 +101,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       for (WavefrontHistogram.MinuteBin minuteBin : wavefrontHistogram.bins(false)) {
         sb.append(" #").append(minuteBin.getDist().size()).append(" ").append(minuteBin.getDist().quantile(.5));
       }
-      sb.append(" ").append(name.getName()).append(tagsForMetricName(name)).append("\n");
+      sb.append(" \"").append(name.getName()).append("\"").append(tagsForMetricName(name)).append("\n");
       histogramsSocket.write(sb.toString());
     } else {
       writeMetric(name, "count", histogram.count());
