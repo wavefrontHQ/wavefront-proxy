@@ -19,6 +19,7 @@ import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ShellOutputDTO;
+import com.wavefront.common.Clock;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
@@ -52,6 +53,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
@@ -87,6 +89,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private Counter permitsGranted = Metrics.newCounter(new MetricName("limiter", "", "permits-granted"));
   private Counter permitsDenied = Metrics.newCounter(new MetricName("limiter", "", "permits-denied"));
   private Counter permitsRetried = Metrics.newCounter(new MetricName("limiter", "", "permits-retried"));
+  private final AtomicLong queuePointsCount = new AtomicLong();
+  private Gauge queuedPointsCountGauge = null;
   /**
    * Biases result sizes to the last 5 minutes heavily. This histogram does not see all result
    * sizes. The executor only ever processes one posting at any given time and drops the rest.
@@ -232,6 +236,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                     List<? extends ResubmissionTask> splitTasks = task.splitTask();
                     for (ResubmissionTask smallerTask : splitTasks) {
                       taskQueue.add(smallerTask);
+                      queuePointsCount.addAndGet(smallerTask.size());
                     }
                     break;
                   } else //noinspection ThrowableResultOfMethodCallIgnored
@@ -244,6 +249,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                         List<? extends ResubmissionTask> splitTasks = task.splitTask();
                         for (ResubmissionTask smallerTask : splitTasks) {
                           taskQueue.add(smallerTask);
+                          queuePointsCount.addAndGet(smallerTask.size());
                         }
                       } else {
                         removeTask = false;
@@ -258,13 +264,17 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                   task.service = null;
                   task.currentAgentId = null;
                   taskQueue.add(task);
+                  queuePointsCount.addAndGet(taskSize);
                   if (failures > 10) {
                     logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will " +
                         "re-attempt later");
                     break;
                   }
                 } finally {
-                  if (removeTask) taskQueue.remove();
+                  if (removeTask) {
+                    taskQueue.remove();
+                    queuePointsCount.addAndGet(-taskSize);
+                  }
                 }
               } finally {
                 taskQueue.getLockObject().unlock();
@@ -322,6 +332,21 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             logger.info("current retry queue sizes: [" + Joiner.on("/").join(queueSizes) + "]");
           } else if (lastKnownQueueSizeIsPositive) {
             lastKnownQueueSizeIsPositive = false;
+            queuePointsCount.set(0);
+            if (queuedPointsCountGauge == null) {
+              // since we don't persist the number of points in the queue between proxy restarts yet, and Tape library
+              // only lets us know the number of tasks in the queue, start reporting ~agent.buffer.points-count
+              // metric only after it's confirmed that the retry queue is empty, as going through the entire queue
+              // to calculate the number of points can be a very costly operation.
+              queuedPointsCountGauge = Metrics.newGauge(new MetricName("buffer", "", "points-count"),
+                  new Gauge<Long>() {
+                    @Override
+                    public Long value() {
+                      return queuePointsCount.get();
+                    }
+                  }
+              );
+            }
             logger.info("retry queue has been cleared");
           }
         }
@@ -507,6 +532,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       queue.getLockObject().lock();
       try {
         queue.add(taskToRetry);
+        queuePointsCount.addAndGet(taskToRetry.size());
       } catch (FileException e) {
         logger.log(Level.SEVERE, "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
       } finally {
@@ -621,6 +647,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     private final Long currentMillis;
     private final String format;
     private final String pushData;
+    private final int taskSize;
+
+    private transient Histogram timeSpentInQueue = Metrics.newHistogram(new MetricName("buffer", "", "queue-time"));
 
     public PostPushDataResultTask(UUID agentId, UUID workUnitId, Long currentMillis, String format, String pushData) {
       this.agentId = agentId;
@@ -628,17 +657,13 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       this.currentMillis = currentMillis;
       this.format = format;
       this.pushData = pushData;
+      this.taskSize = StringLineIngester.pushDataSize(pushData);
     }
 
     @Override
     public void execute(Object callback) {
-      Response response;
-      try {
-        response = service.postPushData(currentAgentId, workUnitId, currentMillis, format, pushData);
-      } catch (Exception ex) {
-        throw new RuntimeException("Server error: " + Throwables.getRootCause(ex));
-      }
-      parsePostingResponse(response);
+      parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis, format, pushData));
+      timeSpentInQueue.update(Clock.now() - currentMillis);
     }
 
     @Override
@@ -669,7 +694,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
     @Override
     public int size() {
-      return StringLineIngester.pushDataSize(pushData);
+      return taskSize;
     }
 
     @VisibleForTesting
