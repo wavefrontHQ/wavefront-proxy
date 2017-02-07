@@ -395,6 +395,8 @@ public abstract class AbstractAgent {
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
   protected RecyclableRateLimiter pushRateLimiter = null;
   protected final MemoryPoolMXBean tenuredGenPool = getTenuredGenPool();
+  protected JsonNode agentMetrics;
+  protected long agentMetricsCaptureTs;
 
   protected final ScheduledExecutorService histogramExecutor =
       Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
@@ -406,24 +408,49 @@ public abstract class AbstractAgent {
    * Executors for support tasks.
    */
   private final ScheduledExecutorService auxiliaryExecutor = Executors.newScheduledThreadPool(1);
+  private final ScheduledExecutorService agentMetricsExecutor = Executors.newScheduledThreadPool(1);
   protected UUID agentId;
-  private final Runnable updateConfiguration = new Runnable() {
-    @Override
-    public void run() {
-      long startTime = System.currentTimeMillis();
-      boolean isRetry = false;
+  private final Runnable updateConfiguration = () -> {
+    AgentConfiguration config = fetchConfig();
+    if (config != null) {
+      processConfiguration(config);
+    }
+  };
+
+  private final Runnable updateAgentMetrics = () -> {
+    @Nullable Map<String, String> pointTags = null;
+    try {
+      // calculate disk space available for queueing
+      long maxAvailableSpace = 0;
       try {
-        AgentConfiguration config = fetchConfig();
-        if (config != null) {
-          processConfiguration(config);
-        } else {
-          isRetry = true;
+        File bufferDirectory = new File(bufferFile).getAbsoluteFile();
+        while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
+          bufferDirectory = bufferDirectory.getParentFile();
         }
-      } finally {
-        // schedule the next run in 1 minute, compensated for the time taken to check in. if failed, retry in 500ms
-        long nextRun = isRetry ? 500 : Math.max(5000, 60000 - (System.currentTimeMillis() - startTime));
-        auxiliaryExecutor.schedule(this, nextRun, TimeUnit.MILLISECONDS);
+        for (int i = 0; i < retryThreads; i++) {
+          File buffer = new File(bufferFile + "." + i);
+          if (buffer.exists()) {
+            maxAvailableSpace += Integer.MAX_VALUE - buffer.length(); // 2GB max file size minus size used
+          }
+        }
+        if (bufferDirectory != null) {
+          // lesser of: available disk space or available buffer space
+          bufferSpaceLeft.set(Math.min(maxAvailableSpace, bufferDirectory.getUsableSpace()));
+        }
+      } catch (Throwable t) {
+        logger.warning("cannot compute remaining space in buffer file partition: " + t);
       }
+
+      if (agentMetricsPointTags != null) {
+        pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
+      }
+      synchronized (agentMetricsExecutor) {
+        agentMetricsCaptureTs = System.currentTimeMillis();
+        agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
+            true, true, true, pointTags);
+      }
+    } catch (Exception ex) {
+      logger.log(Level.SEVERE, "Could not generate agent metrics", ex);
     }
   };
 
@@ -789,9 +816,11 @@ public abstract class AbstractAgent {
         }
         agentId = null;
       } else {
+        updateAgentMetrics.run();
         config = fetchConfig();
         logger.info("scheduling regular configuration polls");
-        auxiliaryExecutor.schedule(updateConfiguration, 10, TimeUnit.SECONDS);
+        agentMetricsExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
+        auxiliaryExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
       }
       // 6. Setup work units and targets based on the configuration.
       if (config != null) {
@@ -959,36 +988,19 @@ public abstract class AbstractAgent {
    */
   private AgentConfiguration fetchConfig() {
     AgentConfiguration newConfig = null;
-    logger.info("fetching configuration from server at: " + server);
-    long maxAvailableSpace = 0;
-    try {
-      File bufferDirectory = new File(bufferFile).getAbsoluteFile();
-      while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
-        bufferDirectory = bufferDirectory.getParentFile();
-      }
-      for (int i = 0; i < retryThreads; i++) {
-        File buffer = new File(bufferFile + "." + i);
-        if (buffer.exists()) {
-          maxAvailableSpace += Integer.MAX_VALUE - buffer.length(); // 2GB max file size minus size used
-        }
-      }
-      if (bufferDirectory != null) {
-        // lesser of: available disk space or available buffer space
-        bufferSpaceLeft.set(Math.min(maxAvailableSpace, bufferDirectory.getUsableSpace()));
-      }
-    } catch (Throwable t) {
-      logger.warning("cannot compute remaining space in buffer file partition: " + t);
+    JsonNode agentMetricsWorkingCopy;
+    long agentMetricsCaptureTsWorkingCopy;
+    synchronized(agentMetricsExecutor) {
+      if (agentMetrics == null) return null;
+      agentMetricsWorkingCopy = agentMetrics;
+      agentMetricsCaptureTsWorkingCopy = agentMetricsCaptureTs;
+      agentMetrics = null;
     }
-
+    logger.info("fetching configuration from server at: " + server);
     try {
-      @Nullable Map<String, String> pointTags = null;
-      if (agentMetricsPointTags != null) {
-        pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
-      }
-      JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
-          true, true, true, pointTags);
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
-          System.currentTimeMillis(), localAgent, agentMetrics, pushAgent, ephemeral);
+          agentMetricsCaptureTsWorkingCopy, localAgent, agentMetricsWorkingCopy, pushAgent, ephemeral);
+      agentMetricsWorkingCopy = null;
     } catch (NotAuthorizedException ex) {
       fetchConfigError("HTTP 401 Unauthorized: Please verify that your server and token settings",
           "are correct and that the token has Agent Management permission!");
@@ -1023,11 +1035,19 @@ public abstract class AbstractAgent {
       fetchConfigError("Unable to retrieve proxy agent configuration from remote server!",
           server + ": " + Throwables.getRootCause(ex));
       return null;
-    }
-    if (newConfig.currentTime != null) {
-      Clock.set(newConfig.currentTime);
+    } finally {
+      synchronized(agentMetricsExecutor) {
+        // if check-in process failed (agentMetricsWorkingCopy is not null) and agent metrics have
+        // not been updated yet, restore last known set of agent metrics to be retried
+        if (agentMetricsWorkingCopy != null && agentMetrics == null) {
+          agentMetrics = agentMetricsWorkingCopy;
+        }
+      }
     }
     try {
+      if (newConfig.currentTime != null) {
+        Clock.set(newConfig.currentTime);
+      }
       newConfig.validate(localAgent);
     } catch (Exception ex) {
       logger.log(Level.WARNING, "configuration file read from server is invalid", ex);
@@ -1077,6 +1097,7 @@ public abstract class AbstractAgent {
     logger.info("Shutting down: Stopping schedulers...");
     agentAPI.shutdown();
     auxiliaryExecutor.shutdown();
+    agentMetricsExecutor.shutdown();
     managedTasks.forEach(PostPushDataTimedTask::shutdown);
     logger.info("Shutting down: Flushing pending points...");
     for (PostPushDataTimedTask task : managedTasks) {
