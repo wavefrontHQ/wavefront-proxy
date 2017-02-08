@@ -20,7 +20,8 @@ import java.util.logging.Logger;
 import sunnylabs.report.TimeSeries;
 
 /**
- * Listens for messages from Filebeat and processes them, sending telemetry to a given sink.
+ * Consumes log messages sent to {@link #ingestLog(LogsMessage)}. Configures and starts the periodic flush of
+ * consumed metric data to Wavefront.
  *
  * @author Mori Bellamy (mori@wavefront.com)
  */
