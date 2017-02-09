@@ -71,6 +71,7 @@ public class LogsIngesterTest {
     logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(PointHandler.class);
     logsIngesterUnderTest = new LogsIngester(mockPointHandler, () -> logsIngestionConfig, null, () -> now);
+    logsIngesterUnderTest.start();
     filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, () -> now);
     rawLogsIngesterUnderTest = new RawLogsIngester(logsIngesterUnderTest, -1, () -> now);
   }

@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.wavefront.agent.config.LogsIngestionConfig;
+import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
@@ -108,6 +109,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"-t", "--token"}, description =
       "Token to auto-register agent with an account")
   private String token = null;
+
+  @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
+  private boolean testLogs = false;
 
   @Parameter(names = {"-l", "--loglevel"}, description =
       "Log level for push data (NONE/SUMMARY/DETAILED); NONE is default")
@@ -709,6 +713,15 @@ public abstract class AbstractAgent {
       // 1. Load the listener configurations.
       loadListenerConfigurationFile();
       loadLogsIngestionConfig();
+
+      // Conditionally enter an interactive debugging session for logsIngestionConfig.yaml
+      if (testLogs) {
+        InteractiveLogsTester interactiveLogsTester = new InteractiveLogsTester(this::loadLogsIngestionConfig, prefix);
+        while (interactiveLogsTester.interactiveTest()) {
+          // empty
+        }
+        System.exit(0);
+      }
 
       // 2. Read or create the unique Id for the daemon running on this machine.
       readOrCreateDaemonId();

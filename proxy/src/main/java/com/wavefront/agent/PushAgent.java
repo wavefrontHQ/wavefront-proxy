@@ -322,6 +322,7 @@ public class PushAgent extends AbstractAgent {
             new PointHandlerImpl(
                 "logs-ingester", pushValidationLevel, pushBlockedSamples, getFlushTasks("logs-ingester")),
             this::loadLogsIngestionConfig, prefix, System::currentTimeMillis);
+        logsIngester.start();
 
         if (filebeatPort > 0) {
           final Server filebeatServer = new Server(filebeatPort);

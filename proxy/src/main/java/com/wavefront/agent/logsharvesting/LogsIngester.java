@@ -64,13 +64,21 @@ public class LogsIngester {
     this.flushProcessor = new FlushProcessor(sent, currentMillis);
 
     // Set up user specified metric harvesting.
-    LogsIngestionConfig config = logsIngestionConfigManager.getConfig();
     this.pointHandler = pointHandler;
 
     // Continually flush user metrics to Wavefront.
     this.metricsReporter = new MetricsReporter(
         evictingMetricsRegistry.metricsRegistry(), flushProcessor, "FilebeatMetricsReporter", pointHandler, prefix);
-    this.metricsReporter.start(config.aggregationIntervalSeconds, TimeUnit.SECONDS);
+  }
+
+  public void start() {
+    this.metricsReporter.start(
+        this.logsIngestionConfigManager.getConfig().aggregationIntervalSeconds,
+        TimeUnit.SECONDS);
+  }
+
+  public void flush() {
+    this.metricsReporter.run();
   }
 
   @VisibleForTesting
