@@ -1,6 +1,7 @@
 package com.wavefront.agent.logsharvesting;
 
 import com.wavefront.agent.PointHandler;
+import com.wavefront.agent.PointHandlerImpl;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 
@@ -42,7 +43,7 @@ public class InteractiveLogsTester {
           @Override
           public void reportPoint(ReportPoint point, @Nullable String debugLine) {
             reported.set(true);
-            System.out.println(point.toString());
+            System.out.println(PointHandlerImpl.pointToString(point));
           }
 
           @Override
