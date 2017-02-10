@@ -717,6 +717,7 @@ public abstract class AbstractAgent {
       // Conditionally enter an interactive debugging session for logsIngestionConfig.yaml
       if (testLogs) {
         InteractiveLogsTester interactiveLogsTester = new InteractiveLogsTester(this::loadLogsIngestionConfig, prefix);
+        logger.info("Reading line-by-line sample log messages from STDIN");
         while (interactiveLogsTester.interactiveTest()) {
           // empty
         }
