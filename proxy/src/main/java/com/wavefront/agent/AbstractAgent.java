@@ -406,17 +406,24 @@ public abstract class AbstractAgent {
     public void run() {
       long startTime = System.currentTimeMillis();
       boolean isRetry = false;
+      boolean doShutDown = false;
       try {
         AgentConfiguration config = fetchConfig();
         if (config != null) {
           processConfiguration(config);
+          doShutDown = config.getShutOffAgents();
         } else {
           isRetry = true;
         }
       } finally {
-        // schedule the next run in 1 minute, compensated for the time taken to check in. if failed, retry in 500ms
-        long nextRun = isRetry ? 500 : Math.max(5000, 60000 - (System.currentTimeMillis() - startTime));
-        auxiliaryExecutor.schedule(this, nextRun, TimeUnit.MILLISECONDS);
+        if (doShutDown) {
+          logger.warning("Shutting down: Server side flag indicating agent has to shut down.");
+          shutdown();
+        } else {
+          // schedule the next run in 1 minute, compensated for the time taken to check in. if failed, retry in 500ms
+          long nextRun = isRetry ? 500 : Math.max(5000, 60000 - (System.currentTimeMillis() - startTime));
+          auxiliaryExecutor.schedule(this, nextRun, TimeUnit.MILLISECONDS);
+        }
       }
     }
   };

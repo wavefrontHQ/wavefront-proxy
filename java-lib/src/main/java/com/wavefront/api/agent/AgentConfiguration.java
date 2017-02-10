@@ -29,6 +29,8 @@ public class AgentConfiguration {
   private Long pointsPerBatch;
   private Boolean collectorSetsRetryBackoff;
   private Double retryBackoffBaseSeconds;
+  private Boolean shutOffAgents;
+  private Boolean showTrialExpired;
 
   public Boolean getCollectorSetsRetryBackoff() {
     return collectorSetsRetryBackoff;
@@ -78,6 +80,18 @@ public class AgentConfiguration {
 
   public void setPointsPerBatch(Long pointsPerBatch) {
     this.pointsPerBatch = pointsPerBatch;
+  }
+
+  public Boolean getShutOffAgents() { return shutOffAgents; }
+
+  public void setShutOffAgents(Boolean shutOffAgents) {
+    this.shutOffAgents = shutOffAgents;
+  }
+
+  public Boolean getShowTrialExpired() { return showTrialExpired; }
+
+  public void setShowTrialExpired(Boolean trialExpired) {
+    this.showTrialExpired = trialExpired;
   }
 
   public void validate(boolean local) {
