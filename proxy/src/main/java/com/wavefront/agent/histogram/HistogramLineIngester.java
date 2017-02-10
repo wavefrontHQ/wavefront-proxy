@@ -2,6 +2,11 @@ package com.wavefront.agent.histogram;
 
 import com.google.common.base.Charsets;
 
+import com.wavefront.metrics.ExpectedAgentMetric;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+
+import java.net.BindException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
@@ -18,6 +23,11 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
@@ -42,6 +52,7 @@ public class HistogramLineIngester extends ChannelInitializer implements Runnabl
   private static final AtomicLong connectionId = new AtomicLong(0);
 
   private static final Logger logger = Logger.getLogger(HistogramLineIngester.class.getCanonicalName());
+  private Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
 
   // The final handlers to be installed.
   private final ArrayList<ChannelHandler> handlers;
@@ -55,14 +66,28 @@ public class HistogramLineIngester extends ChannelInitializer implements Runnabl
 
   @Override
   public void run() {
+    activeListeners.inc();
     ServerBootstrap bootstrap = new ServerBootstrap();
-    NioEventLoopGroup parent = new NioEventLoopGroup(1);
-    NioEventLoopGroup children = new NioEventLoopGroup(handlers.size());
+
+    EventLoopGroup parent;
+    EventLoopGroup children;
+    Class<? extends ServerChannel> socketChannelClass;
+    if (Epoll.isAvailable()) {
+      logger.fine("Using native socket transport for port " + port);
+      parent = new EpollEventLoopGroup(1);
+      children = new EpollEventLoopGroup(handlers.size());
+      socketChannelClass = EpollServerSocketChannel.class;
+    } else {
+      logger.fine("Using NIO socket transport for port " + port);
+      parent = new NioEventLoopGroup(1);
+      children = new NioEventLoopGroup(handlers.size());
+      socketChannelClass = NioServerSocketChannel.class;
+    }
 
     try {
       bootstrap
           .group(parent, children)
-          .channel(NioServerSocketChannel.class)
+          .channel(socketChannelClass)
           .option(ChannelOption.SO_BACKLOG, MAXIMUM_OUTSTANDING_CONNECTIONS)
           .localAddress(port)
           .childHandler(this);
@@ -74,6 +99,15 @@ public class HistogramLineIngester extends ChannelInitializer implements Runnabl
       parent.shutdownGracefully();
       children.shutdownGracefully();
       logger.info("Listener on port " + String.valueOf(port) + " shut down");
+    } catch (Exception e) {
+      // ChannelFuture throws undeclared checked exceptions, so we need to handle it
+      if (e instanceof BindException) {
+        logger.severe("Unable to start listener - port " + String.valueOf(port) + " is already in use!");
+      } else {
+        logger.log(Level.SEVERE, "HistogramLineIngester exception: ", e);
+      }
+    } finally {
+      activeListeners.dec();
     }
   }
 

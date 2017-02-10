@@ -1,5 +1,11 @@
 package com.wavefront.ingester;
 
+import com.wavefront.metrics.ExpectedAgentMetric;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
+
+import java.net.BindException;
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -12,6 +18,11 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -25,6 +36,7 @@ import io.netty.handler.codec.bytes.ByteArrayDecoder;
 public class StreamIngester implements Runnable {
 
   protected static final Logger logger = Logger.getLogger(StreamIngester.class.getName());
+  private Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
 
   public interface FrameDecoderFactory {
     ChannelInboundHandler getDecoder();
@@ -58,13 +70,26 @@ public class StreamIngester implements Runnable {
 
 
   public void run() {
+    activeListeners.inc();
     // Configure the server.
     ServerBootstrap b = new ServerBootstrap();
-    NioEventLoopGroup parentGroup = new NioEventLoopGroup(1);
-    NioEventLoopGroup childGroup = new NioEventLoopGroup();
+    EventLoopGroup parentGroup;
+    EventLoopGroup childGroup;
+    Class<? extends ServerChannel> socketChannelClass;
+    if (Epoll.isAvailable()) {
+      logger.fine("Using native socket transport for port " + listeningPort);
+      parentGroup = new EpollEventLoopGroup(1);
+      childGroup = new EpollEventLoopGroup();
+      socketChannelClass = EpollServerSocketChannel.class;
+    } else {
+      logger.fine("Using NIO socket transport for port " + listeningPort);
+      parentGroup = new NioEventLoopGroup(1);
+      childGroup = new NioEventLoopGroup();
+      socketChannelClass = NioServerSocketChannel.class;
+    }
     try {
       b.group(parentGroup, childGroup)
-          .channel(NioServerSocketChannel.class)
+          .channel(socketChannelClass)
           .option(ChannelOption.SO_BACKLOG, 1024)
           .localAddress(listeningPort)
           .childHandler(new ChannelInitializer<SocketChannel>() {
@@ -100,6 +125,15 @@ public class StreamIngester implements Runnable {
       parentGroup.shutdownGracefully();
       childGroup.shutdownGracefully();
       logger.info("Listener on port " + String.valueOf(listeningPort) + " shut down");
+    } catch (Exception e) {
+      // ChannelFuture throws undeclared checked exceptions, so we need to handle it
+      if (e instanceof BindException) {
+        logger.severe("Unable to start listener - port " + String.valueOf(listeningPort) + " is already in use!");
+      } else {
+        logger.log(Level.SEVERE, "StreamIngester exception: ", e);
+      }
+    } finally {
+      activeListeners.dec();
     }
   }
 }

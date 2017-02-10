@@ -231,8 +231,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                   //noinspection ThrowableResultOfMethodCallIgnored
                   if (Throwables.getRootCause(ex) instanceof QueuedPushTooLargeException) {
                     // this should split this task, remove it from the queue, and not try more tasks
-                    logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected push (413 response). " +
-                        "Split data and attempt later: " + ex);
+                    logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected push with " +
+                        "HTTP 413: request too large - splitting data into smaller chunks to retry. ");
                     List<? extends ResubmissionTask> splitTasks = task.splitTask();
                     for (ResubmissionTask smallerTask : splitTasks) {
                       taskQueue.add(smallerTask);
@@ -243,8 +243,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                     if (Throwables.getRootCause(ex) instanceof RejectedExecutionException) {
                       // this should either split and remove the original task or keep it at front
                       // it also should not try any more tasks
-                      logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected the submission. Will " +
-                          "attempt later: " + ex);
+                      logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected the submission " +
+                          "(global rate limit exceeded) - will attempt later.");
                       if (splitPushWhenRateLimited) {
                         List<? extends ResubmissionTask> splitTasks = task.splitTask();
                         for (ResubmissionTask smallerTask : splitTasks) {
@@ -257,7 +257,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                       break;
                     } else {
                       logger.log(Level.WARNING, "[RETRY THREAD " + threadId + "] cannot submit data to Wavefront servers. Will " +
-                          "re-attempt later", ex);
+                          "re-attempt later", Throwables.getRootCause(ex));
                     }
                   // this can potentially cause a duplicate task to be injected (but since submission is mostly
                   // idempotent it's not really a big deal)
@@ -467,7 +467,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         parsePostingResponse(wrapped.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO));
         scheduleTaskForSizing(task);
       } catch (RuntimeException ex) {
-        logger.warning("Cannot post work unit result to Wavefront servers. Will enqueue and retry later: " + ex);
         handleTaskRetry(ex, task);
         return Response.status(Response.Status.NOT_ACCEPTABLE).build();
       }
@@ -494,6 +493,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       try {
         resultPostingMeter.mark();
         parsePostingResponse(wrapped.postPushData(agentId, workUnitId, currentMillis, format, pushData));
+
         scheduleTaskForSizing(task);
       } catch (RuntimeException ex) {
         List<PostPushDataResultTask> splitTasks = handleTaskRetry(ex, task);
@@ -521,7 +521,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       }
     }
     logger.warning("Cannot post push data result to Wavefront servers. " +
-        "Will enqueue and retry later: " + failureException);
+        "Will enqueue and retry later: " + Throwables.getRootCause(failureException));
     addTaskToSmallestQueue(taskToRetry);
     return Collections.emptyList();
   }
@@ -565,7 +565,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             // ignore
           }
           if (isWavefrontResponse) {
-            throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus() +
+            throw new RuntimeException("Response not accepted by server: " + response.getStatus() +
                 " unclaimed agent - please verify that your token is valid and has Agent Management permission!");
           } else {
             throw new RuntimeException("HTTP " + response.getStatus() + ": Please verify your " +
@@ -649,7 +649,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     private final String pushData;
     private final int taskSize;
 
-    private transient Histogram timeSpentInQueue = Metrics.newHistogram(new MetricName("buffer", "", "queue-time"));
+    private transient Histogram timeSpentInQueue;
 
     public PostPushDataResultTask(UUID agentId, UUID workUnitId, Long currentMillis, String format, String pushData) {
       this.agentId = agentId;
@@ -663,6 +663,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     @Override
     public void execute(Object callback) {
       parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis, format, pushData));
+      if (timeSpentInQueue == null) {
+        timeSpentInQueue = Metrics.newHistogram(new MetricName("buffer", "", "queue-time"));
+      }
       timeSpentInQueue.update(Clock.now() - currentMillis);
     }
 

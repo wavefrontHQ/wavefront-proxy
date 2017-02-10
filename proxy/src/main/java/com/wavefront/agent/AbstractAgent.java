@@ -27,6 +27,7 @@ import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 
 import org.apache.commons.lang.StringUtils;
@@ -61,6 +62,7 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.PasswordAuthentication;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -68,6 +70,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -92,6 +96,7 @@ import javax.ws.rs.ProcessingException;
 public abstract class AbstractAgent {
 
   protected static final Logger logger = Logger.getLogger("agent");
+  protected final Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
 
   private static final Gson GSON = new Gson();
   private static final int GRAPHITE_LISTENING_PORT = 2878;
@@ -798,36 +803,57 @@ public abstract class AbstractAgent {
       // set up OoM memory guard
       setupMemoryGuard();
 
-      // 5. Poll or read the configuration file to use.
-      AgentConfiguration config;
-      if (configFile != null) {
-        logger.info("Loading configuration file from: " + configFile);
-        try {
-          config = GSON.fromJson(new FileReader(configFile),
-              AgentConfiguration.class);
-        } catch (FileNotFoundException e) {
-          throw new RuntimeException("Cannot read config file: " + configFile);
-        }
-        try {
-          config.validate(localAgent);
-        } catch (RuntimeException ex) {
-          logger.log(Level.SEVERE, "cannot parse config file", ex);
-          throw new RuntimeException("cannot parse config file", ex);
-        }
-        agentId = null;
-      } else {
-        updateAgentMetrics.run();
-        config = fetchConfig();
-        logger.info("scheduling regular configuration polls");
-        agentMetricsExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
-        auxiliaryExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
-      }
-      // 6. Setup work units and targets based on the configuration.
-      if (config != null) {
-        logger.info("initial configuration is available, setting up proxy agent");
-        processConfiguration(config);
-      }
-      logger.info("setup complete");
+      new Timer().schedule(
+          new TimerTask() {
+            @Override
+            public void run() {
+              try {
+                // exit if no active listeners
+                if (activeListeners.count() == 0) {
+                  logger.severe("**** All listener threads failed to start - there is already a running instance " +
+                      "listening on configured ports, or no listening ports configured!");
+                  logger.severe("Aborting start-up");
+                  System.exit(1);
+                }
+
+                // 5. Poll or read the configuration file to use.
+                AgentConfiguration config;
+                if (configFile != null) {
+                  logger.info("Loading configuration file from: " + configFile);
+                  try {
+                    config = GSON.fromJson(new FileReader(configFile),
+                        AgentConfiguration.class);
+                  } catch (FileNotFoundException e) {
+                    throw new RuntimeException("Cannot read config file: " + configFile);
+                  }
+                  try {
+                    config.validate(localAgent);
+                  } catch (RuntimeException ex) {
+                    logger.log(Level.SEVERE, "cannot parse config file", ex);
+                    throw new RuntimeException("cannot parse config file", ex);
+                  }
+                  agentId = null;
+                } else {
+                  updateAgentMetrics.run();
+                  config = fetchConfig();
+                  logger.info("scheduling regular configuration polls");
+                  agentMetricsExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
+                  auxiliaryExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
+                }
+                // 6. Setup work units and targets based on the configuration.
+                if (config != null) {
+                  logger.info("initial configuration is available, setting up proxy agent");
+                  processConfiguration(config);
+                }
+                logger.info("setup complete");
+              } catch (Throwable t) {
+                logger.log(Level.SEVERE, "Aborting start-up", t);
+                System.exit(1);
+              }
+            }
+          },
+          5000
+      );
     } catch (Throwable t) {
       logger.log(Level.SEVERE, "Aborting start-up", t);
       System.exit(1);
@@ -986,6 +1012,7 @@ public abstract class AbstractAgent {
    *
    * @return Fetched configuration. {@code null} if the configuration is invalid.
    */
+  @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
   private AgentConfiguration fetchConfig() {
     AgentConfiguration newConfig = null;
     JsonNode agentMetricsWorkingCopy;
@@ -1019,17 +1046,19 @@ public abstract class AbstractAgent {
           server + ": " + Throwables.getRootCause(ex).getMessage());
       return null;
     } catch (ProcessingException ex) {
-      if (Throwables.getRootCause(ex) instanceof UnknownHostException) {
+      Throwable rootCause = Throwables.getRootCause(ex);
+      if (rootCause instanceof UnknownHostException) {
         fetchConfigError("Unknown host: " + server + ". Please verify your DNS and network settings!", null);
         return null;
       }
-      if (Throwables.getRootCause(ex) instanceof ConnectException) {
-        fetchConfigError("Unable to connect to " + server + ": " + Throwables.getRootCause(ex).getMessage(),
+      if (rootCause instanceof ConnectException ||
+          rootCause instanceof SocketTimeoutException) {
+        fetchConfigError("Unable to connect to " + server + ": " + rootCause.getMessage(),
             "Please verify your network/firewall settings!");
         return null;
       }
       fetchConfigError("Request processing error: Unable to retrieve proxy agent configuration!",
-          server + ": " + Throwables.getRootCause(ex));
+          server + ": " + rootCause);
       return null;
     } catch (Exception ex) {
       fetchConfigError("Unable to retrieve proxy agent configuration from remote server!",
