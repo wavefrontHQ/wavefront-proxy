@@ -188,7 +188,7 @@ buffer=/var/spool/wavefront-proxy/buffer
 ## Bounds the number of centroids per histogram. Must be in [20;1000]
 #histogramCompression=100
 ## Directory for persistent agent state, must be writable.
-#histogramStateDirectory="/var/tmp"
+histogramStateDirectory=/var/spool/wavefront-proxy
 ## Interval to write-back accumulation changes to disk in millis
 #histogramAccumulatorResolveInterval = 100
 ## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins

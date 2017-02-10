@@ -176,7 +176,7 @@ public abstract class AbstractAgent {
   @Parameter(
       names = {"--histogramStateDirectory"},
       description = "Directory for persistent agent state, must be writable.")
-  protected String histogramStateDirectory = "";
+  protected String histogramStateDirectory = "/var/tmp";
 
   @Parameter(
       names = {"--histogramAccumulatorResolveInterval"},
