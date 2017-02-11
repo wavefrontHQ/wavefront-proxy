@@ -28,6 +28,7 @@ import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 
 import org.apache.commons.lang.StringUtils;
@@ -50,6 +51,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryNotificationInfo;
+import java.lang.management.MemoryPoolMXBean;
+import java.lang.management.MemoryType;
 import java.net.Authenticator;
 import java.net.ConnectException;
 import java.net.HttpURLConnection;
@@ -58,6 +63,7 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.PasswordAuthentication;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -65,6 +71,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -75,6 +83,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
+import javax.management.NotificationEmitter;
 import javax.net.ssl.HttpsURLConnection;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.NotAuthorizedException;
@@ -88,6 +97,7 @@ import javax.ws.rs.ProcessingException;
 public abstract class AbstractAgent {
 
   protected static final Logger logger = Logger.getLogger("agent");
+  protected final Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
 
   private static final Gson GSON = new Gson();
   private static final int GRAPHITE_LISTENING_PORT = 2878;
@@ -170,7 +180,7 @@ public abstract class AbstractAgent {
   @Parameter(
       names = {"--histogramStateDirectory"},
       description = "Directory for persistent agent state, must be writable.")
-  protected String histogramStateDirectory = "";
+  protected String histogramStateDirectory = "/var/tmp";
 
   @Parameter(
       names = {"--histogramAccumulatorResolveInterval"},
@@ -393,6 +403,9 @@ public abstract class AbstractAgent {
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
   protected RecyclableRateLimiter pushRateLimiter = null;
+  protected final MemoryPoolMXBean tenuredGenPool = getTenuredGenPool();
+  protected JsonNode agentMetrics;
+  protected long agentMetricsCaptureTs;
 
   protected final ScheduledExecutorService histogramExecutor =
       Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
@@ -404,31 +417,58 @@ public abstract class AbstractAgent {
    * Executors for support tasks.
    */
   private final ScheduledExecutorService auxiliaryExecutor = Executors.newScheduledThreadPool(1);
+  private final ScheduledExecutorService agentMetricsExecutor = Executors.newScheduledThreadPool(1);
   protected UUID agentId;
-  private final Runnable updateConfiguration = new Runnable() {
-    @Override
-    public void run() {
-      long startTime = System.currentTimeMillis();
-      boolean isRetry = false;
-      boolean doShutDown = false;
-      try {
-        AgentConfiguration config = fetchConfig();
-        if (config != null) {
-          processConfiguration(config);
-          doShutDown = config.getShutOffAgents();
-        } else {
-          isRetry = true;
-        }
-      } finally {
-        if (doShutDown) {
-          logger.warning("Shutting down: Server side flag indicating agent has to shut down.");
-          shutdown();
-        } else {
-          // schedule the next run in 1 minute, compensated for the time taken to check in. if failed, retry in 500ms
-          long nextRun = isRetry ? 500 : Math.max(5000, 60000 - (System.currentTimeMillis() - startTime));
-          auxiliaryExecutor.schedule(this, nextRun, TimeUnit.MILLISECONDS);
-        }
+  private final Runnable updateConfiguration = () -> {
+    boolean doShutDown = false;
+    try {
+      AgentConfiguration config = fetchConfig();
+      if (config != null) {
+        processConfiguration(config);
+        doShutDown = config.getShutOffAgents();
       }
+    } finally {
+      if (doShutDown) {
+        logger.warning("Shutting down: Server side flag indicating agent has to shut down.");
+        shutdown();
+      }
+    }
+  };
+
+  private final Runnable updateAgentMetrics = () -> {
+    @Nullable Map<String, String> pointTags = null;
+    try {
+      // calculate disk space available for queueing
+      long maxAvailableSpace = 0;
+      try {
+        File bufferDirectory = new File(bufferFile).getAbsoluteFile();
+        while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
+          bufferDirectory = bufferDirectory.getParentFile();
+        }
+        for (int i = 0; i < retryThreads; i++) {
+          File buffer = new File(bufferFile + "." + i);
+          if (buffer.exists()) {
+            maxAvailableSpace += Integer.MAX_VALUE - buffer.length(); // 2GB max file size minus size used
+          }
+        }
+        if (bufferDirectory != null) {
+          // lesser of: available disk space or available buffer space
+          bufferSpaceLeft.set(Math.min(maxAvailableSpace, bufferDirectory.getUsableSpace()));
+        }
+      } catch (Throwable t) {
+        logger.warning("cannot compute remaining space in buffer file partition: " + t);
+      }
+
+      if (agentMetricsPointTags != null) {
+        pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
+      }
+      synchronized (agentMetricsExecutor) {
+        agentMetricsCaptureTs = System.currentTimeMillis();
+        agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
+            true, true, true, pointTags);
+      }
+    } catch (Exception ex) {
+      logger.log(Level.SEVERE, "Could not generate agent metrics", ex);
     }
   };
 
@@ -520,6 +560,8 @@ public abstract class AbstractAgent {
     }
   }
 
+
+
   private void loadListenerConfigurationFile() throws IOException {
     // If they've specified a push configuration file, override the command line values
     if (pushConfigFile != null) {
@@ -534,64 +576,64 @@ public abstract class AbstractAgent {
         hostname = prop.getProperty("hostname", hostname);
         idFile = prop.getProperty("idFile", idFile);
         pushFlushInterval = Integer.parseInt(prop.getProperty("pushFlushInterval",
-            String.valueOf(pushFlushInterval)));
+            String.valueOf(pushFlushInterval)).trim());
         pushFlushMaxPoints = Integer.parseInt(prop.getProperty("pushFlushMaxPoints",
-            String.valueOf(pushFlushMaxPoints)));
-        pushRateLimit = Integer.parseInt(prop.getProperty("pushRateLimit", String.valueOf(pushRateLimit)));
+            String.valueOf(pushFlushMaxPoints)).trim());
+        pushRateLimit = Integer.parseInt(prop.getProperty("pushRateLimit", String.valueOf(pushRateLimit)).trim());
         pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
-            String.valueOf(pushBlockedSamples)));
+            String.valueOf(pushBlockedSamples)).trim());
         pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
         histogramStateDirectory = prop.getProperty("histogramStateDirectory", histogramStateDirectory);
         histogramAccumulatorResolveInterval = Long.parseLong(prop.getProperty(
             "histogramAccumulatorResolveInterval",
-            String.valueOf(histogramAccumulatorResolveInterval)));
+            String.valueOf(histogramAccumulatorResolveInterval)).trim());
         histogramMinsListenerPorts = prop.getProperty("histogramMinsListenerPorts", histogramMinsListenerPorts);
         histogramMinuteAccumulators = Integer.parseInt(prop.getProperty(
             "histogramMinuteAccumulators",
-            String.valueOf(histogramMinuteAccumulators)));
+            String.valueOf(histogramMinuteAccumulators)).trim());
         histogramMinuteFlushSecs = Integer.parseInt(prop.getProperty(
             "histogramMinuteFlushSecs",
-            String.valueOf(histogramMinuteFlushSecs)));
+            String.valueOf(histogramMinuteFlushSecs)).trim());
         histogramHoursListenerPorts = prop.getProperty("histogramHoursListenerPorts", histogramHoursListenerPorts);
         histogramHourAccumulators = Integer.parseInt(prop.getProperty(
             "histogramHourAccumulators",
-            String.valueOf(histogramHourAccumulators)));
+            String.valueOf(histogramHourAccumulators)).trim());
         histogramHourFlushSecs = Integer.parseInt(prop.getProperty(
             "histogramHourFlushSecs",
-            String.valueOf(histogramHourFlushSecs)));
+            String.valueOf(histogramHourFlushSecs)).trim());
         histogramDaysListenerPorts = prop.getProperty("histogramDaysListenerPorts", histogramDaysListenerPorts);
         histogramDayAccumulators = Integer.parseInt(prop.getProperty(
             "histogramDayAccumulators",
-            String.valueOf(histogramDayAccumulators)));
+            String.valueOf(histogramDayAccumulators)).trim());
         histogramDayFlushSecs = Integer.parseInt(prop.getProperty(
             "histogramDayFlushSecs",
-            String.valueOf(histogramDayFlushSecs)));
+            String.valueOf(histogramDayFlushSecs)).trim());
         histogramDistListenerPorts = prop.getProperty("histogramDistListenerPorts", histogramDistListenerPorts);
         histogramDistAccumulators = Integer.parseInt(prop.getProperty(
             "histogramDistAccumulators",
-            String.valueOf(histogramDistAccumulators)));
+            String.valueOf(histogramDistAccumulators)).trim());
         histogramDistFlushSecs = Integer.parseInt(prop.getProperty(
             "histogramDistFlushSecs",
-            String.valueOf(histogramDistFlushSecs)));
+            String.valueOf(histogramDistFlushSecs)).trim());
         histogramAccumulatorSize = Long.parseLong(prop.getProperty(
             "histogramAccumulatorSize",
-            String.valueOf(histogramAccumulatorSize)));
+            String.valueOf(histogramAccumulatorSize)).trim());
         avgHistogramKeyBytes = Integer.parseInt(prop.getProperty(
             "avgHistogramKeyBytes",
-            String.valueOf(avgHistogramKeyBytes)));
+            String.valueOf(avgHistogramKeyBytes)).trim());
         avgHistogramDigestBytes = Integer.parseInt(prop.getProperty(
             "avgHistogramDigestBytes",
-            String.valueOf(avgHistogramDigestBytes)));
+            String.valueOf(avgHistogramDigestBytes)).trim());
         histogramCompression = Short.parseShort(prop.getProperty(
             "histogramCompression",
-            String.valueOf(histogramCompression)));
+            String.valueOf(histogramCompression)).trim());
         persistAccumulator =
-            Boolean.parseBoolean(prop.getProperty("persistAccumulator", String.valueOf(persistAccumulator)));
+            Boolean.parseBoolean(prop.getProperty("persistAccumulator", String.valueOf(persistAccumulator)).trim());
         persistMessages =
-            Boolean.parseBoolean(prop.getProperty("persistMessages", String.valueOf(persistMessages)));
+            Boolean.parseBoolean(prop.getProperty("persistMessages", String.valueOf(persistMessages)).trim());
 
-        retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)));
-        flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));
+        retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)).trim());
+        flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)).trim());
         httpJsonPorts = prop.getProperty("jsonListenerPorts", httpJsonPorts);
         writeHttpJsonPorts = prop.getProperty("writeHttpJsonListenerPorts", writeHttpJsonPorts);
         graphitePorts = prop.getProperty("graphitePorts", graphitePorts);
@@ -606,34 +648,36 @@ public abstract class AbstractAgent {
         opentsdbWhitelistRegex = prop.getProperty("opentsdbWhitelistRegex", opentsdbWhitelistRegex);
         opentsdbBlacklistRegex = prop.getProperty("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
         proxyHost = prop.getProperty("proxyHost", proxyHost);
-        proxyPort = Integer.parseInt(prop.getProperty("proxyPort", String.valueOf(proxyPort)));
+        proxyPort = Integer.parseInt(prop.getProperty("proxyPort", String.valueOf(proxyPort)).trim());
         proxyPassword = prop.getProperty("proxyPassword", proxyPassword);
         proxyUser = prop.getProperty("proxyUser", proxyUser);
         httpUserAgent = prop.getProperty("httpUserAgent", httpUserAgent);
         httpConnectTimeout = Integer.parseInt(prop.getProperty(
             "httpConnectTimeout",
-            String.valueOf(httpConnectTimeout)));
+            String.valueOf(httpConnectTimeout)).trim());
         httpRequestTimeout = Integer.parseInt(prop.getProperty(
             "httpRequestTimeout",
-            String.valueOf(httpRequestTimeout)));
-        javaNetConnection = Boolean.valueOf(prop.getProperty("javaNetConnection", String.valueOf(javaNetConnection)));
-        soLingerTime = Integer.parseInt(prop.getProperty("soLingerTime", String.valueOf(soLingerTime)));
+            String.valueOf(httpRequestTimeout)).trim());
+        javaNetConnection = Boolean.valueOf(prop.getProperty(
+            "javaNetConnection",
+            String.valueOf(javaNetConnection)).trim());
+        soLingerTime = Integer.parseInt(prop.getProperty("soLingerTime", String.valueOf(soLingerTime)).trim());
         splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
-            String.valueOf(splitPushWhenRateLimited)));
+            String.valueOf(splitPushWhenRateLimited)).trim());
         retryBackoffBaseSeconds = Double.parseDouble(prop.getProperty("retryBackoffBaseSeconds",
-            String.valueOf(retryBackoffBaseSeconds)));
+            String.valueOf(retryBackoffBaseSeconds)).trim());
         customSourceTagsProperty = prop.getProperty("customSourceTags", customSourceTagsProperty);
         agentMetricsPointTags = prop.getProperty("agentMetricsPointTags", agentMetricsPointTags);
-        ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)));
+        ephemeral = Boolean.parseBoolean(prop.getProperty("ephemeral", String.valueOf(ephemeral)).trim());
         disableRdnsLookup = Boolean.parseBoolean(prop.getProperty("disableRdnsLookup",
-            String.valueOf(disableRdnsLookup)));
+            String.valueOf(disableRdnsLookup)).trim());
         picklePorts = prop.getProperty("picklePorts", picklePorts);
         bufferFile = prop.getProperty("buffer", bufferFile);
         preprocessorConfigFile = prop.getProperty("preprocessorConfigFile", preprocessorConfigFile);
         dataBackfillCutoffHours = Integer.parseInt(prop.getProperty("dataBackfillCutoffHours",
-            String.valueOf(dataBackfillCutoffHours)));
-        filebeatPort = Integer.parseInt(prop.getProperty("filebeatPort", String.valueOf(filebeatPort)));
-        rawLogsPort = Integer.parseInt(prop.getProperty("rawLogsPort", String.valueOf(rawLogsPort)));
+            String.valueOf(dataBackfillCutoffHours)).trim());
+        filebeatPort = Integer.parseInt(prop.getProperty("filebeatPort", String.valueOf(filebeatPort)).trim());
+        rawLogsPort = Integer.parseInt(prop.getProperty("rawLogsPort", String.valueOf(rawLogsPort)).trim());
         logsIngestionConfigFile = prop.getProperty("logsIngestionConfigFile", logsIngestionConfigFile);
 
         /*
@@ -647,7 +691,7 @@ public abstract class AbstractAgent {
             Runtime.getRuntime().maxMemory() / listeningPorts / 4 / flushThreads / 400), pushFlushMaxPoints);
         logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
         pushMemoryBufferLimit = Integer.parseInt(prop.getProperty("pushMemoryBufferLimit",
-            String.valueOf(calculatedMemoryBufferLimit)));
+            String.valueOf(calculatedMemoryBufferLimit)).trim());
         logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
 
         logger.warning("Loaded configuration file " + pushConfigFile);
@@ -779,34 +823,60 @@ public abstract class AbstractAgent {
       // 4. Start the (push) listening endpoints
       startListeners();
 
-      // 5. Poll or read the configuration file to use.
-      AgentConfiguration config;
-      if (configFile != null) {
-        logger.info("Loading configuration file from: " + configFile);
-        try {
-          config = GSON.fromJson(new FileReader(configFile),
-              AgentConfiguration.class);
-        } catch (FileNotFoundException e) {
-          throw new RuntimeException("Cannot read config file: " + configFile);
-        }
-        try {
-          config.validate(localAgent);
-        } catch (RuntimeException ex) {
-          logger.log(Level.SEVERE, "cannot parse config file", ex);
-          throw new RuntimeException("cannot parse config file", ex);
-        }
-        agentId = null;
-      } else {
-        config = fetchConfig();
-        logger.info("scheduling regular configuration polls");
-        auxiliaryExecutor.schedule(updateConfiguration, 10, TimeUnit.SECONDS);
-      }
-      // 6. Setup work units and targets based on the configuration.
-      if (config != null) {
-        logger.info("initial configuration is available, setting up proxy agent");
-        processConfiguration(config);
-      }
-      logger.info("setup complete");
+      // set up OoM memory guard
+      setupMemoryGuard();
+
+      new Timer().schedule(
+          new TimerTask() {
+            @Override
+            public void run() {
+              try {
+                // exit if no active listeners
+                if (activeListeners.count() == 0) {
+                  logger.severe("**** All listener threads failed to start - there is already a running instance " +
+                      "listening on configured ports, or no listening ports configured!");
+                  logger.severe("Aborting start-up");
+                  System.exit(1);
+                }
+
+                // 5. Poll or read the configuration file to use.
+                AgentConfiguration config;
+                if (configFile != null) {
+                  logger.info("Loading configuration file from: " + configFile);
+                  try {
+                    config = GSON.fromJson(new FileReader(configFile),
+                        AgentConfiguration.class);
+                  } catch (FileNotFoundException e) {
+                    throw new RuntimeException("Cannot read config file: " + configFile);
+                  }
+                  try {
+                    config.validate(localAgent);
+                  } catch (RuntimeException ex) {
+                    logger.log(Level.SEVERE, "cannot parse config file", ex);
+                    throw new RuntimeException("cannot parse config file", ex);
+                  }
+                  agentId = null;
+                } else {
+                  updateAgentMetrics.run();
+                  config = fetchConfig();
+                  logger.info("scheduling regular configuration polls");
+                  agentMetricsExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
+                  auxiliaryExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
+                }
+                // 6. Setup work units and targets based on the configuration.
+                if (config != null) {
+                  logger.info("initial configuration is available, setting up proxy agent");
+                  processConfiguration(config);
+                }
+                logger.info("setup complete");
+              } catch (Throwable t) {
+                logger.log(Level.SEVERE, "Aborting start-up", t);
+                System.exit(1);
+              }
+            }
+          },
+          5000
+      );
     } catch (Throwable t) {
       logger.log(Level.SEVERE, "Aborting start-up", t);
       System.exit(1);
@@ -965,38 +1035,22 @@ public abstract class AbstractAgent {
    *
    * @return Fetched configuration. {@code null} if the configuration is invalid.
    */
+  @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
   private AgentConfiguration fetchConfig() {
     AgentConfiguration newConfig = null;
-    logger.info("fetching configuration from server at: " + server);
-    long maxAvailableSpace = 0;
-    try {
-      File bufferDirectory = new File(bufferFile).getAbsoluteFile();
-      while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
-        bufferDirectory = bufferDirectory.getParentFile();
-      }
-      for (int i = 0; i < retryThreads; i++) {
-        File buffer = new File(bufferFile + "." + i);
-        if (buffer.exists()) {
-          maxAvailableSpace += Integer.MAX_VALUE - buffer.length(); // 2GB max file size minus size used
-        }
-      }
-      if (bufferDirectory != null) {
-        // lesser of: available disk space or available buffer space
-        bufferSpaceLeft.set(Math.min(maxAvailableSpace, bufferDirectory.getUsableSpace()));
-      }
-    } catch (Throwable t) {
-      logger.warning("cannot compute remaining space in buffer file partition: " + t);
+    JsonNode agentMetricsWorkingCopy;
+    long agentMetricsCaptureTsWorkingCopy;
+    synchronized(agentMetricsExecutor) {
+      if (agentMetrics == null) return null;
+      agentMetricsWorkingCopy = agentMetrics;
+      agentMetricsCaptureTsWorkingCopy = agentMetricsCaptureTs;
+      agentMetrics = null;
     }
-
+    logger.info("fetching configuration from server at: " + server);
     try {
-      @Nullable Map<String, String> pointTags = null;
-      if (agentMetricsPointTags != null) {
-        pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
-      }
-      JsonNode agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
-          true, true, true, pointTags);
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
-          System.currentTimeMillis(), localAgent, agentMetrics, pushAgent, ephemeral);
+          agentMetricsCaptureTsWorkingCopy, localAgent, agentMetricsWorkingCopy, pushAgent, ephemeral);
+      agentMetricsWorkingCopy = null;
     } catch (NotAuthorizedException ex) {
       fetchConfigError("HTTP 401 Unauthorized: Please verify that your server and token settings",
           "are correct and that the token has Agent Management permission!");
@@ -1015,27 +1069,37 @@ public abstract class AbstractAgent {
           server + ": " + Throwables.getRootCause(ex).getMessage());
       return null;
     } catch (ProcessingException ex) {
-      if (Throwables.getRootCause(ex) instanceof UnknownHostException) {
+      Throwable rootCause = Throwables.getRootCause(ex);
+      if (rootCause instanceof UnknownHostException) {
         fetchConfigError("Unknown host: " + server + ". Please verify your DNS and network settings!", null);
         return null;
       }
-      if (Throwables.getRootCause(ex) instanceof ConnectException) {
-        fetchConfigError("Unable to connect to " + server + ": " + Throwables.getRootCause(ex).getMessage(),
+      if (rootCause instanceof ConnectException ||
+          rootCause instanceof SocketTimeoutException) {
+        fetchConfigError("Unable to connect to " + server + ": " + rootCause.getMessage(),
             "Please verify your network/firewall settings!");
         return null;
       }
       fetchConfigError("Request processing error: Unable to retrieve proxy agent configuration!",
-          server + ": " + Throwables.getRootCause(ex));
+          server + ": " + rootCause);
       return null;
     } catch (Exception ex) {
       fetchConfigError("Unable to retrieve proxy agent configuration from remote server!",
           server + ": " + Throwables.getRootCause(ex));
       return null;
-    }
-    if (newConfig.currentTime != null) {
-      Clock.set(newConfig.currentTime);
+    } finally {
+      synchronized(agentMetricsExecutor) {
+        // if check-in process failed (agentMetricsWorkingCopy is not null) and agent metrics have
+        // not been updated yet, restore last known set of agent metrics to be retried
+        if (agentMetricsWorkingCopy != null && agentMetrics == null) {
+          agentMetrics = agentMetricsWorkingCopy;
+        }
+      }
     }
     try {
+      if (newConfig.currentTime != null) {
+        Clock.set(newConfig.currentTime);
+      }
       newConfig.validate(localAgent);
     } catch (Exception ex) {
       logger.log(Level.WARNING, "configuration file read from server is invalid", ex);
@@ -1085,6 +1149,7 @@ public abstract class AbstractAgent {
     logger.info("Shutting down: Stopping schedulers...");
     agentAPI.shutdown();
     auxiliaryExecutor.shutdown();
+    agentMetricsExecutor.shutdown();
     managedTasks.forEach(PostPushDataTimedTask::shutdown);
     logger.info("Shutting down: Flushing pending points...");
     for (PostPushDataTimedTask task : managedTasks) {
@@ -1124,5 +1189,32 @@ public abstract class AbstractAgent {
       return localAddress.getCanonicalHostName();
     }
     return "localhost";
+  }
+
+  private MemoryPoolMXBean getTenuredGenPool() {
+    for (MemoryPoolMXBean pool : ManagementFactory.getMemoryPoolMXBeans()) {
+      if (pool.getType() == MemoryType.HEAP && pool.isUsageThresholdSupported()) {
+        return pool;
+      }
+    }
+    return null;
+  }
+
+  private void setupMemoryGuard() {
+    if (tenuredGenPool == null) return;
+    tenuredGenPool.setUsageThreshold((long) (tenuredGenPool.getUsage().getMax() * 0.9));
+
+    NotificationEmitter emitter = (NotificationEmitter) ManagementFactory.getMemoryMXBean();
+    emitter.addNotificationListener((notification, obj) -> {
+      if (notification.getType().equals(
+          MemoryNotificationInfo.MEMORY_THRESHOLD_EXCEEDED)) {
+        logger.warning("Heap usage exceed 90% - draining buffers to disk!");
+        for (PostPushDataTimedTask task : managedTasks) {
+          while (task.getNumPointsToSend() > 0)
+            task.drainBuffersToQueue();
+        }
+        logger.info("Draining buffers to disk: finished");
+      }
+    }, null, null);
   }
 }

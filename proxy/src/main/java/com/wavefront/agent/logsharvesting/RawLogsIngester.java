@@ -1,5 +1,6 @@
 package com.wavefront.agent.logsharvesting;
 
+import com.wavefront.agent.histogram.HistogramLineIngester;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -7,13 +8,19 @@ import com.yammer.metrics.core.MetricName;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -26,6 +33,7 @@ import io.netty.util.CharsetUtil;
  */
 public class RawLogsIngester {
 
+  private static final Logger logger = Logger.getLogger(RawLogsIngester.class.getCanonicalName());
   private LogsIngester logsIngester;
   private int port;
   private Supplier<Long> now;
@@ -40,11 +48,23 @@ public class RawLogsIngester {
 
   public void listen() throws InterruptedException {
     ServerBootstrap serverBootstrap = new ServerBootstrap();
-    NioEventLoopGroup acceptorGroup = new NioEventLoopGroup(2);
-    NioEventLoopGroup handlerGroup = new NioEventLoopGroup(10);
+    EventLoopGroup acceptorGroup;
+    EventLoopGroup handlerGroup;
+    Class<? extends ServerChannel> socketChannelClass;
+    if (Epoll.isAvailable()) {
+      logger.fine("Using native socket transport for port " + port);
+      acceptorGroup = new EpollEventLoopGroup(2);
+      handlerGroup = new EpollEventLoopGroup(10);
+      socketChannelClass = EpollServerSocketChannel.class;
+    } else {
+      logger.fine("Using NIO socket transport for port " + port);
+      acceptorGroup = new NioEventLoopGroup(2);
+      handlerGroup = new NioEventLoopGroup(10);
+      socketChannelClass = NioServerSocketChannel.class;
+    }
 
     serverBootstrap.group(acceptorGroup, handlerGroup)
-        .channel(NioServerSocketChannel.class)
+        .channel(socketChannelClass)
         .childHandler(new SocketInitializer())
         .option(ChannelOption.SO_BACKLOG, 5)
         .option(ChannelOption.SO_KEEPALIVE, true);

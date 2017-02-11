@@ -47,6 +47,7 @@ import org.logstash.beats.Server;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.BindException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteOrder;
@@ -329,9 +330,17 @@ public class PushAgent extends AbstractAgent {
           filebeatServer.setMessageListener(new FilebeatIngester(logsIngester, System::currentTimeMillis));
           startAsManagedThread(() -> {
             try {
+              activeListeners.inc();
               filebeatServer.listen();
             } catch (InterruptedException e) {
               logger.log(Level.SEVERE, "Filebeat server interrupted.", e);
+            } catch (Exception e) {
+              // ChannelFuture throws undeclared checked exceptions, so we need to handle it
+              if (e instanceof BindException) {
+                logger.severe("Unable to start listener - port " + String.valueOf(rawLogsPort) + " is already in use!");
+              }
+            } finally {
+              activeListeners.dec();
             }
           });
         }
@@ -340,9 +349,17 @@ public class PushAgent extends AbstractAgent {
           RawLogsIngester rawLogsIngester = new RawLogsIngester(logsIngester, rawLogsPort, System::currentTimeMillis);
           startAsManagedThread(() -> {
             try {
+              activeListeners.inc();
               rawLogsIngester.listen();
             } catch (InterruptedException e) {
               logger.log(Level.SEVERE, "Raw logs server interrupted.", e);
+            } catch (Exception e) {
+              // ChannelFuture throws undeclared checked exceptions, so we need to handle it
+              if (e instanceof BindException) {
+                logger.severe("Unable to start listener - port " + String.valueOf(rawLogsPort) + " is already in use!");
+              }
+            } finally {
+              activeListeners.dec();
             }
           });
         }
