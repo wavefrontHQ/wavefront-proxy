@@ -416,9 +416,18 @@ public abstract class AbstractAgent {
   private final ScheduledExecutorService agentMetricsExecutor = Executors.newScheduledThreadPool(1);
   protected UUID agentId;
   private final Runnable updateConfiguration = () -> {
-    AgentConfiguration config = fetchConfig();
-    if (config != null) {
-      processConfiguration(config);
+    boolean doShutDown = false;
+    try {
+      AgentConfiguration config = fetchConfig();
+      if (config != null) {
+        processConfiguration(config);
+        doShutDown = config.getShutOffAgents();
+      }
+    } finally {
+      if (doShutDown) {
+        logger.warning("Shutting down: Server side flag indicating agent has to shut down.");
+        shutdown();
+      }
     }
   };
 

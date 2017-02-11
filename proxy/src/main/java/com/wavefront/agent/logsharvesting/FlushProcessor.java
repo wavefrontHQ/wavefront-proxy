@@ -1,6 +1,7 @@
 package com.wavefront.agent.logsharvesting;
 
 import com.beust.jcommander.internal.Lists;
+import com.wavefront.common.MetricsToTimeseries;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
@@ -10,6 +11,7 @@ import com.yammer.metrics.core.MetricProcessor;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.WavefrontHistogram;
 
+import java.util.Map;
 import java.util.function.Supplier;
 
 import sunnylabs.report.HistogramType;
@@ -57,14 +59,12 @@ class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
       context.report(builder.build());
     } else {
       context.reportSubMetric(histogram.count(), "count");
-      context.reportSubMetric(histogram.min(), "min");
-      context.reportSubMetric(histogram.max(), "max");
-      context.reportSubMetric(histogram.mean(), "mean");
-      context.reportSubMetric(histogram.getSnapshot().getMedian(), "median");
-      context.reportSubMetric(histogram.getSnapshot().get75thPercentile(), "p75");
-      context.reportSubMetric(histogram.getSnapshot().get95thPercentile(), "p95");
-      context.reportSubMetric(histogram.getSnapshot().get99thPercentile(), "p99");
-      context.reportSubMetric(histogram.getSnapshot().get999thPercentile(), "p999");
+      for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeSummarizable(histogram).entrySet()) {
+        context.reportSubMetric(entry.getValue(), entry.getKey());
+      }
+      for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeSampling(histogram).entrySet()) {
+        context.reportSubMetric(entry.getValue(), entry.getKey());
+      }
       histogram.clear();
     }
     sentCounter.inc();

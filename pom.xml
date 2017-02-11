@@ -10,6 +10,7 @@
     <module>proxy</module>
     <module>java-client</module>
     <module>dropwizard-metrics/3.1</module>
+    <module>yammer-metrics</module>
   </modules>
   <packaging>pom</packaging>
 

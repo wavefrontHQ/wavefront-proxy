@@ -294,7 +294,7 @@ public class LogsIngesterTest {
       lines[i - 1] = "histo " + i;
     }
     assertThat(
-        getPoints(9, lines),
+        getPoints(11, lines),
         containsInAnyOrder(ImmutableList.of(
             PointMatchers.almostMatches(100.0, "myHisto.count", ImmutableMap.of()),
             PointMatchers.almostMatches(1.0, "myHisto.min", ImmutableMap.of()),
@@ -304,7 +304,9 @@ public class LogsIngesterTest {
             PointMatchers.almostMatches(75.75, "myHisto.p75", ImmutableMap.of()),
             PointMatchers.almostMatches(95.95, "myHisto.p95", ImmutableMap.of()),
             PointMatchers.almostMatches(99.99, "myHisto.p99", ImmutableMap.of()),
-            PointMatchers.almostMatches(100.0, "myHisto.p999", ImmutableMap.of())
+            PointMatchers.almostMatches(100.0, "myHisto.p999", ImmutableMap.of()),
+            PointMatchers.almostMatches(5050.0, "myHisto.sum", ImmutableMap.of()),
+            PointMatchers.almostMatches(29.011491, "myHisto.stddev", ImmutableMap.of())
         ))
     );
   }
