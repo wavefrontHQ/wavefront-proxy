@@ -200,8 +200,7 @@ public class PointHandlerImpl implements PointHandler {
   }
 
 
-  @VisibleForTesting
-  static String pointToString(ReportPoint point) {
+  public static String pointToString(ReportPoint point) {
     return pointToStringSB(point);
   }
 }
