@@ -1,12 +1,13 @@
 package com.wavefront.integrations;
 
+import com.wavefront.metrics.ReconnectingSocket;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.Map;
@@ -17,7 +18,8 @@ import javax.annotation.Nullable;
 import javax.net.SocketFactory;
 
 /**
- * Wavefront Client that sends data directly via TCP to the Wavefront Proxy Agent.
+ * Wavefront Client that sends data directly via TCP to the Wavefront Proxy Agent. User should probably
+ * attempt to reconnect when exceptions are thrown from any methods.
  *
  * @author Clement Pang (clement@wavefront.com).
  * @author Conor Beverland (conor@wavefront.com).
@@ -31,8 +33,7 @@ public class Wavefront implements WavefrontSender {
   private final InetSocketAddress address;
   private final SocketFactory socketFactory;
 
-  private volatile Socket socket;
-  private volatile Writer writer;
+  private volatile ReconnectingSocket reconnectingSocket;
   private AtomicInteger failures = new AtomicInteger();
   /**
    * Source to use if there's none.
@@ -81,6 +82,7 @@ public class Wavefront implements WavefrontSender {
   public Wavefront(InetSocketAddress agentAddress, SocketFactory socketFactory) {
     this.address = agentAddress;
     this.socketFactory = socketFactory;
+    this.reconnectingSocket = null;
   }
 
   private void initializeSource() throws UnknownHostException {
@@ -91,16 +93,14 @@ public class Wavefront implements WavefrontSender {
 
   @Override
   public synchronized void connect() throws IllegalStateException, IOException {
-    if (socket != null) {
+    if (reconnectingSocket != null) {
       throw new IllegalStateException("Already connected");
     }
-    InetSocketAddress address = new InetSocketAddress(this.address.getHostName(), this.address.getPort());
-    if (address.getAddress() == null) {
-      throw new UnknownHostException(address.getHostName());
+    try {
+      reconnectingSocket = new ReconnectingSocket(address.getHostName(), address.getPort(), socketFactory);
+    } catch (Exception e) {
+      throw new IOException(e);
     }
-
-    this.socket = socketFactory.createSocket(address.getAddress(), address.getPort());
-    this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), UTF_8));
   }
 
   @Override
@@ -127,13 +127,12 @@ public class Wavefront implements WavefrontSender {
   }
 
   public boolean isConnected() {
-    return socket != null && socket.isConnected() && !socket.isClosed();
+    return reconnectingSocket != null;
   }
 
   private void internalSend(String name, double value, @Nullable Long timestamp, String source,
                             @Nullable Map<String, String> pointTags) throws IOException {
     if (!isConnected()) {
-      this.socket = null;
       try {
         connect();
       } catch (IllegalStateException ex) {
@@ -172,7 +171,11 @@ public class Wavefront implements WavefrontSender {
         }
       }
       sb.append('\n');
-      writer.write(sb.toString());
+      try {
+        reconnectingSocket.write(sb.toString());
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
     } catch (IOException e) {
       failures.incrementAndGet();
       throw e;
@@ -186,27 +189,16 @@ public class Wavefront implements WavefrontSender {
 
   @Override
   public void flush() throws IOException {
-    if (writer != null) {
-      writer.flush();
+    if (reconnectingSocket != null) {
+      reconnectingSocket.flush();
     }
   }
 
   @Override
   public synchronized void close() throws IOException {
-    IOException exception = null;
-    try {
-      flush();
-    } catch (IOException ex) {
-      exception = ex;
-    }
-
-    if (socket != null) {
-      socket.close();
-    }
-    this.socket = null;
-    this.writer = null;
-    if (exception != null) {
-      throw exception;
+    if (reconnectingSocket != null) {
+      reconnectingSocket.close();
+      reconnectingSocket = null;
     }
   }
 

@@ -1,12 +1,15 @@
-package com.wavefront.integrations.metrics;
+package com.wavefront.metrics;
 
 import com.google.common.base.Throwables;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.net.SocketFactory;
 
 /**
  * Creates a socket with a buffered-writer around it. The socket can try to reconnect on
@@ -15,23 +18,34 @@ import java.util.logging.Logger;
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class ReconnectingSocket {
-  protected static final Logger logger = Logger.getLogger(SocketMetricsProcessor.class.getCanonicalName());
+  protected static final Logger logger = Logger.getLogger(ReconnectingSocket.class.getCanonicalName());
 
   private final String host;
   private final int port;
+  private final SocketFactory socketFactory;
+  private Socket underlyingSocket;
   private BufferedOutputStream stream;
 
   /**
    * @throws IOException When we cannot open the remote socket.
    */
-  public ReconnectingSocket(String host, int port) throws IOException {
+  public ReconnectingSocket(String host, int port, SocketFactory socketFactory) throws IOException {
     this.host = host;
     this.port = port;
+    this.socketFactory = socketFactory;
+    this.stream = null;
     resetSocket();
   }
 
+  public ReconnectingSocket(String host, int port) throws IOException {
+    this(host, port, SocketFactory.getDefault());
+  }
+
   /**
-   * Closes the stream best-effort. Guaranteed to re-instantiate the stream.
+   * Closes the stream best-effort. Tries to re-instantiate the stream.
+   *
+   * @throws IOException          If we cannot close a stream we had opened before.
+   * @throws UnknownHostException When {@link #host} and {@link #port} are bad.
    */
   private void resetSocket() throws IOException {
     try {
@@ -39,8 +53,9 @@ public class ReconnectingSocket {
         stream.close();
       }
     } finally {
-      stream = new BufferedOutputStream(new Socket(this.host, this.port).getOutputStream());
-      logger.log(Level.INFO, String.format("Successfully reset connection to %s:%d", this.host, this.port));
+      underlyingSocket = socketFactory.createSocket(host, port);
+      stream = new BufferedOutputStream(underlyingSocket.getOutputStream());
+      logger.log(Level.INFO, String.format("Successfully reset connection to %s:%d", host, port));
     }
   }
 
@@ -52,7 +67,7 @@ public class ReconnectingSocket {
    */
   public void write(String message) throws Exception {
     try {
-      stream.write(message.getBytes());
+      stream.write(message.getBytes());  // Might be NPE due to previously failed call to resetSocket.
     } catch (Exception e) {
       try {
         logger.log(Level.WARNING, "Attempting to reset socket connection.", e);
@@ -73,6 +88,14 @@ public class ReconnectingSocket {
     } catch (Exception e) {
       logger.log(Level.WARNING, "Attempting to reset socket connection.", e);
       resetSocket();
+    }
+  }
+
+  public void close() throws IOException {
+    try {
+      flush();
+    } finally {
+      stream.close();
     }
   }
 }

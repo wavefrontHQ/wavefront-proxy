@@ -39,5 +39,9 @@
       <version>4.11</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.wavefront</groupId>
+      <artifactId>java-lib</artifactId>
+    </dependency>
   </dependencies>
 </project>
