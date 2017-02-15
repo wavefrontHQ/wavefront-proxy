@@ -29,8 +29,8 @@ public class AgentConfiguration {
   private Long pointsPerBatch;
   private Boolean collectorSetsRetryBackoff;
   private Double retryBackoffBaseSeconds;
-  private Boolean shutOffAgents;
-  private Boolean showTrialExpired;
+  private Boolean shutOffAgents = false;
+  private Boolean showTrialExpired = false;
 
   public Boolean getCollectorSetsRetryBackoff() {
     return collectorSetsRetryBackoff;

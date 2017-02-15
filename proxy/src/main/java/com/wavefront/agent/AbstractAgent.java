@@ -427,10 +427,13 @@ public abstract class AbstractAgent {
         processConfiguration(config);
         doShutDown = config.getShutOffAgents();
       }
+    } catch (Exception e) {
+      logger.log(Level.SEVERE, "Exception occurred during configuration update", e);
     } finally {
       if (doShutDown) {
         logger.warning("Shutting down: Server side flag indicating agent has to shut down.");
         shutdown();
+        System.exit(1);
       }
     }
   };
