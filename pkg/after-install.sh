@@ -27,6 +27,8 @@ touch $log_dir/wavefront-daemon.log
 touch $log_dir/wavefront-error.log
 chown $user:$group $log_dir/wavefront-daemon.log
 chown $user:$group $log_dir/wavefront-error.log
+chmod 644 $log_dir/wavefront-daemon.log
+chmod 644 $log_dir/wavefront-error.log
 
 # Configure agent to start on reboot.
 if [[ -f /etc/debian_version ]]; then
