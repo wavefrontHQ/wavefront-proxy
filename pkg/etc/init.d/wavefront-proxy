@@ -121,13 +121,12 @@ jsvc_exec()
 		-Dlog4j.configurationFile=$config_dir/log4j2.xml \
 		-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
 		-errfile $err_file \
-		-outfile $daemon_log_file \
 		-pidfile $pid_file \
 		-wait 20 \
 		-debug \
 		$1 \
 		$class \
-		$app_args
+		$app_args &> $daemon_log_file
 	if [[ $? -ne 0 ]]; then
 		echo "There was a problem, see $err_file and $daemon_log_file"
 	fi
