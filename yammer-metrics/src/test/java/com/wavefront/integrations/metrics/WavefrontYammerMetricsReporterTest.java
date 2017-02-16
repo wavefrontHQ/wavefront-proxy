@@ -24,6 +24,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -43,13 +44,14 @@ public class WavefrontYammerMetricsReporterTest {
   private BufferedInputStream fromMetrics, fromHistograms;
   private Long stubbedTime = 1485224035000L;
 
-  private void innerSetUp(boolean prependGroupName) throws Exception {
+  private void innerSetUp(boolean prependGroupName, Function<MetricName, MetricName> transformer)
+      throws Exception {
     metricsRegistry = new MetricsRegistry();
     metricsServer = new ServerSocket(0);
     histogramsServer = new ServerSocket(0);
     wavefrontYammerMetricsReporter = new WavefrontYammerMetricsReporter(
         metricsRegistry, "test", "localhost", metricsServer.getLocalPort(), histogramsServer.getLocalPort(),
-        () -> stubbedTime, prependGroupName);
+        () -> stubbedTime, prependGroupName, transformer);
     metricsSocket = metricsServer.accept();
     histogramsSocket = histogramsServer.accept();
     fromMetrics = new BufferedInputStream(metricsSocket.getInputStream());
@@ -58,7 +60,7 @@ public class WavefrontYammerMetricsReporterTest {
 
   @Before
   public void setUp() throws Exception {
-    innerSetUp(false);
+    innerSetUp(false, null);
   }
 
   @After
@@ -91,6 +93,21 @@ public class WavefrontYammerMetricsReporterTest {
     counter.inc();
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(1, fromMetrics), contains(equalTo("\"mycount\" 2.0")));
+  }
+
+  @Test(timeout = 1000)
+  public void testTransformer() throws Exception {
+    innerSetUp(false, metricName -> new TaggedMetricName(
+        metricName.getGroup(), metricName.getName(), "tagA", "valueA"));
+    TaggedMetricName taggedMetricName = new TaggedMetricName("group", "mycounter",
+        "tag1", "value1", "tag2", "value2");
+    Counter counter = metricsRegistry.newCounter(taggedMetricName);
+    counter.inc();
+    counter.inc();
+    wavefrontYammerMetricsReporter.run();
+    assertThat(
+        receiveFromSocket(1, fromMetrics),
+        contains(equalTo("\"mycounter\" 2.0 tagA=\"valueA\"")));
   }
 
   @Test(timeout = 1000)
@@ -193,7 +210,7 @@ public class WavefrontYammerMetricsReporterTest {
 
   @Test(timeout = 1000)
   public void testPrependGroupName() throws Exception {
-    innerSetUp(true);
+    innerSetUp(true, null);
 
     // Counter
     TaggedMetricName taggedMetricName = new TaggedMetricName("group", "mycounter",
