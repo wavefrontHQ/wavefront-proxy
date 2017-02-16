@@ -7,6 +7,7 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.WavefrontHistogram;
@@ -42,18 +43,22 @@ public class WavefrontYammerMetricsReporterTest {
   private BufferedInputStream fromMetrics, fromHistograms;
   private Long stubbedTime = 1485224035000L;
 
-  @Before
-  public void setUp() throws Exception {
+  private void innerSetUp(boolean prependGroupName) throws Exception {
     metricsRegistry = new MetricsRegistry();
     metricsServer = new ServerSocket(0);
     histogramsServer = new ServerSocket(0);
     wavefrontYammerMetricsReporter = new WavefrontYammerMetricsReporter(
         metricsRegistry, "test", "localhost", metricsServer.getLocalPort(), histogramsServer.getLocalPort(),
-        () -> stubbedTime);
+        () -> stubbedTime, prependGroupName);
     metricsSocket = metricsServer.accept();
     histogramsSocket = histogramsServer.accept();
     fromMetrics = new BufferedInputStream(metricsSocket.getInputStream());
     fromHistograms = new BufferedInputStream(histogramsSocket.getInputStream());
+  }
+
+  @Before
+  public void setUp() throws Exception {
+    innerSetUp(false);
   }
 
   @After
@@ -184,6 +189,51 @@ public class WavefrontYammerMetricsReporterTest {
         startsWith("\"mytimer.m15\""),
         startsWith("\"mytimer.mean\"")
     ));
+  }
+
+  @Test(timeout = 1000)
+  public void testPrependGroupName() throws Exception {
+    innerSetUp(true);
+
+    // Counter
+    TaggedMetricName taggedMetricName = new TaggedMetricName("group", "mycounter",
+        "tag1", "value1", "tag2", "value2");
+    Counter counter = metricsRegistry.newCounter(taggedMetricName);
+    counter.inc();
+    counter.inc();
+
+    // Wavefront Histo
+    WavefrontHistogram wavefrontHistogram = WavefrontHistogram.get(metricsRegistry, new TaggedMetricName(
+        "group3", "myhisto", "tag1", "value1", "tag2", "value2"));
+    for (int i = 0; i < 101; i++) {
+      wavefrontHistogram.update(i);
+    }
+
+    // Exploded Histo
+    Histogram histogram = metricsRegistry.newHistogram(new MetricName("group2", "", "myhisto"), false);
+    histogram.update(1);
+    histogram.update(10);
+
+    wavefrontYammerMetricsReporter.run();
+    assertThat(
+        receiveFromSocket(12, fromMetrics),
+        containsInAnyOrder(
+            equalTo("\"group.mycounter\" 2.0 tag1=\"value1\" tag2=\"value2\""),
+            equalTo("\"group2.myhisto.count\" 2.0"),
+            equalTo("\"group2.myhisto.min\" 1.0"),
+            equalTo("\"group2.myhisto.max\" 10.0"),
+            equalTo("\"group2.myhisto.mean\" 5.5"),
+            equalTo("\"group2.myhisto.sum\" 11.0"),
+            startsWith("\"group2.myhisto.stddev\""),
+            equalTo("\"group2.myhisto.median\" 5.5"),
+            equalTo("\"group2.myhisto.p75\" 10.0"),
+            equalTo("\"group2.myhisto.p95\" 10.0"),
+            equalTo("\"group2.myhisto.p99\" 10.0"),
+            equalTo("\"group2.myhisto.p999\" 10.0")));
+
+    assertThat(
+        receiveFromSocket(1, fromHistograms),
+        contains(equalTo("!M 1485224035 #101 50.0 \"group3.myhisto\" tag1=\"value1\" tag2=\"value2\"")));
   }
 
 }

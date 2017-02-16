@@ -8,9 +8,22 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.tdunning.math.stats.Centroid;
+import com.wavefront.common.MetricsToTimeseries;
 import com.wavefront.common.TaggedMetricName;
-import com.yammer.metrics.core.*;
-import com.yammer.metrics.stats.Snapshot;
+import com.yammer.metrics.core.Clock;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.Metered;
+import com.yammer.metrics.core.Metric;
+import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.MetricProcessor;
+import com.yammer.metrics.core.MetricsRegistry;
+import com.yammer.metrics.core.Sampling;
+import com.yammer.metrics.core.Summarizable;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.VirtualMachineMetrics;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.Validate;
@@ -24,9 +37,10 @@ import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
+
+import static com.wavefront.common.MetricsToTimeseries.sanitize;
 
 /**
  * Generator of metrics as a JSON node and outputting it to an output stream or returning a json node.
@@ -457,29 +471,20 @@ public abstract class JsonMetricsGenerator {
   }
 
   private static void writeSummarizable(Summarizable metric, JsonGenerator json) throws IOException {
-    json.writeNumberField("min", metric.min());
-    json.writeNumberField("max", metric.max());
-    json.writeNumberField("mean", metric.mean());
+    for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeSummarizable(metric).entrySet()) {
+      json.writeNumberField(entry.getKey(), entry.getValue());
+    }
   }
 
   private static void writeSampling(Sampling metric, JsonGenerator json) throws IOException {
-    final Snapshot snapshot = metric.getSnapshot();
-    json.writeNumberField("median", snapshot.getMedian());
-    json.writeNumberField("p75", snapshot.get75thPercentile());
-    json.writeNumberField("p95", snapshot.get95thPercentile());
-    json.writeNumberField("p99", snapshot.get99thPercentile());
-    json.writeNumberField("p999", snapshot.get999thPercentile());
+    for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeSampling(metric).entrySet()) {
+      json.writeNumberField(entry.getKey(), entry.getValue());
+    }
   }
 
   private static void writeMeteredFields(Metered metered, JsonGenerator json) throws IOException {
-    json.writeNumberField("count", metered.count());
-    json.writeNumberField("mean", metered.meanRate());
-    json.writeNumberField("m1", metered.oneMinuteRate());
-  }
-
-  private static final Pattern SIMPLE_NAMES = Pattern.compile("[^a-zA-Z0-9_.\\-~]");
-
-  private static String sanitize(MetricName metricName) {
-    return SIMPLE_NAMES.matcher(metricName.getGroup() + "." + metricName.getName()).replaceAll("_");
+    for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeMetered(metered).entrySet()) {
+      json.writeNumberField(entry.getKey(), entry.getValue());
+    }
   }
 }
