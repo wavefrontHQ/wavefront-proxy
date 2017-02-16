@@ -48,7 +48,7 @@ public class JsonMetricsGeneratorTest {
 
     String json = generate(false, false, false);
 
-    assertThat(json).isEqualTo("{\"test.metric\":{\"count\":3,\"min\":10.0,\"max\":1000.0,\"mean\":370.0,\"median\":100.0,\"p75\":1000.0,\"p95\":1000.0,\"p99\":1000.0,\"p999\":1000.0}}");
+    assertThat(json).isEqualTo("{\"test.metric\":{\"count\":3,\"min\":10.0,\"max\":1000.0,\"mean\":370.0,\"sum\":1110.0,\"stddev\":547.4486277268397,\"median\":100.0,\"p75\":1000.0,\"p95\":1000.0,\"p99\":1000.0,\"p999\":1000.0}}");
   }
 
   @Test

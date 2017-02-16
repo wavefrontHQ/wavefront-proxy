@@ -21,10 +21,16 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
   private SocketMetricsProcessor socketMetricProcessor;
 
   public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
-                                        int wavefrontHistogramPort, Supplier<Long> timeSupplier)
-      throws IOException {
+                                        int wavefrontHistogramPort, Supplier<Long> timeSupplier) throws IOException {
+    this(metricsRegistry, name, hostname, port, wavefrontHistogramPort, timeSupplier, false);
+  }
+
+  public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
+                                        int wavefrontHistogramPort, Supplier<Long> timeSupplier,
+                                        boolean prependGroupName) throws IOException {
     super(metricsRegistry, name);
-    this.socketMetricProcessor = new SocketMetricsProcessor(hostname, port, wavefrontHistogramPort, timeSupplier);
+    this.socketMetricProcessor = new SocketMetricsProcessor(hostname, port, wavefrontHistogramPort, timeSupplier,
+        prependGroupName);
   }
 
   @Override

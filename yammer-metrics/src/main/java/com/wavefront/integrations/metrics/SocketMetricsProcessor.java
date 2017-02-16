@@ -28,12 +28,22 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
   protected static final Logger logger = Logger.getLogger(SocketMetricsProcessor.class.getCanonicalName());
   private ReconnectingSocket metricsSocket, histogramsSocket;
   private final Supplier<Long> timeSupplier;
+  private final boolean prependGroupName;
 
-  SocketMetricsProcessor(String hostname, int port, int wavefrontHistogramPort, Supplier<Long> timeSupplier)
+  SocketMetricsProcessor(String hostname, int port, int wavefrontHistogramPort, Supplier<Long> timeSupplier,
+                         boolean prependGroupName)
       throws IOException {
     this.timeSupplier = timeSupplier;
     this.metricsSocket = new ReconnectingSocket(hostname, port);
     this.histogramsSocket = new ReconnectingSocket(hostname, wavefrontHistogramPort);
+    this.prependGroupName = prependGroupName;
+  }
+
+  private String getName(MetricName name) {
+    if (prependGroupName && name.getGroup() != null && !name.getGroup().equals("")) {
+      return name.getGroup() + "." + name.getName();
+    }
+    return name.getName();
   }
 
   /**
@@ -54,7 +64,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
 
   private void writeMetric(MetricName metricName, String nameSuffix, double value) throws Exception {
     StringBuilder sb = new StringBuilder();
-    sb.append("\"").append(metricName.getName());
+    sb.append("\"").append(getName(metricName));
     if (nameSuffix != null && !nameSuffix.equals("")) {
       sb.append(".").append(nameSuffix);
     }
@@ -101,7 +111,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       for (WavefrontHistogram.MinuteBin minuteBin : wavefrontHistogram.bins(false)) {
         sb.append(" #").append(minuteBin.getDist().size()).append(" ").append(minuteBin.getDist().quantile(.5));
       }
-      sb.append(" \"").append(name.getName()).append("\"").append(tagsForMetricName(name)).append("\n");
+      sb.append(" \"").append(getName(name)).append("\"").append(tagsForMetricName(name)).append("\n");
       histogramsSocket.write(sb.toString());
     } else {
       writeMetric(name, "count", histogram.count());

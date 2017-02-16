@@ -3,10 +3,12 @@ package com.wavefront.common;
 import com.google.common.collect.ImmutableMap;
 
 import com.yammer.metrics.core.Metered;
+import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Sampling;
 import com.yammer.metrics.core.Summarizable;
 
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -36,10 +38,17 @@ public abstract class MetricsToTimeseries {
   public static Map<String, Double> explodeMetered(Metered metered) {
     return ImmutableMap.<String, Double>builder()
         .put("count", new Long(metered.count()).doubleValue())
-        .put("mean", metered.oneMinuteRate())
+        .put("mean", metered.meanRate())
         .put("m1", metered.oneMinuteRate())
         .put("m5", metered.fiveMinuteRate())
         .put("m15", metered.fifteenMinuteRate())
         .build();
   }
+
+  private static final Pattern SIMPLE_NAMES = Pattern.compile("[^a-zA-Z0-9_.\\-~]");
+
+  public static String sanitize(MetricName metricName) {
+    return SIMPLE_NAMES.matcher(metricName.getGroup() + "." + metricName.getName()).replaceAll("_");
+  }
+
 }
