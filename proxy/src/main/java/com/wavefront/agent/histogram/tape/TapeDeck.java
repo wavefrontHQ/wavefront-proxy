@@ -10,18 +10,17 @@ import com.squareup.tape.InMemoryObjectQueue;
 import com.squareup.tape.ObjectQueue;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.WavefrontHistogram;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Factory for Square Tape {@link ObjectQueue} instances for this agent.
@@ -95,13 +94,18 @@ public class TapeDeck<T> {
     private final Counter addCounter;
     private final Counter removeCounter;
     private final Counter peekCounter;
-    private final Histogram queueSize;
 
     ReportingObjectQueueWrapper(ObjectQueue<T> backingQueue, String title) {
       this.addCounter = Metrics.newCounter(new MetricName("tape." + title, "", "add"));
       this.removeCounter = Metrics.newCounter(new MetricName("tape." + title, "", "remove"));
       this.peekCounter = Metrics.newCounter(new MetricName("tape." + title, "", "peek"));
-      this.queueSize = WavefrontHistogram.get(new MetricName("tape." + title, "", "size"));
+      Metrics.newGauge(new MetricName("tape." + title, "", "size"),
+          new Gauge<Integer>() {
+            @Override
+            public Integer value() {
+              return backingQueue.size();
+            }
+          });
 
       this.backingQueue = backingQueue;
     }
@@ -125,7 +129,6 @@ public class TapeDeck<T> {
     public T peek() {
       peekCounter.inc();
       synchronized (this) {
-        queueSize.update(size());
         return backingQueue.peek();
       }
     }
