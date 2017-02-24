@@ -31,22 +31,6 @@ public class Validation {
 
   private final static Counter illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
 
-  /**
-   * Validates that the given host value is valid
-   *
-   * @param host the host to check
-   * @throws IllegalArgumentException when host is blank or null
-   * @throws IllegalArgumentException when host is > 1024 characters
-   */
-  private static void validateHost(String host) {
-    if (StringUtils.isBlank(host)) {
-      throw new IllegalArgumentException("WF-301: Host is required");
-    }
-    if (host.length() >= 1024) {
-      throw new IllegalArgumentException("WF-301: Host is too long: " + host);
-    }
-  }
-
   public static boolean charactersAreValid(String input) {
     // Legal characters are 44-57 (,-./ and numbers), 65-90 (upper), 97-122 (lower), 95 (_)
     int l = input.length();
@@ -83,11 +67,22 @@ public class Validation {
       @Nullable Level validationLevel) {
     Object pointValue = point.getValue();
 
-    validateHost(point.getHost());
+    if (StringUtils.isBlank(point.getHost())) {
+      String errorMessage = "WF-301: Source/host name is required (" +
+          (debugLine == null ? pointToString(point) : debugLine) + ")";
+      throw new IllegalArgumentException(errorMessage);
+
+    }
+    if (point.getHost().length() >= 1024) {
+      String errorMessage = "WF-301: Source/host name is too long: " + point.getHost() + "(" +
+          (debugLine == null ? pointToString(point) : debugLine) + ")";
+      throw new IllegalArgumentException(errorMessage);
+    }
 
     if (point.getMetric().length() >= 1024) {
-      throw new IllegalArgumentException("WF-301: Metric name is too long: " + point.getMetric() +
-          " (" + (debugLine == null ? pointToString(point) : debugLine) + ")");
+      String errorMessage = "WF-301: Metric name is too long: " + point.getMetric() +
+          " (" + (debugLine == null ? pointToString(point) : debugLine) + ")";
+      throw new IllegalArgumentException(errorMessage);
     }
 
     if (!charactersAreValid(point.getMetric())) {
@@ -107,8 +102,9 @@ public class Validation {
       // Each tag of the form "k=v" must be < 256
       for (Map.Entry<String, String> tag : point.getAnnotations().entrySet()) {
         if (tag.getKey().length() + tag.getValue().length() >= 255) {
-          throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue() + " (" +
-              (debugLine == null ? pointToString(point) : debugLine) + ")");
+          String errorMessage = "Tag too long: " + tag.getKey() + "=" + tag.getValue() + " (" +
+              (debugLine == null ? pointToString(point) : debugLine) + ")";
+          throw new IllegalArgumentException(errorMessage);
         }
       }
     }
