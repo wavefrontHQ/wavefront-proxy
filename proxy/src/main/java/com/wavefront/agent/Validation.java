@@ -14,6 +14,7 @@ import javax.annotation.Nullable;
 import sunnylabs.report.Histogram;
 import sunnylabs.report.ReportPoint;
 
+import static com.wavefront.agent.PointHandlerImpl.pointToString;
 import static com.wavefront.agent.Validation.Level.NO_VALIDATION;
 
 /**
@@ -29,22 +30,6 @@ public class Validation {
   }
 
   private final static Counter illegalCharacterPoints = Metrics.newCounter(new MetricName("point", "", "badchars"));
-
-  /**
-   * Validates that the given host value is valid
-   *
-   * @param host the host to check
-   * @throws IllegalArgumentException when host is blank or null
-   * @throws IllegalArgumentException when host is > 1024 characters
-   */
-  private static void validateHost(String host) {
-    if (StringUtils.isBlank(host)) {
-      throw new IllegalArgumentException("WF-301: Host is required");
-    }
-    if (host.length() >= 1024) {
-      throw new IllegalArgumentException("WF-301: Host is too long: " + host);
-    }
-  }
 
   public static boolean charactersAreValid(String input) {
     // Legal characters are 44-57 (,-./ and numbers), 65-90 (upper), 97-122 (lower), 95 (_)
@@ -82,28 +67,44 @@ public class Validation {
       @Nullable Level validationLevel) {
     Object pointValue = point.getValue();
 
-    validateHost(point.getHost());
+    if (StringUtils.isBlank(point.getHost())) {
+      String errorMessage = "WF-301: Source/host name is required (" +
+          (debugLine == null ? pointToString(point) : debugLine) + ")";
+      throw new IllegalArgumentException(errorMessage);
+
+    }
+    if (point.getHost().length() >= 1024) {
+      String errorMessage = "WF-301: Source/host name is too long: " + point.getHost() + "(" +
+          (debugLine == null ? pointToString(point) : debugLine) + ")";
+      throw new IllegalArgumentException(errorMessage);
+    }
 
     if (point.getMetric().length() >= 1024) {
-      throw new IllegalArgumentException("WF-301: Metric name is too long: " + point.getMetric());
+      String errorMessage = "WF-301: Metric name is too long: " + point.getMetric() +
+          " (" + (debugLine == null ? pointToString(point) : debugLine) + ")";
+      throw new IllegalArgumentException(errorMessage);
     }
 
     if (!charactersAreValid(point.getMetric())) {
       illegalCharacterPoints.inc();
-      String errorMessage = "WF-400 " + source + ": Point metric has illegal character (" + debugLine + ")";
+      String errorMessage = "WF-400 " + source + ": Point metric has illegal character (" +
+          (debugLine == null ? pointToString(point) : debugLine) + ")";
       throw new IllegalArgumentException(errorMessage);
     }
 
     if (point.getAnnotations() != null) {
       if (!annotationKeysAreValid(point)) {
-        String errorMessage = "WF-401 " + source + ": Point annotation key has illegal character (" + debugLine + ")";
+        String errorMessage = "WF-401 " + source + ": Point annotation key has illegal character (" +
+            (debugLine == null ? pointToString(point) : debugLine) + ")";
         throw new IllegalArgumentException(errorMessage);
       }
 
       // Each tag of the form "k=v" must be < 256
       for (Map.Entry<String, String> tag : point.getAnnotations().entrySet()) {
         if (tag.getKey().length() + tag.getValue().length() >= 255) {
-          throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue());
+          String errorMessage = "Tag too long: " + tag.getKey() + "=" + tag.getValue() + " (" +
+              (debugLine == null ? pointToString(point) : debugLine) + ")";
+          throw new IllegalArgumentException(errorMessage);
         }
       }
     }
@@ -113,7 +114,8 @@ public class Validation {
       switch (validationLevel) {
         case NUMERIC_ONLY:
           if (!(pointValue instanceof Long) && !(pointValue instanceof Double) && !(pointValue instanceof Histogram)) {
-            String errorMessage = "WF-403 " + source + ": Was not long/double/histogram object (" + debugLine + ")";
+            String errorMessage = "WF-403 " + source + ": Was not long/double/histogram object (" +
+                (debugLine == null ? pointToString(point) : debugLine) + ")";
             throw new IllegalArgumentException(errorMessage);
           }
           break;
