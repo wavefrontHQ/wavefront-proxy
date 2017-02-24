@@ -14,6 +14,7 @@ import javax.annotation.Nullable;
 import sunnylabs.report.Histogram;
 import sunnylabs.report.ReportPoint;
 
+import static com.wavefront.agent.PointHandlerImpl.pointToString;
 import static com.wavefront.agent.Validation.Level.NO_VALIDATION;
 
 /**
@@ -85,25 +86,29 @@ public class Validation {
     validateHost(point.getHost());
 
     if (point.getMetric().length() >= 1024) {
-      throw new IllegalArgumentException("WF-301: Metric name is too long: " + point.getMetric());
+      throw new IllegalArgumentException("WF-301: Metric name is too long: " + point.getMetric() +
+          " (" + (debugLine == null ? pointToString(point) : debugLine) + ")");
     }
 
     if (!charactersAreValid(point.getMetric())) {
       illegalCharacterPoints.inc();
-      String errorMessage = "WF-400 " + source + ": Point metric has illegal character (" + debugLine + ")";
+      String errorMessage = "WF-400 " + source + ": Point metric has illegal character (" +
+          (debugLine == null ? pointToString(point) : debugLine) + ")";
       throw new IllegalArgumentException(errorMessage);
     }
 
     if (point.getAnnotations() != null) {
       if (!annotationKeysAreValid(point)) {
-        String errorMessage = "WF-401 " + source + ": Point annotation key has illegal character (" + debugLine + ")";
+        String errorMessage = "WF-401 " + source + ": Point annotation key has illegal character (" +
+            (debugLine == null ? pointToString(point) : debugLine) + ")";
         throw new IllegalArgumentException(errorMessage);
       }
 
       // Each tag of the form "k=v" must be < 256
       for (Map.Entry<String, String> tag : point.getAnnotations().entrySet()) {
         if (tag.getKey().length() + tag.getValue().length() >= 255) {
-          throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue());
+          throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue() + " (" +
+              (debugLine == null ? pointToString(point) : debugLine) + ")");
         }
       }
     }
@@ -113,7 +118,8 @@ public class Validation {
       switch (validationLevel) {
         case NUMERIC_ONLY:
           if (!(pointValue instanceof Long) && !(pointValue instanceof Double) && !(pointValue instanceof Histogram)) {
-            String errorMessage = "WF-403 " + source + ": Was not long/double/histogram object (" + debugLine + ")";
+            String errorMessage = "WF-403 " + source + ": Was not long/double/histogram object (" +
+                (debugLine == null ? pointToString(point) : debugLine) + ")";
             throw new IllegalArgumentException(errorMessage);
           }
           break;
