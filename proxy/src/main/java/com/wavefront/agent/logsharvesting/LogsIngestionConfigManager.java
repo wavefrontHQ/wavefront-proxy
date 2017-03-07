@@ -13,6 +13,7 @@ import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -51,7 +52,11 @@ public class LogsIngestionConfigManager {
     new Timer().schedule(new TimerTask() {
       @Override
       public void run() {
-        logsIngestionConfigLoadingCache.get(true);
+        try {
+          logsIngestionConfigLoadingCache.get(true);
+        } catch (Exception e) {
+          logger.log(Level.SEVERE, "Cannot load a new logs ingestion config.", e);
+        }
       }
     }, lastParsedConfig.aggregationIntervalSeconds, lastParsedConfig.aggregationIntervalSeconds);
   }
