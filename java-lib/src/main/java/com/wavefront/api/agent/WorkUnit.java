@@ -3,6 +3,8 @@ package com.wavefront.api.agent;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.Set;
 import java.util.UUID;
 
@@ -11,6 +13,7 @@ import java.util.UUID;
  *
  * @author Clement Pang (clement@sunnylabs.com)
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class WorkUnit {
   /**
    * Unique id for the work unit (used for reporting).
