@@ -4,9 +4,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import com.tdunning.math.stats.AgentDigest;
+import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.WavefrontHistogram;
 
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.core.io.IORuntimeException;
@@ -253,7 +253,7 @@ public final class Utils {
     private static final HistogramKeyMarshaller INSTANCE = new HistogramKeyMarshaller();
 
     private static final Histogram accumulatorKeySizes =
-        WavefrontHistogram.get(new MetricName("histogram", "", "accumulatorKeySize"));
+        Metrics.newHistogram(new MetricName("histogram", "", "accumulatorKeySize"));
 
     private HistogramKeyMarshaller() {
       // Private Singleton

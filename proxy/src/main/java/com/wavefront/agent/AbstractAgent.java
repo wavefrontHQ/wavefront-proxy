@@ -268,6 +268,10 @@ public abstract class AbstractAgent {
       description = "Whether histogram samples or distributions should be persisted to disk")
   protected boolean persistMessages = true;
 
+  @Parameter(names = {"--persistMessagesCompression"}, description = "Enable LZ4 compression for histogram samples " +
+      "persisted to disk. (Default: true)")
+  protected boolean persistMessagesCompression = true;
+
   @Parameter(
       names = {"--persistAccumulator"},
       description = "Whether the accumulator should persist to disk")
@@ -407,7 +411,10 @@ public abstract class AbstractAgent {
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
 
-  protected final ScheduledExecutorService histogramExecutor =
+  protected final ScheduledExecutorService histogramExecutor = Executors.newScheduledThreadPool(2);
+  protected final ScheduledExecutorService histogramScanExecutor =
+      Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
+  protected final ScheduledExecutorService histogramFlushExecutor =
       Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
 
   protected final boolean localAgent;
@@ -634,6 +641,8 @@ public abstract class AbstractAgent {
             Boolean.parseBoolean(prop.getProperty("persistAccumulator", String.valueOf(persistAccumulator)).trim());
         persistMessages =
             Boolean.parseBoolean(prop.getProperty("persistMessages", String.valueOf(persistMessages)).trim());
+        persistMessagesCompression = Boolean.parseBoolean(
+            prop.getProperty("persistMessagesCompression", String.valueOf(persistMessagesCompression)).trim());
 
         retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)).trim());
         flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)).trim());
@@ -714,6 +723,9 @@ public abstract class AbstractAgent {
 
       initPreprocessors();
 
+      if (!persistMessages) {
+        persistMessagesCompression = false;
+      }
       if (pushRateLimit > 0) {
         pushRateLimiter = RecyclableRateLimiter.create(pushRateLimit, 60);
       }

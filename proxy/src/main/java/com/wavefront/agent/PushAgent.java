@@ -174,10 +174,14 @@ public class PushAgent extends AbstractAgent {
             prefix,
             getFlushTasks(Constants.PUSH_FORMAT_HISTOGRAM, "histogram ports"));
         PointHandlerDispatcher dispatchTask = new PointHandlerDispatcher(accumulator, histogramHandler);
-        histogramExecutor.scheduleWithFixedDelay(dispatchTask, 100L, 1L, TimeUnit.MICROSECONDS);
+        histogramExecutor.scheduleWithFixedDelay(dispatchTask, 50L, 50L, TimeUnit.MILLISECONDS);
 
         // Input queue factory
-        TapeDeck<List<String>> accumulatorDeck = new TapeDeck<>(TapeStringListConverter.get(), persistMessages);
+        TapeDeck<List<String>> accumulatorDeck = new TapeDeck<>(
+            persistMessagesCompression
+                ? TapeStringListConverter.getCompressionEnabledInstance()
+                : TapeStringListConverter.getDefaultInstance(),
+            persistMessages);
 
         // Decoders
         Decoder<String> sampleDecoder = new GraphiteDecoder("unknown", customSourceTags);
@@ -509,11 +513,12 @@ public class PushAgent extends AbstractAgent {
           granularity,
           histogramCompression);
 
-      histogramExecutor.scheduleWithFixedDelay(scanTask, 100L, 1L, TimeUnit.MICROSECONDS);
+      histogramScanExecutor.scheduleWithFixedDelay(scanTask, 20L, 20L, TimeUnit.MILLISECONDS);
 
-      QueuingChannelHandler<String> inputHandler = new QueuingChannelHandler<>(receiveTape, 100);
+      QueuingChannelHandler<String> inputHandler = new QueuingChannelHandler<>(receiveTape, pushFlushMaxPoints);
       handlers.add(inputHandler);
-      histogramExecutor.scheduleWithFixedDelay(inputHandler.getBufferFlushTask(), 85L, 1L, TimeUnit.MICROSECONDS);
+      histogramFlushExecutor.scheduleWithFixedDelay(inputHandler.getBufferFlushTask(),
+          100L, 100L, TimeUnit.MILLISECONDS);
     }
 
     // Set-up producer
