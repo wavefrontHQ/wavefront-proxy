@@ -522,10 +522,7 @@ public class PushAgent extends AbstractAgent {
     }
 
     // Set-up producer
-    new Thread(
-        new HistogramLineIngester(
-            handlers,
-            port)).start();
+    startAsManagedThread(new HistogramLineIngester(handlers, port));
   }
 
   /**

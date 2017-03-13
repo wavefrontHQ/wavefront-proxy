@@ -1165,6 +1165,9 @@ public abstract class AbstractAgent {
     agentAPI.shutdown();
     auxiliaryExecutor.shutdown();
     agentMetricsExecutor.shutdown();
+    histogramExecutor.shutdown();
+    histogramScanExecutor.shutdown();
+    histogramFlushExecutor.shutdown();
     managedTasks.forEach(PostPushDataTimedTask::shutdown);
     logger.info("Shutting down: Flushing pending points...");
     for (PostPushDataTimedTask task : managedTasks) {
