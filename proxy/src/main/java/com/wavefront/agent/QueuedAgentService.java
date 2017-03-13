@@ -3,6 +3,7 @@ package com.wavefront.agent;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
@@ -15,6 +16,7 @@ import com.google.gson.GsonBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.squareup.tape.FileException;
 import com.squareup.tape.FileObjectQueue;
+import com.squareup.tape.ObjectQueue;
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.AgentAPI;
 import com.wavefront.api.agent.AgentConfiguration;
@@ -41,7 +43,9 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.io.Reader;
+import java.nio.channels.FileChannel;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -156,33 +160,44 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           logger.warning("Retry buffer has been purged: " + buffer.getAbsolutePath());
         }
       }
-      final ResubmissionTaskQueue taskQueue = new ResubmissionTaskQueue(
-          new FileObjectQueue<>(buffer, new FileObjectQueue.Converter<ResubmissionTask>() {
-            @Override
-            public ResubmissionTask from(byte[] bytes) throws IOException {
-              try {
-                if (bytes.length > 2 && bytes[0] == (byte) 0x1f && bytes[1] == (byte) 0x8b) {
-                  // gzip signature detected (backwards compatibility mode)
-                  Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
-                  return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
-                }
-                ObjectInputStream ois = new ObjectInputStream(new LZ4BlockInputStream(new ByteArrayInputStream(bytes)));
-                return (ResubmissionTask) ois.readObject();
-              } catch (Throwable t) {
-                logger.warning("Failed to read a single retry submission from buffer, ignoring: " + t);
-                return null;
-              }
+      ObjectQueue<ResubmissionTask> queue = new FileObjectQueue<>(buffer,
+          new FileObjectQueue.Converter<ResubmissionTask>() {
+        @Override
+        public ResubmissionTask from(byte[] bytes) throws IOException {
+          try {
+            if (bytes.length > 2 && bytes[0] == (byte) 0x1f && bytes[1] == (byte) 0x8b) {
+              // gzip signature detected (backwards compatibility mode)
+              Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
+              return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
             }
+            ObjectInputStream ois = new ObjectInputStream(new LZ4BlockInputStream(new ByteArrayInputStream(bytes)));
+            return (ResubmissionTask) ois.readObject();
+          } catch (Throwable t) {
+            logger.warning("Failed to read a single retry submission from buffer, ignoring: " + t);
+            return null;
+          }
+        }
 
-            @Override
-            public void toStream(ResubmissionTask o, OutputStream bytes) throws IOException {
-              LZ4BlockOutputStream lz4BlockOutputStream = new LZ4BlockOutputStream(bytes);
-              ObjectOutputStream oos = new ObjectOutputStream(lz4BlockOutputStream);
-              oos.writeObject(o);
-              oos.close();
-              lz4BlockOutputStream.close();
-            }
-          }),
+        @Override
+        public void toStream(ResubmissionTask o, OutputStream bytes) throws IOException {
+          LZ4BlockOutputStream lz4BlockOutputStream = new LZ4BlockOutputStream(bytes);
+          ObjectOutputStream oos = new ObjectOutputStream(lz4BlockOutputStream);
+          oos.writeObject(o);
+          oos.close();
+          lz4BlockOutputStream.close();
+        }
+      });
+
+      try {
+        FileChannel channel = new RandomAccessFile(buffer, "rw").getChannel();
+        Preconditions.checkNotNull(channel.tryLock());
+      } catch (Exception e) {
+        logger.severe("Error initializing buffer file " + bufferFile + "." + i +
+            " - please make sure that no other processes access this file and restart the proxy");
+        System.exit(-1);
+      }
+
+      final ResubmissionTaskQueue taskQueue = new ResubmissionTaskQueue(queue,
           task -> {
             task.service = wrapped;
             task.currentAgentId = agentId;
