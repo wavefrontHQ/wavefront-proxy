@@ -188,11 +188,14 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         }
       });
 
+      // Having two proxy processes write to the same buffer file simultaneously causes buffer file corruption.
+      // To prevent concurrent access from another process, we try to obtain exclusive access to each buffer file
+      // trylock() is platform-specific so there is no iron-clad guarantee, but it works well in most cases
       try {
         FileChannel channel = new RandomAccessFile(buffer, "rw").getChannel();
-        Preconditions.checkNotNull(channel.tryLock());
+        Preconditions.checkNotNull(channel.tryLock()); // fail if tryLock() returns null (lock couldn't be acquired)
       } catch (Exception e) {
-        logger.severe("Error initializing buffer file " + bufferFile + "." + i +
+        logger.severe("WF-005: Error requesting exclusive access to the buffer file " + bufferFile + "." + i +
             " - please make sure that no other processes access this file and restart the proxy");
         System.exit(-1);
       }
