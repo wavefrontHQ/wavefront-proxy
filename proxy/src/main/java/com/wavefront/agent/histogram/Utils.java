@@ -270,7 +270,7 @@ public final class Utils {
 
     private static void writeString(Bytes out, String s) {
       try {
-        Preconditions.checkArgument(s == null || s.length() <= Short.MAX_VALUE, "String too long: " + s);
+        Preconditions.checkArgument(s == null || s.length() <= Short.MAX_VALUE, "String too long (more than 32K)");
         byte[] bytes = s == null ? new byte[0] : s.getBytes("UTF-8");
         out.writeShort((short) bytes.length);
         out.write(bytes);
