@@ -1,13 +1,13 @@
 package com.wavefront.agent.histogram.tape;
 
+import com.google.common.base.Preconditions;
+
 import com.squareup.tape.FileObjectQueue;
 
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataOutputStream;
@@ -17,6 +17,8 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
+import java.util.zip.GZIPInputStream;
 
 /**
  * [Square] Tape converter for Lists of strings with LZ4 compression support.
@@ -28,7 +30,7 @@ import java.util.List;
  *
  */
 public class TapeStringListConverter implements FileObjectQueue.Converter<List<String>> {
-  private static final Logger logger = LogManager.getLogger(TapeStringListConverter.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(TapeStringListConverter.class.getCanonicalName());
 
   private static final TapeStringListConverter INSTANCE_DEFAULT = new TapeStringListConverter(false);
   private static final TapeStringListConverter INSTANCE_COMPRESSION_ENABLED = new TapeStringListConverter(true);
@@ -42,10 +44,20 @@ public class TapeStringListConverter implements FileObjectQueue.Converter<List<S
     this.isCompressionEnabled = isCompressionEnabled;
   }
 
+  /**
+   * Returns the TapeStringListConverter object instance with default settings (no compression)
+   *
+   * @return <code>TapeStringListConverter</code> object instance
+   */
   public static TapeStringListConverter getDefaultInstance() {
     return INSTANCE_DEFAULT;
   }
 
+  /**
+   * Returns the TapeStringListConverter object instance with LZ4 compression enabled
+   *
+   * @return <code>TapeStringListConverter</code> object instance
+   */
   public static TapeStringListConverter getCompressionEnabledInstance() {
     return INSTANCE_COMPRESSION_ENABLED;
   }
@@ -53,19 +65,21 @@ public class TapeStringListConverter implements FileObjectQueue.Converter<List<S
   @Override
   public List<String> from(byte[] bytes) throws IOException {
     try {
-      ByteBuffer in;
       byte[] uncompressedData;
-      if (bytes.length > 2 && bytes[0] == (byte) 0x4C && bytes[1] == (byte) 0x5A) { // LZ block signature
+      if (bytes.length > 2 && bytes[0] == (byte) 0x1f && bytes[1] == (byte) 0x8b) { // gzip signature
+        uncompressedData = IOUtils.toByteArray(new GZIPInputStream(new ByteArrayInputStream(bytes)));
+      } else if (bytes.length > 2 && bytes[0] == (byte) 0x4c && bytes[1] == (byte) 0x5a) { // LZ block signature
         uncompressedData = IOUtils.toByteArray(new LZ4BlockInputStream(new ByteArrayInputStream(bytes)));
-        in = ByteBuffer.wrap(uncompressedData);
       } else {
         uncompressedData = bytes;
-        in = ByteBuffer.wrap(bytes);
       }
+      Preconditions.checkArgument(uncompressedData.length > 12, "Uncompressed container must be at least 12 bytes");
+      ByteBuffer in = ByteBuffer.wrap(uncompressedData);
       int signature = in.getInt();
       int version = in.getInt();
       if (signature != CONTAINER_SIGNATURE || version != CONTAINER_VERSION) {
-        logger.error("Unknown data format retrieved from tape (signature = " + signature + ", version = " + version);
+        logger.severe("WF-502: Unexpected data format retrieved from tape (signature = " + signature +
+            ", version = " + version);
         return null;
       }
       int count = in.getInt();
@@ -77,7 +91,7 @@ public class TapeStringListConverter implements FileObjectQueue.Converter<List<S
       }
       return result;
     } catch (Throwable t) {
-      logger.error("Corrupt data retrieved from tape, ignoring: " + t);
+      logger.severe("WF-501: Corrupt data retrieved from tape, ignoring: " + t);
       return null;
     }
   }

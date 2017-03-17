@@ -97,7 +97,7 @@ public class AccumulationTask implements Runnable {
 
   @Override
   public void run() {
-    while (input.size() > 0) {
+    while (input.size() > 0 && !Thread.currentThread().isInterrupted()) {
       List<String> lines = input.peek();
       if (lines == null) { // remove corrupt data
         input.remove();

@@ -6,6 +6,7 @@ import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.PointHandler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 
