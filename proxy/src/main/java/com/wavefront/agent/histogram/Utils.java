@@ -270,10 +270,10 @@ public final class Utils {
 
     private static void writeString(Bytes out, String s) {
       try {
+        Preconditions.checkArgument(s == null || s.length() <= Short.MAX_VALUE, "String too long: " + s);
         byte[] bytes = s == null ? new byte[0] : s.getBytes("UTF-8");
         out.writeShort((short) bytes.length);
         out.write(bytes);
-        accumulatorKeySizes.update(bytes.length + 2);
       } catch (UnsupportedEncodingException e) {
         logger.log(Level.SEVERE, "Likely programmer error, String to Byte encoding failed: ", e);
         e.printStackTrace();
@@ -318,15 +318,21 @@ public final class Utils {
 
     @Override
     public void write(Bytes out, @NotNull HistogramKey toWrite) {
+      int accumulatorKeySize = 5;
       out.writeByte(toWrite.granularityOrdinal);
       out.writeInt(toWrite.binId);
+      accumulatorKeySize += 2 + toWrite.metric.length();
       writeString(out, toWrite.metric);
+      accumulatorKeySize += 2 + (toWrite.source == null ? 0 : toWrite.source.length());
       writeString(out, toWrite.source);
       short numTags = toWrite.tags == null ? 0 : (short) toWrite.tags.length;
+      accumulatorKeySize += 2;
       out.writeShort(numTags);
       for (short i = 0; i < numTags; ++i) {
+        accumulatorKeySize += 2 + (toWrite.tags[i] == null ? 0 : toWrite.tags[i].length());
         writeString(out, toWrite.tags[i]);
       }
+      accumulatorKeySizes.update(accumulatorKeySize);
     }
   }
 }
