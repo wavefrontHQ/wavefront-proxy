@@ -36,6 +36,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
@@ -931,6 +932,8 @@ public abstract class AbstractAgent {
           setSSLSocketFactory(new SSLConnectionSocketFactoryImpl(
               SSLConnectionSocketFactory.getSystemSocketFactory(),
               httpRequestTimeout)).
+          // allow up to 1 retry for
+              setRetryHandler(new DefaultHttpRequestRetryHandler(1, true)).
           setDefaultRequestConfig(
               RequestConfig.custom().
                   setContentCompressionEnabled(true).
