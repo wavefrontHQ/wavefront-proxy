@@ -44,6 +44,9 @@ import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
 import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
+import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPInterceptor;
+import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
+import org.jboss.resteasy.plugins.interceptors.encoding.GZIPEncodingInterceptor;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJacksonProvider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
@@ -976,6 +979,9 @@ public abstract class AbstractAgent {
     ResteasyClient client = new ResteasyClientBuilder().
         httpEngine(httpEngine).
         providerFactory(factory).
+        register(GZIPDecodingInterceptor.class).
+        register(GZIPEncodingInterceptor.class).
+        register(AcceptEncodingGZIPInterceptor.class).
         build();
     ResteasyWebTarget target = client.target(server);
     return target.proxy(AgentAPI.class);
