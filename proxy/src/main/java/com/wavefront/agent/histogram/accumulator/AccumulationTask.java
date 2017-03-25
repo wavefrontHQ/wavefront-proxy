@@ -13,7 +13,6 @@ import com.wavefront.ingester.Decoder;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.WavefrontHistogram;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -52,10 +51,12 @@ public class AccumulationTask implements Runnable {
   private final Counter eventCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "sample_added"));
   private final Counter histogramCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "histogram_added"));
   private final Counter ignoredCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "ignored"));
-  private final WavefrontHistogram batchProcessTime = WavefrontHistogram.get(new MetricName("histogram.accumulator", "", "batch_process_nanos"));
-  private final WavefrontHistogram histogramBinCount = WavefrontHistogram.get(new MetricName("histogram.accumulator", "", "histogram_bins"));
-  private final WavefrontHistogram histogramSampleCount = WavefrontHistogram.get(new MetricName("histogram.accumulator", "", "histogram_samples"));
-
+  private final com.yammer.metrics.core.Histogram batchProcessTime = Metrics.newHistogram(
+      new MetricName("histogram.accumulator", "", "batch_process_nanos"));
+  private final com.yammer.metrics.core.Histogram histogramBinCount = Metrics.newHistogram(
+      new MetricName("histogram.accumulator", "", "histogram_bins"));
+  private final com.yammer.metrics.core.Histogram histogramSampleCount = Metrics.newHistogram(
+      new MetricName("histogram.accumulator", "", "histogram_samples"));
 
 
   public AccumulationTask(ObjectQueue<List<String>> input,
@@ -96,8 +97,13 @@ public class AccumulationTask implements Runnable {
 
   @Override
   public void run() {
-    List<String> lines;
-    while ((lines = input.peek()) != null) {
+    while (input.size() > 0 && !Thread.currentThread().isInterrupted()) {
+      List<String> lines = input.peek();
+      if (lines == null) { // remove corrupt data
+        input.remove();
+        continue;
+      }
+
       long startNanos = nanoTime();
       for (String line : lines) {
         try {

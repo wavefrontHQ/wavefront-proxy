@@ -69,6 +69,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
 
           try {
             if (file.exists()) {
+              logger.fine("Restoring accumulator state...");
               // Note: this relies on an uncorrupted header, which according to the docs would be due to a hardware error or fs bug.
               ChronicleMap<K, V> result = ChronicleMap
                   .of(keyClass, valueClass)
@@ -81,10 +82,12 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
                 // Create a new map with the supplied settings to be safe.
                 result.close();
                 file.delete();
+                logger.fine("Accumulator map initialized");
                 result = newPersistedMap(file);
               } else {
                 // Note: as of 3.10 all instances are.
                 if (result instanceof VanillaChronicleMap) {
+                  logger.fine("Accumulator map restored");
                   VanillaChronicleMap vcm = (VanillaChronicleMap) result;
                   if (!vcm.keyClass().equals(keyClass) ||
                       !vcm.valueClass().equals(valueClass)) {
@@ -97,6 +100,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
               return result;
 
             } else {
+              logger.info("Accumulator map initialized");
               return newPersistedMap(file);
             }
           } catch (Exception e) {

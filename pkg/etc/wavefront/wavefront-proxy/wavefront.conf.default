@@ -190,13 +190,11 @@ buffer=/var/spool/wavefront-proxy/buffer
 ## Directory for persistent agent state, must be writable.
 histogramStateDirectory=/var/spool/wavefront-proxy
 ## Interval to write-back accumulation changes to disk in millis
-#histogramAccumulatorResolveInterval = 100
+#histogramAccumulatorResolveInterval=100
 ## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins
 #histogramAccumulatorSize=100000
 ## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
-#avgHistogramKeyBytes=50
-## Average number of bytes in a encoded distribution/accumulation.
-#avgHistogramDigestBytes=500
+#avgHistogramKeyBytes=150
 ## Whether to persist received histogram messages to disk. WARNING only disable this, if loss of unprocessed sample data
 ## on agent shutdown is acceptable.
 #persistMessages=true

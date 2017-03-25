@@ -86,7 +86,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private static int splitBatchSize = MAX_SPLIT_BATCH_SIZE;
   private static double retryBackoffBaseSeconds = 2.0;
   private boolean lastKnownQueueSizeIsPositive = true;
-  private final ExecutorService executorService;
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
   private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
       TimeUnit.MINUTES);
@@ -105,7 +104,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
    * A single threaded bounded work queue to update result posting sizes.
    */
   private ExecutorService resultPostingSizerExecutorService = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.SECONDS,
-      new ArrayBlockingQueue<Runnable>(1));
+      new ArrayBlockingQueue<Runnable>(1), new NamedThreadFactory("result-posting-sizer"));
 
   /**
    * Only size postings once every 5 seconds.
@@ -151,7 +150,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         registerTypeHierarchyAdapter(ResubmissionTask.class, new ResubmissionTaskDeserializer()).create();
     this.wrapped = service;
     this.taskQueues = Lists.newArrayListWithExpectedSize(retryThreads);
-    this.executorService = executorService;
     for (int i = 0; i < retryThreads; i++) {
       final int threadId = i;
       File buffer = new File(bufferFile + "." + i);
@@ -218,6 +216,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           try {
             logger.fine("[RETRY THREAD " + threadId + "] TASK STARTING");
             while (taskQueue.size() > 0 && taskQueue.size() > failures) {
+              if (Thread.currentThread().isInterrupted()) return;
               taskQueue.getLockObject().lock();
               try {
                 ResubmissionTask task = taskQueue.peek();
@@ -384,10 +383,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         return getQueuedTasksCount();
       }
     });
-  }
-
-  public void shutdown() {
-    executorService.shutdown();
   }
 
   public static void setRetryBackoffBaseSeconds(double newSecs) {

@@ -24,30 +24,32 @@ public class QueuingChannelHandler<T> extends SimpleChannelInboundHandler<Object
   private List<T> buffer;
   private final int maxCapacity;
 
-
   public QueuingChannelHandler(@NotNull ObjectQueue<List<T>> tape, int maxCapacity) {
     Preconditions.checkNotNull(tape);
     Preconditions.checkArgument(maxCapacity > 0);
     this.tape = tape;
-    this.buffer = new ArrayList<>(maxCapacity);
+    this.buffer = new ArrayList<>();
     this.maxCapacity = maxCapacity;
   }
 
   private void ship() {
+    List<T> bufferCopy = null;
     synchronized (this) {
+      int blockSize;
       if (!buffer.isEmpty()) {
-        tape.add(buffer);
-        buffer = new ArrayList<>(maxCapacity);
+        blockSize = Math.min(buffer.size(), maxCapacity);
+        bufferCopy = buffer.subList(0, blockSize);
+        buffer = new ArrayList<>(buffer.subList(blockSize, buffer.size()));
       }
+    }
+    if (bufferCopy != null && bufferCopy.size() > 0) {
+      tape.add(bufferCopy);
     }
   }
 
   private void innerAdd(T t) {
     synchronized (this) {
       buffer.add(t);
-      if (buffer.size() >= maxCapacity) {
-        ship();
-      }
     }
   }
 

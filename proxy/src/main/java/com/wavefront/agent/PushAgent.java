@@ -40,6 +40,8 @@ import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.ingester.TcpIngester;
 
+import net.openhft.chronicle.map.ChronicleMap;
+
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -56,7 +58,8 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
@@ -82,6 +85,9 @@ public class PushAgent extends AbstractAgent {
 
   protected final List<Thread> managedThreads = new ArrayList<>();
   protected final IdentityHashMap<ChannelOption<?>, Object> childChannelOptions = new IdentityHashMap<>();
+  protected ScheduledExecutorService histogramExecutor;
+  protected ScheduledExecutorService histogramScanExecutor;
+  protected ScheduledExecutorService histogramFlushExecutor;
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -109,6 +115,15 @@ public class PushAgent extends AbstractAgent {
     }
 
     {
+      histogramExecutor = Executors.newScheduledThreadPool(2, new NamedThreadFactory("histogram-service"));
+      histogramFlushExecutor = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() / 2,
+          new NamedThreadFactory("histogram-flush"));
+      histogramScanExecutor = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() / 2,
+          new NamedThreadFactory("histogram-scan"));
+      managedExecutors.add(histogramExecutor);
+      managedExecutors.add(histogramFlushExecutor);
+      managedExecutors.add(histogramScanExecutor);
+
       // Histogram bootstrap.
       Iterator<String> histMinPorts = Strings.isNullOrEmpty(histogramMinsListenerPorts) ?
           Collections.emptyIterator() :
@@ -156,7 +171,7 @@ public class PushAgent extends AbstractAgent {
             persistAccumulator);
 
         File accumulationFile = new File(baseDirectory, "accumulator");
-        ConcurrentMap<HistogramKey, AgentDigest> accumulator = mapLoader.get(accumulationFile);
+        ChronicleMap<HistogramKey, AgentDigest> accumulator = mapLoader.get(accumulationFile);
 
         AccumulationCache cachedAccumulator = new AccumulationCache(accumulator, histogramAccumulatorSize, null);
         // Schedule write-backs
@@ -166,6 +181,17 @@ public class PushAgent extends AbstractAgent {
             histogramAccumulatorResolveInterval,
             TimeUnit.MILLISECONDS);
 
+        // gracefully shutdown persisted accumulator (ChronicleMap) on proxy exit
+        shutdownTasks.add(() -> {
+          try {
+            cachedAccumulator.getResolveTask().run();
+            cachedAccumulator.getCache().cleanUp();
+            accumulator.close();
+          } catch (Throwable t) {
+            logger.severe("Error flushing accumulator cache, possibly unclean shutdown" + t);
+          }
+        });
+
         // Central dispatch
         PointHandler histogramHandler = new PointHandlerImpl(
             "histogram ports",
@@ -174,10 +200,14 @@ public class PushAgent extends AbstractAgent {
             prefix,
             getFlushTasks(Constants.PUSH_FORMAT_HISTOGRAM, "histogram ports"));
         PointHandlerDispatcher dispatchTask = new PointHandlerDispatcher(accumulator, histogramHandler);
-        histogramExecutor.scheduleWithFixedDelay(dispatchTask, 100L, 1L, TimeUnit.MICROSECONDS);
+        histogramExecutor.scheduleWithFixedDelay(dispatchTask, 50L, 50L, TimeUnit.MILLISECONDS);
 
         // Input queue factory
-        TapeDeck<List<String>> accumulatorDeck = new TapeDeck<>(TapeStringListConverter.get(), persistMessages);
+        TapeDeck<List<String>> accumulatorDeck = new TapeDeck<>(
+            persistMessagesCompression
+                ? TapeStringListConverter.getCompressionEnabledInstance()
+                : TapeStringListConverter.getDefaultInstance(),
+            persistMessages);
 
         // Decoders
         Decoder<String> sampleDecoder = new GraphiteDecoder("unknown", customSourceTags);
@@ -342,7 +372,7 @@ public class PushAgent extends AbstractAgent {
             } finally {
               activeListeners.dec();
             }
-          });
+          }, "listener-logs-filebeat-" + filebeatPort);
         }
 
         if (rawLogsPort > 0) {
@@ -361,7 +391,7 @@ public class PushAgent extends AbstractAgent {
             } finally {
               activeListeners.dec();
             }
-          });
+          }, "listener-logs-raw-" + rawLogsPort);
         }
       } catch (ConfigurationException e) {
         logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
@@ -392,7 +422,8 @@ public class PushAgent extends AbstractAgent {
         pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler));
       }
     };
-    startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions));
+    startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions),
+        "listener-plaintext-opentsdb-" + port);
   }
 
   protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
@@ -426,7 +457,7 @@ public class PushAgent extends AbstractAgent {
     }
 
     startAsManagedThread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port)
-        .withChildChannelOptions(childChannelOptions));
+        .withChildChannelOptions(childChannelOptions), "listener-binary-pickle-" + port);
   }
 
   /**
@@ -441,7 +472,8 @@ public class PushAgent extends AbstractAgent {
                                      @Nullable PointPreprocessor preprocessor) {
     int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler, preprocessor);
-    startAsManagedThread(new StringLineIngester(channelHandler, port).withChildChannelOptions(childChannelOptions));
+    startAsManagedThread(new StringLineIngester(channelHandler, port).withChildChannelOptions(childChannelOptions),
+        null);
   }
 
   protected void startGraphiteListener(String strPort, boolean withCustomFormatter) {
@@ -470,10 +502,10 @@ public class PushAgent extends AbstractAgent {
         }
       });
       startAsManagedThread(new StringLineIngester(handler, graphiteHandler, port)
-          .withChildChannelOptions(childChannelOptions));
+          .withChildChannelOptions(childChannelOptions), "listener-plaintext-wavefront-" + port);
     } else {
       startAsManagedThread(new StringLineIngester(graphiteHandler, port)
-          .withChildChannelOptions(childChannelOptions));
+          .withChildChannelOptions(childChannelOptions), "Listener-plaintext-graphite-" + port);
     }
   }
 
@@ -509,18 +541,16 @@ public class PushAgent extends AbstractAgent {
           granularity,
           histogramCompression);
 
-      histogramExecutor.scheduleWithFixedDelay(scanTask, 100L, 1L, TimeUnit.MICROSECONDS);
+      histogramScanExecutor.scheduleWithFixedDelay(scanTask, 20L, 20L, TimeUnit.MILLISECONDS);
 
-      QueuingChannelHandler<String> inputHandler = new QueuingChannelHandler<>(receiveTape, 100);
+      QueuingChannelHandler<String> inputHandler = new QueuingChannelHandler<>(receiveTape, pushFlushMaxPoints);
       handlers.add(inputHandler);
-      histogramExecutor.scheduleWithFixedDelay(inputHandler.getBufferFlushTask(), 85L, 1L, TimeUnit.MICROSECONDS);
+      histogramFlushExecutor.scheduleWithFixedDelay(inputHandler.getBufferFlushTask(),
+          100L, 100L, TimeUnit.MILLISECONDS);
     }
 
     // Set-up producer
-    new Thread(
-        new HistogramLineIngester(
-            handlers,
-            port)).start();
+    startAsManagedThread(new HistogramLineIngester(handlers, port), "listener-plaintext-histogram-" + port);
   }
 
   /**
@@ -566,8 +596,11 @@ public class PushAgent extends AbstractAgent {
     }
   }
 
-  protected void startAsManagedThread(Runnable target) {
+  protected void startAsManagedThread(Runnable target, @Nullable String threadName) {
     Thread thread = new Thread(target);
+    if (threadName != null) {
+      thread.setName(threadName);
+    }
     managedThreads.add(thread);
     thread.start();
   }

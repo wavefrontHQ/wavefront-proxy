@@ -71,7 +71,7 @@ public class PostPushDataTimedTask implements Runnable {
   private String handle;
   private final int threadId;
   private long pushFlushInterval;
-  private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+  private final ScheduledExecutorService scheduler;
   private static int pointsPerBatch = MAX_SPLIT_BATCH_SIZE;
   private static int memoryBufferLimit = MAX_SPLIT_BATCH_SIZE * 32;
   private boolean isFlushingToQueue = false;
@@ -158,6 +158,8 @@ public class PostPushDataTimedTask implements Runnable {
     this.pushFlushInterval = pushFlushInterval;
     this.agentAPI = agentAPI;
     this.pushRateLimiter = pushRateLimiter;
+    this.scheduler = Executors.newScheduledThreadPool(1,
+        new NamedThreadFactory("submitter-main-" + handle + "-" + String.valueOf(threadId)));
 
     this.pointsAttempted = Metrics.newCounter(new MetricName("points." + handle, "", "sent"));
     this.pointsQueued = Metrics.newCounter(new MetricName("points." + handle, "", "queued"));
@@ -242,7 +244,12 @@ public class PostPushDataTimedTask implements Runnable {
    * Shut down the scheduler for this task (prevent future scheduled runs)
    */
   public void shutdown() {
-    scheduler.shutdown();
+    try {
+      scheduler.shutdownNow();
+      scheduler.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+    } catch (Throwable t) {
+      logger.log(Level.SEVERE, "Error during shutdown", t);
+    }
   }
 
   public void drainBuffersToQueue() {

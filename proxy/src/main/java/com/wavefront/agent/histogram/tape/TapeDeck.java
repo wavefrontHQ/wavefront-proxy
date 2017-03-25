@@ -19,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -95,6 +96,9 @@ public class TapeDeck<T> {
     private final Counter removeCounter;
     private final Counter peekCounter;
 
+    // maintain a fair lock on the queue
+    private final ReentrantLock queueLock = new ReentrantLock(true);
+
     ReportingObjectQueueWrapper(ObjectQueue<T> backingQueue, String title) {
       this.addCounter = Metrics.newCounter(new MetricName("tape." + title, "", "add"));
       this.removeCounter = Metrics.newCounter(new MetricName("tape." + title, "", "remove"));
@@ -112,39 +116,58 @@ public class TapeDeck<T> {
 
     @Override
     public int size() {
-      synchronized (this) {
-        return backingQueue.size();
+      int backingQueueSize;
+      try {
+        queueLock.lock();
+        backingQueueSize = backingQueue.size();
+      } finally {
+        queueLock.unlock();
       }
+      return backingQueueSize;
     }
 
     @Override
     public void add(T t) {
       addCounter.inc();
-      synchronized (this) {
+      try {
+        queueLock.lock();
         backingQueue.add(t);
+      } finally {
+        queueLock.unlock();
       }
     }
 
     @Override
     public T peek() {
       peekCounter.inc();
-      synchronized (this) {
-        return backingQueue.peek();
+      T t;
+      try {
+        queueLock.lock();
+        t = backingQueue.peek();
+      } finally {
+        queueLock.unlock();
       }
+      return t;
     }
 
     @Override
     public void remove() {
       removeCounter.inc();
-      synchronized (this) {
+      try {
+        queueLock.lock();
         backingQueue.remove();
+      } finally {
+        queueLock.unlock();
       }
     }
 
     @Override
     public void setListener(Listener<T> listener) {
-      synchronized (this) {
+      try {
+        queueLock.lock();
         backingQueue.setListener(listener);
+      } finally {
+        queueLock.unlock();
       }
     }
   }

@@ -2,9 +2,10 @@ package com.tdunning.math.stats;
 
 import com.google.common.base.Preconditions;
 
+import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.WavefrontHistogram;
 
+import net.jafama.FastMath;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.core.io.IORuntimeException;
 import net.openhft.chronicle.core.util.ReadResolvable;
@@ -312,7 +313,7 @@ public class AgentDigest extends AbstractTDigest {
    * @return The centroid scale value corresponding to q.
    */
   private double integratedLocation(double q) {
-    return compression * (Math.asin(2 * q - 1) + Math.PI / 2) / Math.PI;
+    return compression * (FastMath.asin(2 * q - 1) + Math.PI / 2) / Math.PI;
   }
 
   @Override
@@ -417,7 +418,7 @@ public class AgentDigest extends AbstractTDigest {
   public static class AgentDigestMarshaller implements SizedReader<AgentDigest>, SizedWriter<AgentDigest>, ReadResolvable<AgentDigestMarshaller> {
     private static final AgentDigestMarshaller INSTANCE = new AgentDigestMarshaller();
     private static final com.yammer.metrics.core.Histogram accumulatorValueSizes =
-        WavefrontHistogram.get(new MetricName("histogram", "", "accumulatorValueSize"));
+        Metrics.newHistogram(new MetricName("histogram", "", "accumulatorValueSize"));
 
 
     private AgentDigestMarshaller() {

@@ -75,9 +75,9 @@ import java.util.ResourceBundle;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -257,7 +257,7 @@ public abstract class AbstractAgent {
       names = {"--avgHistogramKeyBytes"},
       description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
           "source and tags concatenation.")
-  protected int avgHistogramKeyBytes = 50;
+  protected int avgHistogramKeyBytes = 150;
 
   @Parameter(
       names = {"--avgHistogramDigestBytes"},
@@ -268,6 +268,10 @@ public abstract class AbstractAgent {
       names = {"--persistMessages"},
       description = "Whether histogram samples or distributions should be persisted to disk")
   protected boolean persistMessages = true;
+
+  @Parameter(names = {"--persistMessagesCompression"}, description = "Enable LZ4 compression for histogram samples " +
+      "persisted to disk. (Default: true)")
+  protected boolean persistMessagesCompression = true;
 
   @Parameter(
       names = {"--persistAccumulator"},
@@ -402,14 +406,14 @@ public abstract class AbstractAgent {
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
+  protected final List<ExecutorService> managedExecutors = new ArrayList<>();
+  protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
   protected RecyclableRateLimiter pushRateLimiter = null;
   protected final MemoryPoolMXBean tenuredGenPool = getTenuredGenPool();
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
-
-  protected final ScheduledExecutorService histogramExecutor =
-      Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors());
+  protected boolean shuttingDown = false;
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -417,8 +421,10 @@ public abstract class AbstractAgent {
   /**
    * Executors for support tasks.
    */
-  private final ScheduledExecutorService auxiliaryExecutor = Executors.newScheduledThreadPool(1);
-  private final ScheduledExecutorService agentMetricsExecutor = Executors.newScheduledThreadPool(1);
+  private final ScheduledExecutorService agentConfigurationExecutor = Executors.newScheduledThreadPool(2,
+      new NamedThreadFactory("agent-configuration"));
+  private final ScheduledExecutorService queuedAgentExecutor = Executors.newScheduledThreadPool(retryThreads + 1,
+      new NamedThreadFactory("submitter-queue"));
   protected UUID agentId;
   private final Runnable updateConfiguration = () -> {
     boolean doShutDown = false;
@@ -466,7 +472,7 @@ public abstract class AbstractAgent {
       if (agentMetricsPointTags != null) {
         pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
       }
-      synchronized (agentMetricsExecutor) {
+      synchronized (agentConfigurationExecutor) {
         agentMetricsCaptureTs = System.currentTimeMillis();
         agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
             true, true, true, pointTags);
@@ -622,19 +628,25 @@ public abstract class AbstractAgent {
         histogramAccumulatorSize = Long.parseLong(prop.getProperty(
             "histogramAccumulatorSize",
             String.valueOf(histogramAccumulatorSize)).trim());
-        avgHistogramKeyBytes = Integer.parseInt(prop.getProperty(
-            "avgHistogramKeyBytes",
-            String.valueOf(avgHistogramKeyBytes)).trim());
-        avgHistogramDigestBytes = Integer.parseInt(prop.getProperty(
-            "avgHistogramDigestBytes",
-            String.valueOf(avgHistogramDigestBytes)).trim());
         histogramCompression = Short.parseShort(prop.getProperty(
             "histogramCompression",
             String.valueOf(histogramCompression)).trim());
+        avgHistogramKeyBytes = Integer.parseInt(prop.getProperty(
+            "avgHistogramKeyBytes",
+            String.valueOf(avgHistogramKeyBytes)).trim());
+
+        // these defaults should work well in most cases
+        avgHistogramDigestBytes = 32 + Math.round(histogramCompression * 10.5f);
+
+        avgHistogramDigestBytes = Integer.parseInt(prop.getProperty(
+            "avgHistogramDigestBytes",
+            String.valueOf(avgHistogramDigestBytes)).trim());
         persistAccumulator =
             Boolean.parseBoolean(prop.getProperty("persistAccumulator", String.valueOf(persistAccumulator)).trim());
         persistMessages =
             Boolean.parseBoolean(prop.getProperty("persistMessages", String.valueOf(persistMessages)).trim());
+        persistMessagesCompression = Boolean.parseBoolean(
+            prop.getProperty("persistMessagesCompression", String.valueOf(persistMessagesCompression)).trim());
 
         retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)).trim());
         flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)).trim());
@@ -715,6 +727,9 @@ public abstract class AbstractAgent {
 
       initPreprocessors();
 
+      if (!persistMessages) {
+        persistMessagesCompression = false;
+      }
       if (pushRateLimit > 0) {
         pushRateLimiter = RecyclableRateLimiter.create(pushRateLimit, 60);
       }
@@ -768,6 +783,8 @@ public abstract class AbstractAgent {
       // 1. Load the listener configurations.
       loadListenerConfigurationFile();
       loadLogsIngestionConfig();
+
+      managedExecutors.add(agentConfigurationExecutor);
 
       // Conditionally enter an interactive debugging session for logsIngestionConfig.yaml
       if (testLogs) {
@@ -864,14 +881,22 @@ public abstract class AbstractAgent {
                   updateAgentMetrics.run();
                   config = fetchConfig();
                   logger.info("scheduling regular configuration polls");
-                  agentMetricsExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
-                  auxiliaryExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
+                  agentConfigurationExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
+                  agentConfigurationExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
                 }
                 // 6. Setup work units and targets based on the configuration.
                 if (config != null) {
                   logger.info("initial configuration is available, setting up proxy agent");
                   processConfiguration(config);
                 }
+
+                Runtime.getRuntime().addShutdownHook(new Thread("proxy-shutdown-hook") {
+                  @Override
+                  public void run() {
+                    shutdown();
+                  }
+                });
+
                 logger.info("setup complete");
               } catch (Throwable t) {
                 logger.log(Level.SEVERE, "Aborting start-up", t);
@@ -957,18 +982,9 @@ public abstract class AbstractAgent {
   }
 
   private void setupQueueing(AgentAPI service) throws IOException {
-    agentAPI = new QueuedAgentService(service, bufferFile, retryThreads,
-        Executors.newScheduledThreadPool(retryThreads + 1, new ThreadFactory() {
-
-          private AtomicLong counter = new AtomicLong();
-
-          @Override
-          public Thread newThread(Runnable r) {
-            Thread toReturn = new Thread(r);
-            toReturn.setName("submission worker: " + counter.getAndIncrement());
-            return toReturn;
-          }
-        }), purgeBuffer, agentId, splitPushWhenRateLimited, pushRateLimiter);
+    managedExecutors.add(queuedAgentExecutor);
+    agentAPI = new QueuedAgentService(service, bufferFile, retryThreads, queuedAgentExecutor, purgeBuffer,
+        agentId, splitPushWhenRateLimited, pushRateLimiter);
   }
 
   /**
@@ -1046,7 +1062,7 @@ public abstract class AbstractAgent {
     AgentConfiguration newConfig = null;
     JsonNode agentMetricsWorkingCopy;
     long agentMetricsCaptureTsWorkingCopy;
-    synchronized(agentMetricsExecutor) {
+    synchronized(agentConfigurationExecutor) {
       if (agentMetrics == null) return null;
       agentMetricsWorkingCopy = agentMetrics;
       agentMetricsCaptureTsWorkingCopy = agentMetricsCaptureTs;
@@ -1094,7 +1110,7 @@ public abstract class AbstractAgent {
           server + ": " + Throwables.getRootCause(ex));
       return null;
     } finally {
-      synchronized(agentMetricsExecutor) {
+      synchronized(agentConfigurationExecutor) {
         // if check-in process failed (agentMetricsWorkingCopy is not null) and agent metrics have
         // not been updated yet, restore last known set of agent metrics to be retried
         if (agentMetricsWorkingCopy != null && agentMetrics == null) {
@@ -1150,19 +1166,64 @@ public abstract class AbstractAgent {
   }
 
   public void shutdown() {
-    logger.info("Shutting down: Stopping listeners...");
-    stopListeners();
-    logger.info("Shutting down: Stopping schedulers...");
-    agentAPI.shutdown();
-    auxiliaryExecutor.shutdown();
-    agentMetricsExecutor.shutdown();
-    managedTasks.forEach(PostPushDataTimedTask::shutdown);
-    logger.info("Shutting down: Flushing pending points...");
-    for (PostPushDataTimedTask task : managedTasks) {
-      while (task.getNumPointsToSend() > 0)
-        task.drainBuffersToQueue();
+    if (shuttingDown) {
+      return; // we need it only once
     }
-    logger.info("Shutdown complete");
+    shuttingDown = true;
+    try {
+      try {
+        logger.info("Shutting down: Stopping listeners...");
+      } catch (Throwable t) {
+        // ignore logging errors
+      }
+
+      stopListeners();
+
+      try {
+        logger.info("Shutting down: Stopping schedulers...");
+      } catch (Throwable t) {
+        // ignore logging errors
+      }
+
+      for (ExecutorService executor : managedExecutors) {
+        executor.shutdownNow();
+        executor.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+      }
+
+      managedTasks.forEach(PostPushDataTimedTask::shutdown);
+
+      try {
+        logger.info("Shutting down: Flushing pending points...");
+      } catch (Throwable t) {
+        // ignore logging errors
+      }
+
+      for (PostPushDataTimedTask task : managedTasks) {
+        while (task.getNumPointsToSend() > 0) {
+          task.drainBuffersToQueue();
+        }
+      }
+      try {
+        logger.info("Shutting down: Running finalizing tasks...");
+      } catch (Throwable t) {
+        // ignore logging errors
+      }
+
+      shutdownTasks.forEach(Runnable::run);
+
+      try {
+        logger.info("Shutdown complete");
+      } catch (Throwable t) {
+        // ignore logging errors
+      }
+    } catch (Throwable t) {
+      try {
+        logger.log(Level.SEVERE, "Error during shutdown: ", t);
+      } catch (Throwable loggingError) {
+        t.addSuppressed(loggingError);
+        t.printStackTrace();
+      }
+    }
   }
 
   private static String getLocalHostName() {
