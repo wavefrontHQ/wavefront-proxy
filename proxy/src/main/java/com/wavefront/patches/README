@@ -1,5 +1,0 @@
-Include patches for Apache HttpClient 4.5.2 
-
-https://issues.apache.org/jira/browse/HTTPCLIENT-1747: The "default request config" socket timeout is set to 0 if the deprecated HttpClientParams is used
-
-This directory needs to be removed after 4.5.3 upgrade

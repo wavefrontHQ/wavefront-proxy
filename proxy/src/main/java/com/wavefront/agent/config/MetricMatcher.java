@@ -9,7 +9,6 @@ import com.wavefront.agent.Validation;
 import com.wavefront.agent.logsharvesting.LogsMessage;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.annotation.ThreadSafe;
 
 import java.util.List;
 import java.util.Map;
@@ -25,7 +24,6 @@ import sunnylabs.report.TimeSeries;
  *
  * @author Mori Bellamy (mori@wavefront.com)
  */
-@ThreadSafe
 public class MetricMatcher extends Configuration {
   protected static final Logger logger = Logger.getLogger(MetricMatcher.class.getCanonicalName());
   private final Object grokLock = new Object();
