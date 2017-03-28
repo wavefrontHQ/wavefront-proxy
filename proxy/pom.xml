@@ -55,7 +55,7 @@
     </dependency>
     <dependency>
       <groupId>org.jboss.resteasy</groupId>
-      <artifactId>resteasy-jackson-provider</artifactId>
+      <artifactId>resteasy-jackson2-provider</artifactId>
     </dependency>
     <dependency>
       <groupId>com.yammer.metrics</groupId>
@@ -241,43 +241,6 @@
             </property>
           </systemProperties>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>2.4.3</version>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <finalName>${project.artifactId}-${project.version}-uber</finalName>
-              <!--Filters section is required until HTTPCLIENT-1747 is fixed - to make sure that patched
-              versions of HttpClientParamConfig and InternalHttpClient classes end up in the uber jar and
-              not what's in 4.5.2 -->
-              <filters>
-                <filter>
-                  <artifact>org.apache.httpcomponents:httpclient</artifact>
-                  <includes>
-                    <include>org/apache/**</include>
-                  </includes>
-                  <excludes>
-                    <exclude>org/apache/http/client/params/HttpClientParamConfig</exclude>
-                    <exclude>org/apache/http/impl/client/InternalHttpClient</exclude>
-                  </excludes>
-                </filter>
-              </filters>
-              <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>com.wavefront.agent.PushAgent</mainClass>
-                </transformer>
-              </transformers>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>

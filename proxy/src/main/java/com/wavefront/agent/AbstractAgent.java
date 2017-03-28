@@ -44,10 +44,10 @@ import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
 import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
-import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPInterceptor;
+import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPFilter;
 import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
 import org.jboss.resteasy.plugins.interceptors.encoding.GZIPEncodingInterceptor;
-import org.jboss.resteasy.plugins.providers.jackson.ResteasyJacksonProvider;
+import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
 import java.io.File;
@@ -368,6 +368,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--javaNetConnection"}, description = "If true, use JRE's own http client when making connections instead of Apache HTTP Client")
   protected boolean javaNetConnection = false;
 
+  @Parameter(names = {"--gzipCompression"}, description = "If true, enables gzip compression for traffic sent to Wavefront (Default: true)")
+  protected boolean gzipCompression = true;
+
   @Parameter(names = {"--soLingerTime"}, description = "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
   protected int soLingerTime = -1;
 
@@ -680,6 +683,9 @@ public abstract class AbstractAgent {
         javaNetConnection = Boolean.valueOf(prop.getProperty(
             "javaNetConnection",
             String.valueOf(javaNetConnection)).trim());
+        gzipCompression = Boolean.valueOf(prop.getProperty(
+            "gzipCompression",
+            String.valueOf(gzipCompression)).trim());
         soLingerTime = Integer.parseInt(prop.getProperty("soLingerTime", String.valueOf(soLingerTime)).trim());
         splitPushWhenRateLimited = Boolean.parseBoolean(prop.getProperty("splitPushWhenRateLimited",
             String.valueOf(splitPushWhenRateLimited)).trim());
@@ -921,8 +927,8 @@ public abstract class AbstractAgent {
   protected AgentAPI createAgentService() {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
-    if (!factory.getClasses().contains(ResteasyJacksonProvider.class)) {
-      factory.registerProvider(ResteasyJacksonProvider.class);
+    if (!factory.getClasses().contains(ResteasyJackson2Provider.class)) {
+      factory.registerProvider(ResteasyJackson2Provider.class);
     }
     if (httpUserAgent == null) {
       httpUserAgent = "Wavefront-Proxy/" + props.getString("build.version");
@@ -976,13 +982,21 @@ public abstract class AbstractAgent {
       apacheHttpClient4Engine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
       httpEngine = apacheHttpClient4Engine;
     }
-    ResteasyClient client = new ResteasyClientBuilder().
-        httpEngine(httpEngine).
-        providerFactory(factory).
-        register(GZIPDecodingInterceptor.class).
-        register(GZIPEncodingInterceptor.class).
-        register(AcceptEncodingGZIPInterceptor.class).
-        build();
+    ResteasyClient client;
+    if (gzipCompression) {
+      client = new ResteasyClientBuilder().
+          httpEngine(httpEngine).
+          providerFactory(factory).
+          register(GZIPDecodingInterceptor.class).
+          register(GZIPEncodingInterceptor.class).
+          register(AcceptEncodingGZIPFilter.class).
+          build();
+    } else {
+      client = new ResteasyClientBuilder().
+          httpEngine(httpEngine).
+          providerFactory(factory).
+          build();
+    }
     ResteasyWebTarget target = client.target(server);
     return target.proxy(AgentAPI.class);
   }
