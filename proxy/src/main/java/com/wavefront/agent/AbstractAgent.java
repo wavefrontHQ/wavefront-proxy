@@ -415,6 +415,12 @@ public abstract class AbstractAgent {
   protected long agentMetricsCaptureTs;
   protected boolean shuttingDown = false;
 
+  /**
+   * A random value assigned at proxy start-up, to be reported as ~agent.session.id metric
+   * to detect ~agent metrics collisions caused by duplicate proxy names
+   */
+  protected final int sessionId = (int)(Math.random() * Integer.MAX_VALUE);
+
   protected final boolean localAgent;
   protected final boolean pushAgent;
 
@@ -498,6 +504,16 @@ public abstract class AbstractAgent {
           }
         }
     );
+
+    Metrics.newGauge(ExpectedAgentMetric.SESSION_ID.metricName,
+        new Gauge<Integer>() {
+          @Override
+          public Integer value() {
+            return sessionId;
+          }
+        }
+    );
+
   }
 
   protected abstract void startListeners();
