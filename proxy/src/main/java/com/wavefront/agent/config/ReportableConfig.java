@@ -14,18 +14,18 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
- * Wrapper class to simplify access to .properties file + track settings as metrics as they are retrieved
+ * Wrapper class to simplify access to .properties file + track values as metrics as they are retrieved
  *
  * @author vasily@wavefront.com
  */
-public class ReportableConfiguration {
+public class ReportableConfig {
   private Properties prop = new Properties();
 
-  public ReportableConfiguration(InputStream stream) throws IOException {
+  public ReportableConfig(InputStream stream) throws IOException {
     prop.load(stream);
   }
 
-  public ReportableConfiguration(String fileName) throws IOException {
+  public ReportableConfig(String fileName) throws IOException {
     prop.load(new FileInputStream(fileName));
   }
 
@@ -33,27 +33,27 @@ public class ReportableConfiguration {
    * Returns string value for the property without tracking it as a metric
    *
    */
-  public String getPropertyRaw(String key, String defaultValue) {
+  public String getRawProperty(String key, String defaultValue) {
     return prop.getProperty(key, defaultValue);
   }
 
-  public Number getPropertyAsNumber(String key, Number defaultValue) {
+  public Number getNumber(String key, Number defaultValue) {
     Long l = Long.parseLong(prop.getProperty(key, String.valueOf(defaultValue)).trim());
     reportGauge(l, new MetricName("config", "", key));
     return l;
   }
 
-  public String getPropertyAsString(String key, String defaultValue) {
-    return getPropertyAsString(key, defaultValue, null);
+  public String getString(String key, String defaultValue) {
+    return getString(key, defaultValue, null);
   }
 
-  public String getPropertyAsString(String key, String defaultValue,
-                                    @Nullable Function<String, String> converter) {
+  public String getString(String key, String defaultValue,
+                          @Nullable Function<String, String> converter) {
     String s = prop.getProperty(key, defaultValue);
-    if (s != null && !s.trim().isEmpty()) {
-      reportGauge(1, new TaggedMetricName("config", key, "value", converter == null ? s : converter.apply(s)));
-    } else {
+    if (s == null || s.trim().isEmpty()) {
       reportGauge(0, new MetricName("config", "", key));
+    } else {
+      reportGauge(1, new TaggedMetricName("config", key, "value", converter == null ? s : converter.apply(s)));
     }
     return s;
   }
