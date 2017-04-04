@@ -181,6 +181,10 @@ public abstract class AbstractAgent {
       "2878.")
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
 
+  @Parameter(names = {"--memGuardFlushThreshold"}, description = "If heap usage exceeds this threshold (in percent), " +
+      "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 95")
+  protected int memGuardFlushThreshold = 95;
+
   @Parameter(
       names = {"--histogramStateDirectory"},
       description = "Directory for persistent agent state, must be writable.")
@@ -421,6 +425,12 @@ public abstract class AbstractAgent {
   protected long agentMetricsCaptureTs;
   protected boolean shuttingDown = false;
 
+  /**
+   * A random value assigned at proxy start-up, to be reported as ~agent.session.id metric
+   * to detect ~agent metrics collisions caused by duplicate proxy names
+   */
+  protected final int sessionId = (int)(Math.random() * Integer.MAX_VALUE);
+
   protected final boolean localAgent;
   protected final boolean pushAgent;
 
@@ -504,6 +514,16 @@ public abstract class AbstractAgent {
           }
         }
     );
+
+    Metrics.newGauge(ExpectedAgentMetric.SESSION_ID.metricName,
+        new Gauge<Integer>() {
+          @Override
+          public Integer value() {
+            return sessionId;
+          }
+        }
+    );
+
   }
 
   protected abstract void startListeners();
@@ -599,6 +619,8 @@ public abstract class AbstractAgent {
         pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
             String.valueOf(pushBlockedSamples)).trim());
         pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
+        memGuardFlushThreshold = Integer.parseInt(prop.getProperty("memGuardFlushThreshold",
+            String.valueOf(memGuardFlushThreshold)).trim());
         histogramStateDirectory = prop.getProperty("histogramStateDirectory", histogramStateDirectory);
         histogramAccumulatorResolveInterval = Long.parseLong(prop.getProperty(
             "histogramAccumulatorResolveInterval",
@@ -854,7 +876,9 @@ public abstract class AbstractAgent {
       startListeners();
 
       // set up OoM memory guard
-      setupMemoryGuard();
+      if (memGuardFlushThreshold > 0) {
+        setupMemoryGuard((float)memGuardFlushThreshold / 100);
+      }
 
       new Timer().schedule(
           new TimerTask() {
@@ -1287,18 +1311,19 @@ public abstract class AbstractAgent {
     return null;
   }
 
-  private void setupMemoryGuard() {
+  private void setupMemoryGuard(double threshold) {
     if (tenuredGenPool == null) return;
-    tenuredGenPool.setUsageThreshold((long) (tenuredGenPool.getUsage().getMax() * 0.9));
+    tenuredGenPool.setUsageThreshold((long) (tenuredGenPool.getUsage().getMax() * threshold));
 
     NotificationEmitter emitter = (NotificationEmitter) ManagementFactory.getMemoryMXBean();
     emitter.addNotificationListener((notification, obj) -> {
       if (notification.getType().equals(
           MemoryNotificationInfo.MEMORY_THRESHOLD_EXCEEDED)) {
-        logger.warning("Heap usage exceed 90% - draining buffers to disk!");
+        logger.warning("Heap usage threshold exceeded - draining buffers to disk!");
         for (PostPushDataTimedTask task : managedTasks) {
-          while (task.getNumPointsToSend() > 0)
+          if (task.getNumPointsToSend() > 0) {
             task.drainBuffersToQueue();
+          }
         }
         logger.info("Draining buffers to disk: finished");
       }

@@ -8,6 +8,7 @@ import com.yammer.metrics.core.MetricName;
  * @author Andrew Kao (andrew@wavefront.com)
  */
 public enum ExpectedAgentMetric {
+  SESSION_ID(new MetricName("session", "", "id")),
   ACTIVE_LISTENERS(new MetricName("listeners", "", "active")),
   BUFFER_BYTES_LEFT(new MetricName("buffer", "", "bytes-left")),
   BUFFER_BYTES_PER_MINUTE(new MetricName("buffer", "", "fill-rate")),
