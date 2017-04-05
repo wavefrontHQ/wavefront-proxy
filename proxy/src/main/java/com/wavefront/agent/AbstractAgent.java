@@ -46,7 +46,10 @@ import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
 import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
-import org.jboss.resteasy.plugins.providers.jackson.ResteasyJacksonProvider;
+import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPFilter;
+import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
+import org.jboss.resteasy.plugins.interceptors.encoding.GZIPEncodingInterceptor;
+import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
 import java.io.File;
@@ -182,6 +185,10 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
       "2878.")
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
+
+  @Parameter(names = {"--memGuardFlushThreshold"}, description = "If heap usage exceeds this threshold (in percent), " +
+      "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 95")
+  protected int memGuardFlushThreshold = 95;
 
   @Parameter(
       names = {"--histogramStateDirectory"},
@@ -370,6 +377,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--javaNetConnection"}, description = "If true, use JRE's own http client when making connections instead of Apache HTTP Client")
   protected boolean javaNetConnection = false;
 
+  @Parameter(names = {"--gzipCompression"}, description = "If true, enables gzip compression for traffic sent to Wavefront (Default: true)")
+  protected boolean gzipCompression = true;
+
   @Parameter(names = {"--soLingerTime"}, description = "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
   protected Integer soLingerTime = -1;
 
@@ -419,6 +429,12 @@ public abstract class AbstractAgent {
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
   protected boolean shuttingDown = false;
+
+  /**
+   * A random value assigned at proxy start-up, to be reported as ~agent.session.id metric
+   * to detect ~agent metrics collisions caused by duplicate proxy names
+   */
+  protected final int sessionId = (int)(Math.random() * Integer.MAX_VALUE);
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -503,6 +519,16 @@ public abstract class AbstractAgent {
           }
         }
     );
+
+    Metrics.newGauge(ExpectedAgentMetric.SESSION_ID.metricName,
+        new Gauge<Integer>() {
+          @Override
+          public Integer value() {
+            return sessionId;
+          }
+        }
+    );
+
   }
 
   protected abstract void startListeners();
@@ -623,9 +649,9 @@ public abstract class AbstractAgent {
         avgHistogramDigestBytes = 32 + Math.round(histogramCompression * 10.5f);
 
         avgHistogramDigestBytes = config.getNumber("avgHistogramDigestBytes", avgHistogramDigestBytes).intValue();
-        persistAccumulator = config.getPropertyAsBoolean("persistAccumulator", persistAccumulator);
-        persistMessages = config.getPropertyAsBoolean("persistMessages", persistMessages);
-        persistMessagesCompression = config.getPropertyAsBoolean("persistMessagesCompression",
+        persistAccumulator = config.getBoolean("persistAccumulator", persistAccumulator);
+        persistMessages = config.getBoolean("persistMessages", persistMessages);
+        persistMessagesCompression = config.getBoolean("persistMessagesCompression",
             persistMessagesCompression);
 
         retryThreads = config.getNumber("retryThreads", retryThreads).intValue();
@@ -650,16 +676,17 @@ public abstract class AbstractAgent {
         httpUserAgent = config.getString("httpUserAgent", httpUserAgent);
         httpConnectTimeout = config.getNumber("httpConnectTimeout", httpConnectTimeout).intValue();
         httpRequestTimeout = config.getNumber("httpRequestTimeout", httpRequestTimeout).intValue();
-        javaNetConnection = config.getPropertyAsBoolean("javaNetConnection", javaNetConnection);
+        javaNetConnection = config.getBoolean("javaNetConnection", javaNetConnection);
+        gzipCompression = config.getBoolean("gzipCompression", gzipCompression);
         soLingerTime = config.getNumber("soLingerTime", soLingerTime).intValue();
-        splitPushWhenRateLimited = config.getPropertyAsBoolean("splitPushWhenRateLimited", splitPushWhenRateLimited);
+        splitPushWhenRateLimited = config.getBoolean("splitPushWhenRateLimited", splitPushWhenRateLimited);
         retryBackoffBaseSeconds.set(Double.parseDouble(
             config.getRawProperty("retryBackoffBaseSeconds", String.valueOf(retryBackoffBaseSeconds.get())).trim()));
         config.reportSettingAsGauge(retryBackoffBaseSeconds, "retryBackoffBaseSeconds");
         customSourceTagsProperty = config.getString("customSourceTags", customSourceTagsProperty);
         agentMetricsPointTags = config.getString("agentMetricsPointTags", agentMetricsPointTags);
-        ephemeral = config.getPropertyAsBoolean("ephemeral", ephemeral);
-        disableRdnsLookup = config.getPropertyAsBoolean("disableRdnsLookup", disableRdnsLookup);
+        ephemeral = config.getBoolean("ephemeral", ephemeral);
+        disableRdnsLookup = config.getBoolean("disableRdnsLookup", disableRdnsLookup);
         picklePorts = config.getString("picklePorts", picklePorts);
         bufferFile = config.getString("buffer", bufferFile);
         preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
@@ -828,7 +855,9 @@ public abstract class AbstractAgent {
       startListeners();
 
       // set up OoM memory guard
-      setupMemoryGuard();
+      if (memGuardFlushThreshold > 0) {
+        setupMemoryGuard((float)memGuardFlushThreshold / 100);
+      }
 
       new Timer().schedule(
           new TimerTask() {
@@ -901,8 +930,8 @@ public abstract class AbstractAgent {
   protected AgentAPI createAgentService() {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
-    if (!factory.getClasses().contains(ResteasyJacksonProvider.class)) {
-      factory.registerProvider(ResteasyJacksonProvider.class);
+    if (!factory.getClasses().contains(ResteasyJackson2Provider.class)) {
+      factory.registerProvider(ResteasyJackson2Provider.class);
     }
     if (httpUserAgent == null) {
       httpUserAgent = "Wavefront-Proxy/" + props.getString("build.version");
@@ -956,10 +985,21 @@ public abstract class AbstractAgent {
       apacheHttpClient4Engine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
       httpEngine = apacheHttpClient4Engine;
     }
-    ResteasyClient client = new ResteasyClientBuilder().
-        httpEngine(httpEngine).
-        providerFactory(factory).
-        build();
+    ResteasyClient client;
+    if (gzipCompression) {
+      client = new ResteasyClientBuilder().
+          httpEngine(httpEngine).
+          providerFactory(factory).
+          register(GZIPDecodingInterceptor.class).
+          register(GZIPEncodingInterceptor.class).
+          register(AcceptEncodingGZIPFilter.class).
+          build();
+    } else {
+      client = new ResteasyClientBuilder().
+          httpEngine(httpEngine).
+          providerFactory(factory).
+          build();
+    }
     ResteasyWebTarget target = client.target(server);
     return target.proxy(AgentAPI.class);
   }
@@ -1250,18 +1290,19 @@ public abstract class AbstractAgent {
     return null;
   }
 
-  private void setupMemoryGuard() {
+  private void setupMemoryGuard(double threshold) {
     if (tenuredGenPool == null) return;
-    tenuredGenPool.setUsageThreshold((long) (tenuredGenPool.getUsage().getMax() * 0.9));
+    tenuredGenPool.setUsageThreshold((long) (tenuredGenPool.getUsage().getMax() * threshold));
 
     NotificationEmitter emitter = (NotificationEmitter) ManagementFactory.getMemoryMXBean();
     emitter.addNotificationListener((notification, obj) -> {
       if (notification.getType().equals(
           MemoryNotificationInfo.MEMORY_THRESHOLD_EXCEEDED)) {
-        logger.warning("Heap usage exceed 90% - draining buffers to disk!");
+        logger.warning("Heap usage threshold exceeded - draining buffers to disk!");
         for (PostPushDataTimedTask task : managedTasks) {
-          while (task.getNumPointsToSend() > 0)
+          if (task.getNumPointsToSend() > 0) {
             task.drainBuffersToQueue();
+          }
         }
         logger.info("Draining buffers to disk: finished");
       }

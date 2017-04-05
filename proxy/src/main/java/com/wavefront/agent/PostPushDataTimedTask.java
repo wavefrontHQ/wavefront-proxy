@@ -62,6 +62,7 @@ public class PostPushDataTimedTask implements Runnable {
   private final Counter permitsDenied;
   private final Counter permitsRetried;
   private final Counter batchesAttempted;
+  private final Counter bufferFlushCount;
   private final Timer batchSendTime;
 
   private long numApiCalls = 0;
@@ -170,6 +171,7 @@ public class PostPushDataTimedTask implements Runnable {
         new MetricName("push." + String.valueOf(handle) + ".thread-" + String.valueOf(threadId), "", "batches"));
     this.batchSendTime = Metrics.newTimer(new MetricName("push." + handle, "", "duration"),
         TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+    this.bufferFlushCount = Metrics.newCounter(new MetricName("buffer", "", "flush-count"));
     this.scheduler.schedule(this, pushFlushInterval, TimeUnit.MILLISECONDS);
   }
 
@@ -278,6 +280,7 @@ public class PostPushDataTimedTask implements Runnable {
       }
     } finally {
       isFlushingToQueue = false;
+      bufferFlushCount.inc();
     }
   }
 

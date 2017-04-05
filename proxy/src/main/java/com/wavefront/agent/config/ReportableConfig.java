@@ -58,7 +58,7 @@ public class ReportableConfig {
     return s;
   }
 
-  public Boolean getPropertyAsBoolean(String key, Boolean defaultValue) {
+  public Boolean getBoolean(String key, Boolean defaultValue) {
     Boolean b = Boolean.parseBoolean(prop.getProperty(key, String.valueOf(defaultValue)).trim());
     reportGauge(b ? 1 : 0, new MetricName("config", "", key));
     return b;

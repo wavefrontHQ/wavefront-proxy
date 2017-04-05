@@ -10,6 +10,8 @@ import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 
+import org.apache.commons.io.IOUtils;
+
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
@@ -122,6 +124,7 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
 
   public void reportMetrics() {
     TimerContext time = latency.time();
+    HttpURLConnection urlc = null;
     try {
       UriBuilder builder = UriBuilder.fromUri(new URI(
           https ? "https" : "http", sunnylabsHost, "/report/metrics", null));
@@ -134,8 +137,8 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
         builder.queryParam(tag.getKey(), tag.getValue());
       }
       URL http = builder.build().toURL();
-      System.out.println("Reporting started to: " + http);
-      HttpURLConnection urlc = (HttpURLConnection) http.openConnection();
+      logger.info("Reporting metrics (JSON) to: " + http);
+      urlc = (HttpURLConnection) http.openConnection();
       urlc.setDoOutput(true);
       urlc.setReadTimeout(60000);
       urlc.setConnectTimeout(60000);
@@ -143,13 +146,24 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
       OutputStream outputStream = urlc.getOutputStream();
       JsonMetricsGenerator.generateJsonMetrics(outputStream, getMetricsRegistry(), includeVMMetrics, true,
           clearMetrics);
-      outputStream.close();
-      System.out.println("Reporting complete: " + urlc.getResponseCode());
+      logger.info("Metrics (JSON) reported: " + urlc.getResponseCode());
       reports.inc();
     } catch (Throwable e) {
-      e.printStackTrace();
+      logger.log(Level.WARNING, "Failed to report metrics (JSON)", e);
       errors.inc();
     } finally {
+      if (urlc != null) {
+        try {
+          IOUtils.closeQuietly(urlc.getInputStream());
+        } catch (Exception e) {
+          // ignore.
+        }
+        try {
+          IOUtils.closeQuietly(urlc.getOutputStream());
+        } catch (Exception e) {
+          // ignore.
+        }
+      }
       time.stop();
     }
   }

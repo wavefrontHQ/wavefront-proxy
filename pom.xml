@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>4.8-SNAPSHOT</version>
+  <version>4.9-SNAPSHOT</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
@@ -58,7 +58,7 @@
     <jetty.version>9.2.10.v20150310</jetty.version>
     <jackson.version>2.7.4</jackson.version>
     <netty.version>4.0.35.Final</netty.version>
-    <public.project.version>4.8-SNAPSHOT</public.project.version>
+    <public.project.version>4.9-SNAPSHOT</public.project.version>
   </properties>
 
   <build>
@@ -127,7 +127,7 @@
       <dependency>
         <groupId>org.jboss.resteasy</groupId>
         <artifactId>resteasy-bom</artifactId>
-        <version>3.0.17.Final</version>
+        <version>3.0.21.Final</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -154,7 +154,7 @@
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.2</version>
+        <version>4.5.3</version>
       </dependency>
       <dependency>
         <groupId>com.yammer.metrics</groupId>
