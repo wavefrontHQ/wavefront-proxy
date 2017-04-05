@@ -25,6 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.ws.rs.core.Response;
@@ -42,6 +43,7 @@ public class QueuedAgentServiceTest {
   private QueuedAgentService queuedAgentService;
   private AgentAPI mockAgentAPI;
   private UUID newAgentId;
+  private AtomicInteger splitBatchSize = new AtomicInteger(50000);
 
   @Before
   public void testSetup() throws IOException {
@@ -49,7 +51,7 @@ public class QueuedAgentServiceTest {
     newAgentId = UUID.randomUUID();
 
     int retryThreads = 1;
-    QueuedAgentService.setSplitBatchSize(50000);
+    QueuedAgentService.setSplitBatchSize(splitBatchSize);
 
     queuedAgentService = new QueuedAgentService(mockAgentAPI, "unitTestBuffer", retryThreads,
         Executors.newScheduledThreadPool(retryThreads + 1, new ThreadFactory() {
@@ -643,7 +645,7 @@ public class QueuedAgentServiceTest {
   @Test
   public void postPushDataResultTaskSplitsIntoManyTask() {
     for (int targetBatchSize = 1; targetBatchSize <= 10; targetBatchSize++) {
-      QueuedAgentService.setSplitBatchSize(targetBatchSize);
+      splitBatchSize.set(targetBatchSize);
 
       UUID agentId = UUID.randomUUID();
       UUID workUnitId = UUID.randomUUID();
@@ -682,7 +684,7 @@ public class QueuedAgentServiceTest {
 
   @Test
   public void splitIntoTwoTest() {
-    QueuedAgentService.setSplitBatchSize(10000000);
+    splitBatchSize.set(10000000);
 
     UUID agentId = UUID.randomUUID();
     UUID workUnitId = UUID.randomUUID();

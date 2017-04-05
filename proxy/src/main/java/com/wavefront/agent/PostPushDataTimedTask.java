@@ -18,6 +18,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,8 +30,6 @@ import javax.ws.rs.core.Response;
 public class PostPushDataTimedTask implements Runnable {
 
   private static final Logger logger = Logger.getLogger(PostPushDataTimedTask.class.getCanonicalName());
-
-  private static final int MAX_SPLIT_BATCH_SIZE = 50000; // same value as default pushFlushMaxPoints
 
   private List<String> points = new ArrayList<>();
   private final Object pointsMutex = new Object();
@@ -73,19 +72,18 @@ public class PostPushDataTimedTask implements Runnable {
   private final int threadId;
   private long pushFlushInterval;
   private final ScheduledExecutorService scheduler;
-  private static int pointsPerBatch = MAX_SPLIT_BATCH_SIZE;
-  private static int memoryBufferLimit = MAX_SPLIT_BATCH_SIZE * 32;
+  private static AtomicInteger pointsPerBatch = new AtomicInteger(50000);
+  private static AtomicInteger memoryBufferLimit = new AtomicInteger(50000 * 32);
   private boolean isFlushingToQueue = false;
 
   private ForceQueueEnabledAgentAPI agentAPI;
 
-  static void setPointsPerBatch(int newSize) {
-    pointsPerBatch = Math.min(newSize, MAX_SPLIT_BATCH_SIZE);
-    pointsPerBatch = Math.max(pointsPerBatch, 1);
+  static void setPointsPerBatch(AtomicInteger newSize) {
+    pointsPerBatch = newSize;
   }
 
-  static void setMemoryBufferLimit(int newSize) {
-    memoryBufferLimit = Math.max(newSize, pointsPerBatch);
+  static void setMemoryBufferLimit(AtomicInteger newSize) {
+    memoryBufferLimit = newSize;
   }
 
   public void addPoint(String metricString) {
@@ -213,7 +211,7 @@ public class PostPushDataTimedTask implements Runnable {
           if (response != null) response.close();
         }
 
-        if (points.size() > memoryBufferLimit) {
+        if (points.size() > memoryBufferLimit.get()) {
           // there are going to be too many points to be able to flush w/o the agent blowing up
           // drain the leftovers straight to the retry queue (i.e. to disk)
           // don't let anyone add any more to points while we're draining it.
@@ -306,7 +304,7 @@ public class PostPushDataTimedTask implements Runnable {
     List<String> current;
     int blockSize;
     synchronized (pointsMutex) {
-      blockSize = Math.min(points.size(), pointsPerBatch);
+      blockSize = Math.min(points.size(), pointsPerBatch.get());
       current = points.subList(0, blockSize);
       points = new ArrayList<>(points.subList(blockSize, points.size()));
     }

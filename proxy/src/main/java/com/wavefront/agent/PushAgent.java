@@ -543,7 +543,7 @@ public class PushAgent extends AbstractAgent {
 
       histogramScanExecutor.scheduleWithFixedDelay(scanTask, 20L, 20L, TimeUnit.MILLISECONDS);
 
-      QueuingChannelHandler<String> inputHandler = new QueuingChannelHandler<>(receiveTape, pushFlushMaxPoints);
+      QueuingChannelHandler<String> inputHandler = new QueuingChannelHandler<>(receiveTape, pushFlushMaxPoints.get());
       handlers.add(inputHandler);
       histogramFlushExecutor.scheduleWithFixedDelay(inputHandler.getBufferFlushTask(),
           100L, 100L, TimeUnit.MILLISECONDS);
@@ -567,29 +567,27 @@ public class PushAgent extends AbstractAgent {
           config.getCollectorSetsPointsPerBatch()) {
         if (pointsPerBatch != null) {
           // if the collector is in charge and it provided a setting, use it
-          QueuedAgentService.setSplitBatchSize(pointsPerBatch.intValue());
-          PostPushDataTimedTask.setPointsPerBatch(pointsPerBatch.intValue());
+          pushFlushMaxPoints.set(pointsPerBatch.intValue());
           logger.fine("Agent push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
-        QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
-        PostPushDataTimedTask.setPointsPerBatch(pushFlushMaxPoints);
-        logger.fine("Agent push batch set to (locally) " + pushFlushMaxPoints);
+        pushFlushMaxPoints.set(pushFlushMaxPointsInitialValue);
+        logger.fine("Agent push batch set to (locally) " + pushFlushMaxPoints.get());
       }
 
       if (config.getCollectorSetsRetryBackoff() != null &&
           config.getCollectorSetsRetryBackoff()) {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
-          QueuedAgentService.setRetryBackoffBaseSeconds(config.getRetryBackoffBaseSeconds());
+          retryBackoffBaseSeconds.set(config.getRetryBackoffBaseSeconds());
           logger.fine("Agent backoff base set to (remotely) " +
                 config.getRetryBackoffBaseSeconds());
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
-        QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
-        logger.fine("Agent backoff base set to (locally) " + retryBackoffBaseSeconds);
+        retryBackoffBaseSeconds.set(retryBackoffBaseSecondsInitialValue);
+        logger.fine("Agent backoff base set to (locally) " + retryBackoffBaseSeconds.get());
       }
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.

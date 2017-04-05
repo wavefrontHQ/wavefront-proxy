@@ -8,6 +8,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.gson.Gson;
@@ -57,6 +58,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -76,15 +78,13 @@ import static com.google.common.collect.ImmutableList.of;
  */
 public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
-  private static final int MAX_SPLIT_BATCH_SIZE = 50000; // same value as default pushFlushMaxPoints
-  private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final Logger logger = Logger.getLogger(QueuedAgentService.class.getCanonicalName());
 
   private final Gson resubmissionTaskMarshaller;
   private final AgentAPI wrapped;
   private final List<ResubmissionTaskQueue> taskQueues;
-  private static int splitBatchSize = MAX_SPLIT_BATCH_SIZE;
-  private static double retryBackoffBaseSeconds = 2.0;
+  private static AtomicInteger splitBatchSize = new AtomicInteger(50000);
+  private static AtomicDouble retryBackoffBaseSeconds = new AtomicDouble(2.0);
   private boolean lastKnownQueueSizeIsPositive = true;
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
   private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
@@ -313,7 +313,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                 backoffExponent = 1;
               }
               long next = (long) ((Math.random() + 1.0) *
-                  Math.pow(retryBackoffBaseSeconds, backoffExponent));
+                  Math.pow(retryBackoffBaseSeconds.get(), backoffExponent));
               logger.fine("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
                   ", Failed Batches: " + failures);
               logger.fine("[RETRY THREAD " + threadId + "] RESCHEDULING in " + next);
@@ -385,14 +385,12 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     });
   }
 
-  public static void setRetryBackoffBaseSeconds(double newSecs) {
-    retryBackoffBaseSeconds = Math.min(newSecs, MAX_RETRY_BACKOFF_BASE_SECONDS);
-    retryBackoffBaseSeconds = Math.max(retryBackoffBaseSeconds, 1.0);
+  public static void setRetryBackoffBaseSeconds(AtomicDouble newSecs) {
+    retryBackoffBaseSeconds = newSecs;
   }
 
-  public static void setSplitBatchSize(int newSize) {
-    splitBatchSize = Math.min(newSize, MAX_SPLIT_BATCH_SIZE);
-    splitBatchSize = Math.max(splitBatchSize, 1);
+  public static void setSplitBatchSize(AtomicInteger newSize) {
+    splitBatchSize = newSize;
   }
 
   public long getQueuedTasksCount() {
@@ -693,7 +691,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       if (numDatum > 1) {
         // in this case, at least split the strings in 2 batches.  batch size must be less
         // than splitBatchSize
-        int stride = Math.min(splitBatchSize, (int) Math.ceil((float) numDatum / 2.0));
+        int stride = Math.min(splitBatchSize.get(), (int) Math.ceil((float) numDatum / 2.0));
         int endingIndex = 0;
         for (int startingIndex = 0; endingIndex < numDatum - 1; startingIndex += stride) {
           endingIndex = Math.min(numDatum, startingIndex + stride) - 1;
