@@ -163,10 +163,12 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--pushFlushInterval"}, description = "Milliseconds between flushes to . Defaults to 1000 ms")
   protected AtomicInteger pushFlushInterval = new AtomicInteger(1000);
+  protected int pushFlushIntervalInitialValue = 1000; // store initially configured value to revert to
 
   @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points in a single push flush. Defaults" +
       " to 50,000")
   protected AtomicInteger pushFlushMaxPoints = new AtomicInteger(50000);
+  protected int pushFlushMaxPointsInitialValue = 50000; // store initially configured value to revert to
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
@@ -361,6 +363,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
   protected AtomicDouble retryBackoffBaseSeconds = new AtomicDouble(2.0);
+  protected double retryBackoffBaseSecondsInitialValue = 2.0d;
 
   @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
   protected String customSourceTagsProperty = "fqdn";
@@ -613,18 +616,10 @@ public abstract class AbstractAgent {
         server = config.getRawProperty("server", server); // don't track
         hostname = config.getString("hostname", hostname);
         idFile = config.getString("idFile", idFile);
-        pushFlushInterval.set(Integer.parseInt(
-            config.getRawProperty("pushFlushInterval", String.valueOf(pushFlushInterval.get())).trim()));
-        config.reportSettingAsGauge(pushFlushInterval, "pushFlushInterval");
-        pushFlushMaxPoints.set(Integer.parseInt(
-            config.getRawProperty("pushFlushMaxPoints", String.valueOf(pushFlushMaxPoints.get())).trim()));
-        config.reportSettingAsGauge(pushFlushMaxPoints, "pushFlushMaxPoints");
         pushRateLimit = config.getNumber("pushRateLimit", pushRateLimit).intValue();
         pushBlockedSamples = config.getNumber("pushBlockedSamples", pushBlockedSamples).intValue();
         pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
-        config.reportSettingAsGauge(
-            Splitter.on(",").omitEmptyStrings().trimResults().splitToList(pushListenerPorts).size(),
-            "pushListenerPorts.count");
+        memGuardFlushThreshold = config.getNumber("memGuardFlushThreshold", memGuardFlushThreshold).intValue();
         histogramStateDirectory = config.getString("histogramStateDirectory", histogramStateDirectory);
         histogramAccumulatorResolveInterval = config.getNumber("histogramAccumulatorResolveInterval",
             histogramAccumulatorResolveInterval).longValue();
@@ -680,9 +675,6 @@ public abstract class AbstractAgent {
         gzipCompression = config.getBoolean("gzipCompression", gzipCompression);
         soLingerTime = config.getNumber("soLingerTime", soLingerTime).intValue();
         splitPushWhenRateLimited = config.getBoolean("splitPushWhenRateLimited", splitPushWhenRateLimited);
-        retryBackoffBaseSeconds.set(Double.parseDouble(
-            config.getRawProperty("retryBackoffBaseSeconds", String.valueOf(retryBackoffBaseSeconds.get())).trim()));
-        config.reportSettingAsGauge(retryBackoffBaseSeconds, "retryBackoffBaseSeconds");
         customSourceTagsProperty = config.getString("customSourceTags", customSourceTagsProperty);
         agentMetricsPointTags = config.getString("agentMetricsPointTags", agentMetricsPointTags);
         ephemeral = config.getBoolean("ephemeral", ephemeral);
@@ -694,6 +686,24 @@ public abstract class AbstractAgent {
         filebeatPort = config.getNumber("filebeatPort", filebeatPort).intValue();
         rawLogsPort = config.getNumber("rawLogsPort", rawLogsPort).intValue();
         logsIngestionConfigFile = config.getString("logsIngestionConfigFile", logsIngestionConfigFile);
+
+        // track mutable settings
+        pushFlushIntervalInitialValue = Integer.parseInt(config.getRawProperty("pushFlushInterval",
+            String.valueOf(pushFlushInterval.get())).trim());
+        pushFlushInterval.set(pushFlushIntervalInitialValue);
+        config.reportSettingAsGauge(pushFlushInterval, "pushFlushInterval");
+
+        pushFlushMaxPointsInitialValue = Integer.parseInt(config.getRawProperty("pushFlushMaxPoints",
+            String.valueOf(pushFlushMaxPoints.get())).trim());
+        // clamp values for pushFlushMaxPoints between 1..50000
+        pushFlushMaxPointsInitialValue = Math.max(Math.min(pushFlushMaxPointsInitialValue, MAX_SPLIT_BATCH_SIZE), 1);
+        pushFlushMaxPoints.set(pushFlushMaxPointsInitialValue);
+        config.reportSettingAsGauge(pushFlushMaxPoints, "pushFlushMaxPoints");
+
+        retryBackoffBaseSecondsInitialValue = Double.parseDouble(config.getRawProperty("retryBackoffBaseSeconds",
+            String.valueOf(retryBackoffBaseSeconds.get())).trim());
+        retryBackoffBaseSeconds.set(retryBackoffBaseSecondsInitialValue);
+        config.reportSettingAsGauge(retryBackoffBaseSeconds, "retryBackoffBaseSeconds");
 
         /*
           default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of available heap
@@ -733,9 +743,6 @@ public abstract class AbstractAgent {
       if (pushRateLimit > 0) {
         pushRateLimiter = RecyclableRateLimiter.create(pushRateLimit, 60);
       }
-
-      // clamp values for pushFlushMaxPoints between 1..50000
-      pushFlushMaxPoints.set(Math.max(Math.min(pushFlushMaxPoints.get(), MAX_SPLIT_BATCH_SIZE), 1));
 
       pushMemoryBufferLimit.set(Math.max(pushMemoryBufferLimit.get(), pushFlushMaxPoints.get()));
 

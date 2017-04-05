@@ -570,6 +570,10 @@ public class PushAgent extends AbstractAgent {
           pushFlushMaxPoints.set(pointsPerBatch.intValue());
           logger.fine("Agent push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
+      } else {
+        // restores the agent setting
+        pushFlushMaxPoints.set(pushFlushMaxPointsInitialValue);
+        logger.fine("Agent push batch set to (locally) " + pushFlushMaxPoints.get());
       }
 
       if (config.getCollectorSetsRetryBackoff() != null &&
@@ -582,9 +586,8 @@ public class PushAgent extends AbstractAgent {
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
-        // TODO: reset
-        QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
-        logger.fine("Agent backoff base set to (locally) " + retryBackoffBaseSeconds);
+        retryBackoffBaseSeconds.set(retryBackoffBaseSecondsInitialValue);
+        logger.fine("Agent backoff base set to (locally) " + retryBackoffBaseSeconds.get());
       }
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
