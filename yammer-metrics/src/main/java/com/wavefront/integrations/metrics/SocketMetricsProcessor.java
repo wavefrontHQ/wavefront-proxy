@@ -2,6 +2,7 @@ package com.wavefront.integrations.metrics;
 
 import com.wavefront.common.MetricsToTimeseries;
 import com.wavefront.common.TaggedMetricName;
+import com.wavefront.metrics.ReconnectingSocket;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
@@ -69,7 +70,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       sb.append(".").append(nameSuffix);
     }
     sb.append("\" ").append(value).append(tagsForMetricName(metricName));
-    this.metricsSocket.write(sb.append("\n").toString());
+    metricsSocket.write(sb.append("\n").toString());
   }
 
   private void writeExplodedMetric(MetricName name, Metric metric) throws Exception {
