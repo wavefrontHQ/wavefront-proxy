@@ -434,8 +434,8 @@ public abstract class AbstractAgent {
   protected boolean shuttingDown = false;
 
   /**
-   * A random value assigned at proxy start-up, to be reported as ~agent.session.id metric
-   * to detect ~agent metrics collisions caused by duplicate proxy names
+   * A random value assigned at proxy start-up, to be reported in hexadecimal form as a point tag with
+   * ~agent.session.id metric to detect ~agent metrics collisions caused by duplicate proxy names
    */
   protected final int sessionId = (int)(Math.random() * Integer.MAX_VALUE);
 
@@ -523,11 +523,11 @@ public abstract class AbstractAgent {
         }
     );
 
-    Metrics.newGauge(ExpectedAgentMetric.SESSION_ID.metricName,
+    Metrics.newGauge(new TaggedMetricName("session", "id", "id", Integer.toHexString(sessionId)),
         new Gauge<Integer>() {
           @Override
           public Integer value() {
-            return sessionId;
+            return 1;
           }
         }
     );
