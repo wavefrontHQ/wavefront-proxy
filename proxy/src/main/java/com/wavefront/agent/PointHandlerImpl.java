@@ -172,6 +172,7 @@ public class PointHandlerImpl implements PointHandler {
           break;
         case (int) DateUtils.MILLIS_PER_DAY:
           sb.append("!D ");
+          break;
         default:
           throw new RuntimeException("Unexpected histogram duration " + h.getDuration());
       }
