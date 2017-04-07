@@ -22,4 +22,8 @@ public class Pair<T, V> {
     }
     return false;
   }
+
+  public static <T, V> Pair<T, V> of(T t, V v) {
+    return new Pair<T, V>(t, v);
+  }
 }
