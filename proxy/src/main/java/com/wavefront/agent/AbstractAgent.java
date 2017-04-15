@@ -203,9 +203,9 @@ public abstract class AbstractAgent {
   protected Long histogramAccumulatorResolveInterval = 100L;
 
   @Parameter(
-      names = {"--histogramMinutesListenerPorts"},
+      names = {"--histogramMinuteListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
-  protected String histogramMinsListenerPorts = "";
+  protected String histogramMinuteListenerPorts = "";
 
   @Parameter(
       names = {"--histogramMinuteAccumulators"},
@@ -218,9 +218,9 @@ public abstract class AbstractAgent {
   protected Integer histogramMinuteFlushSecs = 70;
 
   @Parameter(
-      names = {"--histogramHoursListenerPorts"},
+      names = {"--histogramHourListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
-  protected String histogramHoursListenerPorts = "";
+  protected String histogramHourListenerPorts = "";
 
   @Parameter(
       names = {"--histogramHourAccumulators"},
@@ -233,9 +233,9 @@ public abstract class AbstractAgent {
   protected Integer histogramHourFlushSecs = 4200;
 
   @Parameter(
-      names = {"--histogramDaysListenerPorts"},
+      names = {"--histogramDayListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
-  protected String histogramDaysListenerPorts = "";
+  protected String histogramDayListenerPorts = "";
 
   @Parameter(
       names = {"--histogramDayAccumulators"},
@@ -623,14 +623,14 @@ public abstract class AbstractAgent {
         histogramStateDirectory = config.getString("histogramStateDirectory", histogramStateDirectory);
         histogramAccumulatorResolveInterval = config.getNumber("histogramAccumulatorResolveInterval",
             histogramAccumulatorResolveInterval).longValue();
-        histogramMinsListenerPorts = config.getString("histogramMinsListenerPorts", histogramMinsListenerPorts);
+        histogramMinuteListenerPorts = config.getString("histogramMinuteListenerPorts", histogramMinuteListenerPorts);
         histogramMinuteAccumulators = config.getNumber("histogramMinuteAccumulators", histogramMinuteAccumulators).
             intValue();
         histogramMinuteFlushSecs = config.getNumber("histogramMinuteFlushSecs", histogramMinuteFlushSecs).intValue();
-        histogramHoursListenerPorts = config.getString("histogramHoursListenerPorts", histogramHoursListenerPorts);
+        histogramHourListenerPorts = config.getString("histogramHourListenerPorts", histogramHourListenerPorts);
         histogramHourAccumulators = config.getNumber("histogramHourAccumulators", histogramHourAccumulators).intValue();
         histogramHourFlushSecs = config.getNumber("histogramHourFlushSecs", histogramHourFlushSecs).intValue();
-        histogramDaysListenerPorts = config.getString("histogramDaysListenerPorts", histogramDaysListenerPorts);
+        histogramDayListenerPorts = config.getString("histogramDayListenerPorts", histogramDayListenerPorts);
         histogramDayAccumulators = config.getNumber("histogramDayAccumulators", histogramDayAccumulators).intValue();
         histogramDayFlushSecs = config.getNumber("histogramDayFlushSecs", histogramDayFlushSecs).intValue();
         histogramDistListenerPorts = config.getString("histogramDistListenerPorts", histogramDistListenerPorts);

@@ -162,7 +162,7 @@ buffer=/var/spool/wavefront-proxy/buffer
 
 ## Wavefront format, minute aggregation:
 ## Comma-separated list of ports to listen on.
-#histogramMinsListenerPorts=40001
+#histogramMinuteListenerPorts=40001
 ## Number of accumulators per minute port
 #histogramMinuteAccumulators=2
 ## Time-to-live in seconds for a minute granularity accumulation on the proxy (before the intermediary is shipped to WF).
@@ -170,7 +170,7 @@ buffer=/var/spool/wavefront-proxy/buffer
 
 ## Wavefront format, hour aggregation:
 ## Comma-separated list of ports to listen on.
-#histogramHoursListenerPorts=40002
+#histogramHourListenerPorts=40002
 ## Number of accumulators per hour port
 #histogramHourAccumulators=2
 ## Time-to-live in seconds for an hour granularity accumulation on the proxy (before the intermediary is shipped to WF).
@@ -178,7 +178,7 @@ buffer=/var/spool/wavefront-proxy/buffer
 
 ## Wavefront format, day aggregation:
 ## Comma-separated list of ports to listen on.
-#histogramDaysListenerPorts=40003
+#histogramDayListenerPorts=40003
 ## Number of accumulators per day port
 #histogramDayAccumulators=2
 ## Time-to-live in seconds for a day granularity accumulation on the proxy (before the intermediary is shipped to WF).
