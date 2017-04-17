@@ -184,6 +184,14 @@ buffer=/var/spool/wavefront-proxy/buffer
 ## Time-to-live in seconds for a day granularity accumulation on the proxy (before the intermediary is shipped to WF).
 #histogramDayFlushSecs=18000
 
+## Distribution format:
+## Comma-separated list of ports to listen on.
+#histogramDistListenerPorts=40000
+## Number of accumulators per day port
+#histogramDistAccumulators=2
+## Time-to-live in seconds for a distribution accumulation on the proxy (before the intermediary is shipped to WF).
+#histogramDistFlushSecs=70
+
 ## Accumulation parameters
 ## Bounds the number of centroids per histogram. Must be in [20;1000]
 #histogramCompression=100
