@@ -137,7 +137,11 @@ public class PointHandlerImpl implements PointHandler {
   private static String escapedQuote = "\\\"";
 
   private static String escapeQuotes(String raw) {
-    return StringUtils.replace(raw, quote, escapedQuote);
+    if (raw.contains(quote)) {
+      return StringUtils.replace(raw, quote, escapedQuote);
+    } else {
+      return raw;
+    }
   }
 
   private static void appendTagMap(StringBuilder sb, Map<String, String> tags) {
