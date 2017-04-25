@@ -120,7 +120,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-    if (cause.getMessage().equals("Connection reset by peer")) {
+    if (cause.getMessage().contains("Connection reset by peer")) {
       // These errors are caused by the client and are safe to ignore
       return;
     }
