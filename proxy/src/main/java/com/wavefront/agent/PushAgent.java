@@ -125,17 +125,17 @@ public class PushAgent extends AbstractAgent {
       managedExecutors.add(histogramScanExecutor);
 
       // Histogram bootstrap.
-      Iterator<String> histMinPorts = Strings.isNullOrEmpty(histogramMinsListenerPorts) ?
+      Iterator<String> histMinPorts = Strings.isNullOrEmpty(histogramMinuteListenerPorts) ?
           Collections.emptyIterator() :
-          Splitter.on(",").omitEmptyStrings().trimResults().split(histogramMinsListenerPorts).iterator();
+          Splitter.on(",").omitEmptyStrings().trimResults().split(histogramMinuteListenerPorts).iterator();
 
-      Iterator<String> histHourPorts = Strings.isNullOrEmpty(histogramHoursListenerPorts) ?
+      Iterator<String> histHourPorts = Strings.isNullOrEmpty(histogramHourListenerPorts) ?
           Collections.emptyIterator() :
-          Splitter.on(",").omitEmptyStrings().trimResults().split(histogramHoursListenerPorts).iterator();
+          Splitter.on(",").omitEmptyStrings().trimResults().split(histogramHourListenerPorts).iterator();
 
-      Iterator<String> histDayPorts = Strings.isNullOrEmpty(histogramDaysListenerPorts) ?
+      Iterator<String> histDayPorts = Strings.isNullOrEmpty(histogramDayListenerPorts) ?
           Collections.emptyIterator() :
-          Splitter.on(",").omitEmptyStrings().trimResults().split(histogramDaysListenerPorts).iterator();
+          Splitter.on(",").omitEmptyStrings().trimResults().split(histogramDayListenerPorts).iterator();
 
       Iterator<String> histDistPorts = Strings.isNullOrEmpty(histogramDistListenerPorts) ?
           Collections.emptyIterator() :
