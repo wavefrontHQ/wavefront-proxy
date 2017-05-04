@@ -46,14 +46,14 @@ public class WavefrontYammerMetricsReporterTest {
   private Long stubbedTime = 1485224035000L;
 
   private void innerSetUp(boolean prependGroupName, Function<MetricName, MetricName> transformer,
-                          boolean includeJvmMetrics)
+                          boolean includeJvmMetrics, boolean clear)
       throws Exception {
     metricsRegistry = new MetricsRegistry();
     metricsServer = new ServerSocket(0);
     histogramsServer = new ServerSocket(0);
     wavefrontYammerMetricsReporter = new WavefrontYammerMetricsReporter(
         metricsRegistry, "test", "localhost", metricsServer.getLocalPort(), histogramsServer.getLocalPort(),
-        () -> stubbedTime, prependGroupName, transformer, includeJvmMetrics);
+        () -> stubbedTime, prependGroupName, transformer, includeJvmMetrics, clear);
     metricsSocket = metricsServer.accept();
     histogramsSocket = histogramsServer.accept();
     fromMetrics = new BufferedInputStream(metricsSocket.getInputStream());
@@ -62,7 +62,7 @@ public class WavefrontYammerMetricsReporterTest {
 
   @Before
   public void setUp() throws Exception {
-    innerSetUp(false, null, false);
+    innerSetUp(false, null, false, false);
   }
 
   @After
@@ -90,7 +90,7 @@ public class WavefrontYammerMetricsReporterTest {
 
   @Test(timeout = 1000)
   public void testJvmMetrics() throws Exception {
-    innerSetUp(true, null, true);
+    innerSetUp(true, null, true, false);
     wavefrontYammerMetricsReporter.run();
     List<String> metrics = receiveFromSocket(
         wavefrontYammerMetricsReporter.getMetricsGeneratedLastPass(), fromMetrics);
@@ -114,7 +114,7 @@ public class WavefrontYammerMetricsReporterTest {
   @Test(timeout = 1000)
   public void testTransformer() throws Exception {
     innerSetUp(false, metricName -> new TaggedMetricName(
-        metricName.getGroup(), metricName.getName(), "tagA", "valueA"), false);
+        metricName.getGroup(), metricName.getName(), "tagA", "valueA"), false, false);
     TaggedMetricName taggedMetricName = new TaggedMetricName("group", "mycounter",
         "tag1", "value1", "tag2", "value2");
     Counter counter = metricsRegistry.newCounter(taggedMetricName);
@@ -140,10 +140,51 @@ public class WavefrontYammerMetricsReporterTest {
   }
 
   @Test(timeout = 1000)
-  public void testPlainHistogram() throws Exception {
+  public void testPlainHistogramWithClear() throws Exception {
+    innerSetUp(false, null, false, true /* clear */);
     Histogram histogram = metricsRegistry.newHistogram(WavefrontYammerMetricsReporterTest.class, "myhisto");
     histogram.update(1);
     histogram.update(10);
+    wavefrontYammerMetricsReporter.run();
+    assertThat(receiveFromSocket(11, fromMetrics), containsInAnyOrder(
+        equalTo("\"myhisto.count\" 2.0"),
+        equalTo("\"myhisto.min\" 1.0"),
+        equalTo("\"myhisto.max\" 10.0"),
+        equalTo("\"myhisto.mean\" 5.5"),
+        equalTo("\"myhisto.sum\" 11.0"),
+        startsWith("\"myhisto.stddev\""),
+        equalTo("\"myhisto.median\" 5.5"),
+        equalTo("\"myhisto.p75\" 10.0"),
+        equalTo("\"myhisto.p95\" 10.0"),
+        equalTo("\"myhisto.p99\" 10.0"),
+        equalTo("\"myhisto.p999\" 10.0")
+    ));
+    // Second run should clear data.
+    wavefrontYammerMetricsReporter.run();
+    assertThat(receiveFromSocket(11, fromMetrics), hasItem("\"myhisto.count\" 0.0"));
+  }
+
+  @Test(timeout = 1000)
+  public void testPlainHistogramWithoutClear() throws Exception {
+    innerSetUp(false, null, false, false /* clear */);
+    Histogram histogram = metricsRegistry.newHistogram(WavefrontYammerMetricsReporterTest.class, "myhisto");
+    histogram.update(1);
+    histogram.update(10);
+    wavefrontYammerMetricsReporter.run();
+    assertThat(receiveFromSocket(11, fromMetrics), containsInAnyOrder(
+        equalTo("\"myhisto.count\" 2.0"),
+        equalTo("\"myhisto.min\" 1.0"),
+        equalTo("\"myhisto.max\" 10.0"),
+        equalTo("\"myhisto.mean\" 5.5"),
+        equalTo("\"myhisto.sum\" 11.0"),
+        startsWith("\"myhisto.stddev\""),
+        equalTo("\"myhisto.median\" 5.5"),
+        equalTo("\"myhisto.p75\" 10.0"),
+        equalTo("\"myhisto.p95\" 10.0"),
+        equalTo("\"myhisto.p99\" 10.0"),
+        equalTo("\"myhisto.p999\" 10.0")
+    ));
+    // Second run should be the same.
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(11, fromMetrics), containsInAnyOrder(
         equalTo("\"myhisto.count\" 2.0"),
@@ -201,11 +242,13 @@ public class WavefrontYammerMetricsReporterTest {
   }
 
   @Test(timeout = 1000)
-  public void testPlainTimer() throws Exception {
+  public void testPlainTimerWithClear() throws Exception {
+    innerSetUp(false, null, false, true /* clear */);
     Timer timer = metricsRegistry.newTimer(WavefrontYammerMetricsReporterTest.class, "mytimer");
     timer.time().stop();
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(15, fromMetrics), containsInAnyOrder(
+        equalTo("\"mytimer.rate.count\" 1.0"),
         startsWith("\"mytimer.duration.min\""),
         startsWith("\"mytimer.duration.max\""),
         startsWith("\"mytimer.duration.mean\""),
@@ -216,7 +259,54 @@ public class WavefrontYammerMetricsReporterTest {
         startsWith("\"mytimer.duration.p95\""),
         startsWith("\"mytimer.duration.p99\""),
         startsWith("\"mytimer.duration.p999\""),
-        startsWith("\"mytimer.rate.count\""),
+        startsWith("\"mytimer.rate.m1\""),
+        startsWith("\"mytimer.rate.m5\""),
+        startsWith("\"mytimer.rate.m15\""),
+        startsWith("\"mytimer.rate.mean\"")
+    ));
+
+    wavefrontYammerMetricsReporter.run();
+    assertThat(receiveFromSocket(15, fromMetrics), hasItem("\"mytimer.rate.count\" 0.0"));
+  }
+
+  @Test(timeout = 1000)
+  public void testPlainTimerWithoutClear() throws Exception {
+    innerSetUp(false, null, false, false /* clear */);
+    Timer timer = metricsRegistry.newTimer(WavefrontYammerMetricsReporterTest.class, "mytimer");
+    timer.time().stop();
+    wavefrontYammerMetricsReporter.run();
+    assertThat(receiveFromSocket(15, fromMetrics), containsInAnyOrder(
+        equalTo("\"mytimer.rate.count\" 1.0"),
+        startsWith("\"mytimer.duration.min\""),
+        startsWith("\"mytimer.duration.max\""),
+        startsWith("\"mytimer.duration.mean\""),
+        startsWith("\"mytimer.duration.sum\""),
+        startsWith("\"mytimer.duration.stddev\""),
+        startsWith("\"mytimer.duration.median\""),
+        startsWith("\"mytimer.duration.p75\""),
+        startsWith("\"mytimer.duration.p95\""),
+        startsWith("\"mytimer.duration.p99\""),
+        startsWith("\"mytimer.duration.p999\""),
+        startsWith("\"mytimer.rate.m1\""),
+        startsWith("\"mytimer.rate.m5\""),
+        startsWith("\"mytimer.rate.m15\""),
+        startsWith("\"mytimer.rate.mean\"")
+    ));
+
+    // No changes.
+    wavefrontYammerMetricsReporter.run();
+    assertThat(receiveFromSocket(15, fromMetrics), containsInAnyOrder(
+        equalTo("\"mytimer.rate.count\" 1.0"),
+        startsWith("\"mytimer.duration.min\""),
+        startsWith("\"mytimer.duration.max\""),
+        startsWith("\"mytimer.duration.mean\""),
+        startsWith("\"mytimer.duration.sum\""),
+        startsWith("\"mytimer.duration.stddev\""),
+        startsWith("\"mytimer.duration.median\""),
+        startsWith("\"mytimer.duration.p75\""),
+        startsWith("\"mytimer.duration.p95\""),
+        startsWith("\"mytimer.duration.p99\""),
+        startsWith("\"mytimer.duration.p999\""),
         startsWith("\"mytimer.rate.m1\""),
         startsWith("\"mytimer.rate.m5\""),
         startsWith("\"mytimer.rate.m15\""),
@@ -226,7 +316,7 @@ public class WavefrontYammerMetricsReporterTest {
 
   @Test(timeout = 1000)
   public void testPrependGroupName() throws Exception {
-    innerSetUp(true, null, false);
+    innerSetUp(true, null, false, false);
 
     // Counter
     TaggedMetricName taggedMetricName = new TaggedMetricName("group", "mycounter",

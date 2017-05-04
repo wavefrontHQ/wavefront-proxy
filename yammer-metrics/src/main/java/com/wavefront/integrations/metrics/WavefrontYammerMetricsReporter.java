@@ -20,7 +20,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -32,12 +31,13 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
   private Function<MetricName, MetricName> transformer;
   private int metricsGeneratedLastPass = 0;  /* How many metrics were emitted in the last call to run()? */
   private final boolean includeJvmMetrics;
+  private final boolean clearMetrics;
   private static final Clock clock = Clock.defaultClock();
   private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
 
   public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
                                         int wavefrontHistogramPort, Supplier<Long> timeSupplier) throws IOException {
-    this(metricsRegistry, name, hostname, port, wavefrontHistogramPort, timeSupplier, false, null, false);
+    this(metricsRegistry, name, hostname, port, wavefrontHistogramPort, timeSupplier, false, null, false, false);
   }
 
   /**
@@ -53,18 +53,21 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
    * @param transformer            If present, applied to each MetricName before flushing to Wavefront. This is useful
    *                               for adding point tags. Warning: this is called once per metric per scan, so it should
    *                               probably be performant.
+   * @param clearMetrics           If true, clear histograms and timers per flush.
    * @throws IOException When we can't remotely connect to Wavefront.
    */
   public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
                                         int wavefrontHistogramPort, Supplier<Long> timeSupplier,
                                         boolean prependGroupName,
                                         @Nullable Function<MetricName, MetricName> transformer,
-                                        boolean includeJvmMetrics) throws IOException {
+                                        boolean includeJvmMetrics,
+                                        boolean clearMetrics) throws IOException {
     super(metricsRegistry, name);
     this.transformer = transformer;
     this.socketMetricProcessor = new SocketMetricsProcessor(hostname, port, wavefrontHistogramPort, timeSupplier,
-        prependGroupName);
+        prependGroupName, clearMetrics);
     this.includeJvmMetrics = includeJvmMetrics;
+    this.clearMetrics = clearMetrics;
   }
 
   private <T> void setGauge(String metricName, T t) {

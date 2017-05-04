@@ -7,7 +7,6 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Metered;
-import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricProcessor;
 import com.yammer.metrics.core.Sampling;
@@ -32,14 +31,30 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
   private ReconnectingSocket metricsSocket, histogramsSocket;
   private final Supplier<Long> timeSupplier;
   private final boolean prependGroupName;
+  private final boolean clear;
 
   SocketMetricsProcessor(String hostname, int port, int wavefrontHistogramPort, Supplier<Long> timeSupplier,
                          boolean prependGroupName)
+      throws IOException {
+    this(hostname, port, wavefrontHistogramPort, timeSupplier, prependGroupName, false);
+  }
+
+  /**
+   * @param hostname               Host of the WF-graphite telemetry sink.
+   * @param port                   Port of the WF-graphite telemetry sink.
+   * @param wavefrontHistogramPort Port of the WF histogram sink.
+   * @param timeSupplier           Gets the epoch timestamp in milliseconds.
+   * @param prependGroupName       If true, metrics have their group name prepended when flushed.
+   * @param clear                  If true, clear histograms and timers after flush.
+   */
+  SocketMetricsProcessor(String hostname, int port, int wavefrontHistogramPort, Supplier<Long> timeSupplier,
+                         boolean prependGroupName, boolean clear)
       throws IOException {
     this.timeSupplier = timeSupplier;
     this.metricsSocket = new ReconnectingSocket(hostname, port);
     this.histogramsSocket = new ReconnectingSocket(hostname, wavefrontHistogramPort);
     this.prependGroupName = prependGroupName;
+    this.clear = clear;
   }
 
   private String getName(MetricName name) {
@@ -109,7 +124,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       StringBuilder sb = new StringBuilder();
       sb.append("!M ").append(timeSupplier.get() / 1000);
       WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
-      for (WavefrontHistogram.MinuteBin minuteBin : wavefrontHistogram.bins(false)) {
+      for (WavefrontHistogram.MinuteBin minuteBin : wavefrontHistogram.bins(clear)) {
         sb.append(" #").append(minuteBin.getDist().size()).append(" ").append(minuteBin.getDist().quantile(.5));
       }
       sb.append(" \"").append(getName(name)).append("\"").append(tagsForMetricName(name)).append("\n");
@@ -118,6 +133,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       writeMetric(name, "count", histogram.count());
       writeSampling(name, histogram);
       writeSummarizable(name, histogram);
+      if (clear) histogram.clear();
     }
   }
 
@@ -128,6 +144,8 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
     writeSampling(samplingName, timer);
     MetricName rateName = new MetricName(name.getGroup(), name.getType(), name.getName() + ".rate");
     writeMetered(rateName, timer);
+
+    if (clear) timer.clear();
   }
 
   @Override
