@@ -7,11 +7,13 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.WavefrontHistogram;
 
+import org.codehaus.jackson.map.ObjectMapper;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -24,6 +26,7 @@ import static com.google.common.truth.Truth.assertThat;
 public class JsonMetricsGeneratorTest {
   private AtomicLong time = new AtomicLong(0);
   private MetricsRegistry testRegistry;
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Before
   public void setup() {
@@ -36,6 +39,48 @@ public class JsonMetricsGeneratorTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     JsonMetricsGenerator.generateJsonMetrics(baos, testRegistry, includeVMMetrics, includeBuildMetrics, clearMetrics);
     return new String(baos.toByteArray());
+  }
+
+  /**
+   * @param map   A raw map.
+   * @param key   A key.
+   * @param clazz See T.
+   * @param <T>   The expected dynamic type of map.get(key)
+   * @return map.get(key) if it exists and is the right type. Otherwise, fail the calling test.
+   */
+  private <T> T safeGet(Map map, String key, Class<T> clazz) {
+    assertThat(map.containsKey(key)).isTrue();
+    assertThat(map.get(key)).isInstanceOf(clazz);
+    return clazz.cast(map.get(key));
+  }
+
+  @Test
+  public void testJvmMetrics() throws IOException {
+    String json = generate(true, false, false);
+    Map top = objectMapper.readValue(json, Map.class);
+    Map jvm = safeGet(top, "jvm", Map.class);
+
+    Map memory = safeGet(jvm, "memory", Map.class);
+    safeGet(memory, "totalInit", Double.class);
+    safeGet(memory, "memory_pool_usages", Map.class);
+
+    Map buffers = safeGet(jvm, "buffers", Map.class);
+    safeGet(buffers, "direct", Map.class);
+    safeGet(buffers, "mapped", Map.class);
+
+    safeGet(jvm, "fd_usage", Double.class);
+    safeGet(jvm, "current_time", Long.class);
+
+    Map threadStates = safeGet(jvm, "thread-states", Map.class);
+    safeGet(threadStates, "runnable", Double.class);
+
+    Map garbageCollectors = safeGet(jvm, "garbage-collectors", Map.class);
+    assertThat(threadStates).isNotEmpty();
+    // Check that any GC has a "runs" entry.
+    String key = (String) garbageCollectors.keySet().iterator().next();  // e.g. "PS MarkSweep"
+    Map gcMap = safeGet(garbageCollectors, key, Map.class);
+    safeGet(gcMap, "runs", Double.class);
+    safeGet(gcMap, "time", Double.class);
   }
 
   @Test

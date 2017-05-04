@@ -31,6 +31,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.startsWith;
+import static org.hamcrest.core.IsCollectionContaining.hasItem;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -44,14 +45,15 @@ public class WavefrontYammerMetricsReporterTest {
   private BufferedInputStream fromMetrics, fromHistograms;
   private Long stubbedTime = 1485224035000L;
 
-  private void innerSetUp(boolean prependGroupName, Function<MetricName, MetricName> transformer)
+  private void innerSetUp(boolean prependGroupName, Function<MetricName, MetricName> transformer,
+                          boolean includeJvmMetrics)
       throws Exception {
     metricsRegistry = new MetricsRegistry();
     metricsServer = new ServerSocket(0);
     histogramsServer = new ServerSocket(0);
     wavefrontYammerMetricsReporter = new WavefrontYammerMetricsReporter(
         metricsRegistry, "test", "localhost", metricsServer.getLocalPort(), histogramsServer.getLocalPort(),
-        () -> stubbedTime, prependGroupName, transformer);
+        () -> stubbedTime, prependGroupName, transformer, includeJvmMetrics);
     metricsSocket = metricsServer.accept();
     histogramsSocket = histogramsServer.accept();
     fromMetrics = new BufferedInputStream(metricsSocket.getInputStream());
@@ -60,7 +62,7 @@ public class WavefrontYammerMetricsReporterTest {
 
   @Before
   public void setUp() throws Exception {
-    innerSetUp(false, null);
+    innerSetUp(false, null, false);
   }
 
   @After
@@ -87,6 +89,20 @@ public class WavefrontYammerMetricsReporterTest {
   }
 
   @Test(timeout = 1000)
+  public void testJvmMetrics() throws Exception {
+    innerSetUp(true, null, true);
+    wavefrontYammerMetricsReporter.run();
+    List<String> metrics = receiveFromSocket(
+        wavefrontYammerMetricsReporter.getMetricsGeneratedLastPass(), fromMetrics);
+    assertThat(metrics, hasItem(startsWith("\"jvm.memory.heapCommitted\"")));
+    assertThat(metrics, hasItem(startsWith("\"jvm.fd_usage\"")));
+    assertThat(metrics, hasItem(startsWith("\"jvm.buffers.mapped.totalCapacity\"")));
+    assertThat(metrics, hasItem(startsWith("\"jvm.buffers.direct.totalCapacity\"")));
+    assertThat(metrics, hasItem(startsWith("\"jvm.thread-states.runnable\"")));
+  }
+
+
+  @Test(timeout = 1000)
   public void testPlainCounter() throws Exception {
     Counter counter = metricsRegistry.newCounter(WavefrontYammerMetricsReporterTest.class, "mycount");
     counter.inc();
@@ -98,7 +114,7 @@ public class WavefrontYammerMetricsReporterTest {
   @Test(timeout = 1000)
   public void testTransformer() throws Exception {
     innerSetUp(false, metricName -> new TaggedMetricName(
-        metricName.getGroup(), metricName.getName(), "tagA", "valueA"));
+        metricName.getGroup(), metricName.getName(), "tagA", "valueA"), false);
     TaggedMetricName taggedMetricName = new TaggedMetricName("group", "mycounter",
         "tag1", "value1", "tag2", "value2");
     Counter counter = metricsRegistry.newCounter(taggedMetricName);
@@ -190,27 +206,27 @@ public class WavefrontYammerMetricsReporterTest {
     timer.time().stop();
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(15, fromMetrics), containsInAnyOrder(
-        startsWith("\"mytimer.count\""),
-        startsWith("\"mytimer.min\""),
-        startsWith("\"mytimer.max\""),
-        startsWith("\"mytimer.mean\""),
-        startsWith("\"mytimer.sum\""),
-        startsWith("\"mytimer.stddev\""),
-        startsWith("\"mytimer.median\""),
-        startsWith("\"mytimer.p75\""),
-        startsWith("\"mytimer.p95\""),
-        startsWith("\"mytimer.p99\""),
-        startsWith("\"mytimer.p999\""),
-        startsWith("\"mytimer.m1\""),
-        startsWith("\"mytimer.m5\""),
-        startsWith("\"mytimer.m15\""),
-        startsWith("\"mytimer.mean\"")
+        startsWith("\"mytimer.duration.min\""),
+        startsWith("\"mytimer.duration.max\""),
+        startsWith("\"mytimer.duration.mean\""),
+        startsWith("\"mytimer.duration.sum\""),
+        startsWith("\"mytimer.duration.stddev\""),
+        startsWith("\"mytimer.duration.median\""),
+        startsWith("\"mytimer.duration.p75\""),
+        startsWith("\"mytimer.duration.p95\""),
+        startsWith("\"mytimer.duration.p99\""),
+        startsWith("\"mytimer.duration.p999\""),
+        startsWith("\"mytimer.rate.count\""),
+        startsWith("\"mytimer.rate.m1\""),
+        startsWith("\"mytimer.rate.m5\""),
+        startsWith("\"mytimer.rate.m15\""),
+        startsWith("\"mytimer.rate.mean\"")
     ));
   }
 
   @Test(timeout = 1000)
   public void testPrependGroupName() throws Exception {
-    innerSetUp(true, null);
+    innerSetUp(true, null, false);
 
     // Counter
     TaggedMetricName taggedMetricName = new TaggedMetricName("group", "mycounter",

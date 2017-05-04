@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.SortedMap;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -163,8 +162,14 @@ public abstract class JsonMetricsGenerator {
     return version;
   }
 
+  private static void mergeMapIntoJson(JsonGenerator jsonGenerator, Map<String, Double> metrics) throws IOException {
+    for (Map.Entry<String, Double> entry : metrics.entrySet()) {
+      jsonGenerator.writeNumberField(entry.getKey(), entry.getValue());
+    }
+  }
+
   private static void writeVmMetrics(JsonGenerator json, @Nullable Map<String, String> pointTags) throws IOException {
-    json.writeFieldName("jvm");
+    json.writeFieldName("jvm");  // jvm
     if (pointTags != null) {
       json.writeStartObject();
       writeTags(json, pointTags);
@@ -172,7 +177,7 @@ public abstract class JsonMetricsGenerator {
     }
     json.writeStartObject();
     {
-      json.writeFieldName("vm");
+      json.writeFieldName("vm");  // jvm.vm
       json.writeStartObject();
       {
         json.writeStringField("name", vm.name());
@@ -180,27 +185,14 @@ public abstract class JsonMetricsGenerator {
       }
       json.writeEndObject();
 
-      json.writeFieldName("memory");
+      json.writeFieldName("memory");  // jvm.memory
       json.writeStartObject();
       {
-        json.writeNumberField("totalInit", vm.totalInit());
-        json.writeNumberField("totalUsed", vm.totalUsed());
-        json.writeNumberField("totalMax", vm.totalMax());
-        json.writeNumberField("totalCommitted", vm.totalCommitted());
-
-        json.writeNumberField("heapInit", vm.heapInit());
-        json.writeNumberField("heapUsed", vm.heapUsed());
-        json.writeNumberField("heapMax", vm.heapMax());
-        json.writeNumberField("heapCommitted", vm.heapCommitted());
-
-        json.writeNumberField("heap_usage", vm.heapUsage());
-        json.writeNumberField("non_heap_usage", vm.nonHeapUsage());
-        json.writeFieldName("memory_pool_usages");
+        mergeMapIntoJson(json, MetricsToTimeseries.memoryMetrics(vm));
+        json.writeFieldName("memory_pool_usages");  // jvm.memory.memory_pool_usages
         json.writeStartObject();
         {
-          for (Map.Entry<String, Double> pool : vm.memoryPoolUsage().entrySet()) {
-            json.writeNumberField(pool.getKey(), pool.getValue());
-          }
+          mergeMapIntoJson(json, MetricsToTimeseries.memoryPoolsMetrics(vm));
         }
         json.writeEndObject();
       }
@@ -208,59 +200,45 @@ public abstract class JsonMetricsGenerator {
 
       final Map<String, VirtualMachineMetrics.BufferPoolStats> bufferPoolStats = vm.getBufferPoolStats();
       if (!bufferPoolStats.isEmpty()) {
-        json.writeFieldName("buffers");
+        json.writeFieldName("buffers");  // jvm.buffers
         json.writeStartObject();
         {
-          json.writeFieldName("direct");
+          json.writeFieldName("direct");  // jvm.buffers.direct
           json.writeStartObject();
           {
-            json.writeNumberField("count", bufferPoolStats.get("direct").getCount());
-            json.writeNumberField("memoryUsed", bufferPoolStats.get("direct").getMemoryUsed());
-            json.writeNumberField("totalCapacity", bufferPoolStats.get("direct").getTotalCapacity());
+            mergeMapIntoJson(json, MetricsToTimeseries.buffersMetrics(bufferPoolStats.get("direct")));
           }
           json.writeEndObject();
 
-          json.writeFieldName("mapped");
+          json.writeFieldName("mapped");  // jvm.buffers.mapped
           json.writeStartObject();
           {
-            json.writeNumberField("count", bufferPoolStats.get("mapped").getCount());
-            json.writeNumberField("memoryUsed", bufferPoolStats.get("mapped").getMemoryUsed());
-            json.writeNumberField("totalCapacity", bufferPoolStats.get("mapped").getTotalCapacity());
+            mergeMapIntoJson(json, MetricsToTimeseries.buffersMetrics(bufferPoolStats.get("mapped")));
           }
           json.writeEndObject();
         }
         json.writeEndObject();
       }
 
-
-      json.writeNumberField("daemon_thread_count", vm.daemonThreadCount());
-      json.writeNumberField("thread_count", vm.threadCount());
+      mergeMapIntoJson(json, MetricsToTimeseries.vmMetrics(vm));  // jvm.<vm_metric>
       json.writeNumberField("current_time", clock.time());
-      json.writeNumberField("uptime", vm.uptime());
-      json.writeNumberField("fd_usage", vm.fileDescriptorUsage());
 
-      json.writeFieldName("thread-states");
+      json.writeFieldName("thread-states");  // jvm.thread-states
       json.writeStartObject();
       {
-        for (Map.Entry<Thread.State, Double> entry : vm.threadStatePercentages()
-            .entrySet()) {
-          json.writeNumberField(entry.getKey().toString().toLowerCase(),
-              entry.getValue());
-        }
+        mergeMapIntoJson(json, MetricsToTimeseries.threadStateMetrics(vm));
       }
       json.writeEndObject();
 
-      json.writeFieldName("garbage-collectors");
+      json.writeFieldName("garbage-collectors");  // jvm.garbage-collectors
       json.writeStartObject();
       {
         for (Map.Entry<String, VirtualMachineMetrics.GarbageCollectorStats> entry : vm.garbageCollectors()
             .entrySet()) {
-          json.writeFieldName(entry.getKey());
+          json.writeFieldName(entry.getKey());  // jvm.garbage-collectors.<gc_id>
           json.writeStartObject();
           {
-            final VirtualMachineMetrics.GarbageCollectorStats gc = entry.getValue();
-            json.writeNumberField("runs", gc.getRuns());
-            json.writeNumberField("time", gc.getTime(TimeUnit.MILLISECONDS));
+            mergeMapIntoJson(json, MetricsToTimeseries.gcMetrics(entry.getValue()));
           }
           json.writeEndObject();
         }
