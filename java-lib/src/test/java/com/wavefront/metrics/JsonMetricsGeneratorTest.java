@@ -60,7 +60,7 @@ public class JsonMetricsGeneratorTest {
 
   @Test
   public void testJvmMetrics() throws IOException {
-    String json = generate(true, false, false);
+    String json = generate(true, false, false, null);
     Map top = objectMapper.readValue(json, Map.class);
     Map jvm = safeGet(top, "jvm", Map.class);
 
