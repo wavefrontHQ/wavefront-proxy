@@ -2,6 +2,8 @@ package com.wavefront.metrics;
 
 import com.google.common.collect.ImmutableList;
 
+import com.wavefront.common.Pair;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
@@ -32,10 +34,28 @@ public class JsonMetricsGeneratorTest {
 
   private String generate(boolean includeVMMetrics,
                           boolean includeBuildMetrics,
-                          boolean clearMetrics) throws IOException {
+                          boolean clearMetrics,
+                          MetricTranslator metricTranslator) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    JsonMetricsGenerator.generateJsonMetrics(baos, testRegistry, includeVMMetrics, includeBuildMetrics, clearMetrics);
+    JsonMetricsGenerator.generateJsonMetrics(baos, testRegistry, includeVMMetrics, includeBuildMetrics, clearMetrics,
+        metricTranslator);
     return new String(baos.toByteArray());
+  }
+
+  @Test
+  public void testTranslator() throws IOException {
+    Counter counter = testRegistry.newCounter(new MetricName("test", "foo", "bar"));
+    counter.inc();
+    counter.inc();
+    String json = generate(false, false, false, metricNameMetricPair -> {
+      assertThat(metricNameMetricPair._1).isEquivalentAccordingToCompareTo(new MetricName("test", "foo", "bar"));
+      assertThat(metricNameMetricPair._2).isInstanceOf(Counter.class);
+      assertThat(((Counter)metricNameMetricPair._2).count()).isEqualTo(2);
+      return new Pair<>(new MetricName("test", "baz", "qux"), metricNameMetricPair._2);
+    });
+    assertThat(json).isEqualTo("{\"test.qux\":2}");
+    json = generate(false, false, false, metricNameMetricPair -> null);
+    assertThat(json).isEqualTo("{}");
   }
 
   @Test
@@ -46,7 +66,7 @@ public class JsonMetricsGeneratorTest {
     wh.update(100);
     wh.update(1000);
 
-    String json = generate(false, false, false);
+    String json = generate(false, false, false, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"count\":3,\"min\":10.0,\"max\":1000.0,\"mean\":370.0,\"sum\":1110.0,\"stddev\":547.4486277268397,\"median\":100.0,\"p75\":1000.0,\"p95\":1000.0,\"p99\":1000.0,\"p999\":1000.0}}");
   }
@@ -59,7 +79,7 @@ public class JsonMetricsGeneratorTest {
     wh.update(100);
     wh.update(1000);
 
-    String json = generate(false, false, false);
+    String json = generate(false, false, false, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":3,\"startMillis\":0,\"durationMillis\":60000,\"means\":[10.0,100.0,1000.0],\"counts\":[1,1,1]}]}}");
   }
@@ -69,11 +89,11 @@ public class JsonMetricsGeneratorTest {
     Histogram wh = WavefrontHistogram.get(testRegistry, new MetricName("test", "", "metric"), time::get);
     wh.update(10);
 
-    generate(false, false, true);
+    generate(false, false, true, null);
 
     wh.update(100);
 
-    String json = generate(false, false, true);
+    String json = generate(false, false, true, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":1,\"startMillis\":0,\"durationMillis\":60000,\"means\":[100.0],\"counts\":[1]}]}}");
   }
@@ -83,9 +103,9 @@ public class JsonMetricsGeneratorTest {
     Histogram wh = WavefrontHistogram.get(testRegistry, new MetricName("test", "", "metric"), time::get);
 
     wh.update(10);
-    generate(false, false, false);
+    generate(false, false, false, null);
     wh.update(100);
-    String json = generate(false, false, true);
+    String json = generate(false, false, true, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":2,\"startMillis\":0,\"durationMillis\":60000,\"means\":[10.0,100.0],\"counts\":[1,1]}]}}");
   }
@@ -100,7 +120,7 @@ public class JsonMetricsGeneratorTest {
     time.set(61 * 1000);
     wh.update(1000);
 
-    String json = generate(false, false, false);
+    String json = generate(false, false, false, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":2,\"startMillis\":0,\"durationMillis\":60000,\"means\":[10.0,100.0],\"counts\":[1,1]},{\"count\":1,\"startMillis\":60000,\"durationMillis\":60000,\"means\":[1000.0],\"counts\":[1]}]}}");
   }
@@ -141,7 +161,7 @@ public class JsonMetricsGeneratorTest {
     time.set(601 * 1000);
     wh.update(111112);
 
-    String json = generate(false, false, false);
+    String json = generate(false, false, false, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":1,\"startMillis\":60000,\"durationMillis\":60000,\"means\":[100.0],\"counts\":[1]},{\"count\":1,\"startMillis\":120000,\"durationMillis\":60000,\"means\":[1000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":180000,\"durationMillis\":60000,\"means\":[10000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":240000,\"durationMillis\":60000,\"means\":[100000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":300000,\"durationMillis\":60000,\"means\":[100001.0],\"counts\":[1]},{\"count\":1,\"startMillis\":360000,\"durationMillis\":60000,\"means\":[100011.0],\"counts\":[1]},{\"count\":1,\"startMillis\":420000,\"durationMillis\":60000,\"means\":[100111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":480000,\"durationMillis\":60000,\"means\":[101111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":540000,\"durationMillis\":60000,\"means\":[111111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":600000,\"durationMillis\":60000,\"means\":[111112.0],\"counts\":[1]}]}}");
   }
@@ -152,7 +172,7 @@ public class JsonMetricsGeneratorTest {
 
     wh.bulkUpdate(ImmutableList.of(15d, 30d, 45d), ImmutableList.of(1, 5, 1));
 
-    String json = generate(false, false, false);
+    String json = generate(false, false, false, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":7,\"startMillis\":0,\"durationMillis\":60000,\"means\":[15.0,30.0,45.0],\"counts\":[1,5,1]}]}}");
   }
@@ -164,7 +184,7 @@ public class JsonMetricsGeneratorTest {
     wh.bulkUpdate(ImmutableList.of(15d, 30d, 45d, 100d), ImmutableList.of(1, 5, 1));
     wh.bulkUpdate(ImmutableList.of(1d, 2d, 3d), ImmutableList.of(1, 1, 1, 9));
 
-    String json = generate(false, false, false);
+    String json = generate(false, false, false, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":10,\"startMillis\":0,\"durationMillis\":60000,\"means\":[1.0,2.0,3.0,15.0,30.0,45.0],\"counts\":[1,1,1,1,5,1]}]}}");
   }
@@ -177,7 +197,7 @@ public class JsonMetricsGeneratorTest {
     wh.bulkUpdate(ImmutableList.of(15d, 30d, 45d, 100d), null);
     wh.bulkUpdate(null, null);
 
-    String json = generate(false, false, false);
+    String json = generate(false, false, false, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[]}}");
   }
