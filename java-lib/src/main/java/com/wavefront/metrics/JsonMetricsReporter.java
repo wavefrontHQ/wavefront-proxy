@@ -46,6 +46,7 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
   private final Map<String, String> tags;
   private final Counter errors;
   private final boolean clearMetrics, https;
+  private final MetricTranslator metricTranslator;
   private Timer latency;
   private Counter reports;
 
@@ -70,14 +71,15 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
   public JsonMetricsReporter(MetricsRegistry registry, boolean includeVMMetrics,
                              String table, String sunnylabsHost, Map<String, String> tags, boolean clearMetrics)
     throws UnknownHostException {
-    this(registry, includeVMMetrics, table, sunnylabsHost, tags, clearMetrics, true);
+    this(registry, includeVMMetrics, table, sunnylabsHost, tags, clearMetrics, true, null);
   }
 
   public JsonMetricsReporter(MetricsRegistry registry, boolean includeVMMetrics,
                              String table, String sunnylabsHost, Map<String, String> tags, boolean clearMetrics,
-                             boolean https)
+                             boolean https, MetricTranslator metricTranslator)
       throws UnknownHostException {
     super(registry, "json-metrics-reporter");
+    this.metricTranslator = metricTranslator;
     this.includeVMMetrics = includeVMMetrics;
     this.tags = tags;
     this.table = table;
@@ -145,7 +147,7 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
       urlc.addRequestProperty("Content-Type", "application/json");
       OutputStream outputStream = urlc.getOutputStream();
       JsonMetricsGenerator.generateJsonMetrics(outputStream, getMetricsRegistry(), includeVMMetrics, true,
-          clearMetrics);
+          clearMetrics, metricTranslator);
       logger.info("Metrics (JSON) reported: " + urlc.getResponseCode());
       reports.inc();
     } catch (Throwable e) {
