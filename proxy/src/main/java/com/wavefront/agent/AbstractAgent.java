@@ -499,7 +499,7 @@ public abstract class AbstractAgent {
       synchronized (agentConfigurationExecutor) {
         agentMetricsCaptureTs = System.currentTimeMillis();
         agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
-            true, true, true, pointTags);
+            true, true, true, pointTags, null);
       }
     } catch (Exception ex) {
       logger.log(Level.SEVERE, "Could not generate agent metrics", ex);
