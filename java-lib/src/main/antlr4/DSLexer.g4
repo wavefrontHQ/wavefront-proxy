@@ -58,7 +58,7 @@ Literal
   | '{'
   | '}'
   | SLASH
-  | STAR)+
+  | STAR)*
   ;
 
 // Special token that we do allow for tag values.
@@ -71,7 +71,7 @@ RelaxedLiteral
   | '|'
   | '~'
   | '{'
-  | '}')+
+  | '}')*
   ;
 
 BinType
