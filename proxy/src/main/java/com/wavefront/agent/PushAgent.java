@@ -75,6 +75,15 @@ public class PushAgent extends AbstractAgent {
         startGraphiteListener(strPort, null);
       }
     }
+    // ------ Start the listener for source metadata, such as sourceTags and description ----------
+    if(metadataListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split
+          (metadataListenerPorts);
+      for (String port : ports) {
+        startMetadataListener(port);
+      }
+    }
+
     GraphiteFormatter graphiteFormatter = null;
     if (graphitePorts != null || picklePorts != null) {
       Preconditions.checkNotNull(graphiteFormat, "graphiteFormat must be supplied to enable graphite support");
@@ -209,6 +218,13 @@ public class PushAgent extends AbstractAgent {
     int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler, linePredicate, formatter);
     startAsManagedThread(new StringLineIngester(channelHandler, port).withChildChannelOptions(childChannelOptions));
+  }
+
+  protected void startMetadataListener(String strPort) {
+    int port = Integer.parseInt(strPort);
+    SourceTagHandler metadataHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(port));
+    startAsManagedThread(new StringLineIngester(metadataHandler, port).withChildChannelOptions
+        (childChannelOptions));
   }
 
   protected void startGraphiteListener(String strPort,

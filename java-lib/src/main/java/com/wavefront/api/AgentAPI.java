@@ -9,6 +9,8 @@ import javax.validation.Valid;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -16,7 +18,7 @@ import java.util.UUID;
  *
  * @author Clement Pang (clement@wavefront.com)
  */
-@Path("daemon/")
+@Path("/")
 public interface AgentAPI {
 
   /**
@@ -30,7 +32,7 @@ public interface AgentAPI {
    * @return Configuration for the agent.
    */
   @GET
-  @Path("{agentId}/config")
+  @Path("daemon/{agentId}/config")
   @Produces(MediaType.APPLICATION_JSON)
   AgentConfiguration getConfig(@PathParam("agentId") UUID agentId,
                                @QueryParam("hostname") String hostname,
@@ -42,7 +44,7 @@ public interface AgentAPI {
                                @QueryParam("version") String version);
 
   @POST
-  @Path("{sshDaemonId}/checkin")
+  @Path("daemon/{sshDaemonId}/checkin")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   AgentConfiguration checkin(@PathParam("sshDaemonId") final UUID agentId,
@@ -67,7 +69,7 @@ public interface AgentAPI {
    */
   @POST
   @Consumes(MediaType.TEXT_PLAIN)
-  @Path("{agentId}/pushdata/{workUnitId}")
+  @Path("daemon/{agentId}/pushdata/{workUnitId}")
   Response postPushData(@PathParam("agentId") UUID agentId,
                         @PathParam("workUnitId") UUID workUnitId,
                         @Deprecated @QueryParam("currentMillis") Long currentMillis,
@@ -81,12 +83,12 @@ public interface AgentAPI {
    * @param details Details of the error.
    */
   @POST
-  @Path("{agentId}/error")
+  @Path("daemon/{agentId}/error")
   void agentError(@PathParam("agentId") UUID agentId,
                   @FormParam("details") String details);
 
   @POST
-  @Path("{agentId}/config/processed")
+  @Path("daemon/{agentId}/config/processed")
   void agentConfigProcessed(@PathParam("agentId") UUID agentId);
 
   /**
@@ -99,7 +101,7 @@ public interface AgentAPI {
    */
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  @Path("{agentId}/workunit/{workUnitId}/{hostId}")
+  @Path("daemon/{agentId}/workunit/{workUnitId}/{hostId}")
   Response postWorkUnitResult(@PathParam("agentId") UUID agentId,
                               @PathParam("workUnitId") UUID workUnitId,
                               @PathParam("hostId") UUID targetId,
@@ -113,7 +115,7 @@ public interface AgentAPI {
    * @param details Details of the error.
    */
   @POST
-  @Path("{agentId}/host/{hostId}/fail")
+  @Path("daemon/{agentId}/host/{hostId}/fail")
   void hostConnectionFailed(@PathParam("agentId") UUID agentId,
                             @PathParam("hostId") UUID hostId,
                             @FormParam("details") String details);
@@ -125,7 +127,7 @@ public interface AgentAPI {
    * @param hostId  Host.
    */
   @POST
-  @Path("{agentId}/host/{hostId}/connect")
+  @Path("daemon/{agentId}/host/{hostId}/connect")
   void hostConnectionEstablished(@PathParam("agentId") UUID agentId,
                                  @PathParam("hostId") UUID hostId);
 
@@ -136,7 +138,31 @@ public interface AgentAPI {
    * @param hostId  Host.
    */
   @POST
-  @Path("{agentId}/host/{hostId}/auth")
+  @Path("daemon/{agentId}/host/{hostId}/auth")
   void hostAuthenticated(@PathParam("agentId") UUID agentId,
                          @PathParam("hostId") UUID hostId);
+
+  @DELETE
+  @Path("v2/source/{id}/tag/{tagValue}")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  Response removeTag(@PathParam("id") String id, @PathParam("tagValue") String tagValue);
+
+  @DELETE
+  @Path("v2/source/{id}/description")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  Response removeDescription(@PathParam("id") String id);
+
+  @POST
+  @Path("v2/source/{id}/tag")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  Response setTags(@PathParam ("id") String id, List<String> tagValuesToSet);
+
+  @POST
+  @Path("v2/source/{id}/description")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  Response setDescription(@PathParam("id") String id, String description);
 }

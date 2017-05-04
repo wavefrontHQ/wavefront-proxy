@@ -72,6 +72,7 @@ public abstract class AbstractAgent {
 
   private static final Gson GSON = new Gson();
   private static final int GRAPHITE_LISTENING_PORT = 2878;
+  private static final int METADATA_LISTENING_PORT = 4878;
   private static final int OPENTSDB_LISTENING_PORT = 4242;
 
   protected static final SSLSocketFactoryImpl SSL_SOCKET_FACTORY = new SSLSocketFactoryImpl(
@@ -139,6 +140,10 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
       "2878.")
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
+
+  @Parameter(names = {"--metadataListernerPorts"}, description = "Comma-separated list of ports " +
+      "to listen on for metadata. Defaults to " + METADATA_LISTENING_PORT + ".")
+  protected String metadataListenerPorts = "" + METADATA_LISTENING_PORT;
 
   @Parameter(names = {"--graphitePorts"}, description = "Comma-separated list of ports to listen on for graphite " +
       "data. Defaults to empty list.")
@@ -236,6 +241,7 @@ public abstract class AbstractAgent {
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
+  protected final List<PostSourceTagTimedTask> managedSourceTagTasks = new ArrayList<>();
   protected final List<ScheduledExecutorService> managedExecutors = new ArrayList<>();
 
   protected final boolean localAgent;
@@ -306,6 +312,7 @@ public abstract class AbstractAgent {
         pushBlockedSamples = Integer.parseInt(prop.getProperty("pushBlockedSamples",
             String.valueOf(pushBlockedSamples)));
         pushListenerPorts = prop.getProperty("pushListenerPorts", pushListenerPorts);
+        metadataListenerPorts = prop.getProperty("metadataListenerPorts", metadataListenerPorts);
         retryThreads = Integer.parseInt(prop.getProperty("retryThreads", String.valueOf(retryThreads)));
         flushThreads = Integer.parseInt(prop.getProperty("flushThreads", String.valueOf(flushThreads)));
         httpJsonPorts = prop.getProperty("jsonListenerPorts", httpJsonPorts);
@@ -664,6 +671,23 @@ public abstract class AbstractAgent {
     return toReturn;
   }
 
+  protected PostSourceTagTimedTask[] getSourceTagFlushTasks(int port) {
+    PostSourceTagTimedTask[] toReturn = new PostSourceTagTimedTask[flushThreads];
+    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for " +
+        "data received on port: " + port);
+    ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
+    managedExecutors.add(es);
+    for (int i = 0; i < flushThreads; i++) {
+      final PostSourceTagTimedTask postSourceTagTimedTask = new PostSourceTagTimedTask(agentAPI,
+          pushLogLevel, port, i);
+      es.scheduleWithFixedDelay(postSourceTagTimedTask, pushFlushInterval, pushFlushInterval,
+          TimeUnit.MILLISECONDS);
+      toReturn[i] = postSourceTagTimedTask;
+      managedSourceTagTasks.add(postSourceTagTimedTask);
+    }
+    return toReturn;
+  }
+
   /**
    * Actual agents can do additional configuration.
    *
@@ -688,6 +712,9 @@ public abstract class AbstractAgent {
     }
     logger.info("Shutting down: Flushing pending points...");
     for (PostPushDataTimedTask task : managedTasks) {
+      task.drainBuffersToQueue();
+    }
+    for (PostSourceTagTimedTask task : managedSourceTagTasks) {
       task.drainBuffersToQueue();
     }
     logger.info("Shutdown complete");

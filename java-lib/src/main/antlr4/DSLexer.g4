@@ -58,7 +58,8 @@ Literal
   | '{'
   | '}'
   | SLASH
-  | STAR)+
+  | STAR
+  | AT)+
   ;
 
 fragment
@@ -95,4 +96,5 @@ Octet
 
 STAR   : '*' ;
 SLASH  : '/' ;
+AT     : '@';
 WS     : [ \t\r\n]+ -> channel(HIDDEN) ;

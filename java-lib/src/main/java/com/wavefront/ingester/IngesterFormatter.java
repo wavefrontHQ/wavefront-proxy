@@ -390,13 +390,13 @@ public class IngesterFormatter {
       String literal = getLiteral(tokenQueue);
       if (caseSensitive) {
         if (!literal.equals(this.literal)) {
-          throw new RuntimeException("Expecting a literal string: " + literal + " but found: " +
-              literal);
+          throw new RuntimeException("Expecting a literal string: " + this.literal + " but found:" +
+              " " + literal);
         }
       } else {
         if (!literal.equalsIgnoreCase(this.literal)) {
-          throw new RuntimeException("Expecting a literal string: " + literal + " but found: " +
-              literal);
+          throw new RuntimeException("Expecting a literal string: " + this.literal + " but found:" +
+              " " + literal);
         }
       }
     }
@@ -412,6 +412,7 @@ public class IngesterFormatter {
     while (next != null && (next.getType() == DSWrapperLexer.Letters ||
         next.getType() == DSWrapperLexer.Number ||
         next.getType() == DSWrapperLexer.SLASH ||
+        next.getType() == DSWrapperLexer.AT ||
         next.getType() == DSWrapperLexer.Literal ||
         next.getType() == DSWrapperLexer.IpV4Address ||
         next.getType() == DSWrapperLexer.MinusSign ||

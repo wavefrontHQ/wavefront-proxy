@@ -1,0 +1,103 @@
+package com.wavefront.agent;
+
+import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
+import com.wavefront.api.AgentAPI;
+
+import org.easymock.EasyMock;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
+
+import javax.ws.rs.core.Response;
+
+import sunnylabs.report.ReportSourceTag;
+
+/**
+ * This class tests the SourceTagHandler.
+ *
+ * @author Suranjan Pramanik (suranjan@wavefront.com)
+ */
+public class SourceTagHandlerTest {
+
+  private static final Logger logger = Logger.getLogger(SourceTagHandlerTest.class
+      .getCanonicalName());
+
+  private static SourceTagHandlerImpl sourceTagHandler;
+  private static QueuedAgentService queuedAgentService;
+  private static ForceQueueEnabledAgentAPI mockAgentAPI;
+  private static UUID newAgentId;
+
+  @BeforeClass
+  public static void setup() throws IOException {
+    mockAgentAPI = EasyMock.createMock(ForceQueueEnabledAgentAPI.class);
+    newAgentId = UUID.randomUUID();
+    int retryThreads = 1;
+    queuedAgentService = new QueuedAgentService(mockAgentAPI, "unitTestBuffer", retryThreads,
+        Executors.newScheduledThreadPool(retryThreads + 1, new ThreadFactory() {
+
+          private AtomicLong counter = new AtomicLong();
+
+          @Override
+          public Thread newThread(Runnable r) {
+            Thread toReturn = new Thread(r);
+            toReturn.setName("unit test submission worker: " + counter.getAndIncrement());
+            return toReturn;
+          }
+        }), true, newAgentId, false, "NONE");
+    sourceTagHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(4878));
+  }
+
+  /**
+   * Create an executor to run the post sourceTag tasks.
+   *
+   * @param port
+   * @return
+   */
+  private static PostSourceTagTimedTask[] getSourceTagFlushTasks(int port) {
+    int flushThreads = 2;
+    PostSourceTagTimedTask[] toReturn = new PostSourceTagTimedTask[flushThreads];
+    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for " +
+        "data received on port: " + port);
+    ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
+    for (int i = 0; i < flushThreads; i++) {
+      final PostSourceTagTimedTask postSourceTagTimedTask = new PostSourceTagTimedTask(mockAgentAPI,
+          "NONE", port, i);
+      es.scheduleWithFixedDelay(postSourceTagTimedTask, 1000 , 1000,
+          TimeUnit.MILLISECONDS);
+      toReturn[i] = postSourceTagTimedTask;
+    }
+    return toReturn;
+  }
+
+  /**
+   * This test will add 3 source tags and verify that the server side api is called properly.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testSourceTagsSetting() throws Exception {
+    ReportSourceTag[] sourceTags = new ReportSourceTag[1];
+    String[] annotations = new String[]{"tag1", "tag2", "tag3"};
+    sourceTags[0] = new ReportSourceTag("SourceTag", "save", "dummy", "desc", Arrays.asList
+        (annotations));
+    EasyMock.expect(mockAgentAPI.setTags("dummy", Arrays.asList(annotations), false)).andReturn
+        (Response.ok()
+        .build()).once();
+
+    EasyMock.replay(mockAgentAPI);
+
+    sourceTagHandler.reportSourceTags(Arrays.asList(sourceTags));
+    TimeUnit.SECONDS.sleep(2);
+    EasyMock.verify(mockAgentAPI);
+  }
+}
