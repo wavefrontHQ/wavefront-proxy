@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * A reporter which publishes metric values to a Wavefront Proxy.
  *
+ * This sends a DIFFERENT metrics taxonomy than the Wavefront "yammer" metrics reporter.
  */
 public class WavefrontReporter extends ScheduledReporter {
   /**

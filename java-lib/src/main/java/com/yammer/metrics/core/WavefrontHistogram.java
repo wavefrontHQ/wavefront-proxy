@@ -66,8 +66,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
     TDigestSample sample = new TDigestSample();
     WavefrontHistogram tDigestHistogram = new WavefrontHistogram(sample, clock);
     sample.set(tDigestHistogram);
-    registry.getOrAdd(metricName, tDigestHistogram);
-    return tDigestHistogram;
+    return registry.getOrAdd(metricName, tDigestHistogram);
   }
 
   private WavefrontHistogram(TDigestSample sample, Supplier<Long> millis) {

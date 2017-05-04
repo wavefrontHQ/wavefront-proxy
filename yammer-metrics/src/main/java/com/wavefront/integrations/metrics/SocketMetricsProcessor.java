@@ -23,6 +23,8 @@ import java.util.logging.Logger;
 /**
  * Yammer MetricProcessor that sends metrics to a TCP Socket in Wavefront-format.
  *
+ * This sends a DIFFERENT metrics taxonomy than the Wavefront "dropwizard" metrics reporters.
+ *
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class SocketMetricsProcessor implements MetricProcessor<Void> {
@@ -73,29 +75,27 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
     metricsSocket.write(sb.append("\n").toString());
   }
 
-  private void writeExplodedMetric(MetricName name, Metric metric) throws Exception {
-    if (metric instanceof Metered) {
-      for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeMetered((Metered) metric).entrySet()) {
-        writeMetric(name, entry.getKey(), entry.getValue());
-      }
+  private void writeMetered(MetricName name, Metered metered) throws Exception {
+    for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeMetered(metered).entrySet()) {
+      writeMetric(name, entry.getKey(), entry.getValue());
     }
+  }
 
-    if (metric instanceof Summarizable) {
-      for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeSummarizable((Summarizable) metric).entrySet()) {
-        writeMetric(name, entry.getKey(), entry.getValue());
-      }
+  private void writeSummarizable(MetricName name, Summarizable summarizable) throws Exception {
+    for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeSummarizable(summarizable).entrySet()) {
+      writeMetric(name, entry.getKey(), entry.getValue());
     }
+  }
 
-    if (metric instanceof Sampling) {
-      for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeSampling((Sampling) metric).entrySet()) {
-        writeMetric(name, entry.getKey(), entry.getValue());
-      }
+  private void writeSampling(MetricName name, Sampling sampling) throws Exception {
+    for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeSampling(sampling).entrySet()) {
+      writeMetric(name, entry.getKey(), entry.getValue());
     }
   }
 
   @Override
   public void processMeter(MetricName name, Metered meter, Void context) throws Exception {
-    writeExplodedMetric(name, meter);
+    writeMetered(name, meter);
   }
 
   @Override
@@ -116,13 +116,18 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       histogramsSocket.write(sb.toString());
     } else {
       writeMetric(name, "count", histogram.count());
-      writeExplodedMetric(name, histogram);
+      writeSampling(name, histogram);
+      writeSummarizable(name, histogram);
     }
   }
 
   @Override
   public void processTimer(MetricName name, Timer timer, Void context) throws Exception {
-    writeExplodedMetric(name, timer);
+    MetricName samplingName = new MetricName(name.getGroup(), name.getType(), name.getName() + ".duration");
+    writeSummarizable(samplingName, timer);
+    writeSampling(samplingName, timer);
+    MetricName rateName = new MetricName(name.getGroup(), name.getType(), name.getName() + ".rate");
+    writeMetered(rateName, timer);
   }
 
   @Override
