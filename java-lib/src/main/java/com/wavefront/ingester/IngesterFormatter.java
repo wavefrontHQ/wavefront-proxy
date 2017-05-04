@@ -559,26 +559,28 @@ public class IngesterFormatter {
   }
 
   private static String getLiteral(Queue<Token> tokens) {
-    String toReturn = "";
+    StringBuilder toReturn = new StringBuilder();
     Token next = tokens.peek();
     if (next == null) return "";
     if (next.getType() == DSWrapperLexer.Quoted) {
       return unquote(tokens.poll().getText());
     }
-    while (next != null && (next.getType() == DSWrapperLexer.Letters ||
-        next.getType() == DSWrapperLexer.Number ||
-        next.getType() == DSWrapperLexer.SLASH ||
-        next.getType() == DSWrapperLexer.Literal ||
-        next.getType() == DSWrapperLexer.IpV4Address ||
-        next.getType() == DSWrapperLexer.MinusSign ||
-        next.getType() == DSWrapperLexer.IpV6Address)) {
-      toReturn += tokens.poll().getText();
+    while (next != null &&
+        (next.getType() == DSWrapperLexer.Letters ||
+            next.getType() == DSWrapperLexer.RelaxedLiteral ||
+            next.getType() == DSWrapperLexer.Number ||
+            next.getType() == DSWrapperLexer.SLASH ||
+            next.getType() == DSWrapperLexer.Literal ||
+            next.getType() == DSWrapperLexer.IpV4Address ||
+            next.getType() == DSWrapperLexer.MinusSign ||
+            next.getType() == DSWrapperLexer.IpV6Address)) {
+      toReturn.append(tokens.poll().getText());
       next = tokens.peek();
     }
-    return toReturn;
+    return toReturn.toString();
   }
 
-  public static String unquote(String text) {
+  private static String unquote(String text) {
     if (text.startsWith("\"")) {
       text = DOUBLE_QUOTE_PATTERN.matcher(text.substring(1, text.length() - 1)).
           replaceAll(DOUBLE_QUOTE_REPLACEMENT);

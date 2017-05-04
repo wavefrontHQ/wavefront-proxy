@@ -94,6 +94,19 @@ public class GraphiteDecoderTest {
   }
 
   @Test
+  public void testTagVWithDigitAtBeginning() throws Exception {
+    GraphiteDecoder decoder = new GraphiteDecoder("localhost", emptyCustomSourceTags);
+    List<ReportPoint> out = new ArrayList<>();
+    decoder.decodeReportPoints("tsdb.vehicle.charge.battery_level 93 host=vehicle_2554 version=1_0", out);
+    ReportPoint point = out.get(0);
+    assertEquals("tsdb", point.getTable());
+    assertEquals("vehicle.charge.battery_level", point.getMetric());
+    assertEquals(93.0, point.getValue());
+    assertEquals("vehicle_2554", point.getHost());
+    assertEquals("1_0", point.getAnnotations().get("version"));
+  }
+
+  @Test
   public void testFormat() throws Exception {
     GraphiteDecoder decoder = new GraphiteDecoder("localhost", emptyCustomSourceTags);
     List<ReportPoint> out = new ArrayList<>();
