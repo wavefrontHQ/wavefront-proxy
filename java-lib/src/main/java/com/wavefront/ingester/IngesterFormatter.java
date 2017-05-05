@@ -584,6 +584,7 @@ public class IngesterFormatter {
    * @param text Text to unquote.
    * @return Extracted value from inside a quoted string.
    */
+  @SuppressWarnings("WeakerAccess")  // Has users.
   public static String unquote(String text) {
     if (text.startsWith("\"")) {
       text = DOUBLE_QUOTE_PATTERN.matcher(text.substring(1, text.length() - 1)).
