@@ -580,7 +580,11 @@ public class IngesterFormatter {
     return toReturn.toString();
   }
 
-  private static String unquote(String text) {
+  /**
+   * @param text Text to unquote.
+   * @return Extracted value from inside a quoted string.
+   */
+  public static String unquote(String text) {
     if (text.startsWith("\"")) {
       text = DOUBLE_QUOTE_PATTERN.matcher(text.substring(1, text.length() - 1)).
           replaceAll(DOUBLE_QUOTE_REPLACEMENT);
