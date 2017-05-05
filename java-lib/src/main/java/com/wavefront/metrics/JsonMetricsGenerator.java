@@ -284,13 +284,10 @@ public abstract class JsonMetricsGenerator {
         MetricName key = subEntry.getKey();
         Metric value = subEntry.getValue();
         if (metricTranslator != null) {
-          Pair<MetricName, Metric> pair = metricTranslator.apply(new Pair<>(key, value));
-          if (pair != null) {
-            key = pair._1;
-            value = pair._2;
-          } else {
-            continue;
-          }
+          Pair<MetricName, Metric> pair = metricTranslator.apply(Pair.of(key, value));
+          if (pair == null) continue;
+          key = pair._1;
+          value = pair._2;
         }
         boolean closeObjectRequired = false;
         if (key instanceof TaggedMetricName || pointTags != null) {

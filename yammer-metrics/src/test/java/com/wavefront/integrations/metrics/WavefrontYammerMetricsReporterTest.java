@@ -2,7 +2,9 @@ package com.wavefront.integrations.metrics;
 
 import com.google.common.collect.Lists;
 
+import com.wavefront.common.Pair;
 import com.wavefront.common.TaggedMetricName;
+import com.wavefront.metrics.MetricTranslator;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
@@ -24,7 +26,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -45,7 +46,7 @@ public class WavefrontYammerMetricsReporterTest {
   private BufferedInputStream fromMetrics, fromHistograms;
   private Long stubbedTime = 1485224035000L;
 
-  private void innerSetUp(boolean prependGroupName, Function<MetricName, MetricName> transformer,
+  private void innerSetUp(boolean prependGroupName, MetricTranslator metricTranslator,
                           boolean includeJvmMetrics, boolean clear)
       throws Exception {
     metricsRegistry = new MetricsRegistry();
@@ -53,7 +54,7 @@ public class WavefrontYammerMetricsReporterTest {
     histogramsServer = new ServerSocket(0);
     wavefrontYammerMetricsReporter = new WavefrontYammerMetricsReporter(
         metricsRegistry, "test", "localhost", metricsServer.getLocalPort(), histogramsServer.getLocalPort(),
-        () -> stubbedTime, prependGroupName, transformer, includeJvmMetrics, clear);
+        () -> stubbedTime, prependGroupName, metricTranslator, includeJvmMetrics, clear);
     metricsSocket = metricsServer.accept();
     histogramsSocket = histogramsServer.accept();
     fromMetrics = new BufferedInputStream(metricsSocket.getInputStream());
@@ -113,8 +114,8 @@ public class WavefrontYammerMetricsReporterTest {
 
   @Test(timeout = 1000)
   public void testTransformer() throws Exception {
-    innerSetUp(false, metricName -> new TaggedMetricName(
-        metricName.getGroup(), metricName.getName(), "tagA", "valueA"), false, false);
+    innerSetUp(false, pair -> Pair.of(new TaggedMetricName(
+        pair._1.getGroup(), pair._1.getName(), "tagA", "valueA"), pair._2), false, false);
     TaggedMetricName taggedMetricName = new TaggedMetricName("group", "mycounter",
         "tag1", "value1", "tag2", "value2");
     Counter counter = metricsRegistry.newCounter(taggedMetricName);

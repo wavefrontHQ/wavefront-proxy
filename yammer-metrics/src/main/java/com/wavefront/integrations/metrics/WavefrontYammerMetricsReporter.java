@@ -3,6 +3,8 @@ package com.wavefront.integrations.metrics;
 import com.google.common.annotations.VisibleForTesting;
 
 import com.wavefront.common.MetricsToTimeseries;
+import com.wavefront.common.Pair;
+import com.wavefront.metrics.MetricTranslator;
 import com.yammer.metrics.core.Clock;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Metric;
@@ -14,7 +16,6 @@ import com.yammer.metrics.reporting.AbstractPollingReporter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.SortedMap;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,7 +29,7 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
 
   protected static final Logger logger = Logger.getLogger(WavefrontYammerMetricsReporter.class.getCanonicalName());
   private SocketMetricsProcessor socketMetricProcessor;
-  private Function<MetricName, MetricName> transformer;
+  private MetricTranslator metricTranslator;
   private int metricsGeneratedLastPass = 0;  /* How many metrics were emitted in the last call to run()? */
   private final boolean includeJvmMetrics;
   private final boolean clearMetrics;
@@ -50,20 +51,20 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
    * @param wavefrontHistogramPort Listening port for Wavefront histogram data
    * @param timeSupplier           Get current timestamp, stubbed for testing
    * @param prependGroupName       If true, outgoing telemetry is of the form "group.name" rather than "name".
-   * @param transformer            If present, applied to each MetricName before flushing to Wavefront. This is useful
-   *                               for adding point tags. Warning: this is called once per metric per scan, so it should
-   *                               probably be performant.
+   * @param metricTranslator       If present, applied to each MetricName/Metric pair before flushing to Wavefront. This
+   *                               is useful for adding point tags. Warning: this is called once per metric per scan, so
+   *                               it should probably be performant. May be null.
    * @param clearMetrics           If true, clear histograms and timers per flush.
    * @throws IOException When we can't remotely connect to Wavefront.
    */
   public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
                                         int wavefrontHistogramPort, Supplier<Long> timeSupplier,
                                         boolean prependGroupName,
-                                        @Nullable Function<MetricName, MetricName> transformer,
+                                        @Nullable MetricTranslator metricTranslator,
                                         boolean includeJvmMetrics,
                                         boolean clearMetrics) throws IOException {
     super(metricsRegistry, name);
-    this.transformer = transformer;
+    this.metricTranslator = metricTranslator;
     this.socketMetricProcessor = new SocketMetricsProcessor(hostname, port, wavefrontHistogramPort, timeSupplier,
         prependGroupName, clearMetrics);
     this.includeJvmMetrics = includeJvmMetrics;
@@ -114,10 +115,14 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
       for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : getMetricsRegistry().groupedMetrics().entrySet()) {
         for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
           MetricName metricName = subEntry.getKey();
-          if (transformer != null) {
-            metricName = transformer.apply(metricName);
+          Metric metric = subEntry.getValue();
+          if (metricTranslator != null) {
+            Pair<MetricName, Metric> pair = metricTranslator.apply(Pair.of(metricName, metric));
+            if (pair == null) continue;
+            metricName = pair._1;
+            metric = pair._2;
           }
-          subEntry.getValue().processWith(socketMetricProcessor, metricName, null);
+          metric.processWith(socketMetricProcessor, metricName, null);
           metricsGeneratedLastPass++;
         }
       }
