@@ -115,15 +115,6 @@ public class PushAgent extends AbstractAgent {
     }
 
     {
-      histogramExecutor = Executors.newScheduledThreadPool(2, new NamedThreadFactory("histogram-service"));
-      histogramFlushExecutor = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() / 2,
-          new NamedThreadFactory("histogram-flush"));
-      histogramScanExecutor = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() / 2,
-          new NamedThreadFactory("histogram-scan"));
-      managedExecutors.add(histogramExecutor);
-      managedExecutors.add(histogramFlushExecutor);
-      managedExecutors.add(histogramScanExecutor);
-
       // Histogram bootstrap.
       Iterator<String> histMinPorts = Strings.isNullOrEmpty(histogramMinuteListenerPorts) ?
           Collections.emptyIterator() :
@@ -141,16 +132,18 @@ public class PushAgent extends AbstractAgent {
           Collections.emptyIterator() :
           Splitter.on(",").omitEmptyStrings().trimResults().split(histogramDistListenerPorts).iterator();
 
-      if /*Histograms enabled*/ (
-          histDayPorts.hasNext()
-              || histHourPorts.hasNext()
-              || histMinPorts.hasNext()
-              || histDistPorts.hasNext()) {
-        if (histogramCompression < 20 || histogramCompression > 1000) {
-          logger.log(Level.WARNING, "Histogram compression (" +
-              histogramCompression + ") outside of supported range [20;1000], will be clamped.");
-          histogramCompression = (short) Math.min(1000, (short) Math.max(20, histogramCompression));
-        }
+      int activeHistogramAggregationTypes = (histDayPorts.hasNext() ? 1 : 0) + (histHourPorts.hasNext() ? 1 : 0) +
+          (histMinPorts.hasNext() ? 1 : 0) + (histDistPorts.hasNext() ? 1 : 0);
+      if (activeHistogramAggregationTypes > 0) { /*Histograms enabled*/
+        histogramExecutor = Executors.newScheduledThreadPool(1 + activeHistogramAggregationTypes,
+            new NamedThreadFactory("histogram-service"));
+        histogramFlushExecutor = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() / 2,
+            new NamedThreadFactory("histogram-flush"));
+        histogramScanExecutor = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() / 2,
+            new NamedThreadFactory("histogram-scan"));
+        managedExecutors.add(histogramExecutor);
+        managedExecutors.add(histogramFlushExecutor);
+        managedExecutors.add(histogramScanExecutor);
 
         File baseDirectory = new File(histogramStateDirectory);
         if (persistMessages || persistAccumulator) {
@@ -159,39 +152,6 @@ public class PushAgent extends AbstractAgent {
           checkArgument(baseDirectory.canWrite(), baseDirectory.getAbsolutePath() + " must be write-able!");
         }
 
-        // Accumulator
-        MapLoader<HistogramKey, AgentDigest, HistogramKeyMarshaller, AgentDigestMarshaller> mapLoader = new MapLoader<>(
-            HistogramKey.class,
-            AgentDigest.class,
-            histogramAccumulatorSize,
-            avgHistogramKeyBytes,
-            avgHistogramDigestBytes,
-            HistogramKeyMarshaller.get(),
-            AgentDigestMarshaller.get(),
-            persistAccumulator);
-
-        File accumulationFile = new File(baseDirectory, "accumulator");
-        ChronicleMap<HistogramKey, AgentDigest> accumulator = mapLoader.get(accumulationFile);
-
-        AccumulationCache cachedAccumulator = new AccumulationCache(accumulator, histogramAccumulatorSize, null);
-        // Schedule write-backs
-        histogramExecutor.scheduleWithFixedDelay(
-            cachedAccumulator.getResolveTask(),
-            histogramAccumulatorResolveInterval,
-            histogramAccumulatorResolveInterval,
-            TimeUnit.MILLISECONDS);
-
-        // gracefully shutdown persisted accumulator (ChronicleMap) on proxy exit
-        shutdownTasks.add(() -> {
-          try {
-            cachedAccumulator.getResolveTask().run();
-            cachedAccumulator.getCache().cleanUp();
-            accumulator.close();
-          } catch (Throwable t) {
-            logger.severe("Error flushing accumulator cache, possibly unclean shutdown" + t);
-          }
-        });
-
         // Central dispatch
         PointHandler histogramHandler = new PointHandlerImpl(
             "histogram ports",
@@ -199,8 +159,6 @@ public class PushAgent extends AbstractAgent {
             pushBlockedSamples,
             prefix,
             getFlushTasks(Constants.PUSH_FORMAT_HISTOGRAM, "histogram ports"));
-        PointHandlerDispatcher dispatchTask = new PointHandlerDispatcher(accumulator, histogramHandler);
-        histogramExecutor.scheduleWithFixedDelay(dispatchTask, 50L, 50L, TimeUnit.MILLISECONDS);
 
         // Input queue factory
         TapeDeck<List<String>> accumulatorDeck = new TapeDeck<>(
@@ -213,69 +171,33 @@ public class PushAgent extends AbstractAgent {
         Decoder<String> sampleDecoder = new GraphiteDecoder("unknown", customSourceTags);
         Decoder<String> distributionDecoder = new HistogramDecoder("unknown");
 
-        // Minute ports...
-        histMinPorts.forEachRemaining(port -> {
-          startHistogramListener(
-              port,
-              sampleDecoder,
-              histogramHandler,
-              cachedAccumulator,
-              baseDirectory,
-              Utils.Granularity.MINUTE,
-              accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramMinuteFlushSecs),
-              histogramMinuteAccumulators
-          );
-          logger.info("listening on port: " + port + " for histogram samples, accumulating to the minute");
-        });
+        if (histMinPorts.hasNext()) {
+          startHistogramListeners(histMinPorts, sampleDecoder, histogramHandler, accumulatorDeck, "minute",
+              histogramMinuteFlushSecs, histogramMinuteAccumulators, histogramMinuteMemoryCache, baseDirectory,
+              histogramMinuteAccumulatorSize, histogramMinuteAvgKeyBytes, histogramMinuteAvgDigestBytes,
+              histogramMinuteCompression);
+        }
 
-        // Hour ports...
-        histHourPorts.forEachRemaining(port -> {
-          startHistogramListener(
-              port,
-              sampleDecoder,
-              histogramHandler,
-              cachedAccumulator,
-              baseDirectory,
-              Utils.Granularity.HOUR,
-              accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramHourFlushSecs),
-              histogramHourAccumulators
-          );
-          logger.info("listening on port: " + port + " for histogram samples, accumulating to the hour");
-        });
+        if (histHourPorts.hasNext()) {
+          startHistogramListeners(histHourPorts, sampleDecoder, histogramHandler, accumulatorDeck, "hour",
+              histogramHourFlushSecs, histogramHourAccumulators, histogramHourMemoryCache, baseDirectory,
+              histogramHourAccumulatorSize, histogramHourAvgKeyBytes, histogramHourAvgDigestBytes,
+              histogramHourCompression);
+        }
 
-        // Day ports...
-        histDayPorts.forEachRemaining(port -> {
-          startHistogramListener(
-              port,
-              sampleDecoder,
-              histogramHandler,
-              cachedAccumulator,
-              baseDirectory,
-              Utils.Granularity.DAY,
-              accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramDayFlushSecs),
-              histogramDayAccumulators
-          );
-          logger.info("listening on port: " + port + " for histogram samples, accumulating to the day");
-        });
+        if (histDayPorts.hasNext()) {
+          startHistogramListeners(histDayPorts, sampleDecoder, histogramHandler, accumulatorDeck, "day",
+              histogramDayFlushSecs, histogramDayAccumulators, histogramDayMemoryCache, baseDirectory,
+              histogramDayAccumulatorSize, histogramDayAvgKeyBytes, histogramDayAvgDigestBytes,
+              histogramDayCompression);
+        }
 
-        // Distribution ports...
-        histDistPorts.forEachRemaining(port -> {
-          startHistogramListener(
-              port,
-              distributionDecoder,
-              histogramHandler,
-              cachedAccumulator,
-              baseDirectory,
-              Utils.Granularity.DAY, // Ignored...
-              accumulatorDeck,
-              TimeUnit.SECONDS.toMillis(histogramDistFlushSecs),
-              histogramDistAccumulators
-          );
-          logger.info("listening on port: " + port + " for histogram samples, accumulating to the day");
-        });
+        if (histDistPorts.hasNext()) {
+          startHistogramListeners(histDistPorts, distributionDecoder, histogramHandler, accumulatorDeck, "distribution",
+              histogramDistFlushSecs, histogramDistAccumulators, histogramDistMemoryCache, baseDirectory,
+              histogramDistAccumulatorSize, histogramDistAvgKeyBytes, histogramDistAvgDigestBytes,
+              histogramDistCompression);
+        }
       }
     }
 
@@ -509,10 +431,90 @@ public class PushAgent extends AbstractAgent {
     }
   }
 
+  protected void startHistogramListeners(Iterator<String> ports, Decoder<String> decoder, PointHandler pointHandler,
+                                         TapeDeck<List<String>> receiveDeck, String listenerBinType,
+                                         int flushSecs, int fanout, boolean memoryCacheEnabled, File baseDirectory,
+                                         Long accumulatorSize, int avgKeyBytes, int avgDigestBytes, short compression) {
+    // Accumulator
+    MapLoader<HistogramKey, AgentDigest, HistogramKeyMarshaller, AgentDigestMarshaller> mapLoader = new MapLoader<>(
+        HistogramKey.class,
+        AgentDigest.class,
+        accumulatorSize,
+        avgKeyBytes,
+        avgDigestBytes,
+        HistogramKeyMarshaller.get(),
+        AgentDigestMarshaller.get(),
+        persistAccumulator);
+
+    File accumulationFile = new File(baseDirectory, "accumulator." + listenerBinType);
+    ChronicleMap<HistogramKey, AgentDigest> accumulator = mapLoader.get(accumulationFile);
+
+    histogramExecutor.scheduleWithFixedDelay(
+        () -> {
+          // warn if accumulator is more than 1.5x the original size, as ChronicleMap starts losing efficiency
+          if (accumulator.size() > accumulatorSize * 1.5) {
+            logger.warning("Histogram " + listenerBinType + " accumulator size (" + accumulator.size() +
+                ") is much higher than configured size (" + accumulatorSize +
+                "), proxy may experience performance issues or crash!");
+          }
+        },
+        10,
+        10,
+        TimeUnit.SECONDS);
+
+    AccumulationCache cachedAccumulator = new AccumulationCache(accumulator,
+        (memoryCacheEnabled ? accumulatorSize : 0),null);
+
+    // Schedule write-backs
+    histogramExecutor.scheduleWithFixedDelay(
+        cachedAccumulator.getResolveTask(),
+        histogramAccumulatorResolveInterval,
+        histogramAccumulatorResolveInterval,
+        TimeUnit.MILLISECONDS);
+
+    PointHandlerDispatcher dispatcher = new PointHandlerDispatcher(cachedAccumulator, pointHandler,
+        histogramAccumulatorFlushMaxBatchSize < 0 ? null : histogramAccumulatorFlushMaxBatchSize);
+
+    histogramExecutor.scheduleWithFixedDelay(dispatcher, histogramAccumulatorFlushInterval,
+        histogramAccumulatorFlushInterval, TimeUnit.MILLISECONDS);
+
+    // gracefully shutdown persisted accumulator (ChronicleMap) on proxy exit
+    shutdownTasks.add(() -> {
+      try {
+        logger.fine("Flushing in-flight histogram accumulator digests: " + listenerBinType);
+        cachedAccumulator.getResolveTask().run();
+        logger.fine("Shutting down histogram accumulator cache: " + listenerBinType);
+        accumulator.close();
+      } catch (Throwable t) {
+        logger.log(Level.SEVERE, "Error flushing " + listenerBinType + " accumulator, possibly unclean shutdown: ", t);
+      }
+    });
+
+    ports.forEachRemaining(port -> {
+      startHistogramListener(
+          port,
+          decoder,
+          pointHandler,
+          cachedAccumulator,
+          baseDirectory,
+          (listenerBinType.equals("minute")
+              ? Utils.Granularity.MINUTE
+              : (listenerBinType.equals("hour") ? Utils.Granularity.HOUR : Utils.Granularity.DAY)),
+          receiveDeck,
+          TimeUnit.SECONDS.toMillis(flushSecs),
+          fanout,
+          compression
+      );
+      logger.info("listening on port: " + port + " for histogram samples, accumulating to the " +
+          listenerBinType);
+    });
+
+  }
+
   /**
    * Needs to set up a queueing handler and a consumer/lexer for the queue
    */
-  protected void startHistogramListener(
+  private void startHistogramListener(
       String portAsString,
       Decoder<String> decoder,
       PointHandler handler,
@@ -521,7 +523,8 @@ public class PushAgent extends AbstractAgent {
       Utils.Granularity granularity,
       TapeDeck<List<String>> receiveDeck,
       long timeToLiveMillis,
-      int fanout) {
+      int fanout,
+      short compression) {
 
     int port = Integer.parseInt(portAsString);
     List<ChannelHandler> handlers = new ArrayList<>();
@@ -533,20 +536,21 @@ public class PushAgent extends AbstractAgent {
       // Set-up scanner
       AccumulationTask scanTask = new AccumulationTask(
           receiveTape,
-          accumulationCache.getCache().asMap(),
+          accumulationCache,
           decoder,
           handler,
           Validation.Level.valueOf(pushValidationLevel),
           timeToLiveMillis,
           granularity,
-          histogramCompression);
+          compression);
 
-      histogramScanExecutor.scheduleWithFixedDelay(scanTask, 20L, 20L, TimeUnit.MILLISECONDS);
+      histogramScanExecutor.scheduleWithFixedDelay(scanTask,
+          histogramProcessingQueueScanInterval, histogramProcessingQueueScanInterval, TimeUnit.MILLISECONDS);
 
       QueuingChannelHandler<String> inputHandler = new QueuingChannelHandler<>(receiveTape, pushFlushMaxPoints.get());
       handlers.add(inputHandler);
       histogramFlushExecutor.scheduleWithFixedDelay(inputHandler.getBufferFlushTask(),
-          100L, 100L, TimeUnit.MILLISECONDS);
+          histogramReceiveBufferFlushInterval, histogramReceiveBufferFlushInterval, TimeUnit.MILLISECONDS);
     }
 
     // Set-up producer
