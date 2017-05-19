@@ -1,15 +1,10 @@
 package com.wavefront.metrics;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import sunnylabs.report.Histogram;
-import sunnylabs.report.HistogramType;
-import sunnylabs.report.ReportPoint;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -17,6 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import sunnylabs.report.Histogram;
+import sunnylabs.report.HistogramType;
+import sunnylabs.report.ReportPoint;
 
 import static com.google.common.collect.Lists.newArrayList;
 
