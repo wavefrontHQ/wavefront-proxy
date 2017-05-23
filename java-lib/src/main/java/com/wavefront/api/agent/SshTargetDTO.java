@@ -2,6 +2,8 @@ package com.wavefront.api.agent;
 
 import com.google.common.base.Preconditions;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.UUID;
 
 /**
@@ -9,6 +11,7 @@ import java.util.UUID;
  *
  * @author Clement Pang (clement@sunnylabs.com)
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SshTargetDTO {
   public UUID id;
   public String host;

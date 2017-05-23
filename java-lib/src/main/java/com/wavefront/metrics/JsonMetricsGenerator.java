@@ -7,23 +7,40 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
+import com.tdunning.math.stats.Centroid;
+import com.wavefront.common.MetricsToTimeseries;
+import com.wavefront.common.Pair;
 import com.wavefront.common.TaggedMetricName;
-import com.yammer.metrics.core.*;
-import com.yammer.metrics.stats.Snapshot;
+import com.yammer.metrics.core.Clock;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.Metered;
+import com.yammer.metrics.core.Metric;
+import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.MetricProcessor;
+import com.yammer.metrics.core.MetricsRegistry;
+import com.yammer.metrics.core.Sampling;
+import com.yammer.metrics.core.Summarizable;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.VirtualMachineMetrics;
+import com.yammer.metrics.core.WavefrontHistogram;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.Validate;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.SortedMap;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
+
+import static com.wavefront.common.MetricsToTimeseries.sanitize;
 
 /**
  * Generator of metrics as a JSON node and outputting it to an output stream or returning a json node.
@@ -38,21 +55,22 @@ public abstract class JsonMetricsGenerator {
   private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
 
   public static void generateJsonMetrics(OutputStream outputStream, MetricsRegistry registry, boolean includeVMMetrics,
-                                         boolean includeBuildMetrics, boolean clearMetrics) throws IOException {
+                                         boolean includeBuildMetrics, boolean clearMetrics, MetricTranslator metricTranslator) throws IOException {
     JsonGenerator json = factory.createGenerator(outputStream, JsonEncoding.UTF8);
-    writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null);
+    writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null, metricTranslator);
   }
 
   public static JsonNode generateJsonMetrics(MetricsRegistry registry, boolean includeVMMetrics,
                                              boolean includeBuildMetrics, boolean clearMetrics) throws IOException {
-    return generateJsonMetrics(registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null);
+    return generateJsonMetrics(registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null, null);
   }
 
   public static JsonNode generateJsonMetrics(MetricsRegistry registry, boolean includeVMMetrics,
                                              boolean includeBuildMetrics, boolean clearMetrics,
-                                             @Nullable Map<String, String> pointTags) throws IOException {
+                                             @Nullable Map<String, String> pointTags,
+                                             @Nullable MetricTranslator metricTranslator) throws IOException {
     TokenBuffer t = new TokenBuffer(new ObjectMapper());
-    writeJson(t, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, pointTags);
+    writeJson(t, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, pointTags, metricTranslator);
     JsonParser parser = t.asParser();
     return parser.readValueAsTree();
   }
@@ -69,12 +87,13 @@ public abstract class JsonMetricsGenerator {
 
   public static void writeJson(JsonGenerator json, MetricsRegistry registry, boolean includeVMMetrics,
                                boolean includeBuildMetrics, boolean clearMetrics) throws IOException {
-    writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null);
+    writeJson(json, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, null, null);
   }
 
   public static void writeJson(JsonGenerator json, MetricsRegistry registry, boolean includeVMMetrics,
                                boolean includeBuildMetrics, boolean clearMetrics,
-                               @Nullable Map<String, String> pointTags) throws IOException {
+                               @Nullable Map<String, String> pointTags,
+                               @Nullable MetricTranslator metricTranslator) throws IOException {
     json.writeStartObject();
     if (includeVMMetrics) {
       writeVmMetrics(json, pointTags);
@@ -85,7 +104,7 @@ public abstract class JsonMetricsGenerator {
       } catch (MissingResourceException ignored) {
       }
     }
-    writeRegularMetrics(new Processor(clearMetrics), json, registry, false, pointTags);
+    writeRegularMetrics(new Processor(clearMetrics), json, registry, false, pointTags, metricTranslator);
     json.writeEndObject();
     json.close();
   }
@@ -146,8 +165,14 @@ public abstract class JsonMetricsGenerator {
     return version;
   }
 
+  private static void mergeMapIntoJson(JsonGenerator jsonGenerator, Map<String, Double> metrics) throws IOException {
+    for (Map.Entry<String, Double> entry : metrics.entrySet()) {
+      jsonGenerator.writeNumberField(entry.getKey(), entry.getValue());
+    }
+  }
+
   private static void writeVmMetrics(JsonGenerator json, @Nullable Map<String, String> pointTags) throws IOException {
-    json.writeFieldName("jvm");
+    json.writeFieldName("jvm");  // jvm
     if (pointTags != null) {
       json.writeStartObject();
       writeTags(json, pointTags);
@@ -155,7 +180,7 @@ public abstract class JsonMetricsGenerator {
     }
     json.writeStartObject();
     {
-      json.writeFieldName("vm");
+      json.writeFieldName("vm");  // jvm.vm
       json.writeStartObject();
       {
         json.writeStringField("name", vm.name());
@@ -163,27 +188,14 @@ public abstract class JsonMetricsGenerator {
       }
       json.writeEndObject();
 
-      json.writeFieldName("memory");
+      json.writeFieldName("memory");  // jvm.memory
       json.writeStartObject();
       {
-        json.writeNumberField("totalInit", vm.totalInit());
-        json.writeNumberField("totalUsed", vm.totalUsed());
-        json.writeNumberField("totalMax", vm.totalMax());
-        json.writeNumberField("totalCommitted", vm.totalCommitted());
-
-        json.writeNumberField("heapInit", vm.heapInit());
-        json.writeNumberField("heapUsed", vm.heapUsed());
-        json.writeNumberField("heapMax", vm.heapMax());
-        json.writeNumberField("heapCommitted", vm.heapCommitted());
-
-        json.writeNumberField("heap_usage", vm.heapUsage());
-        json.writeNumberField("non_heap_usage", vm.nonHeapUsage());
-        json.writeFieldName("memory_pool_usages");
+        mergeMapIntoJson(json, MetricsToTimeseries.memoryMetrics(vm));
+        json.writeFieldName("memory_pool_usages");  // jvm.memory.memory_pool_usages
         json.writeStartObject();
         {
-          for (Map.Entry<String, Double> pool : vm.memoryPoolUsage().entrySet()) {
-            json.writeNumberField(pool.getKey(), pool.getValue());
-          }
+          mergeMapIntoJson(json, MetricsToTimeseries.memoryPoolsMetrics(vm));
         }
         json.writeEndObject();
       }
@@ -191,59 +203,45 @@ public abstract class JsonMetricsGenerator {
 
       final Map<String, VirtualMachineMetrics.BufferPoolStats> bufferPoolStats = vm.getBufferPoolStats();
       if (!bufferPoolStats.isEmpty()) {
-        json.writeFieldName("buffers");
+        json.writeFieldName("buffers");  // jvm.buffers
         json.writeStartObject();
         {
-          json.writeFieldName("direct");
+          json.writeFieldName("direct");  // jvm.buffers.direct
           json.writeStartObject();
           {
-            json.writeNumberField("count", bufferPoolStats.get("direct").getCount());
-            json.writeNumberField("memoryUsed", bufferPoolStats.get("direct").getMemoryUsed());
-            json.writeNumberField("totalCapacity", bufferPoolStats.get("direct").getTotalCapacity());
+            mergeMapIntoJson(json, MetricsToTimeseries.buffersMetrics(bufferPoolStats.get("direct")));
           }
           json.writeEndObject();
 
-          json.writeFieldName("mapped");
+          json.writeFieldName("mapped");  // jvm.buffers.mapped
           json.writeStartObject();
           {
-            json.writeNumberField("count", bufferPoolStats.get("mapped").getCount());
-            json.writeNumberField("memoryUsed", bufferPoolStats.get("mapped").getMemoryUsed());
-            json.writeNumberField("totalCapacity", bufferPoolStats.get("mapped").getTotalCapacity());
+            mergeMapIntoJson(json, MetricsToTimeseries.buffersMetrics(bufferPoolStats.get("mapped")));
           }
           json.writeEndObject();
         }
         json.writeEndObject();
       }
 
-
-      json.writeNumberField("daemon_thread_count", vm.daemonThreadCount());
-      json.writeNumberField("thread_count", vm.threadCount());
+      mergeMapIntoJson(json, MetricsToTimeseries.vmMetrics(vm));  // jvm.<vm_metric>
       json.writeNumberField("current_time", clock.time());
-      json.writeNumberField("uptime", vm.uptime());
-      json.writeNumberField("fd_usage", vm.fileDescriptorUsage());
 
-      json.writeFieldName("thread-states");
+      json.writeFieldName("thread-states");  // jvm.thread-states
       json.writeStartObject();
       {
-        for (Map.Entry<Thread.State, Double> entry : vm.threadStatePercentages()
-            .entrySet()) {
-          json.writeNumberField(entry.getKey().toString().toLowerCase(),
-              entry.getValue());
-        }
+        mergeMapIntoJson(json, MetricsToTimeseries.threadStateMetrics(vm));
       }
       json.writeEndObject();
 
-      json.writeFieldName("garbage-collectors");
+      json.writeFieldName("garbage-collectors");  // jvm.garbage-collectors
       json.writeStartObject();
       {
         for (Map.Entry<String, VirtualMachineMetrics.GarbageCollectorStats> entry : vm.garbageCollectors()
             .entrySet()) {
-          json.writeFieldName(entry.getKey());
+          json.writeFieldName(entry.getKey());  // jvm.garbage-collectors.<gc_id>
           json.writeStartObject();
           {
-            final VirtualMachineMetrics.GarbageCollectorStats gc = entry.getValue();
-            json.writeNumberField("runs", gc.getRuns());
-            json.writeNumberField("time", gc.getTime(TimeUnit.MILLISECONDS));
+            mergeMapIntoJson(json, MetricsToTimeseries.gcMetrics(entry.getValue()));
           }
           json.writeEndObject();
         }
@@ -274,14 +272,29 @@ public abstract class JsonMetricsGenerator {
   public static void writeRegularMetrics(Processor processor, JsonGenerator json,
                                          MetricsRegistry registry, boolean showFullSamples,
                                          @Nullable Map<String, String> pointTags) throws IOException {
+    writeRegularMetrics(processor, json, registry, showFullSamples, pointTags, null);
+  }
+
+  public static void writeRegularMetrics(Processor processor, JsonGenerator json,
+                                         MetricsRegistry registry, boolean showFullSamples,
+                                         @Nullable Map<String, String> pointTags,
+                                         @Nullable MetricTranslator metricTranslator) throws IOException {
     for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : registry.groupedMetrics().entrySet()) {
       for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
+        MetricName key = subEntry.getKey();
+        Metric value = subEntry.getValue();
+        if (metricTranslator != null) {
+          Pair<MetricName, Metric> pair = metricTranslator.apply(Pair.of(key, value));
+          if (pair == null) continue;
+          key = pair._1;
+          value = pair._2;
+        }
         boolean closeObjectRequired = false;
-        if (subEntry.getKey() instanceof TaggedMetricName || pointTags != null) {
+        if (key instanceof TaggedMetricName || pointTags != null) {
           closeObjectRequired = true;
           // write the hashcode since we need to support metrics with the same name but with different tags.
           // the server will remove the suffix.
-          json.writeFieldName(sanitize(subEntry.getKey()) + "$" + subEntry.hashCode());
+          json.writeFieldName(sanitize(key) + "$" + subEntry.hashCode());
           // write out the tags separately
           // instead of metricName: {...}
           // we write
@@ -299,8 +312,8 @@ public abstract class JsonMetricsGenerator {
           if (pointTags != null) {
             tags.putAll(pointTags);
           }
-          if (subEntry.getKey() instanceof TaggedMetricName) {
-            tags.putAll(((TaggedMetricName) subEntry.getKey()).getTags());
+          if (key instanceof TaggedMetricName) {
+            tags.putAll(((TaggedMetricName) key).getTags());
           }
           for (Map.Entry<String, String> tagEntry : tags.entrySet()) {
             json.writeStringField(tagEntry.getKey(), tagEntry.getValue());
@@ -308,10 +321,10 @@ public abstract class JsonMetricsGenerator {
           json.writeEndObject();
           json.writeFieldName("value");
         } else {
-          json.writeFieldName(sanitize(subEntry.getKey()));
+          json.writeFieldName(sanitize(key));
         }
         try {
-          subEntry.getValue().processWith(processor, subEntry.getKey(), new Context(json, showFullSamples));
+          value.processWith(processor, key, new Context(json, showFullSamples));
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -331,8 +344,7 @@ public abstract class JsonMetricsGenerator {
       this.clear = clear;
     }
 
-    @Override
-    public void processHistogram(MetricName name, Histogram histogram, Context context) throws Exception {
+    private void internalProcessYammerHistogram(Histogram histogram, Context context) throws Exception {
       final JsonGenerator json = context.json;
       json.writeStartObject();
       {
@@ -345,6 +357,49 @@ public abstract class JsonMetricsGenerator {
         if (clear) histogram.clear();
       }
       json.writeEndObject();
+    }
+
+    private void internalProcessWavefrontHistogram(WavefrontHistogram hist, Context context) throws Exception {
+      final JsonGenerator json = context.json;
+      json.writeStartObject();
+      json.writeArrayFieldStart("bins");
+      for (WavefrontHistogram.MinuteBin bin : hist.bins(clear)) {
+
+        final Collection<Centroid> centroids = bin.getDist().centroids();
+
+        json.writeStartObject();
+        // Count
+        json.writeNumberField("count", bin.getDist().size());
+        // Start
+        json.writeNumberField("startMillis", bin.getMinMillis());
+        // Duration
+        json.writeNumberField("durationMillis", 60 * 1000);
+        // Means
+        json.writeArrayFieldStart("means");
+        for (Centroid c : centroids) {
+          json.writeNumber(c.mean());
+        }
+        json.writeEndArray();
+        // Counts
+        json.writeArrayFieldStart("counts");
+        for (Centroid c : centroids) {
+          json.writeNumber(c.count());
+        }
+        json.writeEndArray();
+
+        json.writeEndObject();
+      }
+      json.writeEndArray();
+      json.writeEndObject();
+    }
+
+    @Override
+    public void processHistogram(MetricName name, Histogram histogram, Context context) throws Exception {
+      if (histogram instanceof WavefrontHistogram) {
+        internalProcessWavefrontHistogram((WavefrontHistogram) histogram, context);
+      } else /*Treat as standard yammer histogram */ {
+        internalProcessYammerHistogram(histogram, context);
+      }
     }
 
     @Override
@@ -412,29 +467,20 @@ public abstract class JsonMetricsGenerator {
   }
 
   private static void writeSummarizable(Summarizable metric, JsonGenerator json) throws IOException {
-    json.writeNumberField("min", metric.min());
-    json.writeNumberField("max", metric.max());
-    json.writeNumberField("mean", metric.mean());
+    for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeSummarizable(metric).entrySet()) {
+      json.writeNumberField(entry.getKey(), entry.getValue());
+    }
   }
 
   private static void writeSampling(Sampling metric, JsonGenerator json) throws IOException {
-    final Snapshot snapshot = metric.getSnapshot();
-    json.writeNumberField("median", snapshot.getMedian());
-    json.writeNumberField("p75", snapshot.get75thPercentile());
-    json.writeNumberField("p95", snapshot.get95thPercentile());
-    json.writeNumberField("p99", snapshot.get99thPercentile());
-    json.writeNumberField("p999", snapshot.get999thPercentile());
+    for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeSampling(metric).entrySet()) {
+      json.writeNumberField(entry.getKey(), entry.getValue());
+    }
   }
 
   private static void writeMeteredFields(Metered metered, JsonGenerator json) throws IOException {
-    json.writeNumberField("count", metered.count());
-    json.writeNumberField("mean", metered.meanRate());
-    json.writeNumberField("m1", metered.oneMinuteRate());
-  }
-
-  private static final Pattern SIMPLE_NAMES = Pattern.compile("[^a-zA-Z0-9_.\\-~]");
-
-  private static String sanitize(MetricName metricName) {
-    return SIMPLE_NAMES.matcher(metricName.getGroup() + "." + metricName.getName()).replaceAll("_");
+    for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeMetered(metered).entrySet()) {
+      json.writeNumberField(entry.getKey(), entry.getValue());
+    }
   }
 }

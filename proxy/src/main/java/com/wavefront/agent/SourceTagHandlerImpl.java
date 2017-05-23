@@ -13,8 +13,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import sunnylabs.report.ReportSourceTag;
 
-import static com.wavefront.agent.PointHandlerImpl.charactersAreValid;
-
 /**
  * This class will read the input from the socket, process it, and call the server API to set the
  * sourceTag/description.
@@ -104,7 +102,7 @@ public class SourceTagHandlerImpl extends SimpleChannelInboundHandler<String> im
   static boolean annotationKeysAreValid(ReportSourceTag sourceTag) {
     if (sourceTag.getAnnotations() != null) {
       for (String key : sourceTag.getAnnotations()) {
-        if (!charactersAreValid(key)) {
+        if (!Validation.charactersAreValid(key)) {
           return false;
         }
       }

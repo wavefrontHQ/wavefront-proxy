@@ -3,12 +3,14 @@ package com.wavefront.agent;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.metrics.JsonMetricsParser;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.Consumes;
@@ -31,17 +33,23 @@ import sunnylabs.report.ReportPoint;
 @Path("/")
 public class JsonMetricsEndpoint extends PointHandlerImpl {
 
+  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
+
   @Nullable
   private final String prefix;
   private final String defaultHost;
+  @Nullable
+  private final PointPreprocessor preprocessor;
 
-  public JsonMetricsEndpoint(final int port, final String host,
+  public JsonMetricsEndpoint(final String port, final String host,
                              @Nullable
                              final String prefix, final String validationLevel, final int blockedPointsPerBatch,
-                             PostPushDataTimedTask[] postPushDataTimedTasks) {
+                             PostPushDataTimedTask[] postPushDataTimedTasks,
+                             @Nullable final PointPreprocessor preprocessor) {
     super(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
     this.prefix = prefix;
     this.defaultHost = host;
+    this.preprocessor = preprocessor;
   }
 
   @POST
@@ -75,6 +83,18 @@ public class JsonMetricsEndpoint extends PointHandlerImpl {
         Map<String, String> newAnnotations = Maps.newHashMap(tags);
         newAnnotations.putAll(point.getAnnotations());
         point.setAnnotations(newAnnotations);
+      }
+      if (preprocessor != null) {
+        if (!preprocessor.forReportPoint().filter(point)) {
+          if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+            blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+          } else {
+            blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+          }
+          handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+          continue;
+        }
+        preprocessor.forReportPoint().transform(point);
       }
       reportPoint(point, "json: " + pointToString(point));
     }

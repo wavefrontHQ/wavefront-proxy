@@ -1,0 +1,5 @@
+histograms:
+  - pattern: "histo %{NUMBER:value}"
+    metricName: "myHisto"
+
+useWavefrontHistograms: true

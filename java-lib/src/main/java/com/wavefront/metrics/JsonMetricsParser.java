@@ -1,10 +1,10 @@
 package com.wavefront.metrics;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import sunnylabs.report.ReportPoint;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -12,6 +12,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import sunnylabs.report.Histogram;
+import sunnylabs.report.HistogramType;
+import sunnylabs.report.ReportPoint;
+
+import static com.google.common.collect.Lists.newArrayList;
 
 /**
  * Helper methods to turn json nodes into actual Wavefront report points
@@ -29,7 +35,7 @@ public class JsonMetricsParser {
 
   public static void report(String table, String path, JsonNode node, List<ReportPoint> points, String host,
                             long timestamp, Map<String, String> tags) {
-    List<Map.Entry<String, JsonNode>> fields = Lists.newArrayList(node.fields());
+    List<Map.Entry<String, JsonNode>> fields = newArrayList(node.fields());
     // if the node only has the follow nodes: "value" and "tags", parse the node as a value with tags.
     if (fields.size() == 2) {
       JsonNode valueNode = null;
@@ -73,10 +79,51 @@ public class JsonMetricsParser {
     } else if (value.isTextual()) {
       points.add(makePoint(table, metric, host, value.textValue(), timestamp, tags));
     } else if (value.isObject()) {
-      report(table, metric, value, points, host, timestamp, tags);
+      if /*wavefront histogram*/ (value.has("bins")) {
+        Iterator<JsonNode> binIt = ((ArrayNode) value.get("bins")).elements();
+        while (binIt.hasNext()) {
+          JsonNode bin = binIt.next();
+          List<Integer> counts = newArrayList();
+          bin.get("counts").elements().forEachRemaining(v -> counts.add(v.intValue()));
+          List<Double> means = newArrayList();
+          bin.get("means").elements().forEachRemaining(v -> means.add(v.doubleValue()));
+
+          points.add(makeHistogramPoint(
+              table,
+              metric,
+              host,
+              tags,
+              bin.get("startMillis").longValue(),
+              bin.get("durationMillis").intValue(),
+              means,
+              counts));
+        }
+
+
+      } else {
+        report(table, metric, value, points, host, timestamp, tags);
+      }
     } else if (value.isBoolean()) {
       points.add(makePoint(table, metric, host, value.booleanValue() ? 1.0 : 0.0, timestamp, tags));
     }
+  }
+
+  public static ReportPoint makeHistogramPoint(
+      String customer,
+      String metric,
+      String host,
+      Map<String, String> annotations,
+      long startMillis,
+      int durationMillis,
+      List<Double> bins,
+      List<Integer> counts) {
+    Histogram histogram = Histogram.newBuilder()
+        .setType(HistogramType.TDIGEST)
+        .setDuration(durationMillis)
+        .setCounts(counts)
+        .setBins(bins).build();
+
+    return makePoint(customer, metric, host, startMillis, annotations).setValue(histogram).build();
   }
 
   public static ReportPoint makePoint(String table, String metric, String host, String value, long timestamp) {

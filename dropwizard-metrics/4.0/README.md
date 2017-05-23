@@ -1,14 +1,14 @@
-# Wavefront dropwizard-metrics Reporter
+# Wavefront Reporter
 
-This is a Wavefront Reporter for latest Master of [Dropwizard Metrics](https://github.com/dropwizard/metrics) (formerly Coda Hale & Yammer Metrics).
+This is a Wavefront Reporter for latest Master (4.0) of [Dropwizard Metrics](https://github.com/dropwizard/metrics) (formerly Coda Hale & Yammer Metrics).
 
-It sends data to the Wavefront service via a Proxy and supports Point Tags being assigned both at the Reporter level _and_ the Metric level.
+It sends data to the Wavefront service via a proxy and supports point tags being assigned both at the Reporter level _and_ the Metric level.
 
 ## Usage
 
-This Reporter sends data via to Wavefront via a Proxy. Version 3.5 or later is required. You can easily install the Proxy by following [these instructions](https://github.com/wavefrontHQ/install).
+This Reporter sends data via to Wavefront via a proxy. Version 3.5 or later is required. You can easily install the proxy by following [these instructions](https://github.com/wavefrontHQ/install).
 
-To use the Reporter you'll need to know the hostname and port (which by default is 2878) where the Wavefront Proxy is running.
+To use the Reporter you'll need to know the hostname and port (which by default is 2878) where the Wavefront proxy is running.
 
 It is designed to be used with [the 4.0.0-SNAPSHOT of Dropwizard Metrics](https://github.com/dropwizard/metrics).
 
@@ -56,7 +56,7 @@ It simply gives you a new Reporter that will seamlessly work with Wavefront. Fir
 Then for example to create a Reporter which will emit data every 10 seconds for:
 
 - A `MetricsRegistry` named `metrics` with a Counter that has a tag named `type`
-- A Wavefront Proxy on `localhost` at port `2878`
+- A Wavefront proxy on `localhost` at port `2878`
 - Data that should appear in Wavefront as `source=app-1.company.com`
 - Two point tags named `dc` and `service` on the Reporter
 - All metrics in Wavefront should be prefixed with "dropwizard."
@@ -82,7 +82,7 @@ WavefrontReporter reporter = WavefrontReporter.forRegistry(metrics)
 reporter.start(10, TimeUnit.SECONDS);
 ```
 
-You must provide the source using the `.withSource(String source)` method and pass the Hostname and Port of the Wavefront Proxy using the `.build(String hostname, long port)` method.
+You must provide the source using the `.withSource(String source)` method and pass the Hostname and Port of the Wavefront proxy using the `.build(String hostname, long port)` method.
 
 The Reporter provides all the same options that the [GraphiteReporter](http://metrics.dropwizard.io/3.1.0/manual/graphite/) does. By default:
 

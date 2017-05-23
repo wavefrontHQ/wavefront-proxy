@@ -10,6 +10,8 @@ import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 
+import org.apache.commons.io.IOUtils;
+
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
@@ -39,10 +41,12 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
   private final boolean includeVMMetrics;
   private final String table;
   private final String sunnylabsHost;
+  private final Integer sunnylabsPort;  // Null means use default URI port, probably 80 or 443.
   private final String host;
   private final Map<String, String> tags;
   private final Counter errors;
-  private final boolean clearMetrics;
+  private final boolean clearMetrics, https;
+  private final MetricTranslator metricTranslator;
   private Timer latency;
   private Counter reports;
 
@@ -66,14 +70,45 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
 
   public JsonMetricsReporter(MetricsRegistry registry, boolean includeVMMetrics,
                              String table, String sunnylabsHost, Map<String, String> tags, boolean clearMetrics)
+    throws UnknownHostException {
+    this(registry, includeVMMetrics, table, sunnylabsHost, tags, clearMetrics, true, null);
+  }
+
+  public JsonMetricsReporter(MetricsRegistry registry, boolean includeVMMetrics,
+                             String table, String sunnylabsHost, Map<String, String> tags, boolean clearMetrics,
+                             boolean https, MetricTranslator metricTranslator)
       throws UnknownHostException {
     super(registry, "json-metrics-reporter");
+    this.metricTranslator = metricTranslator;
     this.includeVMMetrics = includeVMMetrics;
     this.tags = tags;
     this.table = table;
-    this.sunnylabsHost = sunnylabsHost;
+
+    if (sunnylabsHost.contains(":")) {
+      int idx = sunnylabsHost.indexOf(":");
+      String host = sunnylabsHost.substring(0, idx);
+      String strPort = sunnylabsHost.substring(idx + 1);
+      Integer port = null;
+      this.sunnylabsHost = host;
+      try {
+        port = Integer.parseInt(strPort);
+      } catch (NumberFormatException e) {
+        logger.log(Level.SEVERE, "Cannot infer port for JSON reporting", e);
+      }
+      this.sunnylabsPort = port;
+    } else {
+      this.sunnylabsHost = sunnylabsHost;
+      this.sunnylabsPort = null;
+    }
+
     this.clearMetrics = clearMetrics;
     this.host = InetAddress.getLocalHost().getHostName();
+    this.https = https;
+    if (!this.https) {
+      logger.severe("===================================================================");
+      logger.severe("HTTPS is off for reporting! This should never be set in production!");
+      logger.severe("===================================================================");
+    }
 
     latency = Metrics.newTimer(new MetricName("jsonreporter", "jsonreporter", "latency"), MILLISECONDS, SECONDS);
     reports = Metrics.newCounter(new MetricName("jsonreporter", "jsonreporter", "reports"));
@@ -91,30 +126,46 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
 
   public void reportMetrics() {
     TimerContext time = latency.time();
+    HttpURLConnection urlc = null;
     try {
-      UriBuilder builder = UriBuilder.fromUri(new URI("https", sunnylabsHost, "/report/metrics", null));
+      UriBuilder builder = UriBuilder.fromUri(new URI(
+          https ? "https" : "http", sunnylabsHost, "/report/metrics", null));
+      if (sunnylabsPort != null) {
+        builder.port(sunnylabsPort);
+      }
       builder.queryParam("h", host);
       builder.queryParam("t", table);
       for (Map.Entry<String, String> tag : tags.entrySet()) {
         builder.queryParam(tag.getKey(), tag.getValue());
       }
       URL http = builder.build().toURL();
-      System.out.println("Reporting started to: " + http);
-      HttpURLConnection urlc = (HttpURLConnection) http.openConnection();
+      logger.info("Reporting metrics (JSON) to: " + http);
+      urlc = (HttpURLConnection) http.openConnection();
       urlc.setDoOutput(true);
       urlc.setReadTimeout(60000);
       urlc.setConnectTimeout(60000);
       urlc.addRequestProperty("Content-Type", "application/json");
       OutputStream outputStream = urlc.getOutputStream();
       JsonMetricsGenerator.generateJsonMetrics(outputStream, getMetricsRegistry(), includeVMMetrics, true,
-          clearMetrics);
-      outputStream.close();
-      System.out.println("Reporting complete: " + urlc.getResponseCode());
+          clearMetrics, metricTranslator);
+      logger.info("Metrics (JSON) reported: " + urlc.getResponseCode());
       reports.inc();
     } catch (Throwable e) {
-      e.printStackTrace();
+      logger.log(Level.WARNING, "Failed to report metrics (JSON)", e);
       errors.inc();
     } finally {
+      if (urlc != null) {
+        try {
+          IOUtils.closeQuietly(urlc.getInputStream());
+        } catch (Exception e) {
+          // ignore.
+        }
+        try {
+          IOUtils.closeQuietly(urlc.getOutputStream());
+        } catch (Exception e) {
+          // ignore.
+        }
+      }
       time.stop();
     }
   }

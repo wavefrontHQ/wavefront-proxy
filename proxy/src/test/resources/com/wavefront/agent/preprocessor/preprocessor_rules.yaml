@@ -1,0 +1,176 @@
+## set of preprocessor rules for unit tests
+
+# test all blacklist/whitelist combinations
+'1111':
+    - rule    : test-filter-1
+      action  : whitelistRegex
+      scope   : pointLine
+      match   : ".*prod.*"
+
+    - rule    : test-filter-2
+      action  : whitelistRegex
+      scope   : sourceName
+      match   : ".*prod\\.corp"
+
+    - rule    : test-filter-3
+      action  : whitelistRegex
+      scope   : metricName
+      match   : "valid\\.metric.*"
+
+    - rule    : test-filter-4
+      action  : whitelistRegex
+      scope   : foo
+      match   : "b.r"
+
+    - rule    : test-filter-5
+      action  : blacklistRegex
+      scope   : pointLine
+      match   : ".*stop.*"
+
+    - rule    : test-filter-6
+      action  : blacklistRegex
+      scope   : sourceName
+      match   : ".*dev\\.corp"
+
+    - rule    : test-filter-7
+      action  : blacklistRegex
+      scope   : metricName
+      match   : "invalid\\.metric.*"
+
+    - rule    : test-filter-8
+      action  : blacklistRegex
+      scope   : baz
+      match   : ".*"
+
+
+'2878':
+    # only allow points that contain "foo" substring anywhere in the point line
+    - rule    : test-whitelist-line
+      action  : whitelistRegex
+      scope   : pointLine
+      match   : ".*foo=.*"
+
+    # block source=bar*
+    - rule    : test-blacklist-sourcename
+      action  : blacklistRegex
+      scope   : sourceName
+      match   : "bar.*"
+
+    # block all metric names that start with foo.
+    - rule    : test-blacklist-metrics
+      action  : blacklistRegex
+      scope   : metricName
+      match   : "foo\\..*"
+
+    # block all points where "datacenter" point tag starts with "west"
+    - rule    : test-blacklist-tag
+      action  : blacklistRegex
+      scope   : foo
+      match   : "west.*"
+
+    # replace bad characters ("&", "$", "!") with underscores in the entire point line string
+    - rule    : test-replace-badchars
+      action  : replaceRegex
+      scope   : pointLine
+      search  : "[&\\$#!]"
+      replace : "_"
+
+    # remove "metrictest." from the metric name
+    - rule    : test-replace-metric-name
+      action  : replaceRegex
+      scope   : metricName
+      search  : "metrictest\\."
+      replace : ""
+
+    # for "bar" point tag replace all "-" characters with dots
+    - rule    : test-replace-tag-dash
+      action  : replaceRegex
+      scope   : bar
+      search  : "-"
+      replace : "."
+
+    # rename a point tag
+    - rule    : example-renametag
+      action  : renameTag
+      tag     : foo
+      newtag  : baz
+
+    # rename a point tag if its value matches a regex
+    - rule    : example-renametag-regex
+      action  : renameTag
+      tag     : qux
+      match   : "^\\d*$"
+      newtag  : numericTag
+
+    # add a "newtagkey=1" point tag to all points
+    - rule    : example-tag-all-metrics
+      action  : addTag
+      tag     : newtagkey
+      value   : "1"
+
+    # remove "dc1" and "dc2" point tags
+    - rule    : example-drop-dc12
+      action  : dropTag
+      tag     : "dc[1-2]"
+
+    # remove "datacenter" point tag if its value matches s regex
+    - rule    : example-drop-datacenter-az456
+      action  : dropTag
+      tag     : datacenter
+      match   : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
+
+    - rule    : example-extract-metric-prefix
+      action  : extractTag
+      source  : metricName
+      tag     : prefix
+      search  : "^(some).*"
+      replace : "$1"
+
+
+'4242':
+
+    # remove "dc1" and "dc2" point tags
+    - rule    : example-drop-dc12
+      action  : dropTag
+      tag     : "dc[1-2]"
+
+    # remove "datacenter" point tag if its value matches s regex
+    - rule    : example-drop-datacenter-az456
+      action  : dropTag
+      tag     : datacenter
+      match   : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
+
+    # replace bad characters ("&", "$", "!") with underscores in the entire point line string
+    - rule    : test-replace-badchars
+      action  : replaceRegex
+      scope   : pointLine
+      search  : "[&\\$#!]"
+      replace : "_"
+
+    # remove "metrictest." from the metric name
+    - rule    : test-replace-metric-name
+      action  : replaceRegex
+      scope   : metricName
+      search  : "metrictest\\."
+      replace : ""
+
+    # for "bar" point tag replace all "-" characters with dots
+    - rule    : test-replace-tag-dash
+      action  : replaceRegex
+      scope   : bar
+      search  : "-"
+      replace : "."
+
+    # rename a point tag
+    - rule    : example-renametag
+      action  : renameTag
+      tag     : foo
+      newtag  : baz
+
+    # rename a point tag if its value matches a regex
+    - rule    : example-renametag-regex
+      action  : renameTag
+      tag     : qux
+      match   : "^\\d*$"
+      newtag  : numericTag
+

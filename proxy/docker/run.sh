@@ -1,15 +1,19 @@
-#/bin/sh
-# This should be the full path to the agent program, including the /bin directory; no trailing slash necessary
-DAEMON_PATH="/opt/wavefront/push-agent-2.0/bin"
-# The name of the jar
-DAEMON=wavefront-push-agent-2.0.jar
-# Name of the log file
-NAME=wavefront
-# This should be the full path to the configuration file.
-CONFIG_FILE="/opt/wavefront/push-agent-2.0/conf/wavefront.conf"
-# Java options for memory, GC, etc.
-JAVA_OPTS="-Xmx4G"
+#!/bin/bash
+set -x
 
-# Run
-cd $DAEMON_PATH
-java $JAVA_OPTS -jar $DAEMON -f $CONFIG_FILE >> /var/log/$NAME.log 2>&1
+spool_dir="/var/spool/wavefront-proxy"
+mkdir -p $spool_dir
+
+WAVEFRONT_HOSTNAME=${WAVEFRONT_HOSTNAME:-$(hostname)}
+export WAVEFRONT_HOSTNAME
+
+autoconf=/opt/wavefront/wavefront-proxy/bin/autoconf-wavefront-proxy.sh
+/bin/bash -x $autoconf
+
+java_heap_usage=${JAVA_HEAP_USAGE:-4G}
+java \
+	-Xmx$java_heap_usage -Xms$java_heap_usage \
+	-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
+	-Dlog4j.configurationFile=/etc/wavefront/wavefront-proxy/log4j2.xml \
+	-jar /opt/wavefront/wavefront-proxy/bin/wavefront-push-agent.jar \
+	-f /etc/wavefront/wavefront-proxy/wavefront.conf

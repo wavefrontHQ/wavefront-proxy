@@ -2,6 +2,8 @@ package com.wavefront.agent;
 
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 import sunnylabs.report.ReportPoint;
 
 /**
@@ -15,8 +17,9 @@ public interface PointHandler {
    *
    * @param point     Point to report.
    * @param debugLine Debug information to print to console when the line is rejected.
+   *                  If null, then use the entire point converted to string.
    */
-  void reportPoint(ReportPoint point, String debugLine);
+  void reportPoint(ReportPoint point, @Nullable String debugLine);
 
   /**
    * Send a collection of points for reporting.
@@ -28,7 +31,8 @@ public interface PointHandler {
   /**
    * Called when a blocked line is encountered.
    *
-   * @param pointLine Line encountered.
+   * @param pointLine Line encountered. If null, it will increment the blocked points counter
+   *                  but won't write to the log
    */
-  void handleBlockedPoint(String pointLine);
+  void handleBlockedPoint(@Nullable String pointLine);
 }

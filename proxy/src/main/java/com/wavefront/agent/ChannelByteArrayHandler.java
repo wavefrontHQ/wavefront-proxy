@@ -1,12 +1,14 @@
 package com.wavefront.agent;
 
-import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
-import com.wavefront.common.MetricWhiteBlackList;
+import com.wavefront.agent.preprocessor.PointPreprocessor;
 import com.wavefront.ingester.Decoder;
+import com.wavefront.ingester.GraphiteDecoder;
 
+import java.net.InetSocketAddress;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,30 +27,26 @@ import sunnylabs.report.ReportPoint;
  */
 @ChannelHandler.Sharable
 class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
-  private static final Logger logger = Logger.getLogger(
-      ChannelByteArrayHandler.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(ChannelByteArrayHandler.class.getCanonicalName());
+  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   private final Decoder<byte[]> decoder;
   private final PointHandler pointHandler;
 
-  private final Predicate<String> metricPredicate;
+  @Nullable
+  private final PointPreprocessor preprocessor;
+  private final GraphiteDecoder recoder;
 
   /**
    * Constructor.
    */
   ChannelByteArrayHandler(Decoder<byte[]> decoder,
-                                 final int port,
-                                 final String prefix,
-                                 final String validationLevel,
-                                 final int blockedPointsPerBatch,
-                                 final PostPushDataTimedTask[] postPushDataTimedTasks,
-                                 @Nullable final String pointLineWhiteListRegex,
-                                 @Nullable final String pointLineBlackListRegex) {
+                          final PointHandler pointHandler,
+                          @Nullable final PointPreprocessor preprocessor) {
     this.decoder = decoder;
-    this.pointHandler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, prefix,
-        postPushDataTimedTasks);
-    this.metricPredicate = new MetricWhiteBlackList(
-      pointLineWhiteListRegex, pointLineBlackListRegex, String.valueOf(port));
+    this.pointHandler = pointHandler;
+    this.preprocessor = preprocessor;
+    this.recoder = new GraphiteDecoder(Collections.emptyList());
   }
 
   @Override
@@ -61,12 +59,16 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
     List<ReportPoint> points = Lists.newArrayListWithExpectedSize(1);
     try {
       decoder.decodeReportPoints(msg, points, "dummy");
-      for (final ReportPoint point: points) {
-        if (!this.metricPredicate.apply(point.getMetric())) {
-          pointHandler.handleBlockedPoint(point.getMetric());
-          continue;
+      for (ReportPoint point: points) {
+        if (preprocessor != null && preprocessor.forPointLine().hasTransformers()) {
+          String pointLine = PointHandlerImpl.pointToString(point);
+          pointLine = preprocessor.forPointLine().transform(pointLine);
+          List<ReportPoint> parsedPoints = Lists.newArrayListWithExpectedSize(1);
+          recoder.decodeReportPoints(pointLine, parsedPoints, "dummy");
+          parsedPoints.forEach(this::preprocessAndReportPoint);
+        } else {
+          preprocessAndReportPoint(point);
         }
-        pointHandler.reportPoint(point, point.getMetric());
       }
     } catch (final Exception e) {
       final Throwable rootCause = Throwables.getRootCause(e);
@@ -75,14 +77,46 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
       if (rootCause != null && rootCause.getMessage() != null) {
         errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
       }
+      InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+      if (remoteAddress != null) {
+        errMsg += "; remote: " + remoteAddress.getHostString();
+      }
       logger.log(Level.WARNING, errMsg, e);
       pointHandler.handleBlockedPoint(errMsg);
     }
   }
 
+  private void preprocessAndReportPoint(ReportPoint point) {
+    if (preprocessor == null) {
+      pointHandler.reportPoint(point, point.getMetric());
+      return;
+    }
+    // backwards compatibility: apply "pointLine" rules to metric name
+    if (!preprocessor.forPointLine().filter(point.getMetric())) {
+      if (preprocessor.forPointLine().getLastFilterResult() != null) {
+        blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+      } else {
+        blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+      }
+      pointHandler.handleBlockedPoint(preprocessor.forPointLine().getLastFilterResult());
+      return;
+    }
+    preprocessor.forReportPoint().transform(point);
+    if (!preprocessor.forReportPoint().filter(point)) {
+      if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+        blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+      } else {
+        blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+      }
+      pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+      return;
+    }
+    pointHandler.reportPoint(point, point.getMetric());
+  }
+
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-    if (cause.getMessage().equals("Connection reset by peer")) {
+    if (cause.getMessage().contains("Connection reset by peer")) {
       // These errors are caused by the client and are safe to ignore
       return;
     }
@@ -91,6 +125,10 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
         + cause.getMessage() + "\"";
     if (rootCause != null && rootCause.getMessage() != null) {
       message += ", root cause: \"" + rootCause.getMessage() + "\"";
+    }
+    InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+    if (remoteAddress != null) {
+      message += "; remote: " + remoteAddress.getHostString();
     }
     pointHandler.handleBlockedPoint(message);
   }

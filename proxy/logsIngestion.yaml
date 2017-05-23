@@ -1,0 +1,19 @@
+aggregationIntervalSeconds: 4
+counters:
+  - pattern: "%{COMBINEDAPACHELOG}"
+    metricName: "development.combined_apache_log_lines"
+  - pattern: "counter %{WORD:name} %{NUMBER:value}"
+    metricName: "myCounter.%{name}"
+
+  - pattern: "operation %{WORD:op} took %{NUMBER:value} seconds in DC=%{WORD:dc}.*AZ=%{WORD:az}"
+    metricName: "%{op}.totalSeconds"
+    tagKeys:
+      - "theDC"
+      - "theAZ"
+    tagValueLabels:
+      - "dc"
+      - "az"
+
+histograms:
+  - pattern: "histo %{NUMBER:value}"
+    metricName: "myHisto"

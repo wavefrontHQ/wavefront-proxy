@@ -50,7 +50,7 @@ public class StringLineIngester extends TcpIngester {
     copy.add(0, new Function<Channel, ChannelHandler>() {
       @Override
       public ChannelHandler apply(Channel input) {
-        return new LineBasedFrameDecoder(4096, true, true);
+        return new LineBasedFrameDecoder(4096, true, false);
       }
     });
     copy.add(1, new Function<Channel, ChannelHandler>() {
@@ -69,5 +69,32 @@ public class StringLineIngester extends TcpIngester {
 
   public static String joinPushData(List<String> pushData) {
     return StringUtils.join(pushData, PUSH_DATA_DELIMETER);
+  }
+
+  public static List<Integer> indexPushData(String pushData) {
+    List<Integer> index = new ArrayList<>();
+    index.add(0);
+    int lastIndex = pushData.indexOf(PUSH_DATA_DELIMETER);
+    final int delimiterLength = PUSH_DATA_DELIMETER.length();
+    while (lastIndex != -1) {
+      index.add(lastIndex);
+      index.add(lastIndex + delimiterLength);
+      lastIndex = pushData.indexOf(PUSH_DATA_DELIMETER, lastIndex + delimiterLength);
+    }
+    index.add(pushData.length());
+    return index;
+  }
+
+  /**
+   * Calculates the number of points in the pushData payload
+   * @param pushData a delimited string with the points payload
+   * @return number of points
+   */
+  public static int pushDataSize(String pushData) {
+    int length = StringUtils.countMatches(pushData, PUSH_DATA_DELIMETER);
+    return length > 0
+        ? length + 1
+        : (pushData.length() > 0 ? 1 : 0);
+
   }
 }

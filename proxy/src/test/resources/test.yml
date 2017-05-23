@@ -1,0 +1,41 @@
+counters:
+  - pattern: "counterWithValue %{NUMBER:value}%{GREEDYDATA:extra}"
+    metricName: "counterWithValue"
+  - pattern: "plainCounter"
+    metricName: "plainCounter"
+  - pattern: "dynamicCounter %{WORD:name} %{NUMBER:type} done"
+    metricName: "dynamic_%{name}_%{type}"
+  - pattern: "%{MYPATTERN}"
+    metricName: "customPatternCounter"
+  - pattern: "operation %{WORD:op} took %{NUMBER:value} seconds in DC=%{WORD:dc}.*AZ=%{WORD:az}"
+    metricName: "%{op}.totalSeconds"
+    tagKeys:
+      - "theDC"
+      - "theAZ"
+    tagValueLabels:
+      - "dc"
+      - "az"
+  - pattern: "%{COMBINEDAPACHELOG}"
+    metricName: "apacheBytes"
+    valueLabel: "bytes"
+  - pattern: "%{COMBINEDAPACHELOG}"
+    metricName: "apacheBytes2"
+    valueLabel: "bytes"
+
+gauges:
+  - pattern: "gauges %{NUMBER:value}"
+    metricName: "myGauge"
+  - pattern: "%{COMBINEDAPACHELOG}"
+    metricName: "apacheStatus"
+    valueLabel: "response"
+  - pattern: '%{LOGLEVEL}: \[%{NUMBER:port}\] %{GREEDYDATA} points attempted: %{NUMBER:pointsAttempted}'
+    metricName: "wavefrontPointsSent.%{port}"
+    valueLabel: "pointsAttempted"
+
+histograms:
+  - pattern: "histo %{NUMBER:value}"
+    metricName: "myHisto"
+
+
+additionalPatterns:
+  - "MYPATTERN %{WORD:myword} and %{NUMBER:value}"

@@ -38,10 +38,11 @@ fpm \
 	--before-remove before-remove.sh \
 	--after-remove after-remove.sh \
 	--architecture amd64 \
-	--config-files opt/wavefront/wavefront-proxy/conf \
 	--deb-no-default-config-files \
 	--deb-priority optional \
+	--depends curl \
 	--description "Proxy for sending data to Wavefront." \
+	--exclude "*/.git" \
 	--iteration $ITERATION \
 	--license "Apache 2.0" \
 	--log info \

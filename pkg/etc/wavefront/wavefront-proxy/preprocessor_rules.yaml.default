@@ -1,0 +1,173 @@
+##
+##  Wavefront proxy preprocessor rules configuration
+##
+##   Typically in /etc/wavefront/wavefront-proxy/preprocessor_rules.yaml
+##
+## This file allows a more flexible configuration of different point filtering and altering rules.
+##
+## For help with your configuration, please email support@wavefront.com
+##
+##############################################################################
+##
+## available action types:
+##   - replaceRegex: perform search/replace substitutions (substring match)
+##   - whitelistRegex: reject all points not matching a regex pattern (full match)
+##   - blacklistRegex: reject all points matching a regex pattern (full match)
+##   - dropTag: remove a point tag. optional: remove tag only when its value matches a regex pattern (full match))
+##   - addTag: add a new point tag. if such point tag already exists, an existing value will be replaced
+##   - addTagIfNotExists: add a new point tag, but don't overwrite an existing value if such point tag already exists
+##   - extractTag: create a new point tag based on a metric name, source name or another point tag
+##   - renameTag: rename a point tag, preserving its value. optional: rename it only when the point tag value matches
+##                a regex pattern (full match). this functionality allows separating a point tag with mixed data into
+##                separate tags.
+##
+## "Scope" parameter for replaceRegex/whitelistRegex/blacklistRegex:
+##   - pointLine: applies to the whole point string before it's parsed, which makes it possible to correct
+##                specific issues in the data stream that would normally make the data point unparseable.
+##
+##   - metricName: applies to the metric name only (after the point is parsed)
+##   - sourceName: applies to the source name only (after the point is parsed)
+##   - <point tag>: any scope name other than the above three is considered a point tag key (after the point is parsed)
+##
+##
+## Notes:
+##   - backslashes in regex patterns should be double-escaped
+##   - "match" patterns must be a full match, i.e. a regex to block the point line that contains "stage" substring
+##     will look like ".*stage.*". replaceRegex "search" patterns are a substring match, so if the pattern is "A"
+##     and replace is "B", it will simply replace all A's with B's.
+##   - rule IDs could be anything alphanumeric (dashes and underscores allowed), but they should be descriptive and
+##     unique within the same port. for every rule the proxy reports a counter metric, which represents the number of
+##     times a rule has been successfully applied, and a rule ID becomes part of the metric name
+##     (ex: ~agent.preprocessor.replace-badchars.count)
+##   - multiple whitelistRegex rules are allowed, with a caveat: a point must satisfy all of these rules
+##     to go through, so if it doesn't match at least one of the patterns, a point is blocked
+##
+##############################################################################
+
+# rules for port 2878
+'2878':
+
+  # replace bad characters ("&", "$", "!") with underscores in the entire point line string
+  ################################################################
+  - rule    : example-replace-badchars
+    action  : replaceRegex
+    scope   : pointLine
+    search  : "[&\\$!]"
+    replace : "_"
+
+  ## only allow points that contain "prod" substring anywhere in the point line
+  ################################################################
+  #- rule    : example-allow-only-prod
+  #  action  : whitelistRegex
+  #  scope   : pointLine
+  #  match   : ".*prod.*"
+
+  ## block all points with sourceName that starts with qa-statsd
+  ################################################################
+  #- rule    : example-block-qa-statsd
+  #  action  : blacklistRegex
+  #  scope   : sourceName
+  #  match   : "qa-statsd.*"
+
+  ## block all AWS metrics (all metric names that start with "aws.")
+  ################################################################
+  #- rule    : example-block-aws
+  #  action  : blacklistRegex
+  #  scope   : metricName
+  #  match   : "aws\\..*"
+
+  ## block all points where "datacenter" point tag starts with "west"
+  ################################################################
+  #- rule    : example-block-west
+  #  action  : blacklistRegex
+  #  scope   : datacenter
+  #  match   : "west.*"
+
+  ## remove "metrictest." from the metric name
+  ################################################################
+  #- rule    : example-replace-metric-name
+  #  action  : replaceRegex
+  #  scope   : metricName
+  #  search  : "metrictest\\."
+  #  replace : ""
+
+  ## for "exampleCluster" point tag replace all "-" characters with dots
+  ################################################################
+  #- rule    : example-cluster-name
+  #  action  : replaceRegex
+  #  scope   : exampleCluster
+  #  search  : "-"
+  #  replace : "."
+  
+  # remove the string in the second position of a metric name
+  ################################################################
+  #- rule    : example-remove-second-position
+  #  action  : replaceRegex
+  #  scope   : metricName
+  #  search  : "([^\\.]+)(\\..+?)(\\..*)"
+  #  replace : "$1$3"
+
+  ## rename a point tag
+  ################################################################
+  #- rule    : example-renametag
+  #  action  : renameTag
+  #  tag     : veryOldTag
+  #  newtag  : renamedTag
+
+  ## rename a point tag if its value matches a regex
+  ## in this example the "^\d*$" regex matches numeric values only, so oldTag=123 would be renamed to numericTag=123,
+  ## but oldTag=text123 would not be changed.
+  ################################################################
+  #- rule    : example-renametag-regex
+  #  action  : renameTag
+  #  tag     : oldTag
+  #  match   : "^\\d*$"
+  #  newtag  : numericTag
+
+  ## add a "newtagkey=1" point tag to all points
+  ################################################################
+  #- rule    : example-tag-all-metrics
+  #  action  : addTag
+  #  tag     : newtagkey
+  #  value   : "1"
+
+  ## remove "dc1" point tag
+  ################################################################
+  #- rule    : example-drop-dc1
+  #  action  : dropTag
+  #  tag     : dc1
+
+  ## remove "datacenter" point tag if its value matches a regex
+  ################################################################
+  #- rule    : example-drop-datacenter-az456
+  #  action  : dropTag
+  #  tag     : datacenter
+  #  match   : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3)
+
+  ## block all points that have a point tag "blocker" (any value)
+  ################################################################
+  #- rule    : example-block-by-tag
+  #  action  : blacklistRegex
+  #  scope   : blocker
+  #  match   : ".*"
+
+
+# rules for port 4242
+'4242':
+
+  # replace bad characters ("&", "$", "!") with underscores in the metric name
+  ################################################################
+  - rule    : example-replace-badchars
+    action  : replaceRegex
+    scope   : metricName
+    search  : "[&\\$!]"
+    replace : "_"
+
+  ## remove "tsdb." from the metric name
+  ################################################################
+  #- rule    : example-replace-tsdb
+  #  action  : replaceRegex
+  #  scope   : metricName
+  #  search  : "tsdb\\."
+  #  replace : ""
+

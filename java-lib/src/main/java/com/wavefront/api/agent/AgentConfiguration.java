@@ -1,8 +1,10 @@
 package com.wavefront.api.agent;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.io.File;
 import java.util.Collections;
@@ -16,6 +18,7 @@ import java.util.UUID;
  * @author Clement Pang (clement@sunnylabs.com)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AgentConfiguration {
 
   public String name;
@@ -29,6 +32,8 @@ public class AgentConfiguration {
   private Long pointsPerBatch;
   private Boolean collectorSetsRetryBackoff;
   private Double retryBackoffBaseSeconds;
+  private Boolean shutOffAgents = false;
+  private Boolean showTrialExpired = false;
 
   public Boolean getCollectorSetsRetryBackoff() {
     return collectorSetsRetryBackoff;
@@ -78,6 +83,18 @@ public class AgentConfiguration {
 
   public void setPointsPerBatch(Long pointsPerBatch) {
     this.pointsPerBatch = pointsPerBatch;
+  }
+
+  public Boolean getShutOffAgents() { return shutOffAgents; }
+
+  public void setShutOffAgents(Boolean shutOffAgents) {
+    this.shutOffAgents = shutOffAgents;
+  }
+
+  public Boolean getShowTrialExpired() { return showTrialExpired; }
+
+  public void setShowTrialExpired(Boolean trialExpired) {
+    this.showTrialExpired = trialExpired;
   }
 
   public void validate(boolean local) {

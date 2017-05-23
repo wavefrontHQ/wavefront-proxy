@@ -94,6 +94,19 @@ public class GraphiteDecoderTest {
   }
 
   @Test
+  public void testTagVWithDigitAtBeginning() throws Exception {
+    GraphiteDecoder decoder = new GraphiteDecoder("localhost", emptyCustomSourceTags);
+    List<ReportPoint> out = new ArrayList<>();
+    decoder.decodeReportPoints("tsdb.vehicle.charge.battery_level 93 host=vehicle_2554 version=1_0", out);
+    ReportPoint point = out.get(0);
+    assertEquals("tsdb", point.getTable());
+    assertEquals("vehicle.charge.battery_level", point.getMetric());
+    assertEquals(93.0, point.getValue());
+    assertEquals("vehicle_2554", point.getHost());
+    assertEquals("1_0", point.getAnnotations().get("version"));
+  }
+
+  @Test
   public void testFormat() throws Exception {
     GraphiteDecoder decoder = new GraphiteDecoder("localhost", emptyCustomSourceTags);
     List<ReportPoint> out = new ArrayList<>();
@@ -405,6 +418,20 @@ public class GraphiteDecoderTest {
     assertEquals("vm.guest.virtualDisk.mediumSeeks.latest", point.getMetric());
     assertEquals("iadprdhyp02.iad.corp.com", point.getHost());
     assertEquals("1.0.0-030051.d0e485f", point.getAnnotations().get("version"));
+    assertEquals(4.0, point.getValue());
+  }
+
+  @Test
+  public void testNumberLookingTagValue2() {
+    GraphiteDecoder decoder = new GraphiteDecoder(emptyCustomSourceTags);
+    List<ReportPoint> out = Lists.newArrayList();
+    decoder.decodeReportPoints("vm.guest.virtualDisk.mediumSeeks.latest 4.00 1439250320 " +
+        "host=iadprdhyp02.iad.corp.com version=\"1.0.0\\\"-030051.d0e485f\"", out, "customer");
+    ReportPoint point = out.get(0);
+    assertEquals("customer", point.getTable());
+    assertEquals("vm.guest.virtualDisk.mediumSeeks.latest", point.getMetric());
+    assertEquals("iadprdhyp02.iad.corp.com", point.getHost());
+    assertEquals("1.0.0\"-030051.d0e485f", point.getAnnotations().get("version"));
     assertEquals(4.0, point.getValue());
   }
 

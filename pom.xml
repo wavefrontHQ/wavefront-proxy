@@ -4,12 +4,13 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>3.25-SNAPSHOT</version>
+  <version>4.10-SNAPSHOT</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
     <module>java-client</module>
     <module>dropwizard-metrics/3.1</module>
+    <module>yammer-metrics</module>
   </modules>
   <packaging>pom</packaging>
 
@@ -51,11 +52,13 @@
 
     <!-- Testing library versions -->
     <junit.version>4.12</junit.version>
+    <truth.version>0.29</truth.version>
 
-    <java.version>1.7</java.version>
+    <java.version>1.8</java.version>
     <jetty.version>9.2.10.v20150310</jetty.version>
-    <jackson.version>2.5.3</jackson.version>
-    <public.project.version>3.25-SNAPSHOT</public.project.version>
+    <jackson.version>2.7.4</jackson.version>
+    <netty.version>4.1.11.Final</netty.version>
+    <public.project.version>4.10-SNAPSHOT</public.project.version>
   </properties>
 
   <build>
@@ -124,7 +127,7 @@
       <dependency>
         <groupId>org.jboss.resteasy</groupId>
         <artifactId>resteasy-bom</artifactId>
-        <version>3.0.17.Final</version>
+        <version>3.0.21.Final</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -151,7 +154,12 @@
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.2</version>
+        <version>4.5.3</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-core</artifactId>
+        <version>2.8.2</version>
       </dependency>
       <dependency>
         <groupId>com.yammer.metrics</groupId>
@@ -164,6 +172,16 @@
         <version>2.6</version>
       </dependency>
       <dependency>
+        <groupId>commons-collections</groupId>
+        <artifactId>commons-collections</artifactId>
+        <version>3.2.2</version>
+      </dependency>
+      <dependency>
+        <groupId>com.thoughtworks.xstream</groupId>
+        <artifactId>xstream</artifactId>
+        <version>1.4.9</version>
+      </dependency>
+      <dependency>
         <groupId>javax.ws.rs</groupId>
         <artifactId>javax.ws.rs-api</artifactId>
         <version>2.0.1</version>
@@ -172,6 +190,12 @@
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
         <version>${junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.google.truth</groupId>
+        <artifactId>truth</artifactId>
+        <version>${truth.version}</version>
         <scope>test</scope>
       </dependency>
       <dependency>
@@ -187,7 +211,18 @@
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-handler</artifactId>
-        <version>4.0.35.Final</version>
+        <version>${netty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-codec-http</artifactId>
+        <version>${netty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-epoll</artifactId>
+        <version>${netty.version}</version>
+        <classifier>linux-x86_64</classifier>
       </dependency>
       <dependency>
         <groupId>com.google.code.findbugs</groupId>

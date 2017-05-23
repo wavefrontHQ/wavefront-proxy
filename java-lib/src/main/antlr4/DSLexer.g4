@@ -59,7 +59,30 @@ Literal
   | '}'
   | SLASH
   | STAR
-  | AT)+
+  | AT)*
+  ;
+
+// Special token that we do allow for tag values.
+RelaxedLiteral
+  : (Letter | Digit) (Letter
+  | Digit
+  | '.'
+  | '-'
+  | '_'
+  | '|'
+  | '~'
+  | '{'
+  | '}')*
+  ;
+
+BinType
+  : '!M'
+  | '!H'
+  | '!D'
+  ;
+
+Weight
+  : '#' Number
   ;
 
 fragment

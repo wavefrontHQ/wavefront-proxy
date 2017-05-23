@@ -115,7 +115,7 @@ public class TaggedMetricName extends MetricName {
         nameBuilder.append(",");
         nameBuilder.append(tag._1);
         nameBuilder.append("=");
-        nameBuilder.append(tag._2);
+        nameBuilder.append(ObjectName.quote(tag._2));
       }
     }
     return nameBuilder.toString();

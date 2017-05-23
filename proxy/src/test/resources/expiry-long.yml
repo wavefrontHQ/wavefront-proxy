@@ -1,0 +1,6 @@
+expiryMillis: 10000
+aggregationIntervalSeconds: 5
+
+counters:
+  - pattern: "plainCounter"
+    metricName: "plainCounter"

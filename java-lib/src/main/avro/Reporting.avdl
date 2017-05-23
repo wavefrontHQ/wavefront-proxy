@@ -1,19 +1,39 @@
 @namespace("sunnylabs.report")
 protocol Reporting {
-  import idl "Events.avdl";
 
   enum DataType {
     DOUBLE, LONG, STRING, NUMERICAL
+  }
+
+  enum HistogramType {
+    TDIGEST, DOUBLE_TRUNCATE
+  }
+
+  record Histogram {
+    // Number of milliseconds that samples cover
+    int duration;
+    // Histogram is a list of sample bins and counts
+    HistogramType type;
+    array<double> bins;
+    array<int> counts;
   }
 
   record ReportPoint {
     string metric;
     // Milliseconds since 1970
     long timestamp;
-    union { double, long, string } value;
+    union { double, long, string, Histogram } value;
     string host = "unknown";
     string table = "tsdb";
     map<string> annotations = {};
+  }
+
+  // The parts of a ReportPoint that uniquely identify a timeseries to wavefront.
+  record TimeSeries {
+    string metric;
+    string host = "unknown";
+    string table = "tsdb";
+    @java-class("java.util.TreeMap") map<string> annotations = {};
   }
 
   record IndexUpdate {
