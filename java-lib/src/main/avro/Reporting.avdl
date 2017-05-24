@@ -48,7 +48,7 @@ protocol Reporting {
     string sourceTagLiteral; // constant '@SourceTag' or '@SourceDescription'
     string action; // can be either 'save' or 'delete'
     string source;
-    string description = null; // might be null
+    union {null, string} description;
     array<string> annotations = {}; // might be empty
   }
 

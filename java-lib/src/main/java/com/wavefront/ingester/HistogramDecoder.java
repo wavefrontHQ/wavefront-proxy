@@ -16,7 +16,7 @@ import sunnylabs.report.ReportPoint;
  */
 public class HistogramDecoder implements Decoder<String> {
   private static final Logger logger = Logger.getLogger(HistogramDecoder.class.getCanonicalName());
-  private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder()
+  private static final IngesterFormatter FORMAT = (IngesterFormatter) IngesterFormatter.newBuilder()
       .whiteSpace()
       .binType()
       .whiteSpace()

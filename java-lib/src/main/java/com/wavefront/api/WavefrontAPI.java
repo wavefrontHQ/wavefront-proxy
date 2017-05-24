@@ -19,7 +19,7 @@ import java.util.UUID;
  * @author Clement Pang (clement@wavefront.com)
  */
 @Path("/")
-public interface AgentAPI {
+public interface WavefrontAPI {
 
   /**
    * Polls for the configuration for the agent.
@@ -144,13 +144,11 @@ public interface AgentAPI {
 
   @DELETE
   @Path("v2/source/{id}/tag/{tagValue}")
-  @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   Response removeTag(@PathParam("id") String id, @PathParam("tagValue") String tagValue);
 
   @DELETE
   @Path("v2/source/{id}/description")
-  @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   Response removeDescription(@PathParam("id") String id);
 

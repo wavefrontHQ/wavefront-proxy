@@ -17,12 +17,14 @@ public class SourceTagDecoder {
   private static final String SOURCE_TAG = "@SourceTag";
   private static final String SOURCE_DESCRIPTION = "@SourceDescription";
 
-  private static final SourceTagIngesterFormatter FORMAT = SourceTagIngesterFormatter.newBuilder()
-      .whitespace()
+  private static final SourceTagIngesterFormatter FORMAT = (SourceTagIngesterFormatter)
+      SourceTagIngesterFormatter
+      .newBuilder()
+      .whiteSpace()
       .appendCaseSensitiveLiterals(new String[]{SOURCE_TAG, SOURCE_DESCRIPTION})
-      .whitespace()
+      .whiteSpace()
       .appendLoopOfTags()
-      .whitespace()
+      .whiteSpace()
       .appendLoopOfValues()
       .build();
 

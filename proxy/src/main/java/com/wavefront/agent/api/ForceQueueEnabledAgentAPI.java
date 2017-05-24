@@ -1,6 +1,6 @@
 package com.wavefront.agent.api;
 
-import com.wavefront.api.AgentAPI;
+import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.ShellOutputDTO;
 
 import java.util.List;
@@ -11,7 +11,7 @@ import javax.ws.rs.core.Response;
 /**
  * @author Andrew Kao (andrew@wavefront.com)
  */
-public interface ForceQueueEnabledAgentAPI extends AgentAPI {
+public interface ForceQueueEnabledAgentAPI extends WavefrontAPI {
 
   Response postWorkUnitResult(UUID agentId,
                               UUID workUnitId,

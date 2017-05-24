@@ -27,7 +27,7 @@ import sunnylabs.report.ReportSourceTag;
  */
 public class PostSourceTagTimedTask implements Runnable {
 
-  private static final Logger logger= Logger.getLogger(PostSourceTagTimedTask.class
+  private static final Logger logger = Logger.getLogger(PostSourceTagTimedTask.class
       .getCanonicalName());
 
   private static final int MAX_BATCH_SIZE = 1000;
@@ -71,18 +71,18 @@ public class PostSourceTagTimedTask implements Runnable {
     this.logLevel = logLevel;
 
     this.sourceTagsAttempted = Metrics.newCounter(new MetricName("sourceTags." + String.valueOf
-        (port),"", "sent"));
+        (port), "", "sent"));
     this.sourceTagsQueued = Metrics.newCounter(new MetricName("sourceTags." + String.valueOf(port),
         "", "queued"));
     this.sourceTagsBlocked = Metrics.newCounter(new MetricName("sourceTags." + String.valueOf
-        (port),"", "blocked"));
+        (port), "", "blocked"));
     this.sourceTagsReceived = Metrics.newCounter(new MetricName("sourceTags." + String.valueOf
-        (port),"", "received"));
+        (port), "", "received"));
     this.batchesSent = Metrics.newCounter(
         new MetricName("pushSourceTag." + String.valueOf(port) + ".thread-" + String.valueOf
             (threadId), "", "batches"));
     this.batchSendTime = Metrics.newTimer(new MetricName("pushSourceTag." + String.valueOf(port),
-            "", "duration"), TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+        "", "duration"), TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
   }
 
   @Override
@@ -97,7 +97,7 @@ public class PostSourceTagTimedTask implements Runnable {
           boolean forceToQueue = false;
           for (ReportSourceTag sourceTag : current) {
             switch (sourceTag.getSourceTagLiteral()) {
-              case "SourceDescription" :
+              case "SourceDescription":
                 if (sourceTag.getAction().equals("delete")) {
                   response = agentAPI.removeDescription(sourceTag.getSource(), forceToQueue);
                 } else {
@@ -105,7 +105,7 @@ public class PostSourceTagTimedTask implements Runnable {
                       .getDescription(), forceToQueue);
                 }
                 break;
-              case "SourceTag" :
+              case "SourceTag":
                 if (sourceTag.getAction().equals("delete")) {
                   // call the api, if we receive a 406 message then we add them to the queue
                   // TODO: right now it only deletes the first tag (because that server-side api
@@ -119,7 +119,7 @@ public class PostSourceTagTimedTask implements Runnable {
                   response = agentAPI.setTags(sourceTag.getSource(), sourceTag.getAnnotations(),
                       forceToQueue);
                 }
-              break;
+                break;
             }
             this.sourceTagsAttempted.inc();
             if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
@@ -134,7 +134,7 @@ public class PostSourceTagTimedTask implements Runnable {
         }
 
         if (sourceTags.size() > getQueuedPointLimit()) {
-          if (warningMessageRateLimiter.tryAcquire()){
+          if (warningMessageRateLimiter.tryAcquire()) {
             logger.warning("WF-3 Too many pending points (" + sourceTags.size() + "), block " +
                 "size: " + pointsPerBatch + ". flushing to retry queue");
           }
@@ -142,7 +142,7 @@ public class PostSourceTagTimedTask implements Runnable {
           drainBuffersToQueue();
         }
       }
-    }catch (Throwable t) {
+    } catch (Throwable t) {
       logger.log(Level.SEVERE, "Unexpected error in flush loop", t);
     }
   }
@@ -156,21 +156,21 @@ public class PostSourceTagTimedTask implements Runnable {
         if (dataCount > 0) {
           for (ReportSourceTag sourceTag : tags) {
             switch (sourceTag.getSourceTagLiteral()) {
-              case "SourceDescription" :
+              case "SourceDescription":
                 if (sourceTag.getAction().equals("delete")) {
                   agentAPI.removeDescription(sourceTag.getSource(), true);
                 } else {
                   agentAPI.setDescription(sourceTag.getSource(), sourceTag.getDescription(), true);
                 }
                 break;
-              case "SourceTag" :
+              case "SourceTag":
                 if (sourceTag.getAction().equals("delete")) {
                   // delete the source tag
                   agentAPI.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0),
                       true);
                 } else {
                   // add the source tag
-                  agentAPI.setTags(sourceTag.getSource(), sourceTag.getAnnotations(),true);
+                  agentAPI.setTags(sourceTag.getSource(), sourceTag.getAnnotations(), true);
                 }
                 break;
             }
@@ -186,10 +186,10 @@ public class PostSourceTagTimedTask implements Runnable {
   }
 
   public void addSourceTag(ReportSourceTag sourceTag) {
-      sourceTagsReceived.inc();
-      synchronized (sourceTagMutex) {
-        this.sourceTags.add(sourceTag);
-      }
+    sourceTagsReceived.inc();
+    synchronized (sourceTagMutex) {
+      this.sourceTags.add(sourceTag);
+    }
   }
 
   public long getNumDataToSend() {
@@ -205,7 +205,9 @@ public class PostSourceTagTimedTask implements Runnable {
     return pointsPerBatch * Runtime.getRuntime().availableProcessors() * 2;
   }
 
-  public long getAttemptedSourceTags() { return this.sourceTagsAttempted.count();}
+  public long getAttemptedSourceTags() {
+    return this.sourceTagsAttempted.count();
+  }
 
   private List<ReportSourceTag> createAgentPostBatch() {
     List<ReportSourceTag> current;
@@ -218,7 +220,7 @@ public class PostSourceTagTimedTask implements Runnable {
       numIntervals += 1;
       sourceTags = new ArrayList<>(sourceTags.subList(blockSize, sourceTags.size()));
     }
-    if (((numIntervals % INTERVALS_PER_SUMMARY) == 0 ) && !blockedSamples.isEmpty()) {
+    if (((numIntervals % INTERVALS_PER_SUMMARY) == 0) && !blockedSamples.isEmpty()) {
       synchronized (blockedSamplesMutex) {
         // Copy this to a temp structure that we can iterate over for printing below
         if ((!logLevel.equals(LOG_NONE))) {

@@ -19,7 +19,7 @@ import com.squareup.tape.FileException;
 import com.squareup.tape.FileObjectQueue;
 import com.squareup.tape.ObjectQueue;
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
-import com.wavefront.api.AgentAPI;
+import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ShellOutputDTO;
 import com.wavefront.common.Clock;
@@ -49,8 +49,6 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.io.Reader;
-import java.io.Writer;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.nio.channels.FileChannel;
 import java.util.Collections;
@@ -76,7 +74,7 @@ import javax.ws.rs.core.Response;
 import static com.google.common.collect.ImmutableList.of;
 
 /**
- * A wrapper for any AgentAPI that queues up any result posting if the backend is not available.
+ * A wrapper for any WavefrontAPI that queues up any result posting if the backend is not available.
  * Current data will always be submitted right away (thus prioritizing live data) while background
  * threads will submit backlogged data.
  *
@@ -87,7 +85,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private static final Logger logger = Logger.getLogger(QueuedAgentService.class.getCanonicalName());
 
   private final Gson resubmissionTaskMarshaller;
-  private final AgentAPI wrapped;
+  private final WavefrontAPI wrapped;
   private final List<ResubmissionTaskQueue> taskQueues;
   private static AtomicInteger splitBatchSize = new AtomicInteger(50000);
   private static AtomicDouble retryBackoffBaseSeconds = new AtomicDouble(2.0);
@@ -134,7 +132,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Deprecated
-  public QueuedAgentService(AgentAPI service, String bufferFile, final int retryThreads,
+  public QueuedAgentService(WavefrontAPI service, String bufferFile, final int retryThreads,
                             final ScheduledExecutorService executorService, boolean purge,
                             final UUID agentId, final boolean splitPushWhenRateLimited,
                             final String logLevel) throws IOException {
@@ -143,7 +141,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
 
-  public QueuedAgentService(AgentAPI service, String bufferFile, final int retryThreads,
+  public QueuedAgentService(WavefrontAPI service, String bufferFile, final int retryThreads,
                             final ScheduledExecutorService executorService, boolean purge,
                             final UUID agentId, final boolean splitPushWhenRateLimited,
                             final RecyclableRateLimiter pushRateLimiter)

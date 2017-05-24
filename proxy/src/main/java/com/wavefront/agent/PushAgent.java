@@ -280,7 +280,7 @@ public class PushAgent extends AbstractAgent {
     }
 
     // ------ Start the listener for source metadata, such as sourceTags and description ----------
-    if(metadataListenerPorts != null) {
+    if (metadataListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split
           (metadataListenerPorts);
       for (String port : ports) {
@@ -599,7 +599,7 @@ public class PushAgent extends AbstractAgent {
           // if the collector is in charge and it provided a setting, use it
           retryBackoffBaseSeconds.set(config.getRetryBackoffBaseSeconds());
           logger.fine("Agent backoff base set to (remotely) " +
-                config.getRetryBackoffBaseSeconds());
+              config.getRetryBackoffBaseSeconds());
         } // otherwise don't change the setting
       } else {
         // restores the agent setting

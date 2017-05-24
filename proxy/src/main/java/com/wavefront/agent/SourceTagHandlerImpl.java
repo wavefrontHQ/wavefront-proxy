@@ -33,15 +33,11 @@ public class SourceTagHandlerImpl extends SimpleChannelInboundHandler<String> im
   private static final SourceTagDecoder sourceTagDecoder = new SourceTagDecoder();
 
   public SourceTagHandlerImpl(PostSourceTagTimedTask[] tasks) {
-    sendDataTasks = tasks;
+    this.sendDataTasks = tasks;
   }
 
   /**
    * This method will read the input over the socket.
-   *
-   * @param ctx
-   * @param msg
-   * @throws Exception
    */
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
@@ -61,6 +57,8 @@ public class SourceTagHandlerImpl extends SimpleChannelInboundHandler<String> im
     try {
       sourceTagDecoder.decodeSourceTagLine(sourceTagLine, sourceTags);
     } catch (Exception ex) {
+      logger.warning("Could not decode the source tag input " + sourceTagLine + ". Encountered " +
+          "exception " + ex.getMessage());
       // TODO: Handle the exception
     }
     reportSourceTags(sourceTags);
@@ -68,8 +66,6 @@ public class SourceTagHandlerImpl extends SimpleChannelInboundHandler<String> im
 
   /**
    * This method will call the server-side APIs to set/remove the sourceTag/description.
-   *
-   * @param sourceTags
    */
   @Override
   public void reportSourceTags(List<ReportSourceTag> sourceTags) {
@@ -79,6 +75,7 @@ public class SourceTagHandlerImpl extends SimpleChannelInboundHandler<String> im
         throw new IllegalArgumentException(errorMessage);
       }
       // TODO: validate the sourceTag and call server API: Currently log it
+      // TODO: Delete the log lines before checking it in
       logger.info(String.format("Message Type = %s", reportSourceTag.getSourceTagLiteral()));
       logger.info(String.format("Description = %s", reportSourceTag.getDescription()));
       logger.info(String.format("Source = %s", reportSourceTag.getSource()));
@@ -115,7 +112,7 @@ public class SourceTagHandlerImpl extends SimpleChannelInboundHandler<String> im
     long min = Long.MAX_VALUE;
     PostSourceTagTimedTask randomTask = null;
     PostSourceTagTimedTask firstChoice = null;
-    for (int i=0; i < this.sendDataTasks.length; i++) {
+    for (int i = 0; i < this.sendDataTasks.length; i++) {
       long dataToSend = this.sendDataTasks[i].getNumDataToSend();
       if (dataToSend < min) {
         min = dataToSend;

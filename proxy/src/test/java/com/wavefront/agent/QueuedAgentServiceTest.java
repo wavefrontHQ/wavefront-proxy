@@ -4,9 +4,8 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.squareup.tape.TaskInjector;
-import com.squareup.tape.TaskQueue;
 import com.wavefront.agent.QueuedAgentService.PostPushDataResultTask;
-import com.wavefront.api.AgentAPI;
+import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.ShellOutputDTO;
 import com.wavefront.ingester.StringLineIngester;
 
@@ -43,13 +42,13 @@ import static org.junit.Assert.assertTrue;
 public class QueuedAgentServiceTest {
 
   private QueuedAgentService queuedAgentService;
-  private AgentAPI mockAgentAPI;
+  private WavefrontAPI mockAgentAPI;
   private UUID newAgentId;
   private AtomicInteger splitBatchSize = new AtomicInteger(50000);
 
   @Before
   public void testSetup() throws IOException {
-    mockAgentAPI = EasyMock.createMock(AgentAPI.class);
+    mockAgentAPI = EasyMock.createMock(WavefrontAPI.class);
     newAgentId = UUID.randomUUID();
 
     int retryThreads = 1;

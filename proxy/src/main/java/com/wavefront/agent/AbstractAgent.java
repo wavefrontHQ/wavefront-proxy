@@ -22,7 +22,7 @@ import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
-import com.wavefront.api.AgentAPI;
+import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
 import com.wavefront.common.Clock;
@@ -856,7 +856,7 @@ public abstract class AbstractAgent {
       }
 
       // 3. Setup proxies.
-      AgentAPI service = createAgentService();
+      WavefrontAPI service = createAgentService();
       try {
         setupQueueing(service);
       } catch (IOException e) {
@@ -940,7 +940,7 @@ public abstract class AbstractAgent {
   /**
    * Create RESTeasy proxies for remote calls via HTTP.
    */
-  protected AgentAPI createAgentService() {
+  protected WavefrontAPI createAgentService() {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
     if (!factory.getClasses().contains(ResteasyJackson2Provider.class)) {
@@ -1014,10 +1014,10 @@ public abstract class AbstractAgent {
           build();
     }
     ResteasyWebTarget target = client.target(server);
-    return target.proxy(AgentAPI.class);
+    return target.proxy(WavefrontAPI.class);
   }
 
-  private void setupQueueing(AgentAPI service) throws IOException {
+  private void setupQueueing(WavefrontAPI service) throws IOException {
     managedExecutors.add(queuedAgentExecutor);
     agentAPI = new QueuedAgentService(service, bufferFile, retryThreads, queuedAgentExecutor, purgeBuffer,
         agentId, splitPushWhenRateLimited, pushRateLimiter);
