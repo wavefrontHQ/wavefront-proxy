@@ -46,9 +46,10 @@ public class IngesterFormatter extends AbstractIngesterFormatter {
     point.setTable(customerId);
     // if the point has a timestamp, this would be overriden
     point.setTimestamp(Clock.now());
+    AbstractWrapper wrapper = new ReportPointWrapper(point);
     try {
       for (FormatterElement element : elements) {
-        element.consume(queue, new ReportPointWrapper(point));
+        element.consume(queue, wrapper);
       }
     } catch (Exception ex) {
       throw new RuntimeException("Could not parse: " + input, ex);
