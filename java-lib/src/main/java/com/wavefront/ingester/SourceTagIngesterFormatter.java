@@ -43,9 +43,10 @@ public class SourceTagIngesterFormatter extends AbstractIngesterFormatter {
     Queue<Token> queue = getQueue(input);
 
     ReportSourceTag sourceTag = new ReportSourceTag();
+    ReportSourceTagWrapper wrapper = new ReportSourceTagWrapper(sourceTag);
     try {
       for (FormatterElement element : elements) {
-        element.consume(queue, new ReportSourceTagWrapper(sourceTag));
+        element.consume(queue, wrapper);
       }
     } catch (Exception ex) {
       throw new RuntimeException("Could not parse: " + input, ex);

@@ -23,7 +23,7 @@ public class SourceTagDecoder {
       .whiteSpace()
       .appendCaseSensitiveLiterals(new String[]{SOURCE_TAG, SOURCE_DESCRIPTION})
       .whiteSpace()
-      .appendLoopOfTags()
+      .appendLoopOfKeywords()
       .whiteSpace()
       .appendLoopOfValues()
       .build();

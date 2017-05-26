@@ -130,11 +130,19 @@ public class AbstractIngesterFormatter {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
-    Map<String, String> getAnnotations() {
+    Map<String,String> getAnnotations() {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
     void setAnnotations(Map<String, String> annotations) {
+      throw new UnsupportedOperationException("Should not be invoked.");
+    }
+
+    void setAnnotations(List<String> annotations) {
+      throw new UnsupportedOperationException("Should not be invoked.");
+    }
+
+    void addToAnnotations(String value) {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
@@ -147,6 +155,18 @@ public class AbstractIngesterFormatter {
     }
 
     void setSourceTagLiteral(String literal) {
+      throw new UnsupportedOperationException("Should not be invoked.");
+    }
+
+    void setAction(String action) {
+      throw new UnsupportedOperationException("Should not be invoked.");
+    }
+
+    void setSource(String source) {
+      throw new UnsupportedOperationException("Should not be invoked.");
+    }
+
+    void setDescription(String description) {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
   }
@@ -197,7 +217,7 @@ public class AbstractIngesterFormatter {
     }
 
     @Override
-    Map<String, String> getAnnotations() {
+    Map<String,String> getAnnotations() {
       return reportPoint.getAnnotations();
     }
 
@@ -230,6 +250,33 @@ public class AbstractIngesterFormatter {
     @Override
     void setSourceTagLiteral(String literal) {
       reportSourceTag.setSourceTagLiteral(literal);
+    }
+
+    @Override
+    void setAnnotations(List<String> annotations) {
+      reportSourceTag.setAnnotations(annotations);
+    }
+
+    @Override
+    void setSource(String source) {
+      reportSourceTag.setSource(source);
+    }
+
+    @Override
+    void setAction(String action) {
+      reportSourceTag.setAction(action);
+    }
+
+    @Override
+    void setDescription(String description) {
+      reportSourceTag.setDescription(description);
+    }
+
+    @Override
+    void addToAnnotations(String value) {
+      if (reportSourceTag.getAnnotations() == null)
+        reportSourceTag.setAnnotations(Lists.<String>newArrayList());
+      reportSourceTag.getAnnotations().add(value);
     }
   }
 
@@ -317,8 +364,8 @@ public class AbstractIngesterFormatter {
       return this;
     }
 
-    public IngesterFormatBuilder appendLoopOfTags() {
-      elements.add(new LoopOfTags());
+    public IngesterFormatBuilder appendLoopOfKeywords() {
+      elements.add(new LoopOfKeywords());
       return this;
     }
 
@@ -537,6 +584,32 @@ public class AbstractIngesterFormatter {
     }
   }
 
+  public static class AlphaNumericValue implements FormatterElement {
+
+    @Override
+    public void consume(Queue<Token> tokenQueue, AbstractWrapper sourceTag) {
+      WHITESPACE_ELEMENT.consume(tokenQueue, sourceTag);
+      String value = "";
+      Token current = tokenQueue.poll();
+      if (current == null) throw new RuntimeException("Invalid value, found EOF");
+
+      if (current == null) throw new RuntimeException("Invalid value, found EOF");
+      if (current.getType() == DSWrapperLexer.Quoted) {
+        if (!value.equals("")) {
+          throw new RuntimeException("invalid metric value: " + value + current.getText());
+        }
+        value += IngesterFormatter.unquote(current.getText());
+      } else if (current.getType() == DSWrapperLexer.Letters ||
+          current.getType() == DSWrapperLexer.Literal ||
+          current.getType() == DSWrapperLexer.Number) {
+        value += current.getText();
+      } else {
+        throw new RuntimeException("invalid value: " + current.getText());
+      }
+      sourceTag.addToAnnotations(value);
+    }
+  }
+
   public static class Value implements FormatterElement {
 
     @Override
@@ -644,13 +717,50 @@ public class AbstractIngesterFormatter {
     }
   }
 
+  public static class Keyword implements FormatterElement {
+
+    @Override
+    public void consume(Queue<Token> queue, AbstractWrapper sourceTag) {
+      // extract tags.
+      String tagk;
+      tagk = getLiteral(queue);
+      if (tagk.length() == 0) {
+        throw new RuntimeException("Invalid tag name");
+      }
+      WHITESPACE_ELEMENT.consume(queue, sourceTag);
+      Token current = queue.poll();
+      if (current == null || current.getType() != DSWrapperLexer.EQ) {
+        throw new RuntimeException("Tag keys and values must be separated by '='" +
+            (current != null ? ", " + "found: " + current.getText() : ", found EOF"));
+      }
+      WHITESPACE_ELEMENT.consume(queue, sourceTag);
+      String tagv = getLiteral(queue);
+      if (tagv.length() == 0) throw new RuntimeException("Invalid tag value for: " + tagk);
+
+      switch (tagk) {
+        case SourceTagIngesterFormatter.ACTION:
+          sourceTag.setAction(tagv);
+          break;
+        case SourceTagIngesterFormatter.SOURCE:
+          sourceTag.setSource(tagv);
+          break;
+        case SourceTagIngesterFormatter.DESCRIPTION:
+          sourceTag.setDescription(tagv);
+          break;
+        default:
+          throw new RuntimeException("Unknown tag key = " + tagk + " specified.");
+      }
+    }
+  }
+
+
   /**
    * This class handles a sequence of key value pairs. Currently it works for source tag related
    * inputs only.
    */
-  public static class LoopOfTags implements FormatterElement {
+  public static class LoopOfKeywords implements FormatterElement {
 
-    private final FormatterElement tagElement = new Tag();
+    private final FormatterElement tagElement = new Keyword();
 
     @Override
     public void consume(Queue<Token> tokenQueue, AbstractWrapper sourceTag) {
@@ -684,7 +794,7 @@ public class AbstractIngesterFormatter {
    * This class handles a sequence of values.
    */
   public static class LoopOfValues implements FormatterElement {
-    private final FormatterElement valueElement = new Value();
+    private final FormatterElement valueElement = new AlphaNumericValue();
 
     @Override
     public void consume(Queue<Token> tokenQueue, AbstractWrapper sourceTag) {
