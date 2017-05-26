@@ -37,6 +37,15 @@ public class SourceTagIngesterFormatter extends AbstractIngesterFormatter {
     return new SourceTagIngesterFormatBuilder();
   }
 
+  /**
+   * This method can be used to parse the input line into a ReportSourceTag object.
+   *
+   * @param input
+   * @param defaultHostName
+   * @param customerId
+   * @param customerSourceTags
+   * @return
+   */
   public ReportSourceTag drive(String input, String defaultHostName, String customerId,
                                List<String> customerSourceTags) {
 

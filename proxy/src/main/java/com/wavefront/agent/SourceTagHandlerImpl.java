@@ -71,7 +71,7 @@ public class SourceTagHandlerImpl extends SimpleChannelInboundHandler<String> im
   public void reportSourceTags(List<ReportSourceTag> sourceTags) {
     for (ReportSourceTag reportSourceTag : sourceTags) {
       if (!annotationKeysAreValid(reportSourceTag)) {
-        String errorMessage = "WF-401 : SourceTag annotation key has illegal characters.";
+        String errorMessage = "WF-600 : SourceTag annotation key has illegal characters.";
         throw new IllegalArgumentException(errorMessage);
       }
       // TODO: validate the sourceTag and call server API: Currently log it
