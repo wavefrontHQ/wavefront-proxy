@@ -28,6 +28,11 @@ public class SourceTagIngesterFormatter extends AbstractIngesterFormatter {
     super(elements);
   }
 
+  /**
+   * Factory method to create an instance of the format builder.
+   *
+   * @return
+   */
   public static SourceTagIngesterFormatBuilder newBuilder() {
     return new SourceTagIngesterFormatBuilder();
   }
@@ -64,6 +69,9 @@ public class SourceTagIngesterFormatter extends AbstractIngesterFormatter {
     return sourceTag;
   }
 
+  /**
+   * A builder pattern to create a format for the source tag parser.
+   */
   public static class SourceTagIngesterFormatBuilder extends IngesterFormatBuilder {
 
     @Override

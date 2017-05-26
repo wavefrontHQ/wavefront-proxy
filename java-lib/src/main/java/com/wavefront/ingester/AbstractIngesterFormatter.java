@@ -95,6 +95,11 @@ public class AbstractIngesterFormatter {
     return queue;
   }
 
+  /**
+   * This class is a wrapper/proxy around ReportPoint and ReportSourceTag. It has a default
+   * implementation of all the methods of these two classes. The default implementation is to
+   * throw exception and the base classes will override them.
+   */
   protected abstract static class AbstractWrapper {
 
     Object getValue() {
@@ -146,6 +151,9 @@ public class AbstractIngesterFormatter {
     }
   }
 
+  /**
+   * This class provides a wrapper around ReportPoint.
+   */
   protected static class ReportPointWrapper extends AbstractWrapper {
     ReportPoint reportPoint;
 
@@ -204,6 +212,9 @@ public class AbstractIngesterFormatter {
     }
   }
 
+  /**
+   * This class provides a wrapper around ReportSourceTag
+   */
   protected static class ReportSourceTagWrapper extends AbstractWrapper {
     ReportSourceTag reportSourceTag;
 
@@ -229,6 +240,10 @@ public class AbstractIngesterFormatter {
     void consume(Queue<Token> tokenQueue, AbstractWrapper point);
   }
 
+  /**
+   * This class can be used to create a parser for a content that the proxy receives - e.g.,
+   * ReportPoint and ReportSourceTag.
+   */
   public abstract static class IngesterFormatBuilder {
     protected final List<FormatterElement> elements = Lists.newArrayList();
 
@@ -312,6 +327,10 @@ public class AbstractIngesterFormatter {
       return this;
     }
 
+    /**
+     * Subclasses will provide concrete implementation for this method.
+     * @return
+     */
     public abstract AbstractIngesterFormatter build();
   }
 
@@ -625,6 +644,10 @@ public class AbstractIngesterFormatter {
     }
   }
 
+  /**
+   * This class handles a sequence of key value pairs. Currently it works for source tag related
+   * inputs only.
+   */
   public static class LoopOfTags implements FormatterElement {
 
     private final FormatterElement tagElement = new Tag();
@@ -657,6 +680,9 @@ public class AbstractIngesterFormatter {
     }
   }
 
+  /**
+   * This class handles a sequence of values.
+   */
   public static class LoopOfValues implements FormatterElement {
     private final FormatterElement valueElement = new Value();
 

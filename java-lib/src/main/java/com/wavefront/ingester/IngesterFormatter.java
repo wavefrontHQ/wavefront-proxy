@@ -22,6 +22,9 @@ public class IngesterFormatter extends AbstractIngesterFormatter {
     super(elements);
   }
 
+  /**
+   * A builder pattern to create a format for the report point parse.
+   */
   public static class ReportPointIngesterFormatBuilder extends IngesterFormatBuilder {
 
     @Override

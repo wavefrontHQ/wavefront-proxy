@@ -10,6 +10,7 @@ import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -160,7 +161,8 @@ public class PostSourceTagTimedTask implements Runnable {
                 if (sourceTag.getAction().equals("delete")) {
                   agentAPI.removeDescription(sourceTag.getSource(), true);
                 } else {
-                  agentAPI.setDescription(sourceTag.getSource(), sourceTag.getDescription(), true);
+                  agentAPI.setDescription(sourceTag.getSource(), sourceTag
+                      .getDescription(), true);
                 }
                 break;
               case "SourceTag":

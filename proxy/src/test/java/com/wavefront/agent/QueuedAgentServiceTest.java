@@ -157,7 +157,8 @@ public class QueuedAgentServiceTest {
   public void postSourceDescriptionData() throws Exception {
     String id = "dummy";
     String desc = "A Description";
-    EasyMock.expect(mockAgentAPI.setDescription(id, desc)).andReturn(Response.ok().build()).once();
+    EasyMock.expect(mockAgentAPI.setDescription(id, desc)).andReturn(Response.ok()
+        .build()).once();
     EasyMock.replay(mockAgentAPI);
     Response response = queuedAgentService.setDescription(id, desc);
     EasyMock.verify(mockAgentAPI);
@@ -228,9 +229,11 @@ public class QueuedAgentServiceTest {
   public void postSourceDescriptionAndHandle406Response() throws Exception {
     String id = "dummy";
     String description = "A Description";
-    EasyMock.expect(mockAgentAPI.setDescription(id, description)).andReturn(Response.status
+    EasyMock.expect(mockAgentAPI.setDescription(id, description)).andReturn(Response
+        .status
         (Response.Status.NOT_ACCEPTABLE).build()).once();
-    EasyMock.expect(mockAgentAPI.setDescription(id, description)).andReturn(Response.status
+    EasyMock.expect(mockAgentAPI.setDescription(id, description)).andReturn(Response
+        .status
         (Response.Status.OK).build()).once();
     EasyMock.replay(mockAgentAPI);
     Response response = queuedAgentService.setDescription(id, description);
