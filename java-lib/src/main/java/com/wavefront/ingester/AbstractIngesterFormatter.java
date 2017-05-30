@@ -38,7 +38,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
  *
  * @author Suranjan Pramanik (suranjan@wavefront.com)
  */
-public class AbstractIngesterFormatter {
+public abstract class AbstractIngesterFormatter<T> {
   private static final Logger logger = LoggerFactory.getLogger(AbstractIngesterFormatter.class
       .getCanonicalName());
 
@@ -917,4 +917,7 @@ public class AbstractIngesterFormatter {
     }
     return text;
   }
+
+  public abstract T drive(String input, String defaultHostName, String customerId,
+                               List<String> customerSourceTags);
 }

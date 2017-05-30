@@ -13,7 +13,8 @@ import sunnylabs.report.ReportSourceTag;
  *
  * @author Suranjan Pramanik (suranjan@wavefront.com).
  */
-public class SourceTagIngesterFormatter extends AbstractIngesterFormatter {
+public class SourceTagIngesterFormatter<T extends ReportSourceTag> extends
+    AbstractIngesterFormatter<T> {
 
   private static final Logger logger = Logger.getLogger(SourceTagIngesterFormatter.class
       .getCanonicalName());
@@ -46,7 +47,8 @@ public class SourceTagIngesterFormatter extends AbstractIngesterFormatter {
    * @param customerSourceTags
    * @return
    */
-  public ReportSourceTag drive(String input, String defaultHostName, String customerId,
+  @Override
+  public T drive(String input, String defaultHostName, String customerId,
                                List<String> customerSourceTags) {
 
     Queue<Token> queue = getQueue(input);
@@ -76,7 +78,7 @@ public class SourceTagIngesterFormatter extends AbstractIngesterFormatter {
       // no value was specified hence throw an exception
       throw new RuntimeException("No action key was present in the input: " + input);
     }
-    return sourceTag;
+    return (T) sourceTag;
   }
 
   /**

@@ -16,7 +16,7 @@ import sunnylabs.report.ReportPoint;
  *
  * @author Clement Pang (clement@wavefront.com).
  */
-public class IngesterFormatter extends AbstractIngesterFormatter {
+public class IngesterFormatter<T extends ReportPoint> extends AbstractIngesterFormatter<T> {
 
   private IngesterFormatter(List<FormatterElement> elements) {
     super(elements);
@@ -37,7 +37,8 @@ public class IngesterFormatter extends AbstractIngesterFormatter {
     return new ReportPointIngesterFormatBuilder();
   }
 
-  public ReportPoint drive(String input, String defaultHostName, String customerId,
+  @Override
+  public T drive(String input, String defaultHostName, String customerId,
                            List<String> customSourceTags) {
 
     Queue<Token> queue = getQueue(input);
@@ -86,6 +87,6 @@ public class IngesterFormatter extends AbstractIngesterFormatter {
       host = defaultHostName;
     }
     point.setHost(host);
-    return point;
+    return (T) point;
   }
 }
