@@ -27,9 +27,6 @@ import sunnylabs.report.ReportSourceTag;
  */
 public class SourceTagHandlerTest {
 
-  private static final Logger logger = Logger.getLogger(SourceTagHandlerTest.class
-      .getCanonicalName());
-
   private static SourceTagHandlerImpl sourceTagHandler;
   private static QueuedAgentService queuedAgentService;
   private static ForceQueueEnabledAgentAPI mockAgentAPI;
@@ -64,8 +61,6 @@ public class SourceTagHandlerTest {
   private static PostSourceTagTimedTask[] getSourceTagFlushTasks(int port) {
     int flushThreads = 2;
     PostSourceTagTimedTask[] toReturn = new PostSourceTagTimedTask[flushThreads];
-    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for " +
-        "data received on port: " + port);
     ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
     for (int i = 0; i < flushThreads; i++) {
       final PostSourceTagTimedTask postSourceTagTimedTask = new PostSourceTagTimedTask(mockAgentAPI,

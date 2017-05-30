@@ -441,11 +441,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           @Override
           public ResubmissionTask from(byte[] bytes) throws IOException {
             try {
-              if (bytes.length > 2 && bytes[0] == (byte) 0x1f && bytes[1] == (byte) 0x8b) {
-                // gzip signature detected (backwards compatibility mode)
-                Reader reader = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)));
-                return resubmissionTaskMarshaller.fromJson(reader, ResubmissionTask.class);
-              }
               ObjectInputStream ois = new ObjectInputStream(new LZ4BlockInputStream(new ByteArrayInputStream(bytes)));
               return (ResubmissionTask) ois.readObject();
             } catch (Throwable t) {
