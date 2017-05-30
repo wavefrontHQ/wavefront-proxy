@@ -32,7 +32,7 @@ public class SourceTagIngesterFormatter<T extends ReportSourceTag> extends
   /**
    * Factory method to create an instance of the format builder.
    *
-   * @return
+   * @return The builder, which can be used to create the parser.
    */
   public static SourceTagIngesterFormatBuilder newBuilder() {
     return new SourceTagIngesterFormatBuilder();
@@ -45,7 +45,7 @@ public class SourceTagIngesterFormatter<T extends ReportSourceTag> extends
    * @param defaultHostName
    * @param customerId
    * @param customerSourceTags
-   * @return
+   * @return The parsed ReportSourceTag object.
    */
   @Override
   public T drive(String input, String defaultHostName, String customerId,
