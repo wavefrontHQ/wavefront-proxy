@@ -2,10 +2,7 @@ package com.wavefront.integrations;
 
 import com.wavefront.metrics.ReconnectingSocket;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -118,6 +115,12 @@ public class Wavefront implements WavefrontSender {
   @Override
   public void send(String name, double value, @Nullable Long timestamp, String source) throws IOException {
     internalSend(name, value, timestamp, source, null);
+  }
+
+  @Override
+  public void send(String name, double value, String source, @Nullable Map<String, String> pointTags)
+      throws IOException {
+    internalSend(name, value, null, source, pointTags);
   }
 
   @Override
