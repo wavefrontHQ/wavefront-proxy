@@ -463,7 +463,7 @@ public class PushAgent extends AbstractAgent {
         TimeUnit.SECONDS);
 
     AccumulationCache cachedAccumulator = new AccumulationCache(accumulator,
-        (memoryCacheEnabled ? accumulatorSize : 0),null);
+        (memoryCacheEnabled ? accumulatorSize : 0), null);
 
     // Schedule write-backs
     histogramExecutor.scheduleWithFixedDelay(

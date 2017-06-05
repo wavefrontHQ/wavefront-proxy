@@ -25,7 +25,6 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
 
 import sunnylabs.report.Histogram;
 
@@ -43,8 +42,22 @@ public class AccumulationCache {
       new MetricName("histogram.accumulator", "", "bin_created"));
   private final Cache<HistogramKey, AgentDigest> cache;
   private final ConcurrentMap<HistogramKey, AgentDigest> backingStore;
+
+  /**
+   * In-memory index for dispatch timestamps to avoid iterating the backing store map, which is an expensive
+   * operation, as it requires value objects to be de-serialized first
+   */
   private final ConcurrentMap<HistogramKey, Long> keyIndex;
 
+  /**
+   * Constructs a new AccumulationCache instance around {@code backingStore} and builds an in-memory index maintaining
+   * dispatch times in milliseconds for all HistogramKeys in backingStore
+   * Setting cacheSize to 0 disables in-memory caching so the cache only maintains the dispatch time index.
+   *
+   * @param backingStore a {@code ConcurrentMap} storing AgentDigests
+   * @param cacheSize maximum size of the cache
+   * @param ticker a nanosecond-precision time source (to
+   */
   public AccumulationCache(
       final ConcurrentMap<HistogramKey, AgentDigest> backingStore,
       final long cacheSize,
@@ -60,7 +73,7 @@ public class AccumulationCache {
     }
     this.cache = Caffeine.newBuilder()
         .maximumSize(cacheSize)
-        .ticker((ticker == null ? Ticker.systemTicker() : ticker))
+        .ticker(ticker == null ? Ticker.systemTicker() : ticker)
         .writer(new CacheWriter<HistogramKey, AgentDigest>() {
           @Override
           public void write(@Nonnull HistogramKey key, @Nonnull AgentDigest value) {
@@ -96,7 +109,13 @@ public class AccumulationCache {
     return cache;
   }
 
-  public void put(HistogramKey key, @NotNull AgentDigest value) {
+  /**
+   * Update {@code AgentDigest} in the cache with another {@code AgentDigest}.
+   *
+   * @param key histogram key
+   * @param value {@code AgentDigest} to be merged
+   */
+  public void put(HistogramKey key, @Nonnull AgentDigest value) {
     cache.asMap().compute(key, (k, v) -> {
       if (v == null) {
         keyIndex.put(key, value.getDispatchTimeMillis());
@@ -110,7 +129,16 @@ public class AccumulationCache {
     });
   }
 
-  public void put(HistogramKey key, Double value, short compression, long ttlMillis) {
+  /**
+   * Update {@code AgentDigest} in the cache with a double value. If such {@code AgentDigest} does not exist for
+   * the specified key, it will be created with the specified compression and ttlMillis settings.
+   *
+   * @param key histogram key
+   * @param value value to be merged into the {@code AgentDigest}
+   * @param compression default compression level for new bins
+   * @param ttlMillis default time-to-dispatch for new bins
+   */
+  public void put(HistogramKey key, double value, short compression, long ttlMillis) {
     cache.asMap().compute(key, (k, v) -> {
       if (v == null) {
         binCreatedCounter.inc();
@@ -130,6 +158,15 @@ public class AccumulationCache {
     });
   }
 
+  /**
+   * Update {@code AgentDigest} in the cache with a {@code Histogram} value. If such {@code AgentDigest} does not exist
+   * for the specified key, it will be created with the specified compression and ttlMillis settings.
+   *
+   * @param key histogram key
+   * @param value a {@code Histogram} to be merged into the {@code AgentDigest}
+   * @param compression default compression level for new bins
+   * @param ttlMillis default time-to-dispatch in milliseconds for new bins
+   */
   public void put(HistogramKey key, Histogram value, short compression, long ttlMillis) {
     cache.asMap().compute(key, (k, v) -> {
       if (v == null) {
@@ -148,6 +185,12 @@ public class AccumulationCache {
     });
   }
 
+  /**
+   * Returns an iterator over "ripe" digests ready to be shipped
+
+   * @param clock a millisecond-precision epoch time source
+   * @return an iterator over "ripe" digests ready to be shipped
+   */
   public Iterator<HistogramKey> getRipeDigestsIterator(TimeProvider clock) {
     return new Iterator<HistogramKey>() {
       private final Iterator<Map.Entry<HistogramKey, Long>> indexIterator = keyIndex.entrySet().iterator();
@@ -177,11 +220,24 @@ public class AccumulationCache {
     };
   }
 
+  /**
+   * Attempts to compute a mapping for the specified key and its current mapped value
+   * (or null if there is no current mapping).
+   *
+   * @param key               key with which the specified value is to be associated
+   * @param remappingFunction the function to compute a value
+   * @return                  the new value associated with the specified key, or null if none
+   */
   public AgentDigest compute(HistogramKey key, BiFunction<? super HistogramKey,? super AgentDigest,
       ? extends AgentDigest> remappingFunction) {
     return backingStore.compute(key, remappingFunction);
   }
 
+  /**
+   * Returns the number of items in the storage behind the cache
+   *
+   * @return number of items
+   */
   public long size() {
     return backingStore.size();
   }
