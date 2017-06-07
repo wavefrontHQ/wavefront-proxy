@@ -1,5 +1,6 @@
 package com.wavefront.agent.histogram.accumulator;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import com.squareup.tape.InMemoryObjectQueue;
@@ -19,7 +20,6 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import jersey.repackaged.com.google.common.collect.ImmutableList;
 import sunnylabs.report.ReportPoint;
 
 import static com.google.common.truth.Truth.assertThat;

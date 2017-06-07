@@ -1,5 +1,6 @@
 package com.wavefront.agent;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import org.apache.commons.lang.ArrayUtils;
@@ -12,7 +13,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
-import jersey.repackaged.com.google.common.collect.ImmutableList;
 import sunnylabs.report.Histogram;
 import sunnylabs.report.HistogramType;
 import sunnylabs.report.ReportPoint;
