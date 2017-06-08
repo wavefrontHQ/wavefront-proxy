@@ -122,7 +122,7 @@ public final class Utils {
    * @param agentDigest  the digest defining the centroids
    * @return the corresponding point
    */
-  static ReportPoint pointFromKeyAndDigest(HistogramKey histogramKey, AgentDigest agentDigest) {
+  public static ReportPoint pointFromKeyAndDigest(HistogramKey histogramKey, AgentDigest agentDigest) {
     return ReportPoint.newBuilder()
         .setTimestamp(histogramKey.getBinTimeMillis())
         .setMetric(histogramKey.getMetric())
@@ -210,7 +210,8 @@ public final class Utils {
 
     @Override
     public int hashCode() {
-      int result = (int) granularityOrdinal;
+      int result = 1;
+      result = 31 * result + (int) granularityOrdinal;
       result = 31 * result + binId;
       result = 31 * result + metric.hashCode();
       result = 31 * result + (source != null ? source.hashCode() : 0);

@@ -210,17 +210,7 @@ public class PostPushDataTimedTask implements Runnable {
           timerContext.stop();
           if (response != null) response.close();
         }
-
-        if (points.size() > memoryBufferLimit.get()) {
-          // there are going to be too many points to be able to flush w/o the agent blowing up
-          // drain the leftovers straight to the retry queue (i.e. to disk)
-          // don't let anyone add any more to points while we're draining it.
-          logger.warning("[FLUSH THREAD " + threadId + "]: WF-3 Too many pending points (" + points.size() +
-              "), block size: " + pointsPerBatch + ". flushing to retry queue");
-          drainBuffersToQueue();
-          logger.info("[FLUSH THREAD " + threadId + "]: flushing to retry queue complete. " +
-              "Pending points: " + points.size());
-        }
+        enforceBufferLimits();
       } else {
         this.permitsDenied.inc(current.size());
         // if proxy rate limit exceeded, try again in 250..500ms (to introduce some degree of fairness)
@@ -249,6 +239,19 @@ public class PostPushDataTimedTask implements Runnable {
       scheduler.awaitTermination(1000L, TimeUnit.MILLISECONDS);
     } catch (Throwable t) {
       logger.log(Level.SEVERE, "Error during shutdown", t);
+    }
+  }
+
+  public void enforceBufferLimits() {
+    if (points.size() > memoryBufferLimit.get()) {
+      // there are going to be too many points to be able to flush w/o the agent blowing up
+      // drain the leftovers straight to the retry queue (i.e. to disk)
+      // don't let anyone add any more to points while we're draining it.
+      logger.warning("[FLUSH THREAD " + threadId + "]: WF-3 Too many pending points (" + points.size() +
+          "), block size: " + pointsPerBatch + ". flushing to retry queue");
+      drainBuffersToQueue();
+      logger.info("[FLUSH THREAD " + threadId + "]: flushing to retry queue complete. " +
+          "Pending points: " + points.size());
     }
   }
 
