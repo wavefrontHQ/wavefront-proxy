@@ -1,7 +1,5 @@
 package com.wavefront.agent;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import com.wavefront.common.Clock;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
@@ -88,6 +86,7 @@ public class PointHandlerImpl implements PointHandler {
         validPointsLogger.info(strPoint);
       }
       randomPostTask.addPoint(strPoint);
+      randomPostTask.enforceBufferLimits();
       receivedPointLag.update(Clock.now() - point.getTimestamp());
 
     } catch (IllegalArgumentException e) {

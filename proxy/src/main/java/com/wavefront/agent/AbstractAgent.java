@@ -203,8 +203,29 @@ public abstract class AbstractAgent {
 
   @Parameter(
       names = {"--histogramAccumulatorResolveInterval"},
-      description = "Interval to write-back accumulation changes to disk in millis.")
+      description = "Interval to write-back accumulation changes from memory cache to disk in millis (only " +
+          "applicable when memory cache is enabled")
   protected Long histogramAccumulatorResolveInterval = 100L;
+
+  @Parameter(
+      names = {"--histogramAccumulatorFlushInterval"},
+      description = "Interval to check for histograms to send to Wavefront in millis (Default: 1000)")
+  protected Long histogramAccumulatorFlushInterval = 1000L;
+
+  @Parameter(
+      names = {"--histogramAccumulatorFlushMaxBatchSize"},
+      description = "Max number of histograms to send to Wavefront in one flush (Default: no limit)")
+  protected Integer histogramAccumulatorFlushMaxBatchSize = -1;
+
+  @Parameter(
+      names = {"--histogramReceiveBufferFlushInterval"},
+      description = "Interval to send received points to the processing queue in millis (Default: 100)")
+  protected Integer histogramReceiveBufferFlushInterval = 100;
+
+  @Parameter(
+      names = {"--histogramProcessingQueueScanInterval"},
+      description = "Processing queue scan interval in millis (Default: 20)")
+  protected Integer histogramProcessingQueueScanInterval = 20;
 
   @Parameter(
       names = {"--histogramMinuteListenerPorts"},
@@ -222,6 +243,33 @@ public abstract class AbstractAgent {
   protected Integer histogramMinuteFlushSecs = 70;
 
   @Parameter(
+      names = {"--histogramMinuteCompression"},
+      description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
+  protected Short histogramMinuteCompression = 100;
+
+  @Parameter(
+      names = {"--histogramMinuteAvgKeyBytes"},
+      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
+          "source and tags concatenation.")
+  protected Integer histogramMinuteAvgKeyBytes = 150;
+
+  @Parameter(
+      names = {"--histogramMinuteAvgDigestBytes"},
+      description = "Average number of bytes in a encoded histogram.")
+  protected Integer histogramMinuteAvgDigestBytes = 500;
+
+  @Parameter(
+      names = {"--histogramMinuteAccumulatorSize"},
+      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins")
+  protected Long histogramMinuteAccumulatorSize = 100000L;
+
+  @Parameter(
+      names = {"--histogramMinuteMemoryCache"},
+      description = "Enabling memory cache reduces I/O load with fewer time series and higher frequency data " +
+          "(more than 1 point per second per time series). Default: false")
+  protected boolean histogramMinuteMemoryCache = false;
+
+  @Parameter(
       names = {"--histogramHourListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
   protected String histogramHourListenerPorts = "";
@@ -235,6 +283,33 @@ public abstract class AbstractAgent {
       names = {"--histogramHourFlushSecs"},
       description = "Number of seconds to keep an hour granularity accumulator open for new samples.")
   protected Integer histogramHourFlushSecs = 4200;
+
+  @Parameter(
+      names = {"--histogramHourCompression"},
+      description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
+  protected Short histogramHourCompression = 100;
+
+  @Parameter(
+      names = {"--histogramHourAvgKeyBytes"},
+      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
+          "source and tags concatenation.")
+  protected Integer histogramHourAvgKeyBytes = 150;
+
+  @Parameter(
+      names = {"--histogramHourAvgDigestBytes"},
+      description = "Average number of bytes in a encoded histogram.")
+  protected Integer histogramHourAvgDigestBytes = 500;
+
+  @Parameter(
+      names = {"--histogramHourAccumulatorSize"},
+      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins")
+  protected Long histogramHourAccumulatorSize = 100000L;
+
+  @Parameter(
+      names = {"--histogramHourMemoryCache"},
+      description = "Enabling memory cache reduces I/O load with fewer time series and higher frequency data " +
+          "(more than 1 point per second per time series). Default: false")
+  protected boolean histogramHourMemoryCache = false;
 
   @Parameter(
       names = {"--histogramDayListenerPorts"},
@@ -252,6 +327,33 @@ public abstract class AbstractAgent {
   protected Integer histogramDayFlushSecs = 18000;
 
   @Parameter(
+      names = {"--histogramDayCompression"},
+      description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
+  protected Short histogramDayCompression = 100;
+
+  @Parameter(
+      names = {"--histogramDayAvgKeyBytes"},
+      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
+          "source and tags concatenation.")
+  protected Integer histogramDayAvgKeyBytes = 150;
+
+  @Parameter(
+      names = {"--histogramDayAvgHistogramDigestBytes"},
+      description = "Average number of bytes in a encoded histogram.")
+  protected Integer histogramDayAvgDigestBytes = 500;
+
+  @Parameter(
+      names = {"--histogramDayAccumulatorSize"},
+      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins")
+  protected Long histogramDayAccumulatorSize = 100000L;
+
+  @Parameter(
+      names = {"--histogramDayMemoryCache"},
+      description = "Enabling memory cache reduces I/O load with fewer time series and higher frequency data " +
+          "(more than 1 point per second per time series). Default: false")
+  protected boolean histogramDayMemoryCache = false;
+
+  @Parameter(
       names = {"--histogramDistListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
   protected String histogramDistListenerPorts = "";
@@ -267,20 +369,49 @@ public abstract class AbstractAgent {
   protected Integer histogramDistFlushSecs = 70;
 
   @Parameter(
-      names = {"--histogramAccumulatorSize"},
+      names = {"--histogramDistCompression"},
+      description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
+  protected Short histogramDistCompression = 100;
+
+  @Parameter(
+      names = {"--histogramDistAvgKeyBytes"},
+      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
+          "source and tags concatenation.")
+  protected Integer histogramDistAvgKeyBytes = 150;
+
+  @Parameter(
+      names = {"--histogramDistAvgDigestBytes"},
+      description = "Average number of bytes in a encoded histogram.")
+  protected Integer histogramDistAvgDigestBytes = 500;
+
+  @Parameter(
+      names = {"--histogramDistAccumulatorSize"},
       description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins")
-  protected Long histogramAccumulatorSize = 100000L;
+  protected Long histogramDistAccumulatorSize = 100000L;
+
+  @Parameter(
+      names = {"--histogramDistMemoryCache"},
+      description = "Enabling memory cache reduces I/O load with fewer time series and higher frequency data " +
+          "(more than 1 point per second per time series). Default: false")
+  protected boolean histogramDistMemoryCache = false;
+
+  @Parameter(
+      names = {"--histogramAccumulatorSize"},
+      description = "(DEPRECATED FOR histogramMinuteAccumulatorSize/histogramHourAccumulatorSize/" +
+          "histogramDayAccumulatorSize/histogramDistAccumulatorSize)")
+  protected Long histogramAccumulatorSize = null;
 
   @Parameter(
       names = {"--avgHistogramKeyBytes"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
-          "source and tags concatenation.")
-  protected Integer avgHistogramKeyBytes = 150;
+      description = "(DEPRECATED FOR histogramMinuteAvgKeyBytes/histogramHourAvgKeyBytes/" +
+          "histogramDayAvgHistogramKeyBytes/histogramDistAvgKeyBytes)")
+  protected Integer avgHistogramKeyBytes = null;
 
   @Parameter(
       names = {"--avgHistogramDigestBytes"},
-      description = "Average number of bytes in a encoded histogram.")
-  protected Integer avgHistogramDigestBytes = 500;
+      description = "(DEPRECATED FOR histogramMinuteAvgDigestBytes/histogramHourAvgDigestBytes/" +
+          "histogramDayAvgHistogramDigestBytes/histogramDistAvgDigestBytes)")
+  protected Integer avgHistogramDigestBytes = null;
 
   @Parameter(
       names = {"--persistMessages"},
@@ -298,8 +429,9 @@ public abstract class AbstractAgent {
 
   @Parameter(
       names = {"--histogramCompression"},
-      description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  protected Short histogramCompression = 100;
+      description = "(DEPRECATED FOR histogramMinuteCompression/histogramHourCompression/" +
+          "histogramDayCompression/histogramDistCompression)")
+  protected Short histogramCompression = null;
 
   @Parameter(names = {"--graphitePorts"}, description = "Comma-separated list of ports to listen on for graphite " +
       "data. Defaults to empty list.")
@@ -626,34 +758,101 @@ public abstract class AbstractAgent {
         pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
         metadataListenerPorts = config.getString("metadataListenerPorts", metadataListenerPorts);
         memGuardFlushThreshold = config.getNumber("memGuardFlushThreshold", memGuardFlushThreshold).intValue();
+
+        // Histogram: global settings
         histogramStateDirectory = config.getString("histogramStateDirectory", histogramStateDirectory);
         histogramAccumulatorResolveInterval = config.getNumber("histogramAccumulatorResolveInterval",
             histogramAccumulatorResolveInterval).longValue();
-        histogramMinuteListenerPorts = config.getString("histogramMinuteListenerPorts", histogramMinuteListenerPorts);
-        histogramMinuteAccumulators = config.getNumber("histogramMinuteAccumulators", histogramMinuteAccumulators).
-            intValue();
-        histogramMinuteFlushSecs = config.getNumber("histogramMinuteFlushSecs", histogramMinuteFlushSecs).intValue();
-        histogramHourListenerPorts = config.getString("histogramHourListenerPorts", histogramHourListenerPorts);
-        histogramHourAccumulators = config.getNumber("histogramHourAccumulators", histogramHourAccumulators).intValue();
-        histogramHourFlushSecs = config.getNumber("histogramHourFlushSecs", histogramHourFlushSecs).intValue();
-        histogramDayListenerPorts = config.getString("histogramDayListenerPorts", histogramDayListenerPorts);
-        histogramDayAccumulators = config.getNumber("histogramDayAccumulators", histogramDayAccumulators).intValue();
-        histogramDayFlushSecs = config.getNumber("histogramDayFlushSecs", histogramDayFlushSecs).intValue();
-        histogramDistListenerPorts = config.getString("histogramDistListenerPorts", histogramDistListenerPorts);
-        histogramDistAccumulators = config.getNumber("histogramDistAccumulators", histogramDistAccumulators).intValue();
-        histogramDistFlushSecs = config.getNumber("histogramDistFlushSecs", histogramDistFlushSecs).intValue();
-        histogramAccumulatorSize = config.getNumber("histogramAccumulatorSize", histogramAccumulatorSize).longValue();
-        histogramCompression = config.getNumber("histogramCompression", histogramCompression).shortValue();
-        avgHistogramKeyBytes = config.getNumber("avgHistogramKeyBytes", avgHistogramKeyBytes).intValue();
-
-        // these defaults should work well in most cases
-        avgHistogramDigestBytes = 32 + Math.round(histogramCompression * 10.5f);
-
-        avgHistogramDigestBytes = config.getNumber("avgHistogramDigestBytes", avgHistogramDigestBytes).intValue();
+        histogramAccumulatorFlushInterval = config.getNumber("histogramAccumulatorFlushInterval",
+            histogramAccumulatorFlushInterval).longValue();
+        histogramAccumulatorFlushMaxBatchSize = config.getNumber("histogramAccumulatorFlushMaxBatchSize",
+            histogramAccumulatorFlushMaxBatchSize).intValue();
+        histogramReceiveBufferFlushInterval = config.getNumber("histogramReceiveBufferFlushInterval",
+            histogramReceiveBufferFlushInterval).intValue();
+        histogramProcessingQueueScanInterval = config.getNumber("histogramProcessingQueueScanInterval",
+            histogramProcessingQueueScanInterval).intValue();
         persistAccumulator = config.getBoolean("persistAccumulator", persistAccumulator);
         persistMessages = config.getBoolean("persistMessages", persistMessages);
         persistMessagesCompression = config.getBoolean("persistMessagesCompression",
             persistMessagesCompression);
+
+        // Histogram: deprecated settings - fall back for backwards compatibility
+        if (config.isDefined("avgHistogramKeyBytes")) {
+          histogramMinuteAvgKeyBytes = histogramHourAvgKeyBytes = histogramDayAvgKeyBytes =
+              histogramDistAvgKeyBytes = config.getNumber("avgHistogramKeyBytes", avgHistogramKeyBytes).intValue();
+        }
+        if (config.isDefined("avgHistogramDigestBytes")) {
+          histogramMinuteAvgDigestBytes = histogramHourAvgDigestBytes = histogramDayAvgDigestBytes =
+              histogramDistAvgDigestBytes = config.getNumber("avgHistogramDigestBytes", avgHistogramDigestBytes).
+                  intValue();
+        }
+        if (config.isDefined("histogramAccumulatorSize")) {
+          histogramMinuteAccumulatorSize = histogramHourAccumulatorSize = histogramDayAccumulatorSize =
+              histogramDistAccumulatorSize = config.getNumber("histogramAccumulatorSize",
+                  histogramAccumulatorSize).longValue();
+        }
+        if (config.isDefined("histogramCompression")) {
+          histogramMinuteCompression = histogramHourCompression = histogramDayCompression =
+              histogramDistCompression = config.getNumber("histogramCompression", null, 20, 1000).shortValue();
+        }
+
+        // Histogram: minute accumulator settings
+        histogramMinuteListenerPorts = config.getString("histogramMinuteListenerPorts", histogramMinuteListenerPorts);
+        histogramMinuteAccumulators = config.getNumber("histogramMinuteAccumulators", histogramMinuteAccumulators).
+            intValue();
+        histogramMinuteFlushSecs = config.getNumber("histogramMinuteFlushSecs", histogramMinuteFlushSecs).intValue();
+        histogramMinuteCompression = config.getNumber("histogramMinuteCompression",
+            histogramMinuteCompression, 20, 1000).shortValue();
+        histogramMinuteAvgKeyBytes = config.getNumber("histogramMinuteAvgKeyBytes", histogramMinuteAvgKeyBytes).
+            intValue();
+        histogramMinuteAvgDigestBytes = 32 + histogramMinuteCompression * 7;
+        histogramMinuteAvgDigestBytes = config.getNumber("histogramMinuteAvgDigestBytes",
+            histogramMinuteAvgDigestBytes).intValue();
+        histogramMinuteAccumulatorSize = config.getNumber("histogramMinuteAccumulatorSize",
+            histogramMinuteAccumulatorSize).longValue();
+        histogramMinuteMemoryCache = config.getBoolean("histogramMinuteMemoryCache", histogramMinuteMemoryCache);
+
+        // Histogram: hour accumulator settings
+        histogramHourListenerPorts = config.getString("histogramHourListenerPorts", histogramHourListenerPorts);
+        histogramHourAccumulators = config.getNumber("histogramHourAccumulators", histogramHourAccumulators).intValue();
+        histogramHourFlushSecs = config.getNumber("histogramHourFlushSecs", histogramHourFlushSecs).intValue();
+        histogramHourCompression = config.getNumber("histogramHourCompression",
+            histogramHourCompression, 20, 1000).shortValue();
+        histogramHourAvgKeyBytes = config.getNumber("histogramHourAvgKeyBytes", histogramHourAvgKeyBytes).intValue();
+        histogramHourAvgDigestBytes = 32 + histogramHourCompression * 7;
+        histogramHourAvgDigestBytes = config.getNumber("histogramHourAvgDigestBytes", histogramHourAvgDigestBytes).
+            intValue();
+        histogramHourAccumulatorSize = config.getNumber("histogramHourAccumulatorSize", histogramHourAccumulatorSize).
+            longValue();
+        histogramHourMemoryCache = config.getBoolean("histogramHourMemoryCache", histogramHourMemoryCache);
+
+        // Histogram: day accumulator settings
+        histogramDayListenerPorts = config.getString("histogramDayListenerPorts", histogramDayListenerPorts);
+        histogramDayAccumulators = config.getNumber("histogramDayAccumulators", histogramDayAccumulators).intValue();
+        histogramDayFlushSecs = config.getNumber("histogramDayFlushSecs", histogramDayFlushSecs).intValue();
+        histogramDayCompression = config.getNumber("histogramDayCompression",
+            histogramDayCompression, 20, 1000).shortValue();
+        histogramDayAvgKeyBytes = config.getNumber("histogramDayAvgKeyBytes", histogramDayAvgKeyBytes).intValue();
+        histogramDayAvgDigestBytes = 32 + histogramDayCompression * 7;
+        histogramDayAvgDigestBytes = config.getNumber("histogramDayAvgDigestBytes", histogramDayAvgDigestBytes).
+            intValue();
+        histogramDayAccumulatorSize = config.getNumber("histogramDayAccumulatorSize", histogramDayAccumulatorSize).
+            longValue();
+        histogramDayMemoryCache = config.getBoolean("histogramDayMemoryCache", histogramDayMemoryCache);
+
+        // Histogram: dist accumulator settings
+        histogramDistListenerPorts = config.getString("histogramDistListenerPorts", histogramDistListenerPorts);
+        histogramDistAccumulators = config.getNumber("histogramDistAccumulators", histogramDistAccumulators).intValue();
+        histogramDistFlushSecs = config.getNumber("histogramDistFlushSecs", histogramDistFlushSecs).intValue();
+        histogramDistCompression = config.getNumber("histogramDistCompression",
+            histogramDistCompression, 20, 1000).shortValue();
+        histogramDistAvgKeyBytes = config.getNumber("histogramDistAvgKeyBytes", histogramDistAvgKeyBytes).intValue();
+        histogramDistAvgDigestBytes = 32 + histogramDistCompression * 7;
+        histogramDistAvgDigestBytes = config.getNumber("histogramDistAvgDigestBytes", histogramDistAvgDigestBytes).
+            intValue();
+        histogramDistAccumulatorSize = config.getNumber("histogramDistAccumulatorSize", histogramDistAccumulatorSize).
+            longValue();
+        histogramDistMemoryCache = config.getBoolean("histogramDistMemoryCache", histogramDistMemoryCache);
 
         retryThreads = config.getNumber("retryThreads", retryThreads).intValue();
         flushThreads = config.getNumber("flushThreads", flushThreads).intValue();

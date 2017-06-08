@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
@@ -19,6 +21,8 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 public class ReportableConfig {
+  private static final Logger logger = Logger.getLogger(ReportableConfig.class.getCanonicalName());
+
   private Properties prop = new Properties();
 
   public ReportableConfig(InputStream stream) throws IOException {
@@ -38,7 +42,26 @@ public class ReportableConfig {
   }
 
   public Number getNumber(String key, Number defaultValue) {
-    Long l = Long.parseLong(prop.getProperty(key, String.valueOf(defaultValue)).trim());
+    return getNumber(key, defaultValue, null, null);
+  }
+
+  public Number getNumber(String key, @Nullable Number defaultValue, @Nullable Number clampMinValue,
+                          @Nullable Number clampMaxValue) {
+    String property = prop.getProperty(key);
+    if (property == null && defaultValue == null) return null;
+    Long l = property == null ? defaultValue.longValue() : Long.parseLong(property.trim());
+    if (clampMinValue != null && l < clampMinValue.longValue()) {
+      logger.log(Level.WARNING, key + " (" + l + ") is less than " + clampMinValue +
+          ", will default to " + clampMinValue);
+      reportGauge(clampMinValue, new MetricName("config", "", key));
+      return clampMinValue;
+    }
+    if (clampMaxValue != null && l > clampMaxValue.longValue()) {
+      logger.log(Level.WARNING, key + " (" + l + ") is greater than " + clampMaxValue +
+          ", will default to " + clampMaxValue);
+      reportGauge(clampMaxValue, new MetricName("config", "", key));
+      return clampMaxValue;
+    }
     reportGauge(l, new MetricName("config", "", key));
     return l;
   }
@@ -62,6 +85,10 @@ public class ReportableConfig {
     Boolean b = Boolean.parseBoolean(prop.getProperty(key, String.valueOf(defaultValue)).trim());
     reportGauge(b ? 1 : 0, new MetricName("config", "", key));
     return b;
+  }
+
+  public Boolean isDefined(String key) {
+    return prop.getProperty(key) != null;
   }
 
   public void reportSettingAsGauge(Number number, String key) {

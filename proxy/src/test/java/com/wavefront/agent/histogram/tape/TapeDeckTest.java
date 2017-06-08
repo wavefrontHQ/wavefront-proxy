@@ -1,6 +1,8 @@
 package com.wavefront.agent.histogram.tape;
 
 
+import com.google.common.collect.ImmutableList;
+
 import com.squareup.tape.ObjectQueue;
 
 import org.junit.After;
@@ -11,8 +13,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import jersey.repackaged.com.google.common.collect.ImmutableList;
 
 import static com.google.common.truth.Truth.assertThat;
 

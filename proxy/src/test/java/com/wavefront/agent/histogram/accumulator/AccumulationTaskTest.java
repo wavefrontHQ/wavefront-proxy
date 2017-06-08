@@ -1,5 +1,6 @@
 package com.wavefront.agent.histogram.accumulator;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import com.squareup.tape.InMemoryObjectQueue;
@@ -18,8 +19,8 @@ import org.junit.Test;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import jersey.repackaged.com.google.common.collect.ImmutableList;
 import sunnylabs.report.ReportPoint;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -38,6 +39,7 @@ public class AccumulationTaskTest {
   private ConcurrentMap<HistogramKey, AgentDigest> out;
   private List<String> badPointsOut;
   private AccumulationTask eventSubject, histoSubject;
+  private AccumulationCache cache;
   private final static long TTL = 30L;
   private final static short COMPRESSION = 100;
 
@@ -57,11 +59,12 @@ public class AccumulationTaskTest {
   private HistogramKey hourKeyA = makeKey("hourKeyA", HOUR);
   private HistogramKey dayKeyA = makeKey("dayKeyA", DAY);
 
-
   @Before
   public void setUp() throws Exception {
+    AtomicInteger timeMillis = new AtomicInteger(0);
     in = new InMemoryObjectQueue<>();
     out = new ConcurrentHashMap<>();
+    cache = new AccumulationCache(out, 0, timeMillis::get);
     badPointsOut = Lists.newArrayList();
 
     PointHandler pointHandler = new PointHandler() {
@@ -83,7 +86,7 @@ public class AccumulationTaskTest {
 
     eventSubject = new AccumulationTask(
         in,
-        out,
+        cache,
         new GraphiteDecoder("unknown", ImmutableList.of()),
         pointHandler,
         Validation.Level.NUMERIC_ONLY,
@@ -93,7 +96,7 @@ public class AccumulationTaskTest {
 
     histoSubject = new AccumulationTask(
         in,
-        out,
+        cache,
         new HistogramDecoder(),
         pointHandler,
         Validation.Level.NUMERIC_ONLY,
@@ -107,6 +110,7 @@ public class AccumulationTaskTest {
     in.add(ImmutableList.of(lineA));
 
     eventSubject.run();
+    cache.getResolveTask().run();
 
     assertThat(badPointsOut).hasSize(0);
     assertThat(out.get(minKeyA)).isNotNull();
@@ -118,6 +122,7 @@ public class AccumulationTaskTest {
     in.add(ImmutableList.of(lineA, lineB, lineC));
 
     eventSubject.run();
+    cache.getResolveTask().run();
 
     assertThat(badPointsOut).hasSize(0);
     assertThat(out.get(minKeyA)).isNotNull();
@@ -136,6 +141,7 @@ public class AccumulationTaskTest {
         "min1 1 " + DEFAULT_TIME_MILLIS));
 
     eventSubject.run();
+    cache.getResolveTask().run();
 
     HistogramKey min0 = Utils.makeKey(ReportPoint.newBuilder()
         .setMetric("min0")
@@ -159,6 +165,7 @@ public class AccumulationTaskTest {
     in.add(ImmutableList.of(lineA, lineA, lineA));
 
     eventSubject.run();
+    cache.getResolveTask().run();
 
     assertThat(out.get(minKeyA)).isNotNull();
     assertThat(out.get(minKeyA).size()).isEqualTo(3);
@@ -169,6 +176,7 @@ public class AccumulationTaskTest {
     in.add(ImmutableList.of("noTimeKey 100"));
 
     eventSubject.run();
+    cache.getResolveTask().run();
 
     assertThat(out).hasSize(1);
   }
@@ -178,6 +186,7 @@ public class AccumulationTaskTest {
     in.add(ImmutableList.of("This is not really a valid sample", lineA, lineA, lineA));
 
     eventSubject.run();
+    cache.getResolveTask().run();
 
     assertThat(badPointsOut).hasSize(1);
     assertThat(badPointsOut.get(0)).contains("This is not really a valid sample");
@@ -191,6 +200,7 @@ public class AccumulationTaskTest {
     in.add(ImmutableList.of(histoMinLineA));
 
     histoSubject.run();
+    cache.getResolveTask().run();
 
     assertThat(badPointsOut).hasSize(0);
     assertThat(out.get(minKeyA)).isNotNull();
@@ -202,6 +212,7 @@ public class AccumulationTaskTest {
     in.add(ImmutableList.of(histoMinLineA, histoMinLineA, histoMinLineA));
 
     histoSubject.run();
+    cache.getResolveTask().run();
 
     assertThat(badPointsOut).hasSize(0);
     assertThat(out.get(minKeyA)).isNotNull();
@@ -213,6 +224,7 @@ public class AccumulationTaskTest {
     in.add(ImmutableList.of(histoMinLineA, histoHourLineA, histoDayLineA));
 
     histoSubject.run();
+    cache.getResolveTask().run();
 
     assertThat(badPointsOut).hasSize(0);
     assertThat(out.get(minKeyA)).isNotNull();
@@ -228,6 +240,7 @@ public class AccumulationTaskTest {
     in.add(ImmutableList.of(histoMinLineA, histoMinLineB, histoMinLineA, histoMinLineB));
 
     histoSubject.run();
+    cache.getResolveTask().run();
 
     assertThat(badPointsOut).hasSize(0);
     assertThat(out.get(minKeyA)).isNotNull();
@@ -241,6 +254,7 @@ public class AccumulationTaskTest {
     in.add(ImmutableList.of(histoMinLineA, "not really valid...", histoMinLineA));
 
     histoSubject.run();
+    cache.getResolveTask().run();
 
     assertThat(badPointsOut).hasSize(1);
     assertThat(badPointsOut.get(0)).contains("not really valid...");

@@ -53,7 +53,7 @@ public abstract class AbstractIngesterFormatter<T> {
     @Override
     public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
                             int charPositionInLine, String msg, RecognitionException e) {
-      throw new RuntimeException(msg, e);
+      throw new RuntimeException("Syntax error at line " + line + ", position " + charPositionInLine + ": " + msg, e);
     }
   };
 
@@ -80,7 +80,7 @@ public abstract class AbstractIngesterFormatter<T> {
     DSWrapperLexer lexer = dsWrapperLexerThreadLocal.get();
     lexer.setInputStream(new ANTLRInputStream(input));
     CommonTokenStream commonTokenStream = new CommonTokenStream(lexer);
-    commonTokenStream.getText();
+    commonTokenStream.fill();
     List<Token> tokens = commonTokenStream.getTokens();
     if (tokens.isEmpty()) {
       throw new RuntimeException("Could not parse: " + input);

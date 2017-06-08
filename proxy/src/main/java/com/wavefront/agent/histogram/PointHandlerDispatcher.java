@@ -2,17 +2,19 @@ package com.wavefront.agent.histogram;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.PointHandler;
+import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 
-import java.util.concurrent.ConcurrentMap;
+import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.annotation.Nullable;
 
 import sunnylabs.report.ReportPoint;
 
@@ -37,36 +39,41 @@ public class PointHandlerDispatcher implements Runnable {
   private final Histogram dispatchLagMillis = Metrics.newHistogram(
       new MetricName("histogram.accumulator", "", "dispatch_lag_millis"));
 
-  private final ConcurrentMap<Utils.HistogramKey, AgentDigest> digests;
+  private final AccumulationCache digests;
   private final PointHandler output;
   private final TimeProvider clock;
+  private final Integer dispatchLimit;
 
-  public PointHandlerDispatcher(ConcurrentMap<Utils.HistogramKey, AgentDigest> digests, PointHandler output) {
-    this(digests, output, System::currentTimeMillis);
+  public PointHandlerDispatcher(AccumulationCache digests, PointHandler output, @Nullable Integer dispatchLimit) {
+    this(digests, output, System::currentTimeMillis, dispatchLimit);
   }
 
   @VisibleForTesting
   PointHandlerDispatcher(
-      ConcurrentMap<Utils.HistogramKey, AgentDigest> digests,
+      AccumulationCache digests,
       PointHandler output,
-      TimeProvider clock) {
+      TimeProvider clock,
+      @Nullable Integer dispatchLimit) {
     this.digests = digests;
     this.output = output;
     this.clock = clock;
+    this.dispatchLimit = dispatchLimit;
   }
 
   @Override
   public void run() {
-    accumulatorSize.update(digests.size());
+    try {
+      accumulatorSize.update(digests.size());
+      AtomicInteger dispatchedCount = new AtomicInteger(0);
 
-    long startNanos = nanoTime();
-    for (Utils.HistogramKey key : digests.keySet()) {
-      digests.compute(key, (k, v) -> {
-        if (v == null) {
-          return null;
-        }
-        // Remove and add to shipping queue
-        if (v.getDispatchTimeMillis() < clock.millisSinceEpoch()) {
+      long startNanos = nanoTime();
+      Iterator<Utils.HistogramKey> index = digests.getRipeDigestsIterator(this.clock);
+      while (index.hasNext()) {
+        digests.compute(index.next(), (k, v) -> {
+          if (v == null) {
+            index.remove();
+            return null;
+          }
           try {
             ReportPoint out = Utils.pointFromKeyAndDigest(k, v);
             output.reportPoint(out, k.toString());
@@ -75,12 +82,17 @@ public class PointHandlerDispatcher implements Runnable {
             dispatchErrorCounter.inc();
             logger.log(Level.SEVERE, "Failed dispatching entry " + k, e);
           }
-          dispatchLagMillis.update(clock.millisSinceEpoch() - v.getDispatchTimeMillis());
+          dispatchLagMillis.update(System.currentTimeMillis() - v.getDispatchTimeMillis());
+          index.remove();
+          dispatchedCount.incrementAndGet();
           return null;
-        }
-        return v;
-      });
+        });
+        if (dispatchLimit != null && dispatchedCount.get() >= dispatchLimit)
+          break;
+      }
+      dispatchProcessTime.update(nanoTime() - startNanos);
+    } catch (Exception e) {
+      logger.log(Level.SEVERE, "PointHandlerDispatcher error", e);
     }
-    dispatchProcessTime.update(nanoTime() - startNanos);
   }
 }

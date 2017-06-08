@@ -5,7 +5,6 @@ import com.google.common.collect.Lists;
 
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
-import com.tdunning.math.stats.TDigest;
 import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.Validation;
 import com.wavefront.agent.histogram.Utils;
@@ -17,7 +16,6 @@ import com.yammer.metrics.core.MetricName;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
-import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,7 +35,7 @@ public class AccumulationTask implements Runnable {
   private static final Logger logger = Logger.getLogger(AccumulationTask.class.getCanonicalName());
 
   private final ObjectQueue<List<String>> input;
-  private final ConcurrentMap<Utils.HistogramKey, AgentDigest> digests;
+  private final AccumulationCache digests;
   private final Decoder<String> decoder;
   private final List<ReportPoint> points = Lists.newArrayListWithExpectedSize(1);
   private final PointHandler blockedPointsHandler;
@@ -47,7 +45,6 @@ public class AccumulationTask implements Runnable {
   private final short compression;
 
   // Metrics
-  private final Counter binCreatedCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "bin_created"));
   private final Counter eventCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "sample_added"));
   private final Counter histogramCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "histogram_added"));
   private final Counter ignoredCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "ignored"));
@@ -60,7 +57,7 @@ public class AccumulationTask implements Runnable {
 
 
   public AccumulationTask(ObjectQueue<List<String>> input,
-                          ConcurrentMap<Utils.HistogramKey, AgentDigest> digests,
+                          AccumulationCache digests,
                           Decoder<String> decoder,
                           PointHandler blockedPointsHandler,
                           Validation.Level validationLevel,
@@ -75,24 +72,6 @@ public class AccumulationTask implements Runnable {
     this.ttlMillis = ttlMillis;
     this.granularity = granularity;
     this.compression = compression;
-  }
-
-  private static void add(final TDigest target, final Histogram source) {
-    List<Double> means = source.getBins();
-    List<Integer> counts = source.getCounts();
-
-    if (means != null && counts != null) {
-      int len = Math.min(means.size(), counts.size());
-
-      for (int i = 0; i < len; ++i) {
-        Integer count = counts.get(i);
-        Double mean = means.get(i);
-
-        if (count != null && count > 0 && mean != null && Double.isFinite(mean)) {
-          target.add(mean, count);
-        }
-      }
-    }
   }
 
   @Override
@@ -142,17 +121,7 @@ public class AccumulationTask implements Runnable {
             eventCounter.inc();
 
             // atomic update
-            digests.compute(histogramKey, (k, v) -> {
-              if (v == null) {
-                binCreatedCounter.inc();
-                AgentDigest t = new AgentDigest(compression, System.currentTimeMillis() + ttlMillis);
-                t.add(value);
-                return t;
-              } else {
-                v.add(value);
-                return v;
-              }
-            });
+            digests.put(histogramKey, value, compression, ttlMillis);
           } else if (event.getValue() instanceof Histogram) {
             Histogram value = (Histogram) event.getValue();
             Utils.Granularity granularity = fromMillis(value.getDuration());
@@ -165,17 +134,7 @@ public class AccumulationTask implements Runnable {
             histogramCounter.inc();
 
             // atomic update
-            digests.compute(histogramKey, (k, v) -> {
-              if (v == null) {
-                binCreatedCounter.inc();
-                AgentDigest t = new AgentDigest(compression, System.currentTimeMillis() + ttlMillis);
-                add(t, value);
-                return t;
-              } else {
-                add(v, value);
-                return v;
-              }
-            });
+            digests.put(histogramKey, value, compression, ttlMillis);
           }
         } catch (Exception e) {
           if (!(e instanceof IllegalArgumentException)) {
@@ -204,7 +163,6 @@ public class AccumulationTask implements Runnable {
         ", ttlMillis=" + ttlMillis +
         ", granularity=" + granularity +
         ", compression=" + compression +
-        ", histogramCounter=" + binCreatedCounter +
         ", accumulationCounter=" + eventCounter +
         ", ignoredCounter=" + ignoredCounter +
         '}';

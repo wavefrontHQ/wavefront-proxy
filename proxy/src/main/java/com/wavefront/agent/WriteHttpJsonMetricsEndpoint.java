@@ -1,20 +1,20 @@
 package com.wavefront.agent;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
 
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.handler.AbstractHandler;
 
+import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import sunnylabs.report.ReportPoint;
 
@@ -23,8 +23,7 @@ import sunnylabs.report.ReportPoint;
  *
  * @see <a href="https://collectd.org/wiki/index.php/Plugin:Write_HTTP">https://collectd.org/wiki/index.php/Plugin:Write_HTTP</a>
  */
-@Path("/")
-public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
+public class WriteHttpJsonMetricsEndpoint extends AbstractHandler {
 
   protected static final Logger logger = Logger.getLogger("agent");
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
@@ -34,27 +33,32 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
   private final String defaultHost;
   @Nullable
   private final PointPreprocessor preprocessor;
+  private final PointHandler handler;
 
   public WriteHttpJsonMetricsEndpoint(final String port, final String host,
                                       @Nullable
                                       final String prefix, final String validationLevel,
                                       final int blockedPointsPerBatch, PostPushDataTimedTask[] postPushDataTimedTasks,
                                       @Nullable final PointPreprocessor preprocessor) {
-    super(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
+    this.handler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
     this.prefix = prefix;
     this.defaultHost = host;
     this.preprocessor = preprocessor;
   }
 
-  @POST
-  @Consumes(MediaType.APPLICATION_JSON)
-  public Response reportMetrics(@Context UriInfo uriInfo,
-                                JsonNode metrics) {
-    final PostPushDataTimedTask randomPostTask = this.getRandomPostTask();
+  @Override
+  public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
+      throws IOException, ServletException {
+    response.setContentType("text/html;charset=utf-8");
+
+    JsonNode metrics = new ObjectMapper().readTree(request.getReader());
+
     if (!metrics.isArray()) {
       logger.warning("metrics is not an array!");
-      randomPostTask.incrementBlockedPoints();
-      throw new IllegalArgumentException("Metrics must be an array");
+      handler.handleBlockedPoint("[metrics] is not an array!");
+      response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // return HTTP 400
+      baseRequest.setHandled(true);
+      return;
     }
 
     for (final JsonNode metric : metrics) {
@@ -77,7 +81,7 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
         }
         JsonNode values = metric.get("values");
         if (values == null) {
-          randomPostTask.incrementBlockedPoints();
+          handler.handleBlockedPoint("[values] missing in JSON object");
           logger.warning("Skipping.  Missing values.");
           continue;
         }
@@ -96,25 +100,30 @@ public class WriteHttpJsonMetricsEndpoint extends PointHandlerImpl {
           }
           ReportPoint point = builder.build();
           if (preprocessor != null) {
+            preprocessor.forReportPoint().transform(point);
             if (!preprocessor.forReportPoint().filter(point)) {
               if (preprocessor.forReportPoint().getLastFilterResult() != null) {
                 blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
               } else {
                 blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
               }
-              handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+              handler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+              continue;
             }
-            preprocessor.forReportPoint().transform(point);
           }
-          reportPoint(point, "write_http json: " + pointToString(point));
+          handler.reportPoint(point, "write_http json: " + PointHandlerImpl.pointToString(point));
           index++;
         }
       } catch (final Exception e) {
-        randomPostTask.incrementBlockedPoints();
+        handler.handleBlockedPoint("Failed adding metric: " + e);
         logger.log(Level.WARNING, "Failed adding metric", e);
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        baseRequest.setHandled(true);
+        return;
       }
     }
-    return Response.accepted().build();
+    response.setStatus(HttpServletResponse.SC_OK);
+    baseRequest.setHandled(true);
   }
 
   /**
