@@ -1,7 +1,7 @@
 package com.wavefront.agent;
 
 import com.squareup.tape.Task;
-import com.wavefront.api.AgentAPI;
+import com.wavefront.api.WavefrontAPI;
 
 import java.io.Serializable;
 import java.util.List;
@@ -17,7 +17,7 @@ public abstract class ResubmissionTask<T extends ResubmissionTask<T>> implements
   /**
    * To be injected. Should be null when serialized.
    */
-  protected transient AgentAPI service = null;
+  protected transient WavefrontAPI service = null;
 
   /**
    * To be injected. Should be null when serialized.

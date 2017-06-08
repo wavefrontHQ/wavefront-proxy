@@ -16,7 +16,9 @@ import sunnylabs.report.ReportPoint;
 public class OpenTSDBDecoder implements Decoder<String> {
 
   private final String hostName;
-  private static final IngesterFormatter FORMAT = IngesterFormatter.newBuilder().whiteSpace()
+  private static final AbstractIngesterFormatter<ReportPoint> FORMAT =
+      IngesterFormatter.newBuilder()
+      .whiteSpace()
       .appendCaseInsensitiveLiteral("put").whiteSpace()
       .appendMetricName().whiteSpace()
       .appendTimestamp().whiteSpace()

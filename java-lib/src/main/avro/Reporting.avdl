@@ -44,6 +44,14 @@ protocol Reporting {
     long timestamp;
   }
 
+  record ReportSourceTag {
+    string sourceTagLiteral; // constant '@SourceTag' or '@SourceDescription'
+    string action; // can be either 'save' or 'delete'
+    string source;
+    union {null, string} description;
+    array<string> annotations = {}; // might be empty
+  }
+
   @javaAnnotation("com.wavefront.data.Idempotent")
   void reportPoint(ReportPoint point);
   @javaAnnotation("com.wavefront.data.Idempotent")
@@ -52,4 +60,8 @@ protocol Reporting {
   void updateMetricHostTagsIndex(string table, bytes metricKey, bytes hostKey, array<bytes> tagIds, long timestamp);
   @javaAnnotation("com.wavefront.data.Idempotent")
   void updateMetricHostTagsIndices(array<IndexUpdate> indexUpdates);
+  @javaAnnotation("com.wavefront.data.Idempotent")
+  void reportSourceTag(ReportSourceTag sourceTag);
+  @javaAnnotation("com.wavefront.data.Idempotent")
+  void reportSourceTags(array<ReportSourceTag> sourceTags);
 }

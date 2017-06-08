@@ -58,7 +58,8 @@ Literal
   | '{'
   | '}'
   | SLASH
-  | STAR)*
+  | STAR
+  | AT)*
   ;
 
 // Special token that we do allow for tag values.
@@ -118,4 +119,5 @@ Octet
 
 STAR   : '*' ;
 SLASH  : '/' ;
+AT     : '@';
 WS     : [ \t\r\n]+ -> channel(HIDDEN) ;

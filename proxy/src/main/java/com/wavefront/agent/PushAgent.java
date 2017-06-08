@@ -196,6 +196,15 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
+    // ------ Start the listener for source metadata, such as sourceTags and description ----------
+    if (metadataListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split
+          (metadataListenerPorts);
+      for (String port : ports) {
+        startMetadataListener(port);
+      }
+    }
+
     GraphiteFormatter graphiteFormatter = null;
     if (graphitePorts != null || picklePorts != null) {
       Preconditions.checkNotNull(graphiteFormat, "graphiteFormat must be supplied to enable graphite support");
@@ -408,7 +417,15 @@ public class PushAgent extends AbstractAgent {
         null);
   }
 
+  protected void startMetadataListener(String strPort) {
+    int port = Integer.parseInt(strPort);
+    SourceTagHandler metadataHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(port));
+    startAsManagedThread(new StringLineIngester(metadataHandler, port).withChildChannelOptions
+        (childChannelOptions), "Listener-plaintext-metadata-" + port);
+  }
+
   protected void startGraphiteListener(String strPort, boolean withCustomFormatter) {
+
     int port = Integer.parseInt(strPort);
 
     if (prefix != null && !prefix.isEmpty()) {
@@ -596,7 +613,7 @@ public class PushAgent extends AbstractAgent {
           // if the collector is in charge and it provided a setting, use it
           retryBackoffBaseSeconds.set(config.getRetryBackoffBaseSeconds());
           logger.fine("Agent backoff base set to (remotely) " +
-                config.getRetryBackoffBaseSeconds());
+              config.getRetryBackoffBaseSeconds());
         } // otherwise don't change the setting
       } else {
         // restores the agent setting

@@ -22,7 +22,7 @@ import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
-import com.wavefront.api.AgentAPI;
+import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
 import com.wavefront.common.Clock;
@@ -107,7 +107,7 @@ public abstract class AbstractAgent {
 
   private static final Gson GSON = new Gson();
   private static final int GRAPHITE_LISTENING_PORT = 2878;
-
+  private static final int METADATA_LISTENING_PORT = 4878;
   private static final int OPENTSDB_LISTENING_PORT = 4242;
 
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
@@ -187,6 +187,10 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
       "2878.")
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
+
+  @Parameter(names = {"--metadataListernerPorts"}, description = "Comma-separated list of ports " +
+      "to listen on for metadata. Defaults to " + METADATA_LISTENING_PORT + ".")
+  protected String metadataListenerPorts = "" + METADATA_LISTENING_PORT;
 
   @Parameter(names = {"--memGuardFlushThreshold"}, description = "If heap usage exceeds this threshold (in percent), " +
       "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 95")
@@ -556,6 +560,7 @@ public abstract class AbstractAgent {
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
+  protected final List<PostSourceTagTimedTask> managedSourceTagTasks = new ArrayList<>();
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
@@ -751,6 +756,7 @@ public abstract class AbstractAgent {
         pushRateLimit = config.getNumber("pushRateLimit", pushRateLimit).intValue();
         pushBlockedSamples = config.getNumber("pushBlockedSamples", pushBlockedSamples).intValue();
         pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
+        metadataListenerPorts = config.getString("metadataListenerPorts", metadataListenerPorts);
         memGuardFlushThreshold = config.getNumber("memGuardFlushThreshold", memGuardFlushThreshold).intValue();
 
         // Histogram: global settings
@@ -1049,7 +1055,7 @@ public abstract class AbstractAgent {
       }
 
       // 3. Setup proxies.
-      AgentAPI service = createAgentService();
+      WavefrontAPI service = createAgentService();
       try {
         setupQueueing(service);
       } catch (IOException e) {
@@ -1133,7 +1139,7 @@ public abstract class AbstractAgent {
   /**
    * Create RESTeasy proxies for remote calls via HTTP.
    */
-  protected AgentAPI createAgentService() {
+  protected WavefrontAPI createAgentService() {
     ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
     factory.registerProvider(JsonNodeWriter.class);
     if (!factory.getClasses().contains(ResteasyJackson2Provider.class)) {
@@ -1207,10 +1213,10 @@ public abstract class AbstractAgent {
           build();
     }
     ResteasyWebTarget target = client.target(server);
-    return target.proxy(AgentAPI.class);
+    return target.proxy(WavefrontAPI.class);
   }
 
-  private void setupQueueing(AgentAPI service) throws IOException {
+  private void setupQueueing(WavefrontAPI service) throws IOException {
     managedExecutors.add(queuedAgentExecutor);
     agentAPI = new QueuedAgentService(service, bufferFile, retryThreads, queuedAgentExecutor, purgeBuffer,
         agentId, splitPushWhenRateLimited, pushRateLimiter);
@@ -1381,6 +1387,19 @@ public abstract class AbstractAgent {
     return toReturn;
   }
 
+  protected PostSourceTagTimedTask[] getSourceTagFlushTasks(int port) {
+    PostSourceTagTimedTask[] toReturn = new PostSourceTagTimedTask[flushThreads];
+    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for " +
+        "data received on port: " + port);
+    for (int i = 0; i < flushThreads; i++) {
+      final PostSourceTagTimedTask postSourceTagTimedTask = new PostSourceTagTimedTask(agentAPI,
+          pushLogLevel, port, i);
+      toReturn[i] = postSourceTagTimedTask;
+      managedSourceTagTasks.add(postSourceTagTimedTask);
+    }
+    return toReturn;
+  }
+
   /**
    * Actual agents can do additional configuration.
    *
@@ -1432,6 +1451,12 @@ public abstract class AbstractAgent {
           task.drainBuffersToQueue();
         }
       }
+      for (PostSourceTagTimedTask task : managedSourceTagTasks) {
+        while (task.getNumDataToSend() > 0) {
+          task.drainBuffersToQueue();
+        }
+      }
+
       try {
         logger.info("Shutting down: Running finalizing tasks...");
       } catch (Throwable t) {

@@ -5,7 +5,7 @@ import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.squareup.tape.TaskInjector;
 import com.wavefront.agent.QueuedAgentService.PostPushDataResultTask;
-import com.wavefront.api.AgentAPI;
+import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.ShellOutputDTO;
 import com.wavefront.ingester.StringLineIngester;
 
@@ -25,6 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -41,13 +42,13 @@ import static org.junit.Assert.assertTrue;
 public class QueuedAgentServiceTest {
 
   private QueuedAgentService queuedAgentService;
-  private AgentAPI mockAgentAPI;
+  private WavefrontAPI mockAgentAPI;
   private UUID newAgentId;
   private AtomicInteger splitBatchSize = new AtomicInteger(50000);
 
   @Before
   public void testSetup() throws IOException {
-    mockAgentAPI = EasyMock.createMock(AgentAPI.class);
+    mockAgentAPI = EasyMock.createMock(WavefrontAPI.class);
     newAgentId = UUID.randomUUID();
 
     int retryThreads = 1;
@@ -65,6 +66,184 @@ public class QueuedAgentServiceTest {
             return toReturn;
           }
         }), true, newAgentId, false, (RecyclableRateLimiter) null);
+  }
+  // post sourcetag metadata
+
+  /**
+   * This test will try to delete a source tag and verify it works properly.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void postSourceTagDataPoint() throws Exception {
+    String id = "localhost";
+    String tagValue = "sourceTag1";
+    EasyMock.expect(mockAgentAPI.removeTag(id, tagValue)).andReturn(Response.ok().build()).once();
+    EasyMock.replay(mockAgentAPI);
+    Response response = queuedAgentService.removeTag(id, tagValue);
+    EasyMock.verify(mockAgentAPI);
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+  }
+
+  /**
+   * This test will try to delete a source tag, but makes sure it goes to the queue instead.
+   */
+  @Test
+  public void postSourceTagIntoQueue() {
+    String id = "localhost";
+    String tagValue = "sourceTag1";
+    Response response = queuedAgentService.removeTag(id, tagValue, true);
+    assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
+    assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
+  }
+
+  /**
+   * This test will delete a description and verifies that the server side api was called properly
+   *
+   * @throws Exception
+   */
+  @Test
+  public void removeSourceDescription() throws Exception {
+    String id = "dummy";
+    EasyMock.expect(mockAgentAPI.removeDescription(id)).andReturn(Response.ok().build()).once();
+    EasyMock.replay(mockAgentAPI);
+    Response response = queuedAgentService.removeDescription(id);
+    EasyMock.verify(mockAgentAPI);
+    assertEquals("Response code was incorrect.", Response.Status.OK.getStatusCode(), response
+        .getStatus());
+  }
+
+  /**
+   * This test will add a description and make sure it goes into the queue instead of going to
+   * the server api directly.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void postSourceDescriptionIntoQueue() throws Exception {
+    String id = "localhost";
+    String desc = "A Description";
+    Response response = queuedAgentService.setDescription(id, desc, true);
+    assertEquals("Response code did not match", Response.Status.NOT_ACCEPTABLE.getStatusCode(),
+        response.getStatus());
+    assertEquals("No task found in the backlog queue", 1, queuedAgentService
+        .getQueuedSourceTagTasksCount());
+  }
+
+  /**
+   * This test will add 3 source tags and verify that the server api is called properly.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void postSourceTagsDataPoint() throws Exception {
+    String id = "dummy";
+    String tags[] = new String[]{"tag1", "tag2", "tag3"};
+    EasyMock.expect(mockAgentAPI.setTags(id, Arrays.asList(tags))).andReturn(Response.ok().build
+        ()).once();
+    EasyMock.replay(mockAgentAPI);
+    Response response = queuedAgentService.setTags(id, Arrays.asList(tags));
+    EasyMock.verify(mockAgentAPI);
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+  }
+
+  /**
+   * This test is used to add a description to the source and verify that the server api is
+   * called accurately.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void postSourceDescriptionData() throws Exception {
+    String id = "dummy";
+    String desc = "A Description";
+    EasyMock.expect(mockAgentAPI.setDescription(id, desc)).andReturn(Response.ok()
+        .build()).once();
+    EasyMock.replay(mockAgentAPI);
+    Response response = queuedAgentService.setDescription(id, desc);
+    EasyMock.verify(mockAgentAPI);
+    assertEquals("Response code did not match.", Response.Status.OK.getStatusCode(),
+        response.getStatus());
+  }
+
+  /**
+   * This test will try to delete a source tag and mock a 406 response from the server. The delete
+   * request should get queued and tried again.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void postSourceTagAndHandle406Response() throws Exception{
+    // set up the mocks
+    String id = "localhost";
+    String tagValue = "sourceTag1";
+    EasyMock.expect(mockAgentAPI.removeTag(id, tagValue)).andReturn(Response.status(Response
+        .Status.NOT_ACCEPTABLE).build())
+        .once();
+    EasyMock.expect(mockAgentAPI.removeTag(id, tagValue)).andReturn(Response.status(Response
+        .Status.OK).build()).once();
+    EasyMock.replay(mockAgentAPI);
+    // call the api
+    Response response = queuedAgentService.removeTag(id, tagValue);
+    // verify
+    assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
+    assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
+    // wait for a few seconds for the task to be picked up from the queue
+    TimeUnit.SECONDS.sleep(5);
+    EasyMock.verify(mockAgentAPI);
+    assertEquals(0, queuedAgentService.getQueuedSourceTagTasksCount());
+  }
+
+  /**
+   * This test will add source tags and mock a 406 response from the server. The add requests
+   * should get queued and tried out again.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void postSourceTagsAndHandle406Response() throws Exception {
+    String id = "dummy";
+    String tags[] = new String[]{"tag1", "tag2", "tag3"};
+    EasyMock.expect(mockAgentAPI.setTags(id, Arrays.asList(tags))).andReturn(Response.status
+        (Response.Status.NOT_ACCEPTABLE).build()).once();
+    EasyMock.expect(mockAgentAPI.setTags(id, Arrays.asList(tags))).andReturn(Response.status
+        (Response.Status.OK).build()).once();
+    EasyMock.replay(mockAgentAPI);
+    Response response = queuedAgentService.setTags(id, Arrays.asList(tags));
+    // verify
+    assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
+    assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
+    // wait for a few seconds for the task to be picked up from the queue
+    TimeUnit.SECONDS.sleep(5);
+    EasyMock.verify(mockAgentAPI);
+    assertEquals(0, queuedAgentService.getQueuedSourceTagTasksCount());
+  }
+
+  /**
+   * This test will add source description and mock a 406 response from the server. The add
+   * requests should get queued and tried again.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void postSourceDescriptionAndHandle406Response() throws Exception {
+    String id = "dummy";
+    String description = "A Description";
+    EasyMock.expect(mockAgentAPI.setDescription(id, description)).andReturn(Response
+        .status
+        (Response.Status.NOT_ACCEPTABLE).build()).once();
+    EasyMock.expect(mockAgentAPI.setDescription(id, description)).andReturn(Response
+        .status
+        (Response.Status.OK).build()).once();
+    EasyMock.replay(mockAgentAPI);
+    Response response = queuedAgentService.setDescription(id, description);
+    // verify
+    assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
+    assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
+    // wait for a few seconds for the task to be picked up from the queue
+    TimeUnit.SECONDS.sleep(5);
+    EasyMock.verify(mockAgentAPI);
+    assertEquals(0, queuedAgentService.getQueuedSourceTagTasksCount());
   }
 
   // postWorkUnitResult
