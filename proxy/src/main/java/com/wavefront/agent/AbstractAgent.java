@@ -1197,21 +1197,13 @@ public abstract class AbstractAgent {
       apacheHttpClient4Engine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
       httpEngine = apacheHttpClient4Engine;
     }
-    ResteasyClient client;
-    if (gzipCompression) {
-      client = new ResteasyClientBuilder().
+    ResteasyClient client = new ResteasyClientBuilder().
           httpEngine(httpEngine).
           providerFactory(factory).
           register(GZIPDecodingInterceptor.class).
-          register(GZIPEncodingInterceptor.class).
+          register(gzipCompression ? GZIPEncodingInterceptor.class : DisableGZIPEncodingInterceptor.class).
           register(AcceptEncodingGZIPFilter.class).
           build();
-    } else {
-      client = new ResteasyClientBuilder().
-          httpEngine(httpEngine).
-          providerFactory(factory).
-          build();
-    }
     ResteasyWebTarget target = client.target(server);
     return target.proxy(WavefrontAPI.class);
   }
