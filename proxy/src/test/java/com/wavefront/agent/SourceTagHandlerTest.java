@@ -37,7 +37,7 @@ public class SourceTagHandlerTest {
     mockAgentAPI = EasyMock.createMock(ForceQueueEnabledAgentAPI.class);
     newAgentId = UUID.randomUUID();
     int retryThreads = 1;
-    queuedAgentService = new QueuedAgentService(mockAgentAPI, "unitTestBuffer", retryThreads,
+    queuedAgentService = new QueuedAgentService(mockAgentAPI, "unitTestBuffer2", retryThreads,
         Executors.newScheduledThreadPool(retryThreads + 1, new ThreadFactory() {
 
           private AtomicLong counter = new AtomicLong();
