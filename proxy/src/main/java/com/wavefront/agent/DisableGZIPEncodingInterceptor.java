@@ -1,8 +1,7 @@
 package com.wavefront.agent;
 
-import org.jboss.resteasy.resteasy_jaxrs.i18n.LogMessages;
-
 import java.io.IOException;
+import java.util.logging.Logger;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.ext.WriterInterceptor;
@@ -17,16 +16,17 @@ import javax.ws.rs.ext.WriterInterceptorContext;
  * Created by vasily@wavefront.com on 6/9/17.
  */
 public class DisableGZIPEncodingInterceptor implements WriterInterceptor {
-    public DisableGZIPEncodingInterceptor() {
-    }
+  private static final Logger logger = Logger.getLogger(DisableGZIPEncodingInterceptor.class.getCanonicalName());
 
-    public void aroundWriteTo(WriterInterceptorContext context) throws IOException, WebApplicationException {
-      LogMessages.LOGGER.debugf("Interceptor : %s,  Method : aroundWriteTo", this.getClass().getName());
-      Object encoding = context.getHeaders().getFirst("Content-Encoding");
-      if(encoding != null && encoding.toString().equalsIgnoreCase("gzip")) {
-        context.getHeaders().remove("Content-Encoding");
-      }
-      context.proceed();
-    }
+  public DisableGZIPEncodingInterceptor() {
   }
-  
+
+  public void aroundWriteTo(WriterInterceptorContext context) throws IOException, WebApplicationException {
+    logger.fine("Interceptor : " + this.getClass().getName() + ",  Method : aroundWriteTo");
+    Object encoding = context.getHeaders().getFirst("Content-Encoding");
+    if (encoding != null && encoding.toString().equalsIgnoreCase("gzip")) {
+      context.getHeaders().remove("Content-Encoding");
+    }
+    context.proceed();
+  }
+}
