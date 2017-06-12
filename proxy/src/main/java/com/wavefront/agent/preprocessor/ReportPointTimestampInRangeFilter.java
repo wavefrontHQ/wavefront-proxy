@@ -1,5 +1,6 @@
 package com.wavefront.agent.preprocessor;
 
+import com.wavefront.common.Clock;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -33,7 +34,7 @@ public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<Report
   public boolean apply(@NotNull ReportPoint point) {
     this.message = null;
     long pointTime = point.getTimestamp();
-    long rightNow = System.currentTimeMillis();
+    long rightNow = Clock.now();
 
     // within <cutoffHours> ago and 1 day ahead
     boolean pointInRange = (pointTime > (rightNow - this.cutoffHours * DateUtils.MILLIS_PER_HOUR)) &&
