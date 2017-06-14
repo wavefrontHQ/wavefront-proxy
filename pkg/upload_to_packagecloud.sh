@@ -10,7 +10,7 @@ package_cloud push --config=$2 $1/debian/stretch *.deb &
 package_cloud push --config=$2 $1/debian/wheezy *.deb &
 package_cloud push --config=$2 $1/debian/jessie *.deb &
 package_cloud push --config=$2 $1/ubuntu/xenial *.deb &
-package_cloud push --config=$2 $1/ubuntu/precise *.deb &
 package_cloud push --config=$2 $1/ubuntu/trusty *.deb &
+package_cloud push --config=$2 $1/ubuntu/zesty *.deb &
 
 wait
