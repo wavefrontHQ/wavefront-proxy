@@ -42,6 +42,7 @@ import com.wavefront.ingester.TcpIngester;
 
 import net.openhft.chronicle.map.ChronicleMap;
 
+import org.apache.commons.lang.BooleanUtils;
 import org.logstash.beats.Server;
 
 import java.io.File;
@@ -622,9 +623,7 @@ public class PushAgent extends AbstractAgent {
         logger.fine("Agent backoff base set to (locally) " + retryBackoffBaseSeconds.get());
       }
 
-      if (config.getHistogramDisabled() != null) {
-        histogramDisabled.set(config.getHistogramDisabled());
-      }
+      histogramDisabled.set(BooleanUtils.toBoolean(config.getHistogramDisabled()));
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
     }

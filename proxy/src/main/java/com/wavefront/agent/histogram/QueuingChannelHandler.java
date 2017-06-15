@@ -30,6 +30,9 @@ public class QueuingChannelHandler<T> extends SimpleChannelInboundHandler<Object
   private List<T> buffer;
   private final int maxCapacity;
   private final AtomicBoolean histogramDisabled;
+  // Have a counter that goes from 0 to 25 and then resets to 0
+  // this is just to avoid excessive logging ...
+  private int channelReadCounter = 0;
   private final Counter discardedHistogramPointsCounter = Metrics.newCounter(new MetricName(
       "histogram.ingester.disabled", "", "discarded_points"));
 
@@ -58,10 +61,13 @@ public class QueuingChannelHandler<T> extends SimpleChannelInboundHandler<Object
   }
 
   private void innerAdd(T t) {
-    if (histogramDisabled.get()) {
-      // if histogram feature is disabled on the server increment counter and log it ...
-      logger.info("Ingested point discarded because histogram feature is disabled on the server");
+    if (!histogramDisabled.get()) {
+      // if histogram feature is disabled on the server increment counter and log it every 25 times ...
       discardedHistogramPointsCounter.inc();
+      if (channelReadCounter == 0) {
+        logger.info("Ingested point discarded because histogram feature is disabled on the server");
+      }
+      channelReadCounter = (channelReadCounter + 1) % 25;
     } else {
       // histograms are not disabled on the server, so add the input to the buffer
       synchronized (this) {
