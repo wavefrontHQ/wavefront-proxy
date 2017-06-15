@@ -34,6 +34,9 @@ public class AgentConfiguration {
   private Double retryBackoffBaseSeconds;
   private Boolean shutOffAgents = false;
   private Boolean showTrialExpired = false;
+  // If the value is true, then histogram feature is disabled.
+  // If the value is null or false, then histograms are not disabled i.e. enabled (default behavior)
+  private Boolean histogramDisabled;
 
   public Boolean getCollectorSetsRetryBackoff() {
     return collectorSetsRetryBackoff;
@@ -95,6 +98,14 @@ public class AgentConfiguration {
 
   public void setShowTrialExpired(Boolean trialExpired) {
     this.showTrialExpired = trialExpired;
+  }
+
+  public Boolean getHistogramDisabled() {
+    return histogramDisabled;
+  }
+
+  public void setHistogramDisabled(Boolean histogramDisabled) {
+    this.histogramDisabled = histogramDisabled;
   }
 
   public void validate(boolean local) {
