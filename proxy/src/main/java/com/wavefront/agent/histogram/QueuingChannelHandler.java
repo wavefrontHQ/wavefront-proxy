@@ -61,7 +61,7 @@ public class QueuingChannelHandler<T> extends SimpleChannelInboundHandler<Object
   }
 
   private void innerAdd(T t) {
-    if (!histogramDisabled.get()) {
+    if (histogramDisabled.get()) {
       // if histogram feature is disabled on the server increment counter and log it every 25 times ...
       discardedHistogramPointsCounter.inc();
       if (channelReadCounter == 0) {
