@@ -42,6 +42,7 @@ import com.wavefront.ingester.TcpIngester;
 
 import net.openhft.chronicle.map.ChronicleMap;
 
+import org.apache.commons.lang.BooleanUtils;
 import org.logstash.beats.Server;
 
 import java.io.File;
@@ -574,7 +575,8 @@ public class PushAgent extends AbstractAgent {
       histogramScanExecutor.scheduleWithFixedDelay(scanTask,
           histogramProcessingQueueScanInterval, histogramProcessingQueueScanInterval, TimeUnit.MILLISECONDS);
 
-      QueuingChannelHandler<String> inputHandler = new QueuingChannelHandler<>(receiveTape, pushFlushMaxPoints.get());
+      QueuingChannelHandler<String> inputHandler = new QueuingChannelHandler<>(receiveTape,
+          pushFlushMaxPoints.get(), histogramDisabled);
       handlers.add(inputHandler);
       histogramFlushExecutor.scheduleWithFixedDelay(inputHandler.getBufferFlushTask(),
           histogramReceiveBufferFlushInterval, histogramReceiveBufferFlushInterval, TimeUnit.MILLISECONDS);
@@ -620,6 +622,8 @@ public class PushAgent extends AbstractAgent {
         retryBackoffBaseSeconds.set(retryBackoffBaseSecondsInitialValue);
         logger.fine("Agent backoff base set to (locally) " + retryBackoffBaseSeconds.get());
       }
+
+      histogramDisabled.set(BooleanUtils.toBoolean(config.getHistogramDisabled()));
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
     }

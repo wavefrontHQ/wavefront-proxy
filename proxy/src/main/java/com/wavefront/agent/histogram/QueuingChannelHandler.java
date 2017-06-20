@@ -1,11 +1,17 @@
 package com.wavefront.agent.histogram;
 
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.RateLimiter;
 
 import com.squareup.tape.ObjectQueue;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Logger;
 
 import javax.validation.constraints.NotNull;
 
@@ -20,16 +26,25 @@ import io.netty.channel.SimpleChannelInboundHandler;
  */
 @ChannelHandler.Sharable
 public class QueuingChannelHandler<T> extends SimpleChannelInboundHandler<Object> {
+  protected static final Logger logger = Logger.getLogger(QueuingChannelHandler.class.getCanonicalName());
   private final ObjectQueue<List<T>> tape;
   private List<T> buffer;
   private final int maxCapacity;
+  private final AtomicBoolean histogramDisabled;
 
-  public QueuingChannelHandler(@NotNull ObjectQueue<List<T>> tape, int maxCapacity) {
+  // log every 5 seconds
+  private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
+
+  private final Counter discardedHistogramPointsCounter = Metrics.newCounter(new MetricName(
+      "histogram.ingester.disabled", "", "discarded_points"));
+
+  public QueuingChannelHandler(@NotNull ObjectQueue<List<T>> tape, int maxCapacity, AtomicBoolean histogramDisabled) {
     Preconditions.checkNotNull(tape);
     Preconditions.checkArgument(maxCapacity > 0);
     this.tape = tape;
     this.buffer = new ArrayList<>();
     this.maxCapacity = maxCapacity;
+    this.histogramDisabled = histogramDisabled;
   }
 
   private void ship() {
@@ -48,8 +63,17 @@ public class QueuingChannelHandler<T> extends SimpleChannelInboundHandler<Object
   }
 
   private void innerAdd(T t) {
-    synchronized (this) {
-      buffer.add(t);
+    if (histogramDisabled.get()) {
+      // if histogram feature is disabled on the server increment counter and log it every 25 times ...
+      discardedHistogramPointsCounter.inc();
+      if (warningLoggerRateLimiter.tryAcquire()) {
+        logger.info("Ingested point discarded because histogram feature is disabled on the server");
+      }
+    } else {
+      // histograms are not disabled on the server, so add the input to the buffer
+      synchronized (this) {
+        buffer.add(t);
+      }
     }
   }
 

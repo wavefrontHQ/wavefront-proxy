@@ -83,6 +83,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -578,6 +579,10 @@ public abstract class AbstractAgent {
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
+
+  // Will be updated inside processConfiguration method and the new configuration is periodically
+  // loaded from the server by invoking agentAPI.checkin
+  protected final AtomicBoolean histogramDisabled = new AtomicBoolean(false);
 
   /**
    * Executors for support tasks.

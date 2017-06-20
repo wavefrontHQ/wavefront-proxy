@@ -21,7 +21,7 @@ public class HistogramDecoder implements Decoder<String> {
       .whiteSpace()
       .binType()
       .whiteSpace()
-      .appendTimestamp()
+      .appendOptionalTimestamp()
       .adjustTimestamp()
       .whiteSpace()
       .centroids()
