@@ -582,7 +582,7 @@ public abstract class AbstractAgent {
 
   // Will be updated inside processConfiguration method and the new configuration is periodically
   // loaded from the server by invoking agentAPI.checkin
-  protected AtomicBoolean histogramDisabled = new AtomicBoolean(false);
+  protected final AtomicBoolean histogramDisabled = new AtomicBoolean(false);
 
   /**
    * Executors for support tasks.

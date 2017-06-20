@@ -1,6 +1,7 @@
 package com.wavefront.agent.histogram;
 
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.RateLimiter;
 
 import com.squareup.tape.ObjectQueue;
 import com.yammer.metrics.Metrics;
@@ -30,9 +31,10 @@ public class QueuingChannelHandler<T> extends SimpleChannelInboundHandler<Object
   private List<T> buffer;
   private final int maxCapacity;
   private final AtomicBoolean histogramDisabled;
-  // Have a counter that goes from 0 to 25 and then resets to 0
-  // this is just to avoid excessive logging ...
-  private int channelReadCounter = 0;
+
+  // log every 5 seconds
+  private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
+
   private final Counter discardedHistogramPointsCounter = Metrics.newCounter(new MetricName(
       "histogram.ingester.disabled", "", "discarded_points"));
 
@@ -64,10 +66,9 @@ public class QueuingChannelHandler<T> extends SimpleChannelInboundHandler<Object
     if (histogramDisabled.get()) {
       // if histogram feature is disabled on the server increment counter and log it every 25 times ...
       discardedHistogramPointsCounter.inc();
-      if (channelReadCounter == 0) {
+      if (warningLoggerRateLimiter.tryAcquire()) {
         logger.info("Ingested point discarded because histogram feature is disabled on the server");
       }
-      channelReadCounter = (channelReadCounter + 1) % 25;
     } else {
       // histograms are not disabled on the server, so add the input to the buffer
       synchronized (this) {

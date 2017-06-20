@@ -46,7 +46,7 @@ public class PostSourceTagTimedTask implements Runnable {
   private final List<ReportSourceTag> blockedSamples = new ArrayList<>();
   private final Object blockedSamplesMutex = new Object();
 
-  private RateLimiter warningMessageRateLimiter = RateLimiter.create(0.2);
+  private final RateLimiter warningMessageRateLimiter = RateLimiter.create(0.2);
 
   private final Counter sourceTagsReceived;
   private final Counter sourceTagsAttempted;
