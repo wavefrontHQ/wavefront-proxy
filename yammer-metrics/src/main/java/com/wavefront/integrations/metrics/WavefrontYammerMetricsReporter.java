@@ -71,30 +71,30 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
     this.clearMetrics = clearMetrics;
   }
 
-  private <T> void setGauge(String metricName, T t) {
-    getMetricsRegistry().<T>newGauge(new MetricName("", "", metricName), new Gauge<T>() {
+  private void registerGauge(String metricName, Supplier<Double> t) {
+    getMetricsRegistry().newGauge(new MetricName("", "", metricName), new Gauge<Double>() {
       @Override
-      public T value() {
-        return t;
+      public Double value() {
+        return t.get();
       }
     });
   }
 
-  private void setGauges(String base, Map<String, Double> metrics) {
-    for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-      setGauge(base + "." + entry.getKey(), entry.getValue());
+  private void registerGauges(String base, Map<String, Supplier<Double>> metrics) {
+    for (Map.Entry<String, Supplier<Double>> entry : metrics.entrySet()) {
+      registerGauge(base + "." + entry.getKey(), entry.getValue());
     }
   }
 
   private void setJavaMetrics() {
-    setGauges("jvm.memory", MetricsToTimeseries.memoryMetrics(vm));
-    setGauges("jvm.buffers.direct", MetricsToTimeseries.buffersMetrics(vm.getBufferPoolStats().get("direct")));
-    setGauges("jvm.buffers.mapped", MetricsToTimeseries.buffersMetrics(vm.getBufferPoolStats().get("mapped")));
-    setGauges("jvm.thread-states", MetricsToTimeseries.threadStateMetrics(vm));
-    setGauges("jvm", MetricsToTimeseries.vmMetrics(vm));
-    setGauge("current_time", clock.time());
+    registerGauges("jvm.memory", MetricsToTimeseries.memoryMetrics(vm));
+    registerGauges("jvm.buffers.direct", MetricsToTimeseries.buffersMetrics(vm.getBufferPoolStats().get("direct")));
+    registerGauges("jvm.buffers.mapped", MetricsToTimeseries.buffersMetrics(vm.getBufferPoolStats().get("mapped")));
+    registerGauges("jvm.thread-states", MetricsToTimeseries.threadStateMetrics(vm));
+    registerGauges("jvm", MetricsToTimeseries.vmMetrics(vm));
+    registerGauge("current_time", () -> (double) clock.time());
     for (Map.Entry<String, VirtualMachineMetrics.GarbageCollectorStats> entry : vm.garbageCollectors().entrySet()) {
-      setGauges("jvm.garbage-collectors." + entry.getKey(), MetricsToTimeseries.gcMetrics(entry.getValue()));
+      registerGauges("jvm.garbage-collectors." + entry.getKey(), MetricsToTimeseries.gcMetrics(entry.getValue()));
     }
   }
 

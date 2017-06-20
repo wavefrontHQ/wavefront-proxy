@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.SortedMap;
+import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
@@ -171,6 +172,13 @@ public abstract class JsonMetricsGenerator {
     }
   }
 
+  private static void mergeSupplierMapIntoJson(JsonGenerator jsonGenerator, Map<String, Supplier<Double>> metrics)
+      throws IOException {
+    for (Map.Entry<String, Supplier<Double>> entry : metrics.entrySet()) {
+      jsonGenerator.writeNumberField(entry.getKey(), entry.getValue().get());
+    }
+  }
+
   private static void writeVmMetrics(JsonGenerator json, @Nullable Map<String, String> pointTags) throws IOException {
     json.writeFieldName("jvm");  // jvm
     if (pointTags != null) {
@@ -191,11 +199,11 @@ public abstract class JsonMetricsGenerator {
       json.writeFieldName("memory");  // jvm.memory
       json.writeStartObject();
       {
-        mergeMapIntoJson(json, MetricsToTimeseries.memoryMetrics(vm));
+        mergeSupplierMapIntoJson(json, MetricsToTimeseries.memoryMetrics(vm));
         json.writeFieldName("memory_pool_usages");  // jvm.memory.memory_pool_usages
         json.writeStartObject();
         {
-          mergeMapIntoJson(json, MetricsToTimeseries.memoryPoolsMetrics(vm));
+          mergeSupplierMapIntoJson(json, MetricsToTimeseries.memoryPoolsMetrics(vm));
         }
         json.writeEndObject();
       }
@@ -209,27 +217,27 @@ public abstract class JsonMetricsGenerator {
           json.writeFieldName("direct");  // jvm.buffers.direct
           json.writeStartObject();
           {
-            mergeMapIntoJson(json, MetricsToTimeseries.buffersMetrics(bufferPoolStats.get("direct")));
+            mergeSupplierMapIntoJson(json, MetricsToTimeseries.buffersMetrics(bufferPoolStats.get("direct")));
           }
           json.writeEndObject();
 
           json.writeFieldName("mapped");  // jvm.buffers.mapped
           json.writeStartObject();
           {
-            mergeMapIntoJson(json, MetricsToTimeseries.buffersMetrics(bufferPoolStats.get("mapped")));
+            mergeSupplierMapIntoJson(json, MetricsToTimeseries.buffersMetrics(bufferPoolStats.get("mapped")));
           }
           json.writeEndObject();
         }
         json.writeEndObject();
       }
 
-      mergeMapIntoJson(json, MetricsToTimeseries.vmMetrics(vm));  // jvm.<vm_metric>
+      mergeSupplierMapIntoJson(json, MetricsToTimeseries.vmMetrics(vm));  // jvm.<vm_metric>
       json.writeNumberField("current_time", clock.time());
 
       json.writeFieldName("thread-states");  // jvm.thread-states
       json.writeStartObject();
       {
-        mergeMapIntoJson(json, MetricsToTimeseries.threadStateMetrics(vm));
+        mergeSupplierMapIntoJson(json, MetricsToTimeseries.threadStateMetrics(vm));
       }
       json.writeEndObject();
 
@@ -241,7 +249,7 @@ public abstract class JsonMetricsGenerator {
           json.writeFieldName(entry.getKey());  // jvm.garbage-collectors.<gc_id>
           json.writeStartObject();
           {
-            mergeMapIntoJson(json, MetricsToTimeseries.gcMetrics(entry.getValue()));
+            mergeSupplierMapIntoJson(json, MetricsToTimeseries.gcMetrics(entry.getValue()));
           }
           json.writeEndObject();
         }
