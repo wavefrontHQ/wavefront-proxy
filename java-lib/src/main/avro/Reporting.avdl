@@ -1,3 +1,4 @@
+// NOTE: talk to panghy before changing this file.
 @namespace("wavefront.report")
 protocol Reporting {
   enum HistogramType {
