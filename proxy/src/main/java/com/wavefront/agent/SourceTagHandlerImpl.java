@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import sunnylabs.report.ReportSourceTag;
+import wavefront.report.ReportSourceTag;
 
 /**
  * This class will read the input from the socket, process it, and call the server API to set the

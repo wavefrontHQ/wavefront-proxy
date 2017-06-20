@@ -29,7 +29,7 @@ import org.apache.commons.lang.time.DateUtils;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.NotNull;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Helpers around histograms

@@ -3,7 +3,7 @@ package com.wavefront.common;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.yammer.metrics.core.MetricName;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 import javax.annotation.Nonnull;
 import javax.management.ObjectName;

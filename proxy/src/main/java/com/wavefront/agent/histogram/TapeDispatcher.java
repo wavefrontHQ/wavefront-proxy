@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Dispatch task for marshalling "ripe" digests for shipment to the agent into a (Tape) ObjectQueue

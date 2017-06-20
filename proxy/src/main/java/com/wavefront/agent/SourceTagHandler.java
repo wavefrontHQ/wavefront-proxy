@@ -3,7 +3,7 @@ package com.wavefront.agent;
 import java.util.List;
 
 import io.netty.channel.ChannelHandler;
-import sunnylabs.report.ReportSourceTag;
+import wavefront.report.ReportSourceTag;
 
 /**
  * Interface for a handler of Source Tags.

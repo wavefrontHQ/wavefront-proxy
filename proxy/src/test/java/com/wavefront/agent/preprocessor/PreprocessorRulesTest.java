@@ -19,7 +19,7 @@ import java.util.TreeMap;
 
 import static org.junit.Assert.*;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 public class PreprocessorRulesTest {
 

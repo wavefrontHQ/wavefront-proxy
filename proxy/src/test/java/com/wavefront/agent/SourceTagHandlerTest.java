@@ -18,7 +18,7 @@ import java.util.logging.Logger;
 
 import javax.ws.rs.core.Response;
 
-import sunnylabs.report.ReportSourceTag;
+import wavefront.report.ReportSourceTag;
 
 /**
  * This class tests the SourceTagHandler.

@@ -10,7 +10,7 @@ import org.apache.commons.lang.time.DateUtils;
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Filter condition for valid timestamp - should be no more than 1 day in the future

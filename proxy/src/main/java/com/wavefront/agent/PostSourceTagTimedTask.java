@@ -18,7 +18,7 @@ import java.util.logging.Logger;
 
 import javax.ws.rs.core.Response;
 
-import sunnylabs.report.ReportSourceTag;
+import wavefront.report.ReportSourceTag;
 
 /**
  * This class is responsible for accumulating the source tag changes and post it in a batch. This

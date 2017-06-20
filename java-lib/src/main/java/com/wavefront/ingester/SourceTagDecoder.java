@@ -2,7 +2,7 @@ package com.wavefront.ingester;
 
 import java.util.List;
 
-import sunnylabs.report.ReportSourceTag;
+import wavefront.report.ReportSourceTag;
 
 /**
  * This class is used to decode the source tags sent by the clients.

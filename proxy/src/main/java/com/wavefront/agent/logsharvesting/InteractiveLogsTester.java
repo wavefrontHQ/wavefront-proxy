@@ -14,7 +14,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)

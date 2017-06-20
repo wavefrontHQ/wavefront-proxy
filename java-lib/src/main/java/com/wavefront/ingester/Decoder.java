@@ -2,7 +2,7 @@ package com.wavefront.ingester;
 
 import java.util.List;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * A decoder of an input line.

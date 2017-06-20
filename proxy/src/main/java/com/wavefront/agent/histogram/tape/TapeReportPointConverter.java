@@ -12,7 +12,7 @@ import org.apache.avro.specific.SpecificDatumWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Adapter exposing the Avro's {@link org.apache.avro.specific.SpecificRecord} encoding/decoding to Square tape's {@link

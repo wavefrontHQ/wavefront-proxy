@@ -17,7 +17,7 @@ import java.util.logging.Logger;
 import oi.thekraken.grok.api.Grok;
 import oi.thekraken.grok.api.Match;
 import oi.thekraken.grok.api.exception.GrokException;
-import sunnylabs.report.TimeSeries;
+import wavefront.report.TimeSeries;
 
 /**
  * Object defining transformation between a log line into structured telemetry data.

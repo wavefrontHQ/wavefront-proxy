@@ -19,8 +19,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import sunnylabs.report.Histogram;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.Histogram;
+import wavefront.report.ReportPoint;
 
 import static com.wavefront.agent.histogram.Utils.Granularity.fromMillis;
 import static java.lang.System.nanoTime;

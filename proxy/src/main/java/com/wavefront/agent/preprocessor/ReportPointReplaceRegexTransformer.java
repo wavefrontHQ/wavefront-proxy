@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Replace regex transformer. Performs search and replace on a specified component of a point (metric name,

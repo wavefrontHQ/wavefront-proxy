@@ -14,7 +14,7 @@ import com.yammer.metrics.core.WavefrontHistogram;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import sunnylabs.report.HistogramType;
+import wavefront.report.HistogramType;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -44,7 +44,7 @@ class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
   public void processHistogram(MetricName name, Histogram histogram, FlushProcessorContext context) throws Exception {
     if (histogram instanceof WavefrontHistogram) {
       WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
-      sunnylabs.report.Histogram.Builder builder = sunnylabs.report.Histogram.newBuilder();
+      wavefront.report.Histogram.Builder builder = wavefront.report.Histogram.newBuilder();
       builder.setBins(Lists.newLinkedList());
       builder.setCounts(Lists.newLinkedList());
       long minMillis = Long.MAX_VALUE;

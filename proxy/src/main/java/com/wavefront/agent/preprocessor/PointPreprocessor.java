@@ -1,6 +1,6 @@
 package com.wavefront.agent.preprocessor;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * A container class for both types of rules (point line-specific and parsed point-specific)

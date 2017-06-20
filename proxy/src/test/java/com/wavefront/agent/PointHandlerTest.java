@@ -13,9 +13,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
-import sunnylabs.report.Histogram;
-import sunnylabs.report.HistogramType;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.Histogram;
+import wavefront.report.HistogramType;
+import wavefront.report.ReportPoint;
 
 import static com.google.common.truth.Truth.assertThat;
 

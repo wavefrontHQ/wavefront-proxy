@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 
 import java.util.List;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * OpenTSDB decoder that takes in a point of the type:

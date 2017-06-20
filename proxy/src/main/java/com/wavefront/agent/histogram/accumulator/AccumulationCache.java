@@ -26,7 +26,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import sunnylabs.report.Histogram;
+import wavefront.report.Histogram;
 
 import static com.wavefront.agent.histogram.Utils.HistogramKey;
 

@@ -2,8 +2,8 @@ package com.wavefront.agent.histogram;
 
 import java.util.concurrent.TimeUnit;
 
-import sunnylabs.report.Histogram;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.Histogram;
+import wavefront.report.ReportPoint;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.wavefront.agent.histogram.Utils.*;

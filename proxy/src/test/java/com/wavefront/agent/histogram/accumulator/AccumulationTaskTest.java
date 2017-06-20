@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.wavefront.agent.histogram.TestUtils.DEFAULT_TIME_MILLIS;

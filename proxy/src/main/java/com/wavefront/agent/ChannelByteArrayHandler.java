@@ -18,7 +18,7 @@ import javax.annotation.Nullable;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 
 /**

@@ -5,7 +5,7 @@ import com.google.common.base.Function;
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Add prefix transformer. Add a metric name prefix, if defined, to all points.

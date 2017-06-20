@@ -11,7 +11,7 @@ import java.util.SortedMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import sunnylabs.report.TimeSeries;
+import wavefront.report.TimeSeries;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)

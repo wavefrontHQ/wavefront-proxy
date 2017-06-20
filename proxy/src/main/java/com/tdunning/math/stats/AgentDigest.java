@@ -24,8 +24,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import sunnylabs.report.Histogram;
-import sunnylabs.report.HistogramType;
+import wavefront.report.Histogram;
+import wavefront.report.HistogramType;
 
 /**
  * NOTE: This is a pruned and modified version of {@link MergingDigest}. It does not support queries (cdf/quantiles) or

@@ -9,7 +9,7 @@ import com.yammer.metrics.core.Counter;
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Creates a new point tag with a specified value. If such point tag already exists, the value won't be overwritten.
