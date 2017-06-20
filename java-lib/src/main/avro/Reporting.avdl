@@ -1,10 +1,5 @@
-@namespace("sunnylabs.report")
+@namespace("wavefront.report")
 protocol Reporting {
-
-  enum DataType {
-    DOUBLE, LONG, STRING, NUMERICAL
-  }
-
   enum HistogramType {
     TDIGEST, DOUBLE_TRUNCATE
   }
@@ -36,14 +31,6 @@ protocol Reporting {
     @java-class("java.util.TreeMap") map<string> annotations = {};
   }
 
-  record IndexUpdate {
-    string table;
-    bytes metricKey;
-    bytes hostKey;
-    array<bytes> tagIds;
-    long timestamp;
-  }
-
   record ReportSourceTag {
     string sourceTagLiteral; // constant '@SourceTag' or '@SourceDescription'
     string action; // can be either 'save' or 'delete'
@@ -51,17 +38,4 @@ protocol Reporting {
     union {null, string} description;
     array<string> annotations = {}; // might be empty
   }
-
-  @javaAnnotation("com.wavefront.data.Idempotent")
-  void reportPoint(ReportPoint point);
-  @javaAnnotation("com.wavefront.data.Idempotent")
-  void reportPoints(array<ReportPoint> points);
-  @javaAnnotation("com.wavefront.data.Idempotent")
-  void updateMetricHostTagsIndex(string table, bytes metricKey, bytes hostKey, array<bytes> tagIds, long timestamp);
-  @javaAnnotation("com.wavefront.data.Idempotent")
-  void updateMetricHostTagsIndices(array<IndexUpdate> indexUpdates);
-  @javaAnnotation("com.wavefront.data.Idempotent")
-  void reportSourceTag(ReportSourceTag sourceTag);
-  @javaAnnotation("com.wavefront.data.Idempotent")
-  void reportSourceTags(array<ReportSourceTag> sourceTags);
 }

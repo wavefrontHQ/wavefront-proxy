@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Parses points from a channel using the given decoder and send it off to the AgentAPI interface.

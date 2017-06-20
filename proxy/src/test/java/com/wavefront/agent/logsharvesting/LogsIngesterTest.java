@@ -32,8 +32,8 @@ import javax.annotation.Nullable;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import oi.thekraken.grok.api.exception.GrokException;
-import sunnylabs.report.Histogram;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.Histogram;
+import wavefront.report.ReportPoint;
 
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.expectLastCall;

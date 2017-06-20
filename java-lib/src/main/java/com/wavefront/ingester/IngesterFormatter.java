@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Builder pattern for creating new ingestion formats. Inspired by the date time formatters in

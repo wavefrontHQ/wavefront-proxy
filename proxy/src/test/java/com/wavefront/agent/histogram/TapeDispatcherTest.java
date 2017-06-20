@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 import static com.google.common.truth.Truth.assertThat;
 

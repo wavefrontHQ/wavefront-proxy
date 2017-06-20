@@ -4,7 +4,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Interface for a handler of Report Points.

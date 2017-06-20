@@ -17,7 +17,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import sunnylabs.report.TimeSeries;
+import wavefront.report.TimeSeries;
 
 /**
  * Consumes log messages sent to {@link #ingestLog(LogsMessage)}. Configures and starts the periodic flush of

@@ -7,7 +7,7 @@ import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Dummy sender. Consumes TDigests from an ObjectQueue and sleeps for an amount of time to simulate sending

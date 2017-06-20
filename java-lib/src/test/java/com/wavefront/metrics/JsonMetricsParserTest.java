@@ -10,8 +10,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.List;
 
-import sunnylabs.report.Histogram;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.Histogram;
+import wavefront.report.ReportPoint;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.truth.Truth.assertThat;

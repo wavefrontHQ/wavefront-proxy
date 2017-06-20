@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Removes a point tag if its value matches an optional regex pattern (always remove if null)

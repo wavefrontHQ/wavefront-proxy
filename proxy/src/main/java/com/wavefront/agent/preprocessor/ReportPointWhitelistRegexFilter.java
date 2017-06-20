@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Whitelist regex filter. Rejects a point if a specified component (metric, source, or point tag value, depending

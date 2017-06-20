@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
-import sunnylabs.report.Histogram;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.Histogram;
+import wavefront.report.ReportPoint;
 
 import static java.util.logging.Level.INFO;
 

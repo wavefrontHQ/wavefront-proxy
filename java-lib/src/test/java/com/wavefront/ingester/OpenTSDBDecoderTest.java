@@ -5,7 +5,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.fail;

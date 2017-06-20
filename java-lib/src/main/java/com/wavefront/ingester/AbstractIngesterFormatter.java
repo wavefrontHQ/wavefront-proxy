@@ -25,11 +25,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import sunnylabs.report.Histogram;
-import sunnylabs.report.HistogramType;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.Histogram;
+import wavefront.report.HistogramType;
+import wavefront.report.ReportPoint;
 import queryserver.parser.DSWrapperLexer;
-import sunnylabs.report.ReportSourceTag;
+import wavefront.report.ReportSourceTag;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 

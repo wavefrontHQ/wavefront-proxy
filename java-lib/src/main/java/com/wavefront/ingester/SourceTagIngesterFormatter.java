@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.logging.Logger;
 
-import sunnylabs.report.ReportSourceTag;
+import wavefront.report.ReportSourceTag;
 
 /**
  * This class can be used to parse sourceTags and description.

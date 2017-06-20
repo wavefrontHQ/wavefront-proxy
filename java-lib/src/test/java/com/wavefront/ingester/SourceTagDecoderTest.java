@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-import sunnylabs.report.ReportSourceTag;
+import wavefront.report.ReportSourceTag;
 
 import static org.junit.Assert.*;
 

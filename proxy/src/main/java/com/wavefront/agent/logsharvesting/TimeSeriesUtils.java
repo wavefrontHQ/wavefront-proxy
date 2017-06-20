@@ -9,7 +9,7 @@ import org.apache.avro.specific.SpecificDatumReader;
 
 import java.io.IOException;
 
-import sunnylabs.report.TimeSeries;
+import wavefront.report.TimeSeries;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)

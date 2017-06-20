@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 /**
  * Create a point tag by extracting a portion of a metric name, source name or another point tag

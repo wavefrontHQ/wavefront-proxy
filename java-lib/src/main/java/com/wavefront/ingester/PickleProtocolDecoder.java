@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 import com.wavefront.common.MetricMangler;
 
 import net.razorvine.pickle.Unpickler;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;

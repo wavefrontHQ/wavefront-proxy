@@ -16,7 +16,7 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 import static java.lang.System.nanoTime;
 

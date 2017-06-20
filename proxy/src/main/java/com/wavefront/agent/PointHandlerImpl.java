@@ -16,7 +16,7 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
-import sunnylabs.report.ReportPoint;
+import wavefront.report.ReportPoint;
 
 import static com.wavefront.agent.Validation.validatePoint;
 
@@ -156,8 +156,8 @@ public class PointHandlerImpl implements PointHandler {
           .append("source=").append(quote).append(escapeQuotes(point.getHost())).append(quote);
       appendTagMap(sb, point.getAnnotations());
       return sb.toString();
-    } else if (point.getValue() instanceof sunnylabs.report.Histogram){
-      sunnylabs.report.Histogram h = (sunnylabs.report.Histogram) point.getValue();
+    } else if (point.getValue() instanceof wavefront.report.Histogram){
+      wavefront.report.Histogram h = (wavefront.report.Histogram) point.getValue();
 
       StringBuilder sb = new StringBuilder();
 

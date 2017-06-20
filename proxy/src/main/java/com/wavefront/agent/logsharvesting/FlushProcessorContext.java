@@ -2,9 +2,9 @@ package com.wavefront.agent.logsharvesting;
 
 import com.wavefront.agent.PointHandler;
 
-import sunnylabs.report.Histogram;
-import sunnylabs.report.ReportPoint;
-import sunnylabs.report.TimeSeries;
+import wavefront.report.Histogram;
+import wavefront.report.ReportPoint;
+import wavefront.report.TimeSeries;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)

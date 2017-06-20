@@ -11,8 +11,8 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
-import sunnylabs.report.Histogram;
-import sunnylabs.report.ReportPoint;
+import wavefront.report.Histogram;
+import wavefront.report.ReportPoint;
 
 import static com.wavefront.agent.PointHandlerImpl.pointToString;
 import static com.wavefront.agent.Validation.Level.NO_VALIDATION;
