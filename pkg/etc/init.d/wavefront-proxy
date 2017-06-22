@@ -117,6 +117,7 @@ jsvc_exec()
 		-home $JAVA_HOME \
 		-cp $agent_jar \
 		$java_args \
+		-Xss2049m \
 		-XX:OnOutOfMemoryError="kill -1 %p" \
 		-Dlog4j.configurationFile=$config_dir/log4j2.xml \
 		-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
