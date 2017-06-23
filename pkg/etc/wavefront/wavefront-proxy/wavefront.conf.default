@@ -158,7 +158,7 @@ buffer=/var/spool/wavefront-proxy/buffer
 ## Histograms can be ingested in wavefront scalar and distribution format. For scalar samples ports can be specified for
 ## minute, hour and day granularity. Granularity for the distribution format is encoded inline.
 ## Before using any of these settings, reach out to Wavefront Support to ensure your account is enabled for native Histogram
-## support.
+## support and to optimize the settings for your specific use case.
 
 ## Wavefront format, minute aggregation:
 ## Comma-separated list of ports to listen on.
@@ -166,7 +166,17 @@ buffer=/var/spool/wavefront-proxy/buffer
 ## Number of accumulators per minute port
 #histogramMinuteAccumulators=2
 ## Time-to-live in seconds for a minute granularity accumulation on the proxy (before the intermediary is shipped to WF).
-# histogramMinuteFlushSecs=70
+#histogramMinuteFlushSecs=70
+## Bounds the number of centroids per histogram. Must be in [20;1000], default: 100
+#histogramMinuteCompression=20
+## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
+#histogramMinuteAvgKeyBytes=150
+## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins. Setting this value too
+## high will may cause excessive disk space usage, setting this value too low may cause severe performance issues.
+#histogramMinuteAccumulatorSize=1000
+## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
+## second per time series). Default: false
+#histogramMinuteMemoryCache=true
 
 ## Wavefront format, hour aggregation:
 ## Comma-separated list of ports to listen on.
@@ -175,6 +185,16 @@ buffer=/var/spool/wavefront-proxy/buffer
 #histogramHourAccumulators=2
 ## Time-to-live in seconds for an hour granularity accumulation on the proxy (before the intermediary is shipped to WF).
 #histogramHourFlushSecs=4200
+## Bounds the number of centroids per histogram. Must be in [20;1000], default: 100
+#histogramHourCompression=100
+## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
+#histogramHourAvgKeyBytes=150
+## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins. Setting this value too
+## high will may cause excessive disk space usage, setting this value too low may cause severe performance issues.
+#histogramHourAccumulatorSize=100000
+## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
+## second per time series). Default: false
+#histogramHourMemoryCache=false
 
 ## Wavefront format, day aggregation:
 ## Comma-separated list of ports to listen on.
@@ -183,6 +203,16 @@ buffer=/var/spool/wavefront-proxy/buffer
 #histogramDayAccumulators=2
 ## Time-to-live in seconds for a day granularity accumulation on the proxy (before the intermediary is shipped to WF).
 #histogramDayFlushSecs=18000
+## Bounds the number of centroids per histogram. Must be in [20;1000], default: 100
+#histogramDayCompression=200
+## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
+#histogramDayAvgKeyBytes=150
+## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins. Setting this value too
+## high will may cause excessive disk space usage, setting this value too low may cause severe performance issues.
+#histogramDayAccumulatorSize=100000
+## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
+## second per time series). Default: false
+#histogramDayMemoryCache=false
 
 ## Distribution format:
 ## Comma-separated list of ports to listen on.
@@ -191,18 +221,30 @@ buffer=/var/spool/wavefront-proxy/buffer
 #histogramDistAccumulators=2
 ## Time-to-live in seconds for a distribution accumulation on the proxy (before the intermediary is shipped to WF).
 #histogramDistFlushSecs=70
+## Bounds the number of centroids per histogram. Must be in [20;1000], default: 100
+#histogramDistCompression=200
+## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
+#histogramDistAvgKeyBytes=150
+## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins. Setting this value too
+## high will may cause excessive disk space usage, setting this value too low may cause severe performance issues.
+#histogramDistAccumulatorSize=100000
+## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
+## second per time series). Default: false
+#histogramDistMemoryCache=false
 
 ## Accumulation parameters
-## Bounds the number of centroids per histogram. Must be in [20;1000]
-#histogramCompression=100
 ## Directory for persistent agent state, must be writable.
 histogramStateDirectory=/var/spool/wavefront-proxy
-## Interval to write-back accumulation changes to disk in millis
-#histogramAccumulatorResolveInterval=100
-## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins
-#histogramAccumulatorSize=100000
-## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
-#avgHistogramKeyBytes=150
+## Interval to write-back accumulation changes to disk in millis (only applicable when memory cache is enabled)
+#histogramAccumulatorResolveInterval=500
+## Interval to check for histograms ready to be sent to Wavefront, in millis
+#histogramAccumulatorFlushInterval=1000
+## Max number of histograms to send to Wavefront in one flush (Default: no limit)
+#histogramAccumulatorFlushMaxBatchSize=4000
+## Interval to send received points to the processing queue in millis (Default: 100)
+#histogramReceiveBufferFlushInterval=100
+## Processing queue scan interval in millis (Default: 20)
+#histogramProcessingQueueScanInterval=20
 ## Whether to persist received histogram messages to disk. WARNING only disable this, if loss of unprocessed sample data
 ## on agent shutdown is acceptable.
 #persistMessages=true
