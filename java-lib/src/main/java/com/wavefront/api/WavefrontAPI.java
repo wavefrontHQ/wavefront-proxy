@@ -145,22 +145,25 @@ public interface WavefrontAPI {
   @DELETE
   @Path("v2/source/{id}/tag/{tagValue}")
   @Produces(MediaType.APPLICATION_JSON)
-  Response removeTag(@PathParam("id") String id, @PathParam("tagValue") String tagValue);
+  Response removeTag(@PathParam("id") String id, @QueryParam("t") String token,
+                     @PathParam("tagValue") String tagValue);
 
   @DELETE
   @Path("v2/source/{id}/description")
   @Produces(MediaType.APPLICATION_JSON)
-  Response removeDescription(@PathParam("id") String id);
+  Response removeDescription(@PathParam("id") String id, @QueryParam("t") String token);
 
   @POST
   @Path("v2/source/{id}/tag")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  Response setTags(@PathParam ("id") String id, List<String> tagValuesToSet);
+  Response setTags(@PathParam ("id") String id, @QueryParam("t") String token,
+                   List<String> tagValuesToSet);
 
   @POST
   @Path("v2/source/{id}/description")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  Response setDescription(@PathParam("id") String id, String description);
+  Response setDescription(@PathParam("id") String id, @QueryParam("t") String token,
+                          String description);
 }

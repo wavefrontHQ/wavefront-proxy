@@ -12,6 +12,7 @@ import com.wavefront.ingester.StringLineIngester;
 import net.jcip.annotations.NotThreadSafe;
 
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
@@ -78,9 +79,9 @@ public class QueuedAgentServiceTest {
   public void postSourceTagDataPoint() throws Exception {
     String id = "localhost";
     String tagValue = "sourceTag1";
-    EasyMock.expect(mockAgentAPI.removeTag(id, tagValue)).andReturn(Response.ok().build()).once();
+    EasyMock.expect(mockAgentAPI.removeTag(id, StringUtils.EMPTY, tagValue)).andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.removeTag(id, tagValue);
+    Response response = queuedAgentService.removeTag(id, StringUtils.EMPTY, tagValue);
     EasyMock.verify(mockAgentAPI);
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
   }
@@ -92,7 +93,7 @@ public class QueuedAgentServiceTest {
   public void postSourceTagIntoQueue() {
     String id = "localhost";
     String tagValue = "sourceTag1";
-    Response response = queuedAgentService.removeTag(id, tagValue, true);
+    Response response = queuedAgentService.removeTag(id, StringUtils.EMPTY, tagValue, true);
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
   }
@@ -105,9 +106,9 @@ public class QueuedAgentServiceTest {
   @Test
   public void removeSourceDescription() throws Exception {
     String id = "dummy";
-    EasyMock.expect(mockAgentAPI.removeDescription(id)).andReturn(Response.ok().build()).once();
+    EasyMock.expect(mockAgentAPI.removeDescription(id, StringUtils.EMPTY)).andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.removeDescription(id);
+    Response response = queuedAgentService.removeDescription(id, StringUtils.EMPTY);
     EasyMock.verify(mockAgentAPI);
     assertEquals("Response code was incorrect.", Response.Status.OK.getStatusCode(), response
         .getStatus());
@@ -123,7 +124,7 @@ public class QueuedAgentServiceTest {
   public void postSourceDescriptionIntoQueue() throws Exception {
     String id = "localhost";
     String desc = "A Description";
-    Response response = queuedAgentService.setDescription(id, desc, true);
+    Response response = queuedAgentService.setDescription(id, StringUtils.EMPTY, desc, true);
     assertEquals("Response code did not match", Response.Status.NOT_ACCEPTABLE.getStatusCode(),
         response.getStatus());
     assertEquals("No task found in the backlog queue", 1, queuedAgentService
@@ -139,10 +140,10 @@ public class QueuedAgentServiceTest {
   public void postSourceTagsDataPoint() throws Exception {
     String id = "dummy";
     String tags[] = new String[]{"tag1", "tag2", "tag3"};
-    EasyMock.expect(mockAgentAPI.setTags(id, Arrays.asList(tags))).andReturn(Response.ok().build
-        ()).once();
+    EasyMock.expect(mockAgentAPI.setTags(id, StringUtils.EMPTY,
+        Arrays.asList(tags))).andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setTags(id, Arrays.asList(tags));
+    Response response = queuedAgentService.setTags(id, StringUtils.EMPTY, Arrays.asList(tags));
     EasyMock.verify(mockAgentAPI);
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
   }
@@ -157,10 +158,10 @@ public class QueuedAgentServiceTest {
   public void postSourceDescriptionData() throws Exception {
     String id = "dummy";
     String desc = "A Description";
-    EasyMock.expect(mockAgentAPI.setDescription(id, desc)).andReturn(Response.ok()
+    EasyMock.expect(mockAgentAPI.setDescription(id, StringUtils.EMPTY, desc)).andReturn(Response.ok()
         .build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setDescription(id, desc);
+    Response response = queuedAgentService.setDescription(id, StringUtils.EMPTY, desc);
     EasyMock.verify(mockAgentAPI);
     assertEquals("Response code did not match.", Response.Status.OK.getStatusCode(),
         response.getStatus());
@@ -177,14 +178,14 @@ public class QueuedAgentServiceTest {
     // set up the mocks
     String id = "localhost";
     String tagValue = "sourceTag1";
-    EasyMock.expect(mockAgentAPI.removeTag(id, tagValue)).andReturn(Response.status(Response
+    EasyMock.expect(mockAgentAPI.removeTag(id, StringUtils.EMPTY, tagValue)).andReturn(Response.status(Response
         .Status.NOT_ACCEPTABLE).build())
         .once();
-    EasyMock.expect(mockAgentAPI.removeTag(id, tagValue)).andReturn(Response.status(Response
+    EasyMock.expect(mockAgentAPI.removeTag(id, StringUtils.EMPTY, tagValue)).andReturn(Response.status(Response
         .Status.OK).build()).once();
     EasyMock.replay(mockAgentAPI);
     // call the api
-    Response response = queuedAgentService.removeTag(id, tagValue);
+    Response response = queuedAgentService.removeTag(id, StringUtils.EMPTY, tagValue);
     // verify
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
@@ -204,12 +205,12 @@ public class QueuedAgentServiceTest {
   public void postSourceTagsAndHandle406Response() throws Exception {
     String id = "dummy";
     String tags[] = new String[]{"tag1", "tag2", "tag3"};
-    EasyMock.expect(mockAgentAPI.setTags(id, Arrays.asList(tags))).andReturn(Response.status
-        (Response.Status.NOT_ACCEPTABLE).build()).once();
-    EasyMock.expect(mockAgentAPI.setTags(id, Arrays.asList(tags))).andReturn(Response.status
-        (Response.Status.OK).build()).once();
+    EasyMock.expect(mockAgentAPI.setTags(id, StringUtils.EMPTY, Arrays.asList(tags))).andReturn(
+        Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
+    EasyMock.expect(mockAgentAPI.setTags(id, StringUtils.EMPTY, Arrays.asList(tags))).andReturn(
+        Response.status(Response.Status.OK).build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setTags(id, Arrays.asList(tags));
+    Response response = queuedAgentService.setTags(id, StringUtils.EMPTY, Arrays.asList(tags));
     // verify
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
@@ -229,14 +230,14 @@ public class QueuedAgentServiceTest {
   public void postSourceDescriptionAndHandle406Response() throws Exception {
     String id = "dummy";
     String description = "A Description";
-    EasyMock.expect(mockAgentAPI.setDescription(id, description)).andReturn(Response
+    EasyMock.expect(mockAgentAPI.setDescription(id, StringUtils.EMPTY, description)).andReturn(Response
         .status
         (Response.Status.NOT_ACCEPTABLE).build()).once();
-    EasyMock.expect(mockAgentAPI.setDescription(id, description)).andReturn(Response
+    EasyMock.expect(mockAgentAPI.setDescription(id, StringUtils.EMPTY, description)).andReturn(Response
         .status
         (Response.Status.OK).build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setDescription(id, description);
+    Response response = queuedAgentService.setDescription(id, StringUtils.EMPTY, description);
     // verify
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());

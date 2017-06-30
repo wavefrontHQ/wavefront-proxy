@@ -226,8 +226,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
               task.currentAgentId = agentId;
             }
           );
+      // create a new rate-limiter for the source tag retry queue, because the API calls are
+      // rate-limited on the server-side as well. We don't want the retry logic to keep hitting
+      // that rate-limit.
       Runnable sourceTagTaskRunnable = createRunnable(executorService, splitPushWhenRateLimited,
-          threadId, sourceTagQueue, pushRateLimiter);
+          threadId, sourceTagQueue, RecyclableRateLimiter.create(1,1));
       executorService.schedule(sourceTagTaskRunnable, (long) (Math.random() * retryThreads),
           TimeUnit.SECONDS);
       sourceTagTaskQueues.add(sourceTagQueue);
@@ -740,29 +743,29 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public Response removeTag(String id, String tagValue) {
-    return removeTag(id, tagValue, false);
+  public Response removeTag(String id, String token, String tagValue) {
+    return removeTag(id, token, tagValue, false);
   }
 
   @Override
-  public Response removeDescription(String id) {
-    return removeDescription(id, false);
+  public Response removeDescription(String id, String token) {
+    return removeDescription(id, token, false);
   }
 
   @Override
-  public Response setTags(String id, List<String> tagValuesToSet) {
-     return setTags(id, tagValuesToSet, false);
+  public Response setTags(String id, String token, List<String> tagValuesToSet) {
+     return setTags(id, token, tagValuesToSet, false);
   }
 
   @Override
-  public Response setDescription(String id, String description) {
-    return setDescription(id, description, false);
+  public Response setDescription(String id, String token, String description) {
+    return setDescription(id, token, description, false);
   }
 
   @Override
-  public Response setTags(String id, List<String> tagValuesToSet, boolean forceToQueue) {
+  public Response setTags(String id, String token, List<String> tagValuesToSet, boolean forceToQueue) {
     PostSourceTagResultTask task = new PostSourceTagResultTask(id, tagValuesToSet,
-        PostSourceTagResultTask.ActionType.save, PostSourceTagResultTask.MessageType.tag);
+        PostSourceTagResultTask.ActionType.save, PostSourceTagResultTask.MessageType.tag, token);
 
     if (forceToQueue) {
       // bypass the charade of posting to the wrapped agentAPI. Just go straight to the retry queue
@@ -771,7 +774,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     } else {
       // invoke server side API
       try {
-        parsePostingResponse(wrapped.setTags(id, tagValuesToSet));
+        Response response = wrapped.setTags(id, token, tagValuesToSet);
+        logger.info("Received response status = " + response.getStatus());
+        parsePostingResponse(response);
       } catch (RuntimeException ex) {
         handleSourceTagTaskRetry(ex, task);
         logger.warning("Unable to process the source tag request" + ExceptionUtils
@@ -783,9 +788,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public Response removeDescription(String id, boolean forceToQueue) {
+  public Response removeDescription(String id, String token, boolean forceToQueue) {
     PostSourceTagResultTask task = new PostSourceTagResultTask(id, StringUtils.EMPTY,
-        PostSourceTagResultTask.ActionType.delete, PostSourceTagResultTask.MessageType.desc);
+        PostSourceTagResultTask.ActionType.delete, PostSourceTagResultTask.MessageType.desc, token);
 
     if (forceToQueue) {
       // bypass the charade of posting to the wrapped agentAPI. Just go straight to the retry queue
@@ -794,7 +799,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     } else {
       // invoke server side API
       try {
-        parsePostingResponse(wrapped.removeDescription(id));
+        parsePostingResponse(wrapped.removeDescription(id, token));
       } catch (RuntimeException ex) {
         handleSourceTagTaskRetry(ex, task);
         logger.warning("Unable to process the source tag request" + ExceptionUtils
@@ -806,9 +811,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public Response setDescription(String id, String desc, boolean forceToQueue) {
+  public Response setDescription(String id, String token, String desc, boolean forceToQueue) {
     PostSourceTagResultTask task = new PostSourceTagResultTask(id, desc,
-        PostSourceTagResultTask.ActionType.save, PostSourceTagResultTask.MessageType.desc);
+        PostSourceTagResultTask.ActionType.save, PostSourceTagResultTask.MessageType.desc, token);
 
     if (forceToQueue) {
       // bypass the charade of posting to the wrapped agentAPI. Just go straight to the retry queue
@@ -817,7 +822,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     } else {
       // invoke server side API
       try {
-        parsePostingResponse(wrapped.setDescription(id, desc));
+        parsePostingResponse(wrapped.setDescription(id, token, desc));
       } catch (RuntimeException ex) {
         handleSourceTagTaskRetry(ex, task);
         logger.warning("Unable to process the source tag request" + ExceptionUtils
@@ -829,10 +834,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public Response removeTag(String id, String tagValue, boolean forceToQueue) {
+  public Response removeTag(String id, String token, String tagValue, boolean forceToQueue) {
 
     PostSourceTagResultTask task = new PostSourceTagResultTask(id, tagValue,
-        PostSourceTagResultTask.ActionType.delete, PostSourceTagResultTask.MessageType.tag);
+        PostSourceTagResultTask.ActionType.delete, PostSourceTagResultTask.MessageType.tag, token);
 
     if (forceToQueue) {
       // bypass the charade of posting to the wrapped agentAPI. Just go straight to the retry queue
@@ -841,7 +846,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     } else {
       // invoke server side API
       try {
-        parsePostingResponse(wrapped.removeTag(id, tagValue));
+        parsePostingResponse(wrapped.removeTag(id, token, tagValue));
       } catch (RuntimeException ex) {
         handleSourceTagTaskRetry(ex, task);
         logger.warning("Unable to process the source tag request" + ExceptionUtils
@@ -892,14 +897,15 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     private final String[] tagValues;
     private final String description;
     private final int taskSize;
+    private final String token;
 
     public enum ActionType {save, delete}
     public enum MessageType {tag, desc}
     private final ActionType actionType;
     private final MessageType messageType;
 
-    public PostSourceTagResultTask(String id, String tagValue, ActionType actionType, MessageType
-        msgType) {
+    public PostSourceTagResultTask(String id, String tagValue, ActionType actionType, MessageType msgType,
+                                   String token) {
       this.id = id;
       if (msgType == MessageType.desc) {
         description = tagValue;
@@ -912,16 +918,18 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       this.actionType = actionType;
       this.messageType = msgType;
       this.taskSize = 1;
+      this.token = token;
     }
 
-    public PostSourceTagResultTask(String id, List<String> tagValuesToSet, ActionType actionType,
-     MessageType msgType) {
+    public PostSourceTagResultTask(String id, List<String> tagValuesToSet, ActionType actionType, MessageType msgType,
+                                   String token) {
       this.id = id;
       this.tagValues = tagValuesToSet.toArray(new String[tagValuesToSet.size()]);
       description = StringUtils.EMPTY;
       this.actionType = actionType;
       this.messageType = msgType;
       this.taskSize = 1;
+      this.token = token;
     }
 
     @Override
@@ -929,7 +937,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       // currently this is a no-op
       List<PostSourceTagResultTask> splitTasks = Lists.newArrayList();
       splitTasks.add(new PostSourceTagResultTask(id, tagValues[0], this.actionType,
-          this.messageType));
+          this.messageType, this.token));
       return splitTasks;
     }
 
@@ -945,15 +953,15 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         switch (messageType) {
           case tag:
             if (actionType == ActionType.delete)
-              response = service.removeTag(id, tagValues[0]);
+              response = service.removeTag(id, token, tagValues[0]);
             else
-              response = service.setTags(id, Arrays.asList(tagValues));
+              response = service.setTags(id, token, Arrays.asList(tagValues));
             break;
           case desc:
             if (actionType == ActionType.delete)
-              response = service.removeDescription(id);
+              response = service.removeDescription(id, token);
             else
-              response = service.setDescription(id, description);
+              response = service.setDescription(id, token, description);
             break;
           default:
             logger.warning("Invalid message type.");

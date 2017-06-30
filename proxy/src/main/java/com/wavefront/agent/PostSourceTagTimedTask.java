@@ -12,6 +12,8 @@ import com.yammer.metrics.core.TimerContext;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,8 +30,8 @@ import wavefront.report.ReportSourceTag;
  */
 public class PostSourceTagTimedTask implements Runnable {
 
-  private static final Logger logger = Logger.getLogger(PostSourceTagTimedTask.class
-      .getCanonicalName());
+  private static final Logger logger =
+      Logger.getLogger(PostSourceTagTimedTask.class.getCanonicalName());
 
   private static final int MAX_BATCH_SIZE = 1000;
   private static long INTERVALS_PER_SUMMARY = 60;
@@ -39,6 +41,9 @@ public class PostSourceTagTimedTask implements Runnable {
   public static final String LOG_NONE = "NONE";
   public static final String LOG_SUMMARY = "SUMMARY";
   public static final String LOG_DETAILED = "DETAILED";
+
+  private final ScheduledExecutorService scheduler;
+  private final String token;
 
   // TODO: refactor the queue so that other object types can be handled
   private List<ReportSourceTag> sourceTags = new ArrayList<>();
@@ -63,14 +68,16 @@ public class PostSourceTagTimedTask implements Runnable {
   private ForceQueueEnabledAgentAPI agentAPI;
   private int threadId;
   private boolean isFlushingToQueue = false;
+  private final long pushFlushInterval;
 
   public PostSourceTagTimedTask(ForceQueueEnabledAgentAPI agentAPI, String logLevel, int port,
-                                int threadId) {
+                                int threadId, long pushFlushInterval, String token) {
     this.agentAPI = agentAPI;
     this.port = port;
     this.threadId = threadId;
     this.logLevel = logLevel;
-
+    this.scheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory
+        ("submitter-sourcetag-" + port + "-" + String.valueOf(threadId)));
     this.sourceTagsAttempted = Metrics.newCounter(new MetricName("sourceTags." + String.valueOf
         (port), "", "sent"));
     this.sourceTagsQueued = Metrics.newCounter(new MetricName("sourceTags." + String.valueOf(port),
@@ -84,10 +91,14 @@ public class PostSourceTagTimedTask implements Runnable {
             (threadId), "", "batches"));
     this.batchSendTime = Metrics.newTimer(new MetricName("pushSourceTag." + String.valueOf(port),
         "", "duration"), TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+    this.pushFlushInterval = pushFlushInterval;
+    this.token = token;
+    this.scheduler.schedule(this, this.pushFlushInterval, TimeUnit.MILLISECONDS);
   }
 
   @Override
   public void run() {
+    long nextRunMillis = this.pushFlushInterval;
     try {
       List<ReportSourceTag> current = createAgentPostBatch();
       batchesSent.inc();
@@ -100,10 +111,10 @@ public class PostSourceTagTimedTask implements Runnable {
             switch (sourceTag.getSourceTagLiteral()) {
               case "SourceDescription":
                 if (sourceTag.getAction().equals("delete")) {
-                  response = agentAPI.removeDescription(sourceTag.getSource(), forceToQueue);
+                  response = agentAPI.removeDescription(sourceTag.getSource(), token, forceToQueue);
                 } else {
-                  response = agentAPI.setDescription(sourceTag.getSource(), sourceTag
-                      .getDescription(), forceToQueue);
+                  response = agentAPI.setDescription(sourceTag.getSource(), token,
+                      sourceTag.getDescription(), forceToQueue);
                 }
                 break;
               case "SourceTag":
@@ -112,15 +123,18 @@ public class PostSourceTagTimedTask implements Runnable {
                   // TODO: right now it only deletes the first tag (because that server-side api
                   // only handles one tag at a time. Once the server-side api is updated we
                   // should update this code to remove multiple tags at a time.
-                  response = agentAPI.removeTag(sourceTag.getSource(),
+                  response = agentAPI.removeTag(sourceTag.getSource(), token,
                       sourceTag.getAnnotations().get(0), forceToQueue);
 
                 } else { //
                   // call the api, if we receive a 406 message then we add them to the queue
-                  response = agentAPI.setTags(sourceTag.getSource(), sourceTag.getAnnotations(),
-                      forceToQueue);
+                  response = agentAPI.setTags(sourceTag.getSource(), token,
+                      sourceTag.getAnnotations(), forceToQueue);
                 }
                 break;
+              default:
+                logger.warning("None of the literals matched. Expected SourceTag or " +
+                    "SourceDescription.");
             }
             this.sourceTagsAttempted.inc();
             if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
@@ -145,6 +159,8 @@ public class PostSourceTagTimedTask implements Runnable {
       }
     } catch (Throwable t) {
       logger.log(Level.SEVERE, "Unexpected error in flush loop", t);
+    } finally {
+      scheduler.schedule(this, nextRunMillis, TimeUnit.MILLISECONDS);
     }
   }
 
@@ -159,20 +175,19 @@ public class PostSourceTagTimedTask implements Runnable {
             switch (sourceTag.getSourceTagLiteral()) {
               case "SourceDescription":
                 if (sourceTag.getAction().equals("delete")) {
-                  agentAPI.removeDescription(sourceTag.getSource(), true);
+                  agentAPI.removeDescription(sourceTag.getSource(), token, true);
                 } else {
-                  agentAPI.setDescription(sourceTag.getSource(), sourceTag
-                      .getDescription(), true);
+                  agentAPI.setDescription(sourceTag.getSource(), token, sourceTag.getDescription(), true);
                 }
                 break;
               case "SourceTag":
                 if (sourceTag.getAction().equals("delete")) {
                   // delete the source tag
-                  agentAPI.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0),
+                  agentAPI.removeTag(sourceTag.getSource(), token, sourceTag.getAnnotations().get(0),
                       true);
                 } else {
                   // add the source tag
-                  agentAPI.setTags(sourceTag.getSource(), sourceTag.getAnnotations(), true);
+                  agentAPI.setTags(sourceTag.getSource(), token, sourceTag.getAnnotations(), true);
                 }
                 break;
             }
