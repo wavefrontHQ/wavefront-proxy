@@ -16,4 +16,5 @@ java \
 	-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
 	-Dlog4j.configurationFile=/etc/wavefront/wavefront-proxy/log4j2.xml \
 	-jar /opt/wavefront/wavefront-proxy/bin/wavefront-push-agent.jar \
-	-f /etc/wavefront/wavefront-proxy/wavefront.conf
+	-f /etc/wavefront/wavefront-proxy/wavefront.conf \
+	$WAVEFRONT_PROXY_ARGS
