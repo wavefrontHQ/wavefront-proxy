@@ -1,5 +1,6 @@
 package com.wavefront.metrics;
 
+
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -10,19 +11,25 @@ import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 
-import org.apache.commons.io.IOUtils;
-
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
 import javax.ws.rs.core.UriBuilder;
+
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okio.BufferedSink;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -37,6 +44,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class JsonMetricsReporter extends AbstractPollingReporter {
 
   private static final Logger logger = Logger.getLogger(JsonMetricsReporter.class.getCanonicalName());
+  private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
   private final boolean includeVMMetrics;
   private final String table;
@@ -47,6 +55,13 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
   private final Counter errors;
   private final boolean clearMetrics, https;
   private final MetricTranslator metricTranslator;
+
+  private final OkHttpClient client = new OkHttpClient.Builder()
+      .connectTimeout(10, TimeUnit.SECONDS)
+      .writeTimeout(10, TimeUnit.SECONDS)
+      .readTimeout(30, TimeUnit.SECONDS)
+      .build();
+
   private Timer latency;
   private Counter reports;
 
@@ -70,7 +85,7 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
 
   public JsonMetricsReporter(MetricsRegistry registry, boolean includeVMMetrics,
                              String table, String sunnylabsHost, Map<String, String> tags, boolean clearMetrics)
-    throws UnknownHostException {
+      throws UnknownHostException {
     this(registry, includeVMMetrics, table, sunnylabsHost, tags, clearMetrics, true, null);
   }
 
@@ -126,7 +141,6 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
 
   public void reportMetrics() {
     TimerContext time = latency.time();
-    HttpURLConnection urlc = null;
     try {
       UriBuilder builder = UriBuilder.fromUri(new URI(
           https ? "https" : "http", sunnylabsHost, "/report/metrics", null));
@@ -140,32 +154,31 @@ public class JsonMetricsReporter extends AbstractPollingReporter {
       }
       URL http = builder.build().toURL();
       logger.info("Reporting metrics (JSON) to: " + http);
-      urlc = (HttpURLConnection) http.openConnection();
-      urlc.setDoOutput(true);
-      urlc.setReadTimeout(60000);
-      urlc.setConnectTimeout(60000);
-      urlc.addRequestProperty("Content-Type", "application/json");
-      OutputStream outputStream = urlc.getOutputStream();
-      JsonMetricsGenerator.generateJsonMetrics(outputStream, getMetricsRegistry(), includeVMMetrics, true,
-          clearMetrics, metricTranslator);
-      logger.info("Metrics (JSON) reported: " + urlc.getResponseCode());
+      Request request = new Request.Builder().
+          url(http).
+          post(new RequestBody() {
+            @Nullable
+            @Override
+            public okhttp3.MediaType contentType() {
+              return JSON;
+            }
+
+            @Override
+            public void writeTo(BufferedSink bufferedSink) throws IOException {
+              JsonMetricsGenerator.generateJsonMetrics(bufferedSink.outputStream(),
+                  getMetricsRegistry(), includeVMMetrics, true,
+                  clearMetrics, metricTranslator);
+            }
+          }).
+          build();
+      try (final Response response = client.newCall(request).execute()) {
+        logger.info("Metrics (JSON) reported: " + response.code());
+      }
       reports.inc();
     } catch (Throwable e) {
       logger.log(Level.WARNING, "Failed to report metrics (JSON)", e);
       errors.inc();
     } finally {
-      if (urlc != null) {
-        try {
-          IOUtils.closeQuietly(urlc.getInputStream());
-        } catch (Exception e) {
-          // ignore.
-        }
-        try {
-          IOUtils.closeQuietly(urlc.getOutputStream());
-        } catch (Exception e) {
-          // ignore.
-        }
-      }
       time.stop();
     }
   }
