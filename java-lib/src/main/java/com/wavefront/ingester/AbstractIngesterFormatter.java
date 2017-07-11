@@ -628,10 +628,16 @@ public abstract class AbstractIngesterFormatter<T> {
     try {
       Double timestamp = Double.parseDouble(tokenQueue.poll().getText());
       Long timestampLong = timestamp.longValue();
-      // see if it has 13 digits.
-      if (timestampLong.toString().length() == 13) {
+      int timestampDigits = timestampLong.toString().length();
+      if (timestampDigits == 19) {
+        // nanoseconds.
+        return timestampLong / 1000000;
+      } else if (timestampDigits == 16) {
+        // microseconds
+        return timestampLong / 1000;
+      } else if (timestampDigits == 13) {
         // milliseconds.
-        return timestamp.longValue();
+        return timestampLong;
       } else {
         // treat it as seconds.
         return (long) (1000.0 * timestamp);

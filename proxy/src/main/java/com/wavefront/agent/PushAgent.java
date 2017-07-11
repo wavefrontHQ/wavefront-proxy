@@ -101,7 +101,7 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void startListeners() {
     if (soLingerTime >= 0) {
-      childChannelOptions.put(ChannelOption.SO_LINGER, 0);
+      childChannelOptions.put(ChannelOption.SO_LINGER, soLingerTime);
     }
     if (pushListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
