@@ -69,7 +69,7 @@ final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
     if (isHttp(firstByte, secondByte)) {
       pipeline.addLast("decoder", new HttpRequestDecoder());
       pipeline.addLast("encoder", new HttpResponseEncoder());
-      pipeline.addLast("aggregator", new HttpObjectAggregator(1048576));
+      pipeline.addLast("aggregator", new HttpObjectAggregator(16 * 1024 * 1024));
       pipeline.addLast("deflate", new HttpContentCompressor());
       pipeline.addLast("handler", this.handler);
     } else {

@@ -47,6 +47,7 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object> {
   private static final Logger logger = Logger.getLogger(
       OpenTSDBPortUnificationHandler.class.getCanonicalName());
+  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and
@@ -214,10 +215,15 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
       JsonNode time = metric.get("timestamp");
       long ts = 0;
       if (time != null) {
-        if (Long.toString(ts).length() == 10) {
-          ts = time.asLong() * 1000;
-        } else {
+        int timestampSize = Long.toString(time.asLong()).length();
+        if (timestampSize == 19) { // nanoseconds
+          ts = time.asLong() / 1000000;
+        } else if (timestampSize == 16) { // microseconds
+          ts = time.asLong() / 1000;
+        } else if (timestampSize == 13) { // milliseconds
           ts = time.asLong();
+        } else { // seconds
+          ts = time.asLong() * 1000;
         }
       }
       builder.setTimestamp(ts);
@@ -235,7 +241,20 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
       builder.setTable("dummy");
       builder.setHost(hostName);
       ReportPoint point = builder.build();
-      pointHandler.reportPoint(point, "OpenTSDB http json: " + PointHandlerImpl.pointToString(point));
+
+      if (preprocessor != null) {
+        preprocessor.forReportPoint().transform(point);
+        if (!preprocessor.forReportPoint().filter(point)) {
+          if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+            blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+          } else {
+            blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+          }
+          pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+        }
+      }
+
+      pointHandler.reportPoint(point, null);
       return true;
     } catch (final Exception e) {
       blockMessage("WF-300", "Failed to add metric", e, null);
