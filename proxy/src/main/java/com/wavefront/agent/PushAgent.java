@@ -43,6 +43,7 @@ import com.wavefront.ingester.TcpIngester;
 import net.openhft.chronicle.map.ChronicleMap;
 
 import org.apache.commons.lang.BooleanUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.logstash.beats.Server;
 
 import java.io.File;
@@ -198,12 +199,24 @@ public class PushAgent extends AbstractAgent {
     }
 
     // ------ Start the listener for source metadata, such as sourceTags and description ----------
-    if (metadataListenerPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split
-          (metadataListenerPorts);
+    if (!StringUtils.isEmpty(metadataListenerPorts) && !StringUtils.isEmpty(token)) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(metadataListenerPorts);
       for (String port : ports) {
         startMetadataListener(port);
+        logger.info("listening on port: " + port + " for metadata (e.g. SourceTag and " +
+            "SourceDescription).");
       }
+    } else {
+      StringBuilder strBuilder = new StringBuilder();
+      if (StringUtils.isEmpty(metadataListenerPorts))
+        strBuilder.append("metadata listener port is null");
+      if (StringUtils.isEmpty(token)) {
+        if (strBuilder.length() != 0)
+          strBuilder.append(" and ");
+        strBuilder.append("token is null");
+      }
+      logger.warning("Could not start the metadata listener because " + strBuilder.toString() +
+          ".");
     }
 
     GraphiteFormatter graphiteFormatter = null;

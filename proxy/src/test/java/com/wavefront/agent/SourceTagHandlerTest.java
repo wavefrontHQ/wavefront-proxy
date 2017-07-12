@@ -2,6 +2,7 @@ package com.wavefront.agent;
 
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 
+import org.apache.commons.lang3.StringUtils;
 import org.easymock.EasyMock;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -61,12 +62,9 @@ public class SourceTagHandlerTest {
   private static PostSourceTagTimedTask[] getSourceTagFlushTasks(int port) {
     int flushThreads = 2;
     PostSourceTagTimedTask[] toReturn = new PostSourceTagTimedTask[flushThreads];
-    ScheduledExecutorService es = Executors.newScheduledThreadPool(flushThreads);
     for (int i = 0; i < flushThreads; i++) {
       final PostSourceTagTimedTask postSourceTagTimedTask = new PostSourceTagTimedTask(mockAgentAPI,
-          "NONE", port, i);
-      es.scheduleWithFixedDelay(postSourceTagTimedTask, 1000 , 1000,
-          TimeUnit.MILLISECONDS);
+          "NONE", port, i, 100, StringUtils.EMPTY);
       toReturn[i] = postSourceTagTimedTask;
     }
     return toReturn;
@@ -83,9 +81,8 @@ public class SourceTagHandlerTest {
     String[] annotations = new String[]{"tag1", "tag2", "tag3"};
     sourceTags[0] = new ReportSourceTag("SourceTag", "save", "dummy", "desc", Arrays.asList
         (annotations));
-    EasyMock.expect(mockAgentAPI.setTags("dummy", Arrays.asList(annotations), false)).andReturn
-        (Response.ok()
-        .build()).once();
+    EasyMock.expect(mockAgentAPI.setTags("dummy", StringUtils.EMPTY, Arrays.asList(annotations), false)).andReturn(
+        Response.ok().build()).once();
 
     EasyMock.replay(mockAgentAPI);
 

@@ -26,11 +26,11 @@ public interface ForceQueueEnabledAgentAPI extends WavefrontAPI {
                         String pushData,
                         boolean forceToQueue);
 
-  Response removeTag(String id, String tagValue, boolean forceToQueue);
+  Response removeTag(String id, String token, String tagValue, boolean forceToQueue);
 
-  Response setTags(String id, List<String> tagsValuesToSet, boolean forceToQueue);
+  Response setTags(String id, String token, List<String> tagsValuesToSet, boolean forceToQueue);
 
-  Response removeDescription(String id, boolean forceToQueue);
+  Response removeDescription(String id, String token, boolean forceToQueue);
 
-  Response setDescription(String id, String desc, boolean forceToQueue);
+  Response setDescription(String id, String token, String desc, boolean forceToQueue);
 }

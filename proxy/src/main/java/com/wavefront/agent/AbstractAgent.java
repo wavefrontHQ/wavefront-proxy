@@ -128,7 +128,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"-t", "--token"}, description =
       "Token to auto-register agent with an account")
-  private String token = null;
+  protected String token = null;
 
   @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
   private boolean testLogs = false;
@@ -189,7 +189,7 @@ public abstract class AbstractAgent {
       "2878.")
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
 
-  @Parameter(names = {"--metadataListernerPorts"}, description = "Comma-separated list of ports " +
+  @Parameter(names = {"--metadataListenerPorts"}, description = "Comma-separated list of ports " +
       "to listen on for metadata. Defaults to " + METADATA_LISTENING_PORT + ".")
   protected String metadataListenerPorts = "" + METADATA_LISTENING_PORT;
 
@@ -1389,8 +1389,8 @@ public abstract class AbstractAgent {
     logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for " +
         "data received on port: " + port);
     for (int i = 0; i < flushThreads; i++) {
-      final PostSourceTagTimedTask postSourceTagTimedTask = new PostSourceTagTimedTask(agentAPI,
-          pushLogLevel, port, i);
+      final PostSourceTagTimedTask postSourceTagTimedTask = new PostSourceTagTimedTask(agentAPI, pushLogLevel, port,
+          i, pushFlushInterval.get(), token);
       toReturn[i] = postSourceTagTimedTask;
       managedSourceTagTasks.add(postSourceTagTimedTask);
     }
