@@ -101,7 +101,7 @@ public class ReconnectingSocket {
   public void write(String message) throws Exception {
     try {
       if (serverTerminated.get()) {
-        throw new Exception("Remote server terminated.");  // Handled below.
+        throw new Exception("Remote server terminated (" + host + ":" + port + ")");  // Handled below.
       }
       // Might be NPE due to previously failed call to resetSocket.
       socketOutputStream.get().write(message.getBytes());
