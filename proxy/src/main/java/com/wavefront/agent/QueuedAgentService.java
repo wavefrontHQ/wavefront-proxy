@@ -230,7 +230,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       // rate-limited on the server-side as well. We don't want the retry logic to keep hitting
       // that rate-limit.
       Runnable sourceTagTaskRunnable = createRunnable(executorService, splitPushWhenRateLimited,
-          threadId, sourceTagQueue, RecyclableRateLimiter.create(1,1));
+          threadId, sourceTagQueue, RecyclableRateLimiter.create(1, 1));
       executorService.schedule(sourceTagTaskRunnable, (long) (Math.random() * retryThreads),
           TimeUnit.SECONDS);
       sourceTagTaskQueues.add(sourceTagQueue);

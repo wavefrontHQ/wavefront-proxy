@@ -98,7 +98,6 @@ public class PostSourceTagTimedTask implements Runnable {
 
   @Override
   public void run() {
-    long nextRunMillis = this.pushFlushInterval;
     try {
       List<ReportSourceTag> current = createAgentPostBatch();
       batchesSent.inc();
@@ -134,7 +133,7 @@ public class PostSourceTagTimedTask implements Runnable {
                 break;
               default:
                 logger.warning("None of the literals matched. Expected SourceTag or " +
-                    "SourceDescription.");
+                    "SourceDescription. Input = " + sourceTag);
             }
             this.sourceTagsAttempted.inc();
             if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
@@ -160,7 +159,7 @@ public class PostSourceTagTimedTask implements Runnable {
     } catch (Throwable t) {
       logger.log(Level.SEVERE, "Unexpected error in flush loop", t);
     } finally {
-      scheduler.schedule(this, nextRunMillis, TimeUnit.MILLISECONDS);
+      scheduler.schedule(this, this.pushFlushInterval, TimeUnit.MILLISECONDS);
     }
   }
 

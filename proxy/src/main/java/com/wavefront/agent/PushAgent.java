@@ -43,6 +43,7 @@ import com.wavefront.ingester.TcpIngester;
 import net.openhft.chronicle.map.ChronicleMap;
 
 import org.apache.commons.lang.BooleanUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.logstash.beats.Server;
 
 import java.io.File;
@@ -198,7 +199,7 @@ public class PushAgent extends AbstractAgent {
     }
 
     // ------ Start the listener for source metadata, such as sourceTags and description ----------
-    if (metadataListenerPorts != null && token != null) {
+    if (!StringUtils.isEmpty(metadataListenerPorts) && !StringUtils.isEmpty(token)) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(metadataListenerPorts);
       for (String port : ports) {
         startMetadataListener(port);
@@ -207,9 +208,9 @@ public class PushAgent extends AbstractAgent {
       }
     } else {
       StringBuilder strBuilder = new StringBuilder();
-      if (metadataListenerPorts == null)
+      if (StringUtils.isEmpty(metadataListenerPorts))
         strBuilder.append("metadata listener port is null");
-      if (token == null) {
+      if (StringUtils.isEmpty(token)) {
         if (strBuilder.length() != 0)
           strBuilder.append(" and ");
         strBuilder.append("token is null");
