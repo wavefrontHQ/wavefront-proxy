@@ -29,7 +29,7 @@ public class ReconnectingSocket {
   private final String host;
   private final int port;
   private final SocketFactory socketFactory;
-  private final AtomicBoolean serverTerminated;
+  private volatile boolean shouldPoll, serverTerminated;
   private final Thread pollingThread;
   private AtomicReference<Socket> underlyingSocket;
   private AtomicReference<BufferedOutputStream> socketOutputStream;
@@ -40,7 +40,8 @@ public class ReconnectingSocket {
   public ReconnectingSocket(String host, int port, SocketFactory socketFactory) throws IOException {
     this.host = host;
     this.port = port;
-    this.serverTerminated = new AtomicBoolean(false);
+    this.shouldPoll = true;
+    this.serverTerminated = false;
     this.socketFactory = socketFactory;
 
     this.underlyingSocket = new AtomicReference<>(socketFactory.createSocket(host, port));
@@ -50,7 +51,7 @@ public class ReconnectingSocket {
     this.pollingThread = new Thread(() -> {
       byte[] message = new byte[1000];
       int bytesRead;
-      while (!Thread.currentThread().isInterrupted()) {
+      while (shouldPoll) {
         try {
           bytesRead = underlyingSocket.get().getInputStream().read(message);
         } catch (IOException e) {
@@ -58,7 +59,7 @@ public class ReconnectingSocket {
           continue;
         }
         if (bytesRead == -1) {
-          serverTerminated.set(true);
+          serverTerminated = true;
           break;
         }
       }
@@ -84,8 +85,12 @@ public class ReconnectingSocket {
     } catch (SocketException e) {
       logger.log(Level.INFO, "Could not flush to socket.", e);
     } finally {
-      serverTerminated.set(false);
-      underlyingSocket.getAndSet(socketFactory.createSocket(host, port)).close();
+      serverTerminated = false;
+      try {
+        underlyingSocket.getAndSet(socketFactory.createSocket(host, port)).close();
+      } catch (SocketException e) {
+        logger.log(Level.WARNING, "Could not close old socket.", e);
+      }
       underlyingSocket.get().setSoTimeout(2000);
       socketOutputStream.set(new BufferedOutputStream(underlyingSocket.get().getOutputStream()));
       logger.log(Level.INFO, String.format("Successfully reset connection to %s:%d", host, port));
@@ -100,8 +105,8 @@ public class ReconnectingSocket {
    */
   public void write(String message) throws Exception {
     try {
-      if (serverTerminated.get()) {
-        throw new Exception("Remote server terminated (" + host + ":" + port + ")");  // Handled below.
+      if (serverTerminated) {
+        throw new Exception("Remote server terminated.");  // Handled below.
       }
       // Might be NPE due to previously failed call to resetSocket.
       socketOutputStream.get().write(message.getBytes());
@@ -132,7 +137,7 @@ public class ReconnectingSocket {
     try {
       flush();
     } finally {
-      pollingThread.interrupt();
+      shouldPoll = false;
       socketOutputStream.get().close();
     }
   }
