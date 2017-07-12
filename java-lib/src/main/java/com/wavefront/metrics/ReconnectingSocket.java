@@ -5,15 +5,21 @@ import com.google.common.base.Throwables;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.net.SocketFactory;
 
 /**
- * Creates a socket with a buffered-writer around it. The socket can try to reconnect on
- * unexpected remote terminations.
+ * Creates a TCP client suitable for the WF proxy. That is: a client which is long-lived and semantically one-way.
+ * This client tries persistently to reconnect to the given host and port if a connection is ever broken. If the server
+ * (in practice, the WF proxy) sends a TCP FIN or TCP RST, we will treat it as a "broken connection" and just try
+ * to connect again on the next call to write(). This means each ReconnectingSocket has a polling thread for the server
+ * to listen for connection resets.
  *
  * @author Mori Bellamy (mori@wavefront.com)
  */
@@ -23,8 +29,10 @@ public class ReconnectingSocket {
   private final String host;
   private final int port;
   private final SocketFactory socketFactory;
-  private Socket underlyingSocket;
-  private BufferedOutputStream stream;
+  private volatile boolean shouldPoll, serverTerminated;
+  private final Thread pollingThread;
+  private AtomicReference<Socket> underlyingSocket;
+  private AtomicReference<BufferedOutputStream> socketOutputStream;
 
   /**
    * @throws IOException When we cannot open the remote socket.
@@ -32,9 +40,32 @@ public class ReconnectingSocket {
   public ReconnectingSocket(String host, int port, SocketFactory socketFactory) throws IOException {
     this.host = host;
     this.port = port;
+    this.shouldPoll = true;
+    this.serverTerminated = false;
     this.socketFactory = socketFactory;
-    this.stream = null;
-    resetSocket();
+
+    this.underlyingSocket = new AtomicReference<>(socketFactory.createSocket(host, port));
+    this.underlyingSocket.get().setSoTimeout(2000);
+    this.socketOutputStream = new AtomicReference<>(new BufferedOutputStream(underlyingSocket.get().getOutputStream()));
+
+    this.pollingThread = new Thread(() -> {
+      byte[] message = new byte[1000];
+      int bytesRead;
+      while (shouldPoll) {
+        try {
+          bytesRead = underlyingSocket.get().getInputStream().read(message);
+        } catch (IOException e) {
+          // Read timeout, just try again later. Important to set SO_TIMEOUT elsewhere.
+          continue;
+        }
+        if (bytesRead == -1) {
+          serverTerminated = true;
+          break;
+        }
+      }
+    });
+
+    this.pollingThread.start();
   }
 
   public ReconnectingSocket(String host, int port) throws IOException {
@@ -42,19 +73,26 @@ public class ReconnectingSocket {
   }
 
   /**
-   * Closes the stream best-effort. Tries to re-instantiate the stream.
+   * Closes the outputStream best-effort. Tries to re-instantiate the outputStream.
    *
-   * @throws IOException          If we cannot close a stream we had opened before.
+   * @throws IOException          If we cannot close a outputStream we had opened before.
    * @throws UnknownHostException When {@link #host} and {@link #port} are bad.
    */
-  private void resetSocket() throws IOException {
+  private synchronized void resetSocket() throws IOException {
     try {
-      if (stream != null) {
-        stream.close();
-      }
+      BufferedOutputStream old = socketOutputStream.get();
+      if (old != null) old.close();
+    } catch (SocketException e) {
+      logger.log(Level.INFO, "Could not flush to socket.", e);
     } finally {
-      underlyingSocket = socketFactory.createSocket(host, port);
-      stream = new BufferedOutputStream(underlyingSocket.getOutputStream());
+      serverTerminated = false;
+      try {
+        underlyingSocket.getAndSet(socketFactory.createSocket(host, port)).close();
+      } catch (SocketException e) {
+        logger.log(Level.WARNING, "Could not close old socket.", e);
+      }
+      underlyingSocket.get().setSoTimeout(2000);
+      socketOutputStream.set(new BufferedOutputStream(underlyingSocket.get().getOutputStream()));
       logger.log(Level.INFO, String.format("Successfully reset connection to %s:%d", host, port));
     }
   }
@@ -67,12 +105,16 @@ public class ReconnectingSocket {
    */
   public void write(String message) throws Exception {
     try {
-      stream.write(message.getBytes());  // Might be NPE due to previously failed call to resetSocket.
+      if (serverTerminated) {
+        throw new Exception("Remote server terminated.");  // Handled below.
+      }
+      // Might be NPE due to previously failed call to resetSocket.
+      socketOutputStream.get().write(message.getBytes());
     } catch (Exception e) {
       try {
         logger.log(Level.WARNING, "Attempting to reset socket connection.", e);
         resetSocket();
-        stream.write(message.getBytes());
+        socketOutputStream.get().write(message.getBytes());
       } catch (Exception e2) {
         throw Throwables.propagate(e2);
       }
@@ -80,11 +122,11 @@ public class ReconnectingSocket {
   }
 
   /**
-   * Flushes the stream best-effort. If that fails, we reset the connection.
+   * Flushes the outputStream best-effort. If that fails, we reset the connection.
    */
   public void flush() throws IOException {
     try {
-      stream.flush();
+      socketOutputStream.get().flush();
     } catch (Exception e) {
       logger.log(Level.WARNING, "Attempting to reset socket connection.", e);
       resetSocket();
@@ -95,7 +137,8 @@ public class ReconnectingSocket {
     try {
       flush();
     } finally {
-      stream.close();
+      shouldPoll = false;
+      socketOutputStream.get().close();
     }
   }
 }
