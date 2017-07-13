@@ -1,5 +1,6 @@
 package com.wavefront.metrics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 
 import java.io.BufferedOutputStream;
@@ -7,7 +8,8 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -26,11 +28,15 @@ import javax.net.SocketFactory;
 public class ReconnectingSocket {
   protected static final Logger logger = Logger.getLogger(ReconnectingSocket.class.getCanonicalName());
 
+  private static final int
+      SERVER_READ_TIMEOUT_MILLIS = 2000,
+      SERVER_POLL_INTERVAL_MILLIS = 4000;
+
   private final String host;
   private final int port;
   private final SocketFactory socketFactory;
-  private volatile boolean shouldPoll, serverTerminated;
-  private final Thread pollingThread;
+  private volatile boolean serverTerminated;
+  private final Timer pollingTimer;
   private AtomicReference<Socket> underlyingSocket;
   private AtomicReference<BufferedOutputStream> socketOutputStream;
 
@@ -40,32 +46,41 @@ public class ReconnectingSocket {
   public ReconnectingSocket(String host, int port, SocketFactory socketFactory) throws IOException {
     this.host = host;
     this.port = port;
-    this.shouldPoll = true;
     this.serverTerminated = false;
     this.socketFactory = socketFactory;
 
     this.underlyingSocket = new AtomicReference<>(socketFactory.createSocket(host, port));
-    this.underlyingSocket.get().setSoTimeout(2000);
+    this.underlyingSocket.get().setSoTimeout(SERVER_READ_TIMEOUT_MILLIS);
     this.socketOutputStream = new AtomicReference<>(new BufferedOutputStream(underlyingSocket.get().getOutputStream()));
 
-    this.pollingThread = new Thread(() -> {
+    this.pollingTimer = new Timer();
+
+    pollingTimer.scheduleAtFixedRate(new TimerTask() {
+      @Override
+      public void run() {
+        maybeReconnect();
+      }
+    }, 0, SERVER_POLL_INTERVAL_MILLIS);
+
+  }
+
+  @VisibleForTesting
+  void maybeReconnect() {
+    try {
       byte[] message = new byte[1000];
       int bytesRead;
-      while (shouldPoll) {
-        try {
-          bytesRead = underlyingSocket.get().getInputStream().read(message);
-        } catch (IOException e) {
-          // Read timeout, just try again later. Important to set SO_TIMEOUT elsewhere.
-          continue;
-        }
-        if (bytesRead == -1) {
-          serverTerminated = true;
-          break;
-        }
+      try {
+        bytesRead = underlyingSocket.get().getInputStream().read(message);
+      } catch (IOException e) {
+        // Read timeout, just try again later. Important to set SO_TIMEOUT elsewhere.
+        return;
       }
-    });
-
-    this.pollingThread.start();
+      if (bytesRead == -1) {
+        serverTerminated = true;
+      }
+    } catch (Exception e) {
+      logger.log(Level.SEVERE, "Cannot poll server for TCP FIN.");
+    }
   }
 
   public ReconnectingSocket(String host, int port) throws IOException {
@@ -91,7 +106,7 @@ public class ReconnectingSocket {
       } catch (SocketException e) {
         logger.log(Level.WARNING, "Could not close old socket.", e);
       }
-      underlyingSocket.get().setSoTimeout(2000);
+      underlyingSocket.get().setSoTimeout(SERVER_READ_TIMEOUT_MILLIS);
       socketOutputStream.set(new BufferedOutputStream(underlyingSocket.get().getOutputStream()));
       logger.log(Level.INFO, String.format("Successfully reset connection to %s:%d", host, port));
     }
@@ -137,7 +152,7 @@ public class ReconnectingSocket {
     try {
       flush();
     } finally {
-      shouldPoll = false;
+      pollingTimer.cancel();
       socketOutputStream.get().close();
     }
   }
