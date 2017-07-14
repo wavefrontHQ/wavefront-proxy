@@ -60,7 +60,7 @@ public class ReconnectingSocket {
       public void run() {
         maybeReconnect();
       }
-    }, 0, SERVER_POLL_INTERVAL_MILLIS);
+    }, SERVER_POLL_INTERVAL_MILLIS, SERVER_POLL_INTERVAL_MILLIS);
 
   }
 
