@@ -102,9 +102,9 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
   }
 
   /**
-   * Handles an incoming HTTP message.  The currently supported paths are: {@link <a
-   * href="http://opentsdb.net/docs/build/html/api_http/put.html">/api/put</a>} {@link <a
-   * href="http://opentsdb.net/docs/build/html/api_http/version.html">/api/version</a>},
+   * Handles an incoming HTTP message.  The currently supported paths are:
+   * {@link <ahref="http://opentsdb.net/docs/build/html/api_http/put.html">/api/put</a>}
+   * {@link <ahref="http://opentsdb.net/docs/build/html/api_http/version.html">/api/version</a>},
    *
    * @throws IOException        when reading contents of HTTP body fails
    * @throws URISyntaxException when the request URI cannot be parsed
@@ -347,6 +347,12 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
     pointHandler.handleBlockedPoint(errMsg);
   }
 
+  /**
+   * Create a error message from an exception.
+   *
+   * @param e Exceptions thrown
+   * @return formatted error message
+   */
   private String createErrMsg(@Nonnull final Throwable e) {
     final Throwable rootCause = Throwables.getRootCause(e);
     String errMsg = "reason: \"" + e.getMessage() + "\"";
