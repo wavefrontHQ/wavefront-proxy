@@ -197,13 +197,20 @@ public class ${this.mangle($schema.getName())}#if ($schema.isError()) extends or
 #if ($this.createSetters)
   /**
    * Sets the value of the '${this.mangle($field.name(), $schema.isError())}' field.
-#if ($field.doc())   * $field.doc()
-#end
+    #if ($field.doc())   * $field.doc()#end
    * @param value the value to set.
    */
-  public void ${this.generateSetMethod($schema, $field)}(${this.javaType($field.schema())} value) {
+    #if ($field.schema().getType().name() == "UNION" && $this.javaType($field.schema()) == "java.lang.Object")
+        #foreach ($type in $field.schema().getTypes())
+        public void ${this.generateSetMethod($schema, $field)}(${this.javaType($type)} value) {
+        this.${this.mangle($field.name(), $schema.isError())} = value;
+        }
+        #end
+    #else
+    public void ${this.generateSetMethod($schema, $field)}(${this.javaType($field.schema())} value) {
     this.${this.mangle($field.name(), $schema.isError())} = value;
-  }
+    }
+    #end
 #end
 
 #end
@@ -336,23 +343,45 @@ public class ${this.mangle($schema.getName())}#if ($schema.isError()) extends or
     public ${this.javaType($field.schema())} ${this.generateGetMethod($schema, $field)}() {
       return ${this.mangle($field.name(), $schema.isError())};
     }
+    #if ($field.schema().getType().name() == "UNION" && $this.javaType($field.schema()) == "java.lang.Object")
+        #foreach ($type in $field.schema().getTypes())
+
+        /**
+        * Sets the value of the '${this.mangle($field.name(), $schema.isError())}' field.
+            #if ($field.doc())     * $field.doc()
+            #end
+        * @param value The value of '${this.mangle($field.name(), $schema.isError())}'.
+        * @return This builder.
+        */
+        public #if ($schema.getNamespace())$schema.getNamespace().#end${this.mangle($schema.getName())}.Builder ${this.generateSetMethod($schema, $field)}(${this.javaUnbox($type)} value) {
+        validate(fields()[$field.pos()], value);
+            #if (${this.hasBuilder($field.schema())})
+            this.${this.mangle($field.name(), $schema.isError())}Builder = null;
+            #end
+        this.${this.mangle($field.name(), $schema.isError())} = value;
+        fieldSetFlags()[$field.pos()] = true;
+        return this;
+        }
+        #end
+    #else
 
     /**
-      * Sets the value of the '${this.mangle($field.name(), $schema.isError())}' field.
-#if ($field.doc())      * $field.doc()
-#end
-      * @param value The value of '${this.mangle($field.name(), $schema.isError())}'.
-      * @return This builder.
-      */
+    * Sets the value of the '${this.mangle($field.name(), $schema.isError())}' field.
+        #if ($field.doc())     * $field.doc()
+        #end
+    * @param value The value of '${this.mangle($field.name(), $schema.isError())}'.
+    * @return This builder.
+    */
     public #if ($schema.getNamespace())$schema.getNamespace().#end${this.mangle($schema.getName())}.Builder ${this.generateSetMethod($schema, $field)}(${this.javaUnbox($field.schema())} value) {
-      validate(fields()[$field.pos()], value);
-#if (${this.hasBuilder($field.schema())})
-      this.${this.mangle($field.name(), $schema.isError())}Builder = null;
-#end
-      this.${this.mangle($field.name(), $schema.isError())} = value;
-      fieldSetFlags()[$field.pos()] = true;
-      return this;
+    validate(fields()[$field.pos()], value);
+        #if (${this.hasBuilder($field.schema())})
+        this.${this.mangle($field.name(), $schema.isError())}Builder = null;
+        #end
+    this.${this.mangle($field.name(), $schema.isError())} = value;
+    fieldSetFlags()[$field.pos()] = true;
+    return this;
     }
+    #end
 
     /**
       * Checks whether the '${this.mangle($field.name(), $schema.isError())}' field has been set.
