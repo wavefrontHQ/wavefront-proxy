@@ -27,6 +27,9 @@ else
 	die "Usage: $0 <fpm_target> [<fpm_version> <fpm_iteration>]"
 fi
 
+LICENSES='usr/share/doc/wavefront-proxy/open_source_licenses.txt'
+cp -f $(readlink -f $LICENSES) $LICENSES
+
 if [[ $FPM_TARGET == "deb" ]]; then
 	EXTRA_DIRS="usr"
 else
