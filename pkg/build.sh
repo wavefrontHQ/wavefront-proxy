@@ -28,15 +28,14 @@ else
 fi
 
 # Get the license file in to a good place, depending on the distro.
-LICENSES_SYM=usr/share/doc/wavefront-proxy/open_source_licenses.txt
-LICENSES=$(readlink -f $LICENSES_SYM)
-rm -f $LICENSES_SYM
-cp $LICENSES $LICENSES_SYM
+LICENSES_SYM=open_source_licenses.txt
+LICENSES_FILE=$(readlink -f $LICENSES_SYM)
 
 if [[ $FPM_TARGET == "deb" ]]; then
 	EXTRA_DIRS="usr"
+	cp $LICENSES_FILE usr/share/doc/wavefront-proxy/open_source_licenses.txt
 else
-	cp $LICENSES opt/wavefront/wavefront-proxy
+	cp $LICENSES_FILE opt/wavefront/wavefront-proxy
 	EXTRA_DIRS=""
 fi
 
