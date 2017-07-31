@@ -33,9 +33,9 @@ LICENSES_FILE=$(readlink -f $LICENSES_SYM)
 
 if [[ $FPM_TARGET == "deb" ]]; then
 	EXTRA_DIRS="usr"
-	cp $LICENSES_FILE usr/share/doc/wavefront-proxy/open_source_licenses.txt
+	cp $LICENSES_FILE build/usr/share/doc/wavefront-proxy/open_source_licenses.txt
 else
-	cp $LICENSES_FILE opt/wavefront/wavefront-proxy
+	cp $LICENSES_FILE build/opt/wavefront/wavefront-proxy
 	EXTRA_DIRS=""
 fi
 
@@ -66,3 +66,6 @@ fpm \
 if [[ $FPM_TARGET == "rpm" ]]; then
 	rpm --delsign *.rpm
 fi
+
+[[ -d out ]] || mkdir out
+mv *.$FPM_TARGET out
