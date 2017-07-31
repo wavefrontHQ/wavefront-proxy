@@ -27,12 +27,16 @@ else
 	die "Usage: $0 <fpm_target> [<fpm_version> <fpm_iteration>]"
 fi
 
-LICENSES='usr/share/doc/wavefront-proxy/open_source_licenses.txt'
-cp -f $(readlink -f $LICENSES) $LICENSES
+# Get the license file in to a good place, depending on the distro.
+LICENSES_SYM=usr/share/doc/wavefront-proxy/open_source_licenses.txt
+LICENSES=$(readlink -f $LICENSES_SYM)
+rm -f $LICENSES_SYM
+cp $LICENSES $LICENSES_SYM
 
 if [[ $FPM_TARGET == "deb" ]]; then
 	EXTRA_DIRS="usr"
 else
+	cp $LICENSES opt/wavefront/wavefront-proxy
 	EXTRA_DIRS=""
 fi
 
