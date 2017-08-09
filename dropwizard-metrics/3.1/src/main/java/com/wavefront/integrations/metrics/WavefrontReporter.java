@@ -20,6 +20,8 @@ import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 import com.wavefront.integrations.Wavefront;
 import com.wavefront.integrations.WavefrontSender;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -182,6 +184,45 @@ public class WavefrontReporter extends ScheduledReporter {
     public Builder withJvmMetrics() {
       this.includeJvmMetrics = true;
       return this;
+    }
+
+    /**
+     * Builds a {@link WavefrontReporter} from the VCAP_SERVICES env variable, sending metrics
+     * using the given {@link WavefrontSender}. This should be used in PCF environment only.
+     *
+     * @return a {@link WavefrontReporter}
+     */
+    public WavefrontReporter build() {
+      String proxyHostname;
+      int proxyPort;
+      // read the env variable VCAP_SERVICES
+      String services = System.getenv("VCAP_SERVICES");
+      if (services == null || services.length() == 0) {
+        LOGGER.error("Environment variable VCAP_SERVICES is empty.");
+        // since the wavefront-proxy is not tied to the app, use dummy hostname and port.
+        proxyHostname = "";
+        proxyPort = 2878;
+      } else {
+        // parse the json to read the hostname and port
+        JSONObject json = new JSONObject(services);
+        // When wavefront tile is installed on PCF, it will be automatically named wavefront-proxy
+        JSONArray jsonArray = json.getJSONArray("wavefront-proxy");
+        JSONObject details = jsonArray.getJSONObject(0);
+        JSONObject credentials = details.getJSONObject("credentials");
+        proxyHostname = credentials.getString("hostname");
+        proxyPort = credentials.getInt("port");
+      }
+      return new WavefrontReporter(registry,
+          proxyHostname,
+          proxyPort,
+          clock,
+          prefix,
+          source,
+          pointTags,
+          rateUnit,
+          durationUnit,
+          filter,
+          includeJvmMetrics);
     }
 
     /**
