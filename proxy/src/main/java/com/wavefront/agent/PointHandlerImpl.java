@@ -139,7 +139,10 @@ public class PointHandlerImpl implements PointHandler {
     return StringUtils.replace(raw, quote, escapedQuote);
   }
 
-  private static void appendTagMap(StringBuilder sb, Map<String, String> tags) {
+  private static void appendTagMap(StringBuilder sb, @Nullable Map<String, String> tags) {
+    if (tags == null) {
+      return;
+    }
     for (Map.Entry<String, String> entry : tags.entrySet()) {
       sb.append(' ').append(quote).append(escapeQuotes(entry.getKey())).append(quote)
           .append("=")
