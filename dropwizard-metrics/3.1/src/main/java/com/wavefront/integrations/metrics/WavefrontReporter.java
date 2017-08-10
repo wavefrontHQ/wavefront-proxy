@@ -190,27 +190,51 @@ public class WavefrontReporter extends ScheduledReporter {
      * Builds a {@link WavefrontReporter} from the VCAP_SERVICES env variable, sending metrics
      * using the given {@link WavefrontSender}. This should be used in PCF environment only.
      *
+     * @param proxyServiceName The name of the wavefront proxy service. If wavefront-tile is used
+     *                        to deploy the proxy, then the service name will be 'wavefront-proxy'.
+     * @param failOnError A flag to determine what to do if the service parameters are not
+     *                    available. If 'true' then the method will throw RuntimeException else
+     *                    it will log an error message and continue.
      * @return a {@link WavefrontReporter}
      */
-    public WavefrontReporter build() {
+    public WavefrontReporter bindToCloudFoundryService(String proxyServiceName,
+                                                       boolean failOnError) {
       String proxyHostname;
       int proxyPort;
       // read the env variable VCAP_SERVICES
       String services = System.getenv("VCAP_SERVICES");
       if (services == null || services.length() == 0) {
-        LOGGER.error("Environment variable VCAP_SERVICES is empty.");
-        // since the wavefront-proxy is not tied to the app, use dummy hostname and port.
-        proxyHostname = "";
-        proxyPort = 2878;
+        if (failOnError) {
+          throw new RuntimeException("VCAP_SERVICES environment variable is unavailable.");
+        } else {
+          LOGGER.error("Environment variable VCAP_SERVICES is empty. No metrics will be reported " +
+              "to wavefront proxy.");
+          // since the wavefront-proxy is not tied to the app, use dummy hostname and port.
+          proxyHostname = "";
+          proxyPort = 2878;
+        }
       } else {
         // parse the json to read the hostname and port
         JSONObject json = new JSONObject(services);
         // When wavefront tile is installed on PCF, it will be automatically named wavefront-proxy
-        JSONArray jsonArray = json.getJSONArray("wavefront-proxy");
-        JSONObject details = jsonArray.getJSONObject(0);
-        JSONObject credentials = details.getJSONObject("credentials");
-        proxyHostname = credentials.getString("hostname");
-        proxyPort = credentials.getInt("port");
+        JSONArray jsonArray = json.getJSONArray(proxyServiceName);
+        if (jsonArray == null || jsonArray.isNull(0)) {
+          if (failOnError) {
+            throw new RuntimeException(proxyServiceName + " is not present in the VCAP_SERVICES " +
+                "env variable. Please verify and provide the wavefront proxy service name.");
+          } else {
+            LOGGER.error(proxyServiceName + " is not present in VCAP_SERVICES env variable. No " +
+                "metrics will be reported to wavefront proxy.");
+            // since the wavefront-proxy is not tied to the app, use dummy hostname and port.
+            proxyHostname = "";
+            proxyPort = 2878;
+          }
+        } else {
+          JSONObject details = jsonArray.getJSONObject(0);
+          JSONObject credentials = details.getJSONObject("credentials");
+          proxyHostname = credentials.getString("hostname");
+          proxyPort = credentials.getInt("port");
+        }
       }
       return new WavefrontReporter(registry,
           proxyHostname,
