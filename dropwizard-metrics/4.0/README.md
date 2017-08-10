@@ -19,26 +19,19 @@ Until DropWizard releases a 4.0.0 version you won't be able to use this directly
 ```sh
 git clone https://github.com/dropwizard/metrics.git
 git clone https://github.com/wavefrontHQ/java.git
-cd metrics/metrics-core
+cd metrics
 mvn install
-cd ../metrics-jvm/
-mvn install
-cd ../../java/dropwizard-metrics/4.0/
+cd ../java/dropwizard-metrics/4.0/
 mvn install
 ```
 
-Then you will just need both the DropWizard `metrics-core` and the Wavefront `metrics-wavefront` libraries as dependencies in your project. Logging depends on `org.slf4j`:
+Then you will just need wavefront's `dropwizard-metrics-4.0` libraries that you have built as dependencies. Logging depends on `org.slf4j`:
 
 ```Maven
-   <dependency>
-      <groupId>io.dropwizard.metrics</groupId>
-      <artifactId>metrics-core</artifactId>
-      <version>4.0.0-SNAPSHOT</version>
-    </dependency>
     <dependency>
-      <groupId>com.wavefront</groupId>
-      <artifactId>dropwizard-metrics-4.0</artifactId>
-      <version>3.9-SNAPSHOT</version>
+        <groupId>com.wavefront</groupId>
+        <artifactId>dropwizard-metrics-4.0</artifactId>
+        <version>4.17</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -49,67 +42,78 @@ Then you will just need both the DropWizard `metrics-core` and the Wavefront `me
 
 ### Example Usage
 
-The Wavefront Reporter lets you use DropWizard metrics exactly as you normally would. See its [getting started guide](https://dropwizard.github.io/metrics/3.1.0/getting-started/) if you haven't used it before.
+The Wavefront reporter lets you use DropWizard metrics exactly as you normally would. See the [DropWizard getting started guide](https://dropwizard.github.io/metrics/3.1.0/getting-started/) for DropWizard basics. 
 
-It simply gives you a new Reporter that will seamlessly work with Wavefront. First `import com.wavefront.integrations.metrics.WavefrontReporter;`
+To create the Wavefront reporter:
 
-Then for example to create a Reporter which will emit data every 10 seconds for:
+- Import `com.wavefront.integrations.metrics.WavefrontReporter`
+- Set the source using the `.withSource(String source)`
+- Set the hostname and port of the Wavefront proxy using the `.build(String hostname, long port)` method. 
+- Set point tags at the reporter level:
+  - Add one point tag using `.withPointTag(String tagK, String tagV)`
+  - Add one or more tags to a `Map<String,String>` and call `.withPointTags(Map)`
+  
+The reporter provides all the same options as [GraphiteReporter](http://metrics.dropwizard.io/3.1.0/manual/graphite/). By default:
 
-- A `MetricsRegistry` named `metrics` with a Counter that has a tag named `type`
+  - There is no metric prefix
+  - Rates are converted to seconds
+  - Durations are converted to milliseconds
+  - The filter is set to `MetricFilter.ALL`
+  - The clock is set to `Clock.defaultClock()`
+  
+#### Example
+
+The following code fragment creates a reporter that emits data every 10 seconds for:
+
+- A `MetricRegistry` named `metrics`
 - A Wavefront proxy on `localhost` at port `2878`
-- Data that should appear in Wavefront as `source=app-1.company.com`
-- Two point tags named `dc` and `service` on the Reporter
-- All metrics in Wavefront should be prefixed with "dropwizard."
+- Data that should appear with the source `app-1.company.com`
+- Reporter-level point tags named `dc` and `service`
+- Metric-level point tags named `type` and `counter`
+- A counter metric named `requests`
+- Various JVM metrics with prefix containing `jvm`
 
-you would do something like this:
 
-```java
+```
+import com.wavefront.integrations.metrics.WavefrontReporter;
+import io.dropwizard.metrics.Counter;
+import io.dropwizard.metrics.MetricName;
+import io.dropwizard.metrics.MetricRegistry;
+
 MetricRegistry metrics = new MetricRegistry();   	
 Map<String, String> tags = new HashMap<String,String>();  	
 tags.put("type", "counter");
 MetricName name = new MetricName("requests", tags);
 Counter counter = metrics.counter(name);
     			
-// NB If you specify the same tag name at the Metric and Reporter 
-// level the Metric level one will overwrite it
+// If you specify the same tag name at the Metric and Reporter level,
+// the Metric level tag will take precedence.
 WavefrontReporter reporter = WavefrontReporter.forRegistry(metrics)
         .withSource("app-1.company.com")
         .withPointTag("dc", "dallas")
     	.withPointTag("service", "query")
+    	.withJvmMetrics()
     	.prefixedWith("dropwizard")
     	.build("localhost", 2878);
     	
 reporter.start(10, TimeUnit.SECONDS);
 ```
 
-You must provide the source using the `.withSource(String source)` method and pass the Hostname and Port of the Wavefront proxy using the `.build(String hostname, long port)` method.
+#### JVM Metrics
 
-The Reporter provides all the same options that the [GraphiteReporter](http://metrics.dropwizard.io/3.1.0/manual/graphite/) does. By default:
+Default JVM metrics are added to the `MetricsRegistry` by calling `.withJvmMetrics()` when you create the reporter. If you call `.withJvmMetrics()`, the following metrics are added to the registry:
 
-- There is no prefix on the Metrics
-- Rates will be converted to Seconds
-- Durations will be converted to Milliseconds
-- `MetricFilter.ALL` will be used for the Filter
-- `Clock.defaultClock()` will be used for the Clock
-
-In addition you can also:
-
-- Supply point tags for the Reporter to use. There are two ways to specify point tags at the Reporter level, individually using `.withPointTag(String tagK, String tagV)` or create a `Map<String,String>` and call `.withPointTags(my-map)` to do many at once. Note that if you specify the same tag name at the Metric and Reporter level the Metric level one will overwrite it.
-- Call `.withJvmMetrics()` when building the Reporter if you want it to add some default JVM metrics to the given MetricsRegistry.
-
-If `.withJvmMetrics()` is used the following metrics will be added to the registry:
-
-```java
+```
 registry.register("jvm.uptime", new Gauge<Long>() {
     @Override
-	public Long getValue() {
-	    return ManagementFactory.getRuntimeMXBean().getUptime();
-	}
+      public Long getValue() {
+        return ManagementFactory.getRuntimeMXBean().getUptime();
+      }
 });
 registry.register("jvm.current_time", new Gauge<Long>() {
     @Override
-	public Long getValue() {
-	    return clock.getTime();
+      public Long getValue() {
+        return clock.getTime();
     }
 });
     
