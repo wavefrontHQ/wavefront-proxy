@@ -10,7 +10,7 @@ Source code under org.logstash.* is used from
 
 ### Using The Wavefront Installer
 
-The recommended (and by far the easiest) way to install the most recent release of the proxy is to use [The Wavefront Installer](https://community.wavefront.com/docs/DOC-1161) - we've developed a simple, one-line installer that configures the Wavefront proxy and/or collectd to send metrics to Wavefront in as little as one step.
+The recommended (and by far the easiest) way to install the most recent release of the proxy is to use [The Wavefront Installer](https://docs.wavefront.com/proxies_installing.html) - we've developed a simple, one-line installer that configures the Wavefront proxy and/or collectd to send metrics to Wavefront in as little as one step.
 
 ### Using Linux Packages
 
@@ -28,4 +28,4 @@ mvn install
 
 ## Configuration
 
-For the detailed list of configuration options, please refer to [Wavefront Production Proxy Configuration Guide](https://community.wavefront.com/docs/DOC-1034) on our Community site.
+For the detailed list of configuration options, please refer to [Wavefront Production Proxy Configuration Guide](https://docs.wavefront.com/proxies_configuring.html) on our docs site.
