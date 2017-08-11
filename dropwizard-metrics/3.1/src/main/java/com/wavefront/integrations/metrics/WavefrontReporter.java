@@ -1,5 +1,7 @@
 package com.wavefront.integrations.metrics;
 
+import com.google.common.base.Preconditions;
+
 import com.codahale.metrics.Clock;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
@@ -31,6 +33,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
+
+import javax.validation.constraints.NotNull;
 
 /**
  * A reporter which publishes metric values to a Wavefront Proxy.
@@ -188,17 +192,42 @@ public class WavefrontReporter extends ScheduledReporter {
 
     /**
      * Builds a {@link WavefrontReporter} from the VCAP_SERVICES env variable, sending metrics
-     * using the given {@link WavefrontSender}. This should be used in PCF environment only.
+     * using the given {@link WavefrontSender}. This should be used in PCF environment only. It
+     * uses 'wavefront-proxy' as the name to fetch the proxy details from VCAP_SERVICES.
      *
-     * @param proxyServiceName The name of the wavefront proxy service. If wavefront-tile is used
-     *                        to deploy the proxy, then the service name will be 'wavefront-proxy'.
-     * @param failOnError A flag to determine what to do if the service parameters are not
-     *                    available. If 'true' then the method will throw RuntimeException else
-     *                    it will log an error message and continue.
      * @return a {@link WavefrontReporter}
      */
-    public WavefrontReporter bindToCloudFoundryService(String proxyServiceName,
+    public WavefrontReporter bindToCloudFoundryService() {
+      return bindToCloudFoundryService("wavefront-proxy", false);
+    }
+
+    /**
+     * Builds a {@link WavefrontReporter} from the VCAP_SERVICES env variable, sending metrics
+     * using the given {@link WavefrontSender}. This should be used in PCF environment only. It
+     * assumes failOnError to be false.
+     *
+     * @return a {@link WavefrontReporter}
+     */
+    public WavefrontReporter bindToCloudFoundryService(@NotNull String proxyServiceName) {
+      return bindToCloudFoundryService(proxyServiceName, false);
+    }
+
+    /**
+     * Builds a {@link WavefrontReporter} from the VCAP_SERVICES env variable, sending metrics
+     * using the given {@link WavefrontSender}. This should be used in PCF environment only.
+     *
+     * @param proxyServiceName The name of the wavefront proxy service. If wavefront-tile is used to
+     *                         deploy the proxy, then the service name will be 'wavefront-proxy'.
+     * @param failOnError      A flag to determine what to do if the service parameters are not
+     *                         available. If 'true' then the method will throw RuntimeException else
+     *                         it will log an error message and continue.
+     * @return a {@link WavefrontReporter}
+     */
+    public WavefrontReporter bindToCloudFoundryService(@NotNull String proxyServiceName,
                                                        boolean failOnError) {
+
+      Preconditions.checkNotNull(proxyServiceName, "proxyServiceName arg should not be null");
+
       String proxyHostname;
       int proxyPort;
       // read the env variable VCAP_SERVICES
