@@ -355,31 +355,31 @@ THE SOFTWARE.
 
 >>> com.thoughtworks.paranamer:paranamer-2.3
 
-Copyright (c) 2007 Paul Hammant
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-1. Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-3. Neither the name of the copyright holders nor the names of its
-contributors may be used to endorse or promote products derived from
-this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+Copyright (c) 2007 Paul Hammant
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+3. Neither the name of the copyright holders nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 
 
@@ -427,48 +427,48 @@ Created on 15. August 2009 by Joerg Schaible
 
 >>> com.yammer.metrics:metrics-core-2.2.0
 
-Written by Doug Lea with assistance from members of JCP JSR-166
-
-Expert Group and released to the public domain, as explained at
-
+Written by Doug Lea with assistance from members of JCP JSR-166
+
+Expert Group and released to the public domain, as explained at
+
 http://creativecommons.org/publicdomain/zero/1.0/
 
 
 >>> dom4j:dom4j-1.6.1
 
-Redistribution and use of this software and associated documentation
-("Software"), with or without modification, are permitted provided that the
-following conditions are met:
-  
-1. Redistributions of source code must retain copyright statements and
-   notices. Redistributions must also contain a copy of this document.
-  
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-  
-3. The name "DOM4J" must not be used to endorse or promote products derived
-   from this Software without prior written permission of MetaStuff, Ltd. For
-   written permission, please contact dom4j-info@metastuff.com.
- 
-4. Products derived from this Software may not be called "DOM4J" nor may
-  "DOM4J" appear in their names without prior written permission of MetaStuff,
-   Ltd. DOM4J is a registered trademark of MetaStuff, Ltd.
- 
-5. Due credit should be given to the DOM4J Project - http://www.dom4j.org
-  
-THIS SOFTWARE IS PROVIDED BY METASTUFF, LTD. AND CONTRIBUTORS ``AS IS'' AND
-ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL METASTUFF, LTD. OR ITS CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-  
+Redistribution and use of this software and associated documentation
+("Software"), with or without modification, are permitted provided that the
+following conditions are met:
+  
+1. Redistributions of source code must retain copyright statements and
+   notices. Redistributions must also contain a copy of this document.
+  
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+  
+3. The name "DOM4J" must not be used to endorse or promote products derived
+   from this Software without prior written permission of MetaStuff, Ltd. For
+   written permission, please contact dom4j-info@metastuff.com.
+ 
+4. Products derived from this Software may not be called "DOM4J" nor may
+  "DOM4J" appear in their names without prior written permission of MetaStuff,
+   Ltd. DOM4J is a registered trademark of MetaStuff, Ltd.
+ 
+5. Due credit should be given to the DOM4J Project - http://www.dom4j.org
+  
+THIS SOFTWARE IS PROVIDED BY METASTUFF, LTD. AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL METASTUFF, LTD. OR ITS CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+  
 Copyright 2001-2005 (C) MetaStuff, Ltd. All Rights Reserved.
 
 
@@ -497,8 +497,8 @@ is available at http://www.eclipse.org/org/documents/edl-v10.php.
 
 >>> io.dropwizard.metrics:metrics-core-3.1.2
 
-Written by Doug Lea with assistance from members of JCP JSR-166
-Expert Group and released to the public domain, as explained at
+Written by Doug Lea with assistance from members of JCP JSR-166
+Expert Group and released to the public domain, as explained at
 http://creativecommons.org/publicdomain/zero/1.0/
 
 
@@ -547,36 +547,36 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 >>> org.hamcrest:hamcrest-all-1.3
 
-BSD License
-
-Copyright (c) 2000-2006, www.hamcrest.org
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer. Redistributions in binary form must reproduce
-the above copyright notice, this list of conditions and the following disclaimer in
-the documentation and/or other materials provided with the distribution.
-
-Neither the name of Hamcrest nor the names of its contributors may be used to endorse
-or promote products derived from this software without specific prior written
-permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
-WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-DAMAGE.
-ADDITIONAL LICENSE INFORMATION:
->Apache 2.0
-hamcrest-all-1.3.jar\META-INF\maven\com.thoughtworks.qdox\qdox\pom.xml
+BSD License
+
+Copyright (c) 2000-2006, www.hamcrest.org
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer. Redistributions in binary form must reproduce
+the above copyright notice, this list of conditions and the following disclaimer in
+the documentation and/or other materials provided with the distribution.
+
+Neither the name of Hamcrest nor the names of its contributors may be used to endorse
+or promote products derived from this software without specific prior written
+permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.
+ADDITIONAL LICENSE INFORMATION:
+>Apache 2.0
+hamcrest-all-1.3.jar\META-INF\maven\com.thoughtworks.qdox\qdox\pom.xml
 License : Apache 2.0
 
 
@@ -615,26 +615,26 @@ license nameCC0
 
 >>> org.slf4j:jul-to-slf4j-1.7.21
 
-Copyright (c) 2004-2011 QOS.ch
-All rights reserved.
-
-Permission is hereby granted, free  of charge, to any person obtaining
-a  copy  of this  software  and  associated  documentation files  (the
-"Software"), to  deal in  the Software without  restriction, including
-without limitation  the rights to  use, copy, modify,  merge, publish,
-distribute,  sublicense, and/or sell  copies of  the Software,  and to
-permit persons to whom the Software  is furnished to do so, subject to
-the following conditions:
-
-The  above  copyright  notice  and  this permission  notice  shall  be
-included in all copies or substantial portions of the Software.
-
-THE  SOFTWARE IS  PROVIDED  "AS  IS", WITHOUT  WARRANTY  OF ANY  KIND,
-EXPRESS OR  IMPLIED, INCLUDING  BUT NOT LIMITED  TO THE  WARRANTIES OF
-MERCHANTABILITY,    FITNESS    FOR    A   PARTICULAR    PURPOSE    AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
+Copyright (c) 2004-2011 QOS.ch
+All rights reserved.
+
+Permission is hereby granted, free  of charge, to any person obtaining
+a  copy  of this  software  and  associated  documentation files  (the
+"Software"), to  deal in  the Software without  restriction, including
+without limitation  the rights to  use, copy, modify,  merge, publish,
+distribute,  sublicense, and/or sell  copies of  the Software,  and to
+permit persons to whom the Software  is furnished to do so, subject to
+the following conditions:
+
+The  above  copyright  notice  and  this permission  notice  shall  be
+included in all copies or substantial portions of the Software.
+
+THE  SOFTWARE IS  PROVIDED  "AS  IS", WITHOUT  WARRANTY  OF ANY  KIND,
+EXPRESS OR  IMPLIED, INCLUDING  BUT NOT LIMITED  TO THE  WARRANTIES OF
+MERCHANTABILITY,    FITNESS    FOR    A   PARTICULAR    PURPOSE    AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
@@ -665,26 +665,26 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 >>> org.slf4j:slf4j-api-1.7.21
 
-Copyright (c) 2004-2011 QOS.ch
-All rights reserved.
-
-Permission is hereby granted, free  of charge, to any person obtaining
-a  copy  of this  software  and  associated  documentation files  (the
-"Software"), to  deal in  the Software without  restriction, including
-without limitation  the rights to  use, copy, modify,  merge, publish,
-distribute,  sublicense, and/or sell  copies of  the Software,  and to
-permit persons to whom the Software  is furnished to do so, subject to
-the following conditions:
-
-The  above  copyright  notice  and  this permission  notice  shall  be
-included in all copies or substantial portions of the Software.
-
-THE  SOFTWARE IS  PROVIDED  "AS  IS", WITHOUT  WARRANTY  OF ANY  KIND,
-EXPRESS OR  IMPLIED, INCLUDING  BUT NOT LIMITED  TO THE  WARRANTIES OF
-MERCHANTABILITY,    FITNESS    FOR    A   PARTICULAR    PURPOSE    AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
+Copyright (c) 2004-2011 QOS.ch
+All rights reserved.
+
+Permission is hereby granted, free  of charge, to any person obtaining
+a  copy  of this  software  and  associated  documentation files  (the
+"Software"), to  deal in  the Software without  restriction, including
+without limitation  the rights to  use, copy, modify,  merge, publish,
+distribute,  sublicense, and/or sell  copies of  the Software,  and to
+permit persons to whom the Software  is furnished to do so, subject to
+the following conditions:
+
+The  above  copyright  notice  and  this permission  notice  shall  be
+included in all copies or substantial portions of the Software.
+
+THE  SOFTWARE IS  PROVIDED  "AS  IS", WITHOUT  WARRANTY  OF ANY  KIND,
+EXPRESS OR  IMPLIED, INCLUDING  BUT NOT LIMITED  TO THE  WARRANTIES OF
+MERCHANTABILITY,    FITNESS    FOR    A   PARTICULAR    PURPOSE    AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
@@ -715,46 +715,46 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 >>> org.slf4j:slf4j-api-1.7.7
 
-Copyright (c) 2004-2011 QOS.ch
-All rights reserved.
-
-Permission is hereby granted, free  of charge, to any person obtaining
-a  copy  of this  software  and  associated  documentation files  (the
-"Software"), to  deal in  the Software without  restriction, including
-without limitation  the rights to  use, copy, modify,  merge, publish,
-distribute,  sublicense, and/or sell  copies of  the Software,  and to
-permit persons to whom the Software  is furnished to do so, subject to
-the following conditions:
-
-The  above  copyright  notice  and  this permission  notice  shall  be
-included in all copies or substantial portions of the Software.
-
-THE  SOFTWARE IS  PROVIDED  "AS  IS", WITHOUT  WARRANTY  OF ANY  KIND,
-EXPRESS OR  IMPLIED, INCLUDING  BUT NOT LIMITED  TO THE  WARRANTIES OF
-MERCHANTABILITY,    FITNESS    FOR    A   PARTICULAR    PURPOSE    AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
+Copyright (c) 2004-2011 QOS.ch
+All rights reserved.
+
+Permission is hereby granted, free  of charge, to any person obtaining
+a  copy  of this  software  and  associated  documentation files  (the
+"Software"), to  deal in  the Software without  restriction, including
+without limitation  the rights to  use, copy, modify,  merge, publish,
+distribute,  sublicense, and/or sell  copies of  the Software,  and to
+permit persons to whom the Software  is furnished to do so, subject to
+the following conditions:
+
+The  above  copyright  notice  and  this permission  notice  shall  be
+included in all copies or substantial portions of the Software.
+
+THE  SOFTWARE IS  PROVIDED  "AS  IS", WITHOUT  WARRANTY  OF ANY  KIND,
+EXPRESS OR  IMPLIED, INCLUDING  BUT NOT LIMITED  TO THE  WARRANTIES OF
+MERCHANTABILITY,    FITNESS    FOR    A   PARTICULAR    PURPOSE    AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 >>> org.tukaani:xz-1.0
 
-Licensing of XZ for Java
-========================
-
-All the files in this package have been written by Lasse Collin
-and/or Igor Pavlov. All these files have been put into the
-public domain. You can do whatever you want with these files.
-
+Licensing of XZ for Java
+========================
+
+All the files in this package have been written by Lasse Collin
+and/or Igor Pavlov. All these files have been put into the
+public domain. You can do whatever you want with these files.
+
 This software is provided "as is", without any warranty.
 
 
 >>> org.tukaani:xz-1.5
 
-Author: Lasse Collin <lasse.collin@tukaani.org>
-
-This file has been put into the public domain.
+Author: Lasse Collin <lasse.collin@tukaani.org>
+
+This file has been put into the public domain.
 You can do whatever you want with this file.
 
 
@@ -765,72 +765,72 @@ LICENSE: PUBLIC DOMAIN
 
 >>> xpp3:xpp3_min-1.1.4c
 
-Copyright (C) 2003 The Trustees of Indiana University.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-1) All redistributions of source code must retain the above
-copyright notice, the list of authors in the original source
-code, this list of conditions and the disclaimer listed in this
-license;
-
-2) All redistributions in binary form must reproduce the above
-copyright notice, this list of conditions and the disclaimer
-listed in this license in the documentation and/or other
-materials provided with the distribution;
-
-3) Any documentation included with all redistributions must include
-the following acknowledgement:
-
-"This product includes software developed by the Indiana
-University Extreme! Lab.  For further information please visit
-http://www.extreme.indiana.edu/"
-
-Alternatively, this acknowledgment may appear in the software
-itself, and wherever such third-party acknowledgments normally
-appear.
-
-4) The name "Indiana University" or "Indiana University
-Extreme! Lab" shall not be used to endorse or promote
-products derived from this software without prior written
-permission from Indiana University.  For written permission,
-please contact http://www.extreme.indiana.edu/.
-
-5) Products derived from this software may not use "Indiana
-University" name nor may "Indiana University" appear in their name,
-without prior written permission of the Indiana University.
-
-Indiana University provides no reassurances that the source code
-provided does not infringe the patent or any other intellectual
-property rights of any other entity.  Indiana University disclaims any
-liability to any recipient for claims brought by any other entity
-based on infringement of intellectual property rights or otherwise.
-
-LICENSEE UNDERSTANDS THAT SOFTWARE IS PROVIDED "AS IS" FOR WHICH
-NO WARRANTIES AS TO CAPABILITIES OR ACCURACY ARE MADE. INDIANA
-UNIVERSITY GIVES NO WARRANTIES AND MAKES NO REPRESENTATION THAT
-SOFTWARE IS FREE OF INFRINGEMENT OF THIRD PARTY PATENT, COPYRIGHT, OR
-OTHER PROPRIETARY RIGHTS.  INDIANA UNIVERSITY MAKES NO WARRANTIES THAT
-SOFTWARE IS FREE FROM "BUGS", "VIRUSES", "TROJAN HORSES", "TRAP
-DOORS", "WORMS", OR OTHER HARMFUL CODE.  LICENSEE ASSUMES THE ENTIRE
-RISK AS TO THE PERFORMANCE OF SOFTWARE AND/OR ASSOCIATED MATERIALS,
-AND TO THE PERFORMANCE AND VALIDITY OF INFORMATION GENERATED USING
+Copyright (C) 2003 The Trustees of Indiana University.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+1) All redistributions of source code must retain the above
+copyright notice, the list of authors in the original source
+code, this list of conditions and the disclaimer listed in this
+license;
+
+2) All redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the disclaimer
+listed in this license in the documentation and/or other
+materials provided with the distribution;
+
+3) Any documentation included with all redistributions must include
+the following acknowledgement:
+
+"This product includes software developed by the Indiana
+University Extreme! Lab.  For further information please visit
+http://www.extreme.indiana.edu/"
+
+Alternatively, this acknowledgment may appear in the software
+itself, and wherever such third-party acknowledgments normally
+appear.
+
+4) The name "Indiana University" or "Indiana University
+Extreme! Lab" shall not be used to endorse or promote
+products derived from this software without prior written
+permission from Indiana University.  For written permission,
+please contact http://www.extreme.indiana.edu/.
+
+5) Products derived from this software may not use "Indiana
+University" name nor may "Indiana University" appear in their name,
+without prior written permission of the Indiana University.
+
+Indiana University provides no reassurances that the source code
+provided does not infringe the patent or any other intellectual
+property rights of any other entity.  Indiana University disclaims any
+liability to any recipient for claims brought by any other entity
+based on infringement of intellectual property rights or otherwise.
+
+LICENSEE UNDERSTANDS THAT SOFTWARE IS PROVIDED "AS IS" FOR WHICH
+NO WARRANTIES AS TO CAPABILITIES OR ACCURACY ARE MADE. INDIANA
+UNIVERSITY GIVES NO WARRANTIES AND MAKES NO REPRESENTATION THAT
+SOFTWARE IS FREE OF INFRINGEMENT OF THIRD PARTY PATENT, COPYRIGHT, OR
+OTHER PROPRIETARY RIGHTS.  INDIANA UNIVERSITY MAKES NO WARRANTIES THAT
+SOFTWARE IS FREE FROM "BUGS", "VIRUSES", "TROJAN HORSES", "TRAP
+DOORS", "WORMS", OR OTHER HARMFUL CODE.  LICENSEE ASSUMES THE ENTIRE
+RISK AS TO THE PERFORMANCE OF SOFTWARE AND/OR ASSOCIATED MATERIALS,
+AND TO THE PERFORMANCE AND VALIDITY OF INFORMATION GENERATED USING
 SOFTWARE.
 
 
 >>> xstream-1.4.9
 
-Copyright (C) 2005 Joe Walnes.
-Copyright (C) 2006, 2007, 2008, 2009, 2011, 2012, 2013, 2014, 2016 XStream Committers.
-All rights reserved.
-
-The software in this package is published under the terms of the BSD
-style license a copy of which has been included with this distribution in
-the LICENSE.txt file.
-
+Copyright (C) 2005 Joe Walnes.
+Copyright (C) 2006, 2007, 2008, 2009, 2011, 2012, 2013, 2014, 2016 XStream Committers.
+All rights reserved.
+
+The software in this package is published under the terms of the BSD
+style license a copy of which has been included with this distribution in
+the LICENSE.txt file.
+
 Created on 16. September 2005 by Mauro Talevi
 
 
@@ -860,49 +860,49 @@ limitations under the License.
 
 >>> com.fasterxml.jackson.core:jackson-annotations-2.6.7
 
-This copy of Jackson JSON processor annotations is licensed under the
-Apache (Software) License, version 2.0 ("the License").
-See the License for details about distribution rights, and the
-specific rights regarding derivate works.
-
-You may obtain a copy of the License at:
-
+This copy of Jackson JSON processor annotations is licensed under the
+Apache (Software) License, version 2.0 ("the License").
+See the License for details about distribution rights, and the
+specific rights regarding derivate works.
+
+You may obtain a copy of the License at:
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 
 >>> com.fasterxml.jackson.core:jackson-annotations-2.7.4
 
-This copy of Jackson JSON processor annotations is licensed under the
-Apache (Software) License, version 2.0 ("the License").
-See the License for details about distribution rights, and the
-specific rights regarding derivate works.
-
-You may obtain a copy of the License at:
-
+This copy of Jackson JSON processor annotations is licensed under the
+Apache (Software) License, version 2.0 ("the License").
+See the License for details about distribution rights, and the
+specific rights regarding derivate works.
+
+You may obtain a copy of the License at:
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 
 >>> com.fasterxml.jackson.core:jackson-annotations-2.8.0
 
-This copy of Jackson JSON processor annotations is licensed under the
-Apache (Software) License, version 2.0 ("the License").
-See the License for details about distribution rights, and the
-specific rights regarding derivate works.
-
-You may obtain a copy of the License at:
-
+This copy of Jackson JSON processor annotations is licensed under the
+Apache (Software) License, version 2.0 ("the License").
+See the License for details about distribution rights, and the
+specific rights regarding derivate works.
+
+You may obtain a copy of the License at:
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 
 >>> com.fasterxml.jackson.core:jackson-core-2.6.7
 
-This copy of Jackson JSON processor streaming parser/generator is licensed under the
-Apache (Software) License, version 2.0 ("the License").
-See the License for details about distribution rights, and the
-specific rights regarding derivate works.
-
-You may obtain a copy of the License at:
-
+This copy of Jackson JSON processor streaming parser/generator is licensed under the
+Apache (Software) License, version 2.0 ("the License").
+See the License for details about distribution rights, and the
+specific rights regarding derivate works.
+
+You may obtain a copy of the License at:
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 
@@ -1008,13 +1008,13 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 >>> com.fasterxml.jackson.core:jackson-databind-2.7.4
 
-This copy of Jackson JSON processor databind module is licensed under the
-Apache (Software) License, version 2.0 ("the License").
-See the License for details about distribution rights, and the
-specific rights regarding derivate works.
-
-You may obtain a copy of the License at:
-
+This copy of Jackson JSON processor databind module is licensed under the
+Apache (Software) License, version 2.0 ("the License").
+See the License for details about distribution rights, and the
+specific rights regarding derivate works.
+
+You may obtain a copy of the License at:
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 
@@ -1101,45 +1101,45 @@ License: Apache 2.0
 
 >>> com.fasterxml.jackson.module:jackson-module-jaxb-annotations-2.8.6
 
-This copy of Jackson JSON processor databind module is licensed under the
-Apache (Software) License, version 2.0 ("the License").
-See the License for details about distribution rights, and the
-specific rights regarding derivate works.
-
-You may obtain a copy of the License at:
-
+This copy of Jackson JSON processor databind module is licensed under the
+Apache (Software) License, version 2.0 ("the License").
+See the License for details about distribution rights, and the
+specific rights regarding derivate works.
+
+You may obtain a copy of the License at:
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 
 >>> com.fasterxml:classmate-1.1.0
 
-Java ClassMate library was originally written by Tatu Saloranta (tatu.saloranta@iki.fi)
-
-Other developers who have contributed code are:
-
-* Brian Langel
-
-This copy of Java ClassMate library is licensed under Apache (Software) License, version 2.0 ("the License").
-
-See the License for details about distribution rights, and the specific rights regarding derivate works.
-
+Java ClassMate library was originally written by Tatu Saloranta (tatu.saloranta@iki.fi)
+
+Other developers who have contributed code are:
+
+* Brian Langel
+
+This copy of Java ClassMate library is licensed under Apache (Software) License, version 2.0 ("the License").
+
+See the License for details about distribution rights, and the specific rights regarding derivate works.
+
 You may obtain a copy of the License at: http://www.apache.org/licenses/LICENSE-2.0
 
 
 >>> com.fasterxml:classmate-1.3.3
 
-Java ClassMate library was originally written by Tatu Saloranta (tatu.saloranta@iki.fi)
-
-Other developers who have contributed code are:
-
-* Brian Langel
-
-This copy of Java ClassMate library is licensed under Apache (Software) License,
-version 2.0 ("the License").
-See the License for details about distribution rights, and the specific rights regarding derivate works.
-
-You may obtain a copy of the License at:
-
+Java ClassMate library was originally written by Tatu Saloranta (tatu.saloranta@iki.fi)
+
+Other developers who have contributed code are:
+
+* Brian Langel
+
+This copy of Java ClassMate library is licensed under Apache (Software) License,
+version 2.0 ("the License").
+See the License for details about distribution rights, and the specific rights regarding derivate works.
+
+You may obtain a copy of the License at:
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 
@@ -1182,18 +1182,18 @@ License : Apache 2.0
 
 >>> com.google.code.gson:gson-2.2.2
 
-Copyright (C) 2008 Google Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright (C) 2008 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -1226,29 +1226,29 @@ http://creativecommons.org/publicdomain/zero/1.0/
 
 >>> com.google.guava:guava-19.0
 
-Copyright (C) 2008 The Guava Authors
- 
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
- 
-  http://www.apache.org/licenses/LICENSE-2.0
- 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-
-
-ADDITIONAL LICENSE INFORMATION:
-
-> Public Domain
-
-guava-19.0-sources.jar\com\google\common\util\concurrent\AtomicDoubleArray.java
-
-  Written by Doug Lea with assistance from members of JCP JSR-166
-  Expert Group and released to the public domain, as explained at
+Copyright (C) 2008 The Guava Authors
+ 
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+ 
+  http://www.apache.org/licenses/LICENSE-2.0
+ 
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+
+ADDITIONAL LICENSE INFORMATION:
+
+> Public Domain
+
+guava-19.0-sources.jar\com\google\common\util\concurrent\AtomicDoubleArray.java
+
+  Written by Doug Lea with assistance from members of JCP JSR-166
+  Expert Group and released to the public domain, as explained at
   http://creativecommons.org/publicdomain/zero/1.0/
 
 
@@ -1305,18 +1305,18 @@ limitations under the License.
 
 >>> com.squareup.okio:okio-1.8.0
 
-Copyright (C) 2016 Square, Inc.
- 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
- 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright (C) 2016 Square, Inc.
+ 
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+ 
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -1373,208 +1373,208 @@ limitations under the License.
 
 >>> com.tdunning:t-digest-3.1
 
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> commons-codec:commons-codec-1.10
 
-Apache Commons Codec
-Copyright 2002-2014 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-src/test/org/apache/commons/codec/language/DoubleMetaphoneTest.java
-contains test data from http://aspell.net/test/orig/batch0.tab.
-Copyright (C) 2002 Kevin Atkinson (kevina@gnu.org)
-
-===============================================================================
-
-The content of package org.apache.commons.codec.language.bm has been translated
-from the original php source code available at http://stevemorse.org/phoneticinfo.htm
-with permission from the original authors.
-Original source copyright:
-Copyright (c) 2008 Alexander Beider & Stephen P. Morse.
-
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Commons Codec
+Copyright 2002-2014 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+src/test/org/apache/commons/codec/language/DoubleMetaphoneTest.java
+contains test data from http://aspell.net/test/orig/batch0.tab.
+Copyright (C) 2002 Kevin Atkinson (kevina@gnu.org)
+
+===============================================================================
+
+The content of package org.apache.commons.codec.language.bm has been translated
+from the original php source code available at http://stevemorse.org/phoneticinfo.htm
+with permission from the original authors.
+Original source copyright:
+Copyright (c) 2008 Alexander Beider & Stephen P. Morse.
+
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> commons-codec:commons-codec-1.9
 
-Apache Commons Codec
-Copyright 2002-2013 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-src/test/org/apache/commons/codec/language/DoubleMetaphoneTest.java
-contains test data from http://aspell.net/test/orig/batch0.tab.
-Copyright (C) 2002 Kevin Atkinson (kevina@gnu.org)
-
-
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Commons Codec
+Copyright 2002-2013 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+src/test/org/apache/commons/codec/language/DoubleMetaphoneTest.java
+contains test data from http://aspell.net/test/orig/batch0.tab.
+Copyright (C) 2002 Kevin Atkinson (kevina@gnu.org)
+
+
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> commons-collections:commons-collections-3.2.2
 
-Apache Commons Collections
-Copyright 2001-2015 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Commons Collections
+Copyright 2001-2015 The Apache Software Foundation
+
+This product includes software developed by
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> commons-daemon-1.0.15
 
-Copyright 1999-2013 The Apache Software Foundation
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 1999-2013 The Apache Software Foundation
+This product includes software developed by
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> commons-io:commons-io-2.5
 
-Apache Commons IO
-Copyright 2002-2016 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
+Apache Commons IO
+Copyright 2002-2016 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
 under the License.
 
 
 >>> commons-lang:commons-lang-2.6
 
-Apache Commons Lang
-Copyright 2001-2011 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Commons Lang
+Copyright 2001-2011 The Apache Software Foundation
+
+This product includes software developed by
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> commons-logging:commons-logging-1.2
 
-Apache Commons Logging
-Copyright 2003-2014 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-This software consists of voluntary contributions made by many
-individuals on behalf of the Apache Software Foundation.  For more
-information on the Apache Software Foundation, please see
+Apache Commons Logging
+Copyright 2003-2014 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+This software consists of voluntary contributions made by many
+individuals on behalf of the Apache Software Foundation.  For more
+information on the Apache Software Foundation, please see
 <http://www.apache.org/>.
 
 
@@ -1585,18 +1585,18 @@ LICENSE: Apache 2.0
 
 >>> io.jsonwebtoken:jjwt-0.7.0
 
-Copyright (C) 2014 jsonwebtoken.io
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright (C) 2014 jsonwebtoken.io
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -2006,39 +2006,39 @@ limitations under the License.
 
 >>> jandex-1.1.0.final
 
-JBoss, Home of Professional Open Source.
-Copyright 2013 Red Hat, Inc., and individual contributors
-as indicated by the @author tags.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+JBoss, Home of Professional Open Source.
+Copyright 2013 Red Hat, Inc., and individual contributors
+as indicated by the @author tags.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> javassist-3.18.1-ga
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Javassist, a Java-bytecode translator toolkit.
-  Copyright (C) 1999- Shigeru Chiba. All Rights Reserved.
- 
-  The contents of this file are subject to the Mozilla Public License Version
-  1.1 (the "License"); you may not use this file except in compliance with
-  the License.  Alternatively, the contents of this file may be used under
-  the terms of the GNU Lesser General Public License Version 2.1 or later,
-  or the Apache License Version 2.0.
- 
-  Software distributed under the License is distributed on an "AS IS" basis,
-  WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-  for the specific language governing rights and limitations under the
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Javassist, a Java-bytecode translator toolkit.
+  Copyright (C) 1999- Shigeru Chiba. All Rights Reserved.
+ 
+  The contents of this file are subject to the Mozilla Public License Version
+  1.1 (the "License"); you may not use this file except in compliance with
+  the License.  Alternatively, the contents of this file may be used under
+  the terms of the GNU Lesser General Public License Version 2.1 or later,
+  or the Apache License Version 2.0.
+ 
+  Software distributed under the License is distributed on an "AS IS" basis,
+  WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+  for the specific language governing rights and limitations under the
   License.
 
 
@@ -2061,21 +2061,21 @@ limitations under the License.
 
 >>> jboss-logging-annotations-1.2.0.beta1
 
-JBoss, Home of Professional Open Source.
- 
-  Copyright 2010 Red Hat, Inc., and individual contributors
-  as indicated by the @author tags.
- 
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
- 
-      http://www.apache.org/licenses/LICENSE-2.0
- 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
+JBoss, Home of Professional Open Source.
+ 
+  Copyright 2010 Red Hat, Inc., and individual contributors
+  as indicated by the @author tags.
+ 
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+ 
+      http://www.apache.org/licenses/LICENSE-2.0
+ 
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
   limitations under the License.
 
 
@@ -2172,59 +2172,59 @@ limitations under the License.
 
 >>> joda-time-2.6
 
-Copyright 2001-2014 Stephen Colebourne
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> Public Domain
-
-joda-time-2.6-sources.jar\org\joda\time\tz\src\africa
-
-This file is in the public domain, so clarified as of
+Copyright 2001-2014 Stephen Colebourne
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> Public Domain
+
+joda-time-2.6-sources.jar\org\joda\time\tz\src\africa
+
+This file is in the public domain, so clarified as of
 2009-05-17 by Arthur David Olson.
 
 
 >>> joda-time:joda-time-2.8.2
 
-Copyright 2001-2014 Stephen Colebourne
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-
-ADDITIONAL LICENSE INFORMATION:
-
-> Public Domain
-
-joda-time-2.8.2-sources.jar\org\joda\time\tz\src\antarctica
-
-This file is in the public domain, so clarified as of
-2009-05-17 by Arthur David Olson.
-
-This file is by no means authoritative; if you think you know better,
-go ahead and edit the file (and please send any changes to
-tz@iana.org for general use in the future).  For more, please see
+Copyright 2001-2014 Stephen Colebourne
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+ADDITIONAL LICENSE INFORMATION:
+
+> Public Domain
+
+joda-time-2.8.2-sources.jar\org\joda\time\tz\src\antarctica
+
+This file is in the public domain, so clarified as of
+2009-05-17 by Arthur David Olson.
+
+This file is by no means authoritative; if you think you know better,
+go ahead and edit the file (and please send any changes to
+tz@iana.org for general use in the future).  For more, please see
 the file CONTRIBUTING in the tz distribution.
 
 
@@ -2269,18 +2269,18 @@ joda-time-2.9.9-sources.jar\org\joda\time\tz\src\africa
 
 >>> jsr305-2.0.1
 
-License: The Apache Software License, Version 2.0 
-http://www.apache.org/licenses/LICENSE-2.0.txt
-
-ADDITIONAL LICENSE INFORMATION:
-
-> Creative Commons Attribution 2.5
-
-jsr305-2.0.1.jar\javax\annotation\concurrent\GuardedBy.java
-
-Copyright (c) 2005 Brian Goetz
-Released under the Creative Commons Attribution License
-(http://creativecommons.org/licenses/by/2.5)
+License: The Apache Software License, Version 2.0 
+http://www.apache.org/licenses/LICENSE-2.0.txt
+
+ADDITIONAL LICENSE INFORMATION:
+
+> Creative Commons Attribution 2.5
+
+jsr305-2.0.1.jar\javax\annotation\concurrent\GuardedBy.java
+
+Copyright (c) 2005 Brian Goetz
+Released under the Creative Commons Attribution License
+(http://creativecommons.org/licenses/by/2.5)
 Official home: http://www.jcip.net
 
 
@@ -2318,16 +2318,16 @@ is preserved.
 
 >>> net.jpountz.lz4:lz4-1.3.0
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -2914,27 +2914,27 @@ which has been placed in the public domain:
 
 >>> org.apache.commons:commons-compress-1.4.1
 
-Apache Commons Compress
-Copyright 2002-2012 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
+Apache Commons Compress
+Copyright 2002-2012 The Apache Software Foundation
+
+This product includes software developed by
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
 under the License.
 
 
@@ -2973,82 +2973,82 @@ under the License.
 
 >>> org.apache.commons:commons-lang3-3.1
 
-Apache Commons Lang
-Copyright 2001-2011 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
-This product includes software from the Spring Framework,
-under the Apache License 2.0 (see: StringUtils.containsWhitespace())
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Commons Lang
+Copyright 2001-2011 The Apache Software Foundation
+
+This product includes software developed by
+The Apache Software Foundation (http://www.apache.org/).
+
+This product includes software from the Spring Framework,
+under the Apache License 2.0 (see: StringUtils.containsWhitespace())
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> org.apache.httpcomponents:httpclient-4.5.2
 
-Apache HttpClient
-Copyright 1999-2016 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-====================================================================
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
-====================================================================
-
-This software consists of voluntary contributions made by many
-individuals on behalf of the Apache Software Foundation.  For more
-information on the Apache Software Foundation, please see
-<http://www.apache.org/>.
-
-
-
-ADDITIONAL LICENSE INFORMATION:
-
-> httpclient-4.5.2-sources.jar\META-INF\DEPENDENCIES
-
-------------------------------------------------------------------
-Transitive dependencies of this project determined from the
-maven pom organized by organization.
-------------------------------------------------------------------
-
-Apache HttpClient
-
-
-From: 'The Apache Software Foundation' (http://www.apache.org/)
-  - Apache Commons Codec (http://commons.apache.org/proper/commons-codec/) commons-codec:commons-codec:jar:1.9
-    License: The Apache Software License, Version 2.0  (http://www.apache.org/licenses/LICENSE-2.0.txt)
-  - Apache Commons Logging (http://commons.apache.org/proper/commons-logging/) commons-logging:commons-logging:jar:1.2
-    License: The Apache Software License, Version 2.0  (http://www.apache.org/licenses/LICENSE-2.0.txt)
-  - Apache HttpCore (http://hc.apache.org/httpcomponents-core-ga) org.apache.httpcomponents:httpcore:jar:4.4.4
+Apache HttpClient
+Copyright 1999-2016 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+====================================================================
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+====================================================================
+
+This software consists of voluntary contributions made by many
+individuals on behalf of the Apache Software Foundation.  For more
+information on the Apache Software Foundation, please see
+<http://www.apache.org/>.
+
+
+
+ADDITIONAL LICENSE INFORMATION:
+
+> httpclient-4.5.2-sources.jar\META-INF\DEPENDENCIES
+
+------------------------------------------------------------------
+Transitive dependencies of this project determined from the
+maven pom organized by organization.
+------------------------------------------------------------------
+
+Apache HttpClient
+
+
+From: 'The Apache Software Foundation' (http://www.apache.org/)
+  - Apache Commons Codec (http://commons.apache.org/proper/commons-codec/) commons-codec:commons-codec:jar:1.9
+    License: The Apache Software License, Version 2.0  (http://www.apache.org/licenses/LICENSE-2.0.txt)
+  - Apache Commons Logging (http://commons.apache.org/proper/commons-logging/) commons-logging:commons-logging:jar:1.2
+    License: The Apache Software License, Version 2.0  (http://www.apache.org/licenses/LICENSE-2.0.txt)
+  - Apache HttpCore (http://hc.apache.org/httpcomponents-core-ga) org.apache.httpcomponents:httpcore:jar:4.4.4
     License: Apache License, Version 2.0  (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 
@@ -3100,30 +3100,30 @@ License: Apache License, Version 2.0  (http://www.apache.org/licenses/LICENSE-2.
 
 >>> org.apache.httpcomponents:httpcore-4.4.5
 
-Apache HttpCore
-Copyright 2005-2016 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-This project contains annotations derived from JCIP-ANNOTATIONS
-Copyright (c) 2005 Brian Goetz and Tim Peierls. See http://www.jcip.net
-
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
+Apache HttpCore
+Copyright 2005-2016 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project contains annotations derived from JCIP-ANNOTATIONS
+Copyright (c) 2005 Brian Goetz and Tim Peierls. See http://www.jcip.net
+
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
 under the License.
 
 
@@ -3956,47 +3956,47 @@ limitations under the License.
 
 >>> org.apache.tomcat.embed:tomcat-embed-logging-juli-8.0.36
 
-Apache Tomcat
-Copyright 1999-2016 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Tomcat
+Copyright 1999-2016 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> org.apache.tomcat.embed:tomcat-embed-websocket-8.0.36
 
-Apache Tomcat
-Copyright 1999-2016 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Tomcat
+Copyright 1999-2016 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -4050,28 +4050,28 @@ limitations under the License.
 
 >>> org.apache.velocity:velocity-1.7
 
-Apache Velocity
-
-Copyright (C) 2000-2007 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
+Apache Velocity
+
+Copyright (C) 2000-2007 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
 under the License.
 
 
@@ -4170,26 +4170,26 @@ limitations under the License.
 
 >>> org.eclipse.jetty:jetty-http-9.2.10.v20150310
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-
-About This Content
-
-19 May, 2009
-License
-
-The Eclipse Foundation makes available all content in this plug-in ("Content"). The Content is dual licensed and is provided to you under the terms and conditions of the Eclipse Public License Version 1.0 ("EPL") as well as the Apache Software License Version 2.0. A copy of the EPL is available at http://www.eclipse.org/legal/epl-v10.html. A copy of the ASL is available at http://www.apache.org/licenses/LICENSE-2.0.html. For purposes of the EPL, "Program" will mean the Content.
-
-If you did not receive this Content directly from the Eclipse Foundation, the Content is being redistributed by another party ("Redistributor") and different terms and conditions may apply to your use of any object code in the Content. Check the Redistributor's license that was provided with the Content. If no such license exists, contact the Redistributor. Unless otherwise indicated below, the terms and conditions of the EPL still apply to any source code in the Content and such source code may be obtained at http://www.eclipse.org.
-
-ADDITIONAL LICENSE INFORMATION :
-
-> MIT Style
-
-jetty-http-9.2.10.v20150310-sources.jar\about.html
-
-jetty-util artifact only:
-
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+
+About This Content
+
+19 May, 2009
+License
+
+The Eclipse Foundation makes available all content in this plug-in ("Content"). The Content is dual licensed and is provided to you under the terms and conditions of the Eclipse Public License Version 1.0 ("EPL") as well as the Apache Software License Version 2.0. A copy of the EPL is available at http://www.eclipse.org/legal/epl-v10.html. A copy of the ASL is available at http://www.apache.org/licenses/LICENSE-2.0.html. For purposes of the EPL, "Program" will mean the Content.
+
+If you did not receive this Content directly from the Eclipse Foundation, the Content is being redistributed by another party ("Redistributor") and different terms and conditions may apply to your use of any object code in the Content. Check the Redistributor's license that was provided with the Content. If no such license exists, contact the Redistributor. Unless otherwise indicated below, the terms and conditions of the EPL still apply to any source code in the Content and such source code may be obtained at http://www.eclipse.org.
+
+ADDITIONAL LICENSE INFORMATION :
+
+> MIT Style
+
+jetty-http-9.2.10.v20150310-sources.jar\about.html
+
+jetty-util artifact only:
+
 The UnixCrypt.java code implements the one way cryptography used by Unix systems for simple password protection. Copyright 1996 Aki Yoshida, modified April 2001 by Iris Van den Broeke, Daniel Deville. Permission to use, copy, modify and distribute UnixCrypt for non-commercial or commercial purposes and without fee is granted provided that the copyright notice appears in all copies.
 
 
@@ -4258,31 +4258,31 @@ granted provided that the copyright notice appears in all copies.
 
 >>> org.eclipse.jetty:jetty-io-9.2.10.v20150310
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE Apache 2.0.  PLEASE SEE BELOW FOR THE FULL TEXT OF THE Apache 2.0.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE;]
-
-Copyright (c) 1995-2015 Mort Bay Consulting Pty. Ltd.
-All rights reserved. This program and the accompanying materials
-are made available under the terms of the Eclipse Public License v1.0
-and Apache License v2.0 which accompanies this distribution.
-
-The Eclipse Public License is available at
-http:www.eclipse.org/legal/epl-v10.html
-
-The Apache License v2.0 is available at
-http:www.opensource.org/licenses/apache2.0.php
-
-You may elect to redistribute this code under either of these licenses.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> MIT
-
-jetty-io-9.2.10.v20150310-sources.jar\about.html
-
-Copyright 1996 Aki Yoshida,
-modified April 2001  by Iris Van den Broeke, Daniel Deville.
-Permission to use, copy, modify and distribute UnixCrypt
-for non-commercial or commercial purposes and without fee is
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE Apache 2.0.  PLEASE SEE BELOW FOR THE FULL TEXT OF THE Apache 2.0.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE;]
+
+Copyright (c) 1995-2015 Mort Bay Consulting Pty. Ltd.
+All rights reserved. This program and the accompanying materials
+are made available under the terms of the Eclipse Public License v1.0
+and Apache License v2.0 which accompanies this distribution.
+
+The Eclipse Public License is available at
+http:www.eclipse.org/legal/epl-v10.html
+
+The Apache License v2.0 is available at
+http:www.opensource.org/licenses/apache2.0.php
+
+You may elect to redistribute this code under either of these licenses.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> MIT
+
+jetty-io-9.2.10.v20150310-sources.jar\about.html
+
+Copyright 1996 Aki Yoshida,
+modified April 2001  by Iris Van den Broeke, Daniel Deville.
+Permission to use, copy, modify and distribute UnixCrypt
+for non-commercial or commercial purposes and without fee is
 granted provided that the copyright notice appears in all copies.
 
 
@@ -4538,25 +4538,25 @@ granted provided that the copyright notice appears in all copies.
 
 >>> org.eclipse.jetty:jetty-util-9.2.10.v20150310
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-About This Content
-
-19 May, 2009
-License
-
-The Eclipse Foundation makes available all content in this plug-in ("Content"). The Content is dual licensed and is provided to you under the terms and conditions of the Eclipse Public License Version 1.0 ("EPL") as well as the Apache Software License Version 2.0. A copy of the EPL is available at http://www.eclipse.org/legal/epl-v10.html. A copy of the ASL is available at http://www.apache.org/licenses/LICENSE-2.0.html. For purposes of the EPL, "Program" will mean the Content.
-
-If you did not receive this Content directly from the Eclipse Foundation, the Content is being redistributed by another party ("Redistributor") and different terms and conditions may apply to your use of any object code in the Content. Check the Redistributor's license that was provided with the Content. If no such license exists, contact the Redistributor. Unless otherwise indicated below, the terms and conditions of the EPL still apply to any source code in the Content and such source code may be obtained at http://www.eclipse.org.
-
-ADDITIONAL LICENSE INFORMATION :
-
-> MIT Style
-
-jetty-util-9.2.10.v20150310-sources.jar\about.html
-
-jetty-util artifact only:
-
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+About This Content
+
+19 May, 2009
+License
+
+The Eclipse Foundation makes available all content in this plug-in ("Content"). The Content is dual licensed and is provided to you under the terms and conditions of the Eclipse Public License Version 1.0 ("EPL") as well as the Apache Software License Version 2.0. A copy of the EPL is available at http://www.eclipse.org/legal/epl-v10.html. A copy of the ASL is available at http://www.apache.org/licenses/LICENSE-2.0.html. For purposes of the EPL, "Program" will mean the Content.
+
+If you did not receive this Content directly from the Eclipse Foundation, the Content is being redistributed by another party ("Redistributor") and different terms and conditions may apply to your use of any object code in the Content. Check the Redistributor's license that was provided with the Content. If no such license exists, contact the Redistributor. Unless otherwise indicated below, the terms and conditions of the EPL still apply to any source code in the Content and such source code may be obtained at http://www.eclipse.org.
+
+ADDITIONAL LICENSE INFORMATION :
+
+> MIT Style
+
+jetty-util-9.2.10.v20150310-sources.jar\about.html
+
+jetty-util artifact only:
+
 The UnixCrypt.java code implements the one way cryptography used by Unix systems for simple password protection. Copyright 1996 Aki Yoshida, modified April 2001 by Iris Van den Broeke, Daniel Deville. Permission to use, copy, modify and distribute UnixCrypt for non-commercial or commercial purposes and without fee is granted provided that the copyright notice appears in all copies.
 
 
@@ -4625,29 +4625,29 @@ granted provided that the copyright notice appears in all copies.
 
 >>> org.hibernate:hibernate-validator-5.2.4.final
 
-Copyright 2002-2015 the original author or authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-
-ADDITIONAL LICENSE INFORMATION:
-
-> Public Domain
-
-hibernate-validator-5.2.4.Final-sources.jar\org\hibernate\validator\internal\util\ConcurrentReferenceHashMap.java
-
- Written by Doug Lea with assistance from members of JCP JSR-166
-  Expert Group and released to the public domain, as explained at
+Copyright 2002-2015 the original author or authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+ADDITIONAL LICENSE INFORMATION:
+
+> Public Domain
+
+hibernate-validator-5.2.4.Final-sources.jar\org\hibernate\validator\internal\util\ConcurrentReferenceHashMap.java
+
+ Written by Doug Lea with assistance from members of JCP JSR-166
+  Expert Group and released to the public domain, as explained at
   http://creativecommons.org/licenses/publicdomain
 
 
@@ -4668,18 +4668,18 @@ limitations under the License.
 
 >>> org.jboss.logging:jboss-logging-3.3.0.final
 
-Copyright 2010 Red Hat, Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2010 Red Hat, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -4776,18 +4776,18 @@ limitations under the License.
 
 >>> org.slf4j:jcl-over-slf4j-1.7.21
 
-Copyright 2001-2004 The Apache Software Foundation.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2001-2004 The Apache Software Foundation.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -4810,35 +4810,35 @@ limitations under the License.
 
 >>> org.slf4j:jcl-over-slf4j-1.7.7
 
-Copyright 2001-2004 The Apache Software Foundation.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2001-2004 The Apache Software Foundation.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> org.slf4j:log4j-over-slf4j-1.7.21
 
-Copyright 2001-2004 The Apache Software Foundation.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2001-2004 The Apache Software Foundation.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -4861,18 +4861,18 @@ limitations under the License.
 
 >>> org.springframework.boot:spring-boot-1.3.6.release
 
-* Copyright 2012-2014 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
+* Copyright 2012-2014 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
  * limitations under the License.
 
 
@@ -4900,19 +4900,19 @@ LICENSE: Apache 2.0
 
 >>> org.springframework.boot:spring-boot-autoconfigure-1.3.6.release
 
-/
-  Copyright 2013-2014 the original author or authors
-  
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
-  
-    http://www.apache.org/licenses/LICENSE-2.0
-  
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
+/
+  Copyright 2013-2014 the original author or authors
+  
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+  
+    http://www.apache.org/licenses/LICENSE-2.0
+  
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
   limitations under the License.
 
 
@@ -4990,44 +4990,44 @@ License: Apache 2.0
 
 >>> org.springframework.data:spring-data-commons-1.11.4.release
 
-Spring Data Commons 1.11.4
-Copyright (c) [2010-2015] Pivotal Software, Inc.
-
-This product is licensed to you under the Apache License, Version 2.0 (the "License").
-You may not use this product except in compliance with the License.
-
-This product may include a number of subcomponents with
-separate copyright notices and license terms. Your use of the source
-code for the these subcomponents is subject to the terms and
-conditions of the subcomponent's license, as noted in the LICENSE file.
-
-
-Copyright 2014 the original author or authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Spring Data Commons 1.11.4
+Copyright (c) [2010-2015] Pivotal Software, Inc.
+
+This product is licensed to you under the Apache License, Version 2.0 (the "License").
+You may not use this product except in compliance with the License.
+
+This product may include a number of subcomponents with
+separate copyright notices and license terms. Your use of the source
+code for the these subcomponents is subject to the terms and
+conditions of the subcomponent's license, as noted in the LICENSE file.
+
+
+Copyright 2014 the original author or authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> org.springframework.data:spring-data-jpa-1.9.4.release
 
-Spring Data JPA 1.9.4
-Copyright (c) [2011-2015] Pivotal Software, Inc.
-
-This product is licensed to you under the Apache License, Version 2.0 (the "License").
-You may not use this product except in compliance with the License.
-
-This product may include a number of subcomponents with
-separate copyright notices and license terms. Your use of the source
-code for the these subcomponents is subject to the terms and
+Spring Data JPA 1.9.4
+Copyright (c) [2011-2015] Pivotal Software, Inc.
+
+This product is licensed to you under the Apache License, Version 2.0 (the "License").
+You may not use this product except in compliance with the License.
+
+This product may include a number of subcomponents with
+separate copyright notices and license terms. Your use of the source
+code for the these subcomponents is subject to the terms and
 conditions of the subcomponent's license, as noted in the LICENSE file.
 
 
@@ -5084,18 +5084,18 @@ limitations under the License.
 
 >>> org.springframework:spring-beans-4.2.7.release
 
-Copyright 2013-2014 the original author or authors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2013-2014 the original author or authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -5288,18 +5288,18 @@ limitations under the License.
 
 >>> org.springframework:spring-expression-4.3.9.release
 
-Copyright 2002-2013 the original author or authors.
- 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
- 
-http://www.apache.org/licenses/LICENSE-2.0
- 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2002-2013 the original author or authors.
+ 
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+ 
+http://www.apache.org/licenses/LICENSE-2.0
+ 
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -5356,18 +5356,18 @@ limitations under the License.
 
 >>> org.springframework:spring-web-4.2.7.release
 
-Copyright 2002-2015 the original author or authors.
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
+Copyright 2002-2015 the original author or authors.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
  limitations under the License.
 
 
@@ -5390,52 +5390,52 @@ limitations under the License.
 
 >>> org.springframework:spring-webmvc-4.2.7.release
 
-Copyright 2002-2012 the original author or authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2002-2012 the original author or authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> org.xerial.snappy:snappy-java-1.0.5
 
-Copyright 2011 Taro L. Saito
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2011 Taro L. Saito
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> org.xerial.snappy:snappy-java-1.1.1.3
 
-Copyright 2011 Taro L. Saito
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2011 Taro L. Saito
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
@@ -5481,67 +5481,67 @@ This module is provided "as is", without warranties of any kind.
 
 >>> org.yaml:snakeyaml-1.17
 
-Copyright (c) 2008, http:www.snakeyaml.org
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http:www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> BSD
-
-snakeyaml-1.17-sources.jar\org\yaml\snakeyaml\external\biz\base64Coder\Base64Coder.java
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE BSD LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Copyright 2003-2010 Christian d'Heureuse, Inventec Informatik AG, Zurich, Switzerland
-www.source-code.biz, www.inventec.ch/chdh
-
-This module is multi-licensed and may be used under the terms
-of any of the following licenses:
-
-EPL, Eclipse Public License, V1.0 or later, http:www.eclipse.org/legal
-LGPL, GNU Lesser General Public License, V2.1 or later, http:www.gnu.org/licenses/lgpl.html
-GPL, GNU General Public License, V2 or later, http:www.gnu.org/licenses/gpl.html
-AL, Apache License, V2.0 or later, http:www.apache.org/licenses
-BSD, BSD License, http:www.opensource.org/licenses/bsd-license.php
-
-Please contact the author if you need another license.
+Copyright (c) 2008, http:www.snakeyaml.org
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http:www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> BSD
+
+snakeyaml-1.17-sources.jar\org\yaml\snakeyaml\external\biz\base64Coder\Base64Coder.java
+
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE BSD LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Copyright 2003-2010 Christian d'Heureuse, Inventec Informatik AG, Zurich, Switzerland
+www.source-code.biz, www.inventec.ch/chdh
+
+This module is multi-licensed and may be used under the terms
+of any of the following licenses:
+
+EPL, Eclipse Public License, V1.0 or later, http:www.eclipse.org/legal
+LGPL, GNU Lesser General Public License, V2.1 or later, http:www.gnu.org/licenses/lgpl.html
+GPL, GNU General Public License, V2 or later, http:www.gnu.org/licenses/gpl.html
+AL, Apache License, V2.0 or later, http:www.apache.org/licenses
+BSD, BSD License, http:www.opensource.org/licenses/bsd-license.php
+
+Please contact the author if you need another license.
 This module is provided "as is", without warranties of any kind.
 
 
 >>> xml-apis:xml-apis-1.0.b2
 
-LICENSE: APACHE 2.0
-
-ADDITIONAL LICENSE INFORMATION:
-
-> MIT-Style
-
-xml-apis-1.0.b2-sources.jar\com\sun\xml\xsl\ExternSheet.java
-
-Copyright (c) 1998 Sun Microsystems, Inc. All Rights Reserved.
-  
-This software is the confidential and proprietary information of Sun
-Microsystems, Inc. ("Confidential Information").  You shall not
-disclose such Confidential Information and shall use it only in
-accordance with the terms of the license agreement you entered into
-with Sun.
-  
-SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
-SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
-SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+LICENSE: APACHE 2.0
+
+ADDITIONAL LICENSE INFORMATION:
+
+> MIT-Style
+
+xml-apis-1.0.b2-sources.jar\com\sun\xml\xsl\ExternSheet.java
+
+Copyright (c) 1998 Sun Microsystems, Inc. All Rights Reserved.
+  
+This software is the confidential and proprietary information of Sun
+Microsystems, Inc. ("Confidential Information").  You shall not
+disclose such Confidential Information and shall use it only in
+accordance with the terms of the license agreement you entered into
+with Sun.
+  
+SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
 THIS SOFTWARE OR ITS DERIVATIVES.
 
 
@@ -5579,310 +5579,310 @@ Common Development and Distribution License, V1.1 is applicable to the following
 
 >>> javax.activation:activation-1.1.1
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright 1997-2007 Sun Microsystems, Inc. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License. You can obtain
-a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
-or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
-Sun designates this particular file as subject to the "Classpath" exception
-as provided by Sun in the GPL Version 2 section of the License file that
-accompanied this code.  If applicable, add the following below the License
-Header, with the fields enclosed by brackets [] replaced by your own
-identifying information: "Portions Copyrighted [year]
-[name of copyright owner]"
-
-Contributor(s):
-
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright 1997-2007 Sun Microsystems, Inc. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License. You can obtain
+a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
+or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
+Sun designates this particular file as subject to the "Classpath" exception
+as provided by Sun in the GPL Version 2 section of the License file that
+accompanied this code.  If applicable, add the following below the License
+Header, with the fields enclosed by brackets [] replaced by your own
+identifying information: "Portions Copyrighted [year]
+[name of copyright owner]"
+
+Contributor(s):
+
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
 holder.
 
 
 >>> javax.annotation:javax.annotation-api-1.2
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE [CDDL 1.1 LICENSE].THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright (c) 2005-2011 Oracle and/or its affiliates. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License.  You can
-obtain a copy of the License at
-https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
-or packager/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at packager/legal/LICENSE.txt.
-
-GPL Classpath Exception:
-Oracle designates this particular file as subject to the "Classpath"
-exception as provided by Oracle in the GPL Version 2 section of the License
-file that accompanied this code.
-
-Modifications:
-If applicable, add the following below the License Header, with the fields
-enclosed by brackets [] replaced by your own identifying information:
-"Portions Copyright [year] [name of copyright owner]"
-
-Contributor(s):
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
-holder.
-
-ADDITIONAL LICENSE INFORMATION:
-
->CDDL 1.0
-
-javax.annotation-api-1.2-sources.jar\META-INF\LICENSE.txt
-
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE [CDDL 1.1 LICENSE].THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright (c) 2005-2011 Oracle and/or its affiliates. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License.  You can
+obtain a copy of the License at
+https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
+or packager/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at packager/legal/LICENSE.txt.
+
+GPL Classpath Exception:
+Oracle designates this particular file as subject to the "Classpath"
+exception as provided by Oracle in the GPL Version 2 section of the License
+file that accompanied this code.
+
+Modifications:
+If applicable, add the following below the License Header, with the fields
+enclosed by brackets [] replaced by your own identifying information:
+"Portions Copyright [year] [name of copyright owner]"
+
+Contributor(s):
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
+holder.
+
+ADDITIONAL LICENSE INFORMATION:
+
+>CDDL 1.0
+
+javax.annotation-api-1.2-sources.jar\META-INF\LICENSE.txt
+
 License : CDDL 1.0
 
 
 >>> javax.servlet:javax.servlet-api-3.1.0
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE.  PLEASE SEE APPENDIX FOR FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright (c) 2008-2013 Oracle and/or its affiliates. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License.  You can
-obtain a copy of the License at
-https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
-or packager/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at packager/legal/LICENSE.txt.
-
-GPL Classpath Exception:
-Oracle designates this particular file as subject to the "Classpath"
-exception as provided by Oracle in the GPL Version 2 section of the License
-file that accompanied this code.
-
-Modifications:
-If applicable, add the following below the License Header, with the fields
-enclosed by brackets [] replaced by your own identifying information:
-"Portions Copyright [year] [name of copyright owner]"
-
-Contributor(s):
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
-holder.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> Apache 2.0
-
-javax.servlet-api-3.1.0-sources.jar\javax\servlet\http\Cookie.java
-
-Copyright 2004 The Apache Software Foundation
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE.  PLEASE SEE APPENDIX FOR FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright (c) 2008-2013 Oracle and/or its affiliates. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License.  You can
+obtain a copy of the License at
+https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
+or packager/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at packager/legal/LICENSE.txt.
+
+GPL Classpath Exception:
+Oracle designates this particular file as subject to the "Classpath"
+exception as provided by Oracle in the GPL Version 2 section of the License
+file that accompanied this code.
+
+Modifications:
+If applicable, add the following below the License Header, with the fields
+enclosed by brackets [] replaced by your own identifying information:
+"Portions Copyright [year] [name of copyright owner]"
+
+Contributor(s):
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
+holder.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> Apache 2.0
+
+javax.servlet-api-3.1.0-sources.jar\javax\servlet\http\Cookie.java
+
+Copyright 2004 The Apache Software Foundation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 
 >>> javax.transaction:javax.transaction-api-1.2
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright (c) 1997-2013 Oracle and/or its affiliates. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License.  You can
-obtain a copy of the License at
-https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
-or packager/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at packager/legal/LICENSE.txt.
-
-GPL Classpath Exception:
-Oracle designates this particular file as subject to the "Classpath"
-exception as provided by Oracle in the GPL Version 2 section of the License
-file that accompanied this code.
-
-Modifications:
-If applicable, add the following below the License Header, with the fields
-enclosed by brackets [] replaced by your own identifying information:
-"Portions Copyright [year] [name of copyright owner]"
-
-Contributor(s):
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright (c) 1997-2013 Oracle and/or its affiliates. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License.  You can
+obtain a copy of the License at
+https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
+or packager/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at packager/legal/LICENSE.txt.
+
+GPL Classpath Exception:
+Oracle designates this particular file as subject to the "Classpath"
+exception as provided by Oracle in the GPL Version 2 section of the License
+file that accompanied this code.
+
+Modifications:
+If applicable, add the following below the License Header, with the fields
+enclosed by brackets [] replaced by your own identifying information:
+"Portions Copyright [year] [name of copyright owner]"
+
+Contributor(s):
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
 holder.
 
 
 >>> javax.ws.rs:javax.ws.rs-api-2.0.1
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE. PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright (c) 2011-2013 Oracle and/or its affiliates. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License.  You can
-obtain a copy of the License at
-http://glassfish.java.net/public/CDDL+GPL_1_1.html
-or packager/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at packager/legal/LICENSE.txt.
-
-GPL Classpath Exception:
-Oracle designates this particular file as subject to the "Classpath"
-exception as provided by Oracle in the GPL Version 2 section of the License
-file that accompanied this code.
-
-Modifications:
-If applicable, add the following below the License Header, with the fields
-enclosed by brackets [] replaced by your own identifying information:
-"Portions Copyright [year] [name of copyright owner]"
-
-Contributor(s):
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE. PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright (c) 2011-2013 Oracle and/or its affiliates. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License.  You can
+obtain a copy of the License at
+http://glassfish.java.net/public/CDDL+GPL_1_1.html
+or packager/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at packager/legal/LICENSE.txt.
+
+GPL Classpath Exception:
+Oracle designates this particular file as subject to the "Classpath"
+exception as provided by Oracle in the GPL Version 2 section of the License
+file that accompanied this code.
+
+Modifications:
+If applicable, add the following below the License Header, with the fields
+enclosed by brackets [] replaced by your own identifying information:
+"Portions Copyright [year] [name of copyright owner]"
+
+Contributor(s):
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
 holder.
 
 
 >>> org.jboss.spec.javax.ws.rs:jboss-jaxrs-api_2.0_spec-1.0.1.beta1
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1.  PLEASE SEE THE APPENDIX TO REVIEW THE FULL TEXT OF THE CDDL 1.1.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright (c) 2012-2013 Oracle and/or its affiliates. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License.  You can
-obtain a copy of the License at
-http://glassfish.java.net/public/CDDL+GPL_1_1.html
-or packager/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at packager/legal/LICENSE.txt.
-
-GPL Classpath Exception:
-Oracle designates this particular file as subject to the "Classpath"
-exception as provided by Oracle in the GPL Version 2 section of the License
-file that accompanied this code.
-
-Modifications:
-If applicable, add the following below the License Header, with the fields
-enclosed by brackets [] replaced by your own identifying information:
-"Portions Copyright [year] [name of copyright owner]"
-
-Contributor(s):
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
-holder.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> Apache 2.0
-
-jboss-jaxrs-api_2.0_spec-1.0.1.Beta1-sources.jar\javax\ws\rs\core\GenericEntity.java
-
-Copyright (C) 2006 Google Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-> CDDL 1.0
-
-jboss-jaxrs-api_2.0_spec-1.0.1.Beta1-sources.jar\META-INF\LICENSE
-
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1.  PLEASE SEE THE APPENDIX TO REVIEW THE FULL TEXT OF THE CDDL 1.1.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright (c) 2012-2013 Oracle and/or its affiliates. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License.  You can
+obtain a copy of the License at
+http://glassfish.java.net/public/CDDL+GPL_1_1.html
+or packager/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at packager/legal/LICENSE.txt.
+
+GPL Classpath Exception:
+Oracle designates this particular file as subject to the "Classpath"
+exception as provided by Oracle in the GPL Version 2 section of the License
+file that accompanied this code.
+
+Modifications:
+If applicable, add the following below the License Header, with the fields
+enclosed by brackets [] replaced by your own identifying information:
+"Portions Copyright [year] [name of copyright owner]"
+
+Contributor(s):
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
+holder.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> Apache 2.0
+
+jboss-jaxrs-api_2.0_spec-1.0.1.Beta1-sources.jar\javax\ws\rs\core\GenericEntity.java
+
+Copyright (C) 2006 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+> CDDL 1.0
+
+jboss-jaxrs-api_2.0_spec-1.0.1.Beta1-sources.jar\META-INF\LICENSE
+
 License: CDDL 1.0
 
 
@@ -5893,20 +5893,20 @@ Creative Commons Attribution 2.5 is applicable to the following component(s).
 
 >>> com.google.code.findbugs:jsr305-3.0.1
 
-Copyright (c) 2005 Brian Goetz
-Released under the Creative Commons Attribution License
-(http://creativecommons.org/licenses/by/2.5)
+Copyright (c) 2005 Brian Goetz
+Released under the Creative Commons Attribution License
+(http://creativecommons.org/licenses/by/2.5)
 Official home: http://www.jcip.net
 
 
 >>> net.jcip:jcip-annotations-1.0
 
-Copyright (c) 2005 Brian Goetz and Tim Peierls
-Released under the Creative Commons Attribution License
-(http://creativecommons.org/licenses/by/2.5)
-Official home: http://www.jcip.net
- 
-Any republication or derived work distributed in source code form
+Copyright (c) 2005 Brian Goetz and Tim Peierls
+Released under the Creative Commons Attribution License
+(http://creativecommons.org/licenses/by/2.5)
+Official home: http://www.jcip.net
+ 
+Any republication or derived work distributed in source code form
 must include this copyright and license notice.
 
 
@@ -5934,18 +5934,18 @@ as published by the Free Software Foundation.
 
 >>> ch.qos.logback:logback-classic-1.1.7
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE EPL 1.0 LICENSE. PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE EPL 1.0 LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Logback: the reliable, generic, fast and flexible logging framework.
-Copyright (C) 1999-2015, QOS.ch. All rights reserved.
-
-This program and the accompanying materials are dual-licensed under
-either the terms of the Eclipse Public License v1.0 as published by
-the Eclipse Foundation
-
-or (per the licensee's choosing)
-
-under the terms of the GNU Lesser General Public License version 2.1
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE EPL 1.0 LICENSE. PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE EPL 1.0 LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Logback: the reliable, generic, fast and flexible logging framework.
+Copyright (C) 1999-2015, QOS.ch. All rights reserved.
+
+This program and the accompanying materials are dual-licensed under
+either the terms of the Eclipse Public License v1.0 as published by
+the Eclipse Foundation
+
+or (per the licensee's choosing)
+
+under the terms of the GNU Lesser General Public License version 2.1
 as published by the Free Software Foundation.
 
 
@@ -5969,18 +5969,18 @@ Logback: the reliable, generic, fast and flexible logging framework.
 
 >>> ch.qos.logback:logback-core-1.1.7
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE EPL 1.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE EPL 1.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Logback: the reliable, generic, fast and flexible logging framework.
-Copyright (C) 1999-2015, QOS.ch. All rights reserved.
-
-This program and the accompanying materials are dual-licensed under
-either the terms of the Eclipse Public License v1.0 as published by
-the Eclipse Foundation
-
-or (per the licensee's choosing)
-
-under the terms of the GNU Lesser General Public License version 2.1
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE EPL 1.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE EPL 1.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Logback: the reliable, generic, fast and flexible logging framework.
+Copyright (C) 1999-2015, QOS.ch. All rights reserved.
+
+This program and the accompanying materials are dual-licensed under
+either the terms of the Eclipse Public License v1.0 as published by
+the Eclipse Foundation
+
+or (per the licensee's choosing)
+
+under the terms of the GNU Lesser General Public License version 2.1
 as published by the Free Software Foundation.
 
 
@@ -6038,23 +6038,23 @@ diligence.
 
 >>> org.aspectj:aspectjweaver-1.8.9
 
-Copyright (c) 2005 Contributors.
-All rights reserved.
-This program and the accompanying materials are made available
-under the terms of the Eclipse Public License v1.0
-which accompanies this distribution and is available at
-http://eclipse.org/legal/epl-v10.html
-
-Contributors:
-Alexandre Vasseur         initial implementation
-
-
-ADDITIONAL LICENSE INFORMATION:
-
-> The Apache Software License  1.1
-
-aspectjweaver-1.8.9-sources.jar\org\aspectj\apache\bcel\util\NonCachingClassLoaderRepository.java
-
+Copyright (c) 2005 Contributors.
+All rights reserved.
+This program and the accompanying materials are made available
+under the terms of the Eclipse Public License v1.0
+which accompanies this distribution and is available at
+http://eclipse.org/legal/epl-v10.html
+
+Contributors:
+Alexandre Vasseur         initial implementation
+
+
+ADDITIONAL LICENSE INFORMATION:
+
+> The Apache Software License  1.1
+
+aspectjweaver-1.8.9-sources.jar\org\aspectj\apache\bcel\util\NonCachingClassLoaderRepository.java
+
 [The text of the Apache Software License 1.1  is set forth in the Appendix to this document.]
 
 
