@@ -29,6 +29,11 @@
       <artifactId>metrics-jvm</artifactId>
       <version>3.1.2</version>
     </dependency>
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20170516</version>
+    </dependency>
   </dependencies>
 
 </project>
