@@ -243,13 +243,14 @@ public class WavefrontYammerMetricsReporterTest {
   }
 
   @Test(timeout = 1000)
-  public void testPlainTimerWithClear() throws Exception {
+  public void testTimerWithClear() throws Exception {
     innerSetUp(false, null, false, true /* clear */);
-    Timer timer = metricsRegistry.newTimer(WavefrontYammerMetricsReporterTest.class, "mytimer");
+    Timer timer = metricsRegistry.newTimer(new TaggedMetricName("", "mytimer", "foo", "bar"),
+        TimeUnit.SECONDS, TimeUnit.SECONDS);
     timer.time().stop();
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(15, fromMetrics), containsInAnyOrder(
-        equalTo("\"mytimer.rate.count\" 1.0"),
+        equalTo("\"mytimer.rate.count\" 1.0 foo=\"bar\""),
         startsWith("\"mytimer.duration.min\""),
         startsWith("\"mytimer.duration.max\""),
         startsWith("\"mytimer.duration.mean\""),
@@ -267,7 +268,7 @@ public class WavefrontYammerMetricsReporterTest {
     ));
 
     wavefrontYammerMetricsReporter.run();
-    assertThat(receiveFromSocket(15, fromMetrics), hasItem("\"mytimer.rate.count\" 0.0"));
+    assertThat(receiveFromSocket(15, fromMetrics), hasItem("\"mytimer.rate.count\" 0.0 foo=\"bar\""));
   }
 
   @Test(timeout = 1000)

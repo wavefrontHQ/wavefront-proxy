@@ -139,10 +139,20 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
 
   @Override
   public void processTimer(MetricName name, Timer timer, Void context) throws Exception {
-    MetricName samplingName = new MetricName(name.getGroup(), name.getType(), name.getName() + ".duration");
+    MetricName samplingName, rateName;
+    if (name instanceof TaggedMetricName) {
+      TaggedMetricName taggedMetricName = (TaggedMetricName) name;
+      samplingName = new TaggedMetricName(
+          taggedMetricName.getGroup(), taggedMetricName.getName() + ".duration", taggedMetricName.getTags());
+      rateName = new TaggedMetricName(
+          taggedMetricName.getGroup(), taggedMetricName.getName() + ".rate", taggedMetricName.getTags());
+    } else {
+      samplingName = new MetricName(name.getGroup(), name.getType(), name.getName() + ".duration");
+      rateName = new MetricName(name.getGroup(), name.getType(), name.getName() + ".rate");
+    }
+
     writeSummarizable(samplingName, timer);
     writeSampling(samplingName, timer);
-    MetricName rateName = new MetricName(name.getGroup(), name.getType(), name.getName() + ".rate");
     writeMetered(rateName, timer);
 
     if (clear) timer.clear();
