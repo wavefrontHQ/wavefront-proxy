@@ -198,27 +198,6 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
-    // ------ Start the listener for source metadata, such as sourceTags and description ----------
-    if (!StringUtils.isEmpty(metadataListenerPorts) && !StringUtils.isEmpty(token)) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(metadataListenerPorts);
-      for (String port : ports) {
-        startMetadataListener(port);
-        logger.info("listening on port: " + port + " for metadata (e.g. SourceTag and " +
-            "SourceDescription).");
-      }
-    } else {
-      StringBuilder strBuilder = new StringBuilder();
-      if (StringUtils.isEmpty(metadataListenerPorts))
-        strBuilder.append("metadata listener port is null");
-      if (StringUtils.isEmpty(token)) {
-        if (strBuilder.length() != 0)
-          strBuilder.append(" and ");
-        strBuilder.append("token is null");
-      }
-      logger.warning("Could not start the metadata listener because " + strBuilder.toString() +
-          ".");
-    }
-
     GraphiteFormatter graphiteFormatter = null;
     if (graphitePorts != null || picklePorts != null) {
       Preconditions.checkNotNull(graphiteFormat, "graphiteFormat must be supplied to enable graphite support");
@@ -431,13 +410,6 @@ public class PushAgent extends AbstractAgent {
         null);
   }
 
-  protected void startMetadataListener(String strPort) {
-    int port = Integer.parseInt(strPort);
-    SourceTagHandler metadataHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(port));
-    startAsManagedThread(new StringLineIngester(metadataHandler, port).withChildChannelOptions
-        (childChannelOptions), "Listener-plaintext-metadata-" + port);
-  }
-
   protected void startGraphiteListener(String strPort, boolean withCustomFormatter) {
 
     int port = Integer.parseInt(strPort);
@@ -447,11 +419,13 @@ public class PushAgent extends AbstractAgent {
     }
     preprocessors.forPort(strPort).forReportPoint()
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+    // Add a metadatahandler, to handle @SourceTag, @SourceDescription, etc.
+    SourceTagHandler metadataHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(port));
     // Set up a custom graphite handler, with no formatter
     ChannelHandler graphiteHandler = new ChannelStringHandler(
         new GraphiteDecoder("unknown", customSourceTags),
         new PointHandlerImpl(strPort, pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort)),
-        preprocessors.forPort(strPort));
+        preprocessors.forPort(strPort), metadataHandler);
 
     if (!withCustomFormatter) {
       List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);

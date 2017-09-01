@@ -81,6 +81,7 @@ import static com.google.common.collect.ImmutableList.of;
 public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   private static final Logger logger = Logger.getLogger(QueuedAgentService.class.getCanonicalName());
+  private static final String SERVER_ERROR = "Server error";
 
   private final Gson resubmissionTaskMarshaller;
   private final WavefrontAPI wrapped;
@@ -708,7 +709,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                 "network/HTTP proxy settings!");
           }
         } else {
-          throw new RuntimeException("Server error: " + response.getStatus());
+          throw new RuntimeException(SERVER_ERROR + ": " + response.getStatus());
         }
       }
     } finally {
@@ -777,7 +778,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         logger.info("Received response status = " + response.getStatus());
         parsePostingResponse(response);
       } catch (RuntimeException ex) {
-        handleSourceTagTaskRetry(ex, task);
+        // If it is a server error then no need of retrying
+        if (!ex.getMessage().startsWith(SERVER_ERROR))
+          handleSourceTagTaskRetry(ex, task);
         logger.warning("Unable to process the source tag request" + ExceptionUtils
             .getFullStackTrace(ex));
         return Response.status(Response.Status.NOT_ACCEPTABLE).build();
@@ -800,6 +803,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       try {
         parsePostingResponse(wrapped.removeDescription(id, token));
       } catch (RuntimeException ex) {
+        // If it is a server error then no need of retrying
+        if (!ex.getMessage().startsWith(SERVER_ERROR))
         handleSourceTagTaskRetry(ex, task);
         logger.warning("Unable to process the source tag request" + ExceptionUtils
             .getFullStackTrace(ex));
@@ -823,7 +828,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       try {
         parsePostingResponse(wrapped.setDescription(id, token, desc));
       } catch (RuntimeException ex) {
-        handleSourceTagTaskRetry(ex, task);
+        // If it is a server error then no need of retrying
+        if (!ex.getMessage().startsWith(SERVER_ERROR))
+          handleSourceTagTaskRetry(ex, task);
         logger.warning("Unable to process the source tag request" + ExceptionUtils
             .getFullStackTrace(ex));
         return Response.status(Response.Status.NOT_ACCEPTABLE).build();
@@ -847,7 +854,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       try {
         parsePostingResponse(wrapped.removeTag(id, token, tagValue));
       } catch (RuntimeException ex) {
-        handleSourceTagTaskRetry(ex, task);
+        // If it is a server error then no need of retrying
+        if (!ex.getMessage().startsWith(SERVER_ERROR))
+          handleSourceTagTaskRetry(ex, task);
         logger.warning("Unable to process the source tag request" + ExceptionUtils
             .getFullStackTrace(ex));
         return Response.status(Response.Status.NOT_ACCEPTABLE).build();
@@ -967,7 +976,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             response = Response.serverError().build();
         }
       } catch (Exception ex) {
-        throw new RuntimeException("Server error: " + Throwables.getRootCause(ex));
+        throw new RuntimeException(SERVER_ERROR + ": " + Throwables.getRootCause(ex));
       }
       parsePostingResponse(response);
     }

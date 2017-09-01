@@ -108,7 +108,6 @@ public abstract class AbstractAgent {
 
   private static final Gson GSON = new Gson();
   private static final int GRAPHITE_LISTENING_PORT = 2878;
-  private static final int METADATA_LISTENING_PORT = 4878;
   private static final int OPENTSDB_LISTENING_PORT = 4242;
 
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
@@ -188,10 +187,6 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
       "2878.")
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
-
-  @Parameter(names = {"--metadataListenerPorts"}, description = "Comma-separated list of ports " +
-      "to listen on for metadata. Defaults to " + METADATA_LISTENING_PORT + ".")
-  protected String metadataListenerPorts = "" + METADATA_LISTENING_PORT;
 
   @Parameter(names = {"--memGuardFlushThreshold"}, description = "If heap usage exceeds this threshold (in percent), " +
       "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 95")
@@ -761,7 +756,6 @@ public abstract class AbstractAgent {
         pushRateLimit = config.getNumber("pushRateLimit", pushRateLimit).intValue();
         pushBlockedSamples = config.getNumber("pushBlockedSamples", pushBlockedSamples).intValue();
         pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
-        metadataListenerPorts = config.getString("metadataListenerPorts", metadataListenerPorts);
         memGuardFlushThreshold = config.getNumber("memGuardFlushThreshold", memGuardFlushThreshold).intValue();
 
         // Histogram: global settings

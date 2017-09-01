@@ -10,8 +10,10 @@ import wavefront.report.ReportSourceTag;
  *
  * @author Suranjan Pramanik (suranjan@wavefront.com).
  */
-public interface SourceTagHandler extends ChannelHandler {
+public interface SourceTagHandler {
 
   void reportSourceTags(List<ReportSourceTag> sourceTags);
+
+  void processSourceTag(final String msg);
 
 }
