@@ -60,13 +60,16 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
     // based on the keyword - consider it a point or a metadata
-    if (metadataHandler != null && msg != null &&
-        (msg.trim().startsWith(SourceTagDecoder.SOURCE_TAG) ||
-            msg.trim().startsWith(SourceTagDecoder.SOURCE_DESCRIPTION))) {
-      metadataHandler.processSourceTag(msg);
-    } else {
-      processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
+    if (metadataHandler != null && msg != null) {
+      msg = msg.trim();
+      if (msg.startsWith(SourceTagDecoder.SOURCE_TAG) ||
+          msg.startsWith(SourceTagDecoder.SOURCE_DESCRIPTION)) {
+        metadataHandler.processSourceTag(msg);
+        return;
+      }
     }
+    // if msg does not match metadata keywords then treat it as a point
+    processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
   }
 
   /**
