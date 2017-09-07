@@ -175,6 +175,10 @@ public abstract class AbstractAgent {
       "do not throttle.")
   protected Integer pushRateLimit = -1;
 
+  @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
+      "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
+  protected Integer pushRateLimitMaxBurstSeconds = 10;
+
   @Parameter(names = {"--pushMemoryBufferLimit"}, description = "Max number of points that can stay in memory buffers" +
       " before spooling to disk. Defaults to 16 * pushFlushMaxPoints, minimum size: pushFlushMaxPoints. Setting this " +
       " value lower than default reduces memory usage but will force the proxy to spool to disk more frequently if " +
@@ -759,6 +763,8 @@ public abstract class AbstractAgent {
         hostname = config.getString("hostname", hostname);
         idFile = config.getString("idFile", idFile);
         pushRateLimit = config.getNumber("pushRateLimit", pushRateLimit).intValue();
+        pushRateLimitMaxBurstSeconds = config.getNumber("pushRateLimitMaxBurstSeconds", pushRateLimitMaxBurstSeconds).
+            intValue();
         pushBlockedSamples = config.getNumber("pushBlockedSamples", pushBlockedSamples).intValue();
         pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
         metadataListenerPorts = config.getString("metadataListenerPorts", metadataListenerPorts);
@@ -951,7 +957,7 @@ public abstract class AbstractAgent {
         persistMessagesCompression = false;
       }
       if (pushRateLimit > 0) {
-        pushRateLimiter = RecyclableRateLimiter.create(pushRateLimit, 60);
+        pushRateLimiter = RecyclableRateLimiter.create(pushRateLimit, pushRateLimitMaxBurstSeconds);
       }
 
       pushMemoryBufferLimit.set(Math.max(pushMemoryBufferLimit.get(), pushFlushMaxPoints.get()));
