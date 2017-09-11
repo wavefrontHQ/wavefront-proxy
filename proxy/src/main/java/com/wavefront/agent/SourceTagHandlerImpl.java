@@ -19,8 +19,7 @@ import wavefront.report.ReportSourceTag;
  *
  * @author Suranjan Pramanik (suranjan@wavefront.com).
  */
-public class SourceTagHandlerImpl extends SimpleChannelInboundHandler<String> implements
-    SourceTagHandler {
+public class SourceTagHandlerImpl implements SourceTagHandler {
 
   private static final Logger logger = Logger.getLogger(SourceTagHandlerImpl.class
       .getCanonicalName());
@@ -37,20 +36,11 @@ public class SourceTagHandlerImpl extends SimpleChannelInboundHandler<String> im
   }
 
   /**
-   * This method will read the input over the socket.
-   */
-  @Override
-  protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-    if (msg == null || msg.trim().length() == 0) return;
-    processSourceTag(msg);
-  }
-
-  /**
    * This method is used to process a sourceTag line coming from the client (such as Telegraf)
    *
    * @param msg The line containing the message
    */
-  private void processSourceTag(final String msg) {
+  public void processSourceTag(final String msg) {
     String sourceTagLine = msg.trim();
 
     List<ReportSourceTag> sourceTags = Lists.newArrayListWithExpectedSize(1);
@@ -59,7 +49,6 @@ public class SourceTagHandlerImpl extends SimpleChannelInboundHandler<String> im
     } catch (Exception ex) {
       logger.warning("Could not decode the source tag input " + sourceTagLine + ". Encountered " +
           "exception " + ex.getMessage());
-      // TODO: Handle the exception
     }
     reportSourceTags(sourceTags);
   }

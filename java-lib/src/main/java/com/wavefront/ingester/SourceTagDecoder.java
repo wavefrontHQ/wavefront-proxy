@@ -14,8 +14,8 @@ import wavefront.report.ReportSourceTag;
  */
 public class SourceTagDecoder {
 
-  private static final String SOURCE_TAG = "@SourceTag";
-  private static final String SOURCE_DESCRIPTION = "@SourceDescription";
+  public static final String SOURCE_TAG = "@SourceTag";
+  public static final String SOURCE_DESCRIPTION = "@SourceDescription";
 
   private static final AbstractIngesterFormatter<ReportSourceTag> FORMAT =
       SourceTagIngesterFormatter.newBuilder()
