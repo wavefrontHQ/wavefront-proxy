@@ -1008,7 +1008,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       if (timeSpentInQueue == null) {
         timeSpentInQueue = Metrics.newHistogram(new MetricName("buffer", "", "queue-time"));
       }
-      timeSpentInQueue.update(Clock.now() - currentMillis);
+      // timestamps on PostPushDataResultTask are local system clock, not drift-corrected clock
+      timeSpentInQueue.update(System.currentTimeMillis() - currentMillis);
     }
 
     @Override
