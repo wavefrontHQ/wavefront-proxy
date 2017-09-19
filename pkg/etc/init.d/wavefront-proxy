@@ -15,6 +15,15 @@
 # File any issues here: https://github.com/wavefrontHQ/java/issues.
 ################################################################################
 
+if [ -f /.dockerenv ]; then
+    >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    >&2 echo "WARNING: Attempting to start Wavefront Proxy as a system daemon in a container environment."
+    >&2 echo "'service wavefront-proxy' commands are for stand-alone installations ONLY."
+    >&2 echo "Please follow Docker-specific install instructions in the 'Add a Wavefront Proxy' workflow"
+    >&2 echo "(In Wavefront UI go to Browse menu -> Proxies -> Add -> select 'Docker' tab)"
+    >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+fi
+
 service_name="wavefront-proxy"
 # Source custom settings
 sysconfig="/etc/sysconfig/$service_name"
