@@ -121,6 +121,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       }
       blockedPointsLogger.warning(pointLine);
       pointHandler.handleBlockedPoint(errMsg);
+      return;
     }
 
     // transform the point after parsing, and apply additional white/black lists if any

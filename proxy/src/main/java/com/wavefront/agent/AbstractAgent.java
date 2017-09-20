@@ -540,8 +540,17 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--httpConnectTimeout"}, description = "Connect timeout in milliseconds (default: 5000)")
   protected Integer httpConnectTimeout = 5000;
 
-  @Parameter(names = {"--httpRequestTimeout"}, description = "Request timeout in milliseconds (default: 20000)")
-  protected Integer httpRequestTimeout = 20000;
+  @Parameter(names = {"--httpRequestTimeout"}, description = "Request timeout in milliseconds (default: 10000)")
+  protected Integer httpRequestTimeout = 10000;
+
+  @Parameter(names = {"--httpMaxConnTotal"}, description = "Max connections to keep open (default: 200)")
+  protected Integer httpMaxConnTotal = 200;
+
+  @Parameter(names = {"--httpMaxConnPerRoute"}, description = "Max connections per route to keep open (default: 100)")
+  protected Integer httpMaxConnPerRoute = 100;
+
+  @Parameter(names = {"--httpAutoRetries"}, description = "Number of times to retry http requests before queueing, set to 0 to disable (default: 1)")
+  protected Integer httpAutoRetries = 1;
 
   @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
   protected String preprocessorConfigFile = null;
@@ -881,6 +890,9 @@ public abstract class AbstractAgent {
         httpUserAgent = config.getString("httpUserAgent", httpUserAgent);
         httpConnectTimeout = config.getNumber("httpConnectTimeout", httpConnectTimeout).intValue();
         httpRequestTimeout = config.getNumber("httpRequestTimeout", httpRequestTimeout).intValue();
+        httpMaxConnTotal = Math.min(200, config.getNumber("httpMaxConnTotal", httpMaxConnTotal).intValue());
+        httpMaxConnPerRoute = Math.min(100, config.getNumber("httpMaxConnPerRoute", httpMaxConnPerRoute).intValue());
+        httpAutoRetries = config.getNumber("httpAutoRetries", httpAutoRetries).intValue();
         javaNetConnection = config.getBoolean("javaNetConnection", javaNetConnection);
         gzipCompression = config.getBoolean("gzipCompression", gzipCompression);
         soLingerTime = config.getNumber("soLingerTime", soLingerTime).intValue();
@@ -923,7 +935,8 @@ public abstract class AbstractAgent {
          */
         int listeningPorts = Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts));
         long calculatedMemoryBufferLimit = Math.max(Math.min(16 * pushFlushMaxPoints.get(),
-            Runtime.getRuntime().maxMemory() / listeningPorts / 4 / flushThreads / 400), pushFlushMaxPoints.get());
+            Runtime.getRuntime().maxMemory() / (listeningPorts > 0 ? listeningPorts : 1) / 4 / flushThreads / 400),
+            pushFlushMaxPoints.get());
         logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
         pushMemoryBufferLimit.set(Integer.parseInt(
             config.getRawProperty("pushMemoryBufferLimit", String.valueOf(pushMemoryBufferLimit.get())).trim()));
@@ -1175,10 +1188,9 @@ public abstract class AbstractAgent {
     } else {
       HttpClient httpClient = HttpClientBuilder.create().
           useSystemProperties().
-          disableAutomaticRetries().
           setUserAgent(httpUserAgent).
-          setMaxConnTotal(200).
-          setMaxConnPerRoute(100).
+          setMaxConnTotal(httpMaxConnTotal).
+          setMaxConnPerRoute(httpMaxConnPerRoute).
           setConnectionTimeToLive(1, TimeUnit.MINUTES).
           setDefaultSocketConfig(
               SocketConfig.custom().
@@ -1186,8 +1198,7 @@ public abstract class AbstractAgent {
           setSSLSocketFactory(new SSLConnectionSocketFactoryImpl(
               SSLConnectionSocketFactory.getSystemSocketFactory(),
               httpRequestTimeout)).
-          // allow up to 1 retry for
-              setRetryHandler(new DefaultHttpRequestRetryHandler(1, true)).
+          setRetryHandler(new DefaultHttpRequestRetryHandler(httpAutoRetries, true)).
           setDefaultRequestConfig(
               RequestConfig.custom().
                   setContentCompressionEnabled(true).
