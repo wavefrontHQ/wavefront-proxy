@@ -5,6 +5,7 @@ import com.google.common.base.Throwables;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.common.Clock;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.metrics.JsonMetricsParser;
 
@@ -237,7 +238,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
       ReportPoint.Builder builder = ReportPoint.newBuilder();
       builder.setMetric(metricName);
       JsonNode time = metric.get("timestamp");
-      long ts = 0;
+      long ts = Clock.now(); // if timestamp is not available, fall back to Clock.now()
       if (time != null) {
         int timestampSize = Long.toString(time.asLong()).length();
         if (timestampSize == 19) { // nanoseconds
@@ -275,6 +276,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
             blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
           }
           pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+          return false;
         }
       }
 
