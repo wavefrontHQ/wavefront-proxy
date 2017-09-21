@@ -75,6 +75,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   /**
+   * JsonMetricsGeneratorTest
    * Aggregates all the bins prior to the current minute
    * This is because threads might be updating the current minute bin while the bins() method is invoked
    *
@@ -94,7 +95,15 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   private long minMillis() {
-    return (millis.get() / 60000L) * 60000L;
+    long currMillis;
+    if (millis == null) {
+      // happens because WavefrontHistogram.get() invokes the super() Histogram constructor
+      // which invokes clear() method which in turn invokes this method
+      currMillis = System.currentTimeMillis();
+    } else {
+      currMillis = millis.get();
+    }
+    return (currMillis / 60000L) * 60000L;
   }
 
   @Override
@@ -179,6 +188,12 @@ public class WavefrontHistogram extends Histogram implements Metric {
   private void clearPriorCurrentMinuteBin(long cutoffMillis) {
     // bins with clear == true flag or invoking clear() method
     // will drain the list, so synchronize the access
+    if (map == null) {
+      // will happen if WavefrontHistogram.super() constructor will be invoked
+      // before WavefrontHistogram object is fully instantiated,
+      // which will be invoke clear() method
+      return;
+    }
     for (ArrayList list : map.values()) {
       synchronized (list) {
         Iterator<MinuteBin> iter = list.iterator();

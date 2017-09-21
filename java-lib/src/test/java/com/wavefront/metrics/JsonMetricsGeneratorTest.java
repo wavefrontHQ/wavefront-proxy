@@ -33,6 +33,7 @@ public class JsonMetricsGeneratorTest {
   @Before
   public void setup() {
     testRegistry = new MetricsRegistry();
+    time = new AtomicLong(0);
   }
 
   private String generate(boolean includeVMMetrics,
@@ -124,6 +125,10 @@ public class JsonMetricsGeneratorTest {
     wh.update(100);
     wh.update(1000);
 
+    // Simulate the 1 minute has passed and we are ready to flush the histogram
+    // (i.e. all the values prior to the current minute) over the wire...
+    time.addAndGet(60001L);
+
     String json = generate(false, false, false, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":3,\"startMillis\":0,\"durationMillis\":60000,\"means\":[10.0,100.0,1000.0],\"counts\":[1,1,1]}]}}");
@@ -134,13 +139,21 @@ public class JsonMetricsGeneratorTest {
     Histogram wh = WavefrontHistogram.get(testRegistry, new MetricName("test", "", "metric"), time::get);
     wh.update(10);
 
+    // Simulate the 1 minute has passed and we are ready to flush the histogram
+    // (i.e. all the values prior to the current minute) over the wire...
+    time.addAndGet(60001L);
+
     generate(false, false, true, null);
 
     wh.update(100);
 
+    // Simulate the 1 minute has passed and we are ready to flush the histogram
+    // (i.e. all the values prior to the current minute) over the wire...
+    time.addAndGet(60001L);
+
     String json = generate(false, false, true, null);
 
-    assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":1,\"startMillis\":0,\"durationMillis\":60000,\"means\":[100.0],\"counts\":[1]}]}}");
+    assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":1,\"startMillis\":60000,\"durationMillis\":60000,\"means\":[100.0],\"counts\":[1]}]}}");
   }
 
   @Test
@@ -150,6 +163,11 @@ public class JsonMetricsGeneratorTest {
     wh.update(10);
     generate(false, false, false, null);
     wh.update(100);
+
+    // Simulate the 1 minute has passed and we are ready to flush the histogram
+    // (i.e. all the values prior to the current minute) over the wire...
+    time.addAndGet(60001L);
+
     String json = generate(false, false, true, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":2,\"startMillis\":0,\"durationMillis\":60000,\"means\":[10.0,100.0],\"counts\":[1,1]}]}}");
@@ -162,9 +180,12 @@ public class JsonMetricsGeneratorTest {
     wh.update(10);
     wh.update(100);
 
+    // Simulate the clock advanced by 1 minute
     time.set(61 * 1000);
     wh.update(1000);
 
+    // Simulate the clock advanced by 1 minute
+    time.set(61 * 1000 * 2);
     String json = generate(false, false, false, null);
 
     assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":2,\"startMillis\":0,\"durationMillis\":60000,\"means\":[10.0,100.0],\"counts\":[1,1]},{\"count\":1,\"startMillis\":60000,\"durationMillis\":60000,\"means\":[1000.0],\"counts\":[1]}]}}");
@@ -172,6 +193,7 @@ public class JsonMetricsGeneratorTest {
 
   @Test
   public void testWavefrontHistogramPrunesOldBins() throws IOException {
+    // We no longer prune old bins
     Histogram wh = WavefrontHistogram.get(testRegistry, new MetricName("test", "", "metric"), time::get);
     //1
     wh.update(10);
@@ -206,9 +228,12 @@ public class JsonMetricsGeneratorTest {
     time.set(601 * 1000);
     wh.update(111112);
 
-    String json = generate(false, false, false, null);
+    // Simulate the 1 minute has passed and we are ready to flush the histogram
+    // (i.e. all the values prior to the current minute) over the wire...
+    time.addAndGet(60001L);
 
-    assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":1,\"startMillis\":60000,\"durationMillis\":60000,\"means\":[100.0],\"counts\":[1]},{\"count\":1,\"startMillis\":120000,\"durationMillis\":60000,\"means\":[1000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":180000,\"durationMillis\":60000,\"means\":[10000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":240000,\"durationMillis\":60000,\"means\":[100000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":300000,\"durationMillis\":60000,\"means\":[100001.0],\"counts\":[1]},{\"count\":1,\"startMillis\":360000,\"durationMillis\":60000,\"means\":[100011.0],\"counts\":[1]},{\"count\":1,\"startMillis\":420000,\"durationMillis\":60000,\"means\":[100111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":480000,\"durationMillis\":60000,\"means\":[101111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":540000,\"durationMillis\":60000,\"means\":[111111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":600000,\"durationMillis\":60000,\"means\":[111112.0],\"counts\":[1]}]}}");
+    String json = generate(false, false, false, null);
+    assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":1,\"startMillis\":0,\"durationMillis\":60000,\"means\":[10.0],\"counts\":[1]},{\"count\":1,\"startMillis\":60000,\"durationMillis\":60000,\"means\":[100.0],\"counts\":[1]},{\"count\":1,\"startMillis\":120000,\"durationMillis\":60000,\"means\":[1000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":180000,\"durationMillis\":60000,\"means\":[10000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":240000,\"durationMillis\":60000,\"means\":[100000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":300000,\"durationMillis\":60000,\"means\":[100001.0],\"counts\":[1]},{\"count\":1,\"startMillis\":360000,\"durationMillis\":60000,\"means\":[100011.0],\"counts\":[1]},{\"count\":1,\"startMillis\":420000,\"durationMillis\":60000,\"means\":[100111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":480000,\"durationMillis\":60000,\"means\":[101111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":540000,\"durationMillis\":60000,\"means\":[111111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":600000,\"durationMillis\":60000,\"means\":[111112.0],\"counts\":[1]}]}}");
   }
 
   @Test
@@ -216,6 +241,10 @@ public class JsonMetricsGeneratorTest {
     WavefrontHistogram wh = WavefrontHistogram.get(testRegistry, new MetricName("test", "", "metric"), time::get);
 
     wh.bulkUpdate(ImmutableList.of(15d, 30d, 45d), ImmutableList.of(1, 5, 1));
+
+    // Simulate the 1 minute has passed and we are ready to flush the histogram
+    // (i.e. all the values prior to the current minute) over the wire...
+    time.addAndGet(60001L);
 
     String json = generate(false, false, false, null);
 
@@ -228,6 +257,10 @@ public class JsonMetricsGeneratorTest {
 
     wh.bulkUpdate(ImmutableList.of(15d, 30d, 45d, 100d), ImmutableList.of(1, 5, 1));
     wh.bulkUpdate(ImmutableList.of(1d, 2d, 3d), ImmutableList.of(1, 1, 1, 9));
+
+    // Simulate the 1 minute has passed and we are ready to flush the histogram
+    // (i.e. all the values prior to the current minute) over the wire...
+    time.addAndGet(60001L);
 
     String json = generate(false, false, false, null);
 

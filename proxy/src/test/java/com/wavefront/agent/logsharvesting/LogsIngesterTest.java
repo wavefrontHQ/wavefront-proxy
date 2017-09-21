@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -57,7 +58,7 @@ public class LogsIngesterTest {
   private FilebeatIngester filebeatIngesterUnderTest;
   private RawLogsIngester rawLogsIngesterUnderTest;
   private PointHandler mockPointHandler;
-  private Long now = 1476408638L;  // 6:30PM california time Oct 13 2016
+  private AtomicLong now = new AtomicLong(System.currentTimeMillis());  // 6:30PM california time Oct 13 2016
   private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
 
   private LogsIngestionConfig parseConfigFile(String configPath) throws IOException {
@@ -70,10 +71,10 @@ public class LogsIngesterTest {
     logsIngestionConfig.aggregationIntervalSeconds = 10000; // HACK: Never call flush automatically.
     logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(PointHandler.class);
-    logsIngesterUnderTest = new LogsIngester(mockPointHandler, () -> logsIngestionConfig, null, () -> now);
+    logsIngesterUnderTest = new LogsIngester(mockPointHandler, () -> logsIngestionConfig, null, now::get);
     logsIngesterUnderTest.start();
-    filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, () -> now);
-    rawLogsIngesterUnderTest = new RawLogsIngester(logsIngesterUnderTest, -1, () -> now);
+    filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, now::get);
+    rawLogsIngesterUnderTest = new RawLogsIngester(logsIngesterUnderTest, -1, now::get);
   }
 
   private void receiveFilebeatLog(String log) {
@@ -116,8 +117,8 @@ public class LogsIngesterTest {
     filebeatIngesterUnderTest = null;
   }
 
-  private void tick(int millis) {
-    now += millis;
+  private void tick(long millis) {
+    now.addAndGet(millis);
   }
 
   private List<ReportPoint> getPoints(int numPoints, String... logLines) throws Exception {
@@ -137,6 +138,10 @@ public class LogsIngesterTest {
       consumer.accept(line);
       tick(lagPerLogLine);
     }
+
+    // Simulate that one minute has elapsed and histogram bins are ready to be flushed ...
+    tick(60000L);
+
     logsIngesterUnderTest.getMetricsReporter().run();
     verify(mockPointHandler);
     return reportPointCapture.getValues();
@@ -146,7 +151,7 @@ public class LogsIngesterTest {
   public void testPrefixIsApplied() throws Exception {
     setup("test.yml");
     logsIngesterUnderTest = new LogsIngester(
-        mockPointHandler, () -> logsIngestionConfig, "myPrefix", () -> now);
+        mockPointHandler, () -> logsIngestionConfig, "myPrefix", now::get);
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, "myPrefix.plainCounter", ImmutableMap.of())));
