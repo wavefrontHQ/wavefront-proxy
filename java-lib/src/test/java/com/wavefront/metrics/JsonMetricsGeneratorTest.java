@@ -193,7 +193,6 @@ public class JsonMetricsGeneratorTest {
 
   @Test
   public void testWavefrontHistogramPrunesOldBins() throws IOException {
-    // We no longer prune old bins
     Histogram wh = WavefrontHistogram.get(testRegistry, new MetricName("test", "", "metric"), time::get);
     //1
     wh.update(10);
@@ -233,7 +232,7 @@ public class JsonMetricsGeneratorTest {
     time.addAndGet(60001L);
 
     String json = generate(false, false, false, null);
-    assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":1,\"startMillis\":0,\"durationMillis\":60000,\"means\":[10.0],\"counts\":[1]},{\"count\":1,\"startMillis\":60000,\"durationMillis\":60000,\"means\":[100.0],\"counts\":[1]},{\"count\":1,\"startMillis\":120000,\"durationMillis\":60000,\"means\":[1000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":180000,\"durationMillis\":60000,\"means\":[10000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":240000,\"durationMillis\":60000,\"means\":[100000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":300000,\"durationMillis\":60000,\"means\":[100001.0],\"counts\":[1]},{\"count\":1,\"startMillis\":360000,\"durationMillis\":60000,\"means\":[100011.0],\"counts\":[1]},{\"count\":1,\"startMillis\":420000,\"durationMillis\":60000,\"means\":[100111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":480000,\"durationMillis\":60000,\"means\":[101111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":540000,\"durationMillis\":60000,\"means\":[111111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":600000,\"durationMillis\":60000,\"means\":[111112.0],\"counts\":[1]}]}}");
+    assertThat(json).isEqualTo("{\"test.metric\":{\"bins\":[{\"count\":1,\"startMillis\":60000,\"durationMillis\":60000,\"means\":[100.0],\"counts\":[1]},{\"count\":1,\"startMillis\":120000,\"durationMillis\":60000,\"means\":[1000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":180000,\"durationMillis\":60000,\"means\":[10000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":240000,\"durationMillis\":60000,\"means\":[100000.0],\"counts\":[1]},{\"count\":1,\"startMillis\":300000,\"durationMillis\":60000,\"means\":[100001.0],\"counts\":[1]},{\"count\":1,\"startMillis\":360000,\"durationMillis\":60000,\"means\":[100011.0],\"counts\":[1]},{\"count\":1,\"startMillis\":420000,\"durationMillis\":60000,\"means\":[100111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":480000,\"durationMillis\":60000,\"means\":[101111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":540000,\"durationMillis\":60000,\"means\":[111111.0],\"counts\":[1]},{\"count\":1,\"startMillis\":600000,\"durationMillis\":60000,\"means\":[111112.0],\"counts\":[1]}]}}");
   }
 
   @Test

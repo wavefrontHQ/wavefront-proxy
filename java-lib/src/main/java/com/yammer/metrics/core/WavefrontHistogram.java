@@ -9,9 +9,9 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.stats.Sample;
 import com.yammer.metrics.stats.Snapshot;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,26 +30,14 @@ import static java.lang.Double.NaN;
  */
 public class WavefrontHistogram extends Histogram implements Metric {
   private final static int ACCURACY = 100;
+  private final static int MAX_BINS = 10;
   private final Supplier<Long> millis;
 
-  private final Map<Long, ArrayList<MinuteBin>> map = new ConcurrentHashMap<>();
+  private final Map<Long, LinkedList<MinuteBin>> map = new ConcurrentHashMap<>();
 
-  public static class MinuteBin {
-    private final TDigest dist;
-    private final long minMillis;
-
-    MinuteBin(long minMillis) {
-      dist = new AVLTreeDigest(ACCURACY);
-      this.minMillis = minMillis;
-    }
-
-    public TDigest getDist() {
-      return dist;
-    }
-
-    public long getMinMillis() {
-      return minMillis;
-    }
+  private WavefrontHistogram(TDigestSample sample, Supplier<Long> millis) {
+    super(sample);
+    this.millis = millis;
   }
 
   public static WavefrontHistogram get(MetricName metricName) {
@@ -61,7 +49,9 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   @VisibleForTesting
-  public static synchronized WavefrontHistogram get(MetricsRegistry registry, MetricName metricName, Supplier<Long> clock) {
+  public static synchronized WavefrontHistogram get(MetricsRegistry registry,
+                                                    MetricName metricName,
+                                                    Supplier<Long> clock) {
     // Awkward construction trying to fit in with Yammer Histograms
     TDigestSample sample = new TDigestSample();
     WavefrontHistogram tDigestHistogram = new WavefrontHistogram(sample, clock);
@@ -69,13 +59,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
     return registry.getOrAdd(metricName, tDigestHistogram);
   }
 
-  private WavefrontHistogram(TDigestSample sample, Supplier<Long> millis) {
-    super(sample);
-    this.millis = millis;
-  }
-
   /**
-   * JsonMetricsGeneratorTest
    * Aggregates all the bins prior to the current minute
    * This is because threads might be updating the current minute bin while the bins() method is invoked
    *
@@ -83,7 +67,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
    * @return returns aggregated collection of all the bins prior to the current minute
    */
   public Collection<MinuteBin> bins(boolean clear) {
-    Collection<MinuteBin> result = new ArrayList<>();
+    Collection<MinuteBin> result = new LinkedList<>();
     final long cutoffMillis = minMillis();
     map.values().stream().flatMap(List::stream).filter(i -> i.getMinMillis() < cutoffMillis).forEach(result::add);
 
@@ -115,23 +99,26 @@ public class WavefrontHistogram extends Histogram implements Metric {
    * Helper to retrieve the current bin. Will be invoked per thread.
    */
   private MinuteBin getCurrent() {
-    long minMillis = minMillis();
+    long currMinMillis = minMillis();
 
     long key = Thread.currentThread().getId();
-    ArrayList<MinuteBin> bins;
+    LinkedList<MinuteBin> bins;
     if (map.containsKey(key)) {
       bins = map.get(key);
     } else {
-      bins = new ArrayList<>();
+      bins = new LinkedList<>();
       map.put(key, bins);
     }
 
-    // bins with clear == true flag will drain the list, so synchronize the access
+    // bins with clear == true flag will drain (CONSUMER) the list, so synchronize the access to the respective 'bins' list
     synchronized (bins) {
-      if (bins.isEmpty() || bins.get(bins.size() - 1).minMillis != minMillis) {
-        bins.add(new MinuteBin(minMillis));
+      if (bins.isEmpty() || bins.getLast().minMillis != currMinMillis) {
+        bins.add(new MinuteBin(currMinMillis));
+        if (bins.size() > MAX_BINS) {
+          bins.removeFirst();
+        }
       }
-      return bins.get(bins.size() - 1);
+      return bins.getLast();
     }
   }
 
@@ -179,6 +166,10 @@ public class WavefrontHistogram extends Histogram implements Metric {
     return map.values().stream().flatMap(List::stream).mapToLong(bin -> bin.dist.size()).sum();
   }
 
+  /**
+   * Note - We override the behavior of the clear() method.
+   * In the super class, we would clear all the recorded values.
+   */
   @Override
   public void clear() {
     // More awkwardness
@@ -186,17 +177,16 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   private void clearPriorCurrentMinuteBin(long cutoffMillis) {
-    // bins with clear == true flag or invoking clear() method
-    // will drain the list, so synchronize the access
     if (map == null) {
       // will happen if WavefrontHistogram.super() constructor will be invoked
       // before WavefrontHistogram object is fully instantiated,
       // which will be invoke clear() method
       return;
     }
-    for (ArrayList list : map.values()) {
-      synchronized (list) {
-        Iterator<MinuteBin> iter = list.iterator();
+    for (LinkedList bins : map.values()) {
+      // getCurrent() method will add (PRODUCER) item to the bins list, so synchronize the access
+      synchronized (bins) {
+        Iterator<MinuteBin> iter = bins.iterator();
         while (iter.hasNext()) {
           if (iter.next().getMinMillis() < cutoffMillis) {
             iter.remove();
@@ -207,7 +197,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
     }
   }
 
-  // TODO - how to ensure thread safety ??
+  // TODO - how to ensure thread safety? do we care?
   private TDigest snapshot() {
     final TDigest snapshot = new AVLTreeDigest(ACCURACY);
     map.values().stream().flatMap(List::stream).forEach(bin -> snapshot.add(bin.dist));
@@ -269,6 +259,24 @@ public class WavefrontHistogram extends Histogram implements Metric {
   @Override
   public <T> void processWith(MetricProcessor<T> metricProcessor, MetricName metricName, T t) throws Exception {
     metricProcessor.processHistogram(metricName, this, t);
+  }
+
+  public static class MinuteBin {
+    private final TDigest dist;
+    private final long minMillis;
+
+    MinuteBin(long minMillis) {
+      dist = new AVLTreeDigest(ACCURACY);
+      this.minMillis = minMillis;
+    }
+
+    public TDigest getDist() {
+      return dist;
+    }
+
+    public long getMinMillis() {
+      return minMillis;
+    }
   }
 
   private static class TDigestSample implements Sample {
