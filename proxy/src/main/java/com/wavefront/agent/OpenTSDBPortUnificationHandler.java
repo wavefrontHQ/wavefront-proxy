@@ -171,7 +171,7 @@ class OpenTSDBPortUnificationHandler extends SimpleChannelInboundHandler<Object>
     if (logger.isLoggable(Level.FINE)) {
       logger.fine("Handling plain text message: " + messageStr);
     }
-    if (messageStr.length() > 7 && messageStr.substring(0, 7).equals("version")) {
+    if (messageStr.length() >= 7 && messageStr.substring(0, 7).equals("version")) {
       ChannelFuture f = ctx.writeAndFlush("Wavefront OpenTSDB Endpoint\n");
       if (!f.isSuccess()) {
         throw new Exception("Failed to write version response", f.cause());
