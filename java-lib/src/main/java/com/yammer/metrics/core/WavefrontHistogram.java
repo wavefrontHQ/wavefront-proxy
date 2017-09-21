@@ -11,8 +11,10 @@ import com.yammer.metrics.stats.Snapshot;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import static com.google.common.collect.Iterables.getFirst;
@@ -28,11 +30,9 @@ import static java.lang.Double.NaN;
  */
 public class WavefrontHistogram extends Histogram implements Metric {
   private final static int ACCURACY = 100;
-  private final static int MAX_BINS = 10;
-
   private final Supplier<Long> millis;
-  private final LinkedList<MinuteBin> bins;
 
+  private final Map<Long, ArrayList<MinuteBin>> map = new ConcurrentHashMap<>();
 
   public static class MinuteBin {
     private final TDigest dist;
@@ -72,12 +72,24 @@ public class WavefrontHistogram extends Histogram implements Metric {
   private WavefrontHistogram(TDigestSample sample, Supplier<Long> millis) {
     super(sample);
     this.millis = millis;
-    this.bins = new LinkedList<>();
   }
 
-  public synchronized Collection<MinuteBin> bins(boolean clear) {
-    Collection<MinuteBin> result = new ArrayList<>(bins);
-    if (clear) bins.clear();
+  /**
+   * Aggregates all the bins prior to the current minute
+   * This is because threads might be updating the current minute bin while the bins() method is invoked
+   *
+   * @param clear if set to true, will clear the older bins
+   * @return returns aggregated collection of all the bins prior to the current minute
+   */
+  public Collection<MinuteBin> bins(boolean clear) {
+    Collection<MinuteBin> result = new ArrayList<>();
+    final long cutoffMillis = minMillis();
+    map.values().stream().flatMap(List::stream).filter(i -> i.getMinMillis() < cutoffMillis).forEach(result::add);
+
+    if (clear) {
+      clearPriorCurrentMinuteBin(cutoffMillis);
+    }
+
     return result;
   }
 
@@ -91,18 +103,27 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   /**
-   * Helper to retrieve the current bin. Assumes proper synchronization.
+   * Helper to retrieve the current bin. Will be invoked per thread.
    */
   private MinuteBin getCurrent() {
     long minMillis = minMillis();
 
-    if (bins.isEmpty() || bins.getLast().minMillis != minMillis) {
-      bins.add(new MinuteBin(minMillis));
-      if (bins.size() > MAX_BINS) {
-        bins.removeFirst();
-      }
+    long key = Thread.currentThread().getId();
+    ArrayList<MinuteBin> bins;
+    if (map.containsKey(key)) {
+      bins = map.get(key);
+    } else {
+      bins = new ArrayList<>();
+      map.put(key, bins);
     }
-    return bins.getLast();
+
+    // bins with clear == true flag will drain the list, so synchronize the access
+    synchronized (bins) {
+      if (bins.isEmpty() || bins.get(bins.size() - 1).minMillis != minMillis) {
+        bins.add(new MinuteBin(minMillis));
+      }
+      return bins.get(bins.size() - 1);
+    }
   }
 
   /**
@@ -111,7 +132,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
    * @param means  the centroid values
    * @param counts the centroid weights/sample counts
    */
-  public synchronized void bulkUpdate(List<Double> means, List<Integer> counts) {
+  public void bulkUpdate(List<Double> means, List<Integer> counts) {
     if (means != null && counts != null) {
       int n = Math.min(means.size(), counts.size());
       MinuteBin current = getCurrent();
@@ -122,7 +143,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   @Override
-  public synchronized void update(long value) {
+  public void update(long value) {
     getCurrent().dist.add(value);
   }
 
@@ -132,39 +153,49 @@ public class WavefrontHistogram extends Histogram implements Metric {
     return centroids.stream().mapToDouble(c -> (c.count() * c.mean()) / centroids.size()).sum();
   }
 
-  public synchronized double min() {
+  public double min() {
     // This is a lie if the winning centroid's weight > 1
-    return bins.stream()
-        .map(b -> b.dist.centroids())
-        .mapToDouble(cs -> getFirst(cs, new Centroid(MAX_VALUE)).mean())
-        .min().orElse(NaN);
+    return map.values().stream().flatMap(List::stream).map(b -> b.dist.centroids()).
+        mapToDouble(cs -> getFirst(cs, new Centroid(MAX_VALUE)).mean()).min().orElse(NaN);
   }
 
-  public synchronized double max() {
+  public double max() {
     //This is a lie if the winning centroid's weight > 1
-    return bins.stream()
-        .map(b -> b.dist.centroids())
-        .mapToDouble(cs -> getLast(cs, new Centroid(MIN_VALUE)).mean())
-        .max().orElse(NaN);
+    return map.values().stream().flatMap(List::stream).map(b -> b.dist.centroids()).
+        mapToDouble(cs -> getLast(cs, new Centroid(MIN_VALUE)).mean()).max().orElse(NaN);
   }
 
   @Override
-  public synchronized long count() {
-    return bins.stream().mapToLong(bin -> bin.dist.size()).sum();
+  public long count() {
+    return map.values().stream().flatMap(List::stream).mapToLong(bin -> bin.dist.size()).sum();
   }
 
   @Override
-  public synchronized void clear() {
+  public void clear() {
     // More awkwardness
-    if (bins != null) {
-      bins.clear();
+    clearPriorCurrentMinuteBin(minMillis());
+  }
+
+  private void clearPriorCurrentMinuteBin(long cutoffMillis) {
+    // bins with clear == true flag or invoking clear() method
+    // will drain the list, so synchronize the access
+    for (ArrayList list : map.values()) {
+      synchronized (list) {
+        Iterator<MinuteBin> iter = list.iterator();
+        while (iter.hasNext()) {
+          if (iter.next().getMinMillis() < cutoffMillis) {
+            iter.remove();
+          }
+        }
+        // TODO - what happens if the list is empty ?? remove from hashmap ??
+      }
     }
   }
 
-  private synchronized TDigest snapshot() {
+  // TODO - how to ensure thread safety ??
+  private TDigest snapshot() {
     final TDigest snapshot = new AVLTreeDigest(ACCURACY);
-
-    bins.forEach(bin -> snapshot.add(bin.dist));
+    map.values().stream().flatMap(List::stream).forEach(bin -> snapshot.add(bin.dist));
     return snapshot;
   }
 
