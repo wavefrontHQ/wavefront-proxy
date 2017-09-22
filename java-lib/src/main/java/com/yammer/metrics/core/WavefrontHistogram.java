@@ -13,8 +13,8 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 
 import static com.google.common.collect.Iterables.getFirst;
@@ -33,7 +33,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
   private final static int MAX_BINS = 10;
   private final Supplier<Long> millis;
 
-  private final Map<Long, LinkedList<MinuteBin>> map = new ConcurrentHashMap<>();
+  private final ConcurrentMap<Long, LinkedList<MinuteBin>> perThreadHistogramBins = new ConcurrentHashMap<>();
 
   private WavefrontHistogram(TDigestSample sample, Supplier<Long> millis) {
     super(sample);
@@ -66,10 +66,11 @@ public class WavefrontHistogram extends Histogram implements Metric {
    * @param clear if set to true, will clear the older bins
    * @return returns aggregated collection of all the bins prior to the current minute
    */
-  public Collection<MinuteBin> bins(boolean clear) {
-    Collection<MinuteBin> result = new LinkedList<>();
+  public List<MinuteBin> bins(boolean clear) {
+    List<MinuteBin> result = new LinkedList<>();
     final long cutoffMillis = minMillis();
-    map.values().stream().flatMap(List::stream).filter(i -> i.getMinMillis() < cutoffMillis).forEach(result::add);
+    perThreadHistogramBins.values().stream().flatMap(List::stream).
+        filter(i -> i.getMinMillis() < cutoffMillis).forEach(result::add);
 
     if (clear) {
       clearPriorCurrentMinuteBin(cutoffMillis);
@@ -102,15 +103,11 @@ public class WavefrontHistogram extends Histogram implements Metric {
     long currMinMillis = minMillis();
 
     long key = Thread.currentThread().getId();
-    LinkedList<MinuteBin> bins;
-    if (map.containsKey(key)) {
-      bins = map.get(key);
-    } else {
-      bins = new LinkedList<>();
-      map.put(key, bins);
-    }
+    LinkedList<MinuteBin> bins = perThreadHistogramBins.getOrDefault(key, new LinkedList<>());
+    perThreadHistogramBins.putIfAbsent(key, bins);
 
-    // bins with clear == true flag will drain (CONSUMER) the list, so synchronize the access to the respective 'bins' list
+    // bins with clear == true flag will drain (CONSUMER) the list,
+    // so synchronize the access to the respective 'bins' list
     synchronized (bins) {
       if (bins.isEmpty() || bins.getLast().minMillis != currMinMillis) {
         bins.add(new MinuteBin(currMinMillis));
@@ -151,19 +148,19 @@ public class WavefrontHistogram extends Histogram implements Metric {
 
   public double min() {
     // This is a lie if the winning centroid's weight > 1
-    return map.values().stream().flatMap(List::stream).map(b -> b.dist.centroids()).
+    return perThreadHistogramBins.values().stream().flatMap(List::stream).map(b -> b.dist.centroids()).
         mapToDouble(cs -> getFirst(cs, new Centroid(MAX_VALUE)).mean()).min().orElse(NaN);
   }
 
   public double max() {
     //This is a lie if the winning centroid's weight > 1
-    return map.values().stream().flatMap(List::stream).map(b -> b.dist.centroids()).
+    return perThreadHistogramBins.values().stream().flatMap(List::stream).map(b -> b.dist.centroids()).
         mapToDouble(cs -> getLast(cs, new Centroid(MIN_VALUE)).mean()).max().orElse(NaN);
   }
 
   @Override
   public long count() {
-    return map.values().stream().flatMap(List::stream).mapToLong(bin -> bin.dist.size()).sum();
+    return perThreadHistogramBins.values().stream().flatMap(List::stream).mapToLong(bin -> bin.dist.size()).sum();
   }
 
   /**
@@ -177,13 +174,13 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   private void clearPriorCurrentMinuteBin(long cutoffMillis) {
-    if (map == null) {
+    if (perThreadHistogramBins == null) {
       // will happen if WavefrontHistogram.super() constructor will be invoked
       // before WavefrontHistogram object is fully instantiated,
       // which will be invoke clear() method
       return;
     }
-    for (LinkedList bins : map.values()) {
+    for (LinkedList bins : perThreadHistogramBins.values()) {
       // getCurrent() method will add (PRODUCER) item to the bins list, so synchronize the access
       synchronized (bins) {
         Iterator<MinuteBin> iter = bins.iterator();
@@ -200,7 +197,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
   // TODO - how to ensure thread safety? do we care?
   private TDigest snapshot() {
     final TDigest snapshot = new AVLTreeDigest(ACCURACY);
-    map.values().stream().flatMap(List::stream).forEach(bin -> snapshot.add(bin.dist));
+    perThreadHistogramBins.values().stream().flatMap(List::stream).forEach(bin -> snapshot.add(bin.dist));
     return snapshot;
   }
 
