@@ -26,6 +26,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -204,11 +205,16 @@ public class WavefrontYammerMetricsReporterTest {
 
   @Test(timeout = 1000)
   public void testWavefrontHistogram() throws Exception {
+    AtomicLong clock = new AtomicLong(System.currentTimeMillis());
     WavefrontHistogram wavefrontHistogram = WavefrontHistogram.get(metricsRegistry, new TaggedMetricName(
-        "group", "myhisto", "tag1", "value1", "tag2", "value2"));
+        "group", "myhisto", "tag1", "value1", "tag2", "value2"), clock::get);
     for (int i = 0; i < 101; i++) {
       wavefrontHistogram.update(i);
     }
+
+    // Advance the clock by 1 min ...
+    clock.addAndGet(60000L + 1);
+
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(1, fromHistograms), contains(equalTo(
         "!M 1485224035 #101 50.0 \"myhisto\" tag1=\"value1\" tag2=\"value2\"")));
@@ -327,9 +333,10 @@ public class WavefrontYammerMetricsReporterTest {
     counter.inc();
     counter.inc();
 
+    AtomicLong clock = new AtomicLong(System.currentTimeMillis());
     // Wavefront Histo
     WavefrontHistogram wavefrontHistogram = WavefrontHistogram.get(metricsRegistry, new TaggedMetricName(
-        "group3", "myhisto", "tag1", "value1", "tag2", "value2"));
+        "group3", "myhisto", "tag1", "value1", "tag2", "value2"), clock::get);
     for (int i = 0; i < 101; i++) {
       wavefrontHistogram.update(i);
     }
@@ -338,6 +345,9 @@ public class WavefrontYammerMetricsReporterTest {
     Histogram histogram = metricsRegistry.newHistogram(new MetricName("group2", "", "myhisto"), false);
     histogram.update(1);
     histogram.update(10);
+
+    // Advance the clock by 1 min ...
+    clock.addAndGet(60000L + 1);
 
     wavefrontYammerMetricsReporter.run();
     assertThat(
