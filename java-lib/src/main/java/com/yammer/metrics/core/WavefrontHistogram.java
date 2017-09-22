@@ -9,6 +9,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.stats.Sample;
 import com.yammer.metrics.stats.Snapshot;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -67,7 +68,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
    * @return returns aggregated collection of all the bins prior to the current minute
    */
   public List<MinuteBin> bins(boolean clear) {
-    List<MinuteBin> result = new LinkedList<>();
+    List<MinuteBin> result = new ArrayList<>();
     final long cutoffMillis = minMillis();
     perThreadHistogramBins.values().stream().flatMap(List::stream).
         filter(i -> i.getMinMillis() < cutoffMillis).forEach(result::add);
@@ -100,11 +101,17 @@ public class WavefrontHistogram extends Histogram implements Metric {
    * Helper to retrieve the current bin. Will be invoked per thread.
    */
   private MinuteBin getCurrent() {
-    long currMinMillis = minMillis();
-
     long key = Thread.currentThread().getId();
-    LinkedList<MinuteBin> bins = perThreadHistogramBins.getOrDefault(key, new LinkedList<>());
-    perThreadHistogramBins.putIfAbsent(key, bins);
+    LinkedList<MinuteBin> bins = perThreadHistogramBins.get(key);
+    if (bins == null) {
+      bins = new LinkedList<>();
+      LinkedList<MinuteBin> existing = perThreadHistogramBins.putIfAbsent(key, bins);
+      if (existing != null) {
+        bins = existing;
+      }
+    }
+
+    long currMinMillis = minMillis();
 
     // bins with clear == true flag will drain (CONSUMER) the list,
     // so synchronize the access to the respective 'bins' list
