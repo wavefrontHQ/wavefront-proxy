@@ -72,12 +72,14 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
   }
 
   private void registerGauge(String metricName, Supplier<Double> t) {
-    getMetricsRegistry().newGauge(new MetricName("", "", metricName), new Gauge<Double>() {
-      @Override
-      public Double value() {
-        return t.get();
-      }
-    });
+    getMetricsRegistry().newGauge(
+        new MetricName("", "", MetricsToTimeseries.sanitize(metricName)),
+        new Gauge<Double>() {
+          @Override
+          public Double value() {
+            return t.get();
+          }
+        });
   }
 
   private void registerGauges(String base, Map<String, Supplier<Double>> metrics) {

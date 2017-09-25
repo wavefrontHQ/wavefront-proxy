@@ -106,8 +106,12 @@ public abstract class MetricsToTimeseries {
 
   private static final Pattern SIMPLE_NAMES = Pattern.compile("[^a-zA-Z0-9_.\\-~]");
 
+  public static String sanitize(String name) {
+    return SIMPLE_NAMES.matcher(name).replaceAll("_");
+  }
+
   public static String sanitize(MetricName metricName) {
-    return SIMPLE_NAMES.matcher(metricName.getGroup() + "." + metricName.getName()).replaceAll("_");
+    return sanitize(metricName.getGroup() + "." + metricName.getName());
   }
 
 }

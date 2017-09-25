@@ -14,6 +14,7 @@ import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.WavefrontHistogram;
 
+import org.hamcrest.text.MatchesPattern;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,6 +33,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
 
@@ -96,6 +98,7 @@ public class WavefrontYammerMetricsReporterTest {
     wavefrontYammerMetricsReporter.run();
     List<String> metrics = receiveFromSocket(
         wavefrontYammerMetricsReporter.getMetricsGeneratedLastPass(), fromMetrics);
+    assertThat(metrics, not(hasItem(MatchesPattern.matchesPattern("\".* .*\".*"))));
     assertThat(metrics, hasItem(startsWith("\"jvm.memory.heapCommitted\"")));
     assertThat(metrics, hasItem(startsWith("\"jvm.fd_usage\"")));
     assertThat(metrics, hasItem(startsWith("\"jvm.buffers.mapped.totalCapacity\"")));
