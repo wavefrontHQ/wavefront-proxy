@@ -89,14 +89,19 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
   }
 
   private void setJavaMetrics() {
-    registerGauges("jvm.memory", MetricsToTimeseries.memoryMetrics(vm));
-    registerGauges("jvm.buffers.direct", MetricsToTimeseries.buffersMetrics(vm.getBufferPoolStats().get("direct")));
-    registerGauges("jvm.buffers.mapped", MetricsToTimeseries.buffersMetrics(vm.getBufferPoolStats().get("mapped")));
-    registerGauges("jvm.thread-states", MetricsToTimeseries.threadStateMetrics(vm));
-    registerGauges("jvm", MetricsToTimeseries.vmMetrics(vm));
+    registerGauges("jvm.memory", MetricsToTimeseries.memoryMetrics(
+        () -> vm));
+    registerGauges("jvm.buffers.direct", MetricsToTimeseries.buffersMetrics(
+        () -> vm.getBufferPoolStats().get("direct")));
+    registerGauges("jvm.buffers.mapped", MetricsToTimeseries.buffersMetrics(
+        () -> vm.getBufferPoolStats().get("mapped")));
+    registerGauges("jvm.thread-states", MetricsToTimeseries.threadStateMetrics(
+        () -> vm));
+    registerGauges("jvm", MetricsToTimeseries.vmMetrics(
+        () -> vm));
     registerGauge("current_time", () -> (double) clock.time());
     for (Map.Entry<String, VirtualMachineMetrics.GarbageCollectorStats> entry : vm.garbageCollectors().entrySet()) {
-      registerGauges("jvm.garbage-collectors." + entry.getKey(), MetricsToTimeseries.gcMetrics(entry.getValue()));
+      registerGauges("jvm.garbage-collectors." + entry.getKey(), MetricsToTimeseries.gcMetrics(entry::getValue));
     }
   }
 

@@ -48,7 +48,8 @@ public abstract class MetricsToTimeseries {
         .build();
   }
 
-  public static Map<String, Supplier<Double>> memoryMetrics(VirtualMachineMetrics vm) {
+  public static Map<String, Supplier<Double>> memoryMetrics(Supplier<VirtualMachineMetrics> supplier) {
+    VirtualMachineMetrics vm = supplier.get();
     return ImmutableMap.<String, Supplier<Double>>builder()
         .put("totalInit", vm::totalInit)
         .put("totalUsed", vm::totalUsed)
@@ -63,7 +64,8 @@ public abstract class MetricsToTimeseries {
         .build();
   }
 
-  public static Map<String, Supplier<Double>> memoryPoolsMetrics(VirtualMachineMetrics vm) {
+  public static Map<String, Supplier<Double>> memoryPoolsMetrics(Supplier<VirtualMachineMetrics> supplier) {
+    VirtualMachineMetrics vm = supplier.get();
     ImmutableMap.Builder<String, Supplier<Double>> builder = ImmutableMap.builder();
     for (Map.Entry<String, Double> pool : vm.memoryPoolUsage().entrySet()) {
       builder.put(pool.getKey(), pool::getValue);
@@ -71,7 +73,8 @@ public abstract class MetricsToTimeseries {
     return builder.build();
   }
 
-  public static Map<String, Supplier<Double>> buffersMetrics(VirtualMachineMetrics.BufferPoolStats bps) {
+  public static Map<String, Supplier<Double>> buffersMetrics(Supplier<VirtualMachineMetrics.BufferPoolStats> supplier) {
+    VirtualMachineMetrics.BufferPoolStats bps = supplier.get();
     return ImmutableMap.<String, Supplier<Double>>builder()
         .put("count", () -> (double) bps.getCount())
         .put("memoryUsed", () -> (double) bps.getMemoryUsed())
@@ -79,7 +82,8 @@ public abstract class MetricsToTimeseries {
         .build();
   }
 
-  public static Map<String, Supplier<Double>> vmMetrics(VirtualMachineMetrics vm) {
+  public static Map<String, Supplier<Double>> vmMetrics(Supplier<VirtualMachineMetrics> supplier) {
+    VirtualMachineMetrics vm = supplier.get();
     return ImmutableMap.<String, Supplier<Double>>builder()
         .put("daemon_thread_count", () -> (double) vm.daemonThreadCount())
         .put("thread_count", () -> (double) vm.threadCount())
@@ -88,7 +92,8 @@ public abstract class MetricsToTimeseries {
         .build();
   }
 
-  public static Map<String, Supplier<Double>> threadStateMetrics(VirtualMachineMetrics vm) {
+  public static Map<String, Supplier<Double>> threadStateMetrics(Supplier<VirtualMachineMetrics> supplier) {
+    VirtualMachineMetrics vm = supplier.get();
     ImmutableMap.Builder<String, Supplier<Double>> builder = ImmutableMap.builder();
     for (Map.Entry<Thread.State, Double> entry : vm.threadStatePercentages().entrySet()) {
       builder.put(entry.getKey().toString().toLowerCase(), entry::getValue);
@@ -96,7 +101,9 @@ public abstract class MetricsToTimeseries {
     return builder.build();
   }
 
-  public static Map<String, Supplier<Double>> gcMetrics(VirtualMachineMetrics.GarbageCollectorStats gcs) {
+  public static Map<String, Supplier<Double>> gcMetrics(
+      Supplier<VirtualMachineMetrics.GarbageCollectorStats> supplier) {
+    VirtualMachineMetrics.GarbageCollectorStats gcs = supplier.get();
     return ImmutableMap.<String, Supplier<Double>>builder()
         .put("runs", () -> (double) gcs.getRuns())
         .put("time", () -> (double) gcs.getTime(TimeUnit.MILLISECONDS))
