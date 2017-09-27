@@ -16,6 +16,7 @@ import com.yammer.metrics.reporting.AbstractPollingReporter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -35,6 +36,7 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
   private final boolean clearMetrics;
   private static final Clock clock = Clock.defaultClock();
   private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
+  private final ConcurrentHashMap<String, Double> gaugeMap;
 
   public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
                                         int wavefrontHistogramPort, Supplier<Long> timeSupplier) throws IOException {
@@ -69,39 +71,40 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
         prependGroupName, clearMetrics);
     this.includeJvmMetrics = includeJvmMetrics;
     this.clearMetrics = clearMetrics;
+    this.gaugeMap = new ConcurrentHashMap<>();
   }
 
-  private void registerGauge(String metricName, Supplier<Double> t) {
+  private void upsertGauges(String metricName, Double t) {
+    gaugeMap.put(metricName, t);
+
+    // This call to newGauge only mutates the metrics registry the first time through. Thats why it's important
+    // to access gaugeMap indirectly, as opposed to counting on new calls to newGauage to replace the underlying
+    // double supplier.
     getMetricsRegistry().newGauge(
         new MetricName("", "", MetricsToTimeseries.sanitize(metricName)),
         new Gauge<Double>() {
           @Override
           public Double value() {
-            return t.get();
+            return gaugeMap.get(metricName);
           }
         });
   }
 
-  private void registerGauges(String base, Map<String, Supplier<Double>> metrics) {
-    for (Map.Entry<String, Supplier<Double>> entry : metrics.entrySet()) {
-      registerGauge(base + "." + entry.getKey(), entry.getValue());
+  private void upsertGauges(String base, Map<String, Double> metrics) {
+    for (Map.Entry<String, Double> entry : metrics.entrySet()) {
+      upsertGauges(base + "." + entry.getKey(), entry.getValue());
     }
   }
 
-  private void setJavaMetrics() {
-    registerGauges("jvm.memory", MetricsToTimeseries.memoryMetrics(
-        () -> vm));
-    registerGauges("jvm.buffers.direct", MetricsToTimeseries.buffersMetrics(
-        () -> vm.getBufferPoolStats().get("direct")));
-    registerGauges("jvm.buffers.mapped", MetricsToTimeseries.buffersMetrics(
-        () -> vm.getBufferPoolStats().get("mapped")));
-    registerGauges("jvm.thread-states", MetricsToTimeseries.threadStateMetrics(
-        () -> vm));
-    registerGauges("jvm", MetricsToTimeseries.vmMetrics(
-        () -> vm));
-    registerGauge("current_time", () -> (double) clock.time());
+  private void upsertJavaMetrics() {
+    upsertGauges("jvm.memory", MetricsToTimeseries.memoryMetrics(vm));
+    upsertGauges("jvm.buffers.direct", MetricsToTimeseries.buffersMetrics(vm.getBufferPoolStats().get("direct")));
+    upsertGauges("jvm.buffers.mapped", MetricsToTimeseries.buffersMetrics(vm.getBufferPoolStats().get("mapped")));
+    upsertGauges("jvm.thread-states", MetricsToTimeseries.threadStateMetrics(vm));
+    upsertGauges("jvm", MetricsToTimeseries.vmMetrics(vm));
+    upsertGauges("current_time", (double) clock.time());
     for (Map.Entry<String, VirtualMachineMetrics.GarbageCollectorStats> entry : vm.garbageCollectors().entrySet()) {
-      registerGauges("jvm.garbage-collectors." + entry.getKey(), MetricsToTimeseries.gcMetrics(entry::getValue));
+      upsertGauges("jvm.garbage-collectors." + entry.getKey(), MetricsToTimeseries.gcMetrics(entry.getValue()));
     }
   }
 
@@ -117,7 +120,7 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
   public void run() {
     metricsGeneratedLastPass = 0;
     try {
-      if (includeJvmMetrics) setJavaMetrics();
+      if (includeJvmMetrics) upsertJavaMetrics();
 
       for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : getMetricsRegistry().groupedMetrics().entrySet()) {
         for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
