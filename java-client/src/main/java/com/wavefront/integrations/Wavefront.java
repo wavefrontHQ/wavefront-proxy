@@ -109,7 +109,7 @@ public class Wavefront implements WavefrontSender {
   @Override
   public void send(String name, double value, @Nullable Long timestamp) throws IOException {
     initializeSource();
-    internalSend(name, value, null, source, null);
+    internalSend(name, value, timestamp, source, null);
   }
 
   @Override
