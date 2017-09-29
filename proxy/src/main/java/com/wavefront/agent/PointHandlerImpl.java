@@ -80,9 +80,9 @@ public class PointHandlerImpl implements PointHandler {
 
       // No validation was requested by user; send forward.
       String strPoint = pointToString(point);
-      if (logPoints) {
-        // we log valid points only if system property wavefront.proxy.logpoints is true
-        // this is done to prevent introducing overhead and accidentally logging points to the main log
+      if (logPoints || validPointsLogger.isLoggable(Level.FINEST)) {
+        // we log valid points only if system property wavefront.proxy.logpoints is true or RawValidPoints log level is
+        // set to "ALL". this is done to prevent introducing overhead and accidentally logging points to the main log
         validPointsLogger.info(strPoint);
       }
       randomPostTask.addPoint(strPoint);

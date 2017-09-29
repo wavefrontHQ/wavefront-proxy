@@ -40,6 +40,20 @@
             <DefaultRolloverStrategy max="31"/>
         </RollingFile>
         -->
+        <!-- Uncomment the RollingFile section below to log all valid points to a file -->
+        <!--
+        <RollingFile name="ValidPointsFile" fileName="${log-path}/wavefront-valid-points.log"
+                     filePattern="${log-path}/wavefront-valid-points-%d{yyyy-MM-dd}-%i.log" >
+            <PatternLayout>
+                <pattern>%m%n</pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="100 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="31"/>
+        </RollingFile>
+        -->
     </Appenders>
     <Loggers>
         <!-- Uncomment AppenderRef to log blocked points to a file.
@@ -50,7 +64,11 @@
             <AppenderRef ref="BlockedPointsFile"/>
             -->
         </Logger>
+        <!-- Uncomment AppenderRef and set level="ALL" to log all valid points to a file -->
         <Logger name="RawValidPoints" level="DEBUG" additivity="false">
+            <!--
+            <AppenderRef ref="ValidPointsFile"/>
+            -->
         </Logger>
         <Root level="INFO">
             <AppenderRef ref="RollingFile"/>
