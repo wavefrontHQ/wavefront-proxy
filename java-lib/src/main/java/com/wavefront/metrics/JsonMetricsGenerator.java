@@ -20,6 +20,7 @@ import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricProcessor;
 import com.yammer.metrics.core.MetricsRegistry;
+import com.yammer.metrics.core.SafeVirtualMachineMetrics;
 import com.yammer.metrics.core.Sampling;
 import com.yammer.metrics.core.Summarizable;
 import com.yammer.metrics.core.Timer;
@@ -53,7 +54,7 @@ public abstract class JsonMetricsGenerator {
   private static final JsonFactory factory = new JsonFactory();
 
   private static final Clock clock = Clock.defaultClock();
-  private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
+  private static final VirtualMachineMetrics vm = SafeVirtualMachineMetrics.getInstance();
 
   public static void generateJsonMetrics(OutputStream outputStream, MetricsRegistry registry, boolean includeVMMetrics,
                                          boolean includeBuildMetrics, boolean clearMetrics, MetricTranslator metricTranslator) throws IOException {
