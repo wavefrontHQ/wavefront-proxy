@@ -11,6 +11,9 @@ import org.apache.commons.lang.time.DateUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -30,10 +33,20 @@ public class PointHandlerImpl implements PointHandler {
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
   private static final Logger validPointsLogger = Logger.getLogger("RawValidPoints");
 
+  /**
+   * Executor for support tasks (refreshing logger level)
+   */
+  private final ScheduledExecutorService pointHandlerExecutor;
+
   private final Histogram receivedPointLag;
   private final String validationLevel;
   private final String handle;
-  private final boolean logPoints;
+  private boolean logPoints = false;
+
+  /**
+   * Value of system property wavefront.proxy.logging (for backwards compatibility)
+   */
+  private final boolean logPointsFlag;
 
   @Nullable
   private final String prefix;
@@ -58,11 +71,19 @@ public class PointHandlerImpl implements PointHandler {
     this.blockedPointsPerBatch = blockedPointsPerBatch;
     this.prefix = prefix;
     String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
-    this.logPoints = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
+    this.logPointsFlag = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
 
     this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle + ".received", "", "lag"));
 
     this.sendDataTasks = sendDataTasks;
+    this.pointHandlerExecutor =  Executors.newScheduledThreadPool(1,
+        new NamedThreadFactory("pointhandler-" + handle));
+
+    // refresh current logging level once a second to further reduce overhead
+    this.pointHandlerExecutor.scheduleWithFixedDelay(() -> {
+      logPoints = validPointsLogger.isLoggable(Level.FINEST);
+    }, 0L, 1L, TimeUnit.SECONDS);
+
   }
 
   @Override
@@ -78,9 +99,8 @@ public class PointHandlerImpl implements PointHandler {
           debugLine,
           validationLevel == null ? null : Validation.Level.valueOf(validationLevel));
 
-      // No validation was requested by user; send forward.
       String strPoint = pointToString(point);
-      if (logPoints || validPointsLogger.isLoggable(Level.FINEST)) {
+      if (logPoints || logPointsFlag) {
         // we log valid points only if system property wavefront.proxy.logpoints is true or RawValidPoints log level is
         // set to "ALL". this is done to prevent introducing overhead and accidentally logging points to the main log
         validPointsLogger.info(strPoint);

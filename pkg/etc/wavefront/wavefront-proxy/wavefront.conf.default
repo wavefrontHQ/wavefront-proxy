@@ -144,8 +144,8 @@ buffer=/var/spool/wavefront-proxy/buffer
 #soLingerTime=0
 ## HTTP connect timeout (in milliseconds). Default: 5s (5000)
 #httpConnectTimeout=5000
-## HTTP request timeout (in milliseconds). Default: 20s (20000)
-#httpRequestTimeout=20000
+## HTTP request timeout (in milliseconds). Default: 10s (10000)
+#httpRequestTimeout=10000
 
 ## Path to the optional config file with preprocessor rules (advanced regEx replacements and whitelist/blacklists)
 #preprocessorConfigFile=/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml
