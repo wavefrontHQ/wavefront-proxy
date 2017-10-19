@@ -69,7 +69,7 @@ The following code fragment creates a reporter that emits data every 10 seconds 
 - A Wavefront proxy on `localhost` at port `2878`
 - Data that should appear with the source `app-1.company.com`
 - Reporter-level point tags named `dc` and `service`
-- Metric-level point tags named `type` and `counter`
+- A Metric-level point tag named `type`
 - A counter metric named `requests`
 - Various JVM metrics with prefix containing `jvm`
 
