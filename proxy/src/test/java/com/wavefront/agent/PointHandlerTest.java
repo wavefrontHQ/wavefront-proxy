@@ -94,7 +94,7 @@ public class PointHandlerTest {
     badMap.put("k:ey", "value");
 
     ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis(), 10L, "host", "table",
-        goodMap);
+        goodMap, false);
     Assert.assertTrue(Validation.annotationKeysAreValid(rp));
 
     rp.setAnnotations(badMap);
@@ -106,20 +106,20 @@ public class PointHandlerTest {
     // Common case.
     Assert.assertEquals("\"some metric\" 10 1469751813 source=\"host\" \"foo\"=\"bar\" \"boo\"=\"baz\"",
         PointHandlerImpl.pointToString(new ReportPoint("some metric",1469751813000L, 10L, "host", "table",
-            ImmutableMap.of("foo", "bar", "boo", "baz"))));
+            ImmutableMap.of("foo", "bar", "boo", "baz"), false)));
     Assert.assertEquals("\"some metric\" 10 1469751813 source=\"host\"",
         PointHandlerImpl.pointToString(new ReportPoint("some metric",1469751813000L, 10L, "host", "table",
-            ImmutableMap.of())));
+            ImmutableMap.of(), false)));
 
     // Quote in metric name
     Assert.assertEquals("\"some\\\"metric\" 10 1469751813 source=\"host\"",
         PointHandlerImpl.pointToString(new ReportPoint("some\"metric", 1469751813000L, 10L, "host", "table",
-            new HashMap<String, String>()))
+            new HashMap<String, String>(), false))
     );
     // Quote in tags
     Assert.assertEquals("\"some metric\" 10 1469751813 source=\"host\" \"foo\\\"\"=\"\\\"bar\" \"bo\\\"o\"=\"baz\"",
         PointHandlerImpl.pointToString(new ReportPoint("some metric", 1469751813000L, 10L, "host", "table",
-            ImmutableMap.of("foo\"", "\"bar", "bo\"o", "baz")))
+            ImmutableMap.of("foo\"", "\"bar", "bo\"o", "baz"), false))
     );
   }
 
@@ -172,7 +172,7 @@ public class PointHandlerTest {
 
   @Test(expected = RuntimeException.class)
   public void testHistogramReportPointToString_BadValue() {
-    ReportPoint p = new ReportPoint("m", 1469751813L, new ArrayUtils(), "h", "c", ImmutableMap.of());
+    ReportPoint p = new ReportPoint("m", 1469751813L, new ArrayUtils(), "h", "c", ImmutableMap.of(), false);
 
     PointHandlerImpl.pointToString(p);
   }
