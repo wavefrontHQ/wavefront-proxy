@@ -1427,7 +1427,6 @@ public abstract class AbstractAgent {
     } catch (Throwable t) {
       // ignore logging errors
     }
-
   }
 
   public void shutdown() {

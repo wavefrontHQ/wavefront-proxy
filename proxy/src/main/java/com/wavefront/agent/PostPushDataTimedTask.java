@@ -279,6 +279,7 @@ public class PostPushDataTimedTask implements Runnable {
   public void drainBuffersToQueue() {
     try {
       isFlushingToQueue = true;
+      int lastBatchSize = Integer.MIN_VALUE;
       // roughly limit number of points to flush to the the current buffer size (+1 blockSize max)
       // if too many points arrive at the proxy while it's draining, they will be taken care of in the next run
       int pointsToFlush = points.size();
@@ -298,6 +299,12 @@ public class PostPushDataTimedTask implements Runnable {
           }
           numApiCalls++;
           pointsToFlush -= pushDataPointCount;
+
+          // stop draining buffers if the batch is smaller than the previous one
+          if (pushDataPointCount < lastBatchSize) {
+            break;
+          }
+          lastBatchSize = pushDataPointCount;
         } else {
           break;
         }
