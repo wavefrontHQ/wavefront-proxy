@@ -174,6 +174,12 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     String bufferFileSourceTag = bufferFile + "SourceTag";
     this.executorService = executorService;
 
+    queueSizes = Caffeine.newBuilder()
+        .maximumSize(retryThreads)
+        .expireAfterAccess(1, TimeUnit.MINUTES)
+        .expireAfterWrite(1, TimeUnit.MINUTES)
+        .build(key -> new AtomicInteger(key.size()));
+
     for (int i = 0; i < retryThreads; i++) {
       final int threadId = i;
       File buffer = new File(bufferFile + "." + i);
@@ -246,12 +252,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           TimeUnit.SECONDS);
       sourceTagTaskQueues.add(sourceTagQueue);
     }
-
-    queueSizes = Caffeine.newBuilder()
-        .maximumSize(retryThreads)
-        .expireAfterAccess(1, TimeUnit.MINUTES)
-        .expireAfterWrite(1, TimeUnit.MINUTES)
-        .build(key -> new AtomicInteger(key.size()));
 
     if (retryThreads > 0) {
       executorService.scheduleAtFixedRate(() -> {
