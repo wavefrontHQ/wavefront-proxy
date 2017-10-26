@@ -1225,7 +1225,14 @@ public abstract class AbstractAgent {
   }
 
   private void setupQueueing(WavefrontAPI service) throws IOException {
-    managedExecutors.add(queuedAgentExecutor);
+    shutdownTasks.add(() -> {
+      try {
+        queuedAgentExecutor.shutdownNow();
+        queuedAgentExecutor.awaitTermination(httpConnectTimeout + httpRequestTimeout, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        // ignore
+      }
+    });
     agentAPI = new QueuedAgentService(service, bufferFile, retryThreads, queuedAgentExecutor, purgeBuffer,
         agentId, splitPushWhenRateLimited, pushRateLimiter);
   }
