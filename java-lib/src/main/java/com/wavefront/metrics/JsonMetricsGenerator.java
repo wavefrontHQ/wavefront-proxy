@@ -71,7 +71,7 @@ public abstract class JsonMetricsGenerator {
                                              boolean includeBuildMetrics, boolean clearMetrics,
                                              @Nullable Map<String, String> pointTags,
                                              @Nullable MetricTranslator metricTranslator) throws IOException {
-    TokenBuffer t = new TokenBuffer(new ObjectMapper());
+    TokenBuffer t = new TokenBuffer(new ObjectMapper(), false);
     writeJson(t, registry, includeVMMetrics, includeBuildMetrics, clearMetrics, pointTags, metricTranslator);
     JsonParser parser = t.asParser();
     return parser.readValueAsTree();
