@@ -19,19 +19,24 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
 
   private final String patternReplace;
   private final Pattern compiledSearchPattern;
+  private final Integer maxIterations;
   @Nullable
   private final Pattern compiledMatchPattern;
   @Nullable
   private final Counter ruleAppliedCounter;
 
+
   public PointLineReplaceRegexTransformer(final String patternSearch,
                                           final String patternReplace,
                                           @Nullable final String patternMatch,
+                                          @Nullable final Integer maxIterations,
                                           @Nullable final Counter ruleAppliedCounter) {
     this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
     Preconditions.checkArgument(!patternSearch.isEmpty(), "[search] can't be blank");
     this.compiledMatchPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     this.patternReplace = Preconditions.checkNotNull(patternReplace, "[replace] can't be null");
+    this.maxIterations = maxIterations != null ? maxIterations : 1;
+    Preconditions.checkArgument(this.maxIterations > 0, "[iterations] must be > 0");
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 
@@ -42,11 +47,22 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
       return pointLine;
     }
     Matcher patternMatcher = compiledSearchPattern.matcher(pointLine);
-    if (patternMatcher.find()) {
-      if (ruleAppliedCounter != null) {
-        ruleAppliedCounter.inc();
+
+    if (!patternMatcher.find())
+      return pointLine;
+
+    if (ruleAppliedCounter != null) { // count the rule only once regardless of the number of iterations
+      ruleAppliedCounter.inc();
+    }
+
+    int currentIteration = 0;
+    while (currentIteration < maxIterations) {
+      pointLine = patternMatcher.replaceAll(patternReplace);
+      patternMatcher = compiledSearchPattern.matcher(pointLine);
+      if (!patternMatcher.find()) {
+        break;
       }
-      return patternMatcher.replaceAll(patternReplace);
+      currentIteration++;
     }
     return pointLine;
   }

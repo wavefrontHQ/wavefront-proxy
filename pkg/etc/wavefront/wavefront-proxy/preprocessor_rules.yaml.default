@@ -55,6 +55,36 @@
     search  : "[&\\$!]"
     replace : "_"
 
+  ## extract Graphite 1.1+ tags from the metric name, i.e. convert
+  ## "metric.name;source=src;foo=bar;boo=baz 1.0 1507933795" to
+  ## "metric.name 1.0 1507933795 source=src foo=bar boo=baz"
+  #################################################################
+  #- rule       : convert-tagged-graphite-format
+  #  action     : replaceRegex
+  #  scope      : pointLine
+  #  search     : "([^;]*);([^; ]*)([ ;].*)"
+  #  replace    : "$1$3 $2"
+  #  iterations : 10
+
+  ## extract DataDog-formatted tags from the metric name, i.e. convert
+  ## "metric.name[source:src,foo:bar,boo:baz] 1.0 1507933795" to
+  ## "metric.name 1.0 1507933795 source=src foo=bar boo=baz"
+  ## note: both rules must be enabled; second rule extracts the last
+  ## tag value and removes surrounding square braces
+  #################################################################
+  #- rule       : extract-datadog-tags-1
+  #  action     : replaceRegex
+  #  scope      : pointLine
+  #  search     : '^([^\[]*\[)([^:]*):([^,]*),([^\]]*].*)$'
+  #  replace    : '$1$4 \"$2\"=\"$3\"'
+  #  iterations : 10
+
+  #- rule       : extract-datadog-tags-2
+  #  action     : replaceRegex
+  #  scope      : pointLine
+  #  search     : '^([^\[]*)\[([^:]*):([^,^\]]*)](.*)$'
+  #  replace    : '$1$4 \"$2\"=\"$3\"'
+
   ## only allow points that contain "prod" substring anywhere in the point line
   ################################################################
   #- rule    : example-allow-only-prod

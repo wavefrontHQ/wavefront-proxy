@@ -24,6 +24,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   private final String patternReplace;
   private final String scope;
   private final Pattern compiledSearchPattern;
+  private final Integer maxIterations;
   @Nullable
   private final Pattern compiledMatchPattern;
   @Nullable
@@ -33,6 +34,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
                                             final String patternSearch,
                                             final String patternReplace,
                                             @Nullable final String patternMatch,
+                                            @Nullable final Integer maxIterations,
                                             @Nullable final Counter ruleAppliedCounter) {
     this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
     Preconditions.checkArgument(!patternSearch.isEmpty(), "[search] can't be blank");
@@ -40,7 +42,31 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
     this.patternReplace = Preconditions.checkNotNull(patternReplace, "[replace] can't be null");
     this.compiledMatchPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
+    this.maxIterations = maxIterations != null ? maxIterations : 1;
+    Preconditions.checkArgument(this.maxIterations > 0, "[iterations] must be > 0");
     this.ruleAppliedCounter = ruleAppliedCounter;
+  }
+
+  private String replaceString(String content) {
+    Matcher patternMatcher;
+    patternMatcher = compiledSearchPattern.matcher(content);
+    if (!patternMatcher.find()) {
+      return content;
+    }
+    if (ruleAppliedCounter != null) {
+      ruleAppliedCounter.inc();
+    }
+
+    int currentIteration = 0;
+    while (currentIteration < maxIterations) {
+      content = patternMatcher.replaceAll(patternReplace);
+      patternMatcher = compiledSearchPattern.matcher(content);
+      if (!patternMatcher.find()) {
+        break;
+      }
+      currentIteration++;
+    }
+    return content;
   }
 
   @Override

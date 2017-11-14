@@ -60,4 +60,23 @@ public class MetricManglerTest {
       assertEquals(null, c.source);
     }
   }
+
+  @Test
+  public void testSourceMetricParsingWithTags() {
+    String testInput = "hosts.sjc123.cpu.loadavg.1m;foo=bar;boo=baz";
+    String expectedOutput = "cpu.loadavg.1m";
+
+    {
+      MetricMangler mangler = new MetricMangler("2", "", "1");
+      MetricMangler.MetricComponents c = mangler.extractComponents(testInput);
+      assertEquals(expectedOutput, c.metric);
+      assertEquals("sjc123", c.source);
+      assertNotEquals(null, c.annotations);
+      assertEquals(2, c.annotations.length);
+      assertEquals("foo=bar", c.annotations[0]);
+      assertEquals("boo=baz", c.annotations[1]);
+    }
+  }
+
+
 }
