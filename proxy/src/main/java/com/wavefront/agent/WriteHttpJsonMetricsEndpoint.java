@@ -1,13 +1,18 @@
 package com.wavefront.agent;
 
+import com.google.common.collect.Lists;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.ingester.GraphiteDecoder;
 
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,6 +39,12 @@ public class WriteHttpJsonMetricsEndpoint extends AbstractHandler {
   @Nullable
   private final PointPreprocessor preprocessor;
   private final PointHandler handler;
+
+  /**
+   *  Graphite decoder to re-parse modified points
+   */
+  private final GraphiteDecoder recoder = new GraphiteDecoder(Collections.emptyList());
+
 
   public WriteHttpJsonMetricsEndpoint(final String port, final String host,
                                       @Nullable
@@ -98,20 +109,31 @@ public class WriteHttpJsonMetricsEndpoint extends AbstractHandler {
           } else {
             builder.setValue(value.asLong());
           }
+          List<ReportPoint> parsedPoints = Lists.newArrayListWithExpectedSize(1);
           ReportPoint point = builder.build();
-          if (preprocessor != null) {
-            preprocessor.forReportPoint().transform(point);
-            if (!preprocessor.forReportPoint().filter(point)) {
-              if (preprocessor.forReportPoint().getLastFilterResult() != null) {
-                blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
-              } else {
-                blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
-              }
-              handler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
-              continue;
-            }
+          if (preprocessor != null && preprocessor.forPointLine().hasTransformers()) {
+            //
+            String pointLine = PointHandlerImpl.pointToString(point);
+            pointLine = preprocessor.forPointLine().transform(pointLine);
+            recoder.decodeReportPoints(pointLine, parsedPoints, "dummy");
+          } else {
+            parsedPoints.add(point);
           }
-          handler.reportPoint(point, "write_http json: " + PointHandlerImpl.pointToString(point));
+          for (ReportPoint parsedPoint : parsedPoints) {
+            if (preprocessor != null) {
+              preprocessor.forReportPoint().transform(parsedPoint);
+              if (!preprocessor.forReportPoint().filter(parsedPoint)) {
+                if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+                  blockedPointsLogger.warning(PointHandlerImpl.pointToString(parsedPoint));
+                } else {
+                  blockedPointsLogger.info(PointHandlerImpl.pointToString(parsedPoint));
+                }
+                handler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+                continue;
+              }
+            }
+            handler.reportPoint(parsedPoint, "write_http json: " + PointHandlerImpl.pointToString(parsedPoint));
+          }
           index++;
         }
       } catch (final Exception e) {
