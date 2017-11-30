@@ -22,7 +22,6 @@ protocol Reporting {
     string host = "unknown";
     string table = "tsdb";
     map<string> annotations = {};
-    boolean delta = false;
   }
 
   // The parts of a ReportPoint that uniquely identify a timeseries to wavefront.
