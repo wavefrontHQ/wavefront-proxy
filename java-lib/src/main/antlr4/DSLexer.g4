@@ -59,6 +59,7 @@ Literal
   | '}'
   | SLASH
   | STAR
+  | DELTA
   | AT)*
   ;
 
@@ -120,4 +121,5 @@ Octet
 STAR   : '*' ;
 SLASH  : '/' ;
 AT     : '@';
+DELTA     : '∆';
 WS     : [ \t\r\n]+ -> channel(HIDDEN) ;
