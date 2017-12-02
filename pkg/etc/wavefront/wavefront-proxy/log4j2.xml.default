@@ -59,17 +59,17 @@
         <!-- Uncomment AppenderRef to log blocked points to a file.
              Logger property level="WARN" logs only rejected points, level="INFO"
              logs points filtered out by whitelist/blacklist rules as well -->
-        <Logger name="RawBlockedPoints" level="WARN" additivity="false">
+        <AsyncLogger name="RawBlockedPoints" level="WARN" additivity="false">
             <!--
             <AppenderRef ref="BlockedPointsFile"/>
             -->
-        </Logger>
+        </AsyncLogger>
         <!-- Uncomment AppenderRef and set level="ALL" to log all valid points to a file -->
-        <Logger name="RawValidPoints" level="DEBUG" additivity="false">
+        <AsyncLogger name="RawValidPoints" level="DEBUG" additivity="false">
             <!--
             <AppenderRef ref="ValidPointsFile"/>
             -->
-        </Logger>
+        </AsyncLogger>
         <Root level="INFO">
             <AppenderRef ref="RollingFile"/>
             <AppenderRef ref="Console" />

@@ -169,6 +169,12 @@
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-web</artifactId>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/com.lmax/disruptor -->
+    <dependency>
+      <groupId>com.lmax</groupId>
+      <artifactId>disruptor</artifactId>
+      <version>3.3.7</version>
+    </dependency>
     <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-afterburner -->
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>

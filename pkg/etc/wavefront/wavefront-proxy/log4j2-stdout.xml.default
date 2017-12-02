@@ -16,6 +16,8 @@
     <Loggers>
         <Logger name="RawBlockedPoints" level="WARN" additivity="false">
         </Logger>
+        <Logger name="RawValidPoints" level="DEBUG" additivity="false">
+        </Logger>
         <Root level="INFO">
             <AppenderRef ref="Console" />
         </Root>
