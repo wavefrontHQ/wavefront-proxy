@@ -37,7 +37,7 @@ public class GraphiteFormatter implements Function<String, String> {
   @Override
   public String apply(String mesg) {
     // Resting place for output
-    StringBuffer finalMesg = new StringBuffer();
+    StringBuilder finalMesg = new StringBuilder();
 
     // 1. Extract fields
     String[] regions = mesg.trim().split(" ");
@@ -53,9 +53,20 @@ public class GraphiteFormatter implements Function<String, String> {
       finalMesg.append(" ");
     }
 
-    // 3. Loop over host components in configured order, and replace all delimiters with dots
-    finalMesg.append("source=");
-    finalMesg.append(components.source);
+    // 3. Add source, if available
+    if (components.source != null) {
+      finalMesg.append("source=");
+      finalMesg.append(components.source);
+    }
+
+    // 4. Add Graphite 1.1+ tags
+    if (components.annotations != null) {
+      finalMesg.append(" ");
+      for (int index = 1; index < components.annotations.length; index++) {
+        finalMesg.append(components.annotations[index]);
+        finalMesg.append(" ");
+      }
+    }
 
     ops.incrementAndGet();
 

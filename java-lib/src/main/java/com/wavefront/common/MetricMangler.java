@@ -3,6 +3,7 @@ package com.wavefront.common;
 import com.google.common.base.Splitter;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -96,7 +97,7 @@ public class MetricMangler {
   }
 
   /**
-   * Simple struct to store and return both the source and the updated metric.
+   * Simple struct to store and return the source, annotations and the updated metric.
    *
    * @see {@link #extractComponents(String)}
    */
@@ -105,6 +106,8 @@ public class MetricMangler {
     public String source;
     @Nullable
     public String metric;
+    @Nullable
+    public String[] annotations;
   }
 
   /**
@@ -137,6 +140,13 @@ public class MetricMangler {
       }
     }
     rtn.metric = buf.toString();
+
+    // Extract Graphite 1.1+ tags, if present
+    if (rtn.metric.indexOf(";") > 0) {
+      final String[] annotationSegments = rtn.metric.split(";");
+      rtn.annotations = Arrays.copyOfRange(annotationSegments, 1, annotationSegments.length);
+      rtn.metric = annotationSegments[0];
+    }
 
     // Loop over host components in configured order, and replace all delimiters with dots
     if (hostIndices != null && !hostIndices.isEmpty()) {

@@ -75,16 +75,16 @@ public class AgentPreprocessorConfiguration {
           try {
             requireArguments(rule, "rule", "action");
             allowArguments(rule, "rule", "action", "scope", "search", "replace", "match",
-                "tag", "newtag", "value", "source");
+                "tag", "newtag", "value", "source", "iterations");
             Counter counter = Metrics.newCounter(new TaggedMetricName("preprocessor." +
                 rule.get("rule").replaceAll("[^a-z0-9_-]", ""), "count", "port", strPort));
             if (rule.get("scope") != null && rule.get("scope").equals("pointLine")) {
               switch (rule.get("action")) {
                 case "replaceRegex":
-                  allowArguments(rule, "rule", "action", "scope", "search", "replace", "match");
+                  allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "iterations");
                   this.forPort(strPort).forPointLine().addTransformer(
-                      new PointLineReplaceRegexTransformer(
-                          rule.get("search"), rule.get("replace"), rule.get("match"), counter));
+                      new PointLineReplaceRegexTransformer(rule.get("search"), rule.get("replace"), rule.get("match"),
+                          Integer.parseInt(rule.getOrDefault("iterations", "1")), counter));
                   break;
                 case "blacklistRegex":
                   allowArguments(rule, "rule", "action", "scope", "match");
@@ -103,10 +103,10 @@ public class AgentPreprocessorConfiguration {
             } else {
               switch (rule.get("action")) {
                 case "replaceRegex":
-                  allowArguments(rule, "rule", "action", "scope", "search", "replace", "match");
+                  allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "iterations");
                   this.forPort(strPort).forReportPoint().addTransformer(
-                      new ReportPointReplaceRegexTransformer(
-                          rule.get("scope"), rule.get("search"), rule.get("replace"), rule.get("match"), counter));
+                      new ReportPointReplaceRegexTransformer(rule.get("scope"), rule.get("search"), rule.get("replace"),
+                          rule.get("match"), Integer.parseInt(rule.getOrDefault("iterations", "1")), counter));
                   break;
                 case "addTag":
                   allowArguments(rule, "rule", "action", "tag", "value");

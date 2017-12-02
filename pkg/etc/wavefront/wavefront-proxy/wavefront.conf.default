@@ -7,35 +7,22 @@
 #
 
 ##############################################################################
-#
-# The prefix should either be left undefined, or can be any  prefix you want
-#    prepended to all data points coming from this agent (such as 'prod').
-#
-# Examples:
-#
-#    #prefix=
-#    prefix=prod.nyc
-#
-
-#prefix=production
-
 # The server should be either the primary Wavefront cloud server, or your custom VPC address.
 #   This will be provided to you by Wavefront.
 #
 server=https://try.wavefront.com/api/
 
-# The hostname will be used to identify the internal agent statistics around point rates, JVM info, etc.
+# The hostname will be used to identify the internal proxy statistics around point rates, JVM info, etc.
 #  We strongly recommend setting this to a name that is unique among your entire infrastructure,
 #   possibly including the datacenter information, etc. This hostname does not need to correspond to
 #   any actual hostname or DNS entry; it's merely a string that we pass with the internal stats.
 #
-#hostname=my.agent.host.com
+#hostname=my.proxy.host.com
 
 # The Token is any valid API Token for your account, which can be generated from the gear icon
 #   at the top right of the Wavefront site, under 'Settings'. Paste that hexadecimal token
-#   after the '=' below, and the agent will automatically generate a machine-specific UUID and
+#   after the '=' below, and the proxy will automatically generate a machine-specific UUID and
 #   self-register.
-# If you don't set this token here, you can still register the agent through the normal web flow.
 #
 #token=XXX
 
@@ -44,18 +31,28 @@ server=https://try.wavefront.com/api/
 # case when running inside containers for example).
 ephemeral=false
 
-#Comma separated list of ports to listen on for Wavefront formatted data
+# Comma separated list of ports to listen on for Wavefront formatted data
 pushListenerPorts=2878
-#Comma separated list of ports to listen on for OpenTSDB formatted data
-opentsdbPorts=4242
-#Comma separated list of ports to listen on for HTTP JSON formatted data
+## Comma separated list of ports to listen on for OpenTSDB formatted data
+#opentsdbPorts=4242
+## Comma separated list of ports to listen on for HTTP JSON formatted data
 #jsonListenerPorts=3878
-#Comma separate list of ports to listen on for HTTP collectd write_http data
+## Comma separated list of ports to listen on for HTTP collectd write_http data
 #writeHttpJsonListenerPorts=4878
+## Comma separated list of ports to listen on for Graphite pickle formatted data (from carbon-relay)
+#picklePorts=5878
 
-# Number of threads that flush data to the server. If not defined in wavefront.conf it defaults to the
-# number of processors (min 4). Setting this value too large will result in sending batches that are
-# too small to the server and wasting connections. This setting is per listening port.
+## Which ports should listen for collectd/graphite-formatted data?
+## If you uncomment graphitePorts, make sure to uncomment and set 'graphiteFormat' and 'graphiteDelimiters' as well.
+#graphitePorts=2003
+## Which fields (1-based) should we extract and concatenate (with dots) as the hostname?
+#graphiteFormat=2
+## Which characters should be replaced by dots in the hostname, after extraction?
+#graphiteDelimiters=_
+
+## Number of threads that flush data to the server. If not defined in wavefront.conf it defaults to the
+## number of processors (min 4). Setting this value too large will result in sending batches that are
+## too small to the server and wasting connections. This setting is per listening port.
 #flushThreads=4
 
 # Max points per flush. Typically 40000.
@@ -69,7 +66,7 @@ pushFlushInterval=1000
 
 ## Max number of points that can stay in memory buffers before spooling to disk. Defaults to 16 * pushFlushMaxPoints,
 ## minimum allowed size: pushFlushMaxPoints. Setting this value lower than default reduces memory usage but will force
-# the proxy to spool to disk more frequently if you have points arriving at the proxy in short bursts.
+## the proxy to spool to disk more frequently if you have points arriving at the proxy in short bursts.
 #pushMemoryBufferLimit=640000
 
 # If there are blocked points, how many lines to print to the log every 10 flushes. Typically 5.
@@ -90,25 +87,11 @@ pushValidationLevel=NUMERIC_ONLY
 # source= or host= is present
 customSourceTags=fqdn, hostname
 
-## Which ports should listen for collectd/graphite-formatted data?
-## If you uncomment graphitePorts, make sure to uncomment and set 'graphiteFormat' and 'graphiteDelimiters' as well.
-#graphitePorts=2003
+## The prefix should either be left undefined, or can be any  prefix you want
+## prepended to all data points coming through this proxy (such as 'prod').
+#prefix=production
 
-## Which fields (1-based) should we extract and concatenate (with dots) as the hostname?
-#graphiteFormat=2
-
-## Which characters should be replaced by dots in the hostname, after extraction?
-#graphiteDelimiters=_
-
-# Which ports to listen for Graphite pickle formatted data (from carbon-relay)
-# This is expecting streaming data formatted as:
-# [Length of pickled data to follow in a 4 byte unsigned int][pickled data of the given length]...
-#picklePorts=5878
-
-# Which ports to listen for collectd/write_http JSON formatted traffic on
-#writeHttpJsonListenerPorts=4878
-
-## ID file for agent
+## ID file for the proxy
 idFile=/etc/wavefront/wavefront-proxy/.wavefront_id
 
 ## Default location of buffer.* files for saving failed transmission for retry.
@@ -116,7 +99,7 @@ buffer=/var/spool/wavefront-proxy/buffer
 
 ## Number of threads retrying failed transmissions. Defaults to the number of processors (min. 4)
 ## Buffer files are maxed out at 2G each so increasing the number of retry threads effectively governs
-## the maximum amount of space the agent will use to buffer points locally
+## the maximum amount of space the proxy will use to buffer points locally
 #retryThreads=4
 
 ## Regex pattern (java.util.regex) that input lines must match to be accepted.
@@ -233,7 +216,7 @@ buffer=/var/spool/wavefront-proxy/buffer
 #histogramDistMemoryCache=false
 
 ## Accumulation parameters
-## Directory for persistent agent state, must be writable.
+## Directory for persistent proxy state, must be writable.
 histogramStateDirectory=/var/spool/wavefront-proxy
 ## Interval to write-back accumulation changes to disk in millis (only applicable when memory cache is enabled)
 #histogramAccumulatorResolveInterval=500
@@ -246,7 +229,7 @@ histogramStateDirectory=/var/spool/wavefront-proxy
 ## Processing queue scan interval in millis (Default: 20)
 #histogramProcessingQueueScanInterval=20
 ## Whether to persist received histogram messages to disk. WARNING only disable this, if loss of unprocessed sample data
-## on agent shutdown is acceptable.
+## on proxy shutdown is acceptable.
 #persistMessages=true
-## Whether to persist accumulation state. WARNING any unflushed histograms will be lost on agent shutdown if disabled
+## Whether to persist accumulation state. WARNING any unflushed histograms will be lost on proxy shutdown if disabled
 #persistAccumulator=true
