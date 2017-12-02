@@ -122,7 +122,7 @@ public class AccumulationCache {
         return value;
       } else {
         keyIndex.compute(key, (k1, v1) -> (
-            v1 != null && v1 > v.getDispatchTimeMillis() ? v1 : v.getDispatchTimeMillis()));
+            v1 != null && v1 < v.getDispatchTimeMillis() ? v1 : v.getDispatchTimeMillis()));
         v.add(value);
         return v;
       }
@@ -144,13 +144,13 @@ public class AccumulationCache {
         binCreatedCounter.inc();
         AgentDigest t = new AgentDigest(compression, System.currentTimeMillis() + ttlMillis);
         keyIndex.compute(key, (k1, v1) -> (
-            v1 != null && v1 > t.getDispatchTimeMillis() ? v1 : t.getDispatchTimeMillis()
+            v1 != null && v1 < t.getDispatchTimeMillis() ? v1 : t.getDispatchTimeMillis()
         ));
         t.add(value);
         return t;
       } else {
         keyIndex.compute(key, (k1, v1) -> (
-            v1 != null && v1 > v.getDispatchTimeMillis() ? v1 : v.getDispatchTimeMillis()
+            v1 != null && v1 < v.getDispatchTimeMillis() ? v1 : v.getDispatchTimeMillis()
         ));
         v.add(value);
         return v;
@@ -173,12 +173,12 @@ public class AccumulationCache {
         binCreatedCounter.inc();
         AgentDigest t = new AgentDigest(compression, System.currentTimeMillis() + ttlMillis);
         keyIndex.compute(key, (k1, v1) -> (
-            v1 != null && v1 > t.getDispatchTimeMillis() ? v1 : t.getDispatchTimeMillis()));
+            v1 != null && v1 < t.getDispatchTimeMillis() ? v1 : t.getDispatchTimeMillis()));
         mergeHistogram(t, value);
         return t;
       } else {
         keyIndex.compute(key, (k1, v1) -> (
-            v1 != null && v1 > v.getDispatchTimeMillis() ? v1 : v.getDispatchTimeMillis()));
+            v1 != null && v1 < v.getDispatchTimeMillis() ? v1 : v.getDispatchTimeMillis()));
         mergeHistogram(v, value);
         return v;
       }
