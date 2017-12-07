@@ -110,10 +110,8 @@ public class PushAgent extends AbstractAgent {
   protected void startListeners() {
     reverseDnsCache = Caffeine.newBuilder()
         .maximumSize(5000)
-        .expireAfterAccess(5, TimeUnit.MINUTES)
-        .expireAfterWrite(5, TimeUnit.MINUTES)
-        .recordStats()
-        .build(key -> disableRdnsLookup ? key.getHostAddress() : key.getHostName());
+        .refreshAfterWrite(5, TimeUnit.MINUTES)
+        .build(InetAddress::getHostName);
 
     if (soLingerTime >= 0) {
       childChannelOptions.put(ChannelOption.SO_LINGER, soLingerTime);
@@ -446,7 +444,9 @@ public class PushAgent extends AbstractAgent {
       handler.add(input -> {
         SocketChannel ch = (SocketChannel) input;
         if (ch != null && ch.remoteAddress() != null) {
-          return new GraphiteHostAnnotator(reverseDnsCache.get(ch.remoteAddress().getAddress()), customSourceTags);
+          return new GraphiteHostAnnotator(disableRdnsLookup
+              ? ch.remoteAddress().getAddress().getHostAddress()
+              : reverseDnsCache.get(ch.remoteAddress().getAddress()), customSourceTags);
         }
         return new GraphiteHostAnnotator("unknown", customSourceTags);
       });
