@@ -901,7 +901,8 @@ public abstract class AbstractIngesterFormatter<T> {
             next.getType() == DSWrapperLexer.Literal ||
             next.getType() == DSWrapperLexer.IpV4Address ||
             next.getType() == DSWrapperLexer.MinusSign ||
-            next.getType() == DSWrapperLexer.IpV6Address)) {
+            next.getType() == DSWrapperLexer.IpV6Address ||
+            next.getType() == DSWrapperLexer.DELTA)) {
       toReturn.append(tokens.poll().getText());
       next = tokens.peek();
     }

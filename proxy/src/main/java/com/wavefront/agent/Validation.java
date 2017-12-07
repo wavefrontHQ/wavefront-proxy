@@ -42,8 +42,8 @@ public class Validation {
       char cur = input.charAt(i);
       if (!(44 <= cur && cur <= 57) && !(65 <= cur && cur <= 90) && !(97 <= cur && cur <= 122) &&
           cur != 95) {
-        if (i != 0 || cur != 126) {
-          // first character can be 126 (~)
+        if (!((i == 0 && cur == 126) || (i == 0 && cur == 8710))) {
+          // first character can be 126 (~) or 8710 (∆)
           return false;
         }
       }

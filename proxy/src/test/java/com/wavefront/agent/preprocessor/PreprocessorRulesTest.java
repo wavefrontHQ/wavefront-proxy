@@ -45,7 +45,7 @@ public class PreprocessorRulesTest {
 
     // not in range if over a year ago
     ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear, 10L, "host", "table",
-        new HashMap<String, String>());
+        new HashMap<>());
     Assert.assertFalse(pointInRange1year.apply(rp));
 
     rp.setTimestamp(System.currentTimeMillis() - millisPerYear - 1);
