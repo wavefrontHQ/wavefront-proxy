@@ -91,7 +91,10 @@ public class PushAgent extends AbstractAgent {
   /**
    * Maintain a short-term cache for reverse DNS lookup results to avoid spamming DNS servers
    */
-  protected LoadingCache<InetAddress, String> reverseDnsCache;
+  protected final LoadingCache<InetAddress, String> reverseDnsCache = Caffeine.newBuilder()
+      .maximumSize(5000)
+      .refreshAfterWrite(5, TimeUnit.MINUTES)
+      .build(InetAddress::getHostName);
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -108,11 +111,6 @@ public class PushAgent extends AbstractAgent {
 
   @Override
   protected void startListeners() {
-    reverseDnsCache = Caffeine.newBuilder()
-        .maximumSize(5000)
-        .refreshAfterWrite(5, TimeUnit.MINUTES)
-        .build(InetAddress::getHostName);
-
     if (soLingerTime >= 0) {
       childChannelOptions.put(ChannelOption.SO_LINGER, soLingerTime);
     }
