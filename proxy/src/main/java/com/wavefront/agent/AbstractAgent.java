@@ -1225,7 +1225,14 @@ public abstract class AbstractAgent {
   }
 
   private void setupQueueing(WavefrontAPI service) throws IOException {
-    managedExecutors.add(queuedAgentExecutor);
+    shutdownTasks.add(() -> {
+      try {
+        queuedAgentExecutor.shutdownNow();
+        queuedAgentExecutor.awaitTermination(httpConnectTimeout + httpRequestTimeout, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        // ignore
+      }
+    });
     agentAPI = new QueuedAgentService(service, bufferFile, retryThreads, queuedAgentExecutor, purgeBuffer,
         agentId, splitPushWhenRateLimited, pushRateLimiter);
   }
@@ -1421,38 +1428,35 @@ public abstract class AbstractAgent {
     }
   }
 
+  private void safeLogInfo(String msg) {
+    try {
+      logger.info(msg);
+    } catch (Throwable t) {
+      // ignore logging errors
+    }
+  }
+
   public void shutdown() {
     if (shuttingDown) {
       return; // we need it only once
     }
     shuttingDown = true;
     try {
-      try {
-        logger.info("Shutting down: Stopping listeners...");
-      } catch (Throwable t) {
-        // ignore logging errors
-      }
+      safeLogInfo("Shutting down: Stopping listeners...");
 
       stopListeners();
 
-      try {
-        logger.info("Shutting down: Stopping schedulers...");
-      } catch (Throwable t) {
-        // ignore logging errors
-      }
+      safeLogInfo("Shutting down: Stopping schedulers...");
 
       for (ExecutorService executor : managedExecutors) {
         executor.shutdownNow();
-        executor.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+        // wait for up to connect timeout + request timeout
+        executor.awaitTermination(httpConnectTimeout + httpRequestTimeout, TimeUnit.MILLISECONDS);
       }
 
       managedTasks.forEach(PostPushDataTimedTask::shutdown);
 
-      try {
-        logger.info("Shutting down: Flushing pending points...");
-      } catch (Throwable t) {
-        // ignore logging errors
-      }
+      safeLogInfo("Shutting down: Flushing pending points...");
 
       for (PostPushDataTimedTask task : managedTasks) {
         while (task.getNumPointsToSend() > 0) {
@@ -1465,19 +1469,11 @@ public abstract class AbstractAgent {
         }
       }
 
-      try {
-        logger.info("Shutting down: Running finalizing tasks...");
-      } catch (Throwable t) {
-        // ignore logging errors
-      }
+      safeLogInfo("Shutting down: Running finalizing tasks...");
 
       shutdownTasks.forEach(Runnable::run);
 
-      try {
-        logger.info("Shutdown complete");
-      } catch (Throwable t) {
-        // ignore logging errors
-      }
+      safeLogInfo("Shutdown complete");
     } catch (Throwable t) {
       try {
         logger.log(Level.SEVERE, "Error during shutdown: ", t);

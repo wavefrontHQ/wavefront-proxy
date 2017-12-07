@@ -144,9 +144,12 @@ jsvc_exec()
 
 case "$1" in
 start)
-	echo "Starting $desc"
-	jsvc_exec
-	echo "Done"
+	if [[ -f "$pid_file" ]]; then
+		echo "$desc is already running (PID $(cat "$pid_file"))"
+		echo "Starting $desc"
+		jsvc_exec
+		echo "Done"
+	fi
 ;;
 status)
 	if [[ -f "$pid_file" ]]; then
