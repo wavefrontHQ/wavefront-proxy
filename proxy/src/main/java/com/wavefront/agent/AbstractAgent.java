@@ -1428,7 +1428,7 @@ public abstract class AbstractAgent {
     }
   }
 
-  private void safeLogInfo(String msg) {
+  private static void safeLogInfo(String msg) {
     try {
       logger.info(msg);
     } catch (Throwable t) {
