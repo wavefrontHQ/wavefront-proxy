@@ -15,8 +15,12 @@ import com.yammer.metrics.core.TimerContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -72,6 +76,8 @@ public class PostPushDataTimedTask implements Runnable {
   private final int threadId;
   private long pushFlushInterval;
   private final ScheduledExecutorService scheduler;
+  private final ExecutorService flushExecutor;
+
   private static AtomicInteger pointsPerBatch = new AtomicInteger(50000);
   private static AtomicInteger memoryBufferLimit = new AtomicInteger(50000 * 32);
   private boolean isFlushingToQueue = false;
@@ -159,6 +165,8 @@ public class PostPushDataTimedTask implements Runnable {
     this.pushRateLimiter = pushRateLimiter;
     this.scheduler = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("submitter-main-" + handle + "-" + String.valueOf(threadId)));
+    this.flushExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.MINUTES,
+        new ArrayBlockingQueue<>(1), new NamedThreadFactory("flush-" + handle + "-" + String.valueOf(threadId)));
 
     this.pointsAttempted = Metrics.newCounter(new MetricName("points." + handle, "", "sent"));
     this.pointsQueued = Metrics.newCounter(new MetricName("points." + handle, "", "queued"));
@@ -243,21 +251,35 @@ public class PostPushDataTimedTask implements Runnable {
   }
 
   public void enforceBufferLimits() {
-    if (points.size() > memoryBufferLimit.get()) {
-      // there are going to be too many points to be able to flush w/o the agent blowing up
-      // drain the leftovers straight to the retry queue (i.e. to disk)
-      // don't let anyone add any more to points while we're draining it.
-      logger.warning("[FLUSH THREAD " + threadId + "]: WF-3 Too many pending points (" + points.size() +
-          "), block size: " + pointsPerBatch + ". flushing to retry queue");
-      drainBuffersToQueue();
-      logger.info("[FLUSH THREAD " + threadId + "]: flushing to retry queue complete. " +
-          "Pending points: " + points.size());
-    }
+      if (points.size() > memoryBufferLimit.get()) {
+        try {
+          flushExecutor.submit(drainBuffersToQueueTask);
+        } catch (RejectedExecutionException e) {
+          // ignore - another task is already being executed
+        }
+      }
   }
+
+  private Runnable drainBuffersToQueueTask = new Runnable() {
+    @Override
+    public void run() {
+      if (points.size() > memoryBufferLimit.get()) {
+        // there are going to be too many points to be able to flush w/o the agent blowing up
+        // drain the leftovers straight to the retry queue (i.e. to disk)
+        // don't let anyone add any more to points while we're draining it.
+        logger.warning("[FLUSH THREAD " + threadId + "]: WF-3 Too many pending points (" + points.size() +
+            "), block size: " + pointsPerBatch + ". flushing to retry queue");
+        drainBuffersToQueue();
+        logger.info("[FLUSH THREAD " + threadId + "]: flushing to retry queue complete. " +
+            "Pending points: " + points.size());
+      }
+    }
+  };
 
   public void drainBuffersToQueue() {
     try {
       isFlushingToQueue = true;
+      int lastBatchSize = Integer.MIN_VALUE;
       // roughly limit number of points to flush to the the current buffer size (+1 blockSize max)
       // if too many points arrive at the proxy while it's draining, they will be taken care of in the next run
       int pointsToFlush = points.size();
@@ -277,6 +299,12 @@ public class PostPushDataTimedTask implements Runnable {
           }
           numApiCalls++;
           pointsToFlush -= pushDataPointCount;
+
+          // stop draining buffers if the batch is smaller than the previous one
+          if (pushDataPointCount < lastBatchSize) {
+            break;
+          }
+          lastBatchSize = pushDataPointCount;
         } else {
           break;
         }
