@@ -242,6 +242,12 @@ public class PreprocessorRulesTest {
     new ReportPointReplaceRegexTransformer("qux", "([a-c][a-c]).", "$1z", null, null, null).apply(point);
     String expectedPoint10 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"baz\"";
     assertEquals(expectedPoint10, referencePointToStringImpl(point));
+
+    // replace regex in a point tag value with placeholders
+    new ReportPointReplaceRegexTransformer("qux", "az", "-g{{sourceName}}", null, null, null).apply(point);
+    String expectedPoint11 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"b-gh0st\"";
+    assertEquals(expectedPoint11, referencePointToStringImpl(point));
+
   }
 
   @Test

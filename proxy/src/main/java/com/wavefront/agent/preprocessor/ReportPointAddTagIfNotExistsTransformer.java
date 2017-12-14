@@ -39,7 +39,7 @@ public class ReportPointAddTagIfNotExistsTransformer implements Function<ReportP
       reportPoint.setAnnotations(Maps.<String, String>newHashMap());
     }
     if (reportPoint.getAnnotations().get(tag) == null) {
-      reportPoint.getAnnotations().put(tag, value);
+      reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
       if (ruleAppliedCounter != null) {
         ruleAppliedCounter.inc();
       }
