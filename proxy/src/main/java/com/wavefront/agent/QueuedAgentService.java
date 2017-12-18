@@ -15,6 +15,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.squareup.tape.FileException;
 import com.squareup.tape.FileObjectQueue;
 import com.squareup.tape.ObjectQueue;
@@ -22,7 +24,6 @@ import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ShellOutputDTO;
-import com.wavefront.common.Clock;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
@@ -51,9 +52,11 @@ import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -63,8 +66,11 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
@@ -92,6 +98,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private boolean lastKnownSourceTagQueueSizeIsPositive = true;
   private final ExecutorService executorService;
 
+  /**
+   *  A loading cache for tracking queue sizes (refreshed once a minute). Calculating the number of objects across
+   *  all queues can be a non-trivial operation, hence the once-a-minute refresh.
+   */
+  private final LoadingCache<ResubmissionTaskQueue, AtomicInteger> queueSizes;
   private final List<ResubmissionTaskQueue> sourceTagTaskQueues;
 
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
@@ -161,6 +172,12 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     this.sourceTagTaskQueues = Lists.newArrayListWithExpectedSize(retryThreads);
     String bufferFileSourceTag = bufferFile + "SourceTag";
     this.executorService = executorService;
+
+    queueSizes = Caffeine.newBuilder()
+        .maximumSize(retryThreads)
+        .expireAfterAccess(1, TimeUnit.MINUTES)
+        .expireAfterWrite(1, TimeUnit.MINUTES)
+        .build(key -> new AtomicInteger(key.size()));
 
     for (int i = 0; i < retryThreads; i++) {
       final int threadId = i;
@@ -236,25 +253,14 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     }
 
     if (retryThreads > 0) {
-      executorService.scheduleAtFixedRate(new Runnable() {
-        @Override
-        public void run() {
-          List<Integer> queueSizes = Lists.newArrayList(Lists.transform(taskQueues,
-              new Function<ResubmissionTaskQueue, Integer>() {
-                @Override
-                public Integer apply(ResubmissionTaskQueue input) {
-                  return input.size();
-                }
-              }
-          ));
-          if (Iterables.tryFind(queueSizes, new Predicate<Integer>() {
-            @Override
-            public boolean apply(Integer input) {
-              return input > 0;
-            }
-          }).isPresent()) {
+      executorService.scheduleAtFixedRate(() -> {
+        try {
+          Supplier<Stream<Integer>> sizes = () -> taskQueues.stream()
+              .map(k -> Math.max(0, queueSizes.get(k).intValue()));
+          if (sizes.get().anyMatch(i -> i > 0)) {
             lastKnownQueueSizeIsPositive = true;
-            logger.info("current retry queue sizes: [" + Joiner.on("/").join(queueSizes) + "]");
+            logger.info("current retry queue sizes: [" +
+                sizes.get().map(Object::toString).collect(Collectors.joining("/")) + "]");
           } else if (lastKnownQueueSizeIsPositive) {
             lastKnownQueueSizeIsPositive = false;
             queuePointsCount.set(0);
@@ -290,11 +296,13 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           }).isPresent()) {
             lastKnownSourceTagQueueSizeIsPositive = true;
             logger.warning("current source tag retry queue sizes: [" + Joiner.on("/").join
-                (queueSizes) + "]");
+                (sourceTagQueueSizes) + "]");
           } else if (lastKnownSourceTagQueueSizeIsPositive) {
             lastKnownSourceTagQueueSizeIsPositive = false;
             logger.warning("source tag retry queue has been cleared");
-          };
+          }
+        } catch (Exception ex) {
+          logger.warning("Exception " + ex);
         }
       }, 0, 5, TimeUnit.SECONDS);
     }
@@ -365,6 +373,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                   List<? extends ResubmissionTask> splitTasks = task.splitTask();
                   for (ResubmissionTask smallerTask : splitTasks) {
                     taskQueue.add(smallerTask);
+                    queueSizes.get(taskQueue).incrementAndGet();
                     queuePointsCount.addAndGet(smallerTask.size());
                   }
                   break;
@@ -378,6 +387,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                       List<? extends ResubmissionTask> splitTasks = task.splitTask();
                       for (ResubmissionTask smallerTask : splitTasks) {
                         taskQueue.add(smallerTask);
+                        queueSizes.get(taskQueue).incrementAndGet();
                         queuePointsCount.addAndGet(smallerTask.size());
                       }
                     } else {
@@ -393,6 +403,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                 task.service = null;
                 task.currentAgentId = null;
                 taskQueue.add(task);
+                queueSizes.get(taskQueue).incrementAndGet();
                 queuePointsCount.addAndGet(taskSize);
                 if (failures > 10) {
                   logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will " +
@@ -402,6 +413,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
               } finally {
                 if (removeTask) {
                   taskQueue.remove();
+                  queueSizes.get(taskQueue).decrementAndGet();
                   queuePointsCount.addAndGet(-taskSize);
                 }
               }
@@ -491,17 +503,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   private ResubmissionTaskQueue getSmallestQueue() {
-    int size = Integer.MAX_VALUE;
-    ResubmissionTaskQueue toReturn = null;
-    for (ResubmissionTaskQueue queue : taskQueues) {
-      if (queue.size() == 0) {
-        return queue;
-      } else if (queue.size() < size) {
-        toReturn = queue;
-        size = queue.size();
-      }
-    }
-    return toReturn;
+    Optional<ResubmissionTaskQueue> smallestQueue = taskQueues.stream()
+        .min(Comparator.comparingInt(q -> queueSizes.get(q).intValue()));
+    return smallestQueue.orElse(null);
   }
 
   private ObjectQueue<ResubmissionTask> getSmallestSourceTagQueue() {
@@ -668,6 +672,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       queue.getLockObject().lock();
       try {
         queue.add(taskToRetry);
+        queueSizes.get(queue).incrementAndGet();
         queuePointsCount.addAndGet(taskToRetry.size());
       } catch (FileException e) {
         logger.log(Level.SEVERE, "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
