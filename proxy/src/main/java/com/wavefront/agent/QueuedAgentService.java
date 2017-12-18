@@ -22,7 +22,6 @@ import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ShellOutputDTO;
-import com.wavefront.common.Clock;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
@@ -63,6 +62,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -274,14 +274,16 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             }
             logger.info("retry queue has been cleared");
           }
+
           // do the same thing for sourceTagQueues
           List<Integer> sourceTagQueueSizes = Lists.newArrayList(Lists.transform
-              (sourceTagTaskQueues,  new Function<ObjectQueue<ResubmissionTask>, Integer>() {
+              (sourceTagTaskQueues, new Function<ObjectQueue<ResubmissionTask>, Integer>() {
                 @Override
                 public Integer apply(ObjectQueue<ResubmissionTask> input) {
                   return input.size();
                 }
               }));
+
           if (Iterables.tryFind(sourceTagQueueSizes, new Predicate<Integer>() {
             @Override
             public boolean apply(Integer input) {
@@ -290,7 +292,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           }).isPresent()) {
             lastKnownSourceTagQueueSizeIsPositive = true;
             logger.warning("current source tag retry queue sizes: [" + Joiner.on("/").join
-                (queueSizes) + "]");
+                (sourceTagQueueSizes) + "]");
           } else if (lastKnownSourceTagQueueSizeIsPositive) {
             lastKnownSourceTagQueueSizeIsPositive = false;
             logger.warning("source tag retry queue has been cleared");
@@ -316,7 +318,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   private Runnable createRunnable(final ScheduledExecutorService executorService, final boolean
       splitPushWhenRateLimited, final int threadId, final
-      ResubmissionTaskQueue taskQueue, final RecyclableRateLimiter pushRateLimiter) {
+                                  ResubmissionTaskQueue taskQueue, final RecyclableRateLimiter pushRateLimiter) {
     return new Runnable() {
       private int backoffExponent = 1;
 
@@ -325,11 +327,12 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         int successes = 0;
         int failures = 0;
         boolean rateLimiting = false;
+        Lock queueLock = taskQueue.getLockObject();
         try {
           logger.fine("[RETRY THREAD " + threadId + "] TASK STARTING");
           while (taskQueue.size() > 0 && taskQueue.size() > failures) {
             if (Thread.currentThread().isInterrupted()) return;
-            taskQueue.getLockObject().lock();
+            queueLock.lock();
             try {
               ResubmissionTask task = taskQueue.peek();
               int taskSize = task == null ? 0 : task.size();
@@ -345,6 +348,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                 permitsGranted.inc(taskSize);
               }
 
+              // unlock the queue while the batch is being sent to allow adding more tasks
+              queueLock.unlock();
               boolean removeTask = true;
               try {
                 if (task != null) {
@@ -363,6 +368,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                   logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected push with " +
                       "HTTP 413: request too large - splitting data into smaller chunks to retry. ");
                   List<? extends ResubmissionTask> splitTasks = task.splitTask();
+                  queueLock.lock();
                   for (ResubmissionTask smallerTask : splitTasks) {
                     taskQueue.add(smallerTask);
                     queuePointsCount.addAndGet(smallerTask.size());
@@ -376,6 +382,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                         "(global rate limit exceeded) - will attempt later.");
                     if (splitPushWhenRateLimited) {
                       List<? extends ResubmissionTask> splitTasks = task.splitTask();
+                      queueLock.lock();
                       for (ResubmissionTask smallerTask : splitTasks) {
                         taskQueue.add(smallerTask);
                         queuePointsCount.addAndGet(smallerTask.size());
@@ -392,6 +399,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                 // idempotent it's not really a big deal)
                 task.service = null;
                 task.currentAgentId = null;
+                queueLock.lock();
                 taskQueue.add(task);
                 queuePointsCount.addAndGet(taskSize);
                 if (failures > 10) {
@@ -400,21 +408,23 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                   break;
                 }
               } finally {
+                // it's safe to request a second lock if the current thread already owns it
+                queueLock.lock();
                 if (removeTask) {
                   taskQueue.remove();
                   queuePointsCount.addAndGet(-taskSize);
                 }
               }
             } finally {
-              taskQueue.getLockObject().unlock();
+              queueLock.unlock();
             }
           }
         } catch (Throwable ex) {
           logger.log(Level.WARNING, "[RETRY THREAD " + threadId + "] unexpected exception", ex);
         } finally {
+          logger.fine("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
+              ", Failed Batches: " + failures);
           if (rateLimiting) {
-            logger.fine("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
-                ", Failed Batches: " + failures);
             logger.fine("[RETRY THREAD " + threadId + "] Rate limit reached, will re-attempt later");
             // if proxy rate limit exceeded, try again in 250..500ms (to introduce some degree of fairness)
             executorService.schedule(this, 250 + (int) (Math.random() * 250), TimeUnit.MILLISECONDS);
@@ -426,8 +436,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             }
             long next = (long) ((Math.random() + 1.0) *
                 Math.pow(retryBackoffBaseSeconds.get(), backoffExponent));
-            logger.fine("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
-                ", Failed Batches: " + failures);
             logger.fine("[RETRY THREAD " + threadId + "] RESCHEDULING in " + next);
             executorService.schedule(this, next, TimeUnit.SECONDS);
           }
