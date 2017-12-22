@@ -6,6 +6,8 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
 import com.beust.jcommander.internal.Lists;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
@@ -43,12 +45,12 @@ import com.wavefront.ingester.TcpIngester;
 import net.openhft.chronicle.map.ChronicleMap;
 
 import org.apache.commons.lang.BooleanUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.logstash.beats.Server;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
+import java.net.InetAddress;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -85,6 +87,14 @@ public class PushAgent extends AbstractAgent {
   protected ScheduledExecutorService histogramExecutor;
   protected ScheduledExecutorService histogramScanExecutor;
   protected ScheduledExecutorService histogramFlushExecutor;
+
+  /**
+   * Maintain a short-term cache for reverse DNS lookup results to avoid spamming DNS servers
+   */
+  protected final LoadingCache<InetAddress, String> reverseDnsCache = Caffeine.newBuilder()
+      .maximumSize(5000)
+      .refreshAfterWrite(5, TimeUnit.MINUTES)
+      .build(InetAddress::getHostName);
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -429,14 +439,14 @@ public class PushAgent extends AbstractAgent {
 
     if (!withCustomFormatter) {
       List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);
-      handler.add(new Function<Channel, ChannelHandler>() {
-        @Override
-        public ChannelHandler apply(Channel input) {
-          SocketChannel ch = (SocketChannel) input;
+      handler.add(input -> {
+        SocketChannel ch = (SocketChannel) input;
+        if (ch != null && ch.remoteAddress() != null) {
           return new GraphiteHostAnnotator(disableRdnsLookup
               ? ch.remoteAddress().getAddress().getHostAddress()
-              : ch.remoteAddress().getHostName(), customSourceTags);
+              : reverseDnsCache.get(ch.remoteAddress().getAddress()), customSourceTags);
         }
+        return new GraphiteHostAnnotator("unknown", customSourceTags);
       });
       startAsManagedThread(new StringLineIngester(handler, graphiteHandler, port)
           .withChildChannelOptions(childChannelOptions), "listener-plaintext-wavefront-" + port);
