@@ -20,11 +20,19 @@
                 -->
                 <pattern>%d %-5level [%c{1}:%M] %m%n</pattern>
             </PatternLayout>
+
+            <!-- Log rollover and retention policies. Default settings: roll over logs once a day or every 100 MB,
+                 whichever comes first; keep max 10 log files per day for no more than 31 days  -->
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
                 <SizeBasedTriggeringPolicy size="100 MB"/>
             </Policies>
-            <DefaultRolloverStrategy max="30"/>
+            <DefaultRolloverStrategy max="10">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                    <IfFileName glob="wavefront-2*.log" />
+                    <IfLastModified age="31d" />
+                </Delete>
+            </DefaultRolloverStrategy>
         </RollingFile>
         <!-- Uncomment the RollingFile section below to log blocked points to a file -->
         <!--
@@ -37,7 +45,12 @@
                 <TimeBasedTriggeringPolicy interval="1"/>
                 <SizeBasedTriggeringPolicy size="100 MB"/>
             </Policies>
-            <DefaultRolloverStrategy max="31"/>
+            <DefaultRolloverStrategy max="10">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                    <IfFileName glob="wavefront-blocked*.log" />
+                    <IfLastModified age="31d" />
+                </Delete>
+            </DefaultRolloverStrategy>
         </RollingFile>
         -->
         <!-- Uncomment the RollingFile section below to log all valid points to a file -->
@@ -49,9 +62,14 @@
             </PatternLayout>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
-                <SizeBasedTriggeringPolicy size="100 MB"/>
+                <SizeBasedTriggeringPolicy size="1024 MB"/>
             </Policies>
-            <DefaultRolloverStrategy max="31"/>
+            <DefaultRolloverStrategy max="10">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                    <IfFileName glob="wavefront-valid*.log" />
+                    <IfLastModified age="7d" />
+                </Delete>
+            </DefaultRolloverStrategy>
         </RollingFile>
         -->
     </Appenders>
