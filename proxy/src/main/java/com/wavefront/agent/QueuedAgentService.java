@@ -316,9 +316,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     });
   }
 
-  private Runnable createRunnable(final ScheduledExecutorService executorService, final boolean
-      splitPushWhenRateLimited, final int threadId, final
-                                  ResubmissionTaskQueue taskQueue, final RecyclableRateLimiter pushRateLimiter) {
+  private Runnable createRunnable(final ScheduledExecutorService executorService,
+                                  final boolean splitPushWhenRateLimited,
+                                  final int threadId,
+                                  final ResubmissionTaskQueue taskQueue,
+                                  final RecyclableRateLimiter pushRateLimiter) {
     return new Runnable() {
       private int backoffExponent = 1;
 
