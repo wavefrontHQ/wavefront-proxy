@@ -33,15 +33,11 @@ public class PointHandlerImpl implements PointHandler {
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
   private static final Logger validPointsLogger = Logger.getLogger("RawValidPoints");
 
-  /**
-   * Executor for support tasks (refreshing logger level)
-   */
-  private final ScheduledExecutorService pointHandlerExecutor;
-
   private final Histogram receivedPointLag;
   private final String validationLevel;
   private final String handle;
   private boolean logPoints = false;
+  private long logPointsUpdatedMillis = 0L;
 
   /**
    * Value of system property wavefront.proxy.logging (for backwards compatibility)
@@ -76,12 +72,6 @@ public class PointHandlerImpl implements PointHandler {
     this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle + ".received", "", "lag"));
 
     this.sendDataTasks = sendDataTasks;
-    this.pointHandlerExecutor =  Executors.newScheduledThreadPool(1,
-        new NamedThreadFactory("pointhandler-" + handle));
-
-    // refresh current logging level once a second to further reduce overhead
-    this.pointHandlerExecutor.scheduleWithFixedDelay(() -> logPoints = validPointsLogger.isLoggable(Level.FINEST),
-        0L, 1L, TimeUnit.SECONDS);
   }
 
   @Override
@@ -98,6 +88,12 @@ public class PointHandlerImpl implements PointHandler {
           validationLevel == null ? null : Validation.Level.valueOf(validationLevel));
 
       String strPoint = pointToString(point);
+
+      if (logPointsUpdatedMillis + TimeUnit.SECONDS.toMillis(1) < System.currentTimeMillis()) {
+        // refresh validPointsLogger level once a second
+        logPoints = validPointsLogger.isLoggable(Level.FINEST);
+        logPointsUpdatedMillis = System.currentTimeMillis();
+      }
       if (logPoints || logPointsFlag) {
         // we log valid points only if system property wavefront.proxy.logpoints is true or RawValidPoints log level is
         // set to "ALL". this is done to prevent introducing overhead and accidentally logging points to the main log
