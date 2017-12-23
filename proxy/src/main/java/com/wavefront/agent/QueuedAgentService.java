@@ -15,6 +15,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.squareup.tape.FileException;
@@ -72,6 +73,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 
@@ -174,10 +176,21 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     this.executorService = executorService;
 
     queueSizes = Caffeine.newBuilder()
-        .maximumSize(retryThreads)
-        .expireAfterAccess(1, TimeUnit.MINUTES)
-        .expireAfterWrite(1, TimeUnit.MINUTES)
-        .build(key -> new AtomicInteger(key.size()));
+        .refreshAfterWrite(15, TimeUnit.SECONDS)
+        .build(new CacheLoader<ResubmissionTaskQueue, AtomicInteger>() {
+                 @Override
+                 public AtomicInteger load(@Nonnull ResubmissionTaskQueue key) throws Exception {
+                   return new AtomicInteger(key.size());
+                 }
+
+                 // reuse old object if possible
+                 @Override
+                 public AtomicInteger reload(@Nonnull ResubmissionTaskQueue key,
+                                             @Nonnull AtomicInteger oldValue) {
+                   oldValue.set(key.size());
+                   return oldValue;
+                 }
+               });
 
     for (int i = 0; i < retryThreads; i++) {
       final int threadId = i;
