@@ -35,7 +35,7 @@ public class PointHandlerImpl implements PointHandler {
   private final String validationLevel;
   private final String handle;
   private boolean logPoints = false;
-  private long logPointsUpdatedMillis = 0L;
+  private volatile long logPointsUpdatedMillis = 0L;
 
   /**
    * Value of system property wavefront.proxy.logging (for backwards compatibility)
