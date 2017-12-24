@@ -10,9 +10,9 @@ import wavefront.report.ReportPoint;
 /**
  * Utility class for methods used by preprocessors
  *
- * Created by vasily@wavefront.com on 12/14/17.
+ * @author vasily@wavefront.com
  */
-public class PreprocessorUtil {
+public abstract class PreprocessorUtil {
 
   /**
    * Substitute {{...}} placeholders with corresponding components of the point
