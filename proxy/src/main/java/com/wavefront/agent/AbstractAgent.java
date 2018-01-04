@@ -126,7 +126,7 @@ public abstract class AbstractAgent {
   protected String prefix = null;
 
   @Parameter(names = {"-t", "--token"}, description =
-      "Token to auto-register agent with an account")
+      "Token to auto-register proxy with an account")
   protected String token = null;
 
   @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
@@ -149,7 +149,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--retryThreads"}, description = "Number of threads retrying failed transmissions. Defaults to " +
       "the number of processors (min. 4). Buffer files are maxed out at 2G each so increasing the number of retry " +
-      "threads effectively governs the maximum amount of space the agent will use to buffer points locally")
+      "threads effectively governs the maximum amount of space the proxy will use to buffer points locally")
   protected Integer retryThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
@@ -198,7 +198,7 @@ public abstract class AbstractAgent {
 
   @Parameter(
       names = {"--histogramStateDirectory"},
-      description = "Directory for persistent agent state, must be writable.")
+      description = "Directory for persistent proxy state, must be writable.")
   protected String histogramStateDirectory = "/var/tmp";
 
   @Parameter(
@@ -462,10 +462,10 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--rawLogsPort"}, description = "Port on which to listen for raw logs data.")
   protected Integer rawLogsPort = 0;
 
-  @Parameter(names = {"--hostname"}, description = "Hostname for the agent. Defaults to FQDN of machine.")
+  @Parameter(names = {"--hostname"}, description = "Hostname for the proxy. Defaults to FQDN of machine.")
   protected String hostname;
 
-  @Parameter(names = {"--idFile"}, description = "File to read agent id from. Defaults to ~/.dshell/id")
+  @Parameter(names = {"--idFile"}, description = "File to read proxy id from. Defaults to ~/.dshell/id")
   protected String idFile = null;
 
   @Parameter(names = {"--graphiteWhitelistRegex"}, description = "(DEPRECATED for whitelistRegex)", hidden = true)
@@ -507,7 +507,7 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--agentMetricsPointTags"}, description = "Additional point tags and their respective values to be included into internal agent's metrics (comma-separated list, ex: dc=west,env=prod)")
   protected String agentMetricsPointTags = null;
 
-  @Parameter(names = {"--ephemeral"}, description = "If true, this agent is removed from Wavefront after 24 hours of inactivity.")
+  @Parameter(names = {"--ephemeral"}, description = "If true, this proxy is removed from Wavefront after 24 hours of inactivity.")
   protected boolean ephemeral = false;
 
   @Parameter(names = {"--disableRdnsLookup"}, description = "When receiving Wavefront-formatted data without source/host specified, use remote IP address as source instead of trying to resolve the DNS name. Default false.")
@@ -596,7 +596,7 @@ public abstract class AbstractAgent {
    * Executors for support tasks.
    */
   private final ScheduledExecutorService agentConfigurationExecutor = Executors.newScheduledThreadPool(2,
-      new NamedThreadFactory("agent-configuration"));
+      new NamedThreadFactory("proxy-configuration"));
   private final ScheduledExecutorService queuedAgentExecutor = Executors.newScheduledThreadPool(retryThreads + 1,
       new NamedThreadFactory("submitter-queue"));
   protected UUID agentId;
@@ -612,7 +612,7 @@ public abstract class AbstractAgent {
       logger.log(Level.SEVERE, "Exception occurred during configuration update", e);
     } finally {
       if (doShutDown) {
-        logger.warning("Shutting down: Server side flag indicating agent has to shut down.");
+        logger.warning("Shutting down: Server side flag indicating proxy has to shut down.");
         shutdown();
         System.exit(1);
       }
@@ -652,7 +652,7 @@ public abstract class AbstractAgent {
             true, true, true, pointTags, null);
       }
     } catch (Exception ex) {
-      logger.log(Level.SEVERE, "Could not generate agent metrics", ex);
+      logger.log(Level.SEVERE, "Could not generate proxy metrics", ex);
     }
   };
 
@@ -1128,7 +1128,7 @@ public abstract class AbstractAgent {
                 }
                 // 6. Setup work units and targets based on the configuration.
                 if (config != null) {
-                  logger.info("initial configuration is available, setting up proxy agent");
+                  logger.info("initial configuration is available, setting up proxy");
                   processConfiguration(config);
                 }
 
@@ -1269,9 +1269,9 @@ public abstract class AbstractAgent {
       if (agentIdFile.isFile()) {
         try {
           agentId = UUID.fromString(Files.readFirstLine(agentIdFile, Charsets.UTF_8));
-          logger.info("Proxy Agent Id read from file: " + agentId);
+          logger.info("Proxy Id read from file: " + agentId);
         } catch (IllegalArgumentException ex) {
-          logger.severe("Cannot read proxy agent id from " + agentIdFile +
+          logger.severe("Cannot read proxy id from " + agentIdFile +
               ", content is malformed");
           System.exit(1);
         } catch (IOException e) {
@@ -1284,7 +1284,7 @@ public abstract class AbstractAgent {
       }
     } else {
       agentId = UUID.randomUUID();
-      logger.info("Proxy Agent Id created: " + agentId);
+      logger.info("Proxy Id created: " + agentId);
       try {
         Files.write(agentId.toString(), agentIdFile, Charsets.UTF_8);
       } catch (IOException e) {
@@ -1326,7 +1326,7 @@ public abstract class AbstractAgent {
       agentMetricsWorkingCopy = null;
     } catch (NotAuthorizedException ex) {
       fetchConfigError("HTTP 401 Unauthorized: Please verify that your server and token settings",
-          "are correct and that the token has Agent Management permission!");
+          "are correct and that the token has Proxy Management permission!");
       return null;
     } catch (ClientErrorException ex) {
       if (ex.getResponse().getStatus() == 407) {
@@ -1338,7 +1338,7 @@ public abstract class AbstractAgent {
         fetchConfigError("HTTP 404 Not Found: Please verify that your server setting is correct: " + server, null);
         return null;
       }
-      fetchConfigError("HTTP " + ex.getResponse().getStatus() + " error: Unable to retrieve proxy agent configuration!",
+      fetchConfigError("HTTP " + ex.getResponse().getStatus() + " error: Unable to retrieve proxy configuration!",
           server + ": " + Throwables.getRootCause(ex).getMessage());
       return null;
     } catch (ProcessingException ex) {
@@ -1353,11 +1353,11 @@ public abstract class AbstractAgent {
             "Please verify your network/firewall settings!");
         return null;
       }
-      fetchConfigError("Request processing error: Unable to retrieve proxy agent configuration!",
+      fetchConfigError("Request processing error: Unable to retrieve proxy configuration!",
           server + ": " + rootCause);
       return null;
     } catch (Exception ex) {
-      fetchConfigError("Unable to retrieve proxy agent configuration from remote server!",
+      fetchConfigError("Unable to retrieve proxy configuration from remote server!",
           server + ": " + Throwables.getRootCause(ex));
       return null;
     } finally {

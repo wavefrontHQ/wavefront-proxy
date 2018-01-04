@@ -598,12 +598,12 @@ public class PushAgent extends AbstractAgent {
         if (pointsPerBatch != null) {
           // if the collector is in charge and it provided a setting, use it
           pushFlushMaxPoints.set(pointsPerBatch.intValue());
-          logger.fine("Agent push batch set to (remotely) " + pointsPerBatch);
+          logger.fine("Proxy push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
         pushFlushMaxPoints.set(pushFlushMaxPointsInitialValue);
-        logger.fine("Agent push batch set to (locally) " + pushFlushMaxPoints.get());
+        logger.fine("Proxy push batch set to (locally) " + pushFlushMaxPoints.get());
       }
 
       if (config.getCollectorSetsRetryBackoff() != null &&
@@ -611,13 +611,13 @@ public class PushAgent extends AbstractAgent {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
           retryBackoffBaseSeconds.set(config.getRetryBackoffBaseSeconds());
-          logger.fine("Agent backoff base set to (remotely) " +
+          logger.fine("Proxy backoff base set to (remotely) " +
               config.getRetryBackoffBaseSeconds());
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
         retryBackoffBaseSeconds.set(retryBackoffBaseSecondsInitialValue);
-        logger.fine("Agent backoff base set to (locally) " + retryBackoffBaseSeconds.get());
+        logger.fine("Proxy backoff base set to (locally) " + retryBackoffBaseSeconds.get());
       }
 
       histogramDisabled.set(BooleanUtils.toBoolean(config.getHistogramDisabled()));
