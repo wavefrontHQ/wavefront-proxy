@@ -98,7 +98,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
           if (!doPersist) {
             logger.log(
                 Level.WARNING,
-                "Accumulator persistence is disabled, unflushed histograms will be lost on agent shutdown."
+                "Accumulator persistence is disabled, unflushed histograms will be lost on proxy shutdown."
             );
             return newInMemoryMap();
           }
@@ -185,7 +185,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
             logger.log(
                 Level.SEVERE,
                 "Failed to load/create map from '" + file.getAbsolutePath() +
-                    "'. Please move or delete the file and restart the agent! Reason: ",
+                    "'. Please move or delete the file and restart the proxy! Reason: ",
                 e);
             System.exit(-1);
             return null;

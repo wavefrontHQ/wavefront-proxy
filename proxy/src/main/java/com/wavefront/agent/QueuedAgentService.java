@@ -703,7 +703,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           }
           if (isWavefrontResponse) {
             throw new RuntimeException("Response not accepted by server: " + response.getStatus() +
-                " unclaimed agent - please verify that your token is valid and has Agent Management permission!");
+                " unclaimed proxy - please verify that your token is valid and has Agent Management permission!");
           } else {
             throw new RuntimeException("HTTP " + response.getStatus() + ": Please verify your " +
                 "network/HTTP proxy settings!");

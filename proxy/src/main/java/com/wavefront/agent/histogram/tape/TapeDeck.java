@@ -56,7 +56,7 @@ public class TapeDeck<T> {
             Preconditions.checkNotNull(channel.tryLock());
           } catch (Exception e) {
             logger.log(Level.SEVERE, "Error while loading persisted Tape Queue for file " + file +
-                ". Please move or delete the file and restart the agent.", e);
+                ". Please move or delete the file and restart the proxy.", e);
             System.exit(-1);
             queue = null;
           }
