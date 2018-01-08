@@ -57,7 +57,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
       if (reportPoint.getAnnotations() == null) {
         reportPoint.setAnnotations(Maps.<String, String>newHashMap());
       }
-      String value = patternMatcher.replaceAll(patternReplace);
+      String value = patternMatcher.replaceAll(PreprocessorUtil.expandPlaceholders(patternReplace, reportPoint));
       if (!value.isEmpty()) {
         reportPoint.getAnnotations().put(tag, value);
         if (ruleAppliedCounter != null) {
