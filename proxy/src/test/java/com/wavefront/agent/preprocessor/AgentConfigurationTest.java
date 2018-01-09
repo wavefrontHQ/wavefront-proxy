@@ -28,6 +28,6 @@ public class AgentConfigurationTest {
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
     config.loadFromStream(stream);
     Assert.assertEquals(0, config.totalInvalidRules);
-    Assert.assertEquals(28, config.totalValidRules);
+    Assert.assertEquals(30, config.totalValidRules);
   }
 }

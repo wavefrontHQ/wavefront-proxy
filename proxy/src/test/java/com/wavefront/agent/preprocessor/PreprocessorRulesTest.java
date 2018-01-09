@@ -162,12 +162,30 @@ public class PreprocessorRulesTest {
 
   @Test
   public void testReportPointRules() {
-    String pointLine = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\" \"foo\"=\"bar\"";
+    String pointLine = "\"Some Metric\" 10.0 1469751813 source=\"Host\" \"boo\"=\"Baz\" \"foo\"=\"bar\"";
     ReportPoint point = parsePointLine(pointLine);
+
+    // lowercase a point tag value with no match - shouldn't change anything
+    new ReportPointForceLowercaseTransformer("boo", "nomatch.*", null).apply(point);
+    assertEquals(pointLine, referencePointToStringImpl(point));
+
+    // lowercase a point tag value - shouldn't affect metric name or source
+    new ReportPointForceLowercaseTransformer("boo", null, null).apply(point);
+    String expectedPoint1a = "\"Some Metric\" 10.0 1469751813 source=\"Host\" \"boo\"=\"baz\" \"foo\"=\"bar\"";
+    assertEquals(expectedPoint1a, referencePointToStringImpl(point));
+
+    // lowercase a metric name - shouldn't affect remaining source
+    new ReportPointForceLowercaseTransformer("metricName", null, null).apply(point);
+    String expectedPoint1b = "\"some metric\" 10.0 1469751813 source=\"Host\" \"boo\"=\"baz\" \"foo\"=\"bar\"";
+    assertEquals(expectedPoint1b, referencePointToStringImpl(point));
+
+    // lowercase source
+    new ReportPointForceLowercaseTransformer("sourceName", null, null).apply(point);
+    assertEquals(pointLine.toLowerCase(), referencePointToStringImpl(point));
 
     // try to remove a point tag when value doesn't match the regex - shouldn't change
     new ReportPointDropTagTransformer("foo", "bar(never|match)", null).apply(point);
-    assertEquals(pointLine, referencePointToStringImpl(point));
+    assertEquals(pointLine.toLowerCase(), referencePointToStringImpl(point));
 
     // try to remove a point tag when value does match the regex - should work
     new ReportPointDropTagTransformer("foo", "ba.", null).apply(point);
@@ -190,7 +208,7 @@ public class PreprocessorRulesTest {
 
     // add another point tag back - should work this time
     new ReportPointAddTagIfNotExistsTransformer("foo", "bar", null).apply(point);
-    assertEquals(pointLine, referencePointToStringImpl(point));
+    assertEquals(pointLine.toLowerCase(), referencePointToStringImpl(point));
 
     // rename a point tag - should work
     new ReportPointRenameTagTransformer("foo", "qux", null, null).apply(point);

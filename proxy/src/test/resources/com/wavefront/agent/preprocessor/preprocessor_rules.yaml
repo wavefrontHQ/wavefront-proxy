@@ -174,3 +174,13 @@
       match   : "^\\d*$"
       newtag  : numericTag
 
+    # force lowercase
+    - rule    : example-forcelowercase
+      action  : forceLowercase
+      scope   : metricName
+
+    # force lowercase with regex match
+    - rule    : example-forcelowercase
+      action  : forceLowercase
+      scope   : metricName
+      match   : "^.*$"
