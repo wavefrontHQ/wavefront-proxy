@@ -42,7 +42,7 @@ public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<Report
 
     // within <backCutoffHours> ago and within <preCutoffHours>
     boolean pointInRange = (pointTime > (rightNow - this.backCutoffHours * DateUtils.MILLIS_PER_HOUR)) &&
-        (pointTime < (rightNow + (this.preCutoffHours * DateUtils.MILLIS_PER_HOUR));
+        (pointTime < (rightNow + (this.preCutoffHours * DateUtils.MILLIS_PER_HOUR)));
     if (!pointInRange) {
       outOfRangePointTimes.inc();
       this.message = "WF-402: Point outside of reasonable timeframe (" + point.toString() + ")";
