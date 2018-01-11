@@ -41,7 +41,7 @@ public class PreprocessorRulesTest {
     long millisPerYear = 31536000000L;
     long millisPerDay = 86400000L;
 
-    AnnotatedPredicate<ReportPoint> pointInRange1year = new ReportPointTimestampInRangeFilter(8760);
+    AnnotatedPredicate<ReportPoint> pointInRange1year = new ReportPointTimestampInRangeFilter(8760, 24);
 
     // not in range if over a year ago
     ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear, 10L, "host", "table",
@@ -68,7 +68,7 @@ public class PreprocessorRulesTest {
     Assert.assertFalse(pointInRange1year.apply(rp));
 
     // now test with 1 day limit
-    AnnotatedPredicate<ReportPoint> pointInRange1day = new ReportPointTimestampInRangeFilter(24);
+    AnnotatedPredicate<ReportPoint> pointInRange1day = new ReportPointTimestampInRangeFilter(24, 24);
 
     rp.setTimestamp(System.currentTimeMillis() - millisPerDay - 1);
     Assert.assertFalse(pointInRange1day.apply(rp));

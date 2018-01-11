@@ -15,18 +15,23 @@ import wavefront.report.ReportPoint;
 /**
  * Filter condition for valid timestamp - should be no more than 1 day in the future
  * and no more than X hours (usually 8760, or 1 year) in the past
+ * 
+ * now have additional cutOff values where 
  *
  * Created by Vasily on 9/16/16.
  */
 public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<ReportPoint> {
 
-  private final int cutoffHours;
+  private final int backCutoffHours;
+  private final int preCutoffHours;
+
   private final Counter outOfRangePointTimes;
   @Nullable
   private String message = null;
 
-  public ReportPointTimestampInRangeFilter(final int cutoffHours) {
-    this.cutoffHours = cutoffHours;
+  public ReportPointTimestampInRangeFilter(final int backCutoffHours, final int preCutoffHours) {
+    this.backCutoffHours = backCutoffHours;
+    this.preCutoffHours = preCutoffHours;
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
   }
 
@@ -36,9 +41,9 @@ public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<Report
     long pointTime = point.getTimestamp();
     long rightNow = Clock.now();
 
-    // within <cutoffHours> ago and 1 day ahead
-    boolean pointInRange = (pointTime > (rightNow - this.cutoffHours * DateUtils.MILLIS_PER_HOUR)) &&
-        (pointTime < (rightNow + DateUtils.MILLIS_PER_DAY));
+    // within <cutoffHours> ago and within preCutoffHours
+    boolean pointInRange = (pointTime > (rightNow - this.backCutoffHours * DateUtils.MILLIS_PER_HOUR)) &&
+        (pointTime < (rightNow + (this.preCutoffHours * DateUtils.MILLIS_PER_HOUR));
     if (!pointInRange) {
       outOfRangePointTimes.inc();
       this.message = "WF-402: Point outside of reasonable timeframe (" + point.toString() + ")";

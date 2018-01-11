@@ -558,6 +558,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--dataBackfillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for back-dated points. Default is 8760 (1 year)")
   protected Integer dataBackfillCutoffHours = 8760;
 
+  @Parameter(names = {"--dataPrefillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for pre-dated points. Default is 24 (1 day)")
+  protected Integer dataPrefillCutoffHours = 24;
+
   @Parameter(names = {"--logsIngestionConfigFile"}, description = "Location of logs ingestions config yaml file.")
   protected String logsIngestionConfigFile = null;
 
@@ -905,6 +908,7 @@ public abstract class AbstractAgent {
         bufferFile = config.getString("buffer", bufferFile);
         preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
         dataBackfillCutoffHours = config.getNumber("dataBackfillCutoffHours", dataBackfillCutoffHours).intValue();
+        dataPrefillCutoffHours = config.getNumber("dataPrefillCutoffHours", dataPrefillCutoffHours).intValue();
         filebeatPort = config.getNumber("filebeatPort", filebeatPort).intValue();
         rawLogsPort = config.getNumber("rawLogsPort", rawLogsPort).intValue();
         logsIngestionConfigFile = config.getString("logsIngestionConfigFile", logsIngestionConfigFile);
