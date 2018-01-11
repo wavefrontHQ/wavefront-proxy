@@ -40,6 +40,7 @@ public class PreprocessorRulesTest {
 
     long millisPerYear = 31536000000L;
     long millisPerDay = 86400000L;
+    long millisPerHour = 3600000L;
 
     AnnotatedPredicate<ReportPoint> pointInRange1year = new ReportPointTimestampInRangeFilter(8760, 24);
 
@@ -80,6 +81,36 @@ public class PreprocessorRulesTest {
     // in range for right now
     rp.setTimestamp(System.currentTimeMillis());
     Assert.assertTrue(pointInRange1day.apply(rp));
+
+    // assert for future range within 12 hours
+    AnnotatedPredicate<ReportPoint> pointInRange12hours = new ReportPointTimestampInRangeFilter(12, 12);
+
+    rp.setTimestamp(System.currentTimeMillis() + (millisPerHour * 10));
+    Assert.assertTrue(pointInRange12hours.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() - (millisPerHour * 10));
+    Assert.assertTrue(pointInRange12hours.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() + (millisPerHour * 20));
+    Assert.assertFalse(pointInRange12hours.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() - (millisPerHour * 20));
+    Assert.assertFalse(pointInRange12hours.apply(rp));
+
+    AnnotatedPredicate<ReportPoint> pointInRange10Days = new ReportPointTimestampInRangeFilter(240, 240);
+
+    rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 9));
+    Assert.assertTrue(pointInRange10Days.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() - (millisPerDay * 9));
+    Assert.assertTrue(pointInRange10Days.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 20));
+    Assert.assertFalse(pointInRange10Days.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() - (millisPerDay * 20));
+    Assert.assertFalse(pointInRange10Days.apply(rp));
+
   }
 
   @Test(expected = NullPointerException.class)
