@@ -15,10 +15,9 @@ import wavefront.report.ReportPoint;
 /**
  * Filter condition for valid timestamp - should be no more than 1 day in the future
  * and no more than X hours (usually 8760, or 1 year) in the past
- * 
- * now have additional cutOff values where 
  *
  * Created by Vasily on 9/16/16.
+ * Updated by Howard on 1/10/18 to add support for preCutOffHours
  */
 public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<ReportPoint> {
 
@@ -41,7 +40,7 @@ public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<Report
     long pointTime = point.getTimestamp();
     long rightNow = Clock.now();
 
-    // within <cutoffHours> ago and within preCutoffHours
+    // within <backCutoffHours> ago and within <preCutoffHours>
     boolean pointInRange = (pointTime > (rightNow - this.backCutoffHours * DateUtils.MILLIS_PER_HOUR)) &&
         (pointTime < (rightNow + (this.preCutoffHours * DateUtils.MILLIS_PER_HOUR));
     if (!pointInRange) {
