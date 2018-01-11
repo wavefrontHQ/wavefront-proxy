@@ -238,7 +238,7 @@ public class PushAgent extends AbstractAgent {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(httpJsonPorts);
       for (String strPort : ports) {
         preprocessors.forPort(strPort).forReportPoint()
-            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
 
         startAsManagedThread(() -> {
               activeListeners.inc();
@@ -265,7 +265,7 @@ public class PushAgent extends AbstractAgent {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonPorts);
       for (String strPort : ports) {
         preprocessors.forPort(strPort).forReportPoint()
-            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
 
         startAsManagedThread(() -> {
               activeListeners.inc();
@@ -351,7 +351,7 @@ public class PushAgent extends AbstractAgent {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     final int port = Integer.parseInt(strPort);
     final PostPushDataTimedTask[] flushTasks = getFlushTasks(strPort);
     ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
@@ -375,7 +375,7 @@ public class PushAgent extends AbstractAgent {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     int port = Integer.parseInt(strPort);
     // Set up a custom handler
     ChannelHandler handler = new ChannelByteArrayHandler(
@@ -428,7 +428,7 @@ public class PushAgent extends AbstractAgent {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     // Add a metadatahandler, to handle @SourceTag, @SourceDescription, etc.
     SourceTagHandler metadataHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(port));
     // Set up a custom graphite handler, with no formatter
