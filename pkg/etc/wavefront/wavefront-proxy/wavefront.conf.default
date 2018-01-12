@@ -3,9 +3,6 @@
 #
 #   Typically in /etc/wavefront/wavefront-proxy/wavefront.conf
 #
-#   For help with your configuration, email support@wavefront.com
-#
-
 ##############################################################################
 # The server should be either the primary Wavefront cloud server, or your custom VPC address.
 #   This will be provided to you by Wavefront.
