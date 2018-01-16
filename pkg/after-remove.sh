@@ -6,8 +6,7 @@ if [[ -f /etc/debian_version ]]; then
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/system-release-cpe ]]; then
 	chkconfig --del wavefront-proxy
 elif [[ -f /etc/SUSE-brand ]]; then
-        systemctl stop wavefront-proxy
-        chkconfig wavefront-proxy off
+        systemctl disable wavefront-proxy
 fi
 
 exit 0

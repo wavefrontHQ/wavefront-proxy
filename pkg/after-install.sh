@@ -36,9 +36,8 @@ if [[ -f /etc/debian_version ]]; then
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/system-release-cpe ]]; then
 	chkconfig --level 345 $service_name on
 elif [[ -f /etc/SUSE-brand ]]; then
-        insserv wavefront-proxy
-        chkconfig $service_name on
-        systemctl start $service_name
+        insserv $service_name
+        systemctl enable $service_name
 fi
 
 # Allow system user to write .wavefront_id/buffer files to install dir.
