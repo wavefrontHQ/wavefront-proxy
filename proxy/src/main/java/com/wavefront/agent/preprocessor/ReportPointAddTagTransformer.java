@@ -20,28 +20,34 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
 
   private final String tag;
   private final String value;
-  @Nullable
-  private final Counter ruleAppliedCounter;
+  private final PreprocessorRuleMetrics ruleMetrics;
 
   public ReportPointAddTagTransformer(final String tag,
                                       final String value,
                                       @Nullable final Counter ruleAppliedCounter) {
+    this(tag, value, new PreprocessorRuleMetrics(ruleAppliedCounter));
+  }
+
+  public ReportPointAddTagTransformer(final String tag,
+                                      final String value,
+                                      final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.value = Preconditions.checkNotNull(value, "[value] can't be null");
     Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");
     Preconditions.checkArgument(!value.isEmpty(), "[value] can't be blank");
-    this.ruleAppliedCounter = ruleAppliedCounter;
+    Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
+    this.ruleMetrics = ruleMetrics;
   }
 
   @Override
   public ReportPoint apply(@NotNull ReportPoint reportPoint) {
+    Long startNanos = System.nanoTime();
     if (reportPoint.getAnnotations() == null) {
       reportPoint.setAnnotations(Maps.<String, String>newHashMap());
     }
     reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
-    if (ruleAppliedCounter != null) {
-      ruleAppliedCounter.inc();
-    }
+    ruleMetrics.incrementRuleAppliedCounter();
+    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
     return reportPoint;
   }
 }
