@@ -3,9 +3,6 @@
 #
 #   Typically in /etc/wavefront/wavefront-proxy/wavefront.conf
 #
-#   For help with your configuration, email support@wavefront.com
-#
-
 ##############################################################################
 # The server should be either the primary Wavefront cloud server, or your custom VPC address.
 #   This will be provided to you by Wavefront.
@@ -127,8 +124,8 @@ buffer=/var/spool/wavefront-proxy/buffer
 #soLingerTime=0
 ## HTTP connect timeout (in milliseconds). Default: 5s (5000)
 #httpConnectTimeout=5000
-## HTTP request timeout (in milliseconds). Default: 20s (20000)
-#httpRequestTimeout=20000
+## HTTP request timeout (in milliseconds). Default: 10s (10000)
+#httpRequestTimeout=10000
 
 ## Path to the optional config file with preprocessor rules (advanced regEx replacements and whitelist/blacklists)
 #preprocessorConfigFile=/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml
@@ -136,6 +133,9 @@ buffer=/var/spool/wavefront-proxy/buffer
 ## This setting defines the cut-off point for what is considered a valid timestamp for back-dated points.
 ## Default (and recommended) value is 8760 (1 year), so all the data points from more than 1 year ago will be rejected.
 #dataBackfillCutoffHours=8760
+## This setting defines the cut-off point for what is considered a valid timestamp for pre-dated points.
+## Default (and recommended) value is 24 (1 day), so all the data points from more than 1 day in future will be rejected.
+#dataPrefillCutoffHours=24
 
 ## The following settings are used to configure histogram ingestion:
 ## Histograms can be ingested in wavefront scalar and distribution format. For scalar samples ports can be specified for

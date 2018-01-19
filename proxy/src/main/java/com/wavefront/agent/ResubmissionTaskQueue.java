@@ -11,12 +11,12 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @author vasily@wavefront.com
  */
-public class LockingResubmissionTaskQueue extends TaskQueue<ResubmissionTask> {
+public class ResubmissionTaskQueue extends TaskQueue<ResubmissionTask> {
 
   // maintain a fair lock on the queue
   private ReentrantLock queueLock = new ReentrantLock(true);
 
-  public LockingResubmissionTaskQueue(ObjectQueue<ResubmissionTask> objectQueue, TaskInjector<ResubmissionTask> taskInjector) {
+  public ResubmissionTaskQueue(ObjectQueue<ResubmissionTask> objectQueue, TaskInjector<ResubmissionTask> taskInjector) {
     super(objectQueue, taskInjector);
   }
 

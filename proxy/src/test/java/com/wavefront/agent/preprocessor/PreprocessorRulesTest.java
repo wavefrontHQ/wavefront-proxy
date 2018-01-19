@@ -40,8 +40,9 @@ public class PreprocessorRulesTest {
 
     long millisPerYear = 31536000000L;
     long millisPerDay = 86400000L;
+    long millisPerHour = 3600000L;
 
-    AnnotatedPredicate<ReportPoint> pointInRange1year = new ReportPointTimestampInRangeFilter(8760);
+    AnnotatedPredicate<ReportPoint> pointInRange1year = new ReportPointTimestampInRangeFilter(8760, 24);
 
     // not in range if over a year ago
     ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear, 10L, "host", "table",
@@ -68,7 +69,7 @@ public class PreprocessorRulesTest {
     Assert.assertFalse(pointInRange1year.apply(rp));
 
     // now test with 1 day limit
-    AnnotatedPredicate<ReportPoint> pointInRange1day = new ReportPointTimestampInRangeFilter(24);
+    AnnotatedPredicate<ReportPoint> pointInRange1day = new ReportPointTimestampInRangeFilter(24, 24);
 
     rp.setTimestamp(System.currentTimeMillis() - millisPerDay - 1);
     Assert.assertFalse(pointInRange1day.apply(rp));
@@ -80,6 +81,36 @@ public class PreprocessorRulesTest {
     // in range for right now
     rp.setTimestamp(System.currentTimeMillis());
     Assert.assertTrue(pointInRange1day.apply(rp));
+
+    // assert for future range within 12 hours
+    AnnotatedPredicate<ReportPoint> pointInRange12hours = new ReportPointTimestampInRangeFilter(12, 12);
+
+    rp.setTimestamp(System.currentTimeMillis() + (millisPerHour * 10));
+    Assert.assertTrue(pointInRange12hours.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() - (millisPerHour * 10));
+    Assert.assertTrue(pointInRange12hours.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() + (millisPerHour * 20));
+    Assert.assertFalse(pointInRange12hours.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() - (millisPerHour * 20));
+    Assert.assertFalse(pointInRange12hours.apply(rp));
+
+    AnnotatedPredicate<ReportPoint> pointInRange10Days = new ReportPointTimestampInRangeFilter(240, 240);
+
+    rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 9));
+    Assert.assertTrue(pointInRange10Days.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() - (millisPerDay * 9));
+    Assert.assertTrue(pointInRange10Days.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 20));
+    Assert.assertFalse(pointInRange10Days.apply(rp));
+
+    rp.setTimestamp(System.currentTimeMillis() - (millisPerDay * 20));
+    Assert.assertFalse(pointInRange10Days.apply(rp));
+
   }
 
   @Test(expected = NullPointerException.class)
@@ -162,12 +193,30 @@ public class PreprocessorRulesTest {
 
   @Test
   public void testReportPointRules() {
-    String pointLine = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\" \"foo\"=\"bar\"";
+    String pointLine = "\"Some Metric\" 10.0 1469751813 source=\"Host\" \"boo\"=\"Baz\" \"foo\"=\"bar\"";
     ReportPoint point = parsePointLine(pointLine);
+
+    // lowercase a point tag value with no match - shouldn't change anything
+    new ReportPointForceLowercaseTransformer("boo", "nomatch.*", null).apply(point);
+    assertEquals(pointLine, referencePointToStringImpl(point));
+
+    // lowercase a point tag value - shouldn't affect metric name or source
+    new ReportPointForceLowercaseTransformer("boo", null, null).apply(point);
+    String expectedPoint1a = "\"Some Metric\" 10.0 1469751813 source=\"Host\" \"boo\"=\"baz\" \"foo\"=\"bar\"";
+    assertEquals(expectedPoint1a, referencePointToStringImpl(point));
+
+    // lowercase a metric name - shouldn't affect remaining source
+    new ReportPointForceLowercaseTransformer("metricName", null, null).apply(point);
+    String expectedPoint1b = "\"some metric\" 10.0 1469751813 source=\"Host\" \"boo\"=\"baz\" \"foo\"=\"bar\"";
+    assertEquals(expectedPoint1b, referencePointToStringImpl(point));
+
+    // lowercase source
+    new ReportPointForceLowercaseTransformer("sourceName", null, null).apply(point);
+    assertEquals(pointLine.toLowerCase(), referencePointToStringImpl(point));
 
     // try to remove a point tag when value doesn't match the regex - shouldn't change
     new ReportPointDropTagTransformer("foo", "bar(never|match)", null).apply(point);
-    assertEquals(pointLine, referencePointToStringImpl(point));
+    assertEquals(pointLine.toLowerCase(), referencePointToStringImpl(point));
 
     // try to remove a point tag when value does match the regex - should work
     new ReportPointDropTagTransformer("foo", "ba.", null).apply(point);
@@ -190,7 +239,7 @@ public class PreprocessorRulesTest {
 
     // add another point tag back - should work this time
     new ReportPointAddTagIfNotExistsTransformer("foo", "bar", null).apply(point);
-    assertEquals(pointLine, referencePointToStringImpl(point));
+    assertEquals(pointLine.toLowerCase(), referencePointToStringImpl(point));
 
     // rename a point tag - should work
     new ReportPointRenameTagTransformer("foo", "qux", null, null).apply(point);
@@ -242,6 +291,15 @@ public class PreprocessorRulesTest {
     new ReportPointReplaceRegexTransformer("qux", "([a-c][a-c]).", "$1z", null, null, null).apply(point);
     String expectedPoint10 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"baz\"";
     assertEquals(expectedPoint10, referencePointToStringImpl(point));
+
+    // replace regex in a point tag value with placeholders
+    // try to substitute sourceName, a point tag value and a non-existent point tag
+    new ReportPointReplaceRegexTransformer("qux", "az", "{{foo}}-{{no_match}}-g{{sourceName}}", null, null, null)
+        .apply(point);
+    String expectedPoint11 =
+        "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"bzaz-{{no_match}}-gh0st\"";
+    assertEquals(expectedPoint11, referencePointToStringImpl(point));
+
   }
 
   @Test

@@ -6,6 +6,8 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
 import com.beust.jcommander.internal.Lists;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
@@ -43,12 +45,12 @@ import com.wavefront.ingester.TcpIngester;
 import net.openhft.chronicle.map.ChronicleMap;
 
 import org.apache.commons.lang.BooleanUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.logstash.beats.Server;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
+import java.net.InetAddress;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -85,6 +87,14 @@ public class PushAgent extends AbstractAgent {
   protected ScheduledExecutorService histogramExecutor;
   protected ScheduledExecutorService histogramScanExecutor;
   protected ScheduledExecutorService histogramFlushExecutor;
+
+  /**
+   * Maintain a short-term cache for reverse DNS lookup results to avoid spamming DNS servers
+   */
+  protected final LoadingCache<InetAddress, String> reverseDnsCache = Caffeine.newBuilder()
+      .maximumSize(5000)
+      .refreshAfterWrite(5, TimeUnit.MINUTES)
+      .build(InetAddress::getHostName);
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -228,7 +238,7 @@ public class PushAgent extends AbstractAgent {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(httpJsonPorts);
       for (String strPort : ports) {
         preprocessors.forPort(strPort).forReportPoint()
-            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
 
         startAsManagedThread(() -> {
               activeListeners.inc();
@@ -255,7 +265,7 @@ public class PushAgent extends AbstractAgent {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonPorts);
       for (String strPort : ports) {
         preprocessors.forPort(strPort).forReportPoint()
-            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
 
         startAsManagedThread(() -> {
               activeListeners.inc();
@@ -341,7 +351,7 @@ public class PushAgent extends AbstractAgent {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     final int port = Integer.parseInt(strPort);
     final PostPushDataTimedTask[] flushTasks = getFlushTasks(strPort);
     ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
@@ -365,7 +375,7 @@ public class PushAgent extends AbstractAgent {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     int port = Integer.parseInt(strPort);
     // Set up a custom handler
     ChannelHandler handler = new ChannelByteArrayHandler(
@@ -418,7 +428,7 @@ public class PushAgent extends AbstractAgent {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours));
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     // Add a metadatahandler, to handle @SourceTag, @SourceDescription, etc.
     SourceTagHandler metadataHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(port));
     // Set up a custom graphite handler, with no formatter
@@ -429,14 +439,14 @@ public class PushAgent extends AbstractAgent {
 
     if (!withCustomFormatter) {
       List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);
-      handler.add(new Function<Channel, ChannelHandler>() {
-        @Override
-        public ChannelHandler apply(Channel input) {
-          SocketChannel ch = (SocketChannel) input;
+      handler.add(input -> {
+        SocketChannel ch = (SocketChannel) input;
+        if (ch != null && ch.remoteAddress() != null) {
           return new GraphiteHostAnnotator(disableRdnsLookup
               ? ch.remoteAddress().getAddress().getHostAddress()
-              : ch.remoteAddress().getHostName(), customSourceTags);
+              : reverseDnsCache.get(ch.remoteAddress().getAddress()), customSourceTags);
         }
+        return new GraphiteHostAnnotator("unknown", customSourceTags);
       });
       startAsManagedThread(new StringLineIngester(handler, graphiteHandler, port)
           .withChildChannelOptions(childChannelOptions), "listener-plaintext-wavefront-" + port);
@@ -588,12 +598,12 @@ public class PushAgent extends AbstractAgent {
         if (pointsPerBatch != null) {
           // if the collector is in charge and it provided a setting, use it
           pushFlushMaxPoints.set(pointsPerBatch.intValue());
-          logger.fine("Agent push batch set to (remotely) " + pointsPerBatch);
+          logger.fine("Proxy push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
         pushFlushMaxPoints.set(pushFlushMaxPointsInitialValue);
-        logger.fine("Agent push batch set to (locally) " + pushFlushMaxPoints.get());
+        logger.fine("Proxy push batch set to (locally) " + pushFlushMaxPoints.get());
       }
 
       if (config.getCollectorSetsRetryBackoff() != null &&
@@ -601,13 +611,13 @@ public class PushAgent extends AbstractAgent {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
           retryBackoffBaseSeconds.set(config.getRetryBackoffBaseSeconds());
-          logger.fine("Agent backoff base set to (remotely) " +
+          logger.fine("Proxy backoff base set to (remotely) " +
               config.getRetryBackoffBaseSeconds());
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
         retryBackoffBaseSeconds.set(retryBackoffBaseSecondsInitialValue);
-        logger.fine("Agent backoff base set to (locally) " + retryBackoffBaseSeconds.get());
+        logger.fine("Proxy backoff base set to (locally) " + retryBackoffBaseSeconds.get());
       }
 
       histogramDisabled.set(BooleanUtils.toBoolean(config.getHistogramDisabled()));
