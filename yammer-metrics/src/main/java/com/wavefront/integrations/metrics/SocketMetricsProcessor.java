@@ -15,7 +15,10 @@ import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
@@ -27,17 +30,23 @@ import java.util.logging.Logger;
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class SocketMetricsProcessor implements MetricProcessor<Void> {
+
   protected static final Logger logger = Logger.getLogger(SocketMetricsProcessor.class.getCanonicalName());
+
+  /**
+   * Once a histogram is reported, we'll continue to report it (even if {@link #sendEmptyHistograms} is true). Similar
+   * to {@link #sendZeroCounters}, {@link #sendEmptyHistograms} is used to prevent unused metrics from hitting being
+   * emitted (thus wasting resources). Once a histogram has seen values, we'll track it. Weak hash map so that if the
+   * histogram is out-of-scope, we won't hold a reference.
+   */
+  private final Set<Histogram> reportedHistograms = Collections.newSetFromMap(new WeakHashMap<>());
+
   private ReconnectingSocket metricsSocket, histogramsSocket;
   private final Supplier<Long> timeSupplier;
+  private final boolean sendZeroCounters;
+  private final boolean sendEmptyHistograms;
   private final boolean prependGroupName;
   private final boolean clear;
-
-  SocketMetricsProcessor(String hostname, int port, int wavefrontHistogramPort, Supplier<Long> timeSupplier,
-                         boolean prependGroupName)
-      throws IOException {
-    this(hostname, port, wavefrontHistogramPort, timeSupplier, prependGroupName, false);
-  }
 
   /**
    * @param hostname               Host of the WF-graphite telemetry sink.
@@ -48,9 +57,11 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
    * @param clear                  If true, clear histograms and timers after flush.
    */
   SocketMetricsProcessor(String hostname, int port, int wavefrontHistogramPort, Supplier<Long> timeSupplier,
-                         boolean prependGroupName, boolean clear)
+                         boolean prependGroupName, boolean clear, boolean sendZeroCounters, boolean sendEmptyHistograms)
       throws IOException {
     this.timeSupplier = timeSupplier;
+    this.sendZeroCounters = sendZeroCounters;
+    this.sendEmptyHistograms = sendEmptyHistograms;
     this.metricsSocket = new ReconnectingSocket(hostname, port);
     this.histogramsSocket = new ReconnectingSocket(hostname, wavefrontHistogramPort);
     this.prependGroupName = prependGroupName;
@@ -115,11 +126,24 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
 
   @Override
   public void processCounter(MetricName name, Counter counter, Void context) throws Exception {
+    if (!sendZeroCounters && counter.count() == 0) return;
     writeMetric(name, null, counter.count());
   }
 
   @Override
   public void processHistogram(MetricName name, Histogram histogram, Void context) throws Exception {
+    if (!sendEmptyHistograms) {
+      if (histogram.count() == 0) {
+        if (!reportedHistograms.contains(histogram)) {
+          // we may skip this.
+          return;
+        }
+      } else {
+        // histogram is not empty and we would skip sending empty ones if it becomes empty in the future. track that
+        // we have seen this before.
+        reportedHistograms.add(histogram);
+      }
+    }
     if (histogram instanceof WavefrontHistogram) {
       StringBuilder sb = new StringBuilder();
       sb.append("!M ").append(timeSupplier.get() / 1000);

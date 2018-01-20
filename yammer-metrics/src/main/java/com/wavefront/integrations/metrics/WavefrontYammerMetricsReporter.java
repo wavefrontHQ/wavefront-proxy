@@ -29,22 +29,34 @@ import javax.annotation.Nullable;
 public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
 
   protected static final Logger logger = Logger.getLogger(WavefrontYammerMetricsReporter.class.getCanonicalName());
-  private SocketMetricsProcessor socketMetricProcessor;
-  private MetricTranslator metricTranslator;
-  private int metricsGeneratedLastPass = 0;  /* How many metrics were emitted in the last call to run()? */
-  private final boolean includeJvmMetrics;
-  private final boolean clearMetrics;
+
   private static final Clock clock = Clock.defaultClock();
   private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
+
+  private final boolean includeJvmMetrics;
   private final ConcurrentHashMap<String, Double> gaugeMap;
+  private final SocketMetricsProcessor socketMetricProcessor;
+  private final MetricTranslator metricTranslator;
+
+  private int metricsGeneratedLastPass = 0;  /* How many metrics were emitted in the last call to run()? */
 
   public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
                                         int wavefrontHistogramPort, Supplier<Long> timeSupplier) throws IOException {
     this(metricsRegistry, name, hostname, port, wavefrontHistogramPort, timeSupplier, false, null, false, false);
   }
 
+  public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
+                                        int wavefrontHistogramPort, Supplier<Long> timeSupplier,
+                                        boolean prependGroupName,
+                                        @Nullable MetricTranslator metricTranslator,
+                                        boolean includeJvmMetrics,
+                                        boolean clearMetrics) throws IOException {
+    this(metricsRegistry, name, hostname, port, wavefrontHistogramPort, timeSupplier, prependGroupName,
+        metricTranslator, includeJvmMetrics, clearMetrics, true, true);
+  }
+
   /**
-   * Reporter of a Yammer metrics registry to Wavefront
+   * Reporter of a Yammer metrics registry to Wavefront.
    *
    * @param metricsRegistry        The registry to scan-and-report
    * @param name                   A human readable name for this reporter
@@ -57,6 +69,9 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
    *                               is useful for adding point tags. Warning: this is called once per metric per scan, so
    *                               it should probably be performant. May be null.
    * @param clearMetrics           If true, clear histograms and timers per flush.
+   * @param sendZeroCounters       Whether counters with a value of zero is sent across.
+   * @param sendEmptyHistograms    Whether empty histograms are sent across the wire.
+   * @param includeJvmMetrics      Whether JVM metrics are automatically included.
    * @throws IOException When we can't remotely connect to Wavefront.
    */
   public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
@@ -64,13 +79,14 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
                                         boolean prependGroupName,
                                         @Nullable MetricTranslator metricTranslator,
                                         boolean includeJvmMetrics,
-                                        boolean clearMetrics) throws IOException {
+                                        boolean clearMetrics,
+                                        boolean sendZeroCounters,
+                                        boolean sendEmptyHistograms) throws IOException {
     super(metricsRegistry, name);
     this.metricTranslator = metricTranslator;
     this.socketMetricProcessor = new SocketMetricsProcessor(hostname, port, wavefrontHistogramPort, timeSupplier,
-        prependGroupName, clearMetrics);
+        prependGroupName, clearMetrics, sendZeroCounters, sendEmptyHistograms);
     this.includeJvmMetrics = includeJvmMetrics;
-    this.clearMetrics = clearMetrics;
     this.gaugeMap = new ConcurrentHashMap<>();
   }
 
