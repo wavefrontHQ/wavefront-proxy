@@ -4,7 +4,6 @@ import org.antlr.v4.runtime.Token;
 
 import java.util.List;
 import java.util.Queue;
-import java.util.logging.Logger;
 
 import wavefront.report.ReportSourceTag;
 
@@ -13,11 +12,7 @@ import wavefront.report.ReportSourceTag;
  *
  * @author Suranjan Pramanik (suranjan@wavefront.com).
  */
-public class SourceTagIngesterFormatter<T extends ReportSourceTag> extends
-    AbstractIngesterFormatter<T> {
-
-  private static final Logger logger = Logger.getLogger(SourceTagIngesterFormatter.class
-      .getCanonicalName());
+public class ReportSourceTagIngesterFormatter extends AbstractIngesterFormatter<ReportSourceTag> {
 
   public static final String SOURCE = "source";
   public static final String DESCRIPTION = "description";
@@ -25,7 +20,7 @@ public class SourceTagIngesterFormatter<T extends ReportSourceTag> extends
   public static final String ACTION_SAVE = "save";
   public static final String ACTION_DELETE = "delete";
 
-  private SourceTagIngesterFormatter(List<FormatterElement> elements) {
+  private ReportSourceTagIngesterFormatter(List<FormatterElement> elements) {
     super(elements);
   }
 
@@ -41,16 +36,11 @@ public class SourceTagIngesterFormatter<T extends ReportSourceTag> extends
   /**
    * This method can be used to parse the input line into a ReportSourceTag object.
    *
-   * @param input
-   * @param defaultHostName
-   * @param customerId
-   * @param customerSourceTags
    * @return The parsed ReportSourceTag object.
    */
   @Override
-  public T drive(String input, String defaultHostName, String customerId,
+  public ReportSourceTag drive(String input, String defaultHostName, String customerId,
                                List<String> customerSourceTags) {
-
     Queue<Token> queue = getQueue(input);
 
     ReportSourceTag sourceTag = new ReportSourceTag();
@@ -78,17 +68,17 @@ public class SourceTagIngesterFormatter<T extends ReportSourceTag> extends
       // no value was specified hence throw an exception
       throw new RuntimeException("No action key was present in the input: " + input);
     }
-    return (T) sourceTag;
+    return ReportSourceTag.newBuilder(sourceTag).build();
   }
 
   /**
    * A builder pattern to create a format for the source tag parser.
    */
-  public static class SourceTagIngesterFormatBuilder extends IngesterFormatBuilder {
+  public static class SourceTagIngesterFormatBuilder extends IngesterFormatBuilder<ReportSourceTag> {
 
     @Override
-    public SourceTagIngesterFormatter build() {
-      return new SourceTagIngesterFormatter(elements);
+    public ReportSourceTagIngesterFormatter build() {
+      return new ReportSourceTagIngesterFormatter(elements);
     }
   }
 }

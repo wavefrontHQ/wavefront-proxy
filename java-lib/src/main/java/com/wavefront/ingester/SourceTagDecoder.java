@@ -18,7 +18,7 @@ public class SourceTagDecoder {
   public static final String SOURCE_DESCRIPTION = "@SourceDescription";
 
   private static final AbstractIngesterFormatter<ReportSourceTag> FORMAT =
-      SourceTagIngesterFormatter.newBuilder()
+      ReportSourceTagIngesterFormatter.newBuilder()
       .whiteSpace()
       .appendCaseSensitiveLiterals(new String[]{SOURCE_TAG, SOURCE_DESCRIPTION})
       .whiteSpace()

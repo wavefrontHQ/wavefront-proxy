@@ -1,6 +1,5 @@
 package com.wavefront.ingester;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -17,7 +16,7 @@ import wavefront.report.ReportPoint;
 public class HistogramDecoder implements Decoder<String> {
   private static final Logger logger = Logger.getLogger(HistogramDecoder.class.getCanonicalName());
   private static final AbstractIngesterFormatter<ReportPoint> FORMAT =
-      IngesterFormatter.newBuilder()
+      ReportPointIngesterFormatter.newBuilder()
       .whiteSpace()
       .binType()
       .whiteSpace()
@@ -44,9 +43,9 @@ public class HistogramDecoder implements Decoder<String> {
 
   @Override
   public void decodeReportPoints(String msg, List<ReportPoint> out, String customerId) {
-    ReportPoint point = FORMAT.drive(msg, defaultHostName, customerId, new ArrayList<>());
+    ReportPoint point = FORMAT.drive(msg, defaultHostName, customerId);
     if (point != null) {
-      out.add(point);
+      out.add(ReportPoint.newBuilder(point).build());
     }
   }
 

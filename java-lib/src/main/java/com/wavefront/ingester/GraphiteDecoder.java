@@ -21,7 +21,7 @@ public class GraphiteDecoder implements Decoder<String> {
 
   private static final Pattern CUSTOMERID = Pattern.compile("[a-z]+");
   private static final AbstractIngesterFormatter<ReportPoint> FORMAT =
-      IngesterFormatter.newBuilder()
+      ReportPointIngesterFormatter.newBuilder()
       .whiteSpace()
       .appendMetricName().whiteSpace()
       .appendValue().whiteSpace()

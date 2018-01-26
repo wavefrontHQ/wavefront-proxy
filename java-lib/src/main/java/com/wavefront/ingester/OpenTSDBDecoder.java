@@ -17,7 +17,7 @@ public class OpenTSDBDecoder implements Decoder<String> {
 
   private final String hostName;
   private static final AbstractIngesterFormatter<ReportPoint> FORMAT =
-      IngesterFormatter.newBuilder()
+      ReportPointIngesterFormatter.newBuilder()
       .whiteSpace()
       .appendCaseInsensitiveLiteral("put").whiteSpace()
       .appendMetricName().whiteSpace()

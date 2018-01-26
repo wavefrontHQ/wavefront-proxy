@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import javax.annotation.Nullable;
+
 import wavefront.report.ReportPoint;
 
 /**
@@ -16,31 +18,30 @@ import wavefront.report.ReportPoint;
  *
  * @author Clement Pang (clement@wavefront.com).
  */
-public class IngesterFormatter<T extends ReportPoint> extends AbstractIngesterFormatter<T> {
+public class ReportPointIngesterFormatter extends AbstractIngesterFormatter<ReportPoint> {
 
-  private IngesterFormatter(List<FormatterElement> elements) {
+  private ReportPointIngesterFormatter(List<FormatterElement> elements) {
     super(elements);
   }
 
   /**
    * A builder pattern to create a format for the report point parse.
    */
-  public static class ReportPointIngesterFormatBuilder extends IngesterFormatBuilder {
+  public static class ReportPointIngesterFormatBuilder extends IngesterFormatBuilder<ReportPoint> {
 
     @Override
-    public IngesterFormatter build() {
-      return new IngesterFormatter(elements);
+    public ReportPointIngesterFormatter build() {
+      return new ReportPointIngesterFormatter(elements);
     }
   }
 
-  public static IngesterFormatBuilder newBuilder() {
+  public static IngesterFormatBuilder<ReportPoint> newBuilder() {
     return new ReportPointIngesterFormatBuilder();
   }
 
   @Override
-  public T drive(String input, String defaultHostName, String customerId,
-                           List<String> customSourceTags) {
-
+  public ReportPoint drive(String input, String defaultHostName, String customerId,
+                           @Nullable List<String> customSourceTags) {
     Queue<Token> queue = getQueue(input);
 
     ReportPoint point = new ReportPoint();
@@ -73,7 +74,7 @@ public class IngesterFormatter<T extends ReportPoint> extends AbstractIngesterFo
       if (annotations.containsKey("tag")) {
         annotations.put("_tag", annotations.remove("tag"));
       }
-      if (host == null) {
+      if (host == null && customSourceTags != null) {
         // iterate over the set of custom tags, breaking when one is found
         for (String tag : customSourceTags) {
           host = annotations.get(tag);
@@ -87,6 +88,6 @@ public class IngesterFormatter<T extends ReportPoint> extends AbstractIngesterFo
       host = defaultHostName;
     }
     point.setHost(host);
-    return (T) point;
+    return ReportPoint.newBuilder(point).build();
   }
 }

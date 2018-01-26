@@ -12,8 +12,6 @@ import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 import org.antlr.v4.runtime.Token;
 import org.apache.commons.lang.time.DateUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -21,17 +19,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
+
+import queryserver.parser.DSWrapperLexer;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
-import queryserver.parser.DSWrapperLexer;
 import wavefront.report.ReportSourceTag;
-
-import static com.google.common.base.MoreObjects.firstNonNull;
 
 /**
  * This is the base class for formatting the content.
@@ -39,11 +38,9 @@ import static com.google.common.base.MoreObjects.firstNonNull;
  * @author Suranjan Pramanik (suranjan@wavefront.com)
  */
 public abstract class AbstractIngesterFormatter<T> {
-  private static final Logger logger = LoggerFactory.getLogger(AbstractIngesterFormatter.class
-      .getCanonicalName());
 
   protected static final FormatterElement WHITESPACE_ELEMENT = new
-      IngesterFormatter.Whitespace();
+      ReportPointIngesterFormatter.Whitespace();
   protected static final Pattern SINGLE_QUOTE_PATTERN = Pattern.compile("\\'", Pattern.LITERAL);
   protected static final Pattern DOUBLE_QUOTE_PATTERN = Pattern.compile("\\\"", Pattern.LITERAL);
   protected static final String DOUBLE_QUOTE_REPLACEMENT = Matcher.quoteReplacement("\"");
@@ -130,7 +127,7 @@ public abstract class AbstractIngesterFormatter<T> {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
-    Map<String,String> getAnnotations() {
+    Map<String, String> getAnnotations() {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
@@ -217,7 +214,7 @@ public abstract class AbstractIngesterFormatter<T> {
     }
 
     @Override
-    Map<String,String> getAnnotations() {
+    Map<String, String> getAnnotations() {
       return reportPoint.getAnnotations();
     }
 
@@ -291,94 +288,94 @@ public abstract class AbstractIngesterFormatter<T> {
    * This class can be used to create a parser for a content that the proxy receives - e.g.,
    * ReportPoint and ReportSourceTag.
    */
-  public abstract static class IngesterFormatBuilder {
-    protected final List<FormatterElement> elements = Lists.newArrayList();
+  public abstract static class IngesterFormatBuilder<T> {
 
-    public IngesterFormatBuilder appendCaseSensitiveLiteral(String literal) {
+    final List<FormatterElement> elements = Lists.newArrayList();
+
+    public IngesterFormatBuilder<T> appendCaseSensitiveLiteral(String literal) {
       elements.add(new Literal(literal, true));
       return this;
     }
 
-    public IngesterFormatBuilder appendCaseSensitiveLiterals(String[] literals) {
+    public IngesterFormatBuilder<T> appendCaseSensitiveLiterals(String[] literals) {
       elements.add(new Literals(literals, true));
       return this;
     }
 
-    public IngesterFormatBuilder appendCaseInsensitiveLiteral(String literal) {
+    public IngesterFormatBuilder<T> appendCaseInsensitiveLiteral(String literal) {
       elements.add(new Literal(literal, false));
       return this;
     }
 
-    public IngesterFormatBuilder appendMetricName() {
+    public IngesterFormatBuilder<T> appendMetricName() {
       elements.add(new Metric());
       return this;
     }
 
-    public IngesterFormatBuilder appendValue() {
+    public IngesterFormatBuilder<T> appendValue() {
       elements.add(new Value());
       return this;
     }
 
-    public IngesterFormatBuilder appendTimestamp() {
+    public IngesterFormatBuilder<T> appendTimestamp() {
       elements.add(new AdaptiveTimestamp(false));
       return this;
     }
 
-    public IngesterFormatBuilder appendOptionalTimestamp() {
+    public IngesterFormatBuilder<T> appendOptionalTimestamp() {
       elements.add(new AdaptiveTimestamp(true));
       return this;
     }
 
-    public IngesterFormatBuilder appendTimestamp(TimeUnit timeUnit) {
+    public IngesterFormatBuilder<T> appendTimestamp(TimeUnit timeUnit) {
       elements.add(new Timestamp(timeUnit, false));
       return this;
     }
 
-    public IngesterFormatBuilder appendOptionalTimestamp(TimeUnit timeUnit) {
+    public IngesterFormatBuilder<T> appendOptionalTimestamp(TimeUnit timeUnit) {
       elements.add(new Timestamp(timeUnit, true));
       return this;
     }
 
-    public IngesterFormatBuilder appendAnnotationsConsumer() {
+    public IngesterFormatBuilder<T> appendAnnotationsConsumer() {
       elements.add(new Loop(new Tag()));
       return this;
     }
 
-    public IngesterFormatBuilder whiteSpace() {
+    public IngesterFormatBuilder<T> whiteSpace() {
       elements.add(new Whitespace());
       return this;
     }
 
-    public IngesterFormatBuilder binType() {
+    public IngesterFormatBuilder<T> binType() {
       elements.add(new BinType());
       return this;
     }
 
-    public IngesterFormatBuilder centroids() {
+    public IngesterFormatBuilder<T> centroids() {
       elements.add(new GuardedLoop(new Centroid(), Centroid.expectedToken(), false));
       return this;
     }
 
-    public IngesterFormatBuilder adjustTimestamp() {
+    public IngesterFormatBuilder<T> adjustTimestamp() {
       elements.add(new TimestampAdjuster());
       return this;
     }
 
-    public IngesterFormatBuilder appendLoopOfKeywords() {
+    public IngesterFormatBuilder<T> appendLoopOfKeywords() {
       elements.add(new LoopOfKeywords());
       return this;
     }
 
-    public IngesterFormatBuilder appendLoopOfValues() {
+    public IngesterFormatBuilder<T> appendLoopOfValues() {
       elements.add(new LoopOfValues());
       return this;
     }
 
     /**
      * Subclasses will provide concrete implementation for this method.
-     * @return
      */
-    public abstract AbstractIngesterFormatter build();
+    public abstract AbstractIngesterFormatter<T> build();
   }
 
   public static class Loop implements FormatterElement {
@@ -432,7 +429,7 @@ public abstract class AbstractIngesterFormatter<T> {
           throw new RuntimeException("Unknown BinType " + binType);
       }
 
-      Histogram h = firstNonNull((Histogram) point.getValue(), new Histogram());
+      Histogram h = computeIfNull((Histogram) point.getValue(), Histogram::new);
       h.setDuration(durationMillis);
       h.setType(HistogramType.TDIGEST);
       point.setValue(h);
@@ -467,12 +464,12 @@ public abstract class AbstractIngesterFormatter<T> {
       // Mean
       double mean = parseValue(tokenQueue, "centroid mean");
 
-      Histogram h = firstNonNull((Histogram) point.getValue(), new Histogram());
-      List<Double> bins = firstNonNull(h.getBins(), new ArrayList<>());
+      Histogram h = computeIfNull((Histogram) point.getValue(), Histogram::new);
+      List<Double> bins = computeIfNull(h.getBins(), ArrayList::new);
       bins.add(mean);
       h.setBins(bins);
 
-      List<Integer> counts = firstNonNull(h.getCounts(), new ArrayList<>());
+      List<Integer> counts = computeIfNull(h.getCounts(), ArrayList::new);
       counts.add(count);
       h.setCounts(counts);
       point.setValue(h);
@@ -550,7 +547,7 @@ public abstract class AbstractIngesterFormatter<T> {
       String tagv = getLiteral(queue);
       if (tagv.length() == 0) throw new RuntimeException("Invalid tag value for: " + tagk);
       if (point.getAnnotations() == null) {
-        point.setAnnotations(Maps.<String, String>newHashMap());
+        point.setAnnotations(Maps.newHashMap());
       }
       point.getAnnotations().put(tagk, tagv);
     }
@@ -598,7 +595,7 @@ public abstract class AbstractIngesterFormatter<T> {
         if (!value.equals("")) {
           throw new RuntimeException("invalid metric value: " + value + current.getText());
         }
-        value += IngesterFormatter.unquote(current.getText());
+        value += ReportPointIngesterFormatter.unquote(current.getText());
       } else if (current.getType() == DSWrapperLexer.Letters ||
           current.getType() == DSWrapperLexer.Literal ||
           current.getType() == DSWrapperLexer.Number) {
@@ -744,13 +741,13 @@ public abstract class AbstractIngesterFormatter<T> {
       if (tagv.length() == 0) throw new RuntimeException("Invalid tag value for: " + tagk);
 
       switch (tagk) {
-        case SourceTagIngesterFormatter.ACTION:
+        case ReportSourceTagIngesterFormatter.ACTION:
           sourceTag.setAction(tagv);
           break;
-        case SourceTagIngesterFormatter.SOURCE:
+        case ReportSourceTagIngesterFormatter.SOURCE:
           sourceTag.setSource(tagv);
           break;
-        case SourceTagIngesterFormatter.DESCRIPTION:
+        case ReportSourceTagIngesterFormatter.DESCRIPTION:
           sourceTag.setDescription(tagv);
           break;
         default:
@@ -925,6 +922,15 @@ public abstract class AbstractIngesterFormatter<T> {
     return text;
   }
 
+  public T drive(String input, String defaultHostName, String customerId) {
+    return drive(input, defaultHostName, customerId, null);
+  }
+
   public abstract T drive(String input, String defaultHostName, String customerId,
-                               List<String> customerSourceTags);
+                          @Nullable List<String> customerSourceTags);
+
+  static <T> T computeIfNull(@Nullable T input, Supplier<T> supplier) {
+    if (input == null) return supplier.get();
+    return input;
+  }
 }

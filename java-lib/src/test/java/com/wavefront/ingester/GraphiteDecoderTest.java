@@ -41,6 +41,14 @@ public class GraphiteDecoderTest {
     assertEquals("vehicle_2554", point.getHost());
 
     out = new ArrayList<>();
+    decoder.decodeReportPoints("tsdb.vehicle.charge.battery_level -93.123e3", out);
+    point = out.get(0);
+    assertEquals("tsdb", point.getTable());
+    assertEquals("vehicle.charge.battery_level", point.getMetric());
+    assertEquals(-93123.0, point.getValue());
+    assertEquals("vehicle_2554", point.getHost());
+
+    out = new ArrayList<>();
     decoder.decodeReportPoints("tsdb.vehicle.charge.battery_level 93.123e-3 host=vehicle_2554", out);
     point = out.get(0);
     assertEquals("tsdb", point.getTable());

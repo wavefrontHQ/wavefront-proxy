@@ -12,6 +12,7 @@ import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * @author Tim Schmidt (tim@wavefront.com).
@@ -263,5 +264,48 @@ public class HistogramDecoderTest {
     List<ReportPoint> out = new ArrayList<>();
 
     decoder.decodeReportPoints("1471988653 #3 123.237 source=Test tag=value", out, "customer");
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testMissingCentroid() {
+    HistogramDecoder decoder = new HistogramDecoder();
+    List<ReportPoint> out = new ArrayList<>();
+
+    decoder.decodeReportPoints("!M #1 TestMetric source=Test", out, "customer");
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testMissingCentroid2() {
+    HistogramDecoder decoder = new HistogramDecoder();
+    List<ReportPoint> out = new ArrayList<>();
+
+    decoder.decodeReportPoints("!M #1 12345 #2 TestMetric source=Test", out, "customer");
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testTooManyCentroids() {
+    HistogramDecoder decoder = new HistogramDecoder();
+    List<ReportPoint> out = new ArrayList<>();
+
+    decoder.decodeReportPoints("!M #1 12345 #2 123453 1234534 12334 TestMetric source=Test", out, "customer");
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testNoCentroids() {
+    HistogramDecoder decoder = new HistogramDecoder();
+    List<ReportPoint> out = new ArrayList<>();
+
+    decoder.decodeReportPoints("!M 12334 TestMetric source=Test", out, "customer");
+  }
+
+  @Test
+  public void testNoSourceAnnotationsIsNotNull() {
+    HistogramDecoder decoder = new HistogramDecoder();
+    List<ReportPoint> out = new ArrayList<>();
+
+    decoder.decodeReportPoints("!M #1 12334 TestMetric", out, "customer");
+
+    ReportPoint p = out.get(0);
+    assertNotNull(p.getAnnotations());
   }
 }
