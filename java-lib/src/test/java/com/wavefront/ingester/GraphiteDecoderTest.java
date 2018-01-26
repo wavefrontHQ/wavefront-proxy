@@ -12,6 +12,8 @@ import java.util.List;
 import wavefront.report.ReportPoint;
 
 import static junit.framework.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -46,7 +48,9 @@ public class GraphiteDecoderTest {
     assertEquals("tsdb", point.getTable());
     assertEquals("vehicle.charge.battery_level", point.getMetric());
     assertEquals(-93123.0, point.getValue());
-    assertEquals("vehicle_2554", point.getHost());
+    assertEquals("localhost", point.getHost());
+    assertNotNull(point.getAnnotations());
+    assertTrue(point.getAnnotations().isEmpty());
 
     out = new ArrayList<>();
     decoder.decodeReportPoints("tsdb.vehicle.charge.battery_level 93.123e-3 host=vehicle_2554", out);
