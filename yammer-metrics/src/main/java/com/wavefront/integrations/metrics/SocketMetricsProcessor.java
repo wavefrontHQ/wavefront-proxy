@@ -16,6 +16,7 @@ import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -148,7 +149,9 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       StringBuilder sb = new StringBuilder();
       sb.append("!M ").append(timeSupplier.get() / 1000);
       WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
-      for (WavefrontHistogram.MinuteBin minuteBin : wavefrontHistogram.bins(clear)) {
+      List<WavefrontHistogram.MinuteBin> bins = wavefrontHistogram.bins(clear);
+      if (bins.isEmpty()) return; // don't send empty histograms.
+      for (WavefrontHistogram.MinuteBin minuteBin : bins) {
         sb.append(" #").append(minuteBin.getDist().size()).append(" ").append(minuteBin.getDist().quantile(.5));
       }
       sb.append(" \"").append(getName(name)).append("\"").append(tagsForMetricName(name)).append("\n");
