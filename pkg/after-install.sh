@@ -35,6 +35,9 @@ if [[ -f /etc/debian_version ]]; then
 	update-rc.d $service_name defaults 99
 elif [[ -f /etc/redhat-release ]] || [[ -f /etc/system-release-cpe ]]; then
 	chkconfig --level 345 $service_name on
+elif [[ -f /etc/SUSE-brand ]]; then
+        insserv $service_name
+        systemctl enable $service_name
 fi
 
 # Allow system user to write .wavefront_id/buffer files to install dir.
