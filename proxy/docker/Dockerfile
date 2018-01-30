@@ -17,7 +17,7 @@ RUN rm dumb-init_*.deb
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Download wavefront. Merely extract the debian, don't want to try running startup scripts.
-RUN curl -SLO https://packagecloud.io/wavefront/proxy/packages/ubuntu/trusty/wavefront-proxy_4.17-9_amd64.deb/download
+RUN curl -SLO https://packagecloud.io/wavefront/proxy/packages/ubuntu/trusty/wavefront-proxy_4.25-1_amd64.deb/download
 RUN dpkg -x download /
 RUN rm download
 # Download and install JRE, since it's no longer bundled with the proxy
