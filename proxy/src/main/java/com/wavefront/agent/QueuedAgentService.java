@@ -293,14 +293,16 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             }
             logger.info("retry queue has been cleared");
           }
+
           // do the same thing for sourceTagQueues
           List<Integer> sourceTagQueueSizes = Lists.newArrayList(Lists.transform
-              (sourceTagTaskQueues,  new Function<ObjectQueue<ResubmissionTask>, Integer>() {
+              (sourceTagTaskQueues, new Function<ObjectQueue<ResubmissionTask>, Integer>() {
                 @Override
                 public Integer apply(ObjectQueue<ResubmissionTask> input) {
                   return input.size();
                 }
               }));
+
           if (Iterables.tryFind(sourceTagQueueSizes, new Predicate<Integer>() {
             @Override
             public boolean apply(Integer input) {
@@ -335,9 +337,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     });
   }
 
-  private Runnable createRunnable(final ScheduledExecutorService executorService, final boolean
-      splitPushWhenRateLimited, final int threadId, final
-      ResubmissionTaskQueue taskQueue, final RecyclableRateLimiter pushRateLimiter) {
+  private Runnable createRunnable(final ScheduledExecutorService executorService,
+                                  final boolean splitPushWhenRateLimited,
+                                  final int threadId,
+                                  final ResubmissionTaskQueue taskQueue,
+                                  final RecyclableRateLimiter pushRateLimiter) {
     return new Runnable() {
       private int backoffExponent = 1;
 
@@ -350,96 +354,91 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           logger.fine("[RETRY THREAD " + threadId + "] TASK STARTING");
           while (taskQueue.size() > 0 && taskQueue.size() > failures) {
             if (Thread.currentThread().isInterrupted()) return;
-            taskQueue.getLockObject().lock();
+            ResubmissionTask task = taskQueue.peek();
+            int taskSize = task == null ? 0 : task.size();
+            if (pushRateLimiter != null && pushRateLimiter.getAvailablePermits() < pushRateLimiter.getRate()) {
+              // if there's less than 1 second worth of accumulated credits, don't process the backlog queue
+              rateLimiting = true;
+              permitsDenied.inc(taskSize);
+              break;
+            }
+
+            if (pushRateLimiter != null && taskSize > 0) {
+              pushRateLimiter.acquire(taskSize);
+              permitsGranted.inc(taskSize);
+            }
+
+            boolean removeTask = true;
             try {
-              ResubmissionTask task = taskQueue.peek();
-              int taskSize = task == null ? 0 : task.size();
-              if (pushRateLimiter != null && pushRateLimiter.getAvailablePermits() < pushRateLimiter.getRate()) {
-                // if there's less than 1 second worth of accumulated credits, don't process the backlog queue
-                rateLimiting = true;
-                permitsDenied.inc(taskSize);
+              if (task != null) {
+                task.execute(null);
+                successes++;
+              }
+            } catch (Exception ex) {
+              if (pushRateLimiter != null) {
+                pushRateLimiter.recyclePermits(taskSize);
+                permitsRetried.inc(taskSize);
+              }
+              failures++;
+              //noinspection ThrowableResultOfMethodCallIgnored
+              if (Throwables.getRootCause(ex) instanceof QueuedPushTooLargeException) {
+                // this should split this task, remove it from the queue, and not try more tasks
+                logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected push with " +
+                    "HTTP 413: request too large - splitting data into smaller chunks to retry. ");
+                List<? extends ResubmissionTask> splitTasks = task.splitTask();
+                for (ResubmissionTask smallerTask : splitTasks) {
+                  taskQueue.add(smallerTask);
+                  queueSizes.get(taskQueue).incrementAndGet();
+                  queuePointsCount.addAndGet(smallerTask.size());
+                }
+                break;
+              } else //noinspection ThrowableResultOfMethodCallIgnored
+                if (Throwables.getRootCause(ex) instanceof RejectedExecutionException) {
+                  // this should either split and remove the original task or keep it at front
+                  // it also should not try any more tasks
+                  logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected the submission " +
+                      "(global rate limit exceeded) - will attempt later.");
+                  if (splitPushWhenRateLimited) {
+                    List<? extends ResubmissionTask> splitTasks = task.splitTask();
+                    for (ResubmissionTask smallerTask : splitTasks) {
+                      taskQueue.add(smallerTask);
+                      queueSizes.get(taskQueue).incrementAndGet();
+                      queuePointsCount.addAndGet(smallerTask.size());
+                    }
+                  } else {
+                    removeTask = false;
+                  }
+                  break;
+                } else {
+                  logger.log(Level.WARNING, "[RETRY THREAD " + threadId + "] cannot submit data to Wavefront servers. Will " +
+                      "re-attempt later", Throwables.getRootCause(ex));
+                }
+              // this can potentially cause a duplicate task to be injected (but since submission is mostly
+              // idempotent it's not really a big deal)
+              task.service = null;
+              task.currentAgentId = null;
+              taskQueue.add(task);
+              queueSizes.get(taskQueue).incrementAndGet();
+              queuePointsCount.addAndGet(taskSize);
+              if (failures > 10) {
+                logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will " +
+                    "re-attempt later");
                 break;
               }
-
-              if (pushRateLimiter != null && taskSize > 0) {
-                pushRateLimiter.acquire(taskSize);
-                permitsGranted.inc(taskSize);
-              }
-
-              boolean removeTask = true;
-              try {
-                if (task != null) {
-                  task.execute(null);
-                  successes++;
-                }
-              } catch (Exception ex) {
-                if (pushRateLimiter != null) {
-                  pushRateLimiter.recyclePermits(taskSize);
-                  permitsRetried.inc(taskSize);
-                }
-                failures++;
-                //noinspection ThrowableResultOfMethodCallIgnored
-                if (Throwables.getRootCause(ex) instanceof QueuedPushTooLargeException) {
-                  // this should split this task, remove it from the queue, and not try more tasks
-                  logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected push with " +
-                      "HTTP 413: request too large - splitting data into smaller chunks to retry. ");
-                  List<? extends ResubmissionTask> splitTasks = task.splitTask();
-                  for (ResubmissionTask smallerTask : splitTasks) {
-                    taskQueue.add(smallerTask);
-                    queueSizes.get(taskQueue).incrementAndGet();
-                    queuePointsCount.addAndGet(smallerTask.size());
-                  }
-                  break;
-                } else //noinspection ThrowableResultOfMethodCallIgnored
-                  if (Throwables.getRootCause(ex) instanceof RejectedExecutionException) {
-                    // this should either split and remove the original task or keep it at front
-                    // it also should not try any more tasks
-                    logger.warning("[RETRY THREAD " + threadId + "] Wavefront server rejected the submission " +
-                        "(global rate limit exceeded) - will attempt later.");
-                    if (splitPushWhenRateLimited) {
-                      List<? extends ResubmissionTask> splitTasks = task.splitTask();
-                      for (ResubmissionTask smallerTask : splitTasks) {
-                        taskQueue.add(smallerTask);
-                        queueSizes.get(taskQueue).incrementAndGet();
-                        queuePointsCount.addAndGet(smallerTask.size());
-                      }
-                    } else {
-                      removeTask = false;
-                    }
-                    break;
-                  } else {
-                    logger.log(Level.WARNING, "[RETRY THREAD " + threadId + "] cannot submit data to Wavefront servers. Will " +
-                        "re-attempt later", Throwables.getRootCause(ex));
-                  }
-                // this can potentially cause a duplicate task to be injected (but since submission is mostly
-                // idempotent it's not really a big deal)
-                task.service = null;
-                task.currentAgentId = null;
-                taskQueue.add(task);
-                queueSizes.get(taskQueue).incrementAndGet();
-                queuePointsCount.addAndGet(taskSize);
-                if (failures > 10) {
-                  logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will " +
-                      "re-attempt later");
-                  break;
-                }
-              } finally {
-                if (removeTask) {
-                  taskQueue.remove();
-                  queueSizes.get(taskQueue).decrementAndGet();
-                  queuePointsCount.addAndGet(-taskSize);
-                }
-              }
             } finally {
-              taskQueue.getLockObject().unlock();
+              if (removeTask) {
+                taskQueue.remove();
+                queueSizes.get(taskQueue).decrementAndGet();
+                queuePointsCount.addAndGet(-taskSize);
+              }
             }
           }
         } catch (Throwable ex) {
           logger.log(Level.WARNING, "[RETRY THREAD " + threadId + "] unexpected exception", ex);
         } finally {
+          logger.fine("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
+              ", Failed Batches: " + failures);
           if (rateLimiting) {
-            logger.fine("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
-                ", Failed Batches: " + failures);
             logger.fine("[RETRY THREAD " + threadId + "] Rate limit reached, will re-attempt later");
             // if proxy rate limit exceeded, try again in 250..500ms (to introduce some degree of fairness)
             executorService.schedule(this, 250 + (int) (Math.random() * 250), TimeUnit.MILLISECONDS);
@@ -451,8 +450,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             }
             long next = (long) ((Math.random() + 1.0) *
                 Math.pow(retryBackoffBaseSeconds.get(), backoffExponent));
-            logger.fine("[RETRY THREAD " + threadId + "] Successful Batches: " + successes +
-                ", Failed Batches: " + failures);
             logger.fine("[RETRY THREAD " + threadId + "] RESCHEDULING in " + next);
             executorService.schedule(this, next, TimeUnit.SECONDS);
           }
@@ -521,10 +518,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     return smallestQueue.orElse(null);
   }
 
-  private ObjectQueue<ResubmissionTask> getSmallestSourceTagQueue() {
+  private ResubmissionTaskQueue getSmallestSourceTagQueue() {
     int size = Integer.MAX_VALUE;
-    ObjectQueue<ResubmissionTask> toReturn = null;
-    for (ObjectQueue<ResubmissionTask> queue : sourceTagTaskQueues) {
+    ResubmissionTaskQueue toReturn = null;
+    for (ResubmissionTaskQueue queue : sourceTagTaskQueues) {
       if (queue.size() == 0) return queue;
       else if (queue.size() < size){
         toReturn = queue;
@@ -664,33 +661,28 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   private void addSourceTagTaskToSmallestQueue(ResubmissionTask taskToRetry) {
-    ObjectQueue<ResubmissionTask> queue = getSmallestSourceTagQueue();
+    ResubmissionTaskQueue queue = getSmallestSourceTagQueue();
     if (queue != null) {
-      synchronized (queue) {
-        try {
-          queue.add(taskToRetry);
-        } catch (FileException ex) {
-          logger.log(Level.WARNING, "CRITICAL (Losing sourceTags!): WF-1: Submission queue is " +
-              "full.", ex);
-        }
+      try {
+        queue.add(taskToRetry);
+      } catch (FileException ex) {
+        logger.log(Level.SEVERE, "CRITICAL (Losing sourceTags!): WF-1: Submission queue is " +
+            "full.", ex);
       }
     } else {
-      logger.warning("CRITICAL (Losing sourceTags!): WF-2: No retry queues found.");
+      logger.severe("CRITICAL (Losing sourceTags!): WF-2: No retry queues found.");
     }
   }
 
   private void addTaskToSmallestQueue(ResubmissionTask taskToRetry) {
     ResubmissionTaskQueue queue = getSmallestQueue();
     if (queue != null) {
-      queue.getLockObject().lock();
       try {
         queue.add(taskToRetry);
         queueSizes.get(queue).incrementAndGet();
         queuePointsCount.addAndGet(taskToRetry.size());
       } catch (FileException e) {
         logger.log(Level.SEVERE, "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
-      } finally {
-        queue.getLockObject().unlock();
       }
     } else {
       logger.severe("CRITICAL (Losing points!): WF-2: No retry queues found.");
