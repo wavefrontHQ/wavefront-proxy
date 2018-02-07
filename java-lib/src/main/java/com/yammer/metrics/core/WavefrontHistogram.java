@@ -94,7 +94,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
 
   @Override
   public void update(int value) {
-    update((long) value);
+    update((double) value);
   }
 
   /**
@@ -142,15 +142,21 @@ public class WavefrontHistogram extends Histogram implements Metric {
     }
   }
 
+  public void update(double value) {
+    getCurrent().dist.add(value);
+  }
+
   @Override
   public void update(long value) {
-    getCurrent().dist.add(value);
+    update((double)value);
   }
 
   @Override
   public double mean() {
     Collection<Centroid> centroids = snapshot().centroids();
-    return centroids.stream().mapToDouble(c -> (c.count() * c.mean()) / centroids.size()).sum();
+    return centroids.size() == 0 ?
+        Double.NaN :
+        centroids.stream().mapToDouble(c -> (c.count() * c.mean()) / centroids.size()).sum();
   }
 
   public double min() {
@@ -168,6 +174,16 @@ public class WavefrontHistogram extends Histogram implements Metric {
   @Override
   public long count() {
     return perThreadHistogramBins.values().stream().flatMap(List::stream).mapToLong(bin -> bin.dist.size()).sum();
+  }
+
+  @Override
+  public double sum() {
+    return Double.NaN;
+  }
+
+  @Override
+  public double stdDev() {
+    return Double.NaN;
   }
 
   /**

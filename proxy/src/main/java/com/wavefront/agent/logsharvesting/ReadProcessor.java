@@ -7,6 +7,7 @@ import com.yammer.metrics.core.Metered;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricProcessor;
 import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -24,7 +25,11 @@ public class ReadProcessor implements MetricProcessor<ReadProcessorContext> {
 
   @Override
   public void processHistogram(MetricName name, Histogram histogram, ReadProcessorContext context) throws Exception {
-    histogram.update(Math.round(context.getValue()));
+    if (histogram instanceof WavefrontHistogram) {
+      ((WavefrontHistogram) histogram).update(context.getValue());
+    } else {
+      histogram.update(Math.round(context.getValue()));
+    }
   }
 
   @Override

@@ -54,14 +54,15 @@ public class LogsIngester {
     LogsIngestionConfig logsIngestionConfig = logsIngestionConfigManager.getConfig();
 
     this.evictingMetricsRegistry = new EvictingMetricsRegistry(
-        logsIngestionConfig.expiryMillis, logsIngestionConfig.useWavefrontHistograms, currentMillis);
+        logsIngestionConfig.expiryMillis, true, currentMillis);
 
     // Logs harvesting metrics.
     this.unparsed = Metrics.newCounter(new MetricName("logsharvesting", "", "unparsed"));
     this.parsed = Metrics.newCounter(new MetricName("logsharvesting", "", "parsed"));
     this.sent = Metrics.newCounter(new MetricName("logsharvesting", "", "sent"));
     this.currentMillis = currentMillis;
-    this.flushProcessor = new FlushProcessor(sent, currentMillis);
+    this.flushProcessor = new FlushProcessor(sent, currentMillis, logsIngestionConfig.useWavefrontHistograms,
+        logsIngestionConfig.reportEmptyHistogramStats);
 
     // Set up user specified metric harvesting.
     this.pointHandler = pointHandler;
