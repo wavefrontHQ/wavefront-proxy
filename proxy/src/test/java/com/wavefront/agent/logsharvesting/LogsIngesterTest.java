@@ -307,12 +307,12 @@ public class LogsIngesterTest {
             PointMatchers.almostMatches(100.0, "myHisto.max", ImmutableMap.of()),
             PointMatchers.almostMatches(50.5, "myHisto.mean", ImmutableMap.of()),
             PointMatchers.almostMatches(50.5, "myHisto.median", ImmutableMap.of()),
-            PointMatchers.almostMatches(75.75, "myHisto.p75", ImmutableMap.of()),
-            PointMatchers.almostMatches(95.95, "myHisto.p95", ImmutableMap.of()),
-            PointMatchers.almostMatches(99.99, "myHisto.p99", ImmutableMap.of()),
-            PointMatchers.almostMatches(100.0, "myHisto.p999", ImmutableMap.of()),
-            PointMatchers.almostMatches(5050.0, "myHisto.sum", ImmutableMap.of()),
-            PointMatchers.almostMatches(29.011491, "myHisto.stddev", ImmutableMap.of())
+            PointMatchers.almostMatches(75.25, "myHisto.p75", ImmutableMap.of()),
+            PointMatchers.almostMatches(95.05, "myHisto.p95", ImmutableMap.of()),
+            PointMatchers.almostMatches(99.01, "myHisto.p99", ImmutableMap.of()),
+            PointMatchers.almostMatches(99.901, "myHisto.p999", ImmutableMap.of()),
+            PointMatchers.matches(Double.NaN, "myHisto.sum", ImmutableMap.of()),
+            PointMatchers.matches(Double.NaN, "myHisto.stddev", ImmutableMap.of())
         ))
     );
   }
