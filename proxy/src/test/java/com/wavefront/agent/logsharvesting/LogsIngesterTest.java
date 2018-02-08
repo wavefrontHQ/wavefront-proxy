@@ -255,6 +255,27 @@ public class LogsIngesterTest {
   }
 
   @Test
+  public void testDynamicTagValues() throws Exception {
+    setup("test.yml");
+    assertThat(
+        getPoints(3,
+            "operation TagValue foo took 2 seconds in DC=wavefront AZ=2a",
+            "operation TagValue foo took 2 seconds in DC=wavefront AZ=2a",
+            "operation TagValue foo took 3 seconds in DC=wavefront AZ=2b",
+            "operation TagValue bar took 4 seconds in DC=wavefront AZ=2a"),
+        containsInAnyOrder(
+            ImmutableList.of(
+                PointMatchers.matches(4L, "TagValue.foo.totalSeconds",
+                    ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2a", "static", "value", "noMatch", "aa%{q}bb")),
+                PointMatchers.matches(3L, "TagValue.foo.totalSeconds",
+                    ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2b", "static", "value", "noMatch", "aa%{q}bb")),
+                PointMatchers.matches(4L, "TagValue.bar.totalSeconds",
+                    ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2a", "static", "value", "noMatch", "aa%{q}bb"))
+            )
+        ));
+  }
+
+  @Test
   public void testAdditionalPatterns() throws Exception {
     setup("test.yml");
     assertThat(
