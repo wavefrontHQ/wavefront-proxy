@@ -7,3 +7,5 @@ The Proxy will accept Wavefront formatted message on port 2878 and OpenTSDB form
         -p 2878:2878 \
         -p 4242:4242 \
         wavefront-proxy
+
+All properties that exist in [wavefront.conf](https://github.com/wavefrontHQ/java/blob/master/pkg/etc/wavefront/wavefront-proxy/wavefront.conf.default) can be customized by passing their name as long form arguments within your docker run command in the WAVEFRONT_PROXY_ARGS environment variable. For example, add `-e WAVEFRONT_PROXY_ARGS="--hostname=wavefront-proxy-1"` to your docker run command to specify the [hostname](https://github.com/wavefrontHQ/java/blob/master/pkg/etc/wavefront/wavefront-proxy/wavefront.conf.default#L17) that the proxy will use to report its internal metrics to Wavefront.
