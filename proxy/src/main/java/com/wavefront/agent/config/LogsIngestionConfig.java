@@ -55,15 +55,15 @@ import oi.thekraken.grok.api.exception.GrokException;
  *     metricName: "shells"
  *     valueLabel: "value"
  *   # For log line "operation foo took 42 seconds in DC=oregon and AZ=2a", increment "foo.totalSeconds" with point
- *   # tags "theDC=oregon theAZ=2a" by 42
+ *   # tags "theDC=oregon theAZ=az-2a" by 42
  *   - pattern: "operation %{WORD:op} took %{NUMBER:value} seconds in DC=%{WORD:dc}.*AZ=%{WORD:az}"
  *     metricName: "%{op}.totalSeconds"
  *     tagKeys:
  *       - "theDC"
  *       - "theAZ"
- *     tagValueLabels:
- *       - "dc"
- *       - "az"
+ *     tagValues:
+ *       - "%{dc}"
+ *       - "az-%{az}"
  *   # For log line '127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"',
  *   # increment apacheBytes by 2326. See the patterns file.
  *   - pattern: "%{COMBINEDAPACHELOG}"

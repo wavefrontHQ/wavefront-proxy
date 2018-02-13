@@ -13,6 +13,8 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import oi.thekraken.grok.api.Grok;
 import oi.thekraken.grok.api.Match;
@@ -49,14 +51,27 @@ public class MetricMatcher extends Configuration {
   @JsonProperty
   private List<String> tagKeys = ImmutableList.of();
   /**
+   * Deprecated, use tagValues instead
+   *
    * A parallel array to {@link #tagKeys}. Each entry is a label you defined in {@link #pattern}. For example, you
    * might use ["datacenter", "env"] if your pattern is
    * "operation foo in %{WORD:datacenter}:%{WORD:env} succeeded in %{NUMBER:value} milliseconds", and your log line is
    * "operation foo in 2a:prod succeeded in 1234 milliseconds", then you would generate the point
    * "foo.latency 1234 myDataCenter=2a myEnvironment=prod"
    */
+  @Deprecated
   @JsonProperty
   private List<String> tagValueLabels = ImmutableList.of();
+  /**
+   * A parallel array to {@link #tagKeys}. Each entry is a string value that will be used as a tag value,
+   * substituting %{...} placeholders with corresponding labels you defined in {@link #pattern}. For example, you
+   * might use ["%{datacenter}", "%{env}-environment", "staticTag"] if your pattern is
+   * "operation foo in %{WORD:datacenter}:%{WORD:env} succeeded in %{NUMBER:value} milliseconds", and your log line is
+   * "operation foo in 2a:prod succeeded in 1234 milliseconds", then you would generate the point
+   * "foo.latency 1234 myDataCenter=2a myEnvironment=prod-environment myStaticValue=staticTag"
+   */
+  @JsonProperty
+  private List<String> tagValues = ImmutableList.of();
   /**
    * The label which is used to parse a telemetry datum from the log line.
    */
@@ -94,15 +109,25 @@ public class MetricMatcher extends Configuration {
     }
   }
 
-  private String dynamicMetricName(Map<String, Object> replacements) {
-    if (!metricName.contains("%{")) return metricName;
-    String dynamicName = metricName;
-    for (String key : replacements.keySet()) {
-      String value = (String) replacements.get(key);
-      if (value == null) continue;
-      dynamicName = StringUtils.replace(dynamicName, "%{" + key + "}", value);
+  private static String expandTemplate(String template, Map<String, Object> replacements) {
+    if (template.contains("%{")) {
+      StringBuffer result = new StringBuffer();
+      Matcher placeholders = Pattern.compile("%\\{(.*?)}").matcher(template);
+      while (placeholders.find()) {
+        if (placeholders.group(1).isEmpty()) {
+          placeholders.appendReplacement(result, placeholders.group(0));
+        } else {
+          if (replacements.get(placeholders.group(1)) != null) {
+            placeholders.appendReplacement(result, (String)replacements.get(placeholders.group(1)));
+          } else {
+            placeholders.appendReplacement(result, placeholders.group(0));
+          }
+        }
+      }
+      placeholders.appendTail(result);
+      return result.toString();
     }
-    return dynamicName;
+    return template;
   }
 
   /**
@@ -123,20 +148,24 @@ public class MetricMatcher extends Configuration {
       }
     }
     TimeSeries.Builder builder = TimeSeries.newBuilder();
-    String dynamicName = dynamicMetricName(match.toMap());
+    String dynamicName = expandTemplate(metricName, match.toMap());
     // Important to use a tree map for tags, since we need a stable ordering for the serialization
     // into the LogsIngester.metricsCache.
     Map<String, String> tags = Maps.newTreeMap();
     for (int i = 0; i < tagKeys.size(); i++) {
       String tagKey = tagKeys.get(i);
-      String tagValueLabel = tagValueLabels.get(i);
-      if (!match.toMap().containsKey(tagValueLabel)) {
-        // What happened? We shouldn't have had matchEnd != 0 above...
-        logger.severe("Application error: unparsed tag key.");
-        continue;
+      if (tagValues.size() > 0) {
+        tags.put(tagKey, expandTemplate(tagValues.get(i), match.toMap()));
+      } else {
+        String tagValueLabel = tagValueLabels.get(i);
+        if (!match.toMap().containsKey(tagValueLabel)) {
+          // What happened? We shouldn't have had matchEnd != 0 above...
+          logger.severe("Application error: unparsed tag key.");
+          continue;
+        }
+        String value = (String) match.toMap().get(tagValueLabel);
+        tags.put(tagKey, value);
       }
-      String value = (String) match.toMap().get(tagValueLabel);
-      tags.put(tagKey, value);
     }
     builder.setAnnotations(tags);
     return builder.setMetric(dynamicName).setHost(logsMessage.hostOrDefault("parsed-logs")).build();
@@ -153,7 +182,9 @@ public class MetricMatcher extends Configuration {
     ensure(StringUtils.isNotBlank(metricName), "metric name must not be empty.");
     String fauxMetricName = metricName.replaceAll("%\\{.*\\}", "");
     ensure(Validation.charactersAreValid(fauxMetricName), "Metric name has illegal characters: " + metricName);
-    ensure(tagKeys.size() == tagValueLabels.size(), "tagKeys and tagValueLabels must be parallel arrays.");
+    ensure(!(tagValues.size() > 0 && tagValueLabels.size() > 0), "tagValues and tagValueLabels can't be used together");
+    ensure(tagKeys.size() == Math.max(tagValueLabels.size(), tagValues.size()),
+        "tagKeys and tagValues/tagValueLabels must be parallel arrays.");
   }
 
 }
