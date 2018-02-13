@@ -27,6 +27,7 @@ import wavefront.report.ReportPoint;
 public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
+  private static final Logger rawDataLogger = Logger.getLogger("RawDataLogger");
 
   private final Decoder<String> decoder;
 
@@ -37,6 +38,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   private final PointPreprocessor preprocessor;
   private final PointHandler pointHandler;
   private final SourceTagHandler metadataHandler;
+  private final boolean logRawDataFlag;
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
@@ -46,6 +48,10 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     this.pointHandler = pointhandler;
     this.preprocessor = preprocessor;
     this.metadataHandler = metadataHandler;
+
+    // check the property setting for logging raw data
+    String logRawDataProperty = System.getProperty("wavefront.proxy.lograwdata");
+    logRawDataFlag = logRawDataProperty != null && logRawDataProperty.equalsIgnoreCase("true");
   }
 
   public ChannelStringHandler(Decoder<String> decoder,
@@ -55,6 +61,10 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     this.pointHandler = pointhandler;
     this.preprocessor = preprocessor;
     this.metadataHandler = null;
+
+    // check the property setting for logging raw data
+    String logRawDataProperty = System.getProperty("wavefront.proxy.lograwdata");
+    logRawDataFlag = logRawDataProperty != null && logRawDataProperty.equalsIgnoreCase("true");
   }
 
   @Override
@@ -69,6 +79,9 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       }
     }
     // if msg does not match metadata keywords then treat it as a point
+    if(logRawDataFlag == true) {
+      rawDataLogger.info("[rawdata] " + msg);
+    }
     processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
   }
 
@@ -85,6 +98,9 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     if (message == null) return;
     String pointLine = message.trim();
     if (pointLine.isEmpty()) return;
+
+
+
 
     // transform the line if needed
     if (preprocessor != null) {
