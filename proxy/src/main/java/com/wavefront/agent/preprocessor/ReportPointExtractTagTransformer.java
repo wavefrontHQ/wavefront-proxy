@@ -27,8 +27,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   private final Pattern compiledSearchPattern;
   @Nullable
   private final Pattern compiledMatchPattern;
-  @Nullable
-  private final Counter ruleAppliedCounter;
+  private final PreprocessorRuleMetrics ruleMetrics;
 
   public ReportPointExtractTagTransformer(final String tag,
                                           final String source,
@@ -36,6 +35,15 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
                                           final String patternReplace,
                                           @Nullable final String patternMatch,
                                           @Nullable final Counter ruleAppliedCounter) {
+    this(tag, source, patternSearch, patternReplace, patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
+  }
+
+  public ReportPointExtractTagTransformer(final String tag,
+                                          final String source,
+                                          final String patternSearch,
+                                          final String patternReplace,
+                                          @Nullable final String patternMatch,
+                                          final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.source = Preconditions.checkNotNull(source, "[source] can't be null");
     this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
@@ -44,7 +52,8 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
     Preconditions.checkArgument(!source.isEmpty(), "[source] can't be blank");
     Preconditions.checkArgument(!patternSearch.isEmpty(), "[search] can't be blank");
     this.compiledMatchPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
-    this.ruleAppliedCounter = ruleAppliedCounter;
+    Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
+    this.ruleMetrics = ruleMetrics;
   }
 
   private void extractTag(@NotNull ReportPoint reportPoint, final String extractFrom) {
@@ -60,15 +69,14 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
       String value = patternMatcher.replaceAll(PreprocessorUtil.expandPlaceholders(patternReplace, reportPoint));
       if (!value.isEmpty()) {
         reportPoint.getAnnotations().put(tag, value);
-        if (ruleAppliedCounter != null) {
-          ruleAppliedCounter.inc();
-        }
+        ruleMetrics.incrementRuleAppliedCounter();
       }
     }
   }
 
   @Override
   public ReportPoint apply(@NotNull ReportPoint reportPoint) {
+    Long startNanos = System.nanoTime();
     switch (source) {
       case "metricName":
         extractTag(reportPoint, reportPoint.getMetric());
@@ -81,6 +89,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
           extractTag(reportPoint, reportPoint.getAnnotations().get(source));
         }
     }
+    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
     return reportPoint;
   }
 }

@@ -25,21 +25,29 @@ public class ReportPointDropTagTransformer implements Function<ReportPoint, Repo
   private final Pattern compiledTagPattern;
   @Nullable
   private final Pattern compiledValuePattern;
-  @Nullable
-  private final Counter ruleAppliedCounter;
+  private final PreprocessorRuleMetrics ruleMetrics;
 
   public ReportPointDropTagTransformer(final String tag,
                                        @Nullable final String patternMatch,
                                        @Nullable final Counter ruleAppliedCounter) {
+    this(tag, patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
+  }
+
+  public ReportPointDropTagTransformer(final String tag,
+                                       @Nullable final String patternMatch,
+                                       final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledTagPattern = Pattern.compile(Preconditions.checkNotNull(tag, "[tag] can't be null"));
     Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");
     this.compiledValuePattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
-    this.ruleAppliedCounter = ruleAppliedCounter;
+    Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
+    this.ruleMetrics = ruleMetrics;
   }
 
   @Override
   public ReportPoint apply(@NotNull ReportPoint reportPoint) {
+    Long startNanos = System.nanoTime();
     if (reportPoint.getAnnotations() == null || compiledTagPattern == null) {
+      ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
       return reportPoint;
     }
     Iterator<Map.Entry<String, String>> iterator = reportPoint.getAnnotations().entrySet().iterator();
@@ -48,12 +56,11 @@ public class ReportPointDropTagTransformer implements Function<ReportPoint, Repo
       if (compiledTagPattern.matcher(entry.getKey()).matches()) {
         if (compiledValuePattern == null || compiledValuePattern.matcher(entry.getValue()).matches()) {
           iterator.remove();
-          if (ruleAppliedCounter != null) {
-            ruleAppliedCounter.inc();
-          }
+          ruleMetrics.incrementRuleAppliedCounter();
         }
       }
     }
+    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
     return reportPoint;
   }
 }

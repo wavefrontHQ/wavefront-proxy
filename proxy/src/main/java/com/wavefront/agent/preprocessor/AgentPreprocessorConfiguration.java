@@ -5,7 +5,6 @@ import com.google.common.collect.Sets;
 
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Counter;
 
 import org.apache.commons.lang.StringUtils;
 import org.yaml.snakeyaml.Yaml;
@@ -76,25 +75,28 @@ public class AgentPreprocessorConfiguration {
             requireArguments(rule, "rule", "action");
             allowArguments(rule, "rule", "action", "scope", "search", "replace", "match",
                 "tag", "newtag", "value", "source", "iterations");
-            Counter counter = Metrics.newCounter(new TaggedMetricName("preprocessor." +
-                rule.get("rule").replaceAll("[^a-z0-9_-]", ""), "count", "port", strPort));
+            String ruleName = rule.get("rule").replaceAll("[^a-z0-9_-]", "");
+            PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+                Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName, "count", "port", strPort)),
+                Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName, "cpu_nanos", "port", strPort)));
+
             if (rule.get("scope") != null && rule.get("scope").equals("pointLine")) {
               switch (rule.get("action")) {
                 case "replaceRegex":
                   allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "iterations");
                   this.forPort(strPort).forPointLine().addTransformer(
                       new PointLineReplaceRegexTransformer(rule.get("search"), rule.get("replace"), rule.get("match"),
-                          Integer.parseInt(rule.getOrDefault("iterations", "1")), counter));
+                          Integer.parseInt(rule.getOrDefault("iterations", "1")), ruleMetrics));
                   break;
                 case "blacklistRegex":
                   allowArguments(rule, "rule", "action", "scope", "match");
                   this.forPort(strPort).forPointLine().addFilter(
-                      new PointLineBlacklistRegexFilter(rule.get("match"), counter));
+                      new PointLineBlacklistRegexFilter(rule.get("match"), ruleMetrics));
                   break;
                 case "whitelistRegex":
                   allowArguments(rule, "rule", "action", "scope", "match");
                   this.forPort(strPort).forPointLine().addFilter(
-                      new PointLineWhitelistRegexFilter(rule.get("match"), counter));
+                      new PointLineWhitelistRegexFilter(rule.get("match"), ruleMetrics));
                   break;
                 default:
                   throw new IllegalArgumentException("Action '" + rule.get("action") +
@@ -106,49 +108,49 @@ public class AgentPreprocessorConfiguration {
                   allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "iterations");
                   this.forPort(strPort).forReportPoint().addTransformer(
                       new ReportPointReplaceRegexTransformer(rule.get("scope"), rule.get("search"), rule.get("replace"),
-                          rule.get("match"), Integer.parseInt(rule.getOrDefault("iterations", "1")), counter));
+                          rule.get("match"), Integer.parseInt(rule.getOrDefault("iterations", "1")), ruleMetrics));
                   break;
                 case "forceLowercase":
                   allowArguments(rule, "rule", "action", "scope", "match");
                   this.forPort(strPort).forReportPoint().addTransformer(
-                      new ReportPointForceLowercaseTransformer(rule.get("scope"), rule.get("match"), counter));
+                      new ReportPointForceLowercaseTransformer(rule.get("scope"), rule.get("match"), ruleMetrics));
                   break;
                 case "addTag":
                   allowArguments(rule, "rule", "action", "tag", "value");
                   this.forPort(strPort).forReportPoint().addTransformer(
-                      new ReportPointAddTagTransformer(rule.get("tag"), rule.get("value"), counter));
+                      new ReportPointAddTagTransformer(rule.get("tag"), rule.get("value"), ruleMetrics));
                   break;
                 case "addTagIfNotExists":
                   allowArguments(rule, "rule", "action", "tag", "value");
                   this.forPort(strPort).forReportPoint().addTransformer(
-                      new ReportPointAddTagIfNotExistsTransformer(rule.get("tag"), rule.get("value"), counter));
+                      new ReportPointAddTagIfNotExistsTransformer(rule.get("tag"), rule.get("value"), ruleMetrics));
                   break;
                 case "dropTag":
                   allowArguments(rule, "rule", "action", "tag", "match");
                   this.forPort(strPort).forReportPoint().addTransformer(
-                      new ReportPointDropTagTransformer(rule.get("tag"), rule.get("match"), counter));
+                      new ReportPointDropTagTransformer(rule.get("tag"), rule.get("match"), ruleMetrics));
                   break;
                 case "extractTag":
                   allowArguments(rule, "rule", "action", "tag", "source", "search", "replace", "match");
                   this.forPort(strPort).forReportPoint().addTransformer(
                       new ReportPointExtractTagTransformer(rule.get("tag"), rule.get("source"), rule.get("search"),
-                          rule.get("replace"), rule.get("match"), counter));
+                          rule.get("replace"), rule.get("match"), ruleMetrics));
                   break;
                 case "renameTag":
                   allowArguments(rule, "rule", "action", "tag", "newtag", "match");
                   this.forPort(strPort).forReportPoint().addTransformer(
                       new ReportPointRenameTagTransformer(
-                          rule.get("tag"), rule.get("newtag"), rule.get("match"), counter));
+                          rule.get("tag"), rule.get("newtag"), rule.get("match"), ruleMetrics));
                   break;
                 case "blacklistRegex":
                   allowArguments(rule, "rule", "action", "scope", "match");
                   this.forPort(strPort).forReportPoint().addFilter(
-                      new ReportPointBlacklistRegexFilter(rule.get("scope"), rule.get("match"), counter));
+                      new ReportPointBlacklistRegexFilter(rule.get("scope"), rule.get("match"), ruleMetrics));
                   break;
                 case "whitelistRegex":
                   allowArguments(rule, "rule", "action", "scope", "match");
                   this.forPort(strPort).forReportPoint().addFilter(
-                      new ReportPointWhitelistRegexFilter(rule.get("scope"), rule.get("match"), counter));
+                      new ReportPointWhitelistRegexFilter(rule.get("scope"), rule.get("match"), ruleMetrics));
                   break;
                 default:
                   throw new IllegalArgumentException("Action '" + rule.get("action") + "' is not valid");
