@@ -18,22 +18,48 @@ import java.util.regex.Pattern;
 public abstract class MetricsToTimeseries {
 
   public static Map<String, Double> explodeSummarizable(Summarizable metric) {
+    return explodeSummarizable(metric, false);
+  }
+
+  /**
+   * Retrieve values for pre-defined stats (min/max/mean/sum/stddev) from a {@link Summarizable} metric (e.g. histogram)
+   *
+   * @param metric            metric to retrieve stats from
+   * @param convertNanToZero  simulate {@link com.yammer.metrics.core.Histogram} histogram behavior when used with
+   *                          {@link com.yammer.metrics.core.WavefrontHistogram} as input:
+   *                          when "true", empty WavefrontHistogram reports zero values for all stats
+   * @return summarizable stats
+   */
+  public static Map<String, Double> explodeSummarizable(Summarizable metric, boolean convertNanToZero) {
     return ImmutableMap.<String, Double>builder()
-        .put("min", metric.min())
-        .put("max", metric.max())
-        .put("mean", metric.mean())
+        .put("min", sanitizeValue(metric.min(), convertNanToZero))
+        .put("max", sanitizeValue(metric.max(), convertNanToZero))
+        .put("mean", sanitizeValue(metric.mean(), convertNanToZero))
         .put("sum", metric.sum())
         .put("stddev", metric.stdDev())
         .build();
   }
 
   public static Map<String, Double> explodeSampling(Sampling sampling) {
+    return explodeSampling(sampling, false);
+  }
+
+  /**
+   * Retrieve values for pre-defined stats (median/p75/p95/p99/p999) from a {@link Sampling} metric (e.g. histogram)
+   *
+   * @param sampling          metric to retrieve stats from
+   * @param convertNanToZero  simulate {@link com.yammer.metrics.core.Histogram} histogram behavior when used with
+   *                          {@link com.yammer.metrics.core.WavefrontHistogram} as input:
+   *                          when "true", empty WavefrontHistogram reports zero values for all stats
+   * @return sampling stats
+   */
+  public static Map<String, Double> explodeSampling(Sampling sampling, boolean convertNanToZero) {
     return ImmutableMap.<String, Double>builder()
-        .put("median", sampling.getSnapshot().getMedian())
-        .put("p75", sampling.getSnapshot().get75thPercentile())
-        .put("p95", sampling.getSnapshot().get95thPercentile())
-        .put("p99", sampling.getSnapshot().get99thPercentile())
-        .put("p999", sampling.getSnapshot().get999thPercentile())
+        .put("median", sanitizeValue(sampling.getSnapshot().getMedian(), convertNanToZero))
+        .put("p75", sanitizeValue(sampling.getSnapshot().get75thPercentile(), convertNanToZero))
+        .put("p95", sanitizeValue(sampling.getSnapshot().get95thPercentile(), convertNanToZero))
+        .put("p99", sanitizeValue(sampling.getSnapshot().get99thPercentile(), convertNanToZero))
+        .put("p999", sanitizeValue(sampling.getSnapshot().get999thPercentile(), convertNanToZero))
         .build();
   }
 
@@ -111,6 +137,10 @@ public abstract class MetricsToTimeseries {
 
   public static String sanitize(MetricName metricName) {
     return sanitize(metricName.getGroup() + "." + metricName.getName());
+  }
+
+  public static double sanitizeValue(double value, boolean convertNanToZero) {
+    return Double.isNaN(value) && convertNanToZero ? 0 : value;
   }
 
 }

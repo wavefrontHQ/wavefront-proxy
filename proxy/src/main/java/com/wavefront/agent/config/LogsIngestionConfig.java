@@ -135,6 +135,13 @@ public class LogsIngestionConfig extends Configuration {
   public boolean useWavefrontHistograms = false;
 
   /**
+   * If true (default), simulate Yammer histogram behavior (report all stats as zeroes when histogram is empty).
+   * Otherwise, only .count is reported with a zero value.
+   */
+  @JsonProperty
+  public boolean reportEmptyHistogramStats = true;
+
+  /**
    * How often to check this config file for updates.
    */
   @JsonProperty
