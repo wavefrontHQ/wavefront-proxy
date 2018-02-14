@@ -250,7 +250,7 @@ public class WavefrontReporter extends ScheduledReporter {
           }
         });
       registry.register("jvm.classes", new ClassLoadingGaugeSet());
-      registry.register("jvm.fd_usage", new FileDescriptorRatioGauge());
+      registry.register("jvm.fd_usage", new SafeFileDescriptorRatioGauge());
       registry.register("jvm.buffers", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
       registry.register("jvm.gc", new GarbageCollectorMetricSet());
       registry.register("jvm.memory", new MemoryUsageGaugeSet());
