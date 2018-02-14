@@ -34,7 +34,7 @@ public class SafeFileDescriptorRatioGauge extends RatioGauge {
   }
 
   /**
-   * @return  {@link com.codahale.metrics.RatioGauge.Ratio of used to total file descriptors.}
+   * @return  {@link com.codahale.metrics.RatioGauge.Ratio} of used to total file descriptors.
    */
   protected Ratio getRatio() {
     if (!(this.os instanceof UnixOperatingSystemMXBean)) {
