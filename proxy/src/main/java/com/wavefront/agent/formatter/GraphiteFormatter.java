@@ -62,7 +62,7 @@ public class GraphiteFormatter implements Function<String, String> {
     // 4. Add Graphite 1.1+ tags
     if (components.annotations != null) {
       finalMesg.append(" ");
-      for (int index = 1; index < components.annotations.length; index++) {
+      for (int index = 0; index < components.annotations.length; index++) {
         finalMesg.append(components.annotations[index]);
         finalMesg.append(" ");
       }
