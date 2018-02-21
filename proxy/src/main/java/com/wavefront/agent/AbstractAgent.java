@@ -765,8 +765,8 @@ public abstract class AbstractAgent {
         prefix = Strings.emptyToNull(config.getString("prefix", prefix));
         pushLogLevel = config.getString("pushLogLevel", pushLogLevel);
         pushValidationLevel = config.getString("pushValidationLevel", pushValidationLevel);
-        token = config.getRawProperty("token", token); // don't track
-        server = config.getRawProperty("server", server); // don't track
+        token = config.getRawProperty("token", token).trim(); // don't track
+        server = config.getRawProperty("server", server).trim(); // don't track
         hostname = config.getString("hostname", hostname);
         idFile = config.getString("idFile", idFile);
         pushRateLimit = config.getNumber("pushRateLimit", pushRateLimit).intValue();
