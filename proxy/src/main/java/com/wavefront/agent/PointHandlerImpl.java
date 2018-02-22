@@ -7,10 +7,12 @@ import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.lang.time.DateUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,11 +32,13 @@ public class PointHandlerImpl implements PointHandler {
   private static final Logger logger = Logger.getLogger(PointHandlerImpl.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
   private static final Logger validPointsLogger = Logger.getLogger("RawValidPoints");
+  private static final Random RANDOM = new Random();
 
   private final Histogram receivedPointLag;
   private final String validationLevel;
   private final String handle;
   private boolean logPoints = false;
+  private final double logPointsSampleRate;
   private volatile long logPointsUpdatedMillis = 0L;
 
   /**
@@ -66,6 +70,9 @@ public class PointHandlerImpl implements PointHandler {
     this.prefix = prefix;
     String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
     this.logPointsFlag = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
+    String logPointsSampleRateProperty = System.getProperty("wavefront.proxy.logpoints.sample-rate");
+    this.logPointsSampleRate = logPointsSampleRateProperty != null &&
+        NumberUtils.isNumber(logPointsSampleRateProperty) ? Double.parseDouble(logPointsSampleRateProperty) : 1.0d;
 
     this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle + ".received", "", "lag"));
 
@@ -89,12 +96,19 @@ public class PointHandlerImpl implements PointHandler {
 
       if (logPointsUpdatedMillis + TimeUnit.SECONDS.toMillis(1) < System.currentTimeMillis()) {
         // refresh validPointsLogger level once a second
-        logPoints = validPointsLogger.isLoggable(Level.FINEST);
+        if (logPoints != validPointsLogger.isLoggable(Level.FINEST)) {
+          logPoints = !logPoints;
+          logger.info("Valid points logging is now " + (logPoints ?
+              "enabled with " + (logPointsSampleRate * 100) + "% sampling":
+              "disabled"));
+        }
         logPointsUpdatedMillis = System.currentTimeMillis();
       }
-      if (logPoints || logPointsFlag) {
+      if ((logPoints || logPointsFlag) &&
+          (logPointsSampleRate >= 1.0d || (logPointsSampleRate > 0.0d && RANDOM.nextDouble() < logPointsSampleRate))) {
         // we log valid points only if system property wavefront.proxy.logpoints is true or RawValidPoints log level is
         // set to "ALL". this is done to prevent introducing overhead and accidentally logging points to the main log
+        // Additionally, honor sample rate limit, if set.
         validPointsLogger.info(strPoint);
       }
       randomPostTask.addPoint(strPoint);
