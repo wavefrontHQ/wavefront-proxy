@@ -98,7 +98,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
     if (nameSuffix != null && !nameSuffix.equals("")) {
       sb.append(".").append(nameSuffix);
     }
-    sb.append("\" ").append(value).append(tagsForMetricName(metricName));
+    sb.append("\" ").append(value).append(" ").append(timeSupplier.get() / 1000).append(tagsForMetricName(metricName));
     metricsSocket.write(sb.append("\n").toString());
   }
 

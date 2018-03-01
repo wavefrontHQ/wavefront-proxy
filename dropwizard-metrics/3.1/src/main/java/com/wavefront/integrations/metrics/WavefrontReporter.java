@@ -399,72 +399,74 @@ public class WavefrontReporter extends ScheduledReporter {
 
   private void reportTimer(String name, Timer timer) throws IOException {
     final Snapshot snapshot = timer.getSnapshot();
-
-    wavefront.send(prefix(name, "max"), convertDuration(snapshot.getMax()), source, pointTags);
-    wavefront.send(prefix(name, "mean"), convertDuration(snapshot.getMean()), source, pointTags);
-    wavefront.send(prefix(name, "min"), convertDuration(snapshot.getMin()), source, pointTags);
+    final long time = clock.getTime() / 1000;
+    wavefront.send(prefix(name, "max"), convertDuration(snapshot.getMax()), time, source, pointTags);
+    wavefront.send(prefix(name, "mean"), convertDuration(snapshot.getMean()), time, source, pointTags);
+    wavefront.send(prefix(name, "min"), convertDuration(snapshot.getMin()), time, source, pointTags);
     wavefront.send(prefix(name, "stddev"),
         convertDuration(snapshot.getStdDev()),
-        source, pointTags);
+        time, source, pointTags);
     wavefront.send(prefix(name, "p50"),
         convertDuration(snapshot.getMedian()),
-        source, pointTags);
+        time, source, pointTags);
     wavefront.send(prefix(name, "p75"),
         convertDuration(snapshot.get75thPercentile()),
-        source, pointTags);
+        time, source, pointTags);
     wavefront.send(prefix(name, "p95"),
         convertDuration(snapshot.get95thPercentile()),
-        source, pointTags);
+        time, source, pointTags);
     wavefront.send(prefix(name, "p98"),
         convertDuration(snapshot.get98thPercentile()),
-        source, pointTags);
+        time, source, pointTags);
     wavefront.send(prefix(name, "p99"),
         convertDuration(snapshot.get99thPercentile()),
-        source, pointTags);
+        time, source, pointTags);
     wavefront.send(prefix(name, "p999"),
         convertDuration(snapshot.get999thPercentile()),
-        source, pointTags);
+        time, source, pointTags);
 
     reportMetered(name, timer);
   }
 
   private void reportMetered(String name, Metered meter) throws IOException {
     wavefront.send(prefix(name, "count"), meter.getCount(), source, pointTags);
+    final long time = clock.getTime() / 1000;
     wavefront.send(prefix(name, "m1_rate"),
-        convertRate(meter.getOneMinuteRate()),
+        convertRate(meter.getOneMinuteRate()), time,
         source, pointTags);
     wavefront.send(prefix(name, "m5_rate"),
-        convertRate(meter.getFiveMinuteRate()),
+        convertRate(meter.getFiveMinuteRate()), time,
         source, pointTags);
     wavefront.send(prefix(name, "m15_rate"),
-        convertRate(meter.getFifteenMinuteRate()),
+        convertRate(meter.getFifteenMinuteRate()), time,
         source, pointTags);
     wavefront.send(prefix(name, "mean_rate"),
-        convertRate(meter.getMeanRate()),
+        convertRate(meter.getMeanRate()), time,
         source, pointTags);
   }
 
   private void reportHistogram(String name, Histogram histogram) throws IOException {
     final Snapshot snapshot = histogram.getSnapshot();
-    wavefront.send(prefix(name, "count"), histogram.getCount(), source, pointTags);
-    wavefront.send(prefix(name, "max"), snapshot.getMax(), source, pointTags);
-    wavefront.send(prefix(name, "mean"), snapshot.getMean(), source, pointTags);
-    wavefront.send(prefix(name, "min"), snapshot.getMin(), source, pointTags);
-    wavefront.send(prefix(name, "stddev"), snapshot.getStdDev(), source, pointTags);
-    wavefront.send(prefix(name, "p50"), snapshot.getMedian(), source, pointTags);
-    wavefront.send(prefix(name, "p75"), snapshot.get75thPercentile(), source, pointTags);
-    wavefront.send(prefix(name, "p95"), snapshot.get95thPercentile(), source, pointTags);
-    wavefront.send(prefix(name, "p98"), snapshot.get98thPercentile(), source, pointTags);
-    wavefront.send(prefix(name, "p99"), snapshot.get99thPercentile(), source, pointTags);
-    wavefront.send(prefix(name, "p999"), snapshot.get999thPercentile(), source, pointTags);
+    final long time = clock.getTime() / 1000;
+    wavefront.send(prefix(name, "count"), histogram.getCount(), time, source, pointTags);
+    wavefront.send(prefix(name, "max"), snapshot.getMax(), time, source, pointTags);
+    wavefront.send(prefix(name, "mean"), snapshot.getMean(), time, source, pointTags);
+    wavefront.send(prefix(name, "min"), snapshot.getMin(), time, source, pointTags);
+    wavefront.send(prefix(name, "stddev"), snapshot.getStdDev(), time, source, pointTags);
+    wavefront.send(prefix(name, "p50"), snapshot.getMedian(), time, source, pointTags);
+    wavefront.send(prefix(name, "p75"), snapshot.get75thPercentile(), time, source, pointTags);
+    wavefront.send(prefix(name, "p95"), snapshot.get95thPercentile(), time, source, pointTags);
+    wavefront.send(prefix(name, "p98"), snapshot.get98thPercentile(), time, source, pointTags);
+    wavefront.send(prefix(name, "p99"), snapshot.get99thPercentile(), time, source, pointTags);
+    wavefront.send(prefix(name, "p999"), snapshot.get999thPercentile(), time, source, pointTags);
   }
 
   private void reportCounter(String name, Counter counter) throws IOException {
-    wavefront.send(prefix(name, "count"), counter.getCount(), source, pointTags);
+    wavefront.send(prefix(name, "count"), counter.getCount(), clock.getTime() / 1000, source, pointTags);
   }
 
   private void reportGauge(String name, Gauge<Number> gauge) throws IOException {
-    wavefront.send(prefix(name), gauge.getValue().doubleValue(), source, pointTags);
+    wavefront.send(prefix(name), gauge.getValue().doubleValue(), clock.getTime() / 1000, source, pointTags);
   }
 
   private String prefix(String... components) {

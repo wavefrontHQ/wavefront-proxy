@@ -113,7 +113,7 @@ public class WavefrontYammerMetricsReporterTest {
     counter.inc();
     counter.inc();
     wavefrontYammerMetricsReporter.run();
-    assertThat(receiveFromSocket(1, fromMetrics), contains(equalTo("\"mycount\" 2.0")));
+    assertThat(receiveFromSocket(1, fromMetrics), contains(equalTo("\"mycount\" 2.0 1485224035")));
   }
 
   @Test(timeout = 1000)
@@ -128,7 +128,7 @@ public class WavefrontYammerMetricsReporterTest {
     wavefrontYammerMetricsReporter.run();
     assertThat(
         receiveFromSocket(1, fromMetrics),
-        contains(equalTo("\"mycounter\" 2.0 tagA=\"valueA\"")));
+        contains(equalTo("\"mycounter\" 2.0 1485224035 tagA=\"valueA\"")));
   }
 
   @Test(timeout = 1000)
@@ -141,7 +141,7 @@ public class WavefrontYammerMetricsReporterTest {
     wavefrontYammerMetricsReporter.run();
     assertThat(
         receiveFromSocket(1, fromMetrics),
-        contains(equalTo("\"mycounter\" 2.0 tag1=\"value1\" tag2=\"value2\"")));
+        contains(equalTo("\"mycounter\" 2.0 1485224035 tag1=\"value1\" tag2=\"value2\"")));
   }
 
   @Test(timeout = 1000)
@@ -152,21 +152,21 @@ public class WavefrontYammerMetricsReporterTest {
     histogram.update(10);
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(11, fromMetrics), containsInAnyOrder(
-        equalTo("\"myhisto.count\" 2.0"),
-        equalTo("\"myhisto.min\" 1.0"),
-        equalTo("\"myhisto.max\" 10.0"),
-        equalTo("\"myhisto.mean\" 5.5"),
-        equalTo("\"myhisto.sum\" 11.0"),
+        equalTo("\"myhisto.count\" 2.0 1485224035"),
+        equalTo("\"myhisto.min\" 1.0 1485224035"),
+        equalTo("\"myhisto.max\" 10.0 1485224035"),
+        equalTo("\"myhisto.mean\" 5.5 1485224035"),
+        equalTo("\"myhisto.sum\" 11.0 1485224035"),
         startsWith("\"myhisto.stddev\""),
-        equalTo("\"myhisto.median\" 5.5"),
-        equalTo("\"myhisto.p75\" 10.0"),
-        equalTo("\"myhisto.p95\" 10.0"),
-        equalTo("\"myhisto.p99\" 10.0"),
-        equalTo("\"myhisto.p999\" 10.0")
+        equalTo("\"myhisto.median\" 5.5 1485224035"),
+        equalTo("\"myhisto.p75\" 10.0 1485224035"),
+        equalTo("\"myhisto.p95\" 10.0 1485224035"),
+        equalTo("\"myhisto.p99\" 10.0 1485224035"),
+        equalTo("\"myhisto.p999\" 10.0 1485224035")
     ));
     // Second run should clear data.
     wavefrontYammerMetricsReporter.run();
-    assertThat(receiveFromSocket(11, fromMetrics), hasItem("\"myhisto.count\" 0.0"));
+    assertThat(receiveFromSocket(11, fromMetrics), hasItem("\"myhisto.count\" 0.0 1485224035"));
   }
 
   @Test(timeout = 1000)
@@ -177,32 +177,32 @@ public class WavefrontYammerMetricsReporterTest {
     histogram.update(10);
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(11, fromMetrics), containsInAnyOrder(
-        equalTo("\"myhisto.count\" 2.0"),
-        equalTo("\"myhisto.min\" 1.0"),
-        equalTo("\"myhisto.max\" 10.0"),
-        equalTo("\"myhisto.mean\" 5.5"),
-        equalTo("\"myhisto.sum\" 11.0"),
+        equalTo("\"myhisto.count\" 2.0 1485224035"),
+        equalTo("\"myhisto.min\" 1.0 1485224035"),
+        equalTo("\"myhisto.max\" 10.0 1485224035"),
+        equalTo("\"myhisto.mean\" 5.5 1485224035"),
+        equalTo("\"myhisto.sum\" 11.0 1485224035"),
         startsWith("\"myhisto.stddev\""),
-        equalTo("\"myhisto.median\" 5.5"),
-        equalTo("\"myhisto.p75\" 10.0"),
-        equalTo("\"myhisto.p95\" 10.0"),
-        equalTo("\"myhisto.p99\" 10.0"),
-        equalTo("\"myhisto.p999\" 10.0")
+        equalTo("\"myhisto.median\" 5.5 1485224035"),
+        equalTo("\"myhisto.p75\" 10.0 1485224035"),
+        equalTo("\"myhisto.p95\" 10.0 1485224035"),
+        equalTo("\"myhisto.p99\" 10.0 1485224035"),
+        equalTo("\"myhisto.p999\" 10.0 1485224035")
     ));
     // Second run should be the same.
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(11, fromMetrics), containsInAnyOrder(
-        equalTo("\"myhisto.count\" 2.0"),
-        equalTo("\"myhisto.min\" 1.0"),
-        equalTo("\"myhisto.max\" 10.0"),
-        equalTo("\"myhisto.mean\" 5.5"),
-        equalTo("\"myhisto.sum\" 11.0"),
+        equalTo("\"myhisto.count\" 2.0 1485224035"),
+        equalTo("\"myhisto.min\" 1.0 1485224035"),
+        equalTo("\"myhisto.max\" 10.0 1485224035"),
+        equalTo("\"myhisto.mean\" 5.5 1485224035"),
+        equalTo("\"myhisto.sum\" 11.0 1485224035"),
         startsWith("\"myhisto.stddev\""),
-        equalTo("\"myhisto.median\" 5.5"),
-        equalTo("\"myhisto.p75\" 10.0"),
-        equalTo("\"myhisto.p95\" 10.0"),
-        equalTo("\"myhisto.p99\" 10.0"),
-        equalTo("\"myhisto.p999\" 10.0")
+        equalTo("\"myhisto.median\" 5.5 1485224035"),
+        equalTo("\"myhisto.p75\" 10.0 1485224035"),
+        equalTo("\"myhisto.p95\" 10.0 1485224035"),
+        equalTo("\"myhisto.p99\" 10.0 1485224035"),
+        equalTo("\"myhisto.p999\" 10.0 1485224035")
     ));
   }
 
@@ -230,7 +230,7 @@ public class WavefrontYammerMetricsReporterTest {
     meter.mark(42);
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(5, fromMetrics), containsInAnyOrder(
-        equalTo("\"mymeter.count\" 42.0"),
+        equalTo("\"mymeter.count\" 42.0 1485224035"),
         startsWith("\"mymeter.mean\""),
         startsWith("\"mymeter.m1\""),
         startsWith("\"mymeter.m5\""),
@@ -248,7 +248,7 @@ public class WavefrontYammerMetricsReporterTest {
           }
         });
     wavefrontYammerMetricsReporter.run();
-    assertThat(receiveFromSocket(1, fromMetrics), contains(equalTo("\"mygauge\" 13.0")));
+    assertThat(receiveFromSocket(1, fromMetrics), contains(equalTo("\"mygauge\" 13.0 1485224035")));
   }
 
   @Test(timeout = 1000)
@@ -259,7 +259,7 @@ public class WavefrontYammerMetricsReporterTest {
     timer.time().stop();
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(15, fromMetrics), containsInAnyOrder(
-        equalTo("\"mytimer.rate.count\" 1.0 foo=\"bar\""),
+        equalTo("\"mytimer.rate.count\" 1.0 1485224035 foo=\"bar\""),
         startsWith("\"mytimer.duration.min\""),
         startsWith("\"mytimer.duration.max\""),
         startsWith("\"mytimer.duration.mean\""),
@@ -277,7 +277,7 @@ public class WavefrontYammerMetricsReporterTest {
     ));
 
     wavefrontYammerMetricsReporter.run();
-    assertThat(receiveFromSocket(15, fromMetrics), hasItem("\"mytimer.rate.count\" 0.0 foo=\"bar\""));
+    assertThat(receiveFromSocket(15, fromMetrics), hasItem("\"mytimer.rate.count\" 0.0 1485224035 foo=\"bar\""));
   }
 
   @Test(timeout = 1000)
@@ -287,7 +287,7 @@ public class WavefrontYammerMetricsReporterTest {
     timer.time().stop();
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(15, fromMetrics), containsInAnyOrder(
-        equalTo("\"mytimer.rate.count\" 1.0"),
+        equalTo("\"mytimer.rate.count\" 1.0 1485224035"),
         startsWith("\"mytimer.duration.min\""),
         startsWith("\"mytimer.duration.max\""),
         startsWith("\"mytimer.duration.mean\""),
@@ -307,7 +307,7 @@ public class WavefrontYammerMetricsReporterTest {
     // No changes.
     wavefrontYammerMetricsReporter.run();
     assertThat(receiveFromSocket(15, fromMetrics), containsInAnyOrder(
-        equalTo("\"mytimer.rate.count\" 1.0"),
+        equalTo("\"mytimer.rate.count\" 1.0 1485224035"),
         startsWith("\"mytimer.duration.min\""),
         startsWith("\"mytimer.duration.max\""),
         startsWith("\"mytimer.duration.mean\""),
@@ -356,18 +356,18 @@ public class WavefrontYammerMetricsReporterTest {
     assertThat(
         receiveFromSocket(12, fromMetrics),
         containsInAnyOrder(
-            equalTo("\"group.mycounter\" 2.0 tag1=\"value1\" tag2=\"value2\""),
-            equalTo("\"group2.myhisto.count\" 2.0"),
-            equalTo("\"group2.myhisto.min\" 1.0"),
-            equalTo("\"group2.myhisto.max\" 10.0"),
-            equalTo("\"group2.myhisto.mean\" 5.5"),
-            equalTo("\"group2.myhisto.sum\" 11.0"),
+            equalTo("\"group.mycounter\" 2.0 1485224035 tag1=\"value1\" tag2=\"value2\""),
+            equalTo("\"group2.myhisto.count\" 2.0 1485224035"),
+            equalTo("\"group2.myhisto.min\" 1.0 1485224035"),
+            equalTo("\"group2.myhisto.max\" 10.0 1485224035"),
+            equalTo("\"group2.myhisto.mean\" 5.5 1485224035"),
+            equalTo("\"group2.myhisto.sum\" 11.0 1485224035"),
             startsWith("\"group2.myhisto.stddev\""),
-            equalTo("\"group2.myhisto.median\" 5.5"),
-            equalTo("\"group2.myhisto.p75\" 10.0"),
-            equalTo("\"group2.myhisto.p95\" 10.0"),
-            equalTo("\"group2.myhisto.p99\" 10.0"),
-            equalTo("\"group2.myhisto.p999\" 10.0")));
+            equalTo("\"group2.myhisto.median\" 5.5 1485224035"),
+            equalTo("\"group2.myhisto.p75\" 10.0 1485224035"),
+            equalTo("\"group2.myhisto.p95\" 10.0 1485224035"),
+            equalTo("\"group2.myhisto.p99\" 10.0 1485224035"),
+            equalTo("\"group2.myhisto.p999\" 10.0 1485224035")));
 
     assertThat(
         receiveFromSocket(1, fromHistograms),
