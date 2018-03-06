@@ -60,7 +60,7 @@ if [[ -z $WAVEFRONT_TOKEN ]]; then
 	get_input "2) Please enter a valid API token:"
 	WAVEFRONT_TOKEN=$user_input
 fi
-echo "Setting token=$WAVEFRONT_TOKEN"
+echo "Setting token"
 if grep -q ^#token $CONF_FILE; then
 	sed -ri s,^#token.*,token=$WAVEFRONT_TOKEN,g $CONF_FILE
 else
