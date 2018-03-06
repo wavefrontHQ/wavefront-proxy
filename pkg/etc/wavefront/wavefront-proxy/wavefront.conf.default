@@ -113,6 +113,9 @@ buffer=/var/spool/wavefront-proxy/buffer
 ## For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0
 #retryBackoffBaseSeconds=2.0
 
+## Control whether metrics traffic from the proxy to the Wavefront endpoint is gzip-compressed. Default: true
+#gzipCompression=false
+
 ## The following settings are used to connect to Wavefront servers through a HTTP proxy:
 #proxyHost=localhost
 #proxyPort=8080
