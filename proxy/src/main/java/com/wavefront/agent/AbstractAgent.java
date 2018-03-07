@@ -113,8 +113,11 @@ public abstract class AbstractAgent {
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int MAX_SPLIT_BATCH_SIZE = 50000; // same value as default pushFlushMaxPoints
 
+  @Parameter(names = {"--help"}, help = true)
+  private boolean help = false;
+
   @Parameter(names = {"-f", "--file"}, description =
-      "Proxy configuration file")
+      "Proxy configuration file", order = 0)
   private String pushConfigFile = null;
 
   @Parameter(names = {"-c", "--config"}, description =
@@ -126,7 +129,7 @@ public abstract class AbstractAgent {
   protected String prefix = null;
 
   @Parameter(names = {"-t", "--token"}, description =
-      "Token to auto-register proxy with an account")
+      "Token to auto-register proxy with an account", order = 2)
   protected String token = null;
 
   @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
@@ -140,21 +143,21 @@ public abstract class AbstractAgent {
       "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY/TEXT_ONLY/ALL); NO_VALIDATION is default")
   protected String pushValidationLevel = "NUMERIC_ONLY";
 
-  @Parameter(names = {"-h", "--host"}, description = "Server URL")
+  @Parameter(names = {"-h", "--host"}, description = "Server URL", order = 1)
   protected String server = "http://localhost:8080/api/";
 
   @Parameter(names = {"--buffer"}, description = "File to use for buffering failed transmissions to Wavefront servers" +
-      ". Defaults to buffer.")
+      ". Defaults to buffer.", order = 6)
   private String bufferFile = "buffer";
 
   @Parameter(names = {"--retryThreads"}, description = "Number of threads retrying failed transmissions. Defaults to " +
       "the number of processors (min. 4). Buffer files are maxed out at 2G each so increasing the number of retry " +
-      "threads effectively governs the maximum amount of space the proxy will use to buffer points locally")
+      "threads effectively governs the maximum amount of space the proxy will use to buffer points locally", order = 5)
   protected Integer retryThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
       "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
-      "small to the server and wasting connections. This setting is per listening port.")
+      "small to the server and wasting connections. This setting is per listening port.", order = 4)
   protected Integer flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(names = {"--purgeBuffer"}, description = "Whether to purge the retry buffer on start-up. Defaults to " +
@@ -189,7 +192,7 @@ public abstract class AbstractAgent {
   protected Integer pushBlockedSamples = 0;
 
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
-      "2878.")
+      "2878.", order = 3)
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
 
   @Parameter(names = {"--memGuardFlushThreshold"}, description = "If heap usage exceeds this threshold (in percent), " +
@@ -396,19 +399,19 @@ public abstract class AbstractAgent {
   protected boolean histogramDistMemoryCache = false;
 
   @Parameter(
-      names = {"--histogramAccumulatorSize"},
+      names = {"--histogramAccumulatorSize"}, hidden = true,
       description = "(DEPRECATED FOR histogramMinuteAccumulatorSize/histogramHourAccumulatorSize/" +
           "histogramDayAccumulatorSize/histogramDistAccumulatorSize)")
   protected Long histogramAccumulatorSize = null;
 
   @Parameter(
-      names = {"--avgHistogramKeyBytes"},
+      names = {"--avgHistogramKeyBytes"}, hidden = true,
       description = "(DEPRECATED FOR histogramMinuteAvgKeyBytes/histogramHourAvgKeyBytes/" +
           "histogramDayAvgHistogramKeyBytes/histogramDistAvgKeyBytes)")
   protected Integer avgHistogramKeyBytes = null;
 
   @Parameter(
-      names = {"--avgHistogramDigestBytes"},
+      names = {"--avgHistogramDigestBytes"}, hidden = true,
       description = "(DEPRECATED FOR histogramMinuteAvgDigestBytes/histogramHourAvgDigestBytes/" +
           "histogramDayAvgHistogramDigestBytes/histogramDistAvgDigestBytes)")
   protected Integer avgHistogramDigestBytes = null;
@@ -428,7 +431,7 @@ public abstract class AbstractAgent {
   protected boolean persistAccumulator = true;
 
   @Parameter(
-      names = {"--histogramCompression"},
+      names = {"--histogramCompression"}, hidden = true,
       description = "(DEPRECATED FOR histogramMinuteCompression/histogramHourCompression/" +
           "histogramDayCompression/histogramDistCompression)")
   protected Short histogramCompression = null;
@@ -564,7 +567,7 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--logsIngestionConfigFile"}, description = "Location of logs ingestions config yaml file.")
   protected String logsIngestionConfigFile = null;
 
-  @Parameter(description = "Unparsed parameters")
+  @Parameter(description = "")
   protected List<String> unparsed_params;
 
   protected QueuedAgentService agentAPI;
@@ -1015,7 +1018,12 @@ public abstract class AbstractAgent {
       logger.info("Starting proxy version " + props.getString("build.version"));
 
       logger.info("Arguments: " + Joiner.on(", ").join(args));
-      new JCommander(this, args);
+      JCommander jCommander = new JCommander(this, args);
+      if (help) {
+        jCommander.setProgramName(this.getClass().getCanonicalName());
+        jCommander.usage();
+        System.exit(0);
+      }
       if (unparsed_params != null) {
         logger.info("Unparsed arguments: " + Joiner.on(", ").join(unparsed_params));
       }
