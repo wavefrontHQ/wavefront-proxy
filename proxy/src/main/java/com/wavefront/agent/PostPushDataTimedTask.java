@@ -56,6 +56,13 @@ public class PostPushDataTimedTask implements Runnable {
    * Write a sample of blocked points to log once a minute
    */
   private final RateLimiter blockedSamplesRateLimiter = RateLimiter.create(0.017);
+
+  /**
+   * Attempt to schedule drainBuffersToQueueTask no more than once every 100ms to reduce
+   * scheduler overhead under memory pressure
+   */
+  private final RateLimiter drainBuffersRateLimiter = RateLimiter.create(10);
+
   private final RecyclableRateLimiter pushRateLimiter;
 
   private final Counter pointsReceived;
@@ -251,7 +258,7 @@ public class PostPushDataTimedTask implements Runnable {
   }
 
   public void enforceBufferLimits() {
-    if (points.size() > memoryBufferLimit.get()) {
+    if (points.size() > memoryBufferLimit.get() && drainBuffersRateLimiter.tryAcquire()) {
       try {
         flushExecutor.submit(drainBuffersToQueueTask);
       } catch (RejectedExecutionException e) {
