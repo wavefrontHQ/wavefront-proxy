@@ -79,7 +79,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       }
     }
     // if msg does not match metadata keywords then treat it as a point
-    if(logRawDataFlag == true) {
+    if(logRawDataFlag) {
       rawDataLogger.info("[rawdata] " + msg);
     }
     processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
