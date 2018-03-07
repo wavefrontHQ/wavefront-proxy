@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import javax.validation.constraints.NotNull;
 
@@ -400,28 +401,28 @@ public class WavefrontReporter extends ScheduledReporter {
   private void reportTimer(String name, Timer timer) throws IOException {
     final Snapshot snapshot = timer.getSnapshot();
     final long time = clock.getTime() / 1000;
-    wavefront.send(prefix(name, "max"), convertDuration(snapshot.getMax()), time, source, pointTags);
-    wavefront.send(prefix(name, "mean"), convertDuration(snapshot.getMean()), time, source, pointTags);
-    wavefront.send(prefix(name, "min"), convertDuration(snapshot.getMin()), time, source, pointTags);
-    wavefront.send(prefix(name, "stddev"),
+    wavefront.send(prefixAndSanitize(name, "max"), convertDuration(snapshot.getMax()), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "mean"), convertDuration(snapshot.getMean()), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "min"), convertDuration(snapshot.getMin()), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "stddev"),
         convertDuration(snapshot.getStdDev()),
         time, source, pointTags);
-    wavefront.send(prefix(name, "p50"),
+    wavefront.send(prefixAndSanitize(name, "p50"),
         convertDuration(snapshot.getMedian()),
         time, source, pointTags);
-    wavefront.send(prefix(name, "p75"),
+    wavefront.send(prefixAndSanitize(name, "p75"),
         convertDuration(snapshot.get75thPercentile()),
         time, source, pointTags);
-    wavefront.send(prefix(name, "p95"),
+    wavefront.send(prefixAndSanitize(name, "p95"),
         convertDuration(snapshot.get95thPercentile()),
         time, source, pointTags);
-    wavefront.send(prefix(name, "p98"),
+    wavefront.send(prefixAndSanitize(name, "p98"),
         convertDuration(snapshot.get98thPercentile()),
         time, source, pointTags);
-    wavefront.send(prefix(name, "p99"),
+    wavefront.send(prefixAndSanitize(name, "p99"),
         convertDuration(snapshot.get99thPercentile()),
         time, source, pointTags);
-    wavefront.send(prefix(name, "p999"),
+    wavefront.send(prefixAndSanitize(name, "p999"),
         convertDuration(snapshot.get999thPercentile()),
         time, source, pointTags);
 
@@ -429,18 +430,18 @@ public class WavefrontReporter extends ScheduledReporter {
   }
 
   private void reportMetered(String name, Metered meter) throws IOException {
-    wavefront.send(prefix(name, "count"), meter.getCount(), source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "count"), meter.getCount(), source, pointTags);
     final long time = clock.getTime() / 1000;
-    wavefront.send(prefix(name, "m1_rate"),
+    wavefront.send(prefixAndSanitize(name, "m1_rate"),
         convertRate(meter.getOneMinuteRate()), time,
         source, pointTags);
-    wavefront.send(prefix(name, "m5_rate"),
+    wavefront.send(prefixAndSanitize(name, "m5_rate"),
         convertRate(meter.getFiveMinuteRate()), time,
         source, pointTags);
-    wavefront.send(prefix(name, "m15_rate"),
+    wavefront.send(prefixAndSanitize(name, "m15_rate"),
         convertRate(meter.getFifteenMinuteRate()), time,
         source, pointTags);
-    wavefront.send(prefix(name, "mean_rate"),
+    wavefront.send(prefixAndSanitize(name, "mean_rate"),
         convertRate(meter.getMeanRate()), time,
         source, pointTags);
   }
@@ -448,28 +449,34 @@ public class WavefrontReporter extends ScheduledReporter {
   private void reportHistogram(String name, Histogram histogram) throws IOException {
     final Snapshot snapshot = histogram.getSnapshot();
     final long time = clock.getTime() / 1000;
-    wavefront.send(prefix(name, "count"), histogram.getCount(), time, source, pointTags);
-    wavefront.send(prefix(name, "max"), snapshot.getMax(), time, source, pointTags);
-    wavefront.send(prefix(name, "mean"), snapshot.getMean(), time, source, pointTags);
-    wavefront.send(prefix(name, "min"), snapshot.getMin(), time, source, pointTags);
-    wavefront.send(prefix(name, "stddev"), snapshot.getStdDev(), time, source, pointTags);
-    wavefront.send(prefix(name, "p50"), snapshot.getMedian(), time, source, pointTags);
-    wavefront.send(prefix(name, "p75"), snapshot.get75thPercentile(), time, source, pointTags);
-    wavefront.send(prefix(name, "p95"), snapshot.get95thPercentile(), time, source, pointTags);
-    wavefront.send(prefix(name, "p98"), snapshot.get98thPercentile(), time, source, pointTags);
-    wavefront.send(prefix(name, "p99"), snapshot.get99thPercentile(), time, source, pointTags);
-    wavefront.send(prefix(name, "p999"), snapshot.get999thPercentile(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "count"), histogram.getCount(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "max"), snapshot.getMax(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "mean"), snapshot.getMean(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "min"), snapshot.getMin(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "stddev"), snapshot.getStdDev(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "p50"), snapshot.getMedian(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "p75"), snapshot.get75thPercentile(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "p95"), snapshot.get95thPercentile(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "p98"), snapshot.get98thPercentile(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "p99"), snapshot.get99thPercentile(), time, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "p999"), snapshot.get999thPercentile(), time, source, pointTags);
   }
 
   private void reportCounter(String name, Counter counter) throws IOException {
-    wavefront.send(prefix(name, "count"), counter.getCount(), clock.getTime() / 1000, source, pointTags);
+    wavefront.send(prefixAndSanitize(name, "count"), counter.getCount(), clock.getTime() / 1000, source, pointTags);
   }
 
   private void reportGauge(String name, Gauge<Number> gauge) throws IOException {
-    wavefront.send(prefix(name), gauge.getValue().doubleValue(), clock.getTime() / 1000, source, pointTags);
+    wavefront.send(prefixAndSanitize(name), gauge.getValue().doubleValue(), clock.getTime() / 1000, source, pointTags);
   }
 
-  private String prefix(String... components) {
-    return MetricRegistry.name(prefix, components);
+  private String prefixAndSanitize(String... components) {
+    return sanitize(MetricRegistry.name(prefix, components));
   }
+
+  private static String sanitize(String name) {
+    return SIMPLE_NAMES.matcher(name).replaceAll("_");
+  }
+
+  private static final Pattern SIMPLE_NAMES = Pattern.compile("[^a-zA-Z0-9_.\\-~]");
 }

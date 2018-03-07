@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 /**
  * Yammer MetricProcessor that sends metrics to a TCP Socket in Wavefront-format.
@@ -34,6 +35,8 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
   private final boolean sendEmptyHistograms;
   private final boolean prependGroupName;
   private final boolean clear;
+
+  private static final Pattern SIMPLE_NAMES = Pattern.compile("[^a-zA-Z0-9_.\\-~]");
 
   /**
    * @param hostname               Host of the WF-graphite telemetry sink.
@@ -57,9 +60,13 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
 
   private String getName(MetricName name) {
     if (prependGroupName && name.getGroup() != null && !name.getGroup().equals("")) {
-      return name.getGroup() + "." + name.getName();
+      return sanitize(name.getGroup() + "." + name.getName());
     }
-    return name.getName();
+    return sanitize(name.getName());
+  }
+
+  private static String sanitize(String name) {
+    return SIMPLE_NAMES.matcher(name).replaceAll("_");
   }
 
   /**
