@@ -15,13 +15,9 @@ import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 /**
  * Yammer MetricProcessor that sends metrics to a TCP Socket in Wavefront-format.
@@ -31,16 +27,6 @@ import java.util.logging.Logger;
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class SocketMetricsProcessor implements MetricProcessor<Void> {
-
-  protected static final Logger logger = Logger.getLogger(SocketMetricsProcessor.class.getCanonicalName());
-
-  /**
-   * Once a histogram is reported, we'll continue to report it (even if {@link #sendEmptyHistograms} is true). Similar
-   * to {@link #sendZeroCounters}, {@link #sendEmptyHistograms} is used to prevent unused metrics from hitting being
-   * emitted (thus wasting resources). Once a histogram has seen values, we'll track it. Weak hash map so that if the
-   * histogram is out-of-scope, we won't hold a reference.
-   */
-  private final Set<Histogram> reportedHistograms = Collections.newSetFromMap(new WeakHashMap<>());
 
   private ReconnectingSocket metricsSocket, histogramsSocket;
   private final Supplier<Long> timeSupplier;
@@ -133,34 +119,27 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
 
   @Override
   public void processHistogram(MetricName name, Histogram histogram, Void context) throws Exception {
-    if (!sendEmptyHistograms) {
-      if (histogram.count() == 0) {
-        if (!reportedHistograms.contains(histogram)) {
-          // we may skip this.
-          return;
-        }
-      } else {
-        // histogram is not empty and we would skip sending empty ones if it becomes empty in the future. track that
-        // we have seen this before.
-        reportedHistograms.add(histogram);
-      }
-    }
     if (histogram instanceof WavefrontHistogram) {
-      StringBuilder sb = new StringBuilder();
-      sb.append("!M ").append(timeSupplier.get() / 1000);
       WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
       List<WavefrontHistogram.MinuteBin> bins = wavefrontHistogram.bins(clear);
       if (bins.isEmpty()) return; // don't send empty histograms.
+      StringBuilder sb = new StringBuilder();
+      sb.append("!M ").append(timeSupplier.get() / 1000);
       for (WavefrontHistogram.MinuteBin minuteBin : bins) {
         sb.append(" #").append(minuteBin.getDist().size()).append(" ").append(minuteBin.getDist().quantile(.5));
       }
       sb.append(" \"").append(getName(name)).append("\"").append(tagsForMetricName(name)).append("\n");
       histogramsSocket.write(sb.toString());
     } else {
-      writeMetric(name, "count", histogram.count());
-      writeSampling(name, histogram);
-      writeSummarizable(name, histogram);
-      if (clear) histogram.clear();
+      if (!sendEmptyHistograms && histogram.count() == 0) {
+        // send count still but skip the others.
+        writeMetric(name, "count", 0);
+      } else {
+        writeMetric(name, "count", histogram.count());
+        writeSampling(name, histogram);
+        writeSummarizable(name, histogram);
+        if (clear) histogram.clear();
+      }
     }
   }
 
