@@ -619,7 +619,6 @@ public abstract class AbstractAgent {
     } finally {
       if (doShutDown) {
         logger.warning("Shutting down: Server side flag indicating proxy has to shut down.");
-        shutdown();
         System.exit(1);
       }
     }
