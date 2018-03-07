@@ -5,6 +5,13 @@ fi
 
 package_cloud push --config=$2 $1/el/7 *.rpm &
 package_cloud push --config=$2 $1/el/6 *.rpm &
+package_cloud push --config=$2 $1/ol/7 *.rpm &
+package_cloud push --config=$2 $1/ol/6 *.rpm &
+package_cloud push --config=$2 $1/sles/12.0 *.rpm &
+package_cloud push --config=$2 $1/sles/12.1 *.rpm &
+package_cloud push --config=$2 $1/sles/12.2 *.rpm &
+package_cloud push --config=$2 $1/fedora/27 *.rpm &
+package_cloud push --config=$2 $1/opensuse/42.3 *.rpm &
 package_cloud push --config=$2 $1/debian/buster *.deb &
 package_cloud push --config=$2 $1/debian/stretch *.deb &
 package_cloud push --config=$2 $1/debian/wheezy *.deb &
