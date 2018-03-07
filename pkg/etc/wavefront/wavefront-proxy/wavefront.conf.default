@@ -58,8 +58,12 @@ pushFlushMaxPoints=40000
 # Milliseconds between flushes to the Wavefront servers. Typically 1000.
 pushFlushInterval=1000
 
-## Limit rate at the proxy (averaged over 1 minute). Default: do not throttle
+## Limit pps rate at the proxy. Default: do not throttle
 #pushRateLimit=20000
+
+## Max number of burst seconds to allow when rate limiting to smooth out uneven traffic.
+## Set to 1 when doing data backfills. Default: 10
+#pushRateLimitMaxBurstSeconds=10
 
 ## Max number of points that can stay in memory buffers before spooling to disk. Defaults to 16 * pushFlushMaxPoints,
 ## minimum allowed size: pushFlushMaxPoints. Setting this value lower than default reduces memory usage but will force
