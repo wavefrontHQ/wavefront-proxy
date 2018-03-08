@@ -10,7 +10,6 @@ import com.wavefront.ingester.SourceTagDecoder;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.logging.Logger;
-import java.util.logging.Level;
 import java.util.Random;
 
 import javax.annotation.Nullable;
