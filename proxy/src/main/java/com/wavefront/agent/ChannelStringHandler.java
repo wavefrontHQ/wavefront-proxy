@@ -10,12 +10,16 @@ import com.wavefront.ingester.SourceTagDecoder;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.logging.Level;
+import java.util.Random;
 
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+
+import org.apache.commons.lang.math.NumberUtils;
 import wavefront.report.ReportPoint;
 
 /**
@@ -30,6 +34,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   private static final Logger rawDataLogger = Logger.getLogger("RawDataLogger");
 
   private final Decoder<String> decoder;
+  private static final Random RANDOM = new Random();
 
   /**
    * Transformer to transform each line.
@@ -38,7 +43,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   private final PointPreprocessor preprocessor;
   private final PointHandler pointHandler;
   private final SourceTagHandler metadataHandler;
-  private final boolean logRawDataFlag;
+  private double logRawDataRate;
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
@@ -49,22 +54,26 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     this.preprocessor = preprocessor;
     this.metadataHandler = metadataHandler;
 
-    // check the property setting for logging raw data
-    String logRawDataProperty = System.getProperty("wavefront.proxy.lograwdata");
-    logRawDataFlag = logRawDataProperty != null && logRawDataProperty.equalsIgnoreCase("true");
+    // new property rate
+    String logRawDataRateProperty = System.getProperty("wavefront.proxy.lograwdata");
+    logRawDataRate = logRawDataRateProperty != null && NumberUtils.isNumber(logRawDataRateProperty) ? Double.parseDouble(logRawDataRateProperty) : 0.0d;
+
+    // make sure the rate fits between 0.0d - 1.0d
+    if(logRawDataRate < 0.0d) {
+      logRawDataRate = 0.0d;
+    }
+    else if(logRawDataRate > 1.0d) {
+      logRawDataRate = 1.0d;
+    }
+    if(logRawDataRate > 0.0d) {
+      rawDataLogger.info("Raw data logging is enabled with " + (logRawDataRate * 100) + "% sampling");
+    }
   }
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
                               @Nullable final PointPreprocessor preprocessor) {
-    this.decoder = decoder;
-    this.pointHandler = pointhandler;
-    this.preprocessor = preprocessor;
-    this.metadataHandler = null;
-
-    // check the property setting for logging raw data
-    String logRawDataProperty = System.getProperty("wavefront.proxy.lograwdata");
-    logRawDataFlag = logRawDataProperty != null && logRawDataProperty.equalsIgnoreCase("true");
+    this(decoder, pointhandler, preprocessor, null);
   }
 
   @Override
@@ -79,7 +88,8 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       }
     }
     // if msg does not match metadata keywords then treat it as a point
-    if(logRawDataFlag) {
+    // use data rate to either log or sample
+    if(logRawDataRate >= 1.0d || (logRawDataRate > 0.0d && RANDOM.nextDouble() < logRawDataRate)) {
       rawDataLogger.info("[rawdata] " + msg);
     }
     processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
