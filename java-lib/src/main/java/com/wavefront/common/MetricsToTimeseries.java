@@ -7,6 +7,7 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Sampling;
 import com.yammer.metrics.core.Summarizable;
 import com.yammer.metrics.core.VirtualMachineMetrics;
+import com.yammer.metrics.stats.Snapshot;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -54,12 +55,13 @@ public abstract class MetricsToTimeseries {
    * @return sampling stats
    */
   public static Map<String, Double> explodeSampling(Sampling sampling, boolean convertNanToZero) {
+    final Snapshot snapshot = sampling.getSnapshot();
     return ImmutableMap.<String, Double>builder()
-        .put("median", sanitizeValue(sampling.getSnapshot().getMedian(), convertNanToZero))
-        .put("p75", sanitizeValue(sampling.getSnapshot().get75thPercentile(), convertNanToZero))
-        .put("p95", sanitizeValue(sampling.getSnapshot().get95thPercentile(), convertNanToZero))
-        .put("p99", sanitizeValue(sampling.getSnapshot().get99thPercentile(), convertNanToZero))
-        .put("p999", sanitizeValue(sampling.getSnapshot().get999thPercentile(), convertNanToZero))
+        .put("median", sanitizeValue(snapshot.getMedian(), convertNanToZero))
+        .put("p75", sanitizeValue(snapshot.get75thPercentile(), convertNanToZero))
+        .put("p95", sanitizeValue(snapshot.get95thPercentile(), convertNanToZero))
+        .put("p99", sanitizeValue(snapshot.get99thPercentile(), convertNanToZero))
+        .put("p999", sanitizeValue(snapshot.get999thPercentile(), convertNanToZero))
         .build();
   }
 
