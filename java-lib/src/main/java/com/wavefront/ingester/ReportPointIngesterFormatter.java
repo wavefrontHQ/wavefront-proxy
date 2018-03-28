@@ -20,6 +20,8 @@ import wavefront.report.ReportPoint;
  */
 public class ReportPointIngesterFormatter extends AbstractIngesterFormatter<ReportPoint> {
 
+  private static final String DELTA_PREFIX = "∆";
+
   private ReportPointIngesterFormatter(List<FormatterElement> elements) {
     super(elements);
   }
@@ -58,6 +60,14 @@ public class ReportPointIngesterFormatter extends AbstractIngesterFormatter<Repo
     }
     if (!queue.isEmpty()) {
       throw new RuntimeException("Could not parse: " + input);
+    }
+
+    // Delta metrics cannot have negative values
+    if (point.getMetric().startsWith(DELTA_PREFIX) && point.getValue() instanceof Number) {
+      double v = ((Number) point.getValue()).doubleValue();
+      if (v <= 0) {
+        throw new RuntimeException("Delta metrics cannot be non-positive: " + input);
+      }
     }
 
     String host = null;
