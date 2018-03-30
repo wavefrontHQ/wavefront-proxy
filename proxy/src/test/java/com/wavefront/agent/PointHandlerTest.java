@@ -67,24 +67,36 @@ public class PointHandlerTest {
     input = "~good.metric7";
     Assert.assertTrue(Validation.charactersAreValid(input));
 
-    // first character can be ∆
+    // first character can be ∆ (\u2206)
     input = "∆delta.metric8";
+    Assert.assertTrue(Validation.charactersAreValid(input));
+
+    // first character can be Δ (\u0394)
+    input = "Δdelta.metric9";
     Assert.assertTrue(Validation.charactersAreValid(input));
 
     // non-first character cannot be ~
     input = "~good.~metric";
     Assert.assertFalse(Validation.charactersAreValid(input));
 
-    // non-first character cannot be ∆
+    // non-first character cannot be ∆ (\u2206)
     input = "∆delta.∆metric";
+    Assert.assertFalse(Validation.charactersAreValid(input));
+
+    // non-first character cannot be Δ (\u0394)
+    input = "∆delta.Δmetric";
     Assert.assertFalse(Validation.charactersAreValid(input));
 
     // cannot end in ~
     input = "good.metric.~";
     Assert.assertFalse(Validation.charactersAreValid(input));
 
-    // cannot end in ∆
+    // cannot end in ∆ (\u2206)
     input = "delta.metric.∆";
+    Assert.assertFalse(Validation.charactersAreValid(input));
+
+    // cannot end in Δ (\u0394)
+    input = "delta.metric.Δ";
     Assert.assertFalse(Validation.charactersAreValid(input));
 
     input = "abcdefghijklmnopqrstuvwxyz.0123456789,/_-ABCDEFGHIJKLMNOPQRSTUVWXYZ";

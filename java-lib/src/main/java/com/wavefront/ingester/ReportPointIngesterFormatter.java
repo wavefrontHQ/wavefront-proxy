@@ -20,7 +20,8 @@ import wavefront.report.ReportPoint;
  */
 public class ReportPointIngesterFormatter extends AbstractIngesterFormatter<ReportPoint> {
 
-  private static final String DELTA_PREFIX = "∆";
+  private static final String DELTA_PREFIX = "\u2206"; // ∆: INCREMENT
+  private static final String DELTA_PREFIX_2 = "\u0394"; // Δ: GREEK CAPITAL LETTER DELTA
 
   private ReportPointIngesterFormatter(List<FormatterElement> elements) {
     super(elements);
@@ -63,7 +64,8 @@ public class ReportPointIngesterFormatter extends AbstractIngesterFormatter<Repo
     }
 
     // Delta metrics cannot have negative values
-    if (point.getMetric().startsWith(DELTA_PREFIX) && point.getValue() instanceof Number) {
+    if ((point.getMetric().startsWith(DELTA_PREFIX) || point.getMetric().startsWith(DELTA_PREFIX_2)) &&
+        point.getValue() instanceof Number) {
       double v = ((Number) point.getValue()).doubleValue();
       if (v <= 0) {
         throw new RuntimeException("Delta metrics cannot be non-positive: " + input);

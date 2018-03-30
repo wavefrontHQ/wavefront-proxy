@@ -121,5 +121,5 @@ Octet
 STAR   : '*' ;
 SLASH  : '/' ;
 AT     : '@';
-DELTA     : '∆';
+DELTA  : '\u2206' | '\u0394';
 WS     : [ \t\r\n]+ -> channel(HIDDEN) ;
