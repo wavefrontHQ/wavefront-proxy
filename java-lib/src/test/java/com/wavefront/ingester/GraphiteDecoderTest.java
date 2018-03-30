@@ -479,6 +479,7 @@ public class GraphiteDecoderTest {
     List<ReportPoint> out = new ArrayList<>();
     try {
       decoder.decodeReportPoints("∆request.count -1 source=test.wavefront.com", out);
+      decoder.decodeReportPoints("Δrequest.count -1 source=test.wavefront.com", out);
       fail("should throw");
     } catch(RuntimeException ignored) {
     }
@@ -490,8 +491,9 @@ public class GraphiteDecoderTest {
     List<ReportPoint> out = new ArrayList<>();
     try {
       decoder.decodeReportPoints("∆request.count 1 source=test.wavefront.com", out);
+      decoder.decodeReportPoints("Δrequest.count 1 source=test.wavefront.com", out);
     } catch(RuntimeException e) {
-      fail("should throw");
+      fail("should not throw");
     }
   }
 
@@ -501,6 +503,7 @@ public class GraphiteDecoderTest {
     List<ReportPoint> out = new ArrayList<>();
     try {
       decoder.decodeReportPoints("∆request.count 0 source=test.wavefront.com", out);
+      decoder.decodeReportPoints("Δrequest.count 0 source=test.wavefront.com", out);
       fail("should throw");
     } catch(RuntimeException ignored) {
     }
