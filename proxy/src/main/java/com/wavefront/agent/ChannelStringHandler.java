@@ -87,9 +87,12 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       }
     }
     // if msg does not match metadata keywords then treat it as a point
-    // use data rate to either log or sample
+    // use data rate to determine sampling rate
+    // logging includes the source host and port
     if(logRawDataRate >= 1.0d || (logRawDataRate > 0.0d && RANDOM.nextDouble() < logRawDataRate)) {
-      rawDataLogger.info("[rawdata] " + msg);
+      String host = ((InetSocketAddress)ctx.getChannel().getRemoteAddress()).getAddress().getHostAddress();
+      int port = ((InetSocketAddress)ctx.getChannel().getRemoteAddress()).getPort();
+      rawDataLogger.info(String.format("[%s:%d]%s", host, port, msg));
     }
     processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
   }
