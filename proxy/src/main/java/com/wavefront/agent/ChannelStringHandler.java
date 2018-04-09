@@ -8,6 +8,7 @@ import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.SourceTagDecoder;
 
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.Random;
@@ -90,9 +91,13 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     // use data rate to determine sampling rate
     // logging includes the source host and port
     if(logRawDataRate >= 1.0d || (logRawDataRate > 0.0d && RANDOM.nextDouble() < logRawDataRate)) {
-      String host = ((InetSocketAddress)ctx.getChannel().getRemoteAddress()).getAddress().getHostAddress();
-      int port = ((InetSocketAddress)ctx.getChannel().getRemoteAddress()).getPort();
-      rawDataLogger.info(String.format("[%s:%d]%s", host, port, msg));
+      if(ctx.channel().remoteAddress() != null) {
+        String host = ((InetSocketAddress) ctx.channel().remoteAddress()).getHostName();
+        int port = ((InetSocketAddress) ctx.channel().remoteAddress()).getPort();
+        rawDataLogger.info(String.format("[%s:%d]%s", host, port, msg));
+      } else {
+        rawDataLogger.info(String.format("[:]%s", msg));
+      }
     }
     processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
   }
