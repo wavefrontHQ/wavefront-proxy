@@ -10,6 +10,7 @@ import com.wavefront.ingester.SourceTagDecoder;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Random;
 
@@ -65,7 +66,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     else if(logRawDataRate > 1.0d) {
       logRawDataRate = 1.0d;
     }
-    if(logRawDataRate > 0.0d) {
+    if(logRawDataRate > 0.0d && rawDataLogger.isLoggable(Level.FINEST)) {
       rawDataLogger.info("Raw data logging is enabled with " + (logRawDataRate * 100) + "% sampling");
     }
   }
@@ -92,11 +93,12 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     // logging includes the source host and port
     if(logRawDataRate >= 1.0d || (logRawDataRate > 0.0d && RANDOM.nextDouble() < logRawDataRate)) {
       if(ctx.channel().remoteAddress() != null) {
-        String host = ((InetSocketAddress) ctx.channel().remoteAddress()).getHostName();
-        int port = ((InetSocketAddress) ctx.channel().remoteAddress()).getPort();
-        rawDataLogger.info(String.format("[%s:%d]%s", host, port, msg));
+        String hostAddress = ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().getHostAddress();
+        int localPort = ((InetSocketAddress) ctx.channel().localAddress()).getPort();
+        rawDataLogger.info(String.format("[%s>%d]%s", hostAddress, localPort, msg));
       } else {
-        rawDataLogger.info(String.format("[:]%s", msg));
+        int localPort = ((InetSocketAddress) ctx.channel().localAddress()).getPort();
+        rawDataLogger.info(String.format("[>%d]%s", localPort, msg));
       }
     }
     processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
@@ -115,9 +117,6 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     if (message == null) return;
     String pointLine = message.trim();
     if (pointLine.isEmpty()) return;
-
-
-
 
     // transform the line if needed
     if (preprocessor != null) {
