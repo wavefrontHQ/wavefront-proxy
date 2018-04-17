@@ -10,6 +10,8 @@
 *.swp
 *.deb
 *.rpm
+*.releaseBackup
+release.properties
 
 pkg/build
 
