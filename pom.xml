@@ -10,6 +10,7 @@
     <module>proxy</module>
     <module>java-client</module>
     <module>dropwizard-metrics/3.1</module>
+    <module>dropwizard-metrics/dropwizard-metrics-wavefront</module>
     <module>yammer-metrics</module>
   </modules>
   <packaging>pom</packaging>
@@ -112,6 +113,11 @@
       <dependency>
         <groupId>com.wavefront</groupId>
         <artifactId>dropwizard-metrics-3.1</artifactId>
+        <version>${public.project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.wavefront</groupId>
+        <artifactId>dropwizard-metrics-wavefront</artifactId>
         <version>${public.project.version}</version>
       </dependency>
       <dependency>
