@@ -19,8 +19,8 @@ public class WavefrontDirectSenderTest {
     assertNull(WavefrontDirectSender.pointToString(null, 0.0, null, "source", null));
     assertNull(WavefrontDirectSender.pointToString("name", 0.0, null, null, null));
 
-    Assert.assertEquals("\"name\" 10 1469751813 source=\"source\" \"foo\"=\"bar\" \"bar\"=\"foo\"",
-        WavefrontDirectSender.pointToString("name",1469751813000L, 10L, "source",
+    Assert.assertEquals("\"name\" 10.0 1469751813 source=\"source\" \"foo\"=\"bar\" \"bar\"=\"foo\"",
+        WavefrontDirectSender.pointToString("name",10L, 1469751813L, "source",
             ImmutableMap.of("foo", "bar", "bar", "foo")));
   }
 }
