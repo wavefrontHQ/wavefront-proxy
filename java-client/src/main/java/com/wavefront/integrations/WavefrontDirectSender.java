@@ -49,8 +49,8 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
 
   private static final String DEFAULT_SOURCE = "wavefrontDirectSender";
   private static final Logger LOGGER = LoggerFactory.getLogger(WavefrontDirectSender.class);
-  private static String quote = "\"";
-  private static String escapedQuote = "\\\"";
+  private static final String quote = "\"";
+  private static final String escapedQuote = "\\\"";
 
   private final Object pointsMutex = new Object();
   private final ScheduledExecutorService scheduler;
@@ -155,17 +155,17 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
       timestamp = System.currentTimeMillis()/1000;
     }
 
-    StringBuilder sb = new StringBuilder(quote)
-        .append(escapeQuotes(name)).append(quote).append(" ")
-        .append(Double.toString(value)).append(" ")
-        .append(Long.toString(timestamp)).append(" ")
-        .append("source=").append(quote).append(escapeQuotes(source)).append(quote);
+    StringBuilder sb = new StringBuilder(quote).
+        append(escapeQuotes(name)).append(quote).append(" ").
+        append(Double.toString(value)).append(" ").
+        append(Long.toString(timestamp)).append(" ").
+        append("source=").append(quote).append(escapeQuotes(source)).append(quote);
 
     if (pointTags != null) {
       for (Map.Entry<String, String> entry : pointTags.entrySet()) {
-        sb.append(' ').append(quote).append(escapeQuotes(entry.getKey())).append(quote)
-            .append("=")
-            .append(quote).append(escapeQuotes(entry.getValue())).append(quote);
+        sb.append(' ').append(quote).append(escapeQuotes(entry.getKey())).append(quote).
+            append("=").
+            append(quote).append(escapeQuotes(entry.getValue())).append(quote);
       }
     }
     return sb.toString();

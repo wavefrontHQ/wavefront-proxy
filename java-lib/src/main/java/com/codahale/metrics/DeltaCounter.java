@@ -2,6 +2,8 @@ package com.codahale.metrics;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import com.wavefront.common.Constants;
+
 /**
  * A counter for Wavefront delta metrics.
  *
@@ -11,9 +13,6 @@ import com.google.common.annotations.VisibleForTesting;
  */
 public class DeltaCounter extends Counter {
 
-  public static final String DELTA_PREFIX = "\u2206"; // ∆: INCREMENT
-  private static final String ALT_DELTA_PREFIX = "\u0394"; // Δ: GREEK CAPITAL LETTER DELTA
-
   @VisibleForTesting
   public static synchronized DeltaCounter get(MetricRegistry registry, String metricName) {
 
@@ -21,8 +20,8 @@ public class DeltaCounter extends Counter {
       throw new IllegalArgumentException("Invalid arguments");
     }
 
-    if (!(metricName.startsWith(DELTA_PREFIX) || metricName.startsWith(ALT_DELTA_PREFIX))) {
-      metricName = DELTA_PREFIX + metricName;
+    if (!(metricName.startsWith(Constants.DELTA_PREFIX) || metricName.startsWith(Constants.DELTA_PREFIX_2))) {
+      metricName = Constants.DELTA_PREFIX + metricName;
     }
     DeltaCounter counter = new DeltaCounter();
     registry.register(metricName, counter);

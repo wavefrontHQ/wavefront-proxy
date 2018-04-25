@@ -1,6 +1,7 @@
 package com.wavefront.ingester;
 
 import com.wavefront.common.Clock;
+import com.wavefront.common.Constants;
 
 import org.antlr.v4.runtime.Token;
 
@@ -19,9 +20,6 @@ import wavefront.report.ReportPoint;
  * @author Clement Pang (clement@wavefront.com).
  */
 public class ReportPointIngesterFormatter extends AbstractIngesterFormatter<ReportPoint> {
-
-  private static final String DELTA_PREFIX = "\u2206"; // ∆: INCREMENT
-  private static final String DELTA_PREFIX_2 = "\u0394"; // Δ: GREEK CAPITAL LETTER DELTA
 
   private ReportPointIngesterFormatter(List<FormatterElement> elements) {
     super(elements);
@@ -64,7 +62,7 @@ public class ReportPointIngesterFormatter extends AbstractIngesterFormatter<Repo
     }
 
     // Delta metrics cannot have negative values
-    if ((point.getMetric().startsWith(DELTA_PREFIX) || point.getMetric().startsWith(DELTA_PREFIX_2)) &&
+    if ((point.getMetric().startsWith(Constants.DELTA_PREFIX) || point.getMetric().startsWith(Constants.DELTA_PREFIX_2)) &&
         point.getValue() instanceof Number) {
       double v = ((Number) point.getValue()).doubleValue();
       if (v <= 0) {

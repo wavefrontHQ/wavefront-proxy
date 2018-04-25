@@ -20,6 +20,7 @@ import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.SafeFileDescriptorRatioGauge;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
+import com.wavefront.common.Constants;
 import com.wavefront.integrations.Wavefront;
 import com.wavefront.integrations.WavefrontDirectSender;
 import com.wavefront.integrations.WavefrontSender;
@@ -487,7 +488,7 @@ public class WavefrontReporter extends ScheduledReporter {
   private void reportCounter(String name, Counter counter) throws IOException {
     if (counter instanceof DeltaCounter) {
       long count = counter.getCount();
-      name = DeltaCounter.DELTA_PREFIX + prefixAndSanitize(name.substring(1), "count");
+      name = Constants.DELTA_PREFIX + prefixAndSanitize(name.substring(1), "count");
       wavefront.send(name, count,clock.getTime() / 1000, source, pointTags);
       counter.dec(count);
     } else {
