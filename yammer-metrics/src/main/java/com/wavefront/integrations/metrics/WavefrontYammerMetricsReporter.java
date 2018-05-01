@@ -1,30 +1,27 @@
 package com.wavefront.integrations.metrics;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
 
 import com.wavefront.common.MetricsToTimeseries;
 import com.wavefront.common.Pair;
 import com.wavefront.metrics.MetricTranslator;
 import com.yammer.metrics.core.Clock;
 import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.VirtualMachineMetrics;
+import com.yammer.metrics.core.WavefrontHistogram;
 import com.yammer.metrics.reporting.AbstractReporter;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -185,28 +182,37 @@ public class WavefrontYammerMetricsReporter extends AbstractReporter implements 
     try {
       if (includeJvmMetrics) upsertJavaMetrics();
 
-      Set<Map.Entry<MetricName, Metric>> metrics = Sets.newLinkedHashSet();
       // non-histograms go first
-      metrics.addAll(getMetricsRegistry().allMetrics().entrySet().stream().
-          filter(m -> !(m.getValue() instanceof Histogram)).collect(Collectors.toSet()));
+      getMetricsRegistry().allMetrics().entrySet().stream().filter(m -> !(m.getValue() instanceof WavefrontHistogram)).
+          forEach(x -> {
+            processEntry(x);
+            metricsGeneratedLastPass++;
+          });
       // histograms go last
-      metrics.addAll(getMetricsRegistry().allMetrics().entrySet().stream().
-          filter(m -> m.getValue() instanceof Histogram).collect(Collectors.toSet()));
-      for (Map.Entry<MetricName, Metric> entry : metrics) {
-        MetricName metricName = entry.getKey();
-        Metric metric = entry.getValue();
-        if (metricTranslator != null) {
-          Pair<MetricName, Metric> pair = metricTranslator.apply(Pair.of(metricName, metric));
-          if (pair == null) continue;
-          metricName = pair._1;
-          metric = pair._2;
-        }
-        metric.processWith(socketMetricProcessor, metricName, null);
-        metricsGeneratedLastPass++;
-      }
+      getMetricsRegistry().allMetrics().entrySet().stream().filter(m -> m.getValue() instanceof WavefrontHistogram).
+          forEach(x -> {
+            processEntry(x);
+            metricsGeneratedLastPass++;
+          });
       socketMetricProcessor.flush();
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Cannot report point to Wavefront! Trying again next iteration.", e);
+    }
+  }
+
+  private void processEntry(Map.Entry<MetricName, Metric> entry) {
+    try {
+      MetricName metricName = entry.getKey();
+      Metric metric = entry.getValue();
+      if (metricTranslator != null) {
+        Pair<MetricName, Metric> pair = metricTranslator.apply(Pair.of(metricName, metric));
+        if (pair == null) return;
+        metricName = pair._1;
+        metric = pair._2;
+      }
+      metric.processWith(socketMetricProcessor, metricName, null);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 }
