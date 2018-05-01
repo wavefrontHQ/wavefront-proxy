@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -41,7 +42,10 @@ public class WavefrontYammerMetricsReporter extends AbstractReporter implements 
   private final SocketMetricsProcessor socketMetricProcessor;
   private final MetricTranslator metricTranslator;
 
-  private int metricsGeneratedLastPass = 0;  /* How many metrics were emitted in the last call to run()? */
+  /**
+   *  How many metrics were emitted in the last call to run()
+   */
+  private AtomicInteger metricsGeneratedLastPass = new AtomicInteger();
 
   public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
                                         int wavefrontHistogramPort, Supplier<Long> timeSupplier) throws IOException {
@@ -133,7 +137,7 @@ public class WavefrontYammerMetricsReporter extends AbstractReporter implements 
    */
   @VisibleForTesting
   int getMetricsGeneratedLastPass() {
-    return metricsGeneratedLastPass;
+    return metricsGeneratedLastPass.get();
   }
 
   /**
@@ -178,22 +182,16 @@ public class WavefrontYammerMetricsReporter extends AbstractReporter implements 
 
   @Override
   public void run() {
-    metricsGeneratedLastPass = 0;
+    metricsGeneratedLastPass.set(0);
     try {
       if (includeJvmMetrics) upsertJavaMetrics();
 
       // non-histograms go first
       getMetricsRegistry().allMetrics().entrySet().stream().filter(m -> !(m.getValue() instanceof WavefrontHistogram)).
-          forEach(x -> {
-            processEntry(x);
-            metricsGeneratedLastPass++;
-          });
+          forEach(this::processEntry);
       // histograms go last
       getMetricsRegistry().allMetrics().entrySet().stream().filter(m -> m.getValue() instanceof WavefrontHistogram).
-          forEach(x -> {
-            processEntry(x);
-            metricsGeneratedLastPass++;
-          });
+          forEach(this::processEntry);
       socketMetricProcessor.flush();
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Cannot report point to Wavefront! Trying again next iteration.", e);
@@ -211,6 +209,7 @@ public class WavefrontYammerMetricsReporter extends AbstractReporter implements 
         metric = pair._2;
       }
       metric.processWith(socketMetricProcessor, metricName, null);
+      metricsGeneratedLastPass.incrementAndGet();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
