@@ -13,15 +13,12 @@ import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.VirtualMachineMetrics;
-import com.yammer.metrics.reporting.AbstractPollingReporter;
 import com.yammer.metrics.reporting.AbstractReporter;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
