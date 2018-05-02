@@ -11,12 +11,15 @@ import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.VirtualMachineMetrics;
-import com.yammer.metrics.reporting.AbstractPollingReporter;
+import com.yammer.metrics.core.WavefrontHistogram;
+import com.yammer.metrics.reporting.AbstractReporter;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -26,19 +29,23 @@ import javax.annotation.Nullable;
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
-public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
+public class WavefrontYammerMetricsReporter extends AbstractReporter implements Runnable {
 
   protected static final Logger logger = Logger.getLogger(WavefrontYammerMetricsReporter.class.getCanonicalName());
 
   private static final Clock clock = Clock.defaultClock();
   private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
+  private final ScheduledExecutorService executor;
 
   private final boolean includeJvmMetrics;
   private final ConcurrentHashMap<String, Double> gaugeMap;
   private final SocketMetricsProcessor socketMetricProcessor;
   private final MetricTranslator metricTranslator;
 
-  private int metricsGeneratedLastPass = 0;  /* How many metrics were emitted in the last call to run()? */
+  /**
+   *  How many metrics were emitted in the last call to run()
+   */
+  private AtomicInteger metricsGeneratedLastPass = new AtomicInteger();
 
   public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
                                         int wavefrontHistogramPort, Supplier<Long> timeSupplier) throws IOException {
@@ -82,7 +89,8 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
                                         boolean clearMetrics,
                                         boolean sendZeroCounters,
                                         boolean sendEmptyHistograms) throws IOException {
-    super(metricsRegistry, name);
+    super(metricsRegistry);
+    this.executor = metricsRegistry.newScheduledThreadPool(1, name);
     this.metricTranslator = metricTranslator;
     this.socketMetricProcessor = new SocketMetricsProcessor(hostname, port, wavefrontHistogramPort, timeSupplier,
         prependGroupName, clearMetrics, sendZeroCounters, sendEmptyHistograms);
@@ -129,32 +137,81 @@ public class WavefrontYammerMetricsReporter extends AbstractPollingReporter {
    */
   @VisibleForTesting
   int getMetricsGeneratedLastPass() {
-    return metricsGeneratedLastPass;
+    return metricsGeneratedLastPass.get();
+  }
+
+  /**
+   * Starts the reporter polling at the given period.
+   *
+   * @param period    the amount of time between polls
+   * @param unit      the unit for {@code period}
+   */
+  public void start(long period, TimeUnit unit) {
+    executor.scheduleAtFixedRate(this, period, period, unit);
+  }
+
+  /**
+   * Starts the reporter polling at the given period with specified initial delay
+   *
+   * @param initialDelay the amount of time before first execution
+   * @param period       the amount of time between polls
+   * @param unit         the unit for {@code initialDelay} and {@code period}
+   */
+  public void start(long initialDelay, long period, TimeUnit unit) {
+    executor.scheduleAtFixedRate(this, initialDelay, period, unit);
+  }
+
+  /**
+   * Shuts down the reporter polling, waiting the specific amount of time for any current polls to
+   * complete.
+   *
+   * @param timeout    the maximum time to wait
+   * @param unit       the unit for {@code timeout}
+   * @throws InterruptedException if interrupted while waiting
+   */
+  public void shutdown(long timeout, TimeUnit unit) throws InterruptedException {
+    executor.shutdown();
+    executor.awaitTermination(timeout, unit);
+  }
+
+  @Override
+  public void shutdown() {
+    executor.shutdown();
+    super.shutdown();
   }
 
   @Override
   public void run() {
-    metricsGeneratedLastPass = 0;
+    metricsGeneratedLastPass.set(0);
     try {
       if (includeJvmMetrics) upsertJavaMetrics();
 
-      for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : getMetricsRegistry().groupedMetrics().entrySet()) {
-        for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
-          MetricName metricName = subEntry.getKey();
-          Metric metric = subEntry.getValue();
-          if (metricTranslator != null) {
-            Pair<MetricName, Metric> pair = metricTranslator.apply(Pair.of(metricName, metric));
-            if (pair == null) continue;
-            metricName = pair._1;
-            metric = pair._2;
-          }
-          metric.processWith(socketMetricProcessor, metricName, null);
-          metricsGeneratedLastPass++;
-        }
-      }
+      // non-histograms go first
+      getMetricsRegistry().allMetrics().entrySet().stream().filter(m -> !(m.getValue() instanceof WavefrontHistogram)).
+          forEach(this::processEntry);
+      // histograms go last
+      getMetricsRegistry().allMetrics().entrySet().stream().filter(m -> m.getValue() instanceof WavefrontHistogram).
+          forEach(this::processEntry);
       socketMetricProcessor.flush();
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Cannot report point to Wavefront! Trying again next iteration.", e);
+    }
+  }
+
+  private void processEntry(Map.Entry<MetricName, Metric> entry) {
+    try {
+      MetricName metricName = entry.getKey();
+      Metric metric = entry.getValue();
+      if (metricTranslator != null) {
+        Pair<MetricName, Metric> pair = metricTranslator.apply(Pair.of(metricName, metric));
+        if (pair == null) return;
+        metricName = pair._1;
+        metric = pair._2;
+      }
+      metric.processWith(socketMetricProcessor, metricName, null);
+      metricsGeneratedLastPass.incrementAndGet();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 }
