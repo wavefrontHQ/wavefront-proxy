@@ -96,6 +96,6 @@ fi
 
 [[ -d $jre_dir ]] || mkdir -p $jre_dir
 
-service $service_name restart
+service $service_name condrestart
 
 exit 0
