@@ -16,8 +16,8 @@ import com.beust.jcommander.Parameter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.config.LogsIngestionConfig;
+import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
@@ -34,6 +34,7 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.HttpRequest;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.SocketConfig;
@@ -104,11 +105,10 @@ import javax.ws.rs.ProcessingException;
 public abstract class AbstractAgent {
 
   protected static final Logger logger = Logger.getLogger("agent");
-  protected final Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
+  final Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
 
   private static final Gson GSON = new Gson();
   private static final int GRAPHITE_LISTENING_PORT = 2878;
-  private static final int OPENTSDB_LISTENING_PORT = 4242;
 
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int MAX_SPLIT_BATCH_SIZE = 50000; // same value as default pushFlushMaxPoints
@@ -553,7 +553,7 @@ public abstract class AbstractAgent {
   protected Integer httpMaxConnPerRoute = 100;
 
   @Parameter(names = {"--httpAutoRetries"}, description = "Number of times to retry http requests before queueing, set to 0 to disable (default: 1)")
-  protected Integer httpAutoRetries = 1;
+  protected Integer httpAutoRetries = 3;
 
   @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
   protected String preprocessorConfigFile = null;
@@ -1209,7 +1209,13 @@ public abstract class AbstractAgent {
           setSSLSocketFactory(new SSLConnectionSocketFactoryImpl(
               SSLConnectionSocketFactory.getSystemSocketFactory(),
               httpRequestTimeout)).
-          setRetryHandler(new DefaultHttpRequestRetryHandler(httpAutoRetries, true)).
+          setRetryHandler(new DefaultHttpRequestRetryHandler(httpAutoRetries, true) {
+            @Override
+            protected boolean handleAsIdempotent(HttpRequest request) {
+              // by default, retry all http calls (submissions are idempotent).
+              return true;
+            }
+          }).
           setDefaultRequestConfig(
               RequestConfig.custom().
                   setContentCompressionEnabled(true).
