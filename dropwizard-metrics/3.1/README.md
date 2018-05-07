@@ -1,12 +1,12 @@
 # Wavefront Reporter
 
-This is a Wavefront Reporter for the Stable (3.1) version of [Dropwizard Metrics](https://dropwizard.github.io/metrics/3.1.0/) (formerly Coda Hale & Yammer Metrics).
+This is a Wavefront Reporter for the Stable (3.1.x/3.2.x) version of [Dropwizard Metrics](https://dropwizard.github.io/metrics/3.1.0/) (formerly Coda Hale & Yammer Metrics).
 
 It sends data to the Wavefront service via a proxy and supports point tags being assigned at the Reporter level.
 
 ## Usage
 
-This Reporter sends data via to Wavefront via a proxy. Version 3.5 or later is required. You can easily install the proxy by following [these instructions](https://github.com/wavefrontHQ/install).
+This Reporter sends data to Wavefront via a proxy. Version 3.5 or later is required. You can easily install the proxy by following [these instructions](https://docs.wavefront.com/proxies_installing.html).
 
 To use the Reporter you'll need to know the hostname and port (which by default is 2878) where the Wavefront proxy is running.
 
@@ -20,12 +20,12 @@ You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wave
    <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
-      <version>3.1.2</version>
+      <version>3.2.5</version>
     </dependency>
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>dropwizard-metrics-3.1</artifactId>
-      <version>3.9</version>
+      <version>[LATEST VERSION]</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
