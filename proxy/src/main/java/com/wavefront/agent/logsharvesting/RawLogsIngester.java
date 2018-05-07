@@ -1,16 +1,18 @@
 package com.wavefront.agent.logsharvesting;
 
-import com.wavefront.agent.histogram.HistogramLineIngester;
+import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -26,6 +28,9 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.handler.codec.string.StringDecoder;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.CharsetUtil;
 
 /**
@@ -38,12 +43,30 @@ public class RawLogsIngester {
   private int port;
   private Supplier<Long> now;
   private Counter received;
+  private final Counter connectionsAccepted;
+  private final Counter connectionsIdleClosed;
+  private int maxLength = 4096;
+  private int channelIdleTimeout = (int) TimeUnit.HOURS.toSeconds(1);
 
   public RawLogsIngester(LogsIngester logsIngester, int port, Supplier<Long> now) {
     this.logsIngester = logsIngester;
     this.port = port;
     this.now = now;
     this.received = Metrics.newCounter(new MetricName("logsharvesting", "", "raw-received"));
+    this.connectionsAccepted = Metrics.newCounter(new TaggedMetricName("listeners", "connections.accepted",
+        "port", String.valueOf(port)));
+    this.connectionsIdleClosed = Metrics.newCounter(new TaggedMetricName("listeners", "connections.idle.closed",
+        "port", String.valueOf(port)));
+  }
+
+  public RawLogsIngester withMaxLength(int maxLength) {
+    this.maxLength = maxLength;
+    return this;
+  }
+
+  public RawLogsIngester withChannelIdleTimeout(int channelIdleTimeout) {
+    this.channelIdleTimeout = channelIdleTimeout;
+    return this;
   }
 
   public void listen() throws InterruptedException {
@@ -94,14 +117,30 @@ public class RawLogsIngester {
   private class SocketInitializer extends ChannelInitializer<SocketChannel> {
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
+      connectionsAccepted.inc();
       ChannelPipeline channelPipeline = ch.pipeline();
-      channelPipeline.addLast(LineBasedFrameDecoder.class.getName(), new LineBasedFrameDecoder(4096));
+      channelPipeline.addLast(LineBasedFrameDecoder.class.getName(), new LineBasedFrameDecoder(maxLength));
       channelPipeline.addLast(StringDecoder.class.getName(), new StringDecoder(CharsetUtil.UTF_8));
       channelPipeline.addLast("logsIngestionHandler", new SimpleChannelInboundHandler<String>() {
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
           received.inc();
           ingestLog(ctx, msg);
+        }
+      });
+      channelPipeline.addLast("idleStateHandler", new IdleStateHandler(channelIdleTimeout, 0, 0));
+      channelPipeline.addLast("idleChannelTerminator", new ChannelDuplexHandler() {
+        @Override
+        public void userEventTriggered(ChannelHandlerContext ctx,
+                                       Object evt) throws Exception {
+          if (evt instanceof IdleStateEvent) {
+            if (((IdleStateEvent) evt).state() == IdleState.READER_IDLE) {
+              connectionsIdleClosed.inc();
+              logger.info("Closing idle connection to raw logs client, inactivity timeout " +
+                  channelIdleTimeout + "s expired: " + ctx.channel());
+              ctx.close();
+            }
+          }
         }
       });
     }

@@ -1,7 +1,10 @@
 package com.wavefront.ingester;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
+
+import com.wavefront.common.TaggedMetricName;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 
 import java.util.List;
 import java.util.Map;
@@ -10,21 +13,14 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
-import io.netty.bootstrap.AbstractBootstrap;
-import io.netty.bootstrap.ServerBootstrap;
-
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LineBasedFrameDecoder;
-import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -52,6 +48,12 @@ public abstract class Ingester implements Runnable {
    */
   protected ChannelInitializer initializer;
 
+  /**
+   * Counter metrics for accepted and terminated connections
+   */
+  private Counter connectionsAccepted;
+  private Counter connectionsIdleClosed;
+
   @Nullable
   protected Map<ChannelOption<?>, ?> parentChannelOptions;
   @Nullable
@@ -61,16 +63,19 @@ public abstract class Ingester implements Runnable {
                   ChannelHandler commandHandler, int port) {
     this.listeningPort = port;
     this.createInitializer(decoders, commandHandler);
+    initMetrics(port);
   }
 
   public Ingester(ChannelHandler commandHandler, int port) {
     this.listeningPort = port;
     this.createInitializer(null, commandHandler);
+    initMetrics(port);
   }
 
   public Ingester(ChannelInitializer initializer, int port) {
     this.listeningPort = port;
     this.initializer = initializer;
+    initMetrics(port);
   }
 
   public Ingester withParentChannelOptions(Map<ChannelOption<?>, ?> parentChannelOptions) {
@@ -83,6 +88,13 @@ public abstract class Ingester implements Runnable {
     return this;
   }
 
+  private void initMetrics(int port) {
+    this.connectionsAccepted = Metrics.newCounter(new TaggedMetricName("listeners", "connections.accepted",
+        "port", String.valueOf(port)));
+    this.connectionsIdleClosed = Metrics.newCounter(new TaggedMetricName("listeners", "connections.idle.closed",
+        "port", String.valueOf(port)));
+  }
+
   /**
    * Creates the ChannelInitializer for this ingester
    */
@@ -90,6 +102,7 @@ public abstract class Ingester implements Runnable {
     this.initializer = new ChannelInitializer<SocketChannel>() {
       @Override
       public void initChannel(SocketChannel ch) throws Exception {
+        connectionsAccepted.inc();
         ChannelPipeline pipeline = ch.pipeline();
         addDecoders(ch, decoders);
         addIdleTimeoutHandler(pipeline);
@@ -114,7 +127,8 @@ public abstract class Ingester implements Runnable {
                                      Object evt) throws Exception {
         if (evt instanceof IdleStateEvent) {
           if (((IdleStateEvent) evt).state() == IdleState.READER_IDLE) {
-            logger.warning("terminating connection to graphite client due to inactivity after " + CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT + "s: " + ctx.channel());
+            connectionsIdleClosed.inc();
+            logger.warning("Closing idle connection, client inactivity timeout expired: " + ctx.channel());
             ctx.close();
           }
         }

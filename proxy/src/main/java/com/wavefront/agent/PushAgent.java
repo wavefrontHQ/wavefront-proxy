@@ -72,6 +72,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.timeout.IdleStateHandler;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -320,7 +321,9 @@ public class PushAgent extends AbstractAgent {
         }
 
         if (rawLogsPort > 0) {
-          RawLogsIngester rawLogsIngester = new RawLogsIngester(logsIngester, rawLogsPort, System::currentTimeMillis);
+          RawLogsIngester rawLogsIngester = new RawLogsIngester(logsIngester, rawLogsPort, System::currentTimeMillis).
+              withChannelIdleTimeout(listenerIdleConnectionTimeout).
+              withMaxLength(rawLogsMaxReceivedLength);
           startAsManagedThread(() -> {
             try {
               activeListeners.inc();
@@ -416,8 +419,8 @@ public class PushAgent extends AbstractAgent {
                                      @Nullable PointPreprocessor preprocessor) {
     int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler, preprocessor);
-    startAsManagedThread(new StringLineIngester(channelHandler, port).withChildChannelOptions(childChannelOptions),
-        null);
+    startAsManagedThread(new StringLineIngester(channelHandler, port, pushListenerMaxReceivedLength).
+            withChildChannelOptions(childChannelOptions), null);
   }
 
   protected void startGraphiteListener(String strPort, boolean withCustomFormatter) {
@@ -437,9 +440,10 @@ public class PushAgent extends AbstractAgent {
         new PointHandlerImpl(strPort, pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort)),
         preprocessors.forPort(strPort), metadataHandler);
 
+    List<Function<Channel, ChannelHandler>> handlers = Lists.newArrayList();
+    handlers.add(input -> new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
     if (!withCustomFormatter) {
-      List<Function<Channel, ChannelHandler>> handler = Lists.newArrayList(1);
-      handler.add(input -> {
+      handlers.add(input -> {
         SocketChannel ch = (SocketChannel) input;
         if (ch != null && ch.remoteAddress() != null) {
           return new GraphiteHostAnnotator(disableRdnsLookup
@@ -448,10 +452,10 @@ public class PushAgent extends AbstractAgent {
         }
         return new GraphiteHostAnnotator("unknown", customSourceTags);
       });
-      startAsManagedThread(new StringLineIngester(handler, graphiteHandler, port)
+      startAsManagedThread(new StringLineIngester(handlers, graphiteHandler, port, pushListenerMaxReceivedLength)
           .withChildChannelOptions(childChannelOptions), "listener-plaintext-wavefront-" + port);
     } else {
-      startAsManagedThread(new StringLineIngester(graphiteHandler, port)
+      startAsManagedThread(new StringLineIngester(handlers, graphiteHandler, port, pushListenerMaxReceivedLength)
           .withChildChannelOptions(childChannelOptions), "Listener-plaintext-graphite-" + port);
     }
   }
@@ -580,7 +584,10 @@ public class PushAgent extends AbstractAgent {
     }
 
     // Set-up producer
-    startAsManagedThread(new HistogramLineIngester(handlers, port), "listener-plaintext-histogram-" + port);
+    startAsManagedThread(new HistogramLineIngester(handlers, port).
+            withChannelIdleTimeout(listenerIdleConnectionTimeout).
+            withMaxLength(histogramMaxReceivedLength),
+        "listener-plaintext-histogram-" + port);
   }
 
   /**
