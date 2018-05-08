@@ -11,7 +11,6 @@ import com.yammer.metrics.stats.Snapshot;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -203,16 +202,10 @@ public class WavefrontHistogram extends Histogram implements Metric {
       // which will be invoke clear() method
       return;
     }
-    for (LinkedList bins : perThreadHistogramBins.values()) {
+    for (LinkedList<MinuteBin> bins : perThreadHistogramBins.values()) {
       // getCurrent() method will add (PRODUCER) item to the bins list, so synchronize the access
       synchronized (bins) {
-        Iterator<MinuteBin> iter = bins.iterator();
-        while (iter.hasNext()) {
-          if (iter.next().getMinMillis() < cutoffMillis) {
-            iter.remove();
-          }
-        }
-        // TODO - what happens if the list is empty ?? remove from hashmap ??
+        bins.removeIf(minuteBin -> minuteBin.getMinMillis() < cutoffMillis);
       }
     }
   }
