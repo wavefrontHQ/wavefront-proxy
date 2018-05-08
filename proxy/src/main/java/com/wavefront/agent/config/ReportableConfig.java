@@ -49,7 +49,12 @@ public class ReportableConfig {
                           @Nullable Number clampMaxValue) {
     String property = prop.getProperty(key);
     if (property == null && defaultValue == null) return null;
-    Long l = property == null ? defaultValue.longValue() : Long.parseLong(property.trim());
+    Long l;
+    try {
+      l = property == null ? defaultValue.longValue() : Long.parseLong(property.trim());
+    } catch (NumberFormatException e) {
+      throw new NumberFormatException("Config setting \"" + key + "\": invalid number format \"" + property + "\"");
+    }
     if (clampMinValue != null && l < clampMinValue.longValue()) {
       logger.log(Level.WARNING, key + " (" + l + ") is less than " + clampMinValue +
           ", will default to " + clampMinValue);

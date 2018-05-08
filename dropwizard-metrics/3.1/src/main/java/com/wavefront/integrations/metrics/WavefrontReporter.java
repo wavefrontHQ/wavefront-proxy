@@ -9,6 +9,7 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metered;
+import com.codahale.metrics.MetricAttribute;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
@@ -32,9 +33,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -71,6 +75,7 @@ public class WavefrontReporter extends ScheduledReporter {
     private String source;
     private Map<String, String> pointTags;
     private boolean includeJvmMetrics;
+    private Set<MetricAttribute> disabledMetricAttributes;
 
     private Builder(MetricRegistry registry) {
       this.registry = registry;
@@ -82,6 +87,7 @@ public class WavefrontReporter extends ScheduledReporter {
       this.source = "dropwizard-metrics";
       this.pointTags = new HashMap<>();
       this.includeJvmMetrics = false;
+      this.disabledMetricAttributes = Collections.emptySet();
     }
 
     /**
@@ -185,6 +191,18 @@ public class WavefrontReporter extends ScheduledReporter {
     }
 
     /**
+     * Don't report the passed metric attributes for all metrics (e.g. "p999", "stddev" or "m15").
+     * See {@link MetricAttribute}.
+     *
+     * @param disabledMetricAttributes a set of {@link MetricAttribute}
+     * @return {@code this}
+     */
+    public Builder disabledMetricAttributes(Set<MetricAttribute> disabledMetricAttributes) {
+      this.disabledMetricAttributes = disabledMetricAttributes;
+      return this;
+    }
+
+    /**
      * Include JVM Metrics from this Reporter.
      *
      * @return {@code this}
@@ -279,13 +297,14 @@ public class WavefrontReporter extends ScheduledReporter {
           rateUnit,
           durationUnit,
           filter,
-          includeJvmMetrics);
+          includeJvmMetrics,
+          disabledMetricAttributes);
     }
 
     public WavefrontReporter buildDirect(String server, String token) {
       WavefrontSender wavefrontSender = new WavefrontDirectSender(server, token);
       return new WavefrontReporter(registry, wavefrontSender, clock, prefix, source, pointTags, rateUnit,
-          durationUnit, filter, includeJvmMetrics);
+          durationUnit, filter, includeJvmMetrics, disabledMetricAttributes);
     }
 
     /**
@@ -307,7 +326,8 @@ public class WavefrontReporter extends ScheduledReporter {
           rateUnit,
           durationUnit,
           filter,
-          includeJvmMetrics);
+          includeJvmMetrics,
+          disabledMetricAttributes);
     }
   }
 
@@ -328,8 +348,10 @@ public class WavefrontReporter extends ScheduledReporter {
                             TimeUnit rateUnit,
                             TimeUnit durationUnit,
                             MetricFilter filter,
-                            boolean includeJvmMetrics) {
-    super(registry, "wavefront-reporter", filter, rateUnit, durationUnit);
+                            boolean includeJvmMetrics,
+                            Set<MetricAttribute> disabledMetricAttributes) {
+    super(registry, "wavefront-reporter", filter, rateUnit, durationUnit, Executors.newSingleThreadScheduledExecutor(),
+        true, disabledMetricAttributes == null ? Collections.emptySet() : disabledMetricAttributes);
     this.wavefront = wavefrontSender;
     this.clock = clock;
     this.prefix = prefix;
@@ -358,9 +380,10 @@ public class WavefrontReporter extends ScheduledReporter {
                             TimeUnit rateUnit,
                             TimeUnit durationUnit,
                             MetricFilter filter,
-                            boolean includeJvmMetrics) {
+                            boolean includeJvmMetrics,
+                            Set<MetricAttribute> disabledMetricAttributes) {
     this(registry, new Wavefront(proxyHostname, proxyPort), clock, prefix, source, pointTags, rateUnit,
-        durationUnit, filter, includeJvmMetrics);
+        durationUnit, filter, includeJvmMetrics, disabledMetricAttributes);
   }
 
   @Override
@@ -424,65 +447,43 @@ public class WavefrontReporter extends ScheduledReporter {
   private void reportTimer(String name, Timer timer) throws IOException {
     final Snapshot snapshot = timer.getSnapshot();
     final long time = clock.getTime() / 1000;
-    wavefront.send(prefixAndSanitize(name, "max"), convertDuration(snapshot.getMax()), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "mean"), convertDuration(snapshot.getMean()), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "min"), convertDuration(snapshot.getMin()), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "stddev"),
-        convertDuration(snapshot.getStdDev()),
-        time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p50"),
-        convertDuration(snapshot.getMedian()),
-        time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p75"),
-        convertDuration(snapshot.get75thPercentile()),
-        time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p95"),
-        convertDuration(snapshot.get95thPercentile()),
-        time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p98"),
-        convertDuration(snapshot.get98thPercentile()),
-        time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p99"),
-        convertDuration(snapshot.get99thPercentile()),
-        time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p999"),
-        convertDuration(snapshot.get999thPercentile()),
-        time, source, pointTags);
+    sendIfEnabled(MetricAttribute.MAX, name, convertDuration(snapshot.getMax()), time);
+    sendIfEnabled(MetricAttribute.MEAN, name, convertDuration(snapshot.getMean()), time);
+    sendIfEnabled(MetricAttribute.MIN, name, convertDuration(snapshot.getMin()), time);
+    sendIfEnabled(MetricAttribute.STDDEV, name, convertDuration(snapshot.getStdDev()), time);
+    sendIfEnabled(MetricAttribute.P50, name, convertDuration(snapshot.getMedian()), time);
+    sendIfEnabled(MetricAttribute.P75, name, convertDuration(snapshot.get75thPercentile()), time);
+    sendIfEnabled(MetricAttribute.P95, name, convertDuration(snapshot.get95thPercentile()), time);
+    sendIfEnabled(MetricAttribute.P98, name, convertDuration(snapshot.get98thPercentile()), time);
+    sendIfEnabled(MetricAttribute.P99, name, convertDuration(snapshot.get99thPercentile()), time);
+    sendIfEnabled(MetricAttribute.P999, name, convertDuration(snapshot.get999thPercentile()), time);
 
     reportMetered(name, timer);
   }
 
   private void reportMetered(String name, Metered meter) throws IOException {
-    wavefront.send(prefixAndSanitize(name, "count"), meter.getCount(), source, pointTags);
     final long time = clock.getTime() / 1000;
-    wavefront.send(prefixAndSanitize(name, "m1_rate"),
-        convertRate(meter.getOneMinuteRate()), time,
-        source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "m5_rate"),
-        convertRate(meter.getFiveMinuteRate()), time,
-        source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "m15_rate"),
-        convertRate(meter.getFifteenMinuteRate()), time,
-        source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "mean_rate"),
-        convertRate(meter.getMeanRate()), time,
-        source, pointTags);
+    sendIfEnabled(MetricAttribute.COUNT, name, meter.getCount(), time);
+    sendIfEnabled(MetricAttribute.M1_RATE, name, convertRate(meter.getOneMinuteRate()), time);
+    sendIfEnabled(MetricAttribute.M5_RATE, name, convertRate(meter.getFiveMinuteRate()), time);
+    sendIfEnabled(MetricAttribute.M15_RATE, name, convertRate(meter.getFifteenMinuteRate()), time);
+    sendIfEnabled(MetricAttribute.MEAN_RATE, name, convertRate(meter.getMeanRate()), time);
   }
 
   private void reportHistogram(String name, Histogram histogram) throws IOException {
     final Snapshot snapshot = histogram.getSnapshot();
     final long time = clock.getTime() / 1000;
-    wavefront.send(prefixAndSanitize(name, "count"), histogram.getCount(), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "max"), snapshot.getMax(), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "mean"), snapshot.getMean(), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "min"), snapshot.getMin(), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "stddev"), snapshot.getStdDev(), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p50"), snapshot.getMedian(), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p75"), snapshot.get75thPercentile(), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p95"), snapshot.get95thPercentile(), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p98"), snapshot.get98thPercentile(), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p99"), snapshot.get99thPercentile(), time, source, pointTags);
-    wavefront.send(prefixAndSanitize(name, "p999"), snapshot.get999thPercentile(), time, source, pointTags);
+    sendIfEnabled(MetricAttribute.COUNT, name, histogram.getCount(), time);
+    sendIfEnabled(MetricAttribute.MAX, name, snapshot.getMax(), time);
+    sendIfEnabled(MetricAttribute.MEAN, name, snapshot.getMean(), time);
+    sendIfEnabled(MetricAttribute.MIN, name, snapshot.getMin(), time);
+    sendIfEnabled(MetricAttribute.STDDEV, name, snapshot.getStdDev(), time);
+    sendIfEnabled(MetricAttribute.P50, name, snapshot.getMedian(), time);
+    sendIfEnabled(MetricAttribute.P75, name, snapshot.get75thPercentile(), time);
+    sendIfEnabled(MetricAttribute.P95, name, snapshot.get95thPercentile(), time);
+    sendIfEnabled(MetricAttribute.P98, name, snapshot.get98thPercentile(), time);
+    sendIfEnabled(MetricAttribute.P99, name, snapshot.get99thPercentile(), time);
+    sendIfEnabled(MetricAttribute.P999, name, snapshot.get999thPercentile(), time);
   }
 
   private void reportCounter(String name, Counter counter) throws IOException {
@@ -498,6 +499,12 @@ public class WavefrontReporter extends ScheduledReporter {
 
   private void reportGauge(String name, Gauge<Number> gauge) throws IOException {
     wavefront.send(prefixAndSanitize(name), gauge.getValue().doubleValue(), clock.getTime() / 1000, source, pointTags);
+  }
+
+  private void sendIfEnabled(MetricAttribute type, String name, double value, long timestamp) throws IOException {
+    if (!getDisabledMetricAttributes().contains(type)) {
+      wavefront.send(prefixAndSanitize(name, type.getCode()), value, timestamp, source, pointTags);
+    }
   }
 
   private String prefixAndSanitize(String... components) {

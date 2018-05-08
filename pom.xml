@@ -4,12 +4,13 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>4.27-SNAPSHOT</version>
+  <version>4.29-SNAPSHOT</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
     <module>java-client</module>
     <module>dropwizard-metrics/3.1</module>
+    <module>dropwizard-metrics/dropwizard-metrics-wavefront</module>
     <module>yammer-metrics</module>
   </modules>
   <packaging>pom</packaging>
@@ -58,7 +59,7 @@
     <jetty.version>9.4.7.v20170914</jetty.version>
     <jackson.version>2.9.2</jackson.version>
     <netty.version>4.1.11.Final</netty.version>
-    <public.project.version>4.27-SNAPSHOT</public.project.version>
+    <public.project.version>4.29-SNAPSHOT</public.project.version>
   </properties>
 
   <build>
@@ -112,6 +113,11 @@
       <dependency>
         <groupId>com.wavefront</groupId>
         <artifactId>dropwizard-metrics-3.1</artifactId>
+        <version>${public.project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.wavefront</groupId>
+        <artifactId>dropwizard-metrics-wavefront</artifactId>
         <version>${public.project.version}</version>
       </dependency>
       <dependency>

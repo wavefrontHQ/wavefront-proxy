@@ -142,38 +142,51 @@ jsvc_exec()
 	fi
 }
 
+start()
+{
+    if [[ -f "$pid_file" ]]; then
+        echo "$desc is already running (PID $(cat "$pid_file"))"
+    fi
+    echo "Starting $desc"
+    jsvc_exec
+    echo "Done"
+}
+
+status()
+{
+    if [[ -f "$pid_file" ]]; then
+        echo "$desc is running (PID $(cat "$pid_file"))"
+    else
+        echo "$desc is not running."
+        exit 3
+    fi
+}
+
+stop()
+{
+    echo "Stopping $desc"
+    jsvc_exec "-stop"
+    echo "Done"
+}
+
+restart()
+{
+    stop
+    start
+}
+
+condrestart()
+{
+    [ -f "$pid_file" ] && restart
+}
 case "$1" in
-start)
-	if [[ -f "$pid_file" ]]; then
-		echo "$desc is already running (PID $(cat "$pid_file"))"
-	fi
-	echo "Starting $desc"
-	jsvc_exec
-	echo "Done"
-;;
-status)
-	if [[ -f "$pid_file" ]]; then
-		echo "$desc is running (PID $(cat "$pid_file"))"
-	else
-		echo "$desc is not running."
-		exit 3
-	fi
-;;
-stop)
-	echo "Stopping $desc"
-	jsvc_exec "-stop"
-	echo "Done"
-;;
-restart)
-	if [[ -f "$pid_file" ]]; then
-		echo "Stopping $desc"
-		jsvc_exec "-stop"
-	fi
-	echo "Starting $desc"
-	jsvc_exec
-	echo "Done"
-;;
+start) start ;;
+status) status ;;
+stop) stop ;;
+restart) restart ;;
+condrestart) condrestart ;;
+
 *)
-	echo "Usage: $0 {status | start | stop | restart}"
+	echo "Usage: $0 {status | start | stop | restart | condrestart}"
 	exit 1
 esac

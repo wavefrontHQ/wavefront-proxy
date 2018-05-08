@@ -2,6 +2,7 @@ package com.wavefront.agent.histogram;
 
 import com.google.common.base.Charsets;
 
+import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -46,22 +47,39 @@ public class HistogramLineIngester extends ChannelInitializer implements Runnabl
    * Default number of seconds before the channel idle timeout handler closes the connection.
    */
   private static final int CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT = (int) TimeUnit.DAYS.toSeconds(1);
-  private static final int MAXIMUM_FRAME_LENGTH = 16384;
   private static final int MAXIMUM_OUTSTANDING_CONNECTIONS = 1024;
 
   private static final AtomicLong connectionId = new AtomicLong(0);
 
   private static final Logger logger = Logger.getLogger(HistogramLineIngester.class.getCanonicalName());
-  private Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
+  private final Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
+  private final Counter connectionsAccepted;
+  private final Counter connectionsIdleClosed;
 
   // The final handlers to be installed.
   private final ArrayList<ChannelHandler> handlers;
   private final int port;
+  private int maxLength = 64 * 1024;
+  private int channelIdleTimeout = CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT;
 
 
   public HistogramLineIngester(Collection<ChannelHandler> handlers, int port) {
     this.handlers = new ArrayList<>(handlers);
     this.port = port;
+    this.connectionsAccepted = Metrics.newCounter(new TaggedMetricName("listeners", "connections.accepted",
+        "port", String.valueOf(port)));
+    this.connectionsIdleClosed = Metrics.newCounter(new TaggedMetricName("listeners", "connections.idle.closed",
+        "port", String.valueOf(port)));
+  }
+
+  public HistogramLineIngester withMaxLength(int maxLength) {
+    this.maxLength = maxLength;
+    return this;
+  }
+
+  public HistogramLineIngester withChannelIdleTimeout(int channelIdleTimeout) {
+    this.channelIdleTimeout = channelIdleTimeout;
+    return this;
   }
 
   @Override
@@ -116,21 +134,23 @@ public class HistogramLineIngester extends ChannelInitializer implements Runnabl
     // Round robin channel to handler assignment.
     int idx = (int) (Math.abs(connectionId.getAndIncrement()) % handlers.size());
     ChannelHandler handler = handlers.get(idx);
+    connectionsAccepted.inc();
 
     // Add decoders and timeout, add handler()
     ChannelPipeline pipeline = ch.pipeline();
     pipeline.addLast(
-        new LineBasedFrameDecoder(MAXIMUM_FRAME_LENGTH, true, false),
+        new LineBasedFrameDecoder(maxLength, true, false),
         new StringDecoder(Charsets.UTF_8),
-        new IdleStateHandler(CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT, 0, 0),
+        new IdleStateHandler(channelIdleTimeout, 0, 0),
         new ChannelDuplexHandler() {
           @Override
           public void userEventTriggered(ChannelHandlerContext ctx,
                                          Object evt) throws Exception {
             if (evt instanceof IdleStateEvent) {
               if (((IdleStateEvent) evt).state() == IdleState.READER_IDLE) {
-                logger.warning("terminating connection to histogram client due to inactivity after " +
-                    CHANNEL_IDLE_TIMEOUT_IN_SECS_DEFAULT + "s: " + ctx.channel());
+                connectionsIdleClosed.inc();
+                logger.info("Closing idle connection to histogram client, inactivity timeout " +
+                    channelIdleTimeout + "s expired: " + ctx.channel());
                 ctx.close();
               }
             }
