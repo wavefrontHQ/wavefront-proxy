@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -51,17 +52,16 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
   private static final Logger LOGGER = LoggerFactory.getLogger(WavefrontDirectSender.class);
   private static final String quote = "\"";
   private static final String escapedQuote = "\\\"";
+  private static final int MAX_QUEUE_SIZE = 50000;
+  private static final int BATCH_SIZE = 10000;
 
-  private final Object pointsMutex = new Object();
   private final ScheduledExecutorService scheduler;
   private final String server;
   private final String token;
   private DataIngesterAPI directService;
   private CloseableHttpClient httpClient;
   private Future<?> scheduledFuture;
-
-  //TODO: bounded buffer?
-  private List<String> buffer = new ArrayList<>();
+  private final LinkedBlockingQueue<String> buffer = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
 
   public WavefrontDirectSender(String server, String token) {
     this.server = server;
@@ -128,13 +128,9 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
 
   private void addPoint(@NotNull String name, double value, @Nullable Long timestamp, @NotNull String source,
                         @Nullable Map<String, String> pointTags) throws IOException {
-
-    //TODO: extra validation required?
     String point = pointToString(name, value, timestamp, source, pointTags);
-    if (point != null) {
-      synchronized(pointsMutex) {
-        this.buffer.add(point);
-      }
+    if (point != null && !buffer.offer(point)) {
+      LOGGER.debug("Buffer full, dropping point " + name);
     }
   }
 
@@ -191,6 +187,12 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
       if (response.getStatusInfo().getFamily() == Response.Status.Family.SERVER_ERROR ||
           response.getStatusInfo().getFamily() == Response.Status.Family.CLIENT_ERROR) {
         LOGGER.debug("Error reporting points, respStatus=" + response.getStatus());
+        try {
+          buffer.addAll(points);
+        } catch (Exception ex) {
+          // unlike offer(), addAll adds partially and throws an exception if buffer full
+          LOGGER.debug("Buffer full, dropping attempted points");
+        }
       }
     } finally {
       if (response != null) {
@@ -214,12 +216,9 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
   }
 
   private List<String> getPointsBatch() {
-    List<String> points;
-    synchronized(pointsMutex) {
-      int blockSize = Math.min(buffer.size(), 10000);
-      points = buffer.subList(0, blockSize);
-      buffer = new ArrayList<>(buffer.subList(blockSize, buffer.size()));
-    }
+    int blockSize = Math.min(buffer.size(), BATCH_SIZE);
+    List<String> points = new ArrayList<>(blockSize);
+    buffer.drainTo(points, blockSize);
     return points;
   }
 
@@ -248,7 +247,7 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
   public void run() {
     try {
       this.internalFlush();
-    } catch (Exception ex) {
+    } catch (Throwable ex) {
       LOGGER.debug("Unable to report to Wavefront", ex);
     }
   }
