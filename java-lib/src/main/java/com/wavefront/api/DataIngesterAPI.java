@@ -11,23 +11,16 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 /**
+ * The API for reporting points directly to a Wavefront server.
  *
  * @author Vikram Raman
  */
 @Path("/")
-public interface DataIngestorAPI {
+public interface DataIngesterAPI {
 
   @POST
   @Path("report")
   @Consumes({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_FORM_URLENCODED,
       MediaType.TEXT_PLAIN})
   Response report(@QueryParam("f") String format, InputStream stream) throws IOException;
-
-  /*
-  @POST
-  @Path("report")
-  @Consumes(MediaType.MULTIPART_FORM_DATA)
-  Response uploadFile(@QueryParam("f") String format,
-                      @FormDataParam("file") InputStream uploadedInputStream,
-                      @FormDataParam("file") FormDataContentDisposition fileDetails);*/
 }

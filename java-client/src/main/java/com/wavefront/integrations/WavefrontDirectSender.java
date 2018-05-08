@@ -1,6 +1,6 @@
 package com.wavefront.integrations;
 
-import com.wavefront.api.DataIngestorAPI;
+import com.wavefront.api.DataIngesterAPI;
 import com.wavefront.common.NamedThreadFactory;
 
 import org.apache.commons.lang.StringUtils;
@@ -56,7 +56,7 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
   private final ScheduledExecutorService scheduler;
   private final String server;
   private final String token;
-  private DataIngestorAPI directService;
+  private DataIngesterAPI directService;
   private CloseableHttpClient httpClient;
   private Future<?> scheduledFuture;
 
@@ -69,7 +69,7 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
     scheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory(DEFAULT_SOURCE));
   }
 
-  private DataIngestorAPI createWavefrontService(String server, String token) {
+  private DataIngesterAPI createWavefrontService(String server, String token) {
     httpClient = HttpClientBuilder.create().
         setUserAgent(DEFAULT_SOURCE).
         setRequestExecutor(new TokenHeaderHttpRequestExectutor(token)).
@@ -89,7 +89,7 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
         register(AcceptEncodingGZIPFilter.class).
         build();
     ResteasyWebTarget target = client.target(server);
-    return target.proxy(DataIngestorAPI.class);
+    return target.proxy(DataIngesterAPI.class);
   }
 
   @Override
@@ -146,20 +146,18 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
   static String pointToString(String name, double value, @Nullable Long timestamp, String source,
                                @Nullable Map<String, String> pointTags) {
 
-    if (name == null || name.isEmpty() || source == null || source.isEmpty()) {
+    if (StringUtils.isBlank(name) || StringUtils.isBlank(source)) {
       LOGGER.debug("Invalid point: Empty name/source");
       return null;
     }
 
-    if (timestamp == null) {
-      timestamp = System.currentTimeMillis()/1000;
-    }
-
     StringBuilder sb = new StringBuilder(quote).
         append(escapeQuotes(name)).append(quote).append(" ").
-        append(Double.toString(value)).append(" ").
-        append(Long.toString(timestamp)).append(" ").
-        append("source=").append(quote).append(escapeQuotes(source)).append(quote);
+        append(Double.toString(value)).append(" ");
+    if (timestamp != null) {
+      sb.append(Long.toString(timestamp)).append(" ");
+    }
+    sb.append("source=").append(quote).append(escapeQuotes(source)).append(quote);
 
     if (pointTags != null) {
       for (Map.Entry<String, String> entry : pointTags.entrySet()) {
