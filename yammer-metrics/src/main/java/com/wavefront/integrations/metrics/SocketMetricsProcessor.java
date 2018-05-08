@@ -1,5 +1,6 @@
 package com.wavefront.integrations.metrics;
 
+import com.tdunning.math.stats.Centroid;
 import com.wavefront.common.MetricsToTimeseries;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.ReconnectingSocket;
@@ -130,13 +131,15 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
       List<WavefrontHistogram.MinuteBin> bins = wavefrontHistogram.bins(clear);
       if (bins.isEmpty()) return; // don't send empty histograms.
-      StringBuilder sb = new StringBuilder();
-      sb.append("!M ").append(timeSupplier.get() / 1000);
       for (WavefrontHistogram.MinuteBin minuteBin : bins) {
-        sb.append(" #").append(minuteBin.getDist().size()).append(" ").append(minuteBin.getDist().quantile(.5));
+        StringBuilder sb = new StringBuilder();
+        sb.append("!M ").append(minuteBin.getMinMillis() / 1000);
+        for (Centroid c : minuteBin.getDist().centroids()) {
+          sb.append(" #").append(c.count()).append(" ").append(c.mean());
+        }
+        sb.append(" \"").append(getName(name)).append("\"").append(tagsForMetricName(name)).append("\n");
+        histogramsSocket.write(sb.toString());
       }
-      sb.append(" \"").append(getName(name)).append("\"").append(tagsForMetricName(name)).append("\n");
-      histogramsSocket.write(sb.toString());
     } else {
       if (!sendEmptyHistograms && histogram.count() == 0) {
         // send count still but skip the others.
