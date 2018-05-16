@@ -25,6 +25,7 @@ import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ShellOutputDTO;
+import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;

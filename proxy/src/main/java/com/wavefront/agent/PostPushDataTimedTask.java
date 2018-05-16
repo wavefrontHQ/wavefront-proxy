@@ -5,6 +5,7 @@ import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.agent.Constants;
+import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.ingester.StringLineIngester;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;

@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 
 import com.codahale.metrics.Clock;
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.DeltaCounter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
@@ -20,7 +21,9 @@ import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.SafeFileDescriptorRatioGauge;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
+import com.wavefront.common.Constants;
 import com.wavefront.integrations.Wavefront;
+import com.wavefront.integrations.WavefrontDirectSender;
 import com.wavefront.integrations.WavefrontSender;
 
 import org.json.JSONArray;
@@ -299,6 +302,20 @@ public class WavefrontReporter extends ScheduledReporter {
     }
 
     /**
+     * Builds a {@link WavefrontReporter} with the given properties, sending metrics directly
+     * to a given Wavefront server using direct ingestion APIs.
+     *
+     * @param server Wavefront server hostname of the form "https://serverName.wavefront.com"
+     * @param token  Wavefront API token with direct ingestion permission
+     * @return a {@link WavefrontReporter}
+     */
+    public WavefrontReporter buildDirect(String server, String token) {
+      WavefrontSender wavefrontSender = new WavefrontDirectSender(server, token);
+      return new WavefrontReporter(registry, wavefrontSender, clock, prefix, source, pointTags, rateUnit,
+          durationUnit, filter, includeJvmMetrics, disabledMetricAttributes);
+    }
+
+    /**
      * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
      * {@link WavefrontSender}.
      *
@@ -331,8 +348,7 @@ public class WavefrontReporter extends ScheduledReporter {
   private final Map<String, String> pointTags;
 
   private WavefrontReporter(MetricRegistry registry,
-                            String proxyHostname,
-                            int proxyPort,
+                            WavefrontSender wavefrontSender,
                             final Clock clock,
                             String prefix,
                             String source,
@@ -344,7 +360,7 @@ public class WavefrontReporter extends ScheduledReporter {
                             Set<MetricAttribute> disabledMetricAttributes) {
     super(registry, "wavefront-reporter", filter, rateUnit, durationUnit, Executors.newSingleThreadScheduledExecutor(),
         true, disabledMetricAttributes == null ? Collections.emptySet() : disabledMetricAttributes);
-    this.wavefront = new Wavefront(proxyHostname, proxyPort);
+    this.wavefront = wavefrontSender;
     this.clock = clock;
     this.prefix = prefix;
     this.source = source;
@@ -360,6 +376,22 @@ public class WavefrontReporter extends ScheduledReporter {
       registry.register("jvm.memory", new MemoryUsageGaugeSet());
       registry.register("jvm.thread-states", new ThreadStatesGaugeSet());
     }
+  }
+
+  private WavefrontReporter(MetricRegistry registry,
+                            String proxyHostname,
+                            int proxyPort,
+                            final Clock clock,
+                            String prefix,
+                            String source,
+                            Map<String, String> pointTags,
+                            TimeUnit rateUnit,
+                            TimeUnit durationUnit,
+                            MetricFilter filter,
+                            boolean includeJvmMetrics,
+                            Set<MetricAttribute> disabledMetricAttributes) {
+    this(registry, new Wavefront(proxyHostname, proxyPort), clock, prefix, source, pointTags, rateUnit,
+        durationUnit, filter, includeJvmMetrics, disabledMetricAttributes);
   }
 
   @Override
@@ -463,7 +495,14 @@ public class WavefrontReporter extends ScheduledReporter {
   }
 
   private void reportCounter(String name, Counter counter) throws IOException {
-    wavefront.send(prefixAndSanitize(name, "count"), counter.getCount(), clock.getTime() / 1000, source, pointTags);
+    if (counter instanceof DeltaCounter) {
+      long count = counter.getCount();
+      name = Constants.DELTA_PREFIX + prefixAndSanitize(name.substring(1), "count");
+      wavefront.send(name, count,clock.getTime() / 1000, source, pointTags);
+      counter.dec(count);
+    } else {
+      wavefront.send(prefixAndSanitize(name, "count"), counter.getCount(), clock.getTime() / 1000, source, pointTags);
+    }
   }
 
   private void reportGauge(String name, Gauge<Number> gauge) throws IOException {

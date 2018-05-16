@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.common;
 
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;

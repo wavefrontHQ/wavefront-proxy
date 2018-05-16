@@ -3,6 +3,7 @@ package com.wavefront.agent;
 import com.google.common.util.concurrent.RateLimiter;
 
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
+import com.wavefront.common.NamedThreadFactory;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
