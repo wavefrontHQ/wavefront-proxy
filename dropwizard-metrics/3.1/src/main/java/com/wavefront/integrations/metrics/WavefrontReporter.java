@@ -301,6 +301,14 @@ public class WavefrontReporter extends ScheduledReporter {
           disabledMetricAttributes);
     }
 
+    /**
+     * Builds a {@link WavefrontReporter} with the given properties, sending metrics directly
+     * to a given Wavefront server using direct ingestion APIs.
+     *
+     * @param server Wavefront server hostname of the form "https://serverName.wavefront.com"
+     * @param token  Wavefront API token with direct ingestion permission
+     * @return a {@link WavefrontReporter}
+     */
     public WavefrontReporter buildDirect(String server, String token) {
       WavefrontSender wavefrontSender = new WavefrontDirectSender(server, token);
       return new WavefrontReporter(registry, wavefrontSender, clock, prefix, source, pointTags, rateUnit,

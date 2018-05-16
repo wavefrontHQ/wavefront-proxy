@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -55,18 +54,16 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
   private static final int MAX_QUEUE_SIZE = 50000;
   private static final int BATCH_SIZE = 10000;
 
-  private final ScheduledExecutorService scheduler;
+  private ScheduledExecutorService scheduler;
   private final String server;
   private final String token;
   private DataIngesterAPI directService;
   private CloseableHttpClient httpClient;
-  private Future<?> scheduledFuture;
   private final LinkedBlockingQueue<String> buffer = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
 
   public WavefrontDirectSender(String server, String token) {
     this.server = server;
     this.token = token;
-    scheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory(DEFAULT_SOURCE));
   }
 
   private DataIngesterAPI createWavefrontService(String server, String token) {
@@ -96,7 +93,8 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
   public synchronized void connect() throws IllegalStateException, IOException {
     if (httpClient == null) {
       directService = createWavefrontService(server, token);
-      scheduledFuture = scheduler.scheduleAtFixedRate(this, 1, 1, TimeUnit.SECONDS);
+      scheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory(DEFAULT_SOURCE));
+      scheduler.scheduleAtFixedRate(this, 1, 1, TimeUnit.SECONDS);
     }
   }
 
@@ -235,8 +233,12 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
   @Override
   public synchronized void close() throws IOException {
     if (httpClient != null) {
-      scheduledFuture.cancel(false);
-      scheduledFuture = null;
+      try {
+        scheduler.shutdownNow();
+      } catch (SecurityException ex) {
+        LOGGER.debug("shutdown error", ex);
+      }
+      scheduler = null;
       httpClient.close();
       httpClient = null;
       directService = null;
