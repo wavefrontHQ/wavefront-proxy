@@ -16,12 +16,9 @@ import wavefront.report.ReportPoint;
  *
  * Created by Vasily on 9/13/16.
  */
-public class ReportPointAddTagIfNotExistsTransformer implements Function<ReportPoint, ReportPoint> {
+public class ReportPointAddTagIfNotExistsTransformer extends ReportPointAddTagTransformer {
 
-  private final String tag;
-  private final String value;
-  private final PreprocessorRuleMetrics ruleMetrics;
-
+  @Deprecated
   public ReportPointAddTagIfNotExistsTransformer(final String tag,
                                                  final String value,
                                                  @Nullable final Counter ruleAppliedCounter) {
@@ -31,17 +28,12 @@ public class ReportPointAddTagIfNotExistsTransformer implements Function<ReportP
   public ReportPointAddTagIfNotExistsTransformer(final String tag,
                                                  final String value,
                                                  final PreprocessorRuleMetrics ruleMetrics) {
-    this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
-    this.value = Preconditions.checkNotNull(value, "[value] can't be null");
-    Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");
-    Preconditions.checkArgument(!value.isEmpty(), "[value] can't be blank");
-    Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
-    this.ruleMetrics = ruleMetrics;
+    super(tag, value, ruleMetrics);
   }
 
   @Override
   public ReportPoint apply(@NotNull ReportPoint reportPoint) {
-    Long startNanos = System.nanoTime();
+    long startNanos = ruleMetrics.ruleStart();
     if (reportPoint.getAnnotations() == null) {
       reportPoint.setAnnotations(Maps.<String, String>newHashMap());
     }
@@ -49,7 +41,7 @@ public class ReportPointAddTagIfNotExistsTransformer implements Function<ReportP
       reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
       ruleMetrics.incrementRuleAppliedCounter();
     }
-    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+    ruleMetrics.ruleEnd(startNanos);
     return reportPoint;
   }
 }

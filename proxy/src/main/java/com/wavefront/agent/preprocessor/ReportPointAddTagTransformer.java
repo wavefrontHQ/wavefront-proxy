@@ -18,10 +18,11 @@ import wavefront.report.ReportPoint;
  */
 public class ReportPointAddTagTransformer implements Function<ReportPoint, ReportPoint> {
 
-  private final String tag;
-  private final String value;
-  private final PreprocessorRuleMetrics ruleMetrics;
+  protected final String tag;
+  protected final String value;
+  protected final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public ReportPointAddTagTransformer(final String tag,
                                       final String value,
                                       @Nullable final Counter ruleAppliedCounter) {
@@ -41,13 +42,13 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
 
   @Override
   public ReportPoint apply(@NotNull ReportPoint reportPoint) {
-    Long startNanos = System.nanoTime();
+    long startNanos = ruleMetrics.ruleStart();
     if (reportPoint.getAnnotations() == null) {
       reportPoint.setAnnotations(Maps.<String, String>newHashMap());
     }
     reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
     ruleMetrics.incrementRuleAppliedCounter();
-    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+    ruleMetrics.ruleEnd(startNanos);
     return reportPoint;
   }
 }

@@ -29,6 +29,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public ReportPointReplaceRegexTransformer(final String scope,
                                             final String patternSearch,
                                             final String patternReplace,
@@ -80,7 +81,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
 
   @Override
   public ReportPoint apply(@NotNull ReportPoint reportPoint) {
-    Long startNanos = System.nanoTime();
+    long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":
         if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getMetric()).matches()) {
@@ -105,7 +106,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
           }
         }
     }
-    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+    ruleMetrics.ruleEnd(startNanos);
     return reportPoint;
   }
 }

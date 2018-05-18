@@ -25,6 +25,7 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public ReportPointRenameTagTransformer(final String tag,
                                          final String newTag,
                                          @Nullable final String patternMatch,
@@ -47,20 +48,20 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
 
   @Override
   public ReportPoint apply(@NotNull ReportPoint reportPoint) {
-    Long startNanos = System.nanoTime();
+    long startNanos = ruleMetrics.ruleStart();
     if (reportPoint.getAnnotations() == null) {
-      ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+      ruleMetrics.ruleEnd(startNanos);
       return reportPoint;
     }
     String tagValue = reportPoint.getAnnotations().get(tag);
     if (tagValue == null || (compiledPattern != null && !compiledPattern.matcher(tagValue).matches())) {
-      ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+      ruleMetrics.ruleEnd(startNanos);
       return reportPoint;
     }
     reportPoint.getAnnotations().remove(tag);
     reportPoint.getAnnotations().put(newTag, tagValue);
     ruleMetrics.incrementRuleAppliedCounter();
-    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+    ruleMetrics.ruleEnd(startNanos);
     return reportPoint;
   }
 }

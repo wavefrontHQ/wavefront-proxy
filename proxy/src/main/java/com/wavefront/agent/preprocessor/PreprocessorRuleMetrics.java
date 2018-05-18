@@ -16,12 +16,22 @@ public class PreprocessorRuleMetrics {
   private final Counter ruleAppliedCounter;
   @Nullable
   private final Counter ruleCpuTimeNanosCounter;
+  @Nullable
+  private final Counter ruleCheckedCounter;
 
-  public PreprocessorRuleMetrics(@Nullable Counter ruleAppliedCounter, @Nullable Counter ruleCpuTimeNanosCounter) {
+  public PreprocessorRuleMetrics(@Nullable Counter ruleAppliedCounter, @Nullable Counter ruleCpuTimeNanosCounter,
+                                 @Nullable Counter ruleCheckedCounter) {
     this.ruleAppliedCounter = ruleAppliedCounter;
     this.ruleCpuTimeNanosCounter = ruleCpuTimeNanosCounter;
+    this.ruleCheckedCounter = ruleCheckedCounter;
   }
 
+  @Deprecated
+  public PreprocessorRuleMetrics(@Nullable Counter ruleAppliedCounter, @Nullable Counter ruleCpuTimeNanosCounter) {
+    this(ruleAppliedCounter, ruleCpuTimeNanosCounter, null);
+  }
+
+  @Deprecated
   public PreprocessorRuleMetrics(@Nullable Counter ruleAppliedCounter) {
     this(ruleAppliedCounter, null);
   }
@@ -40,9 +50,34 @@ public class PreprocessorRuleMetrics {
    *
    * @param n the amount by which the counter will be increased
    */
+  @Deprecated
   public void countCpuNanos(long n) {
     if (this.ruleCpuTimeNanosCounter != null) {
       this.ruleCpuTimeNanosCounter.inc(n);
     }
+  }
+
+  /**
+   * Measure rule execution time and add it to ruleCpuTimeNanosCounter (if available)
+   *
+   * @param ruleStartTime rule start time
+   */
+  public void ruleEnd(long ruleStartTime) {
+    if (this.ruleCpuTimeNanosCounter != null) {
+      this.ruleCpuTimeNanosCounter.inc(System.nanoTime() - ruleStartTime);
+    }
+  }
+
+
+  /**
+   * Mark rule start time, increment ruleCheckedCounter (if available) by 1
+   *
+   * @return start time in nanos
+   */
+  public long ruleStart() {
+    if (this.ruleCheckedCounter != null) {
+      this.ruleCheckedCounter.inc();
+    }
+    return System.nanoTime();
   }
 }

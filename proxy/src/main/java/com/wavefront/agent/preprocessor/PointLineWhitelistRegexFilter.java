@@ -18,6 +18,7 @@ public class PointLineWhitelistRegexFilter extends AnnotatedPredicate<String> {
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public PointLineWhitelistRegexFilter(final String patternMatch,
                                        @Nullable final Counter ruleAppliedCounter) {
     this(patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
@@ -33,13 +34,13 @@ public class PointLineWhitelistRegexFilter extends AnnotatedPredicate<String> {
 
   @Override
   public boolean apply(String pointLine) {
-  Long startNanos = System.nanoTime();
+  long startNanos = ruleMetrics.ruleStart();
     if (!compiledPattern.matcher(pointLine).matches()) {
       ruleMetrics.incrementRuleAppliedCounter();
-      ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+      ruleMetrics.ruleEnd(startNanos);
       return false;
     }
-    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+    ruleMetrics.ruleEnd(startNanos);
     return true;
   }
 }
