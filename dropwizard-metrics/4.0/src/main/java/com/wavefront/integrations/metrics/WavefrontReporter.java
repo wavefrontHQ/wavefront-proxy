@@ -39,6 +39,9 @@ import java.util.concurrent.TimeUnit;
  * This sends a DIFFERENT metrics taxonomy than the Wavefront "yammer" metrics reporter.
  */
 public class WavefrontReporter extends ScheduledReporter {
+  
+  private static final Logger LOGGER = LoggerFactory.getLogger(WavefrontReporter.class);
+	
   /**
    * Returns a new {@link Builder} for {@link WavefrontReporter}.
    *
@@ -206,7 +209,6 @@ public class WavefrontReporter extends ScheduledReporter {
                                    durationUnit,
                                    filter,
                                    includeJvmMetrics);
-    
   }
 
   /**
@@ -229,8 +231,6 @@ public class WavefrontReporter extends ScheduledReporter {
             includeJvmMetrics);
   }
 }
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(WavefrontReporter.class);
 
   private final WavefrontSender wavefront;
   private final Clock clock;
@@ -289,7 +289,6 @@ public class WavefrontReporter extends ScheduledReporter {
                             TimeUnit durationUnit,
                             MetricFilter filter,
                             boolean includeJvmMetrics) {
-
     super(registry, "wavefront-reporter", filter, rateUnit, durationUnit);
     this.wavefront = wavefrontSender;
     this.clock = clock;
