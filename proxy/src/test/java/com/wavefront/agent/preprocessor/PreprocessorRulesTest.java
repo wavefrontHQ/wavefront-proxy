@@ -364,6 +364,19 @@ public class PreprocessorRulesTest {
         "\"baz\"=\"bar\" \"newtagkey\"=\"1\" \"numericTag\"=\"12345\" \"prefix\"=\"some\"";
     assertEquals(expectedPoint6, applyAllTransformers(
         "some.metric 7 1459527231 source=hostname foo=bar dc1=baz datacenter=az4 qux=12345", "2878"));
+
+    // in this test the following should happen:
+    // - fromMetric point tag extracted
+    // - "node2" removed from the metric name
+    // - fromSource point tag extracted
+    // - fromTag point tag extracted
+    String expectedPoint7 = "\"node0.node1.testExtractTag.node4\" 7.0 1459527231 source=\"host0-host1\" " +
+        "\"fromMetric\"=\"node2\" \"fromSource\"=\"host2\" \"fromTag\"=\"tag0\" " +
+        "\"testExtractTag\"=\"tag0.tag1.tag2.tag3.tag4\"";
+    assertEquals(expectedPoint7, applyAllTransformers(
+        "node0.node1.node2.testExtractTag.node4 7.0 1459527231 source=host0-host1-host2 " +
+            "testExtractTag=tag0.tag1.tag2.tag3.tag4", "1234"));
+
   }
 
   @Test

@@ -24,6 +24,7 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public PointLineReplaceRegexTransformer(final String patternSearch,
                                           final String patternReplace,
                                           @Nullable final String patternMatch,
@@ -49,15 +50,15 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
 
   @Override
   public String apply(String pointLine) {
-    Long startNanos = System.nanoTime();
+    long startNanos = ruleMetrics.ruleStart();
     if (compiledMatchPattern != null && !compiledMatchPattern.matcher(pointLine).matches()) {
-      ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+      ruleMetrics.ruleEnd(startNanos);
       return pointLine;
     }
     Matcher patternMatcher = compiledSearchPattern.matcher(pointLine);
 
     if (!patternMatcher.find()) {
-      ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+      ruleMetrics.ruleEnd(startNanos);
       return pointLine;
     }
     ruleMetrics.incrementRuleAppliedCounter(); // count the rule only once regardless of the number of iterations
@@ -74,7 +75,7 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
         break;
       }
     }
-    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+    ruleMetrics.ruleEnd(startNanos);
     return pointLine;
   }
 }

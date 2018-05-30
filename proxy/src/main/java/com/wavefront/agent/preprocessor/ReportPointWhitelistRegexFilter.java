@@ -23,6 +23,7 @@ public class ReportPointWhitelistRegexFilter extends AnnotatedPredicate<ReportPo
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public ReportPointWhitelistRegexFilter(final String scope,
                                          final String patternMatch,
                                          @Nullable final Counter ruleAppliedCounter) {
@@ -42,19 +43,19 @@ public class ReportPointWhitelistRegexFilter extends AnnotatedPredicate<ReportPo
 
   @Override
   public boolean apply(@NotNull ReportPoint reportPoint) {
-    Long startNanos = System.nanoTime();
+    long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":
         if (!compiledPattern.matcher(reportPoint.getMetric()).matches()) {
           ruleMetrics.incrementRuleAppliedCounter();
-          ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+          ruleMetrics.ruleEnd(startNanos);
           return false;
         }
         break;
       case "sourceName":
         if (!compiledPattern.matcher(reportPoint.getHost()).matches()) {
           ruleMetrics.incrementRuleAppliedCounter();
-          ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+          ruleMetrics.ruleEnd(startNanos);
           return false;
         }
         break;
@@ -62,15 +63,15 @@ public class ReportPointWhitelistRegexFilter extends AnnotatedPredicate<ReportPo
         if (reportPoint.getAnnotations() != null) {
           String tagValue = reportPoint.getAnnotations().get(scope);
           if (tagValue != null && compiledPattern.matcher(tagValue).matches()) {
-            ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+            ruleMetrics.ruleEnd(startNanos);
             return true;
           }
         }
         ruleMetrics.incrementRuleAppliedCounter();
-        ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+        ruleMetrics.ruleEnd(startNanos);
         return false;
     }
-    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+    ruleMetrics.ruleEnd(startNanos);
     return true;
   }
 }

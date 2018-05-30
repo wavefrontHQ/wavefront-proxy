@@ -25,6 +25,7 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public ReportPointForceLowercaseTransformer(final String scope,
                                               @Nullable final String patternMatch,
                                               @Nullable final Counter ruleAppliedCounter) {
@@ -43,7 +44,7 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
 
   @Override
   public ReportPoint apply(@NotNull ReportPoint reportPoint) {
-    Long startNanos = System.nanoTime();
+    long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":
         if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getMetric()).matches()) {
@@ -71,7 +72,7 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
           }
         }
     }
-    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+    ruleMetrics.ruleEnd(startNanos);
     return reportPoint;
   }
 }

@@ -664,8 +664,107 @@
       replace : ""
 
     # value does not apply
-    - rule    : test-extractTag-10
+    - rule    : test-extractTag-11
       action  : extractTag
+      tag     : tag
+      source  : metricName
+      match   : match
+      search  : tag
+      replace : ""
+      value   : "1"
+
+    # test extractTagIfNotExists
+
+    # missing tag
+    - rule    : test-extractTagIfNotExists-1
+      action  : extractTagIfNotExists
+      match   : tag
+      source  : metricName
+      search  : tag
+      replace : replace
+
+    # null tag
+    - rule    : test-extractTagIfNotExists-2
+      action  : extractTagIfNotExists
+      tag     :
+      match   : tag
+      source  : metricName
+      search  : tag
+      replace : replace
+
+    # empty tag
+    - rule    : test-extractTagIfNotExists-3
+      action  : extractTagIfNotExists
+      tag     : ""
+      match   : match
+      source  : metricName
+      search  : tag
+      replace : replace
+
+    # missing source
+    - rule    : test-extractTagIfNotExists-4
+      action  : extractTagIfNotExists
+      tag     : tag
+      match   : match
+      search  : tag
+      replace : replace
+
+    # empty source
+    - rule    : test-extractTagIfNotExists-5
+      action  : extractTagIfNotExists
+      tag     : tag
+      source  : ""
+      match   : match
+      search  : tag
+      replace : replace
+
+    # missing search
+    - rule    : test-extractTagIfNotExists-6
+      action  : extractTagIfNotExists
+      tag     : tag
+      source  : metricName
+      match   : match
+      replace : replace
+
+    # empty search
+    - rule    : test-extractTagIfNotExists-7
+      action  : extractTagIfNotExists
+      tag     : tag
+      source  : metricName
+      match   : match
+      search  : ""
+      replace : replace
+
+    # missing replace
+    - rule    : test-extractTagIfNotExists-8
+      action  : extractTagIfNotExists
+      tag     : tag
+      source  : metricName
+      match   : match
+      search  : tag
+
+    # null replace
+    - rule    : test-extractTagIfNotExists-9
+      action  : extractTagIfNotExists
+      tag     : tag
+      source  : metricName
+      match   : match
+      search  : tag
+      replace :
+
+    # scope does not apply
+    - rule    : test-extractTagIfNotExists-10
+      action  : extractTagIfNotExists
+      scope   : tag
+      tag     : tag
+      source  : metricName
+      match   : match
+      search  : tag
+      replace : ""
+
+    # value does not apply
+    - rule    : test-extractTagIfNotExists-11
+      action  : extractTagIfNotExists
       tag     : tag
       source  : metricName
       match   : match

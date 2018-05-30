@@ -16,8 +16,9 @@
 ##   - forceLowercase: convert a point's component (metric name, source, point tag value) to lowercase
 ##   - dropTag: remove a point tag. optional: remove tag only when its value matches a regex pattern (full match))
 ##   - addTag: add a new point tag. if such point tag already exists, an existing value will be replaced
-##   - addTagIfNotExists: add a new point tag, but don't overwrite an existing value if such point tag already exists
+##   - addTagIfNotExists: add a new point tag, but don't overwrite existing value if such point tag already exists
 ##   - extractTag: create a new point tag based on a metric name, source name or another point tag
+##   - extractTagIfNotExists: same as above, but don't overwrite existing value if such point tag already exists
 ##   - renameTag: rename a point tag, preserving its value. optional: rename it only when the point tag value matches
 ##                a regex pattern (full match). this functionality allows separating a point tag with mixed data into
 ##                separate tags.
@@ -188,6 +189,20 @@
   #  action  : blacklistRegex
   #  scope   : blocker
   #  match   : ".*"
+
+  ## extract 3rd dot-delimited node from the metric name into newTag
+  ## point tag, and remove it from the metric, i.e. from
+  ## "delimited.metric.tagValue.foo" metric extract "newTag=tagValue"
+  ## tag and change metric name to "delimited.metric.foo"
+  ################################################################
+  #- rule          : example-extract-tag-from-delimited-metric
+  #  action        : extractTag
+  #  tag           : newTag
+  #  source        : metricName
+  #  match         : "delimited.*"
+  #  search        : "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
+  #  replace       : "$2"
+  #  replaceSource : "$1$3" # optional, omit if you plan on just extracting the tag leaving the metric name intact
 
 
 # rules for port 4242

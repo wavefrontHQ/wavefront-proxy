@@ -27,6 +27,7 @@ public class ReportPointDropTagTransformer implements Function<ReportPoint, Repo
   private final Pattern compiledValuePattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public ReportPointDropTagTransformer(final String tag,
                                        @Nullable final String patternMatch,
                                        @Nullable final Counter ruleAppliedCounter) {
@@ -45,9 +46,9 @@ public class ReportPointDropTagTransformer implements Function<ReportPoint, Repo
 
   @Override
   public ReportPoint apply(@NotNull ReportPoint reportPoint) {
-    Long startNanos = System.nanoTime();
+    long startNanos = ruleMetrics.ruleStart();
     if (reportPoint.getAnnotations() == null || compiledTagPattern == null) {
-      ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+      ruleMetrics.ruleEnd(startNanos);
       return reportPoint;
     }
     Iterator<Map.Entry<String, String>> iterator = reportPoint.getAnnotations().entrySet().iterator();
@@ -60,7 +61,7 @@ public class ReportPointDropTagTransformer implements Function<ReportPoint, Repo
         }
       }
     }
-    ruleMetrics.countCpuNanos(System.nanoTime() - startNanos);
+    ruleMetrics.ruleEnd(startNanos);
     return reportPoint;
   }
 }
