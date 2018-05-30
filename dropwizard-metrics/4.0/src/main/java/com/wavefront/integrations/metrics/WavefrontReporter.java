@@ -206,7 +206,7 @@ public class WavefrontReporter extends ScheduledReporter {
                                    durationUnit,
                                    filter,
                                    includeJvmMetrics);
-    }
+    
   }
 
   /**

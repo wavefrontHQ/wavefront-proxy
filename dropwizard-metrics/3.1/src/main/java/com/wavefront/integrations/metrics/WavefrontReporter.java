@@ -337,7 +337,7 @@ public class WavefrontReporter extends ScheduledReporter {
           includeJvmMetrics,
           disabledMetricAttributes);
     }
-  }
+  
 
 
   /**
