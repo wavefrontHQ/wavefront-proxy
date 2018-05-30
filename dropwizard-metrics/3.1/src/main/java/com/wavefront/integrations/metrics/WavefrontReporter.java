@@ -339,6 +339,28 @@ public class WavefrontReporter extends ScheduledReporter {
     }
   }
 
+
+  /**
+   * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
+   * {@link WavefrontSender}.
+   *
+   * @param Wavefront a {@link WavefrontSender}.
+   * @return a {@link WavefrontReporter}
+   */
+  public WavefrontReporter build(WavefrontSender wavefrontSender) {
+    return new WavefrontReporter(registry,
+            wavefrontSender,
+            clock,
+            prefix,
+            source,
+            pointTags,
+            rateUnit,
+            durationUnit,
+            filter,
+            includeJvmMetrics,
+            disabledMetricAttributes);
+  }
+}
   private static final Logger LOGGER = LoggerFactory.getLogger(WavefrontReporter.class);
 
   private final WavefrontSender wavefront;

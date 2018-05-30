@@ -209,6 +209,27 @@ public class WavefrontReporter extends ScheduledReporter {
     }
   }
 
+  /**
+   * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the
+   * given {@link WavefrontSender}.
+   *
+   * @param Wavefront a {@link WavefrontSender}
+   * @return a {@link WavefrontReporter}
+   */
+  public WavefrontReporter build(WavefrontSender wavefrontSender) {
+    return new WavefrontReporter(registry,
+            wavefrontSender,
+            clock,
+            prefix,
+            source,
+            reporterPTags,
+            rateUnit,
+            durationUnit,
+            filter,
+            includeJvmMetrics);
+  }
+}
+
   private static final Logger LOGGER = LoggerFactory.getLogger(WavefrontReporter.class);
 
   private final WavefrontSender wavefront;
@@ -249,6 +270,46 @@ public class WavefrontReporter extends ScheduledReporter {
             return clock.getTime();
           }
         });
+      registry.register("jvm.classes", new ClassLoadingGaugeSet());
+      registry.register("jvm.fd_usage", new SafeFileDescriptorRatioGauge());
+      registry.register("jvm.buffers", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
+      registry.register("jvm.gc", new GarbageCollectorMetricSet());
+      registry.register("jvm.memory", new MemoryUsageGaugeSet());
+      registry.register("jvm.thread-states", new ThreadStatesGaugeSet());
+    }
+  }
+
+  private WavefrontReporter(MetricRegistry registry,
+                            WavefrontSender wavefrontSender
+                            final Clock clock,
+                            String prefix,
+                            String source,
+                            Map<String, String> reporterPTags,
+                            TimeUnit rateUnit,
+                            TimeUnit durationUnit,
+                            MetricFilter filter,
+                            boolean includeJvmMetrics) {
+
+    super(registry, "wavefront-reporter", filter, rateUnit, durationUnit);
+    this.wavefront = wavefrontSender;
+    this.clock = clock;
+    this.prefix = MetricName.build(prefix);
+    this.source = source;
+    this.reporterPTags = reporterPTags;
+
+    if (includeJvmMetrics) {
+      registry.register("jvm.uptime", new Gauge<Long>() {
+        @Override
+        public Long getValue() {
+          return ManagementFactory.getRuntimeMXBean().getUptime();
+        }
+      });
+      registry.register("jvm.current_time", new Gauge<Long>() {
+        @Override
+        public Long getValue() {
+          return clock.getTime();
+        }
+      });
       registry.register("jvm.classes", new ClassLoadingGaugeSet());
       registry.register("jvm.fd_usage", new SafeFileDescriptorRatioGauge());
       registry.register("jvm.buffers", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
