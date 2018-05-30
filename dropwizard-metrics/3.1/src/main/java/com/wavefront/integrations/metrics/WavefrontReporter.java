@@ -50,6 +50,9 @@ import javax.validation.constraints.NotNull;
  * This sends a DIFFERENT metrics taxonomy than the Wavefront "yammer" metrics reporter.
  */
 public class WavefrontReporter extends ScheduledReporter {
+	
+  private static final Logger LOGGER = LoggerFactory.getLogger(WavefrontReporter.class);
+  
   /**
    * Returns a new {@link Builder} for {@link WavefrontReporter}.
    *
@@ -337,9 +340,28 @@ public class WavefrontReporter extends ScheduledReporter {
           includeJvmMetrics,
           disabledMetricAttributes);
     }
-  }
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(WavefrontReporter.class);
+  /**
+   * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
+   * {@link WavefrontSender}.
+   *
+   * @param Wavefront a {@link WavefrontSender}.
+   * @return a {@link WavefrontReporter}
+   */
+  public WavefrontReporter build(WavefrontSender wavefrontSender) {
+    return new WavefrontReporter(registry,
+            wavefrontSender,
+            clock,
+            prefix,
+            source,
+            pointTags,
+            rateUnit,
+            durationUnit,
+            filter,
+            includeJvmMetrics,
+            disabledMetricAttributes);
+  }
+}
 
   private final WavefrontSender wavefront;
   private final Clock clock;
