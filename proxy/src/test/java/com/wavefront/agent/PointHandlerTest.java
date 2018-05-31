@@ -63,9 +63,9 @@ public class PointHandlerTest {
     input = "good/metric6";
     Assert.assertTrue(Validation.charactersAreValid(input));
 
-    // first character can be ~
+    // first character can no longer be ~
     input = "~good.metric7";
-    Assert.assertTrue(Validation.charactersAreValid(input));
+    Assert.assertFalse(Validation.charactersAreValid(input));
 
     // first character can be ∆ (\u2206)
     input = "∆delta.metric8";
