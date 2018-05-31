@@ -77,12 +77,23 @@ public class PointHandlerImpl implements PointHandler {
           "" + handle,
           debugLine,
           validationLevel == null ? null : Validation.Level.valueOf(validationLevel));
-
       // No validation was requested by user; send forward.
       String strPoint = pointToString(point);
-      if (logPoints || validPointsLogger.isLoggable(Level.FINEST)) {
+      if (logPointsUpdatedMillis + TimeUnit.SECONDS.toMillis(1) < System.currentTimeMillis()) {
+        // refresh validPointsLogger level once a second
+        if (logPoints != validPointsLogger.isLoggable(Level.FINEST)) {
+          logPoints = !logPoints;
+          logger.info("Valid points logging is now " + (logPoints ?
+              "enabled with " + (logPointsSampleRate * 100) + "% sampling":
+              "disabled"));
+        }
+        logPointsUpdatedMillis = System.currentTimeMillis();
+      }
+      if ((logPoints || logPointsFlag) &&
+          (logPointsSampleRate >= 1.0d || (logPointsSampleRate > 0.0d && RANDOM.nextDouble() < logPointsSampleRate))) {
         // we log valid points only if system property wavefront.proxy.logpoints is true or RawValidPoints log level is
         // set to "ALL". this is done to prevent introducing overhead and accidentally logging points to the main log
+        // Additionally, honor sample rate limit, if set.
         validPointsLogger.info(strPoint);
       }
       randomPostTask.addPoint(strPoint);
