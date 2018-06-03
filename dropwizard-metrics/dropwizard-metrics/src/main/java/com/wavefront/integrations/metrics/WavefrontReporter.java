@@ -45,9 +45,7 @@ import java.util.regex.Pattern;
 import javax.validation.constraints.NotNull;
 
 /**
- * A reporter which publishes metric values to a Wavefront Proxy.
- *
- * This sends a DIFFERENT metrics taxonomy than the Wavefront "yammer" metrics reporter.
+ * A reporter which publishes metric values to a Wavefront Proxy from a Dropwizard {@link MetricRegistry}.
  */
 public class WavefrontReporter extends ScheduledReporter {
 	
