@@ -24,23 +24,28 @@ protocol Reporting {
     map<string> annotations = {};
   }
 
+  record Annotation {
+    string key;
+    string value;
+  }
+
   record Span {
-  // name of the span (expecting low cardinality, e.g. "checkout", "getAlerts")
+    // name of the span (expecting low cardinality, e.g. "checkout", "getAlerts")
     string name;
-  // uuid of the span
+    // uuid of the span
     string spanId;
-  // uuid of the trace
+    // uuid of the trace
     string traceId;
-  // start millis of the span
+    // start millis of the span
     long startMillis;
-  // duration of the span
+    // duration of the span
     long duration;
-  // source (host) of the span
+    // source (host) of the span
     string source = "unknown";
-  // the customer of the span
+    // the customer of the span
     string customer;
-  // annotations (indexed and unindexed).
-    map<string> annotations = {};
+    // annotations (indexed and unindexed).
+    array<Annotation> annotations = {};
   }
 
   // The parts of a ReportPoint that uniquely identify a timeseries to wavefront.
