@@ -8,9 +8,11 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.LineBasedFrameDecoder;
+import io.netty.handler.codec.compression.ZlibCodecFactory;
+import io.netty.handler.codec.compression.ZlibWrapper;
+import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
-import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
@@ -35,17 +37,37 @@ final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
    * The object for handling requests of either protocol
    */
   private final ChannelHandler handler;
+  private final boolean detectGzip;
+  private final int maxLengthPlaintext;
+  private final int maxLengthHttp;
 
   private static final StringDecoder STRING_DECODER = new StringDecoder(Charsets.UTF_8);
   private static final StringEncoder STRING_ENCODER = new StringEncoder(Charsets.UTF_8);
+
+  /**
+   * Constructor with default input buffer limits (4KB for plaintext, 16MB for HTTP).
+   *
+   * @param handler the object responsible for handling the incoming messages or either protocol
+   */
+  PlainTextOrHttpFrameDecoder(final ChannelHandler handler) {
+    this(handler, 4096, 16 * 1024 * 1024, true);
+  }
 
   /**
    * Constructor.
    *
    * @param handler the object responsible for handling the incoming messages or either protocol
    */
-  PlainTextOrHttpFrameDecoder(final ChannelHandler handler) {
+  PlainTextOrHttpFrameDecoder(final ChannelHandler handler, int maxLengthPlaintext, int maxLengthHttp) {
+    this(handler, maxLengthPlaintext, maxLengthHttp, true);
+  }
+
+  private PlainTextOrHttpFrameDecoder(final ChannelHandler handler, int maxLengthPlaintext,
+                                      int maxLengthHttp, boolean detectGzip) {
     this.handler = handler;
+    this.maxLengthPlaintext = maxLengthPlaintext;
+    this.maxLengthHttp = maxLengthHttp;
+    this.detectGzip = detectGzip;
   }
 
   /**
@@ -53,12 +75,10 @@ final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
    * protocol.
    */
   @Override
-  protected void decode(final ChannelHandlerContext ctx,
-                        final ByteBuf buffer,
-                        List<Object> out) throws Exception {
+  protected void decode(final ChannelHandlerContext ctx, final ByteBuf buffer, List<Object> out) throws Exception {
     // read the first 2 bytes to use for protocol detection
     if (buffer.readableBytes() < 2) {
-      logger.warning("buffer has less that 2 readable bytes");
+      logger.info("Inbound data from " + ctx.channel().remoteAddress()+ " has less that 2 readable bytes - ignoring ");
       return;
     }
     final int firstByte = buffer.getUnsignedByte(buffer.readerIndex());
@@ -66,14 +86,24 @@ final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
 
     // determine the protocol and add the encoder/decoder
     final ChannelPipeline pipeline = ctx.pipeline();
-    if (isHttp(firstByte, secondByte)) {
-      pipeline.addLast("decoder", new HttpRequestDecoder());
-      pipeline.addLast("encoder", new HttpResponseEncoder());
-      pipeline.addLast("aggregator", new HttpObjectAggregator(16 * 1024 * 1024));
-      pipeline.addLast("deflate", new HttpContentCompressor());
-      pipeline.addLast("handler", this.handler);
+
+    if (detectGzip && isGzip(firstByte, secondByte)) {
+      logger.fine("Inbound gzip stream detected");
+      pipeline
+          .addLast("gzipdeflater", ZlibCodecFactory.newZlibEncoder(ZlibWrapper.GZIP))
+          .addLast("gzipinflater", ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP))
+          .addLast("unificationB", new PlainTextOrHttpFrameDecoder(handler, maxLengthPlaintext, maxLengthHttp, false));
+    } else if (isHttp(firstByte, secondByte)) {
+      logger.fine("Switching to HTTP protocol");
+      pipeline
+          .addLast("decoder", new HttpRequestDecoder())
+          .addLast("inflater", new HttpContentDecompressor())
+          .addLast("aggregator", new HttpObjectAggregator(maxLengthHttp))
+          .addLast("encoder", new HttpResponseEncoder())
+          .addLast("handler", this.handler);
     } else {
-      pipeline.addLast("line", new LineBasedFrameDecoder(4096));
+      logger.fine("Using TCP plaintext protocol");
+      pipeline.addLast("line", new LineBasedFrameDecoder(maxLengthPlaintext));
       pipeline.addLast("decoder", STRING_DECODER);
       pipeline.addLast("encoder", STRING_ENCODER);
       pipeline.addLast("handler", this.handler);
@@ -101,4 +131,16 @@ final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
             (magic1 == 'T' && magic2 == 'R') || // TRACE
             (magic1 == 'C' && magic2 == 'O'));  // CONNECT
   }
+
+  /**
+   * @param magic1 the first byte of the incoming message
+   * @param magic2 the second byte of the incoming message
+   * @return true if this is a GZIP stream; false o/w
+   * @see <a href="http://netty.io/4.0/xref/io/netty/example/portunification/PortUnificationServerHandler.html">Netty
+   * Port Unification Example</a>
+   */
+  private static boolean isGzip(int magic1, int magic2) {
+    return magic1 == 31 && magic2 == 139;
+  }
+
 }

@@ -1,11 +1,9 @@
 package com.wavefront.agent;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
-import com.beust.jcommander.internal.Lists;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.squareup.tape.ObjectQueue;
@@ -42,6 +40,9 @@ import com.wavefront.ingester.PickleProtocolDecoder;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.ingester.TcpIngester;
+import com.wavefront.metrics.ExpectedAgentMetric;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
 
 import net.openhft.chronicle.map.ChronicleMap;
 
@@ -65,7 +66,6 @@ import java.util.logging.Level;
 
 import javax.annotation.Nullable;
 
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelInitializer;
@@ -105,8 +105,16 @@ public class PushAgent extends AbstractAgent {
 
   public PushAgent() {
     super(false, true);
+
+    Metrics.newGauge(ExpectedAgentMetric.RDNS_CACHE_SIZE.metricName, new Gauge<Long>() {
+      @Override
+      public Long value() {
+        return reverseDnsCache.estimatedSize();
+      }
+    });
   }
 
+  @Deprecated
   protected PushAgent(boolean reportAsPushAgent) {
     super(false, reportAsPushAgent);
   }
@@ -367,7 +375,9 @@ public class PushAgent extends AbstractAgent {
             preprocessors.forPort(strPort));
         ChannelPipeline pipeline = ch.pipeline();
 
-        pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler));
+        pipeline.addLast("idlehandler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
+        pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler, pushListenerMaxReceivedLength,
+            pushListenerHttpBufferSize));
       }
     };
     startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions),
@@ -424,15 +434,15 @@ public class PushAgent extends AbstractAgent {
             withChildChannelOptions(childChannelOptions), null);
   }
 
-  protected void startGraphiteListener(String strPort, boolean withCustomFormatter) {
-
-    int port = Integer.parseInt(strPort);
+  protected void startGraphiteListener(String strPort, boolean disableUseRemoteClientAsSource) {
+    final int port = Integer.parseInt(strPort);
 
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     preprocessors.forPort(strPort).forReportPoint()
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+    final PostPushDataTimedTask[] flushTasks = getFlushTasks(strPort);
     // Add a metadatahandler, to handle @SourceTag, @SourceDescription, etc.
     SourceTagHandler metadataHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(port));
     // Set up a custom graphite handler, with no formatter
@@ -441,24 +451,27 @@ public class PushAgent extends AbstractAgent {
         new PointHandlerImpl(strPort, pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort)),
         preprocessors.forPort(strPort), metadataHandler);
 
-    List<Function<Channel, ChannelHandler>> handlers = Lists.newArrayList();
-    handlers.add(input -> new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
-    if (!withCustomFormatter) {
-      handlers.add(input -> {
-        SocketChannel ch = (SocketChannel) input;
-        if (ch != null && ch.remoteAddress() != null) {
-          return new GraphiteHostAnnotator(disableRdnsLookup
+    ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
+      @Override
+      public void initChannel(SocketChannel ch) throws Exception {
+        final ChannelHandler handler = new WavefrontPortUnificationHandler(
+            new GraphiteDecoder("unknown", customSourceTags),
+            new PointHandlerImpl(strPort, pushValidationLevel, pushBlockedSamples, flushTasks),
+            preprocessors.forPort(strPort), metadataHandler);
+        ChannelPipeline pipeline = ch.pipeline();
+
+        pipeline.addLast("idle-handler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
+        if (!disableUseRemoteClientAsSource) {
+          pipeline.addLast("graphite-host-annotator", new GraphiteHostAnnotator(disableRdnsLookup
               ? ch.remoteAddress().getAddress().getHostAddress()
-              : reverseDnsCache.get(ch.remoteAddress().getAddress()), customSourceTags);
+              : ch.remoteAddress().getHostName(), customSourceTags));
         }
-        return new GraphiteHostAnnotator("unknown", customSourceTags);
-      });
-      startAsManagedThread(new StringLineIngester(handlers, graphiteHandler, port, pushListenerMaxReceivedLength)
-          .withChildChannelOptions(childChannelOptions), "listener-plaintext-wavefront-" + port);
-    } else {
-      startAsManagedThread(new StringLineIngester(handlers, graphiteHandler, port, pushListenerMaxReceivedLength)
-          .withChildChannelOptions(childChannelOptions), "Listener-plaintext-graphite-" + port);
-    }
+        pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler, pushListenerMaxReceivedLength,
+            pushListenerHttpBufferSize));
+      }
+    };
+    startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions),
+        "listener-graphite-" + port);
   }
 
   protected void startHistogramListeners(Iterator<String> ports, Decoder<String> decoder, PointHandler pointHandler,
