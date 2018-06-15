@@ -427,8 +427,8 @@ public class PushAgent extends AbstractAgent {
     ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
       @Override
       public void initChannel(SocketChannel ch) throws Exception {
-        final ChannelHandler channelHandler = new DataDogPortUnificationHandler(
-            new OpenTSDBDecoder("unknown", customSourceTags), pointHandler, preprocessors.forPort(strPort));
+        final ChannelHandler channelHandler = new DataDogPortUnificationHandler(pointHandler,
+            preprocessors.forPort(strPort));
         ChannelPipeline pipeline = ch.pipeline();
 
         pipeline.addLast("idlehandler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
@@ -437,7 +437,7 @@ public class PushAgent extends AbstractAgent {
       }
     };
     startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions),
-        "listener-plaintext-opentsdb-" + port);
+        "listener-plaintext-datadog-" + port);
   }
 
   protected void startPickleListener(String strPort, PointHandler pointHandler, GraphiteFormatter formatter) {

@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -31,7 +32,7 @@ import wavefront.report.ReportPoint;
  * This class handles an incoming message of either String or FullHttpRequest type.  All other types are ignored. This
  * will likely be passed to the PlainTextOrHttpFrameDecoder as the handler for messages.
  *
- * @author Mike McLaughlin (mike@wavefront.com)
+ * @author vasily@wavefront.com
  */
 class DataDogPortUnificationHandler extends PortUnificationHandler {
   private static final Logger logger = Logger.getLogger(
@@ -43,19 +44,12 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
    */
   private final PointHandler pointHandler;
 
-  /**
-   * OpenTSDB decoder object
-   */
-  private final OpenTSDBDecoder decoder;
-
   @Nullable
   private final PointPreprocessor preprocessor;
 
-  DataDogPortUnificationHandler(final OpenTSDBDecoder decoder,
-                                final PointHandler pointHandler,
+  DataDogPortUnificationHandler(final PointHandler pointHandler,
                                 @Nullable final PointPreprocessor preprocessor) {
     super();
-    this.decoder = decoder;
     this.pointHandler = pointHandler;
     this.preprocessor = preprocessor;
   }
@@ -149,16 +143,29 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
    * @see <a href="http://opentsdb.net/docs/build/html/api_http/put.html">OpenTSDB /api/put documentation</a>
    */
   private boolean reportMetric(final JsonNode metric) {
+    if (metric == null) {
+      pointHandler.handleBlockedPoint("Skipping - series object null.");
+      return false;
+    }
     try {
+      if (metric.get("metric") == null ) {
+        pointHandler.handleBlockedPoint("Skipping - 'metric' field missing.");
+        return false;
+      }
       String metricName = metric.get("metric").textValue();
-      JsonNode hostNode = metric.get("host");
-      String hostName = hostNode == null ? "default" : hostNode.textValue();
+      String hostName = metric.get("host") == null ? "unknown" : metric.get("host").textValue();
       JsonNode tagsNode = metric.get("tags");
       Map<String, String> tags = new HashMap<>();
       if (tagsNode != null) {
         for (JsonNode tag : tagsNode) {
-          String[] tagKeyValuePairs = tag.textValue().split(":");
-          tags.put(tagKeyValuePairs[0], tagKeyValuePairs[1]);
+          String tagKv = tag.asText();
+          int tagKvIndex = tagKv.indexOf(':');
+          if (tagKvIndex > 0) { // first character can't be ':' either
+            tags.put(tagKv.substring(0, tagKvIndex), tagKv.substring(tagKvIndex + 1, tagKv.length()));
+          } else {
+            pointHandler.handleBlockedPoint("Skipping - invalid tag: " + tagKv);
+            return false;
+          }
         }
       }
       JsonNode pointsNode = metric.get("points");
@@ -196,7 +203,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
       }
       return true;
     } catch (final Exception e) {
-      logWarning("WF-300: Failed to add metric", e, null);
+      logger.log(Level.WARNING, "WF-300: Failed to add metric", e);
       return false;
     }
   }
