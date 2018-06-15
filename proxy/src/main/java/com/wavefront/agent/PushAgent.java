@@ -255,6 +255,15 @@ public class PushAgent extends AbstractAgent {
         logger.info("listening on port: " + strPort + " for pickle protocol metrics");
       }
     }
+    if (dataDogJsonPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(dataDogJsonPorts);
+      for (String strPort : ports) {
+        PointHandler pointHandler = new PointHandlerImpl(strPort, pushValidationLevel,
+            pushBlockedSamples, getFlushTasks(strPort));
+        startDataDogListener(strPort, pointHandler);
+        logger.info("listening on port: " + strPort + " for DataDog metrics");
+      }
+    }
     if (httpJsonPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(httpJsonPorts);
       for (String strPort : ports) {
@@ -397,6 +406,29 @@ public class PushAgent extends AbstractAgent {
         final ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(
             new OpenTSDBDecoder("unknown", customSourceTags),
             pointHandler, preprocessors.forPort(strPort));
+        ChannelPipeline pipeline = ch.pipeline();
+
+        pipeline.addLast("idlehandler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
+        pipeline.addLast(new PlainTextOrHttpFrameDecoder(channelHandler, pushListenerMaxReceivedLength,
+            pushListenerHttpBufferSize));
+      }
+    };
+    startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions),
+        "listener-plaintext-opentsdb-" + port);
+  }
+
+  protected void startDataDogListener(final String strPort, PointHandler pointHandler) {
+    if (prefix != null && !prefix.isEmpty()) {
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
+    }
+    preprocessors.forPort(strPort).forReportPoint()
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+    final int port = Integer.parseInt(strPort);
+    ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
+      @Override
+      public void initChannel(SocketChannel ch) throws Exception {
+        final ChannelHandler channelHandler = new DataDogPortUnificationHandler(
+            new OpenTSDBDecoder("unknown", customSourceTags), pointHandler, preprocessors.forPort(strPort));
         ChannelPipeline pipeline = ch.pipeline();
 
         pipeline.addLast("idlehandler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
