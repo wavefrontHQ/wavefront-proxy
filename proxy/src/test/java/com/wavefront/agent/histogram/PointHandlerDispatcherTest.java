@@ -64,7 +64,7 @@ public class PointHandlerDispatcherTest {
       public void handleBlockedPoint(String pointLine) {
         blockedOut.add(pointLine);
       }
-    }, timeMillis::get, null);
+    }, timeMillis::get, null, null);
   }
 
   @Test
