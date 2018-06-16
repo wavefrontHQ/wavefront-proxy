@@ -181,31 +181,31 @@ public class PushAgent extends AbstractAgent {
         Decoder<String> distributionDecoder = new HistogramDecoder("unknown");
 
         if (histMinPorts.hasNext()) {
-          startHistogramListeners(histMinPorts, sampleDecoder, histogramHandler, accumulatorDeck, "minute",
-              histogramMinuteFlushSecs, histogramMinuteAccumulators, histogramMinuteMemoryCache, baseDirectory,
-              histogramMinuteAccumulatorSize, histogramMinuteAvgKeyBytes, histogramMinuteAvgDigestBytes,
-              histogramMinuteCompression);
+          startHistogramListeners(histMinPorts, sampleDecoder, histogramHandler, accumulatorDeck,
+              Utils.Granularity.MINUTE, histogramMinuteFlushSecs, histogramMinuteAccumulators,
+              histogramMinuteMemoryCache, baseDirectory, histogramMinuteAccumulatorSize, histogramMinuteAvgKeyBytes,
+              histogramMinuteAvgDigestBytes, histogramMinuteCompression);
         }
 
         if (histHourPorts.hasNext()) {
-          startHistogramListeners(histHourPorts, sampleDecoder, histogramHandler, accumulatorDeck, "hour",
-              histogramHourFlushSecs, histogramHourAccumulators, histogramHourMemoryCache, baseDirectory,
-              histogramHourAccumulatorSize, histogramHourAvgKeyBytes, histogramHourAvgDigestBytes,
-              histogramHourCompression);
+          startHistogramListeners(histHourPorts, sampleDecoder, histogramHandler, accumulatorDeck,
+              Utils.Granularity.HOUR, histogramHourFlushSecs, histogramHourAccumulators,
+              histogramHourMemoryCache, baseDirectory, histogramHourAccumulatorSize, histogramHourAvgKeyBytes,
+              histogramHourAvgDigestBytes, histogramHourCompression);
         }
 
         if (histDayPorts.hasNext()) {
-          startHistogramListeners(histDayPorts, sampleDecoder, histogramHandler, accumulatorDeck, "day",
-              histogramDayFlushSecs, histogramDayAccumulators, histogramDayMemoryCache, baseDirectory,
-              histogramDayAccumulatorSize, histogramDayAvgKeyBytes, histogramDayAvgDigestBytes,
-              histogramDayCompression);
+          startHistogramListeners(histDayPorts, sampleDecoder, histogramHandler, accumulatorDeck,
+              Utils.Granularity.DAY, histogramDayFlushSecs, histogramDayAccumulators,
+              histogramDayMemoryCache, baseDirectory, histogramDayAccumulatorSize, histogramDayAvgKeyBytes,
+              histogramDayAvgDigestBytes, histogramDayCompression);
         }
 
         if (histDistPorts.hasNext()) {
-          startHistogramListeners(histDistPorts, distributionDecoder, histogramHandler, accumulatorDeck, "distribution",
-              histogramDistFlushSecs, histogramDistAccumulators, histogramDistMemoryCache, baseDirectory,
-              histogramDistAccumulatorSize, histogramDistAvgKeyBytes, histogramDistAvgDigestBytes,
-              histogramDistCompression);
+          startHistogramListeners(histDistPorts, distributionDecoder, histogramHandler, accumulatorDeck,
+              null, histogramDistFlushSecs, histogramDistAccumulators,
+              histogramDistMemoryCache, baseDirectory, histogramDistAccumulatorSize, histogramDistAvgKeyBytes,
+              histogramDistAvgDigestBytes, histogramDistCompression);
         }
       }
     }
@@ -462,9 +462,10 @@ public class PushAgent extends AbstractAgent {
   }
 
   protected void startHistogramListeners(Iterator<String> ports, Decoder<String> decoder, PointHandler pointHandler,
-                                         TapeDeck<List<String>> receiveDeck, String listenerBinType,
+                                         TapeDeck<List<String>> receiveDeck, @Nullable Utils.Granularity granularity,
                                          int flushSecs, int fanout, boolean memoryCacheEnabled, File baseDirectory,
                                          Long accumulatorSize, int avgKeyBytes, int avgDigestBytes, short compression) {
+    String listenerBinType = Utils.Granularity.granularityToString(granularity);
     // Accumulator
     MapLoader<HistogramKey, AgentDigest, HistogramKeyMarshaller, AgentDigestMarshaller> mapLoader = new MapLoader<>(
         HistogramKey.class,
@@ -503,7 +504,7 @@ public class PushAgent extends AbstractAgent {
         TimeUnit.MILLISECONDS);
 
     PointHandlerDispatcher dispatcher = new PointHandlerDispatcher(cachedAccumulator, pointHandler,
-        histogramAccumulatorFlushMaxBatchSize < 0 ? null : histogramAccumulatorFlushMaxBatchSize);
+        histogramAccumulatorFlushMaxBatchSize < 0 ? null : histogramAccumulatorFlushMaxBatchSize, granularity);
 
     histogramExecutor.scheduleWithFixedDelay(dispatcher, histogramAccumulatorFlushInterval,
         histogramAccumulatorFlushInterval, TimeUnit.MILLISECONDS);
@@ -527,9 +528,7 @@ public class PushAgent extends AbstractAgent {
           pointHandler,
           cachedAccumulator,
           baseDirectory,
-          (listenerBinType.equals("minute")
-              ? Utils.Granularity.MINUTE
-              : (listenerBinType.equals("hour") ? Utils.Granularity.HOUR : Utils.Granularity.DAY)),
+          granularity,
           receiveDeck,
           TimeUnit.SECONDS.toMillis(flushSecs),
           fanout,
@@ -550,7 +549,7 @@ public class PushAgent extends AbstractAgent {
       PointHandler handler,
       AccumulationCache accumulationCache,
       File directory,
-      Utils.Granularity granularity,
+      @Nullable Utils.Granularity granularity,
       TapeDeck<List<String>> receiveDeck,
       long timeToLiveMillis,
       int fanout,

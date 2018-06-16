@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
@@ -45,15 +47,12 @@ public class AccumulationTask implements Runnable {
   private final short compression;
 
   // Metrics
-  private final Counter eventCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "sample_added"));
-  private final Counter histogramCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "histogram_added"));
-  private final Counter ignoredCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "ignored"));
-  private final com.yammer.metrics.core.Histogram batchProcessTime = Metrics.newHistogram(
-      new MetricName("histogram.accumulator", "", "batch_process_nanos"));
-  private final com.yammer.metrics.core.Histogram histogramBinCount = Metrics.newHistogram(
-      new MetricName("histogram.accumulator", "", "histogram_bins"));
-  private final com.yammer.metrics.core.Histogram histogramSampleCount = Metrics.newHistogram(
-      new MetricName("histogram.accumulator", "", "histogram_samples"));
+  private final Counter eventCounter;
+  private final Counter histogramCounter;
+  private final Counter ignoredCounter;
+  private final com.yammer.metrics.core.Histogram batchProcessTime;
+  private final com.yammer.metrics.core.Histogram histogramBinCount;
+  private final com.yammer.metrics.core.Histogram histogramSampleCount;
 
 
   public AccumulationTask(ObjectQueue<List<String>> input,
@@ -62,7 +61,7 @@ public class AccumulationTask implements Runnable {
                           PointHandler blockedPointsHandler,
                           Validation.Level validationLevel,
                           long ttlMillis,
-                          Utils.Granularity granularity,
+                          @Nullable Utils.Granularity granularity,
                           short compression) {
     this.input = input;
     this.digests = digests;
@@ -70,8 +69,16 @@ public class AccumulationTask implements Runnable {
     this.blockedPointsHandler = blockedPointsHandler;
     this.validationLevel = validationLevel;
     this.ttlMillis = ttlMillis;
-    this.granularity = granularity;
+    this.granularity = granularity == null ? Utils.Granularity.DAY : granularity;
     this.compression = compression;
+
+    String metricNamespace = "histogram.accumulator." + Utils.Granularity.granularityToString(granularity);
+    eventCounter = Metrics.newCounter(new MetricName(metricNamespace, "", "sample_added"));
+    histogramCounter = Metrics.newCounter(new MetricName(metricNamespace, "", "histogram_added"));
+    ignoredCounter = Metrics.newCounter(new MetricName(metricNamespace, "", "ignored"));
+    batchProcessTime = Metrics.newHistogram(new MetricName(metricNamespace, "", "batch_process_nanos"));
+    histogramBinCount = Metrics.newHistogram(new MetricName(metricNamespace, "", "histogram_bins"));
+    histogramSampleCount = Metrics.newHistogram(new MetricName(metricNamespace, "", "histogram_samples"));
   }
 
   @Override

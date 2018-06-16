@@ -17,8 +17,6 @@ import net.openhft.chronicle.wire.WireIn;
 import net.openhft.chronicle.wire.WireOut;
 
 import org.apache.commons.lang.time.DateUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
@@ -29,6 +27,9 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 
 import wavefront.report.ReportPoint;
 
@@ -85,6 +86,34 @@ public final class Utils {
       } else {
         return DAY;
       }
+    }
+
+    public static Granularity fromString(String granularityName) {
+      if (granularityName.equals("minute")) {
+        return MINUTE;
+      }
+      if (granularityName.equals("hour")) {
+        return HOUR;
+      }
+      if (granularityName.equals("day")) {
+        return DAY;
+      }
+      return null;
+    }
+
+    public static String granularityToString(@Nullable Granularity granularity) {
+      if (granularity == null) {
+        return "distribution";
+      }
+      switch (granularity) {
+        case DAY:
+          return "day";
+        case HOUR:
+          return "hour";
+        case MINUTE:
+          return "minute";
+      }
+      return "unknown";
     }
   }
 
