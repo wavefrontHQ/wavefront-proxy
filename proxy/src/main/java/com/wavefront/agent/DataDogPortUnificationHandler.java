@@ -162,9 +162,6 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
           int tagKvIndex = tagKv.indexOf(':');
           if (tagKvIndex > 0) { // first character can't be ':' either
             tags.put(tagKv.substring(0, tagKvIndex), tagKv.substring(tagKvIndex + 1, tagKv.length()));
-          } else {
-            pointHandler.handleBlockedPoint("Skipping - invalid tag: " + tagKv);
-            return false;
           }
         }
       }
