@@ -1,9 +1,6 @@
 package com.wavefront.agent;
 
-<<<<<<< HEAD
 import com.google.common.annotations.VisibleForTesting;
-=======
->>>>>>> Support HTTP POST + gzipped streams for Wavefront/Graphite/OpenTSDB
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -46,10 +43,7 @@ import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.ingester.TcpIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
-<<<<<<< HEAD
 import com.yammer.metrics.core.Counter;
-=======
->>>>>>> Support HTTP POST + gzipped streams for Wavefront/Graphite/OpenTSDB
 import com.yammer.metrics.core.Gauge;
 
 import net.openhft.chronicle.map.ChronicleMap;
