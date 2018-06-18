@@ -70,7 +70,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
       return;
     }
 
-    if (uri.getPath().equals("/api/v1/series")) {
+    if (uri.getPath().equals("/api/v1/series") || uri.getPath().equals("/api/v1/series/")) {
       final ObjectMapper jsonTree = new ObjectMapper();
       HttpResponseStatus status;
       try {
