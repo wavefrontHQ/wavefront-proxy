@@ -159,9 +159,12 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
       if (tagsNode != null) {
         for (JsonNode tag : tagsNode) {
           String tagKv = tag.asText();
-          int tagKvIndex = tagKv.indexOf(':');
-          if (tagKvIndex > 0) { // first character can't be ':' either
-            tags.put(tagKv.substring(0, tagKvIndex), tagKv.substring(tagKvIndex + 1, tagKv.length()));
+          if (tagKv.indexOf(',') > 0) { // comma-delimited list of tags
+            for (String item : tagKv.split(",")) {
+              extractTag(item, tags);
+            }
+          } else {
+            extractTag(tagKv, tags);
           }
         }
       }
@@ -203,6 +206,19 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
       logger.log(Level.WARNING, "WF-300: Failed to add metric", e);
       return false;
     }
+  }
+
+  private void extractTag(String input, final Map<String, String> tags) {
+    int tagKvIndex = input.indexOf(':');
+    if (tagKvIndex > 0) { // first character can't be ':' either
+      String tagK = input.substring(0, tagKvIndex);
+      if (tagK.toLowerCase().equals("source")) {
+        tags.put("_source", input.substring(tagKvIndex + 1, input.length()));
+      } else {
+        tags.put(input.substring(0, tagKvIndex), input.substring(tagKvIndex + 1, input.length()));
+      }
+    }
+
   }
 }
 
