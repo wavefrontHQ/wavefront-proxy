@@ -110,7 +110,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       final Throwable rootCause = Throwables.getRootCause(e);
       String errMsg = "WF-300 Cannot parse: \"" + pointLine +
           "\", reason: \"" + e.getMessage() + "\"";
-      if (rootCause != null && rootCause.getMessage() != null) {
+      if (rootCause != null && rootCause.getMessage() != null && rootCause != e) {
         errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
       }
       if (ctx != null) {

@@ -53,6 +53,7 @@ public class HistogramLineIngester extends ChannelInitializer implements Runnabl
 
   private static final Logger logger = Logger.getLogger(HistogramLineIngester.class.getCanonicalName());
   private final Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
+  private final Counter bindErrors = Metrics.newCounter(ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
   private final Counter connectionsAccepted;
   private final Counter connectionsIdleClosed;
 
@@ -120,6 +121,7 @@ public class HistogramLineIngester extends ChannelInitializer implements Runnabl
     } catch (Exception e) {
       // ChannelFuture throws undeclared checked exceptions, so we need to handle it
       if (e instanceof BindException) {
+        bindErrors.inc();
         logger.severe("Unable to start listener - port " + String.valueOf(port) + " is already in use!");
       } else {
         logger.log(Level.SEVERE, "HistogramLineIngester exception: ", e);

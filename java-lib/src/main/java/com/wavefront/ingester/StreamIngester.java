@@ -37,6 +37,7 @@ public class StreamIngester implements Runnable {
 
   protected static final Logger logger = Logger.getLogger(StreamIngester.class.getName());
   private Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
+  private Counter bindErrors = Metrics.newCounter(ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
 
   public interface FrameDecoderFactory {
     ChannelInboundHandler getDecoder();
@@ -128,6 +129,7 @@ public class StreamIngester implements Runnable {
     } catch (Exception e) {
       // ChannelFuture throws undeclared checked exceptions, so we need to handle it
       if (e instanceof BindException) {
+        bindErrors.inc();
         logger.severe("Unable to start listener - port " + String.valueOf(listeningPort) + " is already in use!");
       } else {
         logger.log(Level.SEVERE, "StreamIngester exception: ", e);

@@ -1,11 +1,10 @@
 package com.wavefront.agent;
 
-import com.google.common.base.Function;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
-import com.beust.jcommander.internal.Lists;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.squareup.tape.ObjectQueue;
@@ -42,6 +41,10 @@ import com.wavefront.ingester.PickleProtocolDecoder;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.ingester.TcpIngester;
+import com.wavefront.metrics.ExpectedAgentMetric;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Gauge;
 
 import net.openhft.chronicle.map.ChronicleMap;
 
@@ -65,7 +68,6 @@ import java.util.logging.Level;
 
 import javax.annotation.Nullable;
 
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelInitializer;
@@ -89,6 +91,7 @@ public class PushAgent extends AbstractAgent {
   protected ScheduledExecutorService histogramExecutor;
   protected ScheduledExecutorService histogramScanExecutor;
   protected ScheduledExecutorService histogramFlushExecutor;
+  protected final Counter bindErrors = Metrics.newCounter(ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
 
   /**
    * Maintain a short-term cache for reverse DNS lookup results to avoid spamming DNS servers
@@ -105,8 +108,16 @@ public class PushAgent extends AbstractAgent {
 
   public PushAgent() {
     super(false, true);
+
+    Metrics.newGauge(ExpectedAgentMetric.RDNS_CACHE_SIZE.metricName, new Gauge<Long>() {
+      @Override
+      public Long value() {
+        return reverseDnsCache.estimatedSize();
+      }
+    });
   }
 
+  @Deprecated
   protected PushAgent(boolean reportAsPushAgent) {
     super(false, reportAsPushAgent);
   }
@@ -119,7 +130,9 @@ public class PushAgent extends AbstractAgent {
     if (pushListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
       for (String strPort : ports) {
-        startGraphiteListener(strPort, false);
+        PointHandler pointHandler = new PointHandlerImpl(strPort, pushValidationLevel,
+            pushBlockedSamples, getFlushTasks(strPort));
+        startGraphiteListener(strPort, pointHandler, false);
       }
     }
 
@@ -218,21 +231,27 @@ public class PushAgent extends AbstractAgent {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(graphitePorts);
       for (String strPort : ports) {
         preprocessors.forPort(strPort).forPointLine().addTransformer(0, graphiteFormatter);
-        startGraphiteListener(strPort, true);
+        PointHandler pointHandler = new PointHandlerImpl(strPort, pushValidationLevel,
+            pushBlockedSamples, getFlushTasks(strPort));
+        startGraphiteListener(strPort, pointHandler, true);
         logger.info("listening on port: " + strPort + " for graphite metrics");
       }
     }
     if (opentsdbPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(opentsdbPorts);
       for (String strPort : ports) {
-        startOpenTsdbListener(strPort);
+        PointHandler handler = new PointHandlerImpl(strPort, pushValidationLevel, pushBlockedSamples,
+            getFlushTasks(strPort));
+        startOpenTsdbListener(strPort, handler);
         logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
       }
     }
     if (picklePorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(picklePorts);
       for (String strPort : ports) {
-        startPickleListener(strPort, graphiteFormatter);
+        PointHandler pointHandler = new PointHandlerImpl(strPort, pushValidationLevel,
+            pushBlockedSamples, getFlushTasks(strPort));
+        startPickleListener(strPort, pointHandler, graphiteFormatter);
         logger.info("listening on port: " + strPort + " for pickle protocol metrics");
       }
     }
@@ -254,7 +273,10 @@ public class PushAgent extends AbstractAgent {
                 logger.warning("Http Json server interrupted.");
               } catch (Exception e) {
                 if (e instanceof BindException) {
+                  bindErrors.inc();
                   logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
+                } else {
+                  logger.log(Level.SEVERE, "HttpJson exception", e);
                 }
               } finally {
                 activeListeners.dec();
@@ -281,7 +303,10 @@ public class PushAgent extends AbstractAgent {
                 logger.warning("WriteHttpJson server interrupted.");
               } catch (Exception e) {
                 if (e instanceof BindException) {
+                  bindErrors.inc();
                   logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
+                } else {
+                  logger.log(Level.SEVERE, "WriteHttpJson exception", e);
                 }
               } finally {
                 activeListeners.dec();
@@ -294,87 +319,96 @@ public class PushAgent extends AbstractAgent {
     // Logs ingestion.
     if (loadLogsIngestionConfig() != null) {
       logger.info("Loading logs ingestion.");
-      try {
-        final LogsIngester logsIngester = new LogsIngester(
-            new PointHandlerImpl(
-                "logs-ingester", pushValidationLevel, pushBlockedSamples, getFlushTasks("logs-ingester")),
-            this::loadLogsIngestionConfig, prefix, System::currentTimeMillis);
-        logsIngester.start();
-
-        if (filebeatPort > 0) {
-          final Server filebeatServer = new Server(filebeatPort);
-          filebeatServer.setMessageListener(new FilebeatIngester(logsIngester, System::currentTimeMillis));
-          startAsManagedThread(() -> {
-            try {
-              activeListeners.inc();
-              filebeatServer.listen();
-            } catch (InterruptedException e) {
-              logger.log(Level.SEVERE, "Filebeat server interrupted.", e);
-            } catch (Exception e) {
-              // ChannelFuture throws undeclared checked exceptions, so we need to handle it
-              if (e instanceof BindException) {
-                logger.severe("Unable to start listener - port " + String.valueOf(rawLogsPort) + " is already in use!");
-              }
-            } finally {
-              activeListeners.dec();
-            }
-          }, "listener-logs-filebeat-" + filebeatPort);
-        }
-
-        if (rawLogsPort > 0) {
-          RawLogsIngester rawLogsIngester = new RawLogsIngester(logsIngester, rawLogsPort, System::currentTimeMillis).
-              withChannelIdleTimeout(listenerIdleConnectionTimeout).
-              withMaxLength(rawLogsMaxReceivedLength);
-          startAsManagedThread(() -> {
-            try {
-              activeListeners.inc();
-              rawLogsIngester.listen();
-            } catch (InterruptedException e) {
-              logger.log(Level.SEVERE, "Raw logs server interrupted.", e);
-            } catch (Exception e) {
-              // ChannelFuture throws undeclared checked exceptions, so we need to handle it
-              if (e instanceof BindException) {
-                logger.severe("Unable to start listener - port " + String.valueOf(rawLogsPort) + " is already in use!");
-              }
-            } finally {
-              activeListeners.dec();
-            }
-          }, "listener-logs-raw-" + rawLogsPort);
-        }
-      } catch (ConfigurationException e) {
-        logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
-      }
+      PointHandler pointHandler = new PointHandlerImpl("logs-ingester", pushValidationLevel, pushBlockedSamples,
+          getFlushTasks("logs-ingester"));
+      startLogsIngestionListeners(filebeatPort, rawLogsPort, pointHandler);
     } else {
       logger.info("Not loading logs ingestion -- no config specified.");
     }
-
   }
 
-  protected void startOpenTsdbListener(final String strPort) {
+  protected void startLogsIngestionListeners(int portFilebeat, int portRawLogs, PointHandler pointHandler) {
+    try {
+      final LogsIngester logsIngester = new LogsIngester(pointHandler, this::loadLogsIngestionConfig, prefix,
+          System::currentTimeMillis);
+      logsIngester.start();
+
+      if (portFilebeat > 0) {
+        final Server filebeatServer = new Server(portFilebeat);
+        filebeatServer.setMessageListener(new FilebeatIngester(logsIngester, System::currentTimeMillis));
+        startAsManagedThread(() -> {
+          try {
+            activeListeners.inc();
+            filebeatServer.listen();
+          } catch (InterruptedException e) {
+            logger.log(Level.SEVERE, "Filebeat server interrupted.", e);
+          } catch (Exception e) {
+            // ChannelFuture throws undeclared checked exceptions, so we need to handle it
+            if (e instanceof BindException) {
+              bindErrors.inc();
+              logger.severe("Unable to start listener - port " + String.valueOf(portRawLogs) + " is already in use!");
+            } else {
+              logger.log(Level.SEVERE, "Filebeat exception", e);
+            }
+          } finally {
+            activeListeners.dec();
+          }
+        }, "listener-logs-filebeat-" + portFilebeat);
+      }
+
+      if (portRawLogs > 0) {
+        RawLogsIngester rawLogsIngester = new RawLogsIngester(logsIngester, portRawLogs, System::currentTimeMillis).
+            withChannelIdleTimeout(listenerIdleConnectionTimeout).
+            withMaxLength(rawLogsMaxReceivedLength);
+        startAsManagedThread(() -> {
+          try {
+            activeListeners.inc();
+            rawLogsIngester.listen();
+          } catch (InterruptedException e) {
+            logger.log(Level.SEVERE, "Raw logs server interrupted.", e);
+          } catch (Exception e) {
+            // ChannelFuture throws undeclared checked exceptions, so we need to handle it
+            if (e instanceof BindException) {
+              bindErrors.inc();
+              logger.severe("Unable to start listener - port " + String.valueOf(portRawLogs) + " is already in use!");
+            } else {
+              logger.log(Level.SEVERE, "RawLogs exception", e);
+            }
+          } finally {
+            activeListeners.dec();
+          }
+        }, "listener-logs-raw-" + portRawLogs);
+      }
+    } catch (ConfigurationException e) {
+      logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
+    }
+  }
+
+  protected void startOpenTsdbListener(final String strPort, PointHandler pointHandler) {
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     preprocessors.forPort(strPort).forReportPoint()
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     final int port = Integer.parseInt(strPort);
-    final PostPushDataTimedTask[] flushTasks = getFlushTasks(strPort);
     ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
       @Override
       public void initChannel(SocketChannel ch) throws Exception {
-        final ChannelHandler handler = new OpenTSDBPortUnificationHandler(
+        final ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(
             new OpenTSDBDecoder("unknown", customSourceTags),
-            new PointHandlerImpl(strPort, pushValidationLevel, pushBlockedSamples, flushTasks),
-            preprocessors.forPort(strPort));
+            pointHandler, preprocessors.forPort(strPort));
         ChannelPipeline pipeline = ch.pipeline();
 
-        pipeline.addLast(new PlainTextOrHttpFrameDecoder(handler));
+        pipeline.addLast("idlehandler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
+        pipeline.addLast(new PlainTextOrHttpFrameDecoder(channelHandler, pushListenerMaxReceivedLength,
+            pushListenerHttpBufferSize));
       }
     };
     startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions),
         "listener-plaintext-opentsdb-" + port);
   }
 
-  protected void startPickleListener(String strPort, GraphiteFormatter formatter) {
+  protected void startPickleListener(String strPort, PointHandler pointHandler, GraphiteFormatter formatter) {
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
@@ -382,10 +416,9 @@ public class PushAgent extends AbstractAgent {
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     int port = Integer.parseInt(strPort);
     // Set up a custom handler
-    ChannelHandler handler = new ChannelByteArrayHandler(
+    ChannelHandler channelHandler = new ChannelByteArrayHandler(
         new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
-        new PointHandlerImpl(strPort, pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort)),
-        preprocessors.forPort(strPort));
+        pointHandler, preprocessors.forPort(strPort));
 
     // create a class to use for StreamIngester to get a new FrameDecoder
     // for each request (not shareable since it's storing how many bytes
@@ -404,7 +437,7 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
-    startAsManagedThread(new StreamIngester(new FrameDecoderFactoryImpl(), handler, port)
+    startAsManagedThread(new StreamIngester(new FrameDecoderFactoryImpl(), channelHandler, port)
         .withChildChannelOptions(childChannelOptions), "listener-binary-pickle-" + port);
   }
 
@@ -424,9 +457,9 @@ public class PushAgent extends AbstractAgent {
             withChildChannelOptions(childChannelOptions), null);
   }
 
-  protected void startGraphiteListener(String strPort, boolean withCustomFormatter) {
-
-    int port = Integer.parseInt(strPort);
+  @VisibleForTesting
+  protected void startGraphiteListener(String strPort, PointHandler pointHandler, boolean disableUseRemoteClientAsSource) {
+    final int port = Integer.parseInt(strPort);
 
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
@@ -435,30 +468,27 @@ public class PushAgent extends AbstractAgent {
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     // Add a metadatahandler, to handle @SourceTag, @SourceDescription, etc.
     SourceTagHandler metadataHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(port));
-    // Set up a custom graphite handler, with no formatter
-    ChannelHandler graphiteHandler = new ChannelStringHandler(
-        new GraphiteDecoder("unknown", customSourceTags),
-        new PointHandlerImpl(strPort, pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort)),
-        preprocessors.forPort(strPort), metadataHandler);
 
-    List<Function<Channel, ChannelHandler>> handlers = Lists.newArrayList();
-    handlers.add(input -> new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
-    if (!withCustomFormatter) {
-      handlers.add(input -> {
-        SocketChannel ch = (SocketChannel) input;
-        if (ch != null && ch.remoteAddress() != null) {
-          return new GraphiteHostAnnotator(disableRdnsLookup
+    ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
+      @Override
+      public void initChannel(SocketChannel ch) throws Exception {
+        final ChannelHandler channelHandler = new WavefrontPortUnificationHandler(
+            new GraphiteDecoder("unknown", customSourceTags),
+            pointHandler, preprocessors.forPort(strPort), metadataHandler);
+        ChannelPipeline pipeline = ch.pipeline();
+
+        pipeline.addLast("idle-handler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
+        if (!disableUseRemoteClientAsSource) {
+          pipeline.addLast("graphite-host-annotator", new GraphiteHostAnnotator(disableRdnsLookup
               ? ch.remoteAddress().getAddress().getHostAddress()
-              : reverseDnsCache.get(ch.remoteAddress().getAddress()), customSourceTags);
+              : ch.remoteAddress().getHostName(), customSourceTags));
         }
-        return new GraphiteHostAnnotator("unknown", customSourceTags);
-      });
-      startAsManagedThread(new StringLineIngester(handlers, graphiteHandler, port, pushListenerMaxReceivedLength)
-          .withChildChannelOptions(childChannelOptions), "listener-plaintext-wavefront-" + port);
-    } else {
-      startAsManagedThread(new StringLineIngester(handlers, graphiteHandler, port, pushListenerMaxReceivedLength)
-          .withChildChannelOptions(childChannelOptions), "Listener-plaintext-graphite-" + port);
-    }
+        pipeline.addLast(new PlainTextOrHttpFrameDecoder(channelHandler, pushListenerMaxReceivedLength,
+            pushListenerHttpBufferSize));
+      }
+    };
+    startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions),
+        "listener-graphite-" + port);
   }
 
   protected void startHistogramListeners(Iterator<String> ports, Decoder<String> decoder, PointHandler pointHandler,

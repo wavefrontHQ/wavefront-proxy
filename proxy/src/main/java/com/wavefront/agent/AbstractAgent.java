@@ -196,9 +196,13 @@ public abstract class AbstractAgent {
       "2878.", order = 3)
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
 
-  @Parameter(names = {"--pushListenerMaxReceivedLength"}, description = "Maximum line length for received points in " +
+  @Parameter(names = {"--pushListenerMaxReceivedLength"}, description = "Maximum line length for received points in" +
       " plaintext format on Wavefront/OpenTSDB/Graphite ports (Default: 4096)")
   protected Integer pushListenerMaxReceivedLength = 4096;
+
+  @Parameter(names = {"--pushListenerHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
+      " incoming HTTP requests on Wavefront/OpenTSDB/Graphite ports (Default: 16MB)")
+  protected Integer pushListenerHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(names = {"--listenerIdleConnectionTimeout"}, description = "Close idle inbound connections after " +
       " specified time in seconds. Default: 300")
@@ -795,6 +799,8 @@ public abstract class AbstractAgent {
         pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
         pushListenerMaxReceivedLength = config.getNumber("pushListenerMaxReceivedLength",
             pushListenerMaxReceivedLength).intValue();
+        pushListenerHttpBufferSize = config.getNumber("pushListenerHttpBufferSize",
+            pushListenerHttpBufferSize).intValue();
         listenerIdleConnectionTimeout = config.getNumber("listenerIdleConnectionTimeout",
             listenerIdleConnectionTimeout).intValue();
         memGuardFlushThreshold = config.getNumber("memGuardFlushThreshold", memGuardFlushThreshold).intValue();
@@ -811,7 +817,8 @@ public abstract class AbstractAgent {
             histogramReceiveBufferFlushInterval).intValue();
         histogramProcessingQueueScanInterval = config.getNumber("histogramProcessingQueueScanInterval",
             histogramProcessingQueueScanInterval).intValue();
-        histogramMaxReceivedLength = config.getNumber("histogramMaxReceivedLength", histogramMaxReceivedLength).intValue();
+        histogramMaxReceivedLength = config.getNumber("histogramMaxReceivedLength",
+            histogramMaxReceivedLength).intValue();
         persistAccumulator = config.getBoolean("persistAccumulator", persistAccumulator);
         persistMessages = config.getBoolean("persistMessages", persistMessages);
         persistMessagesCompression = config.getBoolean("persistMessagesCompression",
