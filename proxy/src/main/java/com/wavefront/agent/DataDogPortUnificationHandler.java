@@ -2,25 +2,18 @@ package com.wavefront.agent;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
-import com.wavefront.common.Clock;
-import com.wavefront.ingester.OpenTSDBDecoder;
-import com.wavefront.metrics.JsonMetricsParser;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -38,6 +31,8 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
   private static final Logger logger = Logger.getLogger(
       DataDogPortUnificationHandler.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
+  private static final Pattern INVALID_METRIC_CHARACTERS = Pattern.compile("[^-_\\.\\dA-Za-z]");
+  private static final Pattern INVALID_TAG_CHARACTERS = Pattern.compile("[^-_:\\.\\\\/\\dA-Za-z]");
 
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and retries, etc
@@ -152,7 +147,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
         pointHandler.handleBlockedPoint("Skipping - 'metric' field missing.");
         return false;
       }
-      String metricName = metric.get("metric").textValue();
+      String metricName = INVALID_METRIC_CHARACTERS.matcher(metric.get("metric").textValue()).replaceAll("_");
       String hostName = metric.get("host") == null ? "unknown" : metric.get("host").textValue();
       JsonNode tagsNode = metric.get("tags");
       Map<String, String> tags = new HashMap<>();
@@ -215,7 +210,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
       if (tagK.toLowerCase().equals("source")) {
         tags.put("_source", input.substring(tagKvIndex + 1, input.length()));
       } else {
-        tags.put(input.substring(0, tagKvIndex), input.substring(tagKvIndex + 1, input.length()));
+        tags.put(INVALID_TAG_CHARACTERS.matcher(tagK).replaceAll("_"), input.substring(tagKvIndex + 1, input.length()));
       }
     }
 
