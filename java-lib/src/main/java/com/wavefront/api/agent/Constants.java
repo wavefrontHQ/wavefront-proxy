@@ -23,6 +23,12 @@ public abstract class Constants {
    * Wavefront histogram format
    */
   public static final String PUSH_FORMAT_HISTOGRAM = "histogram";
+
+  /**
+   * Wavefront tracing format
+   */
+  public static final String PUSH_FORMAT_TRACING = "trace";
+
   /**
    * Work unit id for blocks of graphite-formatted data.
    */
