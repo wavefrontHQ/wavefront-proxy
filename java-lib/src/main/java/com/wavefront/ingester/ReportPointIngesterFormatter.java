@@ -1,7 +1,7 @@
 package com.wavefront.ingester;
 
 import com.wavefront.common.Clock;
-import com.wavefront.common.Constants;
+import com.wavefront.common.MetricConstants;
 
 import org.antlr.v4.runtime.Token;
 
@@ -62,7 +62,7 @@ public class ReportPointIngesterFormatter extends AbstractIngesterFormatter<Repo
     }
 
     // Delta metrics cannot have negative values
-    if ((point.getMetric().startsWith(Constants.DELTA_PREFIX) || point.getMetric().startsWith(Constants.DELTA_PREFIX_2)) &&
+    if ((point.getMetric().startsWith(MetricConstants.DELTA_PREFIX) || point.getMetric().startsWith(MetricConstants.DELTA_PREFIX_2)) &&
         point.getValue() instanceof Number) {
       double v = ((Number) point.getValue()).doubleValue();
       if (v <= 0) {

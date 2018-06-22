@@ -3,7 +3,7 @@ package com.wavefront.api.agent;
 import java.util.UUID;
 
 /**
- * Agent Constants.
+ * Agent MetricConstants.
  *
  * @author Clement Pang (clement@wavefront.com)
  */

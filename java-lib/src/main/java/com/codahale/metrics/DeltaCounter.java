@@ -2,7 +2,7 @@ package com.codahale.metrics;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import com.wavefront.common.Constants;
+import com.wavefront.common.MetricConstants;
 
 /**
  * A counter for Wavefront delta metrics.
@@ -20,8 +20,8 @@ public class DeltaCounter extends Counter {
       throw new IllegalArgumentException("Invalid arguments");
     }
 
-    if (!(metricName.startsWith(Constants.DELTA_PREFIX) || metricName.startsWith(Constants.DELTA_PREFIX_2))) {
-      metricName = Constants.DELTA_PREFIX + metricName;
+    if (!(metricName.startsWith(MetricConstants.DELTA_PREFIX) || metricName.startsWith(MetricConstants.DELTA_PREFIX_2))) {
+      metricName = MetricConstants.DELTA_PREFIX + metricName;
     }
     DeltaCounter counter = new DeltaCounter();
     registry.register(metricName, counter);
