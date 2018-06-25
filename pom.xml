@@ -56,7 +56,7 @@
     <truth.version>0.29</truth.version>
 
     <java.version>1.8</java.version>
-    <jetty.version>9.4.10.v20180503</jetty.version>
+    <jetty.version>9.4.11.v20180605</jetty.version>
     <jackson.version>2.9.2</jackson.version>
     <netty.version>4.1.25.Final</netty.version>
     <public.project.version>4.29-SNAPSHOT</public.project.version>
