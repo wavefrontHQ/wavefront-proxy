@@ -4,30 +4,15 @@ import com.wavefront.api.DataIngesterAPI;
 import com.wavefront.common.NamedThreadFactory;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.http.HttpClientConnection;
-import org.apache.http.HttpException;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.protocol.HttpRequestExecutor;
-import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
-import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
-import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
-import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
-import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPFilter;
-import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
-import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,9 +20,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPOutputStream;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 /**
@@ -58,7 +46,6 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
   private final String server;
   private final String token;
   private DataIngesterAPI directService;
-  private CloseableHttpClient httpClient;
   private final LinkedBlockingQueue<String> buffer = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
 
   public WavefrontDirectSender(String server, String token) {
@@ -66,33 +53,10 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
     this.token = token;
   }
 
-  private DataIngesterAPI createWavefrontService(String server, String token) {
-    httpClient = HttpClientBuilder.create().
-        setUserAgent(DEFAULT_SOURCE).
-        setRequestExecutor(new TokenHeaderHttpRequestExectutor(token)).
-        build();
-
-    final ApacheHttpClient4Engine apacheHttpClient4Engine = new ApacheHttpClient4Engine(httpClient, true);
-    apacheHttpClient4Engine.setFileUploadInMemoryThresholdLimit(100);
-    apacheHttpClient4Engine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
-
-    ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
-    ClientHttpEngine httpEngine = apacheHttpClient4Engine;
-
-    ResteasyClient client = new ResteasyClientBuilder().
-        httpEngine(httpEngine).
-        providerFactory(factory).
-        register(GZIPDecodingInterceptor.class).
-        register(AcceptEncodingGZIPFilter.class).
-        build();
-    ResteasyWebTarget target = client.target(server);
-    return target.proxy(DataIngesterAPI.class);
-  }
-
   @Override
   public synchronized void connect() throws IllegalStateException, IOException {
-    if (httpClient == null) {
-      directService = createWavefrontService(server, token);
+    if (directService == null) {
+      directService = new DataIngesterService(server, token);
       scheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory(DEFAULT_SOURCE));
       scheduler.scheduleAtFixedRate(this, 1, 1, TimeUnit.SECONDS);
     }
@@ -194,7 +158,6 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
       }
     } finally {
       if (response != null) {
-        // releases the connection for reuse
         response.close();
       }
     }
@@ -222,7 +185,7 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
 
   @Override
   public synchronized boolean isConnected() {
-    return httpClient != null;
+    return directService != null;
   }
 
   @Override
@@ -232,15 +195,13 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
 
   @Override
   public synchronized void close() throws IOException {
-    if (httpClient != null) {
+    if (directService != null) {
       try {
         scheduler.shutdownNow();
       } catch (SecurityException ex) {
         LOGGER.debug("shutdown error", ex);
       }
       scheduler = null;
-      httpClient.close();
-      httpClient = null;
       directService = null;
     }
   }
@@ -254,18 +215,71 @@ public class WavefrontDirectSender implements WavefrontSender, Runnable {
     }
   }
 
-  private static final class TokenHeaderHttpRequestExectutor extends HttpRequestExecutor {
-    private final String token;
+  private static final class DataIngesterService implements DataIngesterAPI {
 
-    public TokenHeaderHttpRequestExectutor(String token) {
-      this.token = "Bearer " + token;
+    private final String token;
+    private final URI uri;
+    private static final String BAD_REQUEST = "Bad client request";
+    private static final int CONNECT_TIMEOUT = 30000;
+    private static final int READ_TIMEOUT = 10000;
+
+    public DataIngesterService(String server, String token) throws IOException  {
+      this.token = token;
+      uri = URI.create(server);
     }
 
     @Override
-    public HttpResponse execute(final HttpRequest request, final HttpClientConnection conn, final HttpContext context)
-        throws IOException, HttpException {
-      request.addHeader("Authorization", this.token);
-      return super.execute(request, conn, context);
+    public Response report(String format, InputStream stream) throws IOException {
+
+      /**
+       * Refer https://docs.oracle.com/javase/8/docs/technotes/guides/net/http-keepalive.html
+       * for details around why this code is written as it is.
+       */
+
+      int statusCode = 400;
+      String respMsg = BAD_REQUEST;
+      HttpURLConnection urlConn = null;
+      try {
+        URL url = new URL(uri.getScheme(), uri.getHost(), uri.getPort(), String.format("/report?f=" + format));
+        urlConn = (HttpURLConnection) url.openConnection();
+        urlConn.setDoOutput(true);
+        urlConn.addRequestProperty(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM);
+        urlConn.addRequestProperty(HttpHeaders.CONTENT_ENCODING, "gzip");
+        urlConn.addRequestProperty(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+
+        urlConn.setConnectTimeout(CONNECT_TIMEOUT);
+        urlConn.setReadTimeout(READ_TIMEOUT);
+
+        try (GZIPOutputStream gzipOS = new GZIPOutputStream(urlConn.getOutputStream())) {
+          byte[] buffer = new byte[4096];
+          int len = 0;
+          while ((len = stream.read(buffer)) > 0) {
+            gzipOS.write(buffer);
+          }
+          gzipOS.flush();
+        }
+        statusCode = urlConn.getResponseCode();
+        respMsg = urlConn.getResponseMessage();
+        readAndClose(urlConn.getInputStream());
+      } catch (IOException ex) {
+        if (urlConn != null) {
+          statusCode = urlConn.getResponseCode();
+          respMsg = urlConn.getResponseMessage();
+          readAndClose(urlConn.getErrorStream());
+        }
+      }
+      return Response.status(statusCode).entity(respMsg).build();
+    }
+
+    private void readAndClose(InputStream stream) throws IOException {
+      if (stream != null) {
+        try (InputStream is = stream) {
+          byte[] buffer = new byte[4096];
+          int ret = 0;
+          // read entire stream before closing
+          while ((ret = is.read(buffer)) > 0) {}
+        }
+      }
     }
   }
 }
