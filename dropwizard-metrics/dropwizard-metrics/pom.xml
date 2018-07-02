@@ -1,16 +1,15 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>com.wavefront</groupId>
         <artifactId>wavefront</artifactId>
-        <version>4.29-SNAPSHOT</version>
+        <version>4.29</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <artifactId>dropwizard-metrics</artifactId>
-    <version>4.29-SNAPSHOT</version>
+    <version>4.29</version>
     <name>Wavefront Dropwizard Metrics eporter</name>
     <description>Report metrics via the Wavefront Proxy</description>
 
@@ -18,7 +17,7 @@
         <dependency>
             <groupId>com.wavefront</groupId>
             <artifactId>java-client</artifactId>
-            <version>4.29-SNAPSHOT</version>
+            <version>4.29</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
