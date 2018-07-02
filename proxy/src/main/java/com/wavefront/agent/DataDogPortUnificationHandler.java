@@ -3,17 +3,23 @@ package com.wavefront.agent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.common.TaggedMetricName;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Histogram;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -27,12 +33,14 @@ import wavefront.report.ReportPoint;
  *
  * @author vasily@wavefront.com
  */
+@ChannelHandler.Sharable
 class DataDogPortUnificationHandler extends PortUnificationHandler {
-  private static final Logger logger = Logger.getLogger(
-      DataDogPortUnificationHandler.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(DataDogPortUnificationHandler.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
   private static final Pattern INVALID_METRIC_CHARACTERS = Pattern.compile("[^-_\\.\\dA-Za-z]");
   private static final Pattern INVALID_TAG_CHARACTERS = Pattern.compile("[^-_:\\.\\\\/\\dA-Za-z]");
+
+  private volatile Histogram httpRequestSize;
 
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and retries, etc
@@ -55,6 +63,11 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
     URI uri;
     StringBuilder output = new StringBuilder();
     boolean isKeepAlive = HttpUtil.isKeepAlive(request);
+    if (httpRequestSize == null) { // doesn't have to be threadsafe
+      httpRequestSize = Metrics.newHistogram(new TaggedMetricName("listeners", "http-requests.payload-points",
+          "port", String.valueOf(((InetSocketAddress) ctx.channel().localAddress()).getPort())));
+    }
+    AtomicInteger pointsPerRequest = new AtomicInteger();
 
     try {
       uri = new URI(request.uri());
@@ -69,7 +82,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
       final ObjectMapper jsonTree = new ObjectMapper();
       HttpResponseStatus status;
       try {
-        if (reportMetrics(jsonTree.readTree(request.content().toString(CharsetUtil.UTF_8)))) {
+        if (reportMetrics(jsonTree.readTree(request.content().toString(CharsetUtil.UTF_8)), pointsPerRequest)) {
           status = HttpResponseStatus.NO_CONTENT;
         } else {
           status = HttpResponseStatus.BAD_REQUEST;
@@ -80,6 +93,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
         writeExceptionText(e, output);
         logWarning("WF-300: Failed to handle /api/v1/series request", e, ctx);
       }
+      httpRequestSize.update(pointsPerRequest.intValue());
       writeHttpResponse(ctx, status, output, isKeepAlive);
     } else {
       writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported path", isKeepAlive);
@@ -97,7 +111,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
     }
     final ObjectMapper jsonTree = new ObjectMapper();
     try {
-      reportMetrics(jsonTree.readTree(message));
+      reportMetrics(jsonTree.readTree(message), null);
     } catch (Exception e) {
       logWarning("WF-300: Unable to parse JSON on plaintext port", e, ctx);
     }
@@ -109,9 +123,9 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
    *
    * @param metrics a DataDog-format payload
    * @return true if all metrics added successfully; false o/w
-   * @see #reportMetric(JsonNode)
+   * @see #reportMetric(JsonNode, AtomicInteger)
    */
-  private boolean reportMetrics(final JsonNode metrics) {
+  private boolean reportMetrics(final JsonNode metrics, @Nullable final AtomicInteger pointCounter) {
     if (!metrics.isObject() || !metrics.has("series")) {
       pointHandler.handleBlockedPoint("WF-300: Payload missing 'series' field");
       return false;
@@ -123,7 +137,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
     }
     boolean successful = true;
     for (final JsonNode metric : series) {
-      if (!reportMetric(metric)) {
+      if (!reportMetric(metric, pointCounter)) {
         successful = false;
       }
     }
@@ -137,7 +151,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
    * @return True if the metric was reported successfully; False o/w
    * @see <a href="http://opentsdb.net/docs/build/html/api_http/put.html">OpenTSDB /api/put documentation</a>
    */
-  private boolean reportMetric(final JsonNode metric) {
+  private boolean reportMetric(final JsonNode metric, @Nullable final AtomicInteger pointCounter) {
     if (metric == null) {
       pointHandler.handleBlockedPoint("Skipping - series object null.");
       return false;
@@ -192,6 +206,9 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
             }
           }
           pointHandler.reportPoint(point, null);
+          if (pointCounter != null) {
+            pointCounter.incrementAndGet();
+          }
         } else {
           pointHandler.handleBlockedPoint("WF-300: Inconsistent point value size (expected: 2)");
         }

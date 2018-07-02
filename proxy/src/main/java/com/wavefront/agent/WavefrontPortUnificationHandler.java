@@ -10,6 +10,7 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -20,9 +21,9 @@ import io.netty.util.CharsetUtil;
  * Handle an incoming message of either String or FullHttpRequest type:
  * single point in a string or multiple points in the post body, newline-delimited
  */
+@ChannelHandler.Sharable
 class WavefrontPortUnificationHandler extends PortUnificationHandler {
-  private static final Logger logger = Logger.getLogger(
-      WavefrontPortUnificationHandler.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(WavefrontPortUnificationHandler.class.getCanonicalName());
 
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and retries, etc
@@ -37,13 +38,18 @@ class WavefrontPortUnificationHandler extends PortUnificationHandler {
   @Nullable
   private final PointPreprocessor preprocessor;
 
+  @Nullable
+  private final CachingGraphiteHostAnnotator annotator;
+
 
   WavefrontPortUnificationHandler(final Decoder<String> decoder,
                                   final PointHandler pointHandler,
+                                  @Nullable final CachingGraphiteHostAnnotator annotator,
                                   @Nullable final PointPreprocessor preprocessor,
                                   @Nullable final SourceTagHandler metadataHandler) {
     this.decoder = decoder;
     this.pointHandler = pointHandler;
+    this.annotator = annotator;
     this.metadataHandler = metadataHandler;
     this.preprocessor = preprocessor;
   }
@@ -76,7 +82,7 @@ class WavefrontPortUnificationHandler extends PortUnificationHandler {
    */
   @Override
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                      final String message) throws Exception {
+                                        final String message) throws Exception {
     if (message == null) {
       throw new IllegalArgumentException("Message cannot be null");
     }
@@ -97,7 +103,8 @@ class WavefrontPortUnificationHandler extends PortUnificationHandler {
         return;
       }
     }
-    ChannelStringHandler.processPointLine(message, decoder, pointHandler, preprocessor, ctx);
+    ChannelStringHandler.processPointLine(annotator == null ? message : annotator.apply(ctx, message),
+        decoder, pointHandler, preprocessor, ctx);
   }
 }
 
