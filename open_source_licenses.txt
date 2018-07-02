@@ -1,21 +1,21 @@
-open_source_license.txt
+open_source_licenses.txt
 
-Wavefront by VMware 4.28 GA
+Wavefront by VMware 4.29 GA
 
 ======================================================================
 
 The following copyright statements and licenses apply to various open
-source software packages (or portions thereof) that are included in
-this VMware service.
+source software packages (or portions thereof) that are distributed with
+this VMware Product.
 
-The VMware service may also include other VMware components, which may
+The VMware Product may also include other VMware components, which may
 contain additional open source software packages. One or more such
 open_source_licenses.txt files may therefore accompany this VMware
-service.
+Product.
 
-The VMware service that includes this file does not necessarily use all the open 
-source software packages referred to below and may also only use portions of a 
-given package.
+The VMware Product that includes this file does not necessarily use all
+the open source software packages referred to below and may also only
+use portions of a given package.
 
 =============== TABLE OF CONTENTS =============================
 
@@ -32,10 +32,16 @@ SECTION 1: Apache License, V2.0
    >>> com.fasterxml.jackson.core:jackson-core-2.9.2
    >>> com.fasterxml.jackson.core:jackson-databind-2.9.2
    >>> com.fasterxml.jackson.dataformat:jackson-dataformat-yaml-2.9.2
+   >>> com.fasterxml.jackson.datatype:jackson-datatype-guava-2.9.5
+   >>> com.fasterxml.jackson.datatype:jackson-datatype-jdk8-2.9.5
+   >>> com.fasterxml.jackson.datatype:jackson-datatype-joda-2.9.5
+   >>> com.fasterxml.jackson.datatype:jackson-datatype-jsr310-2.9.5
    >>> com.fasterxml.jackson.jaxrs:jackson-jaxrs-base-2.8.6
    >>> com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider-2.8.6
    >>> com.fasterxml.jackson.module:jackson-module-afterburner-2.9.2
    >>> com.fasterxml.jackson.module:jackson-module-jaxb-annotations-2.8.6
+   >>> com.fasterxml.jackson.module:jackson-module-parameter-names-2.9.5
+   >>> com.fasterxml:classmate-1.3.4
    >>> com.github.ben-manes.caffeine:caffeine-2.3.3
    >>> com.github.tony19:named-regexp-0.2.3
    >>> com.google.code.findbugs:jsr305-2.0.1
@@ -49,22 +55,29 @@ SECTION 1: Apache License, V2.0
    >>> com.squareup:javapoet-1.5.1
    >>> com.squareup:tape-1.2.3
    >>> com.tdunning:t-digest-3.1
+   >>> com.tdunning:t-digest-3.2
    >>> commons-codec:commons-codec-1.9
    >>> commons-collections:commons-collections-3.2.2
    >>> commons-daemon-1.0.15
    >>> commons-io:commons-io-2.5
    >>> commons-lang:commons-lang-2.6
    >>> commons-logging:commons-logging-1.2
-   >>> io.dropwizard.metrics:metrics-jvm-3.2.5
-   >>> io.netty:netty-buffer-4.1.11.final
-   >>> io.netty:netty-codec-4.1.11.final
-   >>> io.netty:netty-codec-http-4.1.11.final
-   >>> io.netty:netty-common-4.1.11.final
-   >>> io.netty:netty-handler-4.1.11.final
-   >>> io.netty:netty-resolver-4.1.11.final
-   >>> io.netty:netty-transport-4.1.11.final
-   >>> io.netty:netty-transport-native-epoll-4.1.11.final
-   >>> io.netty:netty-transport-native-unix-common-4.1.11.final
+   >>> io.dropwizard.metrics:metrics-core-4.0.2
+   >>> io.dropwizard.metrics:metrics-jvm-4.0.2
+   >>> io.dropwizard:dropwizard-jackson-1.3.2
+   >>> io.dropwizard:dropwizard-lifecycle-1.3.2
+   >>> io.dropwizard:dropwizard-metrics-1.3.2
+   >>> io.dropwizard:dropwizard-util-1.3.2
+   >>> io.dropwizard:dropwizard-validation-1.3.2
+   >>> io.netty:netty-buffer-4.1.25.final
+   >>> io.netty:netty-codec-4.1.25.final
+   >>> io.netty:netty-codec-http-4.1.25.final
+   >>> io.netty:netty-common-4.1.25.final
+   >>> io.netty:netty-handler-4.1.25.final
+   >>> io.netty:netty-resolver-4.1.25.final
+   >>> io.netty:netty-transport-4.1.25.final
+   >>> io.netty:netty-transport-native-epoll-4.1.25.final
+   >>> io.netty:netty-transport-native-unix-common-4.1.25.final
    >>> io.thekraken:grok-0.1.4
    >>> javax.validation:validation-api-1.1.0.final
    >>> jna-platform-4.2.1
@@ -89,12 +102,18 @@ SECTION 1: Apache License, V2.0
    >>> org.codehaus.jackson:jackson-core-asl-1.9.13
    >>> org.codehaus.jackson:jackson-mapper-asl-1.9.13
    >>> org.codehaus.jettison:jettison-1.3.8
-   >>> org.eclipse.jetty:jetty-http-9.4.7.v20170914
-   >>> org.eclipse.jetty:jetty-io-9.4.7.v20170914
-   >>> org.eclipse.jetty:jetty-security-9.4.7.v20170914
-   >>> org.eclipse.jetty:jetty-server-9.4.7.v20170914
-   >>> org.eclipse.jetty:jetty-servlet-9.4.7.v20170914
-   >>> org.eclipse.jetty:jetty-util-9.4.7.v20170914
+   >>> org.eclipse.jetty:jetty-http-9.4.10.v20180503
+   >>> org.eclipse.jetty:jetty-http-9.4.11.v20180605
+   >>> org.eclipse.jetty:jetty-io-9.4.10.v20180503
+   >>> org.eclipse.jetty:jetty-io-9.4.11.v20180605
+   >>> org.eclipse.jetty:jetty-security-9.4.11.v20180605
+   >>> org.eclipse.jetty:jetty-server-9.4.10.v20180503
+   >>> org.eclipse.jetty:jetty-server-9.4.11.v20180605
+   >>> org.eclipse.jetty:jetty-servlet-9.4.11.v20180605
+   >>> org.eclipse.jetty:jetty-util-9.4.10.v20180503
+   >>> org.eclipse.jetty:jetty-util-9.4.11.v20180605
+   >>> org.hibernate:hibernate-validator-5.4.2.final
+   >>> org.javassist:javassist-3.22.0-ga
    >>> org.jboss.logging:jboss-logging-3.3.0.final
    >>> org.jboss.resteasy:resteasy-client-3.0.21.final
    >>> org.jboss.resteasy:resteasy-jackson2-provider-3.0.21.final
@@ -112,12 +131,12 @@ SECTION 2: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
    >>> com.thoughtworks.xstream:xstream-1.4.10
    >>> com.yammer.metrics:metrics-core-2.2.0
    >>> io.dropwizard.metrics:metrics-core-3.1.2
-   >>> io.dropwizard.metrics:metrics-core-3.2.5
    >>> net.razorvine:pyrolite-4.10
    >>> net.razorvine:serpent-1.12
    >>> org.antlr:antlr4-runtime-4.5.2-1
    >>> org.hamcrest:hamcrest-all-1.3
    >>> org.json:json-20160212
+   >>> org.slf4j:slf4j-api-1.7.25
    >>> org.slf4j:slf4j-api-1.7.7
    >>> org.tukaani:xz-1.5
    >>> xmlpull:xmlpull-1.1.3.1
@@ -126,6 +145,7 @@ SECTION 2: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
 
 SECTION 3: Common Development and Distribution License, V1.0
 
+   >>> org.glassfish:javax.el-3.0.0
    >>> org.jboss.spec.javax.annotation:jboss-annotations-api_1.2_spec-1.0.0.final
 
 
@@ -179,6 +199,10 @@ APPENDIX. Standard License Files
    >>> GNU Lesser General Public License, V2.1
 
    >>> GNU Lesser General Public License, V3.0
+
+   >>> Artistic License, V1.0
+   
+   >>> Mozilla Public License, V2.0
 
 
 
@@ -317,6 +341,45 @@ You may obtain a copy of the License at:
 http://www.apache.org/licenses/LICENSE-2.0
 
 
+>>> com.fasterxml.jackson.datatype:jackson-datatype-guava-2.9.5
+
+License: Apache 2.0
+
+
+>>> com.fasterxml.jackson.datatype:jackson-datatype-jdk8-2.9.5
+
+License: Apache 2.0
+
+
+>>> com.fasterxml.jackson.datatype:jackson-datatype-joda-2.9.5
+
+This copy of Jackson JSON processor streaming parser/generator is licensed under the
+Apache (Software) License, version 2.0 ("the License").
+See the License for details about distribution rights, and the
+specific rights regarding derivate works.
+
+You may obtain a copy of the License at:
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+
+>>> com.fasterxml.jackson.datatype:jackson-datatype-jsr310-2.9.5
+
+Copyright 2013 FasterXML.com
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the license for the specific language governing permissions and
+limitations under the license.
+
+
 >>> com.fasterxml.jackson.jaxrs:jackson-jaxrs-base-2.8.6
 
 This copy of Jackson JSON processor databind module is licensed under the
@@ -355,6 +418,28 @@ specific rights regarding derivate works.
 
 You may obtain a copy of the License at:
 
+http://www.apache.org/licenses/LICENSE-2.0
+
+
+>>> com.fasterxml.jackson.module:jackson-module-parameter-names-2.9.5
+
+License: Apache2.0
+
+
+>>> com.fasterxml:classmate-1.3.4
+
+Java ClassMate library was originally written by Tatu Saloranta (tatu.saloranta@iki.fi)
+
+Other developers who have contributed code are:
+
+* Brian Langel
+
+This copy of Java ClassMate library is licensed under Apache (Software) License,
+version 2.0 ("the License").
+See the License for details about distribution rights, and the specific rights regarding derivate works.
+
+You may obtain a copy of the License at:
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 
@@ -564,6 +649,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 
+>>> com.tdunning:t-digest-3.2
+
+Licensed to Ted Dunning under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
 >>> commons-codec:commons-codec-1.9
 
 Apache Commons Codec
@@ -717,14 +820,44 @@ information on the Apache Software Foundation, please see
 <http://www.apache.org/>.
 
 
->>> io.dropwizard.metrics:metrics-jvm-3.2.5
+>>> io.dropwizard.metrics:metrics-core-4.0.2
 
 License: Apache 2.0
 
 
->>> io.netty:netty-buffer-4.1.11.final
+>>> io.dropwizard.metrics:metrics-jvm-4.0.2
 
-Copyright 2016 The Netty Project
+License: Apache 2.0
+
+
+>>> io.dropwizard:dropwizard-jackson-1.3.2
+
+License: Apache 2.0
+
+
+>>> io.dropwizard:dropwizard-lifecycle-1.3.2
+
+License: Apache 2.0
+
+
+>>> io.dropwizard:dropwizard-metrics-1.3.2
+
+License: Apache 2.0
+
+
+>>> io.dropwizard:dropwizard-util-1.3.2
+
+License: Apache 2.0
+
+
+>>> io.dropwizard:dropwizard-validation-1.3.2
+
+License: Apache 2.0
+
+
+>>> io.netty:netty-buffer-4.1.25.final
+
+Copyright 2012 The Netty Project
 
 The Netty Project licenses this file to you under the Apache License,
 version 2.0 (the "License"); you may not use this file except in compliance
@@ -739,9 +872,9 @@ License for the specific language governing permissions and limitations
 under the License.
 
 
->>> io.netty:netty-codec-4.1.11.final
+>>> io.netty:netty-codec-4.1.25.final
 
-Copyright 2012 The Netty Project
+Copyright 2014 The Netty Project
 
 The Netty Project licenses this file to you under the Apache License,
 version 2.0 (the "License"); you may not use this file except in compliance
@@ -759,15 +892,15 @@ ADDITIONAL LICENSE INFORMATION:
 
 > Public Domain
 
-netty-codec-4.1.11.Final-sources.jar\io\netty\handler\codec\base64\Base64Dialect.java
+netty-codec-4.1.25.Final-sources.jar\io\netty\handler\codec\base64\Base64Dialect.java
 
 Written by Robert Harder and released to the public domain, as explained at
 http://creativecommons.org/licenses/publicdomain
 
 
->>> io.netty:netty-codec-http-4.1.11.final
+>>> io.netty:netty-codec-http-4.1.25.final
 
-Copyright 2012 The Netty Project
+Copyright 2015 The Netty Project
 
 The Netty Project licenses this file to you under the Apache License,
 version 2.0 (the "License"); you may not use this file except in compliance
@@ -784,9 +917,9 @@ under the License.
 
 ADDITIONAL LICENSE INFORMATION:
 
-> BSD-3 Clause
+>BSD 3 CLAUSE
 
-netty-codec-http-4.1.11.Final-sources.jar\io\netty\handler\codec\http\websocketx\WebSocket07FrameDecoder.java
+netty-codec-http-4.1.25.Final-sources.jar\io\netty\handler\codec\http\websocketx\WebSocket13FrameEncoder.java
 
 (BSD License: http://www.opensource.org/licenses/bsd-license)
 
@@ -797,16 +930,16 @@ Redistribution and use in source and binary forms, with or
 without modification, are permitted provided that the
 following conditions are met:
 
-Redistributions of source code must retain the above
+* Redistributions of source code must retain the above
 copyright notice, this list of conditions and the
 following disclaimer.
 
-Redistributions in binary form must reproduce the above
+* Redistributions in binary form must reproduce the above
 copyright notice, this list of conditions and the
 following disclaimer in the documentation and/or other
 materials provided with the distribution.
 
-Neither the name of the Webbit nor the names of
+* Neither the name of the Webbit nor the names of
 its contributors may be used to endorse or promote products
 derived from this software without specific prior written
 permission.
@@ -826,9 +959,10 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-> MIT
+>MIT
 
-netty-codec-http-4.1.11.Final-sources.jar\io\netty\handler\codec\http\websocketx\Utf8Validator.java
+netty-codec-http-4.1.25.Final-sources.jar\io\netty\handler\codec\http\websocketx\Utf8Validator.java
+
 
 Adaptation of http://bjoern.hoehrmann.de/utf-8/decoder/dfa/
 
@@ -850,24 +984,27 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
->>> io.netty:netty-common-4.1.11.final
+>>> io.netty:netty-common-4.1.25.final
 
-Copyright 2014 The Netty Project
+Copyright 2012 The Netty Project
 
-The Netty Project licenses this file to you under the Apache License, version 2.0 (the
-"License"); you may not use this file except in compliance with the License. You may obtain a
-copy of the License at:
+The Netty Project licenses this file to you under the Apache License,
+version 2.0 (the "License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at:
 
 http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software distributed under the License
-is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-or implied. See the License for the specific language governing permissions and limitations under
-the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+
+ADDITIONAL LICENSE INFORMATION:
 
 > MIT
 
-netty-common-4.1.11.Final-sources.jar\io\netty\util\internal\logging\JdkLogger.java
+netty-common-4.1.25.Final-sources.jar\io\netty\util\internal\logging\MessageFormatter.java
 
 Copyright (c) 2004-2011 QOS.ch
 All rights reserved.
@@ -891,35 +1028,35 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-> Public Domain
+> PUBLIC DOMAIN
 
-netty-common-4.1.11.Final-sources.jar\io\netty\util\internal\ThreadLocalRandom.java
+netty-common-4.1.25.Final-sources.jar\io\netty\util\internal\ThreadLocalRandom.java
 
 Written by Doug Lea with assistance from members of JCP JSR-166
 Expert Group and released to the public domain, as explained at
 http://creativecommons.org/publicdomain/zero/1.0/
 
 
->>> io.netty:netty-handler-4.1.11.final
+>>> io.netty:netty-handler-4.1.25.final
 
 Copyright 2016 The Netty Project
 
-The Netty Project licenses this file to you under the Apache License, version
-2.0 (the "License"); you may not use this file except in compliance with the
-License. You may obtain a copy of the License at:
+The Netty Project licenses this file to you under the Apache License,
+version 2.0 (the "License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at:
 
 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
 WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-License for the specific language governing permissions and limitations under
-the License.
+License for the specific language governing permissions and limitations
+under the License.
 
 
->>> io.netty:netty-resolver-4.1.11.final
+>>> io.netty:netty-resolver-4.1.25.final
 
-Copyright 2017 The Netty Project
+Copyright 2015 The Netty Project
 
 The Netty Project licenses this file to you under the Apache License,
 version 2.0 (the "License"); you may not use this file except in compliance
@@ -934,7 +1071,7 @@ License for the specific language governing permissions and limitations
 under the License.
 
 
->>> io.netty:netty-transport-4.1.11.final
+>>> io.netty:netty-transport-4.1.25.final
 
 Copyright 2012 The Netty Project
 
@@ -951,9 +1088,9 @@ License for the specific language governing permissions and limitations
 under the License.
 
 
->>> io.netty:netty-transport-native-epoll-4.1.11.final
+>>> io.netty:netty-transport-native-epoll-4.1.25.final
 
-Copyright 2012 The Netty Project
+Copyright 2014 The Netty Project
 
 The Netty Project licenses this file to you under the Apache License,
 version 2.0 (the "License"); you may not use this file except in compliance
@@ -968,7 +1105,7 @@ License for the specific language governing permissions and limitations
 under the License.
 
 
->>> io.netty:netty-transport-native-unix-common-4.1.11.final
+>>> io.netty:netty-transport-native-unix-common-4.1.25.final
 
 Copyright 2016 The Netty Project
 
@@ -1823,12 +1960,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 
->>> org.eclipse.jetty:jetty-http-9.4.7.v20170914
+>>> org.eclipse.jetty:jetty-http-9.4.10.v20180503
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
-Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
-
+Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+------------------------------------------------------------------------
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
 and Apache License v2.0 which accompanies this distribution.
@@ -1841,32 +1978,27 @@ http:www.opensource.org/licenses/apache2.0.php
 
 You may elect to redistribute this code under either of these licenses.
 
-
-
 ADDITIONAL LICENSE INFORMATION:
 
+> MIT-Style
 
-> MIT STYLE
-
-
-jetty-http-9.4.7.v20170914-sources.jar\about.html
+jetty-http-9.4.10.v20180503-sources.jar\about.html
 
 The UnixCrypt.java code implements the one way cryptography used by
-Unix systems for simple password protection.
-
-Copyright 1996 Aki Yoshida,
+Unix systems for simple password protection.  Copyright 1996 Aki Yoshida,
 modified April 2001  by Iris Van den Broeke, Daniel Deville.
 Permission to use, copy, modify and distribute UnixCrypt
 for non-commercial or commercial purposes and without fee is
-granted provided that the copyright notice appears in all copies
+granted provided that the copyright notice appears in all copies.
 
 
->>> org.eclipse.jetty:jetty-io-9.4.7.v20170914
+>>> org.eclipse.jetty:jetty-http-9.4.11.v20180605
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE Apache 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE Apache 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
-Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
 
+Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+------------------------------------------------------------------------
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
 and Apache License v2.0 which accompanies this distribution.
@@ -1883,22 +2015,21 @@ ADDITIONAL LICENSE INFORMATION:
 
 > MIT
 
-jetty-io-9.4.7.v20170914-sources.jar\about.html
+jetty-http-9.4.11.v20180605-sources.jar\about.html
 
-The UnixCrypt.java code implements the one way cryptography used by
-Unix systems for simple password protection.  Copyright 1996 Aki Yoshida,
+Copyright 1996 Aki Yoshida,
 modified April 2001  by Iris Van den Broeke, Daniel Deville.
 Permission to use, copy, modify and distribute UnixCrypt
 for non-commercial or commercial purposes and without fee is
-granted provided that the copyright notice appears in all copies
+granted provided that the copyright notice appears in all copies.
 
 
->>> org.eclipse.jetty:jetty-security-9.4.7.v20170914
+>>> org.eclipse.jetty:jetty-io-9.4.10.v20180503
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
-Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
-
+Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+------------------------------------------------------------------------
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
 and Apache License v2.0 which accompanies this distribution.
@@ -1911,97 +2042,143 @@ http:www.opensource.org/licenses/apache2.0.php
 
 You may elect to redistribute this code under either of these licenses.
 
-
 ADDITIONAL LICENSE INFORMATION:
 
+> MIT-Style
 
-> MIT STYLE
-
-jetty-security-9.4.7.v20170914-sources.jar\about.html
+jetty-io-9.4.10.v20180503-sources.jar\about.html
 
 The UnixCrypt.java code implements the one way cryptography used by
-Unix systems for simple password protection.
-
-Copyright 1996 Aki Yoshida,
+Unix systems for simple password protection.  Copyright 1996 Aki Yoshida,
 modified April 2001  by Iris Van den Broeke, Daniel Deville.
 Permission to use, copy, modify and distribute UnixCrypt
 for non-commercial or commercial purposes and without fee is
-granted provided that the copyright notice appears in all copies
+granted provided that the copyright notice appears in all copies.
 
 
->>> org.eclipse.jetty:jetty-server-9.4.7.v20170914
+>>> org.eclipse.jetty:jetty-io-9.4.11.v20180605
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE Apache 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE Apache 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
-Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
- 
-  All rights reserved. This program and the accompanying materials
-  are made available under the terms of the Eclipse Public License v1.0
-  and Apache License v2.0 which accompanies this distribution.
 
-      The Eclipse Public License is available at
-      http:www.eclipse.org/legal/epl-v10.html
+Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+------------------------------------------------------------------------
+All rights reserved. This program and the accompanying materials
+are made available under the terms of the Eclipse Public License v1.0
+and Apache License v2.0 which accompanies this distribution.
 
-      The Apache License v2.0 is available at
-      http:www.opensource.org/licenses/apache2.0.php
+The Eclipse Public License is available at
+http:www.eclipse.org/legal/epl-v10.html
 
-  You may elect to redistribute this code under either of these licenses.
+The Apache License v2.0 is available at
+http:www.opensource.org/licenses/apache2.0.php
+
+You may elect to redistribute this code under either of these licenses.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> MIT
+
+jetty-io-9.4.11.v20180605-sources.jar\org\eclipse\jetty\io\about.html
+
+Copyright 1996 Aki Yoshida, modified April 2001 by Iris Van den Broeke, Daniel Deville. Permission to use, copy, modify and distribute UnixCrypt for non-commercial or commercial purposes and without fee is granted provided that the copyright notice appears in all copies.
+
+
+>>> org.eclipse.jetty:jetty-security-9.4.11.v20180605
+
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE Apache 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE Apache 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+
+Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+------------------------------------------------------------------------
+All rights reserved. This program and the accompanying materials
+are made available under the terms of the Eclipse Public License v1.0
+and Apache License v2.0 which accompanies this distribution.
+
+The Eclipse Public License is available at
+http:www.eclipse.org/legal/epl-v10.html
+
+The Apache License v2.0 is available at
+http:www.opensource.org/licenses/apache2.0.php
+
+You may elect to redistribute this code under either of these licenses.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> MIT
+
+jetty-security-9.4.11.v20180605-sources.jar\about.html
+
+Copyright 1996 Aki Yoshida, modified April 2001 by Iris Van den Broeke, Daniel Deville. Permission to use, copy, modify and distribute UnixCrypt for non-commercial or commercial purposes and without fee is granted provided that the copyright notice appears in all copies.
+
+
+>>> org.eclipse.jetty:jetty-server-9.4.10.v20180503
+
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+------------------------------------------------------------------------
+All rights reserved. This program and the accompanying materials
+are made available under the terms of the Eclipse Public License v1.0
+and Apache License v2.0 which accompanies this distribution.
+
+The Eclipse Public License is available at
+http:www.eclipse.org/legal/epl-v10.html
+
+The Apache License v2.0 is available at
+http:www.opensource.org/licenses/apache2.0.php
+
+You may elect to redistribute this code under either of these licenses.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> MIT-Style
+
+jetty-server-9.4.10.v20180503-sources.jar\about.html
+
+The UnixCrypt.java code implements the one way cryptography used by
+Unix systems for simple password protection.  Copyright 1996 Aki Yoshida,
+modified April 2001  by Iris Van den Broeke, Daniel Deville.
+Permission to use, copy, modify and distribute UnixCrypt
+for non-commercial or commercial purposes and without fee is
+granted provided that the copyright notice appears in all copies.
+
+
+>>> org.eclipse.jetty:jetty-server-9.4.11.v20180605
+
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE Apache 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE Apache 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+
+Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+------------------------------------------------------------------------
+All rights reserved. This program and the accompanying materials
+are made available under the terms of the Eclipse Public License v1.0
+and Apache License v2.0 which accompanies this distribution.
+
+The Eclipse Public License is available at
+http:www.eclipse.org/legal/epl-v10.html
+
+The Apache License v2.0 is available at
+http:www.opensource.org/licenses/apache2.0.php
+
+You may elect to redistribute this code under either of these licenses.
 
 ADDITIONAL LICENSE INFORMATION:
 
 >MIT
 
-jetty-server-9.4.7.v20170914-sources.jar\about.html
+jetty-server-9.4.11.v20180605-sources.jar\about.html
 
-Copyright 1996 Aki Yoshida,
-modified April 2001  by Iris Van den Broeke, Daniel Deville.
-Permission to use, copy, modify and distribute UnixCrypt
-for non-commercial or commercial purposes and without fee is
-granted provided that the copyright notice appears in all copies.
+Copyright 1996 Aki Yoshida, modified April 2001 by Iris Van den Broeke, Daniel Deville. Permission to use, copy, modify and distribute UnixCrypt for non-commercial or commercial purposes and without fee is granted provided that the copyright notice appears in all copies.
 
 
->>> org.eclipse.jetty:jetty-servlet-9.4.7.v20170914
+>>> org.eclipse.jetty:jetty-servlet-9.4.11.v20180605
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
-
-  All rights reserved. This program and the accompanying materials
-  are made available under the terms of the Eclipse Public License v1.0
-  and Apache License v2.0 which accompanies this distribution.
-
-      The Eclipse Public License is available at
-      http:www.eclipse.org/legal/epl-v10.html
-
-      The Apache License v2.0 is available at
-      http:www.opensource.org/licenses/apache2.0.php
-
-  You may elect to redistribute this code under either of these licenses.
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE Apache 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE Apache 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
 
-ADDITIONAL LICENSE INFORMATION:
-
-
-> MIT STYLE
-
-jetty-servlet-9.4.7.v20170914-sources.jar\about.html
-
-The UnixCrypt.java code implements the one way cryptography used by
-Unix systems for simple password protection. 
-
-Copyright 1996 Aki Yoshida,
-modified April 2001  by Iris Van den Broeke, Daniel Deville.
-Permission to use, copy, modify and distribute UnixCrypt
-for non-commercial or commercial purposes and without fee is
-granted provided that the copyright notice appears in all copies
-
-
->>> org.eclipse.jetty:jetty-util-9.4.7.v20170914
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Copyright (c) 1995-2017 Mort Bay Consulting Pty. Ltd.
-
+Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+------------------------------------------------------------------------
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0
 and Apache License v2.0 which accompanies this distribution.
@@ -2014,13 +2191,38 @@ http:www.opensource.org/licenses/apache2.0.php
 
 You may elect to redistribute this code under either of these licenses.
 
+ADDITIONAL LICENSE INFORMATION:
+
+>MIT
+
+jetty-servlet-9.4.11.v20180605-sources.jar\about.html
+
+Copyright 1996 Aki Yoshida, modified April 2001 by Iris Van den Broeke, Daniel Deville. Permission to use, copy, modify and distribute UnixCrypt for non-commercial or commercial purposes and without fee is granted provided that the copyright notice appears in all copies.
+
+
+>>> org.eclipse.jetty:jetty-util-9.4.10.v20180503
+
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+------------------------------------------------------------------------
+All rights reserved. This program and the accompanying materials
+are made available under the terms of the Eclipse Public License v1.0
+and Apache License v2.0 which accompanies this distribution.
+
+The Eclipse Public License is available at
+http:www.eclipse.org/legal/epl-v10.html
+
+The Apache License v2.0 is available at
+http:www.opensource.org/licenses/apache2.0.php
+
+You may elect to redistribute this code under either of these licenses.
 
 ADDITIONAL LICENSE INFORMATION:
 
+> MIT-Style
 
-> MIT STYLE
-
-jetty-util-9.4.7.v20170914-sources.jar\about.html
+jetty-util-9.4.10.v20180503-sources.jar\about.html
 
 The UnixCrypt.java code implements the one way cryptography used by
 Unix systems for simple password protection.  Copyright 1996 Aki Yoshida,
@@ -2030,23 +2232,68 @@ for non-commercial or commercial purposes and without fee is
 granted provided that the copyright notice appears in all copies.
 
 
+>>> org.eclipse.jetty:jetty-util-9.4.11.v20180605
+
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE Apache 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE Apache 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+
+Copyright (c) 1995-2018 Mort Bay Consulting Pty. Ltd.
+------------------------------------------------------------------------
+All rights reserved. This program and the accompanying materials
+are made available under the terms of the Eclipse Public License v1.0
+and Apache License v2.0 which accompanies this distribution.
+
+The Eclipse Public License is available at
+http:www.eclipse.org/legal/epl-v10.html
+
+The Apache License v2.0 is available at
+http:www.opensource.org/licenses/apache2.0.php
+
+You may elect to redistribute this code under either of these licenses.
+
+ADDITIONAL LICENSE INFORMATION:
+
 > MIT
 
-jetty-util-9.4.7.v20170914-sources.jar\org\eclipse\jetty\util\Utf8Appendable.java
+jetty-util-9.4.11.v20180605-sources.jar\about.html
 
-License information for Bjoern Hoehrmann's code:
+Copyright 1996 Aki Yoshida, modified April 2001 by Iris Van den Broeke, Daniel Deville. Permission to use, copy, modify and distribute UnixCrypt for non-commercial or commercial purposes and without fee is granted provided that the copyright notice appears in all copies.
 
-Copyright (c) 2008-2009 Bjoern Hoehrmann &lt;bjoern@hoehrmann.de&gt;
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+>>> org.hibernate:hibernate-validator-5.4.2.final
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-/
+Copyright 2009 IIZUKA Software Technologies Ltd
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+>>> org.javassist:javassist-3.22.0-ga
+
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0.  PLEASE SEE THE APPENDIX TO REVIEW THE FULL TEXT OF THE APACHE 2.0.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Javassist, a Java-bytecode translator toolkit.
+Copyright (C) 1999- Shigeru Chiba. All Rights Reserved.
+
+The contents of this file are subject to the Mozilla Public License Version
+1.1 (the "License"); you may not use this file except in compliance with
+the License.  Alternatively, the contents of this file may be used under
+the terms of the GNU Lesser General Public License Version 2.1 or later,
+or the Apache License Version 2.0.
+
+Software distributed under the License is distributed on an "AS IS" basis,
+WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+for the specific language governing rights and limitations under the
+License.
 
 
 >>> org.jboss.logging:jboss-logging-3.3.0.final
@@ -2277,13 +2524,6 @@ Expert Group and released to the public domain, as explained at
 http://creativecommons.org/publicdomain/zero/1.0/
 
 
->>> io.dropwizard.metrics:metrics-core-3.2.5
-
-Written by Doug Lea with assistance from members of JCP JSR-166
-Expert Group and released to the public domain, as explained at
-http://creativecommons.org/publicdomain/zero/1.0/
-
-
 >>> net.razorvine:pyrolite-4.10
 
 License: MIT
@@ -2387,6 +2627,31 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
+>>> org.slf4j:slf4j-api-1.7.25
+
+Copyright (c) 2004-2011 QOS.ch
+All rights reserved.
+
+Permission is hereby granted, free  of charge, to any person obtaining
+a  copy  of this  software  and  associated  documentation files  (the
+"Software"), to  deal in  the Software without  restriction, including
+without limitation  the rights to  use, copy, modify,  merge, publish,
+distribute,  sublicense, and/or sell  copies of  the Software,  and to
+permit persons to whom the Software  is furnished to do so, subject to
+the following conditions:
+
+The  above  copyright  notice  and  this permission  notice  shall  be
+included in all copies or substantial portions of the Software.
+
+THE  SOFTWARE IS  PROVIDED  "AS  IS", WITHOUT  WARRANTY  OF ANY  KIND,
+EXPRESS OR  IMPLIED, INCLUDING  BUT NOT LIMITED  TO THE  WARRANTIES OF
+MERCHANTABILITY,    FITNESS    FOR    A   PARTICULAR    PURPOSE    AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE,  ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
 >>> org.slf4j:slf4j-api-1.7.7
 
 Copyright (c) 2004-2011 QOS.ch
@@ -2486,6 +2751,49 @@ SOFTWARE.
 --------------- SECTION 3: Common Development and Distribution License, V1.0 ----------
 
 Common Development and Distribution License, V1.0 is applicable to the following component(s).
+
+
+>>> org.glassfish:javax.el-3.0.0
+
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.0.  PLEASE SEE BELOW FOR THE FULL TEXT OF THE CDDL 1.0.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE].
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright (c) 1997-2013 Oracle and/or its affiliates. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License.  You can
+obtain a copy of the License at
+https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
+or packager/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at packager/legal/LICENSE.txt.
+
+GPL Classpath Exception:
+Oracle designates this particular file as subject to the "Classpath"
+exception as provided by Oracle in the GPL Version 2 section of the License
+file that accompanied this code.
+
+Modifications:
+If applicable, add the following below the License Header, with the fields
+enclosed by brackets [] replaced by your own identifying information:
+"Portions Copyright [year] [name of copyright owner]"
+
+Contributor(s):
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
+holder.
 
 
 >>> org.jboss.spec.javax.annotation:jboss-annotations-api_1.2_spec-1.0.0.final
@@ -4906,6 +5214,252 @@ apply, that proxy's public statement of acceptance of any version is
 permanent authorization for you to choose that version for the
 Library.
 
+
+--------------- SECTION 8: Artistic License, V1.0 -----------
+
+The Artistic License
+
+Preamble
+
+The intent of this document is to state the conditions under which a Package may be copied, such that the Copyright Holder maintains some semblance of artistic control over the development of the package, while giving the users of the package the right to use and distribute the Package in a more-or-less customary fashion, plus the right to make reasonable modifications.
+
+Definitions:
+
+"Package" refers to the collection of files distributed by the Copyright Holder, and derivatives of that collection of files created through textual modification.
+
+"Standard Version" refers to such a Package if it has not been modified, or has been modified in accordance with the wishes of the Copyright Holder.
+
+"Copyright Holder" is whoever is named in the copyright or copyrights for the package.
+
+"You" is you, if you're thinking about copying or distributing this Package.
+
+"Reasonable copying fee" is whatever you can justify on the basis of media cost, duplication charges, time of people involved, and so on. (You will not be required to justify it to the Copyright Holder, but only to the computing community at large as a market that must bear the fee.)
+
+"Freely Available" means that no fee is charged for the item itself, though there may be fees involved in handling the item. It also means that recipients of the item may redistribute it under the same conditions they received it.
+
+1. You may make and give away verbatim copies of the source form of the Standard Version of this Package without restriction, provided that you duplicate all of the original copyright notices and associated disclaimers.
+
+2. You may apply bug fixes, portability fixes and other modifications derived from the Public Domain or from the Copyright Holder. A Package modified in such a way shall still be considered the Standard Version.
+
+3. You may otherwise modify your copy of this Package in any way, provided that you insert a prominent notice in each changed file stating how and when you changed that file, and provided that you do at least ONE of the following:
+
+a) place your modifications in the Public Domain or otherwise make them Freely Available, such as by posting said modifications to Usenet or an equivalent medium, or placing the modifications on a major archive site such as ftp.uu.net, or by allowing the Copyright Holder to include your modifications in the Standard Version of the Package.
+
+b) use the modified Package only within your corporation or organization.
+
+c) rename any non-standard executables so the names do not conflict with standard executables, which must also be provided, and provide a separate manual page for each non-standard executable that clearly documents how it differs from the Standard Version.
+
+d) make other distribution arrangements with the Copyright Holder.
+
+4. You may distribute the programs of this Package in object code or executable form, provided that you do at least ONE of the following:
+
+a) distribute a Standard Version of the executables and library files, together with instructions (in the manual page or equivalent) on where to get the Standard Version.
+
+b) accompany the distribution with the machine-readable source of the Package with your modifications.
+
+c) accompany any non-standard executables with their corresponding Standard Version executables, giving the non-standard executables non-standard names, and clearly documenting the differences in manual pages (or equivalent), together with instructions on where to get the Standard Version.
+
+d) make other distribution arrangements with the Copyright Holder.
+
+5. You may charge a reasonable copying fee for any distribution of this Package. You may charge any fee you choose for support of this Package. You may not charge a fee for this Package itself. However, you may distribute this Package in aggregate with other (possibly commercial) programs as part of a larger (possibly commercial) software distribution provided that you do not advertise this Package as a product of your own.
+
+6. The scripts and library files supplied as input to or produced as output from the programs of this Package do not automatically fall under the copyright of this Package, but belong to whomever generated them, and may be sold commercially, and may be aggregated with this Package.
+
+7. C or perl subroutines supplied by you and linked into this Package shall not be considered part of this Package.
+
+8. The name of the Copyright Holder may not be used to endorse or promote products derived from this software without specific prior written permission.
+
+9. THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+The End
+
+
+
+--------------- SECTION 9: Mozilla Public License, V2.0 -----------
+
+Mozilla Public License
+Version 2.0
+
+1. Definitions
+
+1.1. Contributor
+means each individual or legal entity that creates, contributes to the creation of, or owns Covered Software.
+
+1.2. Contributor Version
+means the combination of the Contributions of others (if any) used by a Contributor and that particular Contributors Contribution.
+
+1.3. Contribution
+means Covered Software of a particular Contributor.
+
+1.4. Covered Software
+means Source Code Form to which the initial Contributor has attached the notice in Exhibit A, the Executable Form of such Source Code Form, and Modifications of such Source Code Form, in each case including portions thereof.
+
+1.5. Incompatible With Secondary Licenses
+means
+
+that the initial Contributor has attached the notice described in Exhibit B to the Covered Software; or
+
+that the Covered Software was made available under the terms of version 1.1 or earlier of the License, but not also under the terms of a Secondary License.
+
+1.6. Executable Form
+means any form of the work other than Source Code Form.
+
+1.7. Larger Work
+means a work that combines Covered Software with other material, in a separate file or files, that is not Covered Software.
+
+1.8. License
+means this document.
+
+1.9. Licensable
+means having the right to grant, to the maximum extent possible, whether at the time of the initial grant or subsequently, any and all of the rights conveyed by this License.
+
+1.10. Modifications
+means any of the following:
+
+any file in Source Code Form that results from an addition to, deletion from, or modification of the contents of Covered Software; or
+
+any new file in Source Code Form that contains any Covered Software.
+
+1.11. Patent Claims of a Contributor
+means any patent claim(s), including without limitation, method, process, and apparatus claims, in any patent Licensable by such Contributor that would be infringed, but for the grant of the License, by the making, using, selling, offering for sale, having made, import, or transfer of either its Contributions or its Contributor Version.
+
+1.12. Secondary License
+means either the GNU General Public License, Version 2.0, the GNU Lesser General Public License, Version 2.1, the GNU Affero General Public License, Version 3.0, or any later versions of those licenses.
+
+1.13. Source Code Form
+means the form of the work preferred for making modifications.
+
+1.14. You (or Your)
+means an individual or a legal entity exercising rights under this License. For legal entities, You includes any entity that controls, is controlled by, or is under common control with You. For purposes of this definition, control means (a) the power, direct or indirect, to cause the direction or management of such entity, whether by contract or otherwise, or (b) ownership of more than fifty percent (50%) of the outstanding shares or beneficial ownership of such entity.
+
+2. License Grants and Conditions
+
+2.1. Grants
+
+Each Contributor hereby grants You a world-wide, royalty-free, non-exclusive license:
+
+under intellectual property rights (other than patent or trademark) Licensable by such Contributor to use, reproduce, make available, modify, display, perform, distribute, and otherwise exploit its Contributions, either on an unmodified basis, with Modifications, or as part of a Larger Work; and
+
+under Patent Claims of such Contributor to make, use, sell, offer for sale, have made, import, and otherwise transfer either its Contributions or its Contributor Version.
+
+2.2. Effective Date
+
+The licenses granted in Section 2.1 with respect to any Contribution become effective for each Contribution on the date the Contributor first distributes such Contribution.
+
+2.3. Limitations on Grant Scope
+
+The licenses granted in this Section 2 are the only rights granted under this License. No additional rights or licenses will be implied from the distribution or licensing of Covered Software under this License. Notwithstanding Section 2.1(b) above, no patent license is granted by a Contributor:
+
+for any code that a Contributor has removed from Covered Software; or
+
+for infringements caused by: (i) Your and any other third partys modifications of Covered Software, or (ii) the combination of its Contributions with other software (except as part of its Contributor Version); or
+
+under Patent Claims infringed by Covered Software in the absence of its Contributions.
+
+This License does not grant any rights in the trademarks, service marks, or logos of any Contributor (except as may be necessary to comply with the notice requirements in Section 3.4).
+
+2.4. Subsequent Licenses
+
+No Contributor makes additional grants as a result of Your choice to distribute the Covered Software under a subsequent version of this License (see Section 10.2) or under the terms of a Secondary License (if permitted under the terms of Section 3.3).
+
+2.5. Representation
+
+Each Contributor represents that the Contributor believes its Contributions are its original creation(s) or it has sufficient rights to grant the rights to its Contributions conveyed by this License.
+
+2.6. Fair Use
+
+This License is not intended to limit any rights You have under applicable copyright doctrines of fair use, fair dealing, or other equivalents.
+
+2.7. Conditions
+
+Sections 3.1, 3.2, 3.3, and 3.4 are conditions of the licenses granted in Section 2.1.
+
+3. Responsibilities
+
+3.1. Distribution of Source Form
+
+All distribution of Covered Software in Source Code Form, including any Modifications that You create or to which You contribute, must be under the terms of this License. You must inform recipients that the Source Code Form of the Covered Software is governed by the terms of this License, and how they can obtain a copy of this License. You may not attempt to alter or restrict the recipients rights in the Source Code Form.
+
+3.2. Distribution of Executable Form
+
+If You distribute Covered Software in Executable Form then:
+
+such Covered Software must also be made available in Source Code Form, as described in Section 3.1, and You must inform recipients of the Executable Form how they can obtain a copy of such Source Code Form by reasonable means in a timely manner, at a charge no more than the cost of distribution to the recipient; and
+
+You may distribute such Executable Form under the terms of this License, or sublicense it under different terms, provided that the license for the Executable Form does not attempt to limit or alter the recipients rights in the Source Code Form under this License.
+
+3.3. Distribution of a Larger Work
+
+You may create and distribute a Larger Work under terms of Your choice, provided that You also comply with the requirements of this License for the Covered Software. If the Larger Work is a combination of Covered Software with a work governed by one or more Secondary Licenses, and the Covered Software is not Incompatible With Secondary Licenses, this License permits You to additionally distribute such Covered Software under the terms of such Secondary License(s), so that the recipient of the Larger Work may, at their option, further distribute the Covered Software under the terms of either this License or such Secondary License(s).
+
+3.4. Notices
+
+You may not remove or alter the substance of any license notices (including copyright notices, patent notices, disclaimers of warranty, or limitations of liability) contained within the Source Code Form of the Covered Software, except that You may alter any license notices to the extent required to remedy known factual inaccuracies.
+
+3.5. Application of Additional Terms
+
+You may choose to offer, and to charge a fee for, warranty, support, indemnity or liability obligations to one or more recipients of Covered Software. However, You may do so only on Your own behalf, and not on behalf of any Contributor. You must make it absolutely clear that any such warranty, support, indemnity, or liability obligation is offered by You alone, and You hereby agree to indemnify every Contributor for any liability incurred by such Contributor as a result of warranty, support, indemnity or liability terms You offer. You may include additional disclaimers of warranty and limitations of liability specific to any jurisdiction.
+
+4. Inability to Comply Due to Statute or Regulation
+
+If it is impossible for You to comply with any of the terms of this License with respect to some or all of the Covered Software due to statute, judicial order, or regulation then You must: (a) comply with the terms of this License to the maximum extent possible; and (b) describe the limitations and the code they affect. Such description must be placed in a text file included with all distributions of the Covered Software under this License. Except to the extent prohibited by statute or regulation, such description must be sufficiently detailed for a recipient of ordinary skill to be able to understand it.
+
+5. Termination
+
+5.1. The rights granted under this License will terminate automatically if You fail to comply with any of its terms. However, if You become compliant, then the rights granted under this License from a particular Contributor are reinstated (a) provisionally, unless and until such Contributor explicitly and finally terminates Your grants, and (b) on an ongoing basis, if such Contributor fails to notify You of the non-compliance by some reasonable means prior to 60 days after You have come back into compliance. Moreover, Your grants from a particular Contributor are reinstated on an ongoing basis if such Contributor notifies You of the non-compliance by some reasonable means, this is the first time You have received notice of non-compliance with this License from such Contributor, and You become compliant prior to 30 days after Your receipt of the notice.
+
+5.2. If You initiate litigation against any entity by asserting a patent infringement claim (excluding declaratory judgment actions, counter-claims, and cross-claims) alleging that a Contributor Version directly or indirectly infringes any patent, then the rights granted to You by any and all Contributors for the Covered Software under Section 2.1 of this License shall terminate.
+
+5.3. In the event of termination under Sections 5.1 or 5.2 above, all end user license agreements (excluding distributors and resellers) which have been validly granted by You or Your distributors under this License prior to termination shall survive termination.
+
+6. Disclaimer of Warranty
+
+Covered Software is provided under this License on an as is basis, without warranty of any kind, either expressed, implied, or statutory, including, without limitation, warranties that the Covered Software is free of defects, merchantable, fit for a particular purpose or non-infringing. The entire risk as to the quality and performance of the Covered Software is with You. Should any Covered Software prove defective in any respect, You (not any Contributor) assume the cost of any necessary servicing, repair, or correction. This disclaimer of warranty constitutes an essential part of this License. No use of any Covered Software is authorized under this License except under this disclaimer.
+
+7. Limitation of Liability
+
+Under no circumstances and under no legal theory, whether tort (including negligence), contract, or otherwise, shall any Contributor, or anyone who distributes Covered Software as permitted above, be liable to You for any direct, indirect, special, incidental, or consequential damages of any character including, without limitation, damages for lost profits, loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses, even if such party shall have been informed of the possibility of such damages. This limitation of liability shall not apply to liability for death or personal injury resulting from such partys negligence to the extent applicable law prohibits such limitation. Some jurisdictions do not allow the exclusion or limitation of incidental or consequential damages, so this exclusion and limitation may not apply to You.
+
+8. Litigation
+
+Any litigation relating to this License may be brought only in the courts of a jurisdiction where the defendant maintains its principal place of business and such litigation shall be governed by laws of that jurisdiction, without reference to its conflict-of-law provisions. Nothing in this Section shall prevent a party’s ability to bring cross-claims or counter-claims.
+
+9. Miscellaneous
+
+This License represents the complete agreement concerning the subject matter hereof. If any provision of this License is held to be unenforceable, such provision shall be reformed only to the extent necessary to make it enforceable. Any law or regulation which provides that the language of a contract shall be construed against the drafter shall not be used to construe this License against a Contributor.
+
+10. Versions of the License
+
+10.1. New Versions
+
+Mozilla Foundation is the license steward. Except as provided in Section 10.3, no one other than the license steward has the right to modify or publish new versions of this License. Each version will be given a distinguishing version number.
+
+10.2. Effect of New Versions
+
+You may distribute the Covered Software under the terms of the version of the License under which You originally received the Covered Software, or under the terms of any subsequent version published by the license steward.
+
+10.3. Modified Versions
+
+If you create software not governed by this License, and you want to create a new license for such software, you may create and use a modified version of this License if you rename the license and remove any references to the name of the license steward (except to note that such modified license differs from this License).
+
+10.4. Distributing Source Code Form that is Incompatible With Secondary Licenses
+
+If You choose to distribute Source Code Form that is Incompatible With Secondary Licenses under the terms of this version of the License, the notice described in Exhibit B of this License must be attached.
+
+Exhibit A - Source Code Form License Notice
+
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+If it is not possible or desirable to put the notice in a particular file, then You may include the notice in a location (such as a LICENSE file in a relevant directory) where a recipient would be likely to look for such a notice.
+
+You may add additional accurate notices of copyright ownership.
+
+Exhibit B - Incompatible With Secondary Licenses Notice
+
+This Source Code Form is Incompatible With Secondary Licenses, as defined by the Mozilla Public License, v. 2.0.
+
+
+
 ======================================================================
 
 To the extent any open source components are licensed under the GPL
@@ -4920,8 +5474,8 @@ Hillview Avenue, Palo Alto, CA 94304, United States of America. All such
 requests should clearly specify: OPEN SOURCE FILES REQUEST, Attention
 General Counsel. VMware shall mail a copy of the Source Files to you on
 a CD or equivalent physical medium. This offer to obtain a copy of the
-Source Files is valid for three years from the date you acquired or last used this
+Source Files is valid for three years from the date you acquired this
 Software product. Alternatively, the Source Files may accompany the
-VMware service.
+VMware product.
 
-[WAVEFRONTHQJAVA427GAAB050218]
+[WAVEFRONTHQJAVA429GAMS070218]
