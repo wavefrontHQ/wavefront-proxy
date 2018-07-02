@@ -187,24 +187,24 @@ public class PushAgent extends AbstractAgent {
 
         if (histMinPorts.hasNext()) {
 
-          startHistogramListeners(histMinPorts, getDecoderInstance(), histogramHandler, accumulatorDeck, "minute",
-              histogramMinuteFlushSecs, histogramMinuteAccumulators, histogramMinuteMemoryCache, baseDirectory,
-              histogramMinuteAccumulatorSize, histogramMinuteAvgKeyBytes, histogramMinuteAvgDigestBytes,
-              histogramMinuteCompression);
+          startHistogramListeners(histMinPorts, getDecoderInstance(), histogramHandler, accumulatorDeck,
+              Utils.Granularity.MINUTE, histogramMinuteFlushSecs, histogramMinuteAccumulators,
+              histogramMinuteMemoryCache, baseDirectory, histogramMinuteAccumulatorSize, histogramMinuteAvgKeyBytes,
+              histogramMinuteAvgDigestBytes, histogramMinuteCompression);
         }
 
         if (histHourPorts.hasNext()) {
-          startHistogramListeners(histHourPorts, getDecoderInstance(), histogramHandler, accumulatorDeck, "hour",
-              histogramHourFlushSecs, histogramHourAccumulators, histogramHourMemoryCache, baseDirectory,
-              histogramHourAccumulatorSize, histogramHourAvgKeyBytes, histogramHourAvgDigestBytes,
-              histogramHourCompression);
+          startHistogramListeners(histHourPorts, getDecoderInstance(), histogramHandler, accumulatorDeck,
+              Utils.Granularity.HOUR, histogramHourFlushSecs, histogramHourAccumulators,
+              histogramHourMemoryCache, baseDirectory, histogramHourAccumulatorSize, histogramHourAvgKeyBytes,
+              histogramHourAvgDigestBytes, histogramHourCompression);
         }
 
         if (histDayPorts.hasNext()) {
-          startHistogramListeners(histDayPorts, getDecoderInstance(), histogramHandler, accumulatorDeck, "day",
-              histogramDayFlushSecs, histogramDayAccumulators, histogramDayMemoryCache, baseDirectory,
-              histogramDayAccumulatorSize, histogramDayAvgKeyBytes, histogramDayAvgDigestBytes,
-              histogramDayCompression);
+          startHistogramListeners(histDayPorts, getDecoderInstance(), histogramHandler, accumulatorDeck,
+              Utils.Granularity.DAY, histogramDayFlushSecs, histogramDayAccumulators,
+              histogramDayMemoryCache, baseDirectory, histogramDayAccumulatorSize, histogramDayAvgKeyBytes,
+              histogramDayAvgDigestBytes, histogramDayCompression);
         }
 
         if (histDistPorts.hasNext()) {
