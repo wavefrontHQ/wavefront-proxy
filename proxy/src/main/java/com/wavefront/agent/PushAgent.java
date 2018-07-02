@@ -186,7 +186,6 @@ public class PushAgent extends AbstractAgent {
         Decoder<String> distributionDecoder = new HistogramDecoder("unknown");
 
         if (histMinPorts.hasNext()) {
-
           startHistogramListeners(histMinPorts, getDecoderInstance(), histogramHandler, accumulatorDeck,
               Utils.Granularity.MINUTE, histogramMinuteFlushSecs, histogramMinuteAccumulators,
               histogramMinuteMemoryCache, baseDirectory, histogramMinuteAccumulatorSize, histogramMinuteAvgKeyBytes,
