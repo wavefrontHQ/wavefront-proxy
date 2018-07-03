@@ -28,8 +28,7 @@ import io.netty.util.CharsetUtil;
 import wavefront.report.ReportPoint;
 
 /**
- * This class handles an incoming message of either String or FullHttpRequest type.  All other types are ignored. This
- * will likely be passed to the PlainTextOrHttpFrameDecoder as the handler for messages.
+ * This class handles an incoming message of either String or FullHttpRequest type.  All other types are ignored.
  *
  * @author vasily@wavefront.com
  */
@@ -122,6 +121,8 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
    * point
    *
    * @param metrics a DataDog-format payload
+   * @param pointCounter counter to track the number of points processed in one request
+   *
    * @return true if all metrics added successfully; false o/w
    * @see #reportMetric(JsonNode, AtomicInteger)
    */
@@ -148,8 +149,9 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
    * Parse the individual timeseries object and send the metric to on to the point handler.
    *
    * @param metric the JSON object representing a single metric
+   * @param pointCounter counter to track the number of points processed in one request
+   *
    * @return True if the metric was reported successfully; False o/w
-   * @see <a href="http://opentsdb.net/docs/build/html/api_http/put.html">OpenTSDB /api/put documentation</a>
    */
   private boolean reportMetric(final JsonNode metric, @Nullable final AtomicInteger pointCounter) {
     if (metric == null) {
