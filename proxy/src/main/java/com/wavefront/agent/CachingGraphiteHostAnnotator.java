@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
+
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -33,14 +35,16 @@ public class CachingGraphiteHostAnnotator {
   private final boolean disableRdnsLookup;
   private final List<String> sourceTags;
 
-  public CachingGraphiteHostAnnotator(final List<String> customSourceTags, boolean disableRdnsLookup) {
+  public CachingGraphiteHostAnnotator(@Nullable final List<String> customSourceTags, boolean disableRdnsLookup) {
     this.disableRdnsLookup = disableRdnsLookup;
-    this.sourceTags = Lists.newArrayListWithExpectedSize(customSourceTags.size() + 2);
+    this.sourceTags = Lists.newArrayListWithExpectedSize(customSourceTags == null ? 4 : customSourceTags.size() + 4);
     this.sourceTags.add("source=");
     this.sourceTags.add("source\"=");
     this.sourceTags.add("host=");
     this.sourceTags.add("host\"=");
-    this.sourceTags.addAll(customSourceTags.stream().map(customTag -> customTag + "=").collect(Collectors.toList()));
+    if (customSourceTags != null) {
+      this.sourceTags.addAll(customSourceTags.stream().map(customTag -> customTag + "=").collect(Collectors.toList()));
+    }
 
     this.rdnsCache = disableRdnsLookup ? null : Caffeine.newBuilder()
         .maximumSize(5000)
