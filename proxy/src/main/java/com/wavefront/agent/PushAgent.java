@@ -5,8 +5,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
@@ -32,9 +30,9 @@ import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
 import com.wavefront.common.NamedThreadFactory;
+import com.wavefront.common.TaggedMetricName;
 import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.GraphiteDecoder;
-import com.wavefront.ingester.GraphiteHostAnnotator;
 import com.wavefront.ingester.HistogramDecoder;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.ingester.PickleProtocolDecoder;
@@ -44,7 +42,6 @@ import com.wavefront.ingester.TcpIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Gauge;
 
 import net.openhft.chronicle.map.ChronicleMap;
 
@@ -54,7 +51,6 @@ import org.logstash.beats.Server;
 import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
-import java.net.InetAddress;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -92,14 +88,8 @@ public class PushAgent extends AbstractAgent {
   protected ScheduledExecutorService histogramScanExecutor;
   protected ScheduledExecutorService histogramFlushExecutor;
   protected final Counter bindErrors = Metrics.newCounter(ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
-
-  /**
-   * Maintain a short-term cache for reverse DNS lookup results to avoid spamming DNS servers
-   */
-  protected final LoadingCache<InetAddress, String> reverseDnsCache = Caffeine.newBuilder()
-      .maximumSize(5000)
-      .refreshAfterWrite(5, TimeUnit.MINUTES)
-      .build(InetAddress::getHostName);
+  private volatile Decoder<String> wavefrontDecoder;
+  protected CachingGraphiteHostAnnotator remoteHostAnnotator;
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -108,13 +98,6 @@ public class PushAgent extends AbstractAgent {
 
   public PushAgent() {
     super(false, true);
-
-    Metrics.newGauge(ExpectedAgentMetric.RDNS_CACHE_SIZE.metricName, new Gauge<Long>() {
-      @Override
-      public Long value() {
-        return reverseDnsCache.estimatedSize();
-      }
-    });
   }
 
   @Deprecated
@@ -122,11 +105,22 @@ public class PushAgent extends AbstractAgent {
     super(false, reportAsPushAgent);
   }
 
+  @VisibleForTesting
+  protected Decoder<String> getDecoderInstance() {
+    synchronized(PushAgent.class) {
+      if (wavefrontDecoder == null) {
+        wavefrontDecoder = new GraphiteDecoder("unknown", customSourceTags);
+      }
+      return wavefrontDecoder;
+    }
+  }
+
   @Override
   protected void startListeners() {
     if (soLingerTime >= 0) {
       childChannelOptions.put(ChannelOption.SO_LINGER, soLingerTime);
     }
+    remoteHostAnnotator = new CachingGraphiteHostAnnotator(customSourceTags, disableRdnsLookup);
     if (pushListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
       for (String strPort : ports) {
@@ -189,26 +183,24 @@ public class PushAgent extends AbstractAgent {
                 : TapeStringListConverter.getDefaultInstance(),
             persistMessages);
 
-        // Decoders
-        Decoder<String> sampleDecoder = new GraphiteDecoder("unknown", customSourceTags);
         Decoder<String> distributionDecoder = new HistogramDecoder("unknown");
 
         if (histMinPorts.hasNext()) {
-          startHistogramListeners(histMinPorts, sampleDecoder, histogramHandler, accumulatorDeck,
+          startHistogramListeners(histMinPorts, getDecoderInstance(), histogramHandler, accumulatorDeck,
               Utils.Granularity.MINUTE, histogramMinuteFlushSecs, histogramMinuteAccumulators,
               histogramMinuteMemoryCache, baseDirectory, histogramMinuteAccumulatorSize, histogramMinuteAvgKeyBytes,
               histogramMinuteAvgDigestBytes, histogramMinuteCompression);
         }
 
         if (histHourPorts.hasNext()) {
-          startHistogramListeners(histHourPorts, sampleDecoder, histogramHandler, accumulatorDeck,
+          startHistogramListeners(histHourPorts, getDecoderInstance(), histogramHandler, accumulatorDeck,
               Utils.Granularity.HOUR, histogramHourFlushSecs, histogramHourAccumulators,
               histogramHourMemoryCache, baseDirectory, histogramHourAccumulatorSize, histogramHourAvgKeyBytes,
               histogramHourAvgDigestBytes, histogramHourCompression);
         }
 
         if (histDayPorts.hasNext()) {
-          startHistogramListeners(histDayPorts, sampleDecoder, histogramHandler, accumulatorDeck,
+          startHistogramListeners(histDayPorts, getDecoderInstance(), histogramHandler, accumulatorDeck,
               Utils.Granularity.DAY, histogramDayFlushSecs, histogramDayAccumulators,
               histogramDayMemoryCache, baseDirectory, histogramDayAccumulatorSize, histogramDayAvgKeyBytes,
               histogramDayAvgDigestBytes, histogramDayCompression);
@@ -253,6 +245,15 @@ public class PushAgent extends AbstractAgent {
             pushBlockedSamples, getFlushTasks(strPort));
         startPickleListener(strPort, pointHandler, graphiteFormatter);
         logger.info("listening on port: " + strPort + " for pickle protocol metrics");
+      }
+    }
+    if (dataDogJsonPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(dataDogJsonPorts);
+      for (String strPort : ports) {
+        PointHandler pointHandler = new PointHandlerImpl(strPort, pushValidationLevel,
+            pushBlockedSamples, getFlushTasks(strPort));
+        startDataDogListener(strPort, pointHandler);
+        logger.info("listening on port: " + strPort + " for DataDog metrics");
       }
     }
     if (httpJsonPorts != null) {
@@ -391,21 +392,27 @@ public class PushAgent extends AbstractAgent {
     preprocessors.forPort(strPort).forReportPoint()
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     final int port = Integer.parseInt(strPort);
-    ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
-      @Override
-      public void initChannel(SocketChannel ch) throws Exception {
-        final ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(
-            new OpenTSDBDecoder("unknown", customSourceTags),
-            pointHandler, preprocessors.forPort(strPort));
-        ChannelPipeline pipeline = ch.pipeline();
+    OpenTSDBDecoder openTSDBDecoder = new OpenTSDBDecoder("unknown", customSourceTags);
 
-        pipeline.addLast("idlehandler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
-        pipeline.addLast(new PlainTextOrHttpFrameDecoder(channelHandler, pushListenerMaxReceivedLength,
-            pushListenerHttpBufferSize));
-      }
-    };
-    startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions),
-        "listener-plaintext-opentsdb-" + port);
+    ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(openTSDBDecoder, pointHandler,
+        preprocessors.forPort(strPort));
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
+            .withChildChannelOptions(childChannelOptions), "listener-plaintext-opentsdb-" + port);
+  }
+
+  protected void startDataDogListener(final String strPort, PointHandler pointHandler) {
+    if (prefix != null && !prefix.isEmpty()) {
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
+    }
+    preprocessors.forPort(strPort).forReportPoint()
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+    final int port = Integer.parseInt(strPort);
+
+    ChannelHandler channelHandler = new DataDogPortUnificationHandler(pointHandler, preprocessors.forPort(strPort));
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
+            .withChildChannelOptions(childChannelOptions), "listener-plaintext-datadog-" + port);
   }
 
   protected void startPickleListener(String strPort, PointHandler pointHandler, GraphiteFormatter formatter) {
@@ -469,26 +476,11 @@ public class PushAgent extends AbstractAgent {
     // Add a metadatahandler, to handle @SourceTag, @SourceDescription, etc.
     SourceTagHandler metadataHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(port));
 
-    ChannelInitializer initializer = new ChannelInitializer<SocketChannel>() {
-      @Override
-      public void initChannel(SocketChannel ch) throws Exception {
-        final ChannelHandler channelHandler = new WavefrontPortUnificationHandler(
-            new GraphiteDecoder("unknown", customSourceTags),
-            pointHandler, preprocessors.forPort(strPort), metadataHandler);
-        ChannelPipeline pipeline = ch.pipeline();
-
-        pipeline.addLast("idle-handler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
-        if (!disableUseRemoteClientAsSource) {
-          pipeline.addLast("graphite-host-annotator", new GraphiteHostAnnotator(disableRdnsLookup
-              ? ch.remoteAddress().getAddress().getHostAddress()
-              : ch.remoteAddress().getHostName(), customSourceTags));
-        }
-        pipeline.addLast(new PlainTextOrHttpFrameDecoder(channelHandler, pushListenerMaxReceivedLength,
-            pushListenerHttpBufferSize));
-      }
-    };
-    startAsManagedThread(new TcpIngester(initializer, port).withChildChannelOptions(childChannelOptions),
-        "listener-graphite-" + port);
+    ChannelHandler channelHandler = new WavefrontPortUnificationHandler(getDecoderInstance(), pointHandler,
+        remoteHostAnnotator, preprocessors.forPort(strPort), metadataHandler);
+    startAsManagedThread(
+        new TcpIngester(createInitializer(channelHandler, strPort), port).
+            withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
   }
 
   protected void startHistogramListeners(Iterator<String> ports, Decoder<String> decoder, PointHandler pointHandler,
@@ -618,6 +610,26 @@ public class PushAgent extends AbstractAgent {
             withChannelIdleTimeout(listenerIdleConnectionTimeout).
             withMaxLength(histogramMaxReceivedLength),
         "listener-plaintext-histogram-" + port);
+  }
+
+  private ChannelInitializer createInitializer(ChannelHandler channelHandler, String strPort) {
+    ChannelHandler idleStateEventHandler = new IdleStateEventHandler(
+        Metrics.newCounter(new TaggedMetricName("listeners", "connections.idle.closed", "port", strPort)));
+    ChannelHandler connectionTracker = new ConnectionTrackingHandler(
+        Metrics.newCounter(new TaggedMetricName("listeners", "connections.accepted", "port", strPort)),
+        Metrics.newCounter(new TaggedMetricName("listeners", "connections.active", "port", strPort)));
+    return new ChannelInitializer<SocketChannel>() {
+      @Override
+      public void initChannel(SocketChannel ch) {
+        ChannelPipeline pipeline = ch.pipeline();
+
+        pipeline.addFirst("idlehandler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
+        pipeline.addLast("idlestateeventhandler", idleStateEventHandler);
+        pipeline.addLast("connectiontracker", connectionTracker);
+        pipeline.addLast(new PlainTextOrHttpFrameDecoder(channelHandler, pushListenerMaxReceivedLength,
+            pushListenerHttpBufferSize));
+      }
+    };
   }
 
   /**

@@ -55,13 +55,13 @@ public class PushAgentTest {
 
   @Before
   public void setup() throws Exception {
-    port = findAvailablePort(2878);
+    port = findAvailablePort(2888);
     proxy = new PushAgent();
     proxy.flushThreads = 2;
     proxy.retryThreads = 1;
     proxy.pushListenerPorts = String.valueOf(port);
     proxy.startGraphiteListener(proxy.pushListenerPorts, mockPointHandler, false);
-    TimeUnit.MILLISECONDS.sleep(250);
+    TimeUnit.MILLISECONDS.sleep(500);
   }
 
 
@@ -84,7 +84,7 @@ public class PushAgentTest {
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
-    TimeUnit.MILLISECONDS.sleep(250);
+    TimeUnit.MILLISECONDS.sleep(500);
     verify(mockPointHandler);
   }
 
@@ -110,7 +110,7 @@ public class PushAgentTest {
     socket.getOutputStream().write(baos.toByteArray());
     socket.getOutputStream().flush();
     socket.close();
-    TimeUnit.MILLISECONDS.sleep(250);
+    TimeUnit.MILLISECONDS.sleep(500);
     verify(mockPointHandler);
   }
 
@@ -142,7 +142,7 @@ public class PushAgentTest {
     writer.flush();
     writer.close();
     logger.info("HTTP response code (plaintext content): " + connection.getResponseCode());
-    TimeUnit.MILLISECONDS.sleep(250);
+    TimeUnit.MILLISECONDS.sleep(500);
     verify(mockPointHandler);
   }
 
@@ -177,7 +177,7 @@ public class PushAgentTest {
     connection.getOutputStream().write(baos.toByteArray());
     connection.getOutputStream().flush();
     logger.info("HTTP response code (gzipped content): " + connection.getResponseCode());
-    TimeUnit.MILLISECONDS.sleep(250);
+    TimeUnit.MILLISECONDS.sleep(500);
     verify(mockPointHandler);
   }
 

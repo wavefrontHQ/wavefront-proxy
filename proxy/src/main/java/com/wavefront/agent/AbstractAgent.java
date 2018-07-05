@@ -473,6 +473,10 @@ public abstract class AbstractAgent {
       "data. Binds, by default, to none.")
   protected String httpJsonPorts = "";
 
+  @Parameter(names = {"--dataDogJsonPorts"}, description = "Comma-separated list of ports to listen on for JSON " +
+      "metrics data in DataDog format. Binds, by default, to none.")
+  protected String dataDogJsonPorts = "";
+
   @Parameter(names = {"--writeHttpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics from collectd write_http json format " +
       "data. Binds, by default, to none.")
   protected String writeHttpJsonPorts = "";
@@ -906,6 +910,7 @@ public abstract class AbstractAgent {
         flushThreads = config.getNumber("flushThreads", flushThreads).intValue();
         httpJsonPorts = config.getString("jsonListenerPorts", httpJsonPorts);
         writeHttpJsonPorts = config.getString("writeHttpJsonListenerPorts", writeHttpJsonPorts);
+        dataDogJsonPorts = config.getString("dataDogJsonPorts", dataDogJsonPorts);
         graphitePorts = config.getString("graphitePorts", graphitePorts);
         graphiteFormat = config.getString("graphiteFormat", graphiteFormat);
         graphiteFieldsToRemove = config.getString("graphiteFieldsToRemove", graphiteFieldsToRemove);

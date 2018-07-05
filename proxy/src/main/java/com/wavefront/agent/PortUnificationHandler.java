@@ -3,8 +3,12 @@ package com.wavefront.agent;
 import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.wavefront.common.TaggedMetricName;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Histogram;
 
 import java.net.InetSocketAddress;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -12,6 +16,7 @@ import javax.annotation.Nullable;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -19,8 +24,6 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.timeout.IdleState;
-import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.CharsetUtil;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -32,9 +35,12 @@ import io.netty.handler.codec.http.HttpVersion;
  *
  * @author vasily@wavefront.com
  */
+@ChannelHandler.Sharable
 abstract class PortUnificationHandler extends SimpleChannelInboundHandler<Object> {
   private static final Logger logger = Logger.getLogger(
       PortUnificationHandler.class.getCanonicalName());
+
+  protected volatile Histogram httpRequestHandleDuration;
 
   PortUnificationHandler() {}
 
@@ -58,6 +64,7 @@ abstract class PortUnificationHandler extends SimpleChannelInboundHandler<Object
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
     logWarning("Handler failed", cause, ctx);
+    logger.log(Level.WARNING, "Unexpected error: ", cause);
   }
 
   @Override
@@ -67,26 +74,19 @@ abstract class PortUnificationHandler extends SimpleChannelInboundHandler<Object
         if (message instanceof String) {
           handlePlainTextMessage(ctx, (String) message);
         } else if (message instanceof FullHttpRequest) {
+          if (httpRequestHandleDuration == null) { // doesn't have to be threadsafe
+            httpRequestHandleDuration = Metrics.newHistogram(new TaggedMetricName("listeners", "http-requests.duration",
+                "port", String.valueOf(((InetSocketAddress) ctx.channel().localAddress()).getPort())));
+          }
+          long startTime = System.nanoTime();
           handleHttpMessage(ctx, (FullHttpRequest) message);
+          httpRequestHandleDuration.update(System.nanoTime() - startTime);
         } else {
           logWarning("Received unexpected message type " + message.getClass().getName(), null, ctx);
         }
       }
     } catch (final Exception e) {
       logWarning("Failed to handle message", e, ctx);
-    }
-  }
-
-  @Override
-  public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-    if (evt instanceof IdleStateEvent) {
-      if (((IdleStateEvent) evt).state() == IdleState.READER_IDLE) { // close idle connections
-        InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-        InetSocketAddress localAddress = (InetSocketAddress) ctx.channel().localAddress();
-        logger.info("Closing idle connection on port " + localAddress.getPort() +
-            ", remote address: " + remoteAddress.getAddress().getHostAddress());
-        ctx.channel().close();
-      }
     }
   }
 
