@@ -35,7 +35,7 @@ public abstract class AbstractDirectConnectionHandler implements WavefrontConnec
   private final String token;
   private DataIngesterAPI directService;
 
-  public AbstractDirectConnectionHandler(String server, String token) {
+  protected AbstractDirectConnectionHandler(String server, String token) {
     this.server = server;
     this.token = token;
   }
@@ -54,7 +54,7 @@ public abstract class AbstractDirectConnectionHandler implements WavefrontConnec
     internalFlush();
   }
 
-  abstract void internalFlush() throws IOException;
+  protected abstract void internalFlush() throws IOException;
 
   @Override
   public synchronized boolean isConnected() {
@@ -74,7 +74,7 @@ public abstract class AbstractDirectConnectionHandler implements WavefrontConnec
     }
   }
 
-  Response report(String format, InputStream is) throws IOException {
+  protected Response report(String format, InputStream is) throws IOException {
     return directService.report(format, is);
   }
 

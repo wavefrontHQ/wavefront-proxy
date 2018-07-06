@@ -19,7 +19,7 @@ public abstract class AbstractProxyConnectionHandler implements WavefrontConnect
   private final SocketFactory socketFactory;
   private volatile ReconnectingSocket reconnectingSocket;
 
-  public AbstractProxyConnectionHandler(InetSocketAddress address, SocketFactory socketFactory) {
+  protected AbstractProxyConnectionHandler(InetSocketAddress address, SocketFactory socketFactory) {
     this.address = address;
     this.socketFactory = socketFactory;
     this.reconnectingSocket = null;
@@ -63,7 +63,7 @@ public abstract class AbstractProxyConnectionHandler implements WavefrontConnect
    * @param lineData line data in a Wavefront supported format
    * @throws Exception If there was failure sending the data
    */
-  void sendData(String lineData) throws Exception {
+  protected void sendData(String lineData) throws Exception {
     reconnectingSocket.write(lineData);
   }
 }

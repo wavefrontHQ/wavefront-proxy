@@ -102,7 +102,7 @@ public class WavefrontDirectSender extends AbstractDirectConnectionHandler imple
   }
 
   @Override
-  void internalFlush() throws IOException {
+  protected void internalFlush() throws IOException {
 
     if (!isConnected()) {
         return;
