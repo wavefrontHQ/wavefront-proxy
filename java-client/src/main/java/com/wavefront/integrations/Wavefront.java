@@ -1,7 +1,5 @@
 package com.wavefront.integrations;
 
-import com.wavefront.metrics.ReconnectingSocket;
-
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -21,16 +19,12 @@ import javax.net.SocketFactory;
  * @author Clement Pang (clement@wavefront.com).
  * @author Conor Beverland (conor@wavefront.com).
  */
-public class Wavefront implements WavefrontSender {
+public class Wavefront extends AbstractProxyConnectionHandler implements WavefrontSender {
 
   private static final Pattern WHITESPACE = Pattern.compile("[\\s]+");
   // this may be optimistic about Carbon/Wavefront
   private static final Charset UTF_8 = Charset.forName("UTF-8");
 
-  private final InetSocketAddress address;
-  private final SocketFactory socketFactory;
-
-  private volatile ReconnectingSocket reconnectingSocket;
   private AtomicInteger failures = new AtomicInteger();
   /**
    * Source to use if there's none.
@@ -77,26 +71,12 @@ public class Wavefront implements WavefrontSender {
    * @param socketFactory the socket factory
    */
   public Wavefront(InetSocketAddress agentAddress, SocketFactory socketFactory) {
-    this.address = agentAddress;
-    this.socketFactory = socketFactory;
-    this.reconnectingSocket = null;
+    super(agentAddress, socketFactory);
   }
 
   private void initializeSource() throws UnknownHostException {
     if (source == null) {
       source = InetAddress.getLocalHost().getHostName();
-    }
-  }
-
-  @Override
-  public synchronized void connect() throws IllegalStateException, IOException {
-    if (reconnectingSocket != null) {
-      throw new IllegalStateException("Already connected");
-    }
-    try {
-      reconnectingSocket = new ReconnectingSocket(address.getHostName(), address.getPort(), socketFactory);
-    } catch (Exception e) {
-      throw new IOException(e);
     }
   }
 
@@ -127,10 +107,6 @@ public class Wavefront implements WavefrontSender {
   public void send(String name, double value, @Nullable Long timestamp, String source,
                    @Nullable Map<String, String> pointTags) throws IOException {
     internalSend(name, value, timestamp, source, pointTags);
-  }
-
-  public boolean isConnected() {
-    return reconnectingSocket != null;
   }
 
   private void internalSend(String name, double value, @Nullable Long timestamp, String source,
@@ -175,7 +151,7 @@ public class Wavefront implements WavefrontSender {
       }
       sb.append('\n');
       try {
-        reconnectingSocket.write(sb.toString());
+        sendData(sb.toString());
       } catch (Exception e) {
         throw new IOException(e);
       }
@@ -188,21 +164,6 @@ public class Wavefront implements WavefrontSender {
   @Override
   public int getFailureCount() {
     return failures.get();
-  }
-
-  @Override
-  public void flush() throws IOException {
-    if (reconnectingSocket != null) {
-      reconnectingSocket.flush();
-    }
-  }
-
-  @Override
-  public synchronized void close() throws IOException {
-    if (reconnectingSocket != null) {
-      reconnectingSocket.close();
-      reconnectingSocket = null;
-    }
   }
 
   static String sanitize(String s) {
