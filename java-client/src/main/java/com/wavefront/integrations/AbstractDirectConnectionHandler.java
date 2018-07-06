@@ -30,13 +30,12 @@ public abstract class AbstractDirectConnectionHandler implements WavefrontConnec
   private static final String DEFAULT_SOURCE = "wavefrontDirectSender";
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractDirectConnectionHandler.class);
 
-
   private ScheduledExecutorService scheduler;
   private final String server;
   private final String token;
   private DataIngesterAPI directService;
 
-  AbstractDirectConnectionHandler(String server, String token) {
+  public AbstractDirectConnectionHandler(String server, String token) {
     this.server = server;
     this.token = token;
   }

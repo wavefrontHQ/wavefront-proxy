@@ -19,7 +19,7 @@ public abstract class AbstractProxyConnectionHandler implements WavefrontConnect
   private final SocketFactory socketFactory;
   private volatile ReconnectingSocket reconnectingSocket;
 
-  AbstractProxyConnectionHandler(InetSocketAddress address, SocketFactory socketFactory) {
+  public AbstractProxyConnectionHandler(InetSocketAddress address, SocketFactory socketFactory) {
     this.address = address;
     this.socketFactory = socketFactory;
     this.reconnectingSocket = null;
