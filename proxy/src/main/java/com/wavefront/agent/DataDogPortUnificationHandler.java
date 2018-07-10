@@ -236,13 +236,13 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
   }
 
   private boolean reportSystemMetrics(final JsonNode metrics, @Nullable final AtomicInteger pointCounter) {
-    if (!metrics.isObject() || !metrics.has("collection_timestamp")) {
+    if (metrics == null || !metrics.isObject() || !metrics.has("collection_timestamp")) {
       pointHandler.handleBlockedPoint("WF-300: Payload missing 'collection_timestamp' field");
       return false;
     }
     long timestamp = metrics.get("collection_timestamp").asLong() * 1000;
     if (!metrics.has("internalHostname")) {
-      pointHandler.handleBlockedPoint("WF-300: Payload missing 'collection_timestamp' field");
+      pointHandler.handleBlockedPoint("WF-300: Payload missing 'internalHostname' field");
       return false;
     }
     String hostName = metrics.get("internalHostname").textValue();
