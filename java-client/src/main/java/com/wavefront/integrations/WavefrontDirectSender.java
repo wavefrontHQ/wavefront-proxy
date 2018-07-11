@@ -32,6 +32,12 @@ public class WavefrontDirectSender extends AbstractDirectConnectionHandler imple
 
   private final LinkedBlockingQueue<String> buffer = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
 
+  /**
+   * Creates a new client that connects directly to a given Wavefront service.
+   *
+   * @param server A Wavefront server URL of the form "https://clusterName.wavefront.com"
+   * @param token A valid API token with direct ingestion permissions
+   */
   public WavefrontDirectSender(String server, String token) {
     super(server, token);
   }
