@@ -60,7 +60,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
   private final ObjectMapper jsonParser;
 
   private final Cache<String, Map<String, String>> tagsCache = Caffeine.newBuilder().
-      expireAfterWrite(5, TimeUnit.MINUTES).
+      expireAfterWrite(6, TimeUnit.HOURS).
       maximumSize(100_000).
       build();
 
@@ -138,8 +138,8 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
         writeHttpResponse(ctx, status, output, isKeepAlive);
         break;
       default:
-        writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported path", isKeepAlive);
-        logWarning("WF-300: Unexpected path '" + request.uri() + "'", null, ctx);
+        writeHttpResponse(ctx, HttpResponseStatus.NOT_FOUND, "Unsupported path", isKeepAlive);
+        logWarning("WF-300: Unexpected path '" + request.uri() + "', returning HTTP 404", null, ctx);
         break;
     }
   }
@@ -208,7 +208,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
         return false;
       }
       String metricName = INVALID_METRIC_CHARACTERS.matcher(metric.get("metric").textValue()).replaceAll("_");
-      String hostName = metric.get("host") == null ? "unknown" : metric.get("host").textValue();
+      String hostName = metric.get("host") == null ? "unknown" : metric.get("host").textValue().toLowerCase();
       JsonNode tagsNode = metric.get("tags");
       Map<String, String> systemTags;
       Map<String, String> tags = new HashMap<>();
@@ -245,12 +245,18 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
       pointHandler.handleBlockedPoint("WF-300: Payload missing 'internalHostname' field");
       return false;
     }
-    String hostName = metrics.get("internalHostname").textValue();
+    String hostName = metrics.get("internalHostname").textValue().toLowerCase();
     Map<String, String> systemTags = new HashMap<>();
-    if (metrics.has("host-tags")) {
+    if (metrics.has("host-tags") && metrics.get("host-tags").get("system") != null) {
       extractTags(metrics.get("host-tags").get("system"), systemTags);
+      tagsCache.put(hostName, systemTags); // cache even if map is empty so we know how many unique hosts report metrics.
+    } else {
+      Map<String, String> cachedTags = tagsCache.getIfPresent(hostName);
+      if (cachedTags != null) {
+        systemTags.clear();
+        systemTags.putAll(cachedTags);
+      }
     }
-    tagsCache.put(hostName, systemTags); // cache even if map is empty so we know how many unique hosts report metrics.
 
     // Report "system.io." metrics
     JsonNode ioStats = metrics.get("ioStats");
@@ -281,6 +287,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
     reportValue("system.cpu.idle", hostName, systemTags, metrics.get("cpuIdle"), timestamp, pointCounter);
     reportValue("system.cpu.stolen", hostName, systemTags, metrics.get("cpuStolen"), timestamp, pointCounter);
     reportValue("system.cpu.system", hostName, systemTags, metrics.get("cpuSystem"), timestamp, pointCounter);
+    reportValue("system.cpu.user", hostName, systemTags, metrics.get("cpuUser"), timestamp, pointCounter);
     reportValue("system.cpu.wait", hostName, systemTags, metrics.get("cpuWait"), timestamp, pointCounter);
     reportValue("system.mem.buffers", hostName, systemTags, metrics.get("memBuffers"), timestamp, pointCounter);
     reportValue("system.mem.cached", hostName, systemTags, metrics.get("memCached"), timestamp, pointCounter);
