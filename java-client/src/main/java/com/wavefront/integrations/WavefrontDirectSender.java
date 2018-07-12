@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -31,6 +32,7 @@ public class WavefrontDirectSender extends AbstractDirectConnectionHandler imple
   private static final int BATCH_SIZE = 10000;
 
   private final LinkedBlockingQueue<String> buffer = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
+  private AtomicInteger failures = new AtomicInteger();
 
   /**
    * Creates a new client that connects directly to a given Wavefront service.
@@ -132,6 +134,9 @@ public class WavefrontDirectSender extends AbstractDirectConnectionHandler imple
           LOGGER.debug("Buffer full, dropping attempted points");
         }
       }
+    } catch (IOException ex) {
+      failures.incrementAndGet();
+      throw ex;
     } finally {
       if (response != null) {
         response.close();
@@ -161,7 +166,7 @@ public class WavefrontDirectSender extends AbstractDirectConnectionHandler imple
 
   @Override
   public int getFailureCount() {
-    return 0;
+    return failures.get();
   }
 
   @Override
