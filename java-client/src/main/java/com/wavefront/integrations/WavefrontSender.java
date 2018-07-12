@@ -13,15 +13,7 @@ import javax.annotation.Nullable;
  * @author Clement Pang (clement@wavefront.com).
  * @author Conor Beverland (conor@wavefront.com).
  */
-public interface WavefrontSender extends Closeable {
-
-  /**
-   * Connects to the server.
-   *
-   * @throws IllegalStateException if the client is already connected
-   * @throws IOException           if there is an error connecting
-   */
-  void connect() throws IllegalStateException, IOException;
+public interface WavefrontSender extends WavefrontConnectionHandler, Closeable {
 
   /**
    * Send a measurement to Wavefront. The current machine's hostname would be used as the source. The point will be
@@ -84,23 +76,4 @@ public interface WavefrontSender extends Closeable {
    */
   void send(String name, double value, @Nullable Long timestamp, String source,
             @Nullable Map<String, String> pointTags) throws IOException;
-
-  /**
-   * Flushes buffer, if applicable
-   *
-   * @throws IOException
-   */
-  void flush() throws IOException;
-
-  /**
-   * Returns true if ready to send data
-   */
-  boolean isConnected();
-
-  /**
-   * Returns the number of failed writes to the server.
-   *
-   * @return the number of failed writes to the server
-   */
-  int getFailureCount();
 }
