@@ -12,6 +12,9 @@
     <module>dropwizard-metrics/dropwizard-metrics</module>
     <module>dropwizard-metrics/dropwizard-metrics-wavefront</module>
     <module>yammer-metrics</module>
+    <module>application-sdk/dropwizard</module>
+    <module>application-sdk/grpc</module>
+    <module>application-sdk/aws</module>
   </modules>
   <packaging>pom</packaging>
 
