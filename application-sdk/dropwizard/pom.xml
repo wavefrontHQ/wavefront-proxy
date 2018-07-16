@@ -14,7 +14,6 @@
     <description>Out of box SDK to report Dropwizard application metrics and histograms</description>
 
     <dependencies>
-
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
             <artifactId>metrics-core</artifactId>

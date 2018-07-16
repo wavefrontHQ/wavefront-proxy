@@ -1,0 +1,20 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.wavefront</groupId>
+        <artifactId>wavefront</artifactId>
+        <version>4.30-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>aws</artifactId>
+    <version>4.30-SNAPSHOT</version>
+    <name>AWS services metrics and histograms</name>
+    <description>Out of box SDK to report metrics and histograms for AWS services</description>
+
+    <dependencies>
+
+    </dependencies>
+
+</project>
