@@ -9,6 +9,8 @@
     <module>java-lib</module>
     <module>proxy</module>
     <module>java-client</module>
+    <module>dropwizard-metrics/dropwizard-metrics5</module>
+    <module>examples/dropwizard-metrics5</module>
     <module>dropwizard-metrics/dropwizard-metrics</module>
     <module>dropwizard-metrics/dropwizard-metrics-wavefront</module>
     <module>yammer-metrics</module>
@@ -113,6 +115,11 @@
       <dependency>
         <groupId>com.wavefront</groupId>
         <artifactId>dropwizard-metrics</artifactId>
+        <version>${public.project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.wavefront</groupId>
+        <artifactId>dropwizard-metrics5</artifactId>
         <version>${public.project.version}</version>
       </dependency>
       <dependency>
