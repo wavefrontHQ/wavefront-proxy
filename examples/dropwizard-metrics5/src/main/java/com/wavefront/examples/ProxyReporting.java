@@ -24,6 +24,11 @@ public class ProxyReporting {
     tags.put("pointkey2", "ptag2");
     // Create metric name object to associated with the metric type. The key is the
     // metric name and the value are the optional point tags.
+    // NOTE: If the individual metric share the same key as the global point tag key, the
+    // metric level value will override global level value for that point tag.
+    // Example: Global point tag is    <"Key1", "Value-Global">
+    // and metric level point tag is:  <"Key1", "Value-Metric1">
+    // the point tag sent to Wavefront will be <"Key1", "Value-Metric1">
     MetricName counterMetric = new MetricName("proxy.dw5metric.foo.bar", tags);
     // Register the counter with the metric registry
     Counter counter = registry.counter(counterMetric);
@@ -31,6 +36,7 @@ public class ProxyReporting {
     // Wavefront server to connect to along with a valid token.
     WavefrontReporter reporter = WavefrontReporter.forRegistry(registry).
         withSource("app-1.company.com").
+        withPointTag("gkey1", "gvalue1").
         build(host, port);
     reporter.start(5, TimeUnit.SECONDS);
 

@@ -30,8 +30,14 @@ public class DirectReporting {
 
     // Create a Wavefront Reporter as a direct reporter - requires knowledge of
     // Wavefront server to connect to along with a valid token.
+    // NOTE: If the individual metric share the same key as the global point tag key, the
+    // metric level value will override global level value for that point tag.
+    // Example: Global point tag is    <"Key1", "Value-Global">
+    // and metric level point tag is:  <"Key1", "Value-Metric1">
+    // the point tag sent to Wavefront will be <"Key1", "Value-Metric1">
     WavefrontReporter reporter = WavefrontReporter.forRegistry(registry).
         withSource("app-1.company.com").
+        withPointTag("gkey1", "gvalue1").
         buildDirect(server, token);
     reporter.start(5, TimeUnit.SECONDS);
 

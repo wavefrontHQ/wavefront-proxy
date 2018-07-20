@@ -33,10 +33,7 @@ import org.slf4j.LoggerFactory;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.util.Set;
-import java.util.Map;
-import java.util.Collections;
-import java.util.SortedMap;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -75,6 +72,7 @@ public class WavefrontReporter extends ScheduledReporter {
     private TimeUnit durationUnit;
     private MetricFilter filter;
     private String source;
+    private Map<String, String> pointTags;
     private boolean includeJvmMetrics;
     private Set<MetricAttribute> disabledMetricAttributes;
 
@@ -86,6 +84,7 @@ public class WavefrontReporter extends ScheduledReporter {
       this.durationUnit = TimeUnit.MILLISECONDS;
       this.filter = MetricFilter.ALL;
       this.source = "dropwizard-metrics";
+      this.pointTags = new HashMap<>();
       this.includeJvmMetrics = false;
       this.disabledMetricAttributes = Collections.emptySet();
     }
@@ -131,6 +130,29 @@ public class WavefrontReporter extends ScheduledReporter {
      */
     public Builder withSource(String source) {
       this.source = source;
+      return this;
+    }
+
+    /**
+     * Set the Point Tags for this reporter.
+     *
+     * @param pointTags the pointTags Map for all metrics
+     * @return {@code this}
+     */
+    public Builder withPointTags(Map<String, String> pointTags) {
+      this.pointTags.putAll(pointTags);
+      return this;
+    }
+
+    /**
+     * Set a point tag for this reporter.
+     *
+     * @param ptagK the key of the Point Tag
+     * @param ptagV the value of the Point Tag
+     * @return {@code this}
+     */
+    public Builder withPointTag(String ptagK, String ptagV) {
+      this.pointTags.put(ptagK, ptagV);
       return this;
     }
 
@@ -270,6 +292,7 @@ public class WavefrontReporter extends ScheduledReporter {
           clock,
           prefix,
           source,
+          pointTags,
           rateUnit,
           durationUnit,
           filter,
@@ -287,7 +310,7 @@ public class WavefrontReporter extends ScheduledReporter {
      */
     public WavefrontReporter buildDirect(String server, String token) {
       WavefrontSender wavefrontSender = new WavefrontDirectSender(server, token);
-      return new WavefrontReporter(registry, wavefrontSender, clock, prefix, source, rateUnit,
+      return new WavefrontReporter(registry, wavefrontSender, clock, prefix, source, pointTags, rateUnit,
           durationUnit, filter, includeJvmMetrics, disabledMetricAttributes);
     }
 
@@ -306,6 +329,7 @@ public class WavefrontReporter extends ScheduledReporter {
           clock,
           prefix,
           source,
+          pointTags,
           rateUnit,
           durationUnit,
           filter,
@@ -326,6 +350,7 @@ public class WavefrontReporter extends ScheduledReporter {
             clock,
             prefix,
             source,
+            pointTags,
             rateUnit,
             durationUnit,
             filter,
@@ -338,12 +363,14 @@ public class WavefrontReporter extends ScheduledReporter {
   private final Clock clock;
   private final String prefix;
   private final String source;
+  private final Map<String, String> pointTags;
 
   private WavefrontReporter(MetricRegistry registry,
                             WavefrontSender wavefrontSender,
                             final Clock clock,
                             String prefix,
                             String source,
+                            Map<String, String> pointTags,
                             TimeUnit rateUnit,
                             TimeUnit durationUnit,
                             MetricFilter filter,
@@ -355,6 +382,7 @@ public class WavefrontReporter extends ScheduledReporter {
     this.clock = clock;
     this.prefix = prefix;
     this.source = source;
+    this.pointTags = pointTags;
 
     if (includeJvmMetrics) {
       registry.register("jvm.uptime", (Gauge<Long>) () -> ManagementFactory.getRuntimeMXBean().getUptime());
@@ -374,12 +402,13 @@ public class WavefrontReporter extends ScheduledReporter {
                             final Clock clock,
                             String prefix,
                             String source,
+                            Map<String, String> pointTags,
                             TimeUnit rateUnit,
                             TimeUnit durationUnit,
                             MetricFilter filter,
                             boolean includeJvmMetrics,
                             Set<MetricAttribute> disabledMetricAttributes) {
-    this(registry, new Wavefront(proxyHostname, proxyPort), clock, prefix, source, rateUnit,
+    this(registry, new Wavefront(proxyHostname, proxyPort), clock, prefix, source, pointTags, rateUnit,
         durationUnit, filter, includeJvmMetrics, disabledMetricAttributes);
   }
 
@@ -496,21 +525,33 @@ public class WavefrontReporter extends ScheduledReporter {
     if (counter instanceof DeltaCounter) {
       long count = counter.getCount();
       String name = MetricConstants.DELTA_PREFIX + prefixAndSanitize(metricName.getKey().substring(1), "count");
-      wavefront.send(name, count,clock.getTime() / 1000, source, metricName.getTags());
+      wavefront.send(name, count,clock.getTime() / 1000, source, getMetricTags(metricName));
       counter.dec(count);
     } else {
-      wavefront.send(prefixAndSanitize(metricName.getKey(), "count"), counter.getCount(), clock.getTime() / 1000, source, metricName.getTags());
+      wavefront.send(prefixAndSanitize(metricName.getKey(), "count"), counter.getCount(), clock.getTime() / 1000, source, getMetricTags(metricName));
     }
   }
 
   private void reportGauge(MetricName metricName, Gauge<Number> gauge) throws IOException {
-    wavefront.send(prefixAndSanitize(metricName.getKey()), gauge.getValue().doubleValue(), clock.getTime() / 1000, source, metricName.getTags());
+    wavefront.send(prefixAndSanitize(metricName.getKey()), gauge.getValue().doubleValue(), clock.getTime() / 1000, source, getMetricTags(metricName));
   }
 
   private void sendIfEnabled(MetricAttribute type, MetricName metricName, double value, long timestamp) throws IOException {
     if (!getDisabledMetricAttributes().contains(type)) {
-      wavefront.send(prefixAndSanitize(metricName.getKey(), type.getCode()), value, timestamp, source, metricName.getTags());
+      wavefront.send(prefixAndSanitize(metricName.getKey(), type.getCode()), value, timestamp, source, getMetricTags(metricName));
     }
+  }
+
+  private HashMap<String, String> getMetricTags(MetricName metricName) {
+    HashMap<String, String> metricTags = new HashMap<>(pointTags);
+
+    // NOTE: If the individual metric share the same key as the global point tag key, the
+    // metric level value will override global level value for that point tag.
+    // Example: Global point tag is    <"Key1", "Value-Global">
+    // and metric level point tag is:  <"Key1", "Value-Metric1">
+    // the point tag sent to Wavefront will be <"Key1", "Value-Metric1">
+    metricName.getTags().forEach((k, v) -> metricTags.putIfAbsent(k, v));
+    return metricTags;
   }
 
   private String prefixAndSanitize(String... components) {
