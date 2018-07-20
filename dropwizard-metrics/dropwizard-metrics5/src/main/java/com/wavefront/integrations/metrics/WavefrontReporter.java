@@ -5,9 +5,26 @@ import com.wavefront.common.MetricConstants;
 import com.wavefront.integrations.Wavefront;
 import com.wavefront.integrations.WavefrontDirectSender;
 import com.wavefront.integrations.WavefrontSender;
-import io.dropwizard.metrics5.*;
+import io.dropwizard.metrics5.ScheduledReporter;
+import io.dropwizard.metrics5.MetricRegistry;
+import io.dropwizard.metrics5.Clock;
+import io.dropwizard.metrics5.MetricFilter;
+import io.dropwizard.metrics5.MetricAttribute;
 import io.dropwizard.metrics5.Timer;
-import io.dropwizard.metrics5.jvm.*;
+import io.dropwizard.metrics5.Gauge;
+import io.dropwizard.metrics5.MetricName;
+import io.dropwizard.metrics5.Counter;
+import io.dropwizard.metrics5.Histogram;
+import io.dropwizard.metrics5.Snapshot;
+import io.dropwizard.metrics5.Meter;
+import io.dropwizard.metrics5.Metered;
+import io.dropwizard.metrics5.DeltaCounter;
+import io.dropwizard.metrics5.jvm.ClassLoadingGaugeSet;
+import io.dropwizard.metrics5.jvm.SafeFileDescriptorRatioGauge;
+import io.dropwizard.metrics5.jvm.BufferPoolMetricSet;
+import io.dropwizard.metrics5.jvm.GarbageCollectorMetricSet;
+import io.dropwizard.metrics5.jvm.MemoryUsageGaugeSet;
+import io.dropwizard.metrics5.jvm.ThreadStatesGaugeSet;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -16,30 +33,37 @@ import org.slf4j.LoggerFactory;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.util.*;
+import java.util.Set;
+import java.util.Map;
+import java.util.Collections;
+import java.util.SortedMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
  * A reporter which publishes metric values to a Wavefront Proxy from a Dropwizard {@link MetricRegistry}.
+ * This reporter is based on Dropwizard version 5.0.0-rc2 that has native support for tags. This reporter
+ * leverages the tags maintained as part of the MetricName object that is registered with the metric registry
+ * for all metrics types(Counter, Gauge, Histogram, Meter, Timer)
+ *
+ * @author Subramaniam Narayanan
  */
-public class WavefrontDropwizardReporter extends ScheduledReporter {
-	
-  private static final Logger LOGGER = LoggerFactory.getLogger(WavefrontDropwizardReporter.class);
+public class WavefrontReporter extends ScheduledReporter {
+  private static final Logger LOGGER = LoggerFactory.getLogger(WavefrontReporter.class);
   
   /**
-   * Returns a new {@link Builder} for {@link WavefrontDropwizardReporter}.
+   * Returns a new {@link Builder} for {@link WavefrontReporter}.
    *
    * @param registry the registry to report
-   * @return a {@link Builder} instance for a {@link WavefrontDropwizardReporter}
+   * @return a {@link Builder} instance for a {@link WavefrontReporter}
    */
   public static Builder forRegistry(MetricRegistry registry) {
     return new Builder(registry);
   }
 
   /**
-   * A builder for {@link WavefrontDropwizardReporter} instances. Defaults to not using a prefix, using the
+   * A builder for {@link WavefrontReporter} instances. Defaults to not using a prefix, using the
    * default clock, converting rates to events/second, converting durations to milliseconds, a host
    * named "unknown", no point Tags, and not filtering any metrics.
    */
@@ -51,7 +75,6 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
     private TimeUnit durationUnit;
     private MetricFilter filter;
     private String source;
-    private Map<String, String> pointTags;
     private boolean includeJvmMetrics;
     private Set<MetricAttribute> disabledMetricAttributes;
 
@@ -63,7 +86,6 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
       this.durationUnit = TimeUnit.MILLISECONDS;
       this.filter = MetricFilter.ALL;
       this.source = "dropwizard-metrics";
-      this.pointTags = new HashMap<>();
       this.includeJvmMetrics = false;
       this.disabledMetricAttributes = Collections.emptySet();
     }
@@ -109,29 +131,6 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
      */
     public Builder withSource(String source) {
       this.source = source;
-      return this;
-    }
-
-    /**
-     * Set the Point Tags for this reporter.
-     *
-     * @param pointTags the pointTags Map for all metrics
-     * @return {@code this}
-     */
-    public Builder withPointTags(Map<String, String> pointTags) {
-      this.pointTags.putAll(pointTags);
-      return this;
-    }
-
-    /**
-     * Set a point tag for this reporter.
-     *
-     * @param ptagK the key of the Point Tag
-     * @param ptagV the value of the Point Tag
-     * @return {@code this}
-     */
-    public Builder withPointTag(String ptagK, String ptagV) {
-      this.pointTags.put(ptagK, ptagV);
       return this;
     }
 
@@ -191,29 +190,29 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
     }
 
     /**
-     * Builds a {@link WavefrontDropwizardReporter} from the VCAP_SERVICES env variable, sending metrics
+     * Builds a {@link WavefrontReporter} from the VCAP_SERVICES env variable, sending metrics
      * using the given {@link WavefrontSender}. This should be used in PCF environment only. It
      * uses 'wavefront-proxy' as the name to fetch the proxy details from VCAP_SERVICES.
      *
-     * @return a {@link WavefrontDropwizardReporter}
+     * @return a {@link WavefrontReporter}
      */
-    public WavefrontDropwizardReporter bindToCloudFoundryService() {
+    public WavefrontReporter bindToCloudFoundryService() {
       return bindToCloudFoundryService("wavefront-proxy", false);
     }
 
     /**
-     * Builds a {@link WavefrontDropwizardReporter} from the VCAP_SERVICES env variable, sending metrics
+     * Builds a {@link WavefrontReporter} from the VCAP_SERVICES env variable, sending metrics
      * using the given {@link WavefrontSender}. This should be used in PCF environment only. It
      * assumes failOnError to be false.
      *
-     * @return a {@link WavefrontDropwizardReporter}
+     * @return a {@link WavefrontReporter}
      */
-    public WavefrontDropwizardReporter bindToCloudFoundryService(@NotNull String proxyServiceName) {
+    public WavefrontReporter bindToCloudFoundryService(@NotNull String proxyServiceName) {
       return bindToCloudFoundryService(proxyServiceName, false);
     }
 
     /**
-     * Builds a {@link WavefrontDropwizardReporter} from the VCAP_SERVICES env variable, sending metrics
+     * Builds a {@link WavefrontReporter} from the VCAP_SERVICES env variable, sending metrics
      * using the given {@link WavefrontSender}. This should be used in PCF environment only.
      *
      * @param proxyServiceName The name of the wavefront proxy service. If wavefront-tile is used to
@@ -221,9 +220,9 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
      * @param failOnError      A flag to determine what to do if the service parameters are not
      *                         available. If 'true' then the method will throw RuntimeException else
      *                         it will log an error message and continue.
-     * @return a {@link WavefrontDropwizardReporter}
+     * @return a {@link WavefrontReporter}
      */
-    public WavefrontDropwizardReporter bindToCloudFoundryService(@NotNull String proxyServiceName,
+    public WavefrontReporter bindToCloudFoundryService(@NotNull String proxyServiceName,
                                                        boolean failOnError) {
 
       Preconditions.checkNotNull(proxyServiceName, "proxyServiceName arg should not be null");
@@ -265,13 +264,12 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
           proxyPort = credentials.getInt("port");
         }
       }
-      return new WavefrontDropwizardReporter(registry,
+      return new WavefrontReporter(registry,
           proxyHostname,
           proxyPort,
           clock,
           prefix,
           source,
-          pointTags,
           rateUnit,
           durationUnit,
           filter,
@@ -280,35 +278,34 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
     }
 
     /**
-     * Builds a {@link WavefrontDropwizardReporter} with the given properties, sending metrics directly
+     * Builds a {@link WavefrontReporter} with the given properties, sending metrics directly
      * to a given Wavefront server using direct ingestion APIs.
      *
      * @param server Wavefront server hostname of the form "https://serverName.wavefront.com"
      * @param token  Wavefront API token with direct ingestion permission
-     * @return a {@link WavefrontDropwizardReporter}
+     * @return a {@link WavefrontReporter}
      */
-    public WavefrontDropwizardReporter buildDirect(String server, String token) {
+    public WavefrontReporter buildDirect(String server, String token) {
       WavefrontSender wavefrontSender = new WavefrontDirectSender(server, token);
-      return new WavefrontDropwizardReporter(registry, wavefrontSender, clock, prefix, source, pointTags, rateUnit,
+      return new WavefrontReporter(registry, wavefrontSender, clock, prefix, source, rateUnit,
           durationUnit, filter, includeJvmMetrics, disabledMetricAttributes);
     }
 
     /**
-     * Builds a {@link WavefrontDropwizardReporter} with the given properties, sending metrics using the given
+     * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
      * {@link WavefrontSender}.
      *
      * @param proxyHostname Wavefront Proxy hostname.
      * @param proxyPort     Wavefront Proxy port.
-     * @return a {@link WavefrontDropwizardReporter}
+     * @return a {@link WavefrontReporter}
      */
-    public WavefrontDropwizardReporter build(String proxyHostname, int proxyPort) {
-      return new WavefrontDropwizardReporter(registry,
+    public WavefrontReporter build(String proxyHostname, int proxyPort) {
+      return new WavefrontReporter(registry,
           proxyHostname,
           proxyPort,
           clock,
           prefix,
           source,
-          pointTags,
           rateUnit,
           durationUnit,
           filter,
@@ -317,19 +314,18 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
     }
 
   /**
-   * Builds a {@link WavefrontDropwizardReporter} with the given properties, sending metrics using the given
+   * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
    * {@link WavefrontSender}.
    *
    * @param wavefrontSender a {@link WavefrontSender}.
-   * @return a {@link WavefrontDropwizardReporter}
+   * @return a {@link WavefrontReporter}
    */
-  public WavefrontDropwizardReporter build(WavefrontSender wavefrontSender) {
-    return new WavefrontDropwizardReporter(registry,
+  public WavefrontReporter build(WavefrontSender wavefrontSender) {
+    return new WavefrontReporter(registry,
             wavefrontSender,
             clock,
             prefix,
             source,
-            pointTags,
             rateUnit,
             durationUnit,
             filter,
@@ -342,14 +338,12 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
   private final Clock clock;
   private final String prefix;
   private final String source;
-  private final Map<String, String> pointTags;
 
-  private WavefrontDropwizardReporter(MetricRegistry registry,
+  private WavefrontReporter(MetricRegistry registry,
                             WavefrontSender wavefrontSender,
                             final Clock clock,
                             String prefix,
                             String source,
-                            Map<String, String> pointTags,
                             TimeUnit rateUnit,
                             TimeUnit durationUnit,
                             MetricFilter filter,
@@ -361,7 +355,6 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
     this.clock = clock;
     this.prefix = prefix;
     this.source = source;
-    this.pointTags = pointTags;
 
     if (includeJvmMetrics) {
       registry.register("jvm.uptime", (Gauge<Long>) () -> ManagementFactory.getRuntimeMXBean().getUptime());
@@ -375,19 +368,18 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
     }
   }
 
-  private WavefrontDropwizardReporter(MetricRegistry registry,
+  private WavefrontReporter(MetricRegistry registry,
                             String proxyHostname,
                             int proxyPort,
                             final Clock clock,
                             String prefix,
                             String source,
-                            Map<String, String> pointTags,
                             TimeUnit rateUnit,
                             TimeUnit durationUnit,
                             MetricFilter filter,
                             boolean includeJvmMetrics,
                             Set<MetricAttribute> disabledMetricAttributes) {
-    this(registry, new Wavefront(proxyHostname, proxyPort), clock, prefix, source, pointTags, rateUnit,
+    this(registry, new Wavefront(proxyHostname, proxyPort), clock, prefix, source, rateUnit,
         durationUnit, filter, includeJvmMetrics, disabledMetricAttributes);
   }
 
@@ -414,24 +406,24 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
 
       for (Map.Entry<MetricName, Gauge> entry : gauges.entrySet()) {
         if (entry.getValue().getValue() instanceof Number) {
-          reportGauge(entry.getKey().getKey(), entry.getValue());
+          reportGauge(entry.getKey(), entry.getValue());
         }
       }
 
       for (Map.Entry<MetricName, Counter> entry : counters.entrySet()) {
-        reportCounter(entry.getKey().getKey(), entry.getValue());
+        reportCounter(entry.getKey(), entry.getValue());
       }
 
       for (Map.Entry<MetricName, Histogram> entry : histograms.entrySet()) {
-        reportHistogram(entry.getKey().getKey(), entry.getValue());
+        reportHistogram(entry.getKey(), entry.getValue());
       }
 
       for (Map.Entry<MetricName, Meter> entry : meters.entrySet()) {
-        reportMetered(entry.getKey().getKey(), entry.getValue());
+        reportMetered(entry.getKey(), entry.getValue());
       }
 
       for (Map.Entry<MetricName, Timer> entry : timers.entrySet()) {
-        reportTimer(entry.getKey().getKey(), entry.getValue());
+        reportTimer(entry.getKey(), entry.getValue());
       }
 
       wavefront.flush();
@@ -458,66 +450,66 @@ public class WavefrontDropwizardReporter extends ScheduledReporter {
     }
   }
 
-  private void reportTimer(String name, Timer timer) throws IOException {
+  private void reportTimer(MetricName metricName, Timer timer) throws IOException {
     final Snapshot snapshot = timer.getSnapshot();
     final long time = clock.getTime() / 1000;
-    sendIfEnabled(MetricAttribute.MAX, name, convertDuration(snapshot.getMax()), time);
-    sendIfEnabled(MetricAttribute.MEAN, name, convertDuration(snapshot.getMean()), time);
-    sendIfEnabled(MetricAttribute.MIN, name, convertDuration(snapshot.getMin()), time);
-    sendIfEnabled(MetricAttribute.STDDEV, name, convertDuration(snapshot.getStdDev()), time);
-    sendIfEnabled(MetricAttribute.P50, name, convertDuration(snapshot.getMedian()), time);
-    sendIfEnabled(MetricAttribute.P75, name, convertDuration(snapshot.get75thPercentile()), time);
-    sendIfEnabled(MetricAttribute.P95, name, convertDuration(snapshot.get95thPercentile()), time);
-    sendIfEnabled(MetricAttribute.P98, name, convertDuration(snapshot.get98thPercentile()), time);
-    sendIfEnabled(MetricAttribute.P99, name, convertDuration(snapshot.get99thPercentile()), time);
-    sendIfEnabled(MetricAttribute.P999, name, convertDuration(snapshot.get999thPercentile()), time);
+    sendIfEnabled(MetricAttribute.MAX, metricName, convertDuration(snapshot.getMax()), time);
+    sendIfEnabled(MetricAttribute.MEAN, metricName, convertDuration(snapshot.getMean()), time);
+    sendIfEnabled(MetricAttribute.MIN, metricName, convertDuration(snapshot.getMin()), time);
+    sendIfEnabled(MetricAttribute.STDDEV, metricName, convertDuration(snapshot.getStdDev()), time);
+    sendIfEnabled(MetricAttribute.P50, metricName, convertDuration(snapshot.getMedian()), time);
+    sendIfEnabled(MetricAttribute.P75, metricName, convertDuration(snapshot.get75thPercentile()), time);
+    sendIfEnabled(MetricAttribute.P95, metricName, convertDuration(snapshot.get95thPercentile()), time);
+    sendIfEnabled(MetricAttribute.P98, metricName, convertDuration(snapshot.get98thPercentile()), time);
+    sendIfEnabled(MetricAttribute.P99, metricName, convertDuration(snapshot.get99thPercentile()), time);
+    sendIfEnabled(MetricAttribute.P999, metricName, convertDuration(snapshot.get999thPercentile()), time);
 
-    reportMetered(name, timer);
+    reportMetered(metricName, timer);
   }
 
-  private void reportMetered(String name, Metered meter) throws IOException {
+  private void reportMetered(MetricName metricName, Metered meter) throws IOException {
     final long time = clock.getTime() / 1000;
-    sendIfEnabled(MetricAttribute.COUNT, name, meter.getCount(), time);
-    sendIfEnabled(MetricAttribute.M1_RATE, name, convertRate(meter.getOneMinuteRate()), time);
-    sendIfEnabled(MetricAttribute.M5_RATE, name, convertRate(meter.getFiveMinuteRate()), time);
-    sendIfEnabled(MetricAttribute.M15_RATE, name, convertRate(meter.getFifteenMinuteRate()), time);
-    sendIfEnabled(MetricAttribute.MEAN_RATE, name, convertRate(meter.getMeanRate()), time);
+    sendIfEnabled(MetricAttribute.COUNT, metricName, meter.getCount(), time);
+    sendIfEnabled(MetricAttribute.M1_RATE, metricName, convertRate(meter.getOneMinuteRate()), time);
+    sendIfEnabled(MetricAttribute.M5_RATE, metricName, convertRate(meter.getFiveMinuteRate()), time);
+    sendIfEnabled(MetricAttribute.M15_RATE, metricName, convertRate(meter.getFifteenMinuteRate()), time);
+    sendIfEnabled(MetricAttribute.MEAN_RATE, metricName, convertRate(meter.getMeanRate()), time);
   }
 
-  private void reportHistogram(String name, Histogram histogram) throws IOException {
+  private void reportHistogram(MetricName metricName, Histogram histogram) throws IOException {
     final Snapshot snapshot = histogram.getSnapshot();
     final long time = clock.getTime() / 1000;
-    sendIfEnabled(MetricAttribute.COUNT, name, histogram.getCount(), time);
-    sendIfEnabled(MetricAttribute.MAX, name, snapshot.getMax(), time);
-    sendIfEnabled(MetricAttribute.MEAN, name, snapshot.getMean(), time);
-    sendIfEnabled(MetricAttribute.MIN, name, snapshot.getMin(), time);
-    sendIfEnabled(MetricAttribute.STDDEV, name, snapshot.getStdDev(), time);
-    sendIfEnabled(MetricAttribute.P50, name, snapshot.getMedian(), time);
-    sendIfEnabled(MetricAttribute.P75, name, snapshot.get75thPercentile(), time);
-    sendIfEnabled(MetricAttribute.P95, name, snapshot.get95thPercentile(), time);
-    sendIfEnabled(MetricAttribute.P98, name, snapshot.get98thPercentile(), time);
-    sendIfEnabled(MetricAttribute.P99, name, snapshot.get99thPercentile(), time);
-    sendIfEnabled(MetricAttribute.P999, name, snapshot.get999thPercentile(), time);
+    sendIfEnabled(MetricAttribute.COUNT, metricName, histogram.getCount(), time);
+    sendIfEnabled(MetricAttribute.MAX, metricName, snapshot.getMax(), time);
+    sendIfEnabled(MetricAttribute.MEAN, metricName, snapshot.getMean(), time);
+    sendIfEnabled(MetricAttribute.MIN, metricName, snapshot.getMin(), time);
+    sendIfEnabled(MetricAttribute.STDDEV, metricName, snapshot.getStdDev(), time);
+    sendIfEnabled(MetricAttribute.P50, metricName, snapshot.getMedian(), time);
+    sendIfEnabled(MetricAttribute.P75, metricName, snapshot.get75thPercentile(), time);
+    sendIfEnabled(MetricAttribute.P95, metricName, snapshot.get95thPercentile(), time);
+    sendIfEnabled(MetricAttribute.P98, metricName, snapshot.get98thPercentile(), time);
+    sendIfEnabled(MetricAttribute.P99, metricName, snapshot.get99thPercentile(), time);
+    sendIfEnabled(MetricAttribute.P999, metricName, snapshot.get999thPercentile(), time);
   }
 
-  private void reportCounter(String name, Counter counter) throws IOException {
+  private void reportCounter(MetricName metricName, Counter counter) throws IOException {
     if (counter instanceof DeltaCounter) {
       long count = counter.getCount();
-      name = MetricConstants.DELTA_PREFIX + prefixAndSanitize(name.substring(1), "count");
-      wavefront.send(name, count,clock.getTime() / 1000, source, pointTags);
+      String name = MetricConstants.DELTA_PREFIX + prefixAndSanitize(metricName.getKey().substring(1), "count");
+      wavefront.send(name, count,clock.getTime() / 1000, source, metricName.getTags());
       counter.dec(count);
     } else {
-      wavefront.send(prefixAndSanitize(name, "count"), counter.getCount(), clock.getTime() / 1000, source, pointTags);
+      wavefront.send(prefixAndSanitize(metricName.getKey(), "count"), counter.getCount(), clock.getTime() / 1000, source, metricName.getTags());
     }
   }
 
-  private void reportGauge(String name, Gauge<Number> gauge) throws IOException {
-    wavefront.send(prefixAndSanitize(name), gauge.getValue().doubleValue(), clock.getTime() / 1000, source, pointTags);
+  private void reportGauge(MetricName metricName, Gauge<Number> gauge) throws IOException {
+    wavefront.send(prefixAndSanitize(metricName.getKey()), gauge.getValue().doubleValue(), clock.getTime() / 1000, source, metricName.getTags());
   }
 
-  private void sendIfEnabled(MetricAttribute type, String name, double value, long timestamp) throws IOException {
+  private void sendIfEnabled(MetricAttribute type, MetricName metricName, double value, long timestamp) throws IOException {
     if (!getDisabledMetricAttributes().contains(type)) {
-      wavefront.send(prefixAndSanitize(name, type.getCode()), value, timestamp, source, pointTags);
+      wavefront.send(prefixAndSanitize(metricName.getKey(), type.getCode()), value, timestamp, source, metricName.getTags());
     }
   }
 
