@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.tdunning.math.stats.Centroid;
 import com.wavefront.common.MetricsToTimeseries;
+import com.wavefront.common.MinuteBin;
 import com.wavefront.common.Pair;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.core.Clock;
@@ -365,7 +366,7 @@ public abstract class JsonMetricsGenerator {
       final JsonGenerator json = context.json;
       json.writeStartObject();
       json.writeArrayFieldStart("bins");
-      for (WavefrontHistogram.MinuteBin bin : hist.bins(clear)) {
+      for (MinuteBin bin : hist.bins(clear)) {
 
         final Collection<Centroid> centroids = bin.getDist().centroids();
 

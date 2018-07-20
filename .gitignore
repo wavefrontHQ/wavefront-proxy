@@ -29,6 +29,8 @@ proxy/unitTest*
 .project
 .settings/
 
+.DS_Store
+
 test/buffer.*
 test/proxy*.out
 test/.wavefront_id

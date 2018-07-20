@@ -2,6 +2,7 @@ package com.wavefront.agent.logsharvesting;
 
 import com.beust.jcommander.internal.Lists;
 import com.wavefront.common.MetricsToTimeseries;
+import com.wavefront.common.MinuteBin;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
@@ -67,7 +68,7 @@ class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
       builder.setCounts(Lists.newLinkedList());
       long minMillis = Long.MAX_VALUE;
       if (wavefrontHistogram.count() == 0) return;
-      for (WavefrontHistogram.MinuteBin minuteBin : wavefrontHistogram.bins(true)) {
+      for (MinuteBin minuteBin : wavefrontHistogram.bins(true)) {
         builder.getBins().add(minuteBin.getDist().quantile(.5));
         builder.getCounts().add(Math.toIntExact(minuteBin.getDist().size()));
         minMillis = Long.min(minMillis, minuteBin.getMinMillis());

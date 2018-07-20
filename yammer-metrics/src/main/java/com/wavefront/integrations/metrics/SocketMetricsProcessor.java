@@ -2,6 +2,7 @@ package com.wavefront.integrations.metrics;
 
 import com.tdunning.math.stats.Centroid;
 import com.wavefront.common.MetricsToTimeseries;
+import com.wavefront.common.MinuteBin;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.ReconnectingSocket;
 import com.yammer.metrics.core.Counter;
@@ -129,9 +130,9 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
   public void processHistogram(MetricName name, Histogram histogram, Void context) throws Exception {
     if (histogram instanceof WavefrontHistogram) {
       WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
-      List<WavefrontHistogram.MinuteBin> bins = wavefrontHistogram.bins(clear);
+      List<MinuteBin> bins = wavefrontHistogram.bins(clear);
       if (bins.isEmpty()) return; // don't send empty histograms.
-      for (WavefrontHistogram.MinuteBin minuteBin : bins) {
+      for (MinuteBin minuteBin : bins) {
         StringBuilder sb = new StringBuilder();
         sb.append("!M ").append(minuteBin.getMinMillis() / 1000);
         for (Centroid c : minuteBin.getDist().centroids()) {

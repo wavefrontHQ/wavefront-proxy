@@ -1,4 +1,4 @@
-package com.yammer.metrics.core;
+package com.codahale.metrics;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -6,28 +6,19 @@ import com.tdunning.math.stats.AVLTreeDigest;
 import com.tdunning.math.stats.Centroid;
 import com.tdunning.math.stats.TDigest;
 import com.wavefront.common.MinuteBin;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.stats.Sample;
-import com.yammer.metrics.stats.Snapshot;
 
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 
-import static com.google.common.collect.Iterables.getFirst;
-import static com.google.common.collect.Iterables.getLast;
-import static java.lang.Double.MAX_VALUE;
-import static java.lang.Double.MIN_VALUE;
-import static java.lang.Double.NaN;
-
 /**
- * Wavefront implementation of {@link Histogram}.
- *
- * @author Tim Schmidt (tim@wavefront.com).
+ * Wavefront implementation of {@link Histogram}
  */
 public class WavefrontHistogram extends Histogram implements Metric {
   private final static int ACCURACY = 100;
@@ -36,28 +27,24 @@ public class WavefrontHistogram extends Histogram implements Metric {
 
   private final ConcurrentMap<Long, LinkedList<MinuteBin>> perThreadHistogramBins = new ConcurrentHashMap<>();
 
-  private WavefrontHistogram(TDigestSample sample, Supplier<Long> millis) {
-    super(sample);
+  private WavefrontHistogram(TDigestReservoir reservoir, Supplier<Long> millis) {
+    super(reservoir);
     this.millis = millis;
   }
 
-  public static WavefrontHistogram get(MetricName metricName) {
-    return get(Metrics.defaultRegistry(), metricName);
-  }
-
-  public static WavefrontHistogram get(MetricsRegistry registry, MetricName metricName) {
+  public static WavefrontHistogram get(MetricRegistry registry, String metricName) {
     return get(registry, metricName, System::currentTimeMillis);
   }
 
   @VisibleForTesting
-  public static synchronized WavefrontHistogram get(MetricsRegistry registry,
-                                                    MetricName metricName,
+  public static synchronized WavefrontHistogram get(MetricRegistry registry,
+                                                    String metricName,
                                                     Supplier<Long> clock) {
-    // Awkward construction trying to fit in with Yammer Histograms
-    TDigestSample sample = new TDigestSample();
-    WavefrontHistogram tDigestHistogram = new WavefrontHistogram(sample, clock);
-    sample.set(tDigestHistogram);
-    return registry.getOrAdd(metricName, tDigestHistogram);
+    // Awkward construction trying to fit in with Dropwizard Histograms
+    TDigestReservoir reservoir = new TDigestReservoir();
+    WavefrontHistogram tDigestHistogram = new WavefrontHistogram(reservoir, clock);
+    reservoir.set(tDigestHistogram);
+    return registry.register(metricName, tDigestHistogram);
   }
 
   /**
@@ -93,9 +80,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   @Override
-  public void update(int value) {
-    update((double) value);
-  }
+  public void update(int value) { update((double) value); }
 
   /**
    * Helper to retrieve the current bin. Will be invoked per thread.
@@ -142,58 +127,25 @@ public class WavefrontHistogram extends Histogram implements Metric {
     }
   }
 
-  public void update(double value) {
-    getCurrent().getDist().add(value);
-  }
+  public void update(double value) { getCurrent().getDist().add(value); }
 
   @Override
-  public void update(long value) {
-    update((double)value);
-  }
+  public void update(long value) { update((double)value); }
 
   @Override
-  public double mean() {
+  public long getCount() {
+    return perThreadHistogramBins.values().stream().flatMap(List::stream).mapToLong(bin -> bin.getDist().size()).sum();
+  }
+
+  private double mean() {
     Collection<Centroid> centroids = snapshot().centroids();
     return centroids.size() == 0 ?
         Double.NaN :
         centroids.stream().mapToDouble(c -> (c.count() * c.mean()) / centroids.size()).sum();
   }
 
-  public double min() {
-    // This is a lie if the winning centroid's weight > 1
-    return perThreadHistogramBins.values().stream().flatMap(List::stream).map(b -> b.getDist().centroids()).
-        mapToDouble(cs -> getFirst(cs, new Centroid(MAX_VALUE)).mean()).min().orElse(NaN);
-  }
-
-  public double max() {
-    //This is a lie if the winning centroid's weight > 1
-    return perThreadHistogramBins.values().stream().flatMap(List::stream).map(b -> b.getDist().centroids()).
-        mapToDouble(cs -> getLast(cs, new Centroid(MIN_VALUE)).mean()).max().orElse(NaN);
-  }
-
-  @Override
-  public long count() {
-    return perThreadHistogramBins.values().stream().flatMap(List::stream).mapToLong(bin -> bin.getDist().size()).sum();
-  }
-
-  @Override
-  public double sum() {
+  private double stdDev() {
     return Double.NaN;
-  }
-
-  @Override
-  public double stdDev() {
-    return Double.NaN;
-  }
-
-  /**
-   * Note - We override the behavior of the clear() method.
-   * In the super class, we would clear all the recorded values.
-   */
-  @Override
-  public void clear() {
-    // More awkwardness
-    clearPriorCurrentMinuteBin(minMillis());
   }
 
   private void clearPriorCurrentMinuteBin(long cutoffMillis) {
@@ -203,10 +155,16 @@ public class WavefrontHistogram extends Histogram implements Metric {
       // which will be invoke clear() method
       return;
     }
-    for (LinkedList<MinuteBin> bins : perThreadHistogramBins.values()) {
+    for (LinkedList bins : perThreadHistogramBins.values()) {
       // getCurrent() method will add (PRODUCER) item to the bins list, so synchronize the access
       synchronized (bins) {
-        bins.removeIf(minuteBin -> minuteBin.getMinMillis() < cutoffMillis);
+        Iterator<MinuteBin> iter = bins.iterator();
+        while (iter.hasNext()) {
+          if (iter.next().getMinMillis() < cutoffMillis) {
+            iter.remove();
+          }
+        }
+        // TODO - what happens if the list is empty ?? remove from hashmap ??
       }
     }
   }
@@ -222,7 +180,13 @@ public class WavefrontHistogram extends Histogram implements Metric {
   public Snapshot getSnapshot() {
     final TDigest snapshot = snapshot();
 
-    return new Snapshot(new double[0]) {
+    return new Snapshot() {
+
+      @Override
+      public double getMedian() {
+        return getValue(.50);
+      }
+
       @Override
       public double get75thPercentile() {
         return getValue(.75);
@@ -239,19 +203,35 @@ public class WavefrontHistogram extends Histogram implements Metric {
       }
 
       @Override
-      public double get999thPercentile() {
-        return getValue(.999);
-      }
-
-      @Override
       public double get99thPercentile() {
         return getValue(.99);
       }
 
       @Override
-      public double getMedian() {
-        return getValue(.50);
+      public double get999thPercentile() {
+        return getValue(.999);
       }
+
+      @Override
+      public long getMax() {
+        return Math.round(snapshot.getMax());
+      }
+
+      @Override
+      public double getMean() {
+        return mean();
+      }
+
+      @Override
+      public long getMin() { return (long) snapshot.getMin(); }
+
+      @Override
+      public double getStdDev() {
+        return stdDev();
+      }
+
+      @Override
+      public void dump(OutputStream outputStream) { }
 
       @Override
       public double getValue(double quantile) {
@@ -259,8 +239,8 @@ public class WavefrontHistogram extends Histogram implements Metric {
       }
 
       @Override
-      public double[] getValues() {
-        return new double[0];
+      public long[] getValues() {
+        return new long[0];
       }
 
       @Override
@@ -270,12 +250,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
     };
   }
 
-  @Override
-  public <T> void processWith(MetricProcessor<T> metricProcessor, MetricName metricName, T t) throws Exception {
-    metricProcessor.processHistogram(metricName, this, t);
-  }
-
-  private static class TDigestSample implements Sample {
+  private static class TDigestReservoir implements Reservoir {
 
     private WavefrontHistogram wfHist;
 
@@ -284,14 +259,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
     }
 
     @Override
-    public void clear() {
-      wfHist.clear();
-    }
-
-    @Override
-    public int size() {
-      return (int) wfHist.count();
-    }
+    public int size() { return (int) wfHist.getCount(); }
 
     @Override
     public void update(long l) {
@@ -302,6 +270,5 @@ public class WavefrontHistogram extends Histogram implements Metric {
     public Snapshot getSnapshot() {
       return wfHist.getSnapshot();
     }
-
   }
 }
