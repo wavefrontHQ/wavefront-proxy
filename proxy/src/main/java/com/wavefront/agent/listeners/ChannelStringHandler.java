@@ -5,10 +5,8 @@ import com.google.common.collect.Lists;
 
 import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.PointHandlerImpl;
-import com.wavefront.agent.SourceTagHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.Decoder;
-import com.wavefront.ingester.SourceTagDecoder;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -40,17 +38,6 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   @Nullable
   private final ReportableEntityPreprocessor preprocessor;
   private final PointHandler pointHandler;
-  private final SourceTagHandler metadataHandler;
-
-  public ChannelStringHandler(Decoder<String> decoder,
-                              final PointHandler pointhandler,
-                              @Nullable final ReportableEntityPreprocessor preprocessor,
-                              SourceTagHandler metadataHandler) {
-    this.decoder = decoder;
-    this.pointHandler = pointhandler;
-    this.preprocessor = preprocessor;
-    this.metadataHandler = metadataHandler;
-  }
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
@@ -58,20 +45,10 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     this.decoder = decoder;
     this.pointHandler = pointhandler;
     this.preprocessor = preprocessor;
-    this.metadataHandler = null;
   }
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-    // based on the keyword - consider it a point or a metadata
-    if (metadataHandler != null && msg != null) {
-      msg = msg.trim();
-      if (msg.startsWith(SourceTagDecoder.SOURCE_TAG) ||
-          msg.startsWith(SourceTagDecoder.SOURCE_DESCRIPTION)) {
-        metadataHandler.processSourceTag(msg);
-        return;
-      }
-    }
     // if msg does not match metadata keywords then treat it as a point
     processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
   }

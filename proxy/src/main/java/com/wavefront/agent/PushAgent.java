@@ -11,6 +11,7 @@ import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
@@ -36,12 +37,10 @@ import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.logsharvesting.RawLogsIngester;
 import com.wavefront.agent.listeners.ChannelByteArrayHandler;
-import com.wavefront.agent.listeners.ChannelStringHandler;
 import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
 import com.wavefront.agent.channel.ConnectionTrackingHandler;
 import com.wavefront.agent.channel.IdleStateEventHandler;
 import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.api.agent.AgentConfiguration;
@@ -58,7 +57,6 @@ import com.wavefront.ingester.ReportSourceTagDecoder;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.ingester.SpanDecoder;
 import com.wavefront.ingester.StreamIngester;
-import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.ingester.TcpIngester;
 import com.wavefront.data.Validation;
 import com.wavefront.ingester.ReportPointDecoderWrapper;
@@ -262,7 +260,7 @@ public class PushAgent extends AbstractAgent {
       for (String strPort : ports) {
         PointHandler handler = new PointHandlerImpl(strPort, pushValidationLevel, pushBlockedSamples,
             getFlushTasks(strPort));
-        startOpenTsdbListener(strPort, handler);
+        startOpenTsdbListener(strPort, handlerFactory);
         logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
       }
     }
@@ -420,17 +418,18 @@ public class PushAgent extends AbstractAgent {
     }
   }
 
-  protected void startOpenTsdbListener(final String strPort, PointHandler pointHandler) {
+  protected void startOpenTsdbListener(final String strPort, ReportableEntityHandlerFactory handlerFactory) {
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
     preprocessors.forPort(strPort).forReportPoint()
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     final int port = Integer.parseInt(strPort);
-    OpenTSDBDecoder openTSDBDecoder = new OpenTSDBDecoder("unknown", customSourceTags);
+    ReportableEntityDecoder<String, ReportPoint> openTSDBDecoder = new ReportPointDecoderWrapper(
+        new OpenTSDBDecoder("unknown", customSourceTags));
 
-    ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(openTSDBDecoder, pointHandler,
-        preprocessors.forPort(strPort));
+    ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(strPort, openTSDBDecoder, handlerFactory,
+        preprocessors.forPort(strPort), remoteHostAnnotator);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
             .withChildChannelOptions(childChannelOptions), "listener-plaintext-opentsdb-" + port);
@@ -496,23 +495,6 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
         .withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
-  }
-
-
-  /**
-   * Registers a custom point handler on a particular port.
-   *
-   * @param strPort      The port to listen on.
-   * @param decoder      The decoder to use.
-   * @param pointHandler The handler to handle parsed ReportPoints.
-   * @param preprocessor Pre-processor (predicates and transform functions) for every point
-   */
-  protected void startCustomListener(String strPort, Decoder<String> decoder, PointHandler pointHandler,
-                                     @Nullable ReportableEntityPreprocessor preprocessor) {
-    int port = Integer.parseInt(strPort);
-    ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler, preprocessor);
-    startAsManagedThread(new StringLineIngester(channelHandler, port, pushListenerMaxReceivedLength).
-            withChildChannelOptions(childChannelOptions), null);
   }
 
   @VisibleForTesting

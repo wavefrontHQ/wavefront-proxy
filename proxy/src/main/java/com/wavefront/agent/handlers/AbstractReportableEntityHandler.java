@@ -146,12 +146,10 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   }
 
   @Override
-  public void reject(@Nullable String line, @Nullable String message) {
+  public void reject(@NotNull String line, @Nullable String message) {
     blockedCounter.inc();
     rejectedCounter.inc();
-    if (line != null) {
-      blockedItemsLogger.warning(line);
-    }
+    blockedItemsLogger.warning(line);
     if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
       logger.info("[" + handle + "] blocked input: [" + message + "]");
     }

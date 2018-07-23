@@ -18,6 +18,7 @@ import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import wavefront.report.ReportPoint;
 
 /**
  * Given a raw Graphite/Wavefront line, look for any host tag, and add it if implicit.
@@ -67,7 +68,11 @@ public class CachingGraphiteHostAnnotator {
         return msg;
       }
     }
+    return msg + " source=\"" + getRemoteHost(ctx) + "\"";
+  }
+
+  public String getRemoteHost(ChannelHandlerContext ctx) {
     InetAddress remote = ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress();
-    return msg + " source=\"" + (disableRdnsLookup ? remote.getHostAddress() : rdnsCache.get(remote)) + "\"";
+    return disableRdnsLookup ? remote.getHostAddress() : rdnsCache.get(remote);
   }
 }

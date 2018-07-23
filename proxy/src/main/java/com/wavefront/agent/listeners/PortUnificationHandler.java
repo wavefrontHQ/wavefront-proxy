@@ -177,6 +177,21 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   protected void logWarning(final String message,
                             @Nullable final Throwable e,
                             @Nullable final ChannelHandlerContext ctx) {
+    logger.warning(formatErrorMessage(message, e, ctx));
+  }
+
+  /**
+   * Create a detailed error message from an exception.
+   *
+   * @param message   the error message
+   * @param e         the exception (optional) that caused the error
+   * @param ctx       ChannelHandlerContext (optional) to extract remote client ip
+   *
+   * @return formatted error message
+   */
+  protected String formatErrorMessage(final String message,
+                                      @Nullable final Throwable e,
+                                      @Nullable final ChannelHandlerContext ctx) {
     StringBuilder errMsg = new StringBuilder(message);
     errMsg.append("; remote: ");
     errMsg.append(getRemoteName(ctx));
@@ -184,7 +199,7 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
       errMsg.append("; ");
       writeExceptionText(e, errMsg);
     }
-    logger.warning(errMsg.toString());
+    return errMsg.toString();
   }
 
   /**

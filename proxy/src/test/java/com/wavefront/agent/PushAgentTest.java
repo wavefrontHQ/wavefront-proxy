@@ -64,9 +64,10 @@ public class PushAgentTest {
       try {
         socket = new ServerSocket(portNum);
         socket.close();
+        logger.log(Level.INFO, "Found available port: " + portNum);
         return portNum;
       } catch (IOException exc) {
-        logger.log(Level.WARNING, "Port " + portNum + " is not available:", exc);
+        logger.log(Level.WARNING, "Port " + portNum + " is not available:" + exc.getMessage());
       }
       portNum++;
     }

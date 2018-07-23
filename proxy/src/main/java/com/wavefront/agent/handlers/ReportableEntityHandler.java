@@ -70,5 +70,5 @@ public interface ReportableEntityHandler<T> {
    * @param t string to reject and to write to RawBlockedPointsLog.
    * @param message more user-friendly message to write to the main log.
    */
-  void reject(String t, @Nullable String message);
+  void reject(@NotNull String t, @Nullable String message);
 }

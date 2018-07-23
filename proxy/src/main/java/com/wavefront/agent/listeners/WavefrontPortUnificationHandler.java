@@ -148,20 +148,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
     try {
       decoder.decode(message, output, "dummy");
     } catch (Exception e) {
-      final Throwable rootCause = Throwables.getRootCause(e);
-      String errMsg = "WF-300 Cannot parse: \"" + message +
-          "\", reason: \"" + e.getMessage() + "\"";
-      if (rootCause != null && rootCause.getMessage() != null && rootCause != e) {
-        errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
-      }
-      if (ctx != null) {
-        InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-        if (remoteAddress != null) {
-          errMsg += "; remote: " + remoteAddress.getHostString();
-        }
-      }
-      handler.reject(message, errMsg);
-      return;
+      handler.reject(message, formatErrorMessage("WF-300 Cannot parse: \"" + message + "\"", e, ctx));
     }
 
     for (Object object : output) {

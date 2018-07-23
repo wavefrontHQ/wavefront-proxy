@@ -1,19 +1,25 @@
 package com.wavefront.agent.listeners;
 
+import com.google.common.collect.Lists;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.wavefront.agent.PointHandler;
-import com.wavefront.agent.PointHandlerImpl;
+import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
+import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
-import com.wavefront.ingester.OpenTSDBDecoder;
+import com.wavefront.data.ReportableEntityType;
+import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.metrics.JsonMetricsParser;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.logging.Logger;
@@ -37,28 +43,35 @@ import wavefront.report.ReportPoint;
 public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
   private static final Logger logger = Logger.getLogger(
       OpenTSDBPortUnificationHandler.class.getCanonicalName());
-  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and retries, etc
    */
-  private final PointHandler pointHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
 
   /**
    * OpenTSDB decoder object
    */
-  private final OpenTSDBDecoder decoder;
+  private final ReportableEntityDecoder<String, ReportPoint> decoder;
 
   @Nullable
   private final ReportableEntityPreprocessor preprocessor;
 
-  public OpenTSDBPortUnificationHandler(final OpenTSDBDecoder decoder,
-                                 final PointHandler pointHandler,
-                                 @Nullable final ReportableEntityPreprocessor preprocessor) {
+  @Nullable
+  private final CachingGraphiteHostAnnotator annotator;
+
+
+  @SuppressWarnings("unchecked")
+  public OpenTSDBPortUnificationHandler(final String handle,
+                                        final ReportableEntityDecoder<String, ReportPoint> decoder,
+                                        final ReportableEntityHandlerFactory handlerFactory,
+                                        @Nullable final ReportableEntityPreprocessor preprocessor,
+                                        @Nullable final CachingGraphiteHostAnnotator annotator) {
     super();
     this.decoder = decoder;
-    this.pointHandler = pointHandler;
+    this.pointHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
     this.preprocessor = preprocessor;
+    this.annotator = annotator;
   }
 
   @Override
@@ -84,7 +97,7 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
       // The put endpoint will respond with a 204 HTTP status code and no content if all data points
       // were stored successfully. If one or more data points had an error, the API will return a 400.
       try {
-        if (reportMetrics(jsonTree.readTree(request.content().toString(CharsetUtil.UTF_8)))) {
+        if (reportMetrics(jsonTree.readTree(request.content().toString(CharsetUtil.UTF_8)), ctx)) {
           status = HttpResponseStatus.NO_CONTENT;
         } else {
           // TODO: improve error message
@@ -115,7 +128,7 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
    * Handles an incoming plain text (string) message. Handles :
    */
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        final String message) throws Exception {
+                                        String message) throws Exception {
     if (message == null) {
       throw new IllegalArgumentException("Message cannot be null");
     }
@@ -125,7 +138,43 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
         throw new Exception("Failed to write version response", f.cause());
       }
     } else {
-      ChannelStringHandler.processPointLine(message, decoder, pointHandler, preprocessor, ctx);
+      // transform the line if needed
+      if (preprocessor != null) {
+        message = preprocessor.forPointLine().transform(message);
+
+        // apply white/black lists after formatting
+        if (!preprocessor.forPointLine().filter(message)) {
+          if (preprocessor.forPointLine().getLastFilterResult() != null) {
+            pointHandler.reject((ReportPoint) null, message);
+          } else {
+            pointHandler.block(null, message);
+          }
+          return;
+        }
+      }
+
+      List<ReportPoint> output = Lists.newArrayListWithCapacity(1);
+      try {
+        decoder.decode(message, output, "dummy");
+      } catch (Exception e) {
+        pointHandler.reject(message, formatErrorMessage("WF-300 Cannot parse: \"" + message + "\"", e, ctx));
+        return;
+      }
+
+      for (ReportPoint object : output) {
+        if (preprocessor != null) {
+          preprocessor.forReportPoint().transform(object);
+          if (!preprocessor.forReportPoint().filter(object)) {
+            if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+              pointHandler.reject(object, preprocessor.forReportPoint().getLastFilterResult());
+            } else {
+              pointHandler.block(object);
+            }
+            return;
+          }
+        }
+        pointHandler.report(object);
+      }
     }
   }
 
@@ -139,16 +188,17 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
    * point
    *
    * @param metrics an array of objects or a single object representing a metric
+   * @param ctx     channel handler context (to retrieve remote address)
    * @return true if all metrics added successfully; false o/w
-   * @see #reportMetric(JsonNode)
+   * @see #reportMetric(JsonNode, ChannelHandlerContext)
    */
-  private boolean reportMetrics(final JsonNode metrics) {
+  private boolean reportMetrics(final JsonNode metrics, ChannelHandlerContext ctx) {
     if (!metrics.isArray()) {
-      return reportMetric(metrics);
+      return reportMetric(metrics, ctx);
     } else {
       boolean successful = true;
       for (final JsonNode metric : metrics) {
-        if (!reportMetric(metric)) {
+        if (!reportMetric(metric, ctx)) {
           successful = false;
         }
       }
@@ -160,10 +210,11 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
    * Parse the individual metric object and send the metric to on to the point handler.
    *
    * @param metric the JSON object representing a single metric
+   * @param ctx    channel handler context (to retrieve remote address)
    * @return True if the metric was reported successfully; False o/w
    * @see <a href="http://opentsdb.net/docs/build/html/api_http/put.html">OpenTSDB /api/put documentation</a>
    */
-  private boolean reportMetric(final JsonNode metric) {
+  private boolean reportMetric(final JsonNode metric, ChannelHandlerContext ctx) {
     try {
       String metricName = metric.get("metric").textValue();
       JsonNode tags = metric.get("tags");
@@ -175,7 +226,7 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
       } else if (wftags.containsKey("source")) {
         hostName = wftags.get("source");
       } else {
-        hostName = decoder.getDefaultHostName();
+        hostName = annotator.getRemoteHost(ctx);
       }
       // remove source/host from the tags list
       Map<String, String> wftags2 = new HashMap<>();
@@ -206,7 +257,7 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
       builder.setTimestamp(ts);
       JsonNode value = metric.get("value");
       if (value == null) {
-        pointHandler.handleBlockedPoint("Skipping.  Missing 'value' in JSON node.");
+        pointHandler.reject((ReportPoint) null, "Skipping.  Missing 'value' in JSON node.");
         return false;
       }
       if (value.isDouble()) {
@@ -223,16 +274,16 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
         preprocessor.forReportPoint().transform(point);
         if (!preprocessor.forReportPoint().filter(point)) {
           if (preprocessor.forReportPoint().getLastFilterResult() != null) {
-            blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+            pointHandler.reject(point, preprocessor.forReportPoint().getLastFilterResult());
+            return false;
           } else {
-            blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+            pointHandler.block(point);
+            return true;
           }
-          pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
-          return false;
         }
       }
 
-      pointHandler.reportPoint(point, null);
+      pointHandler.report(point);
       return true;
     } catch (final Exception e) {
       logWarning("WF-300: Failed to add metric", e, null);
@@ -240,4 +291,3 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
     }
   }
 }
-
