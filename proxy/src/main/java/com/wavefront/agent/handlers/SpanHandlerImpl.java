@@ -76,8 +76,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
       // introducing overhead and accidentally logging raw data to the main log. Honor sample rate limit, if set.
       validTracesLogger.info(strSpan);
     }
-    /// TODO: REMOVE
-    System.out.println("!!!! " + strSpan);
     getTask().add(strSpan);
     receivedMeter.mark();
     receivedCounter.inc();
