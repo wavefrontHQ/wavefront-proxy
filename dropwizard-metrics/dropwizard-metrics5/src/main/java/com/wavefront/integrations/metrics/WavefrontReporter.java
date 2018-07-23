@@ -1,6 +1,7 @@
 package com.wavefront.integrations.metrics;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.wavefront.common.MetricConstants;
 import com.wavefront.integrations.Wavefront;
 import com.wavefront.integrations.WavefrontDirectSender;
@@ -542,14 +543,20 @@ public class WavefrontReporter extends ScheduledReporter {
     }
   }
 
-  private HashMap<String, String> getMetricTags(MetricName metricName) {
-    HashMap<String, String> metricTags = new HashMap<>(pointTags);
+  private Map<String, String> getMetricTags(MetricName metricName) {
+    int tagCount = pointTags.size() + metricName.getTags().size();
+    // If there are no tags(point tag(s) or global return an empty map
+    if (tagCount == 0) {
+      return Collections.emptyMap();
+    }
 
     // NOTE: If the individual metric share the same key as the global point tag key, the
     // metric level value will override global level value for that point tag.
     // Example: Global point tag is    <"Key1", "Value-Global">
     // and metric level point tag is:  <"Key1", "Value-Metric1">
     // the point tag sent to Wavefront will be <"Key1", "Value-Metric1">
+    HashMap<String, String> metricTags = Maps.newHashMapWithExpectedSize(tagCount);
+    metricTags.putAll(pointTags);
     metricName.getTags().forEach((k, v) -> metricTags.putIfAbsent(k, v));
     return metricTags;
   }
