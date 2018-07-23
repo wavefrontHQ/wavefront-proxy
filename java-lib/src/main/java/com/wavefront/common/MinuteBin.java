@@ -6,7 +6,7 @@ import com.tdunning.math.stats.TDigest;
 /**
  * Representation of a bin that holds histogram data for a particular minute in time.
  *
- * @author Han Zhang
+ * @author Han Zhang (zhanghan@vmware.com)
  */
 public class MinuteBin {
   private final TDigest dist;

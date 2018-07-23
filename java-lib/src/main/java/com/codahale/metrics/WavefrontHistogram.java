@@ -20,7 +20,7 @@ import java.util.function.Supplier;
 /**
  * Wavefront implementation of {@link Histogram}
  *
- * @author Han Zhang
+ * @author Han Zhang (zhanghan@vmware.com)
  */
 public class WavefrontHistogram extends Histogram implements Metric {
   private final static int ACCURACY = 100;
