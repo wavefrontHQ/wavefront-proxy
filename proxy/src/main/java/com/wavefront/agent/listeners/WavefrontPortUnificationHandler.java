@@ -111,8 +111,9 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
       return;
     }
 
-    ReportableEntityHandler<ReportPoint> handler;
-    ReportableEntityDecoder<String, ReportPoint> decoder;
+    ReportableEntityHandler<ReportPoint> handler = wavefrontHandler;
+    ReportableEntityDecoder<String, ReportPoint> decoder = wavefrontDecoder;
+    message = annotator == null ? message : annotator.apply(ctx, message);
 
     if (message.startsWith("!M ") || message.startsWith("!H ") || message.startsWith("!D ")) {
       if (histogramHandler == null) {
@@ -130,11 +131,6 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
       }
       handler = histogramHandler;
       decoder = histogramDecoder;
-      message = annotator == null ? message : annotator.apply(ctx, message);
-    } else {
-      handler = wavefrontHandler;
-      decoder = wavefrontDecoder;
-      message = annotator == null ? message : annotator.apply(ctx, message);
     }
 
     // transform the line if needed
