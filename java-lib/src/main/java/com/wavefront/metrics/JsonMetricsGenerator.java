@@ -39,7 +39,6 @@ import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.SortedMap;
-import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
@@ -374,7 +373,7 @@ public abstract class JsonMetricsGenerator {
         // Count
         json.writeNumberField("count", bin.getDist().size());
         // Start
-        json.writeNumberField("startMillis", bin.getMinMillis());
+        json.writeNumberField("startMillis", bin.getMinuteMillis());
         // Duration
         json.writeNumberField("durationMillis", 60 * 1000);
         // Means

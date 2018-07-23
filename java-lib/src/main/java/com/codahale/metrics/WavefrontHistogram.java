@@ -19,17 +19,31 @@ import java.util.function.Supplier;
 
 /**
  * Wavefront implementation of {@link Histogram}
+ *
+ * @author Han Zhang
  */
 public class WavefrontHistogram extends Histogram implements Metric {
   private final static int ACCURACY = 100;
-  private final static int MAX_BINS = 10;
-  private final Supplier<Long> millis;
 
+  /**
+   * If a thread's bin queue has exceeded MAX_BINS number of bins (e.g., the thread has data
+   * that has yet to be reported for more than MAX_BINS number of minutes), delete the oldest bin.
+   * Defaulted to 10 because we can expect the histogram to be reported at least once every 10 minutes.
+   */
+  private final static int MAX_BINS = 10;
+
+  private final Supplier<Long> clockMillis;
+
+  /**
+   * Map of thread ids to bin queues. By giving each thread its own bin queue, we can ensure
+   * thread safety by locking only the relevant bin queue for a particular thread. This is more performant
+   * than locking the entire histogram.
+   */
   private final ConcurrentMap<Long, LinkedList<MinuteBin>> perThreadHistogramBins = new ConcurrentHashMap<>();
 
-  private WavefrontHistogram(TDigestReservoir reservoir, Supplier<Long> millis) {
+  private WavefrontHistogram(TDigestReservoir reservoir, Supplier<Long> clockMillis) {
     super(reservoir);
-    this.millis = millis;
+    this.clockMillis = clockMillis;
   }
 
   public static WavefrontHistogram get(MetricRegistry registry, String metricName) {
@@ -51,14 +65,14 @@ public class WavefrontHistogram extends Histogram implements Metric {
    * Aggregates all the bins prior to the current minute
    * This is because threads might be updating the current minute bin while the bins() method is invoked
    *
-   * @param clear if set to true, will clear the older bins
+   * @param clear   if set to true, will clear the older bins
    * @return returns aggregated collection of all the bins prior to the current minute
    */
   public List<MinuteBin> bins(boolean clear) {
-    List<MinuteBin> result = new ArrayList<>();
-    final long cutoffMillis = minMillis();
+    final List<MinuteBin> result = new ArrayList<>();
+    final long cutoffMillis = currMinuteMillis();
     perThreadHistogramBins.values().stream().flatMap(List::stream).
-        filter(i -> i.getMinMillis() < cutoffMillis).forEach(result::add);
+        filter(i -> i.getMinuteMillis() < cutoffMillis).forEach(result::add);
 
     if (clear) {
       clearPriorCurrentMinuteBin(cutoffMillis);
@@ -67,14 +81,14 @@ public class WavefrontHistogram extends Histogram implements Metric {
     return result;
   }
 
-  private long minMillis() {
+  private long currMinuteMillis() {
     long currMillis;
-    if (millis == null) {
+    if (clockMillis == null) {
       // happens because WavefrontHistogram.get() invokes the super() Histogram constructor
       // which invokes clear() method which in turn invokes this method
       currMillis = System.currentTimeMillis();
     } else {
-      currMillis = millis.get();
+      currMillis = clockMillis.get();
     }
     return (currMillis / 60000L) * 60000L;
   }
@@ -96,13 +110,13 @@ public class WavefrontHistogram extends Histogram implements Metric {
       }
     }
 
-    long currMinMillis = minMillis();
+    long currMinuteMillis = currMinuteMillis();
 
     // bins with clear == true flag will drain (CONSUMER) the list,
     // so synchronize the access to the respective 'bins' list
     synchronized (bins) {
-      if (bins.isEmpty() || bins.getLast().getMinMillis() != currMinMillis) {
-        bins.add(new MinuteBin(ACCURACY, currMinMillis));
+      if (bins.isEmpty() || bins.getLast().getMinuteMillis() != currMinuteMillis) {
+        bins.add(new MinuteBin(ACCURACY, currMinuteMillis));
         if (bins.size() > MAX_BINS) {
           bins.removeFirst();
         }
@@ -160,7 +174,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
       synchronized (bins) {
         Iterator<MinuteBin> iter = bins.iterator();
         while (iter.hasNext()) {
-          if (iter.next().getMinMillis() < cutoffMillis) {
+          if (iter.next().getMinuteMillis() < cutoffMillis) {
             iter.remove();
           }
         }

@@ -134,7 +134,7 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
       if (bins.isEmpty()) return; // don't send empty histograms.
       for (MinuteBin minuteBin : bins) {
         StringBuilder sb = new StringBuilder();
-        sb.append("!M ").append(minuteBin.getMinMillis() / 1000);
+        sb.append("!M ").append(minuteBin.getMinuteMillis() / 1000);
         for (Centroid c : minuteBin.getDist().centroids()) {
           sb.append(" #").append(c.count()).append(" ").append(c.mean());
         }

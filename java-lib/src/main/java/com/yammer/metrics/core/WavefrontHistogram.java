@@ -71,7 +71,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
     List<MinuteBin> result = new ArrayList<>();
     final long cutoffMillis = minMillis();
     perThreadHistogramBins.values().stream().flatMap(List::stream).
-        filter(i -> i.getMinMillis() < cutoffMillis).forEach(result::add);
+        filter(i -> i.getMinuteMillis() < cutoffMillis).forEach(result::add);
 
     if (clear) {
       clearPriorCurrentMinuteBin(cutoffMillis);
@@ -116,7 +116,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
     // bins with clear == true flag will drain (CONSUMER) the list,
     // so synchronize the access to the respective 'bins' list
     synchronized (bins) {
-      if (bins.isEmpty() || bins.getLast().getMinMillis() != currMinMillis) {
+      if (bins.isEmpty() || bins.getLast().getMinuteMillis() != currMinMillis) {
         bins.add(new MinuteBin(ACCURACY, currMinMillis));
         if (bins.size() > MAX_BINS) {
           bins.removeFirst();
@@ -206,7 +206,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
     for (LinkedList<MinuteBin> bins : perThreadHistogramBins.values()) {
       // getCurrent() method will add (PRODUCER) item to the bins list, so synchronize the access
       synchronized (bins) {
-        bins.removeIf(minuteBin -> minuteBin.getMinMillis() < cutoffMillis);
+        bins.removeIf(minuteBin -> minuteBin.getMinuteMillis() < cutoffMillis);
       }
     }
   }

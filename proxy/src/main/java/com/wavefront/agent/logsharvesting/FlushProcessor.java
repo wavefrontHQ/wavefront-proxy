@@ -71,7 +71,7 @@ class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
       for (MinuteBin minuteBin : wavefrontHistogram.bins(true)) {
         builder.getBins().add(minuteBin.getDist().quantile(.5));
         builder.getCounts().add(Math.toIntExact(minuteBin.getDist().size()));
-        minMillis = Long.min(minMillis, minuteBin.getMinMillis());
+        minMillis = Long.min(minMillis, minuteBin.getMinuteMillis());
       }
       builder.setType(HistogramType.TDIGEST);
       builder.setDuration(Math.toIntExact(currentMillis.get() - minMillis));
