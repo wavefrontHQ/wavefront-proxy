@@ -936,6 +936,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   public static class PostPushDataResultTask extends ResubmissionTask<PostPushDataResultTask> {
+    private static final long serialVersionUID = 1973695079812309903L; // to ensure backwards compatibility
 
     private final UUID agentId;
     private final UUID workUnitId;
