@@ -1,6 +1,5 @@
 package com.wavefront.agent.listeners;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
 import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
@@ -12,7 +11,6 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportSourceTagDecoder;
 import com.wavefront.ingester.ReportableEntityDecoder;
 
-import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -87,9 +85,6 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
   protected void processLine(final ChannelHandlerContext ctx, String message) {
     if (message.isEmpty()) return;
 
-    ReportableEntityHandler handler;
-    ReportableEntityDecoder decoder;
-
     if (message.startsWith(ReportSourceTagDecoder.SOURCE_TAG) ||
         message.startsWith(ReportSourceTagDecoder.SOURCE_DESCRIPTION)) {
       if (sourceTagHandler == null) {
@@ -104,9 +99,22 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
           }
         }
       }
-      handler = sourceTagHandler;
-      decoder = sourceTagDecoder;
-    } else if (message.startsWith("!M ") || message.startsWith("!H ") || message.startsWith("!D ")) {
+      List<ReportSourceTag> output = Lists.newArrayListWithCapacity(1);
+      try {
+        sourceTagDecoder.decode(message, output, "dummy");
+        for(ReportSourceTag tag : output) {
+          sourceTagHandler.report(tag);
+        }
+      } catch (Exception e) {
+        sourceTagHandler.reject(message, formatErrorMessage("WF-300 Cannot parse: \"" + message + "\"", e, ctx));
+      }
+      return;
+    }
+
+    ReportableEntityHandler<ReportPoint> handler;
+    ReportableEntityDecoder<String, ReportPoint> decoder;
+
+    if (message.startsWith("!M ") || message.startsWith("!H ") || message.startsWith("!D ")) {
       if (histogramHandler == null) {
         synchronized(this) {
           if (histogramHandler == null && handlerFactory != null && decoders != null) {
@@ -136,7 +144,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
       // apply white/black lists after formatting
       if (!preprocessor.forPointLine().filter(message)) {
         if (preprocessor.forPointLine().getLastFilterResult() != null) {
-          handler.reject(null, message);
+          handler.reject((ReportPoint) null, message);
         } else {
           handler.block(null, message);
         }
@@ -144,17 +152,18 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
       }
     }
 
-    List<Object> output = Lists.newArrayListWithCapacity(1);
+    List<ReportPoint> output = Lists.newArrayListWithCapacity(1);
     try {
       decoder.decode(message, output, "dummy");
     } catch (Exception e) {
       handler.reject(message, formatErrorMessage("WF-300 Cannot parse: \"" + message + "\"", e, ctx));
+      return;
     }
 
-    for (Object object : output) {
-      if (preprocessor != null && object instanceof ReportPoint) {
-        preprocessor.forReportPoint().transform((ReportPoint) object);
-        if (!preprocessor.forReportPoint().filter((ReportPoint) object)) {
+    for (ReportPoint object : output) {
+      if (preprocessor != null) {
+        preprocessor.forReportPoint().transform(object);
+        if (!preprocessor.forReportPoint().filter(object)) {
           if (preprocessor.forReportPoint().getLastFilterResult() != null) {
             handler.reject(object, preprocessor.forReportPoint().getLastFilterResult());
           } else {
