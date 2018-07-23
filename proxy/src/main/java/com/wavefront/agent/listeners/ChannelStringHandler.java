@@ -1,9 +1,12 @@
-package com.wavefront.agent;
+package com.wavefront.agent.listeners;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
-import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.agent.PointHandler;
+import com.wavefront.agent.PointHandlerImpl;
+import com.wavefront.agent.SourceTagHandler;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.SourceTagDecoder;
 
@@ -23,6 +26,7 @@ import wavefront.report.ReportPoint;
  *
  * @author Clement Pang (clement@wavefront.com).
  */
+@Deprecated
 @ChannelHandler.Sharable
 public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
@@ -34,13 +38,13 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
    * Transformer to transform each line.
    */
   @Nullable
-  private final PointPreprocessor preprocessor;
+  private final ReportableEntityPreprocessor preprocessor;
   private final PointHandler pointHandler;
   private final SourceTagHandler metadataHandler;
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
-                              @Nullable final PointPreprocessor preprocessor,
+                              @Nullable final ReportableEntityPreprocessor preprocessor,
                               SourceTagHandler metadataHandler) {
     this.decoder = decoder;
     this.pointHandler = pointhandler;
@@ -50,7 +54,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
-                              @Nullable final PointPreprocessor preprocessor) {
+                              @Nullable final ReportableEntityPreprocessor preprocessor) {
     this.decoder = decoder;
     this.pointHandler = pointhandler;
     this.preprocessor = preprocessor;
@@ -79,7 +83,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   public static void processPointLine(final String message,
                                       Decoder<String> decoder,
                                       final PointHandler pointHandler,
-                                      @Nullable final PointPreprocessor preprocessor,
+                                      @Nullable final ReportableEntityPreprocessor preprocessor,
                                       @Nullable final ChannelHandlerContext ctx) {
     // ignore empty lines.
     if (message == null) return;

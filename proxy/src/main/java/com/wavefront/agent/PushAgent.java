@@ -4,12 +4,17 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
+import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
+import com.wavefront.agent.handlers.SenderTaskFactory;
+import com.wavefront.agent.handlers.SenderTaskFactoryImpl;
 import com.wavefront.agent.histogram.HistogramLineIngester;
 import com.wavefront.agent.histogram.MapLoader;
 import com.wavefront.agent.histogram.PointHandlerDispatcher;
@@ -21,24 +26,42 @@ import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.AccumulationTask;
 import com.wavefront.agent.histogram.tape.TapeDeck;
 import com.wavefront.agent.histogram.tape.TapeStringListConverter;
+import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
+import com.wavefront.agent.listeners.JsonMetricsEndpoint;
+import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
+import com.wavefront.agent.listeners.TracePortUnificationHandler;
+import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
+import com.wavefront.agent.listeners.WriteHttpJsonMetricsEndpoint;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.logsharvesting.RawLogsIngester;
-import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.agent.listeners.ChannelByteArrayHandler;
+import com.wavefront.agent.listeners.ChannelStringHandler;
+import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
+import com.wavefront.agent.channel.ConnectionTrackingHandler;
+import com.wavefront.agent.channel.IdleStateEventHandler;
+import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
+import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.HistogramDecoder;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.ingester.PickleProtocolDecoder;
+import com.wavefront.ingester.ReportSourceTagDecoder;
+import com.wavefront.ingester.ReportableEntityDecoder;
+import com.wavefront.ingester.SpanDecoder;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.ingester.TcpIngester;
+import com.wavefront.data.Validation;
+import com.wavefront.ingester.ReportPointDecoderWrapper;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -57,6 +80,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -72,6 +96,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
+import wavefront.report.ReportPoint;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -88,8 +113,10 @@ public class PushAgent extends AbstractAgent {
   protected ScheduledExecutorService histogramScanExecutor;
   protected ScheduledExecutorService histogramFlushExecutor;
   protected final Counter bindErrors = Metrics.newCounter(ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
-  private volatile Decoder<String> wavefrontDecoder;
+  private volatile ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
   protected CachingGraphiteHostAnnotator remoteHostAnnotator;
+  protected SenderTaskFactory senderTaskFactory;
+  protected ReportableEntityHandlerFactory handlerFactory;
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -106,10 +133,10 @@ public class PushAgent extends AbstractAgent {
   }
 
   @VisibleForTesting
-  protected Decoder<String> getDecoderInstance() {
+  protected ReportableEntityDecoder<String, ReportPoint> getDecoderInstance() {
     synchronized(PushAgent.class) {
       if (wavefrontDecoder == null) {
-        wavefrontDecoder = new GraphiteDecoder("unknown", customSourceTags);
+        wavefrontDecoder = new ReportPointDecoderWrapper(new GraphiteDecoder("unknown", customSourceTags));
       }
       return wavefrontDecoder;
     }
@@ -121,12 +148,15 @@ public class PushAgent extends AbstractAgent {
       childChannelOptions.put(ChannelOption.SO_LINGER, soLingerTime);
     }
     remoteHostAnnotator = new CachingGraphiteHostAnnotator(customSourceTags, disableRdnsLookup);
+    senderTaskFactory = new SenderTaskFactoryImpl(agentAPI, agentId, pushRateLimiter,
+        pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
+    handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples, flushThreads);
+
     if (pushListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
       for (String strPort : ports) {
-        PointHandler pointHandler = new PointHandlerImpl(strPort, pushValidationLevel,
-            pushBlockedSamples, getFlushTasks(strPort));
-        startGraphiteListener(strPort, pointHandler, false);
+        startGraphiteListener(strPort, handlerFactory, remoteHostAnnotator);
+        logger.info("listening on port: " + strPort + " for Wavefront metrics");
       }
     }
 
@@ -184,23 +214,23 @@ public class PushAgent extends AbstractAgent {
             persistMessages);
 
         Decoder<String> distributionDecoder = new HistogramDecoder("unknown");
-
+        Decoder<String> graphiteDecoder = new GraphiteDecoder("unknown", customSourceTags);
         if (histMinPorts.hasNext()) {
-          startHistogramListeners(histMinPorts, getDecoderInstance(), histogramHandler, accumulatorDeck,
+          startHistogramListeners(histMinPorts, graphiteDecoder, histogramHandler, accumulatorDeck,
               Utils.Granularity.MINUTE, histogramMinuteFlushSecs, histogramMinuteAccumulators,
               histogramMinuteMemoryCache, baseDirectory, histogramMinuteAccumulatorSize, histogramMinuteAvgKeyBytes,
               histogramMinuteAvgDigestBytes, histogramMinuteCompression);
         }
 
         if (histHourPorts.hasNext()) {
-          startHistogramListeners(histHourPorts, getDecoderInstance(), histogramHandler, accumulatorDeck,
+          startHistogramListeners(histHourPorts, graphiteDecoder, histogramHandler, accumulatorDeck,
               Utils.Granularity.HOUR, histogramHourFlushSecs, histogramHourAccumulators,
               histogramHourMemoryCache, baseDirectory, histogramHourAccumulatorSize, histogramHourAvgKeyBytes,
               histogramHourAvgDigestBytes, histogramHourCompression);
         }
 
         if (histDayPorts.hasNext()) {
-          startHistogramListeners(histDayPorts, getDecoderInstance(), histogramHandler, accumulatorDeck,
+          startHistogramListeners(histDayPorts, graphiteDecoder, histogramHandler, accumulatorDeck,
               Utils.Granularity.DAY, histogramDayFlushSecs, histogramDayAccumulators,
               histogramDayMemoryCache, baseDirectory, histogramDayAccumulatorSize, histogramDayAvgKeyBytes,
               histogramDayAvgDigestBytes, histogramDayCompression);
@@ -223,9 +253,7 @@ public class PushAgent extends AbstractAgent {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(graphitePorts);
       for (String strPort : ports) {
         preprocessors.forPort(strPort).forPointLine().addTransformer(0, graphiteFormatter);
-        PointHandler pointHandler = new PointHandlerImpl(strPort, pushValidationLevel,
-            pushBlockedSamples, getFlushTasks(strPort));
-        startGraphiteListener(strPort, pointHandler, true);
+        startGraphiteListener(strPort, handlerFactory, null);
         logger.info("listening on port: " + strPort + " for graphite metrics");
       }
     }
@@ -254,6 +282,13 @@ public class PushAgent extends AbstractAgent {
             pushBlockedSamples, getFlushTasks(strPort));
         startDataDogListener(strPort, pointHandler);
         logger.info("listening on port: " + strPort + " for DataDog metrics");
+      }
+    }
+    if (traceListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceListenerPorts);
+      for (String strPort : ports) {
+        startTraceListener(strPort, handlerFactory);
+        logger.info("listening on port: " + strPort + " for trace data");
       }
     }
     if (httpJsonPorts != null) {
@@ -448,6 +483,22 @@ public class PushAgent extends AbstractAgent {
         .withChildChannelOptions(childChannelOptions), "listener-binary-pickle-" + port);
   }
 
+  protected void startTraceListener(final String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    if (prefix != null && !prefix.isEmpty()) {
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
+    }
+    preprocessors.forPort(strPort).forReportPoint()
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+    final int port = Integer.parseInt(strPort);
+
+    ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, new SpanDecoder("unknown"),
+        preprocessors.forPort(strPort), handlerFactory);
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
+        .withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
+  }
+
+
   /**
    * Registers a custom point handler on a particular port.
    *
@@ -457,7 +508,7 @@ public class PushAgent extends AbstractAgent {
    * @param preprocessor Pre-processor (predicates and transform functions) for every point
    */
   protected void startCustomListener(String strPort, Decoder<String> decoder, PointHandler pointHandler,
-                                     @Nullable PointPreprocessor preprocessor) {
+                                     @Nullable ReportableEntityPreprocessor preprocessor) {
     int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ChannelStringHandler(decoder, pointHandler, preprocessor);
     startAsManagedThread(new StringLineIngester(channelHandler, port, pushListenerMaxReceivedLength).
@@ -465,7 +516,8 @@ public class PushAgent extends AbstractAgent {
   }
 
   @VisibleForTesting
-  protected void startGraphiteListener(String strPort, PointHandler pointHandler, boolean disableUseRemoteClientAsSource) {
+  protected void startGraphiteListener(String strPort, ReportableEntityHandlerFactory handlerFactory,
+                                       CachingGraphiteHostAnnotator hostAnnotator) {
     final int port = Integer.parseInt(strPort);
 
     if (prefix != null && !prefix.isEmpty()) {
@@ -473,11 +525,13 @@ public class PushAgent extends AbstractAgent {
     }
     preprocessors.forPort(strPort).forReportPoint()
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
-    // Add a metadatahandler, to handle @SourceTag, @SourceDescription, etc.
-    SourceTagHandler metadataHandler = new SourceTagHandlerImpl(getSourceTagFlushTasks(port));
 
-    ChannelHandler channelHandler = new WavefrontPortUnificationHandler(getDecoderInstance(), pointHandler,
-        remoteHostAnnotator, preprocessors.forPort(strPort), metadataHandler);
+    Map<ReportableEntityType, ReportableEntityDecoder> decoders = ImmutableMap.of(
+        ReportableEntityType.POINT, getDecoderInstance(),
+        ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
+        ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
+    ChannelHandler channelHandler = new WavefrontPortUnificationHandler(strPort, decoders, handlerFactory,
+        hostAnnotator, preprocessors.forPort(strPort));
     startAsManagedThread(
         new TcpIngester(createInitializer(channelHandler, strPort), port).
             withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);

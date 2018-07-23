@@ -4,13 +4,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 
 import com.wavefront.ingester.SourceTagDecoder;
+import com.wavefront.data.Validation;
 
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
 import wavefront.report.ReportSourceTag;
 
 /**
@@ -19,6 +17,7 @@ import wavefront.report.ReportSourceTag;
  *
  * @author Suranjan Pramanik (suranjan@wavefront.com).
  */
+@Deprecated
 public class SourceTagHandlerImpl implements SourceTagHandler {
 
   private static final Logger logger = Logger.getLogger(SourceTagHandlerImpl.class
@@ -59,7 +58,7 @@ public class SourceTagHandlerImpl implements SourceTagHandler {
   @Override
   public void reportSourceTags(List<ReportSourceTag> sourceTags) {
     for (ReportSourceTag reportSourceTag : sourceTags) {
-      if (!annotationKeysAreValid(reportSourceTag)) {
+      if (!annotationsAreValid(reportSourceTag)) {
         String errorMessage = "WF-600 : SourceTag annotation key has illegal characters.";
         throw new IllegalArgumentException(errorMessage);
       }
@@ -85,7 +84,7 @@ public class SourceTagHandlerImpl implements SourceTagHandler {
   }
 
   @VisibleForTesting
-  static boolean annotationKeysAreValid(ReportSourceTag sourceTag) {
+  static boolean annotationsAreValid(ReportSourceTag sourceTag) {
     if (sourceTag.getAnnotations() != null) {
       for (String key : sourceTag.getAnnotations()) {
         if (!Validation.charactersAreValid(key)) {

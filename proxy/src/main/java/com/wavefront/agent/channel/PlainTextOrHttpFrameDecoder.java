@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.agent.channel;
 
 import com.google.common.base.Charsets;
 
@@ -29,7 +29,7 @@ import java.util.logging.Logger;
  * Port Unification Example</a>
  * @author Mike McLaughlin (mike@wavefront.com)
  */
-final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
+public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
 
   protected static final Logger logger = Logger.getLogger(PlainTextOrHttpFrameDecoder.class.getName());
 
@@ -49,7 +49,7 @@ final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
    *
    * @param handler the object responsible for handling the incoming messages or either protocol
    */
-  PlainTextOrHttpFrameDecoder(final ChannelHandler handler) {
+  public PlainTextOrHttpFrameDecoder(final ChannelHandler handler) {
     this(handler, 4096, 16 * 1024 * 1024, true);
   }
 
@@ -58,7 +58,7 @@ final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
    *
    * @param handler the object responsible for handling the incoming messages or either protocol
    */
-  PlainTextOrHttpFrameDecoder(final ChannelHandler handler, int maxLengthPlaintext, int maxLengthHttp) {
+  public PlainTextOrHttpFrameDecoder(final ChannelHandler handler, int maxLengthPlaintext, int maxLengthHttp) {
     this(handler, maxLengthPlaintext, maxLengthHttp, true);
   }
 

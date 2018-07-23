@@ -10,6 +10,7 @@ import wavefront.report.ReportSourceTag;
  *
  * @author Suranjan Pramanik (suranjan@wavefront.com).
  */
+@Deprecated
 public interface SourceTagHandler {
 
   void reportSourceTags(List<ReportSourceTag> sourceTags);

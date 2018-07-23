@@ -100,6 +100,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private boolean lastKnownQueueSizeIsPositive = true;
   private boolean lastKnownSourceTagQueueSizeIsPositive = true;
   private final ExecutorService executorService;
+  private final String token;
 
   /**
    *  A loading cache for tracking queue sizes (refreshed once a minute). Calculating the number of objects across
@@ -144,29 +145,19 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     return (long) (resultPostingSizes.mean() * resultPostingMeter.fifteenMinuteRate());
   }
 
-  @Deprecated
   public QueuedAgentService(WavefrontAPI service, String bufferFile, final int retryThreads,
                             final ScheduledExecutorService executorService, boolean purge,
                             final UUID agentId, final boolean splitPushWhenRateLimited,
-                            final String logLevel) throws IOException {
-    this(service, bufferFile, retryThreads, executorService, purge,
-        agentId, splitPushWhenRateLimited, (RecyclableRateLimiter) null);
-  }
-
-
-  public QueuedAgentService(WavefrontAPI service, String bufferFile, final int retryThreads,
-                            final ScheduledExecutorService executorService, boolean purge,
-                            final UUID agentId, final boolean splitPushWhenRateLimited,
-                            final RecyclableRateLimiter pushRateLimiter)
-      throws IOException {
+                            @Nullable final RecyclableRateLimiter pushRateLimiter,
+                            @Nullable final String token) throws IOException {
     if (retryThreads <= 0) {
       logger.severe("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
           "setting retryThreads to a value > 0");
     }
     if (pushRateLimiter != null) {
-      logger.info("Pushing to Wavefront with average PPS: " + String.valueOf(pushRateLimiter.getRate()));
+      logger.info("Point rate limited at the proxy at : " + String.valueOf(pushRateLimiter.getRate()));
     } else {
-      logger.info("Pushing to Wavefront without user defined rate limit.");
+      logger.info("No rate limit is configured ");
     }
     resubmissionTaskMarshaller = new GsonBuilder().
         registerTypeHierarchyAdapter(ResubmissionTask.class, new ResubmissionTaskDeserializer()).create();
@@ -175,6 +166,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     this.sourceTagTaskQueues = Lists.newArrayListWithExpectedSize(retryThreads);
     String bufferFileSourceTag = bufferFile + "SourceTag";
     this.executorService = executorService;
+    this.token = token;
 
     queueSizes = Caffeine.newBuilder()
         .refreshAfterWrite(15, TimeUnit.SECONDS)
@@ -225,6 +217,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           task -> {
             task.service = wrapped;
             task.currentAgentId = agentId;
+            task.token = token;
           }
       );
 
@@ -254,6 +247,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             task -> {
               task.service = wrapped;
               task.currentAgentId = agentId;
+              task.token = token;
             }
           );
       // create a new rate-limiter for the source tag retry queue, because the API calls are
@@ -577,29 +571,13 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   @Override
   public Response postWorkUnitResult(final UUID agentId, final UUID workUnitId, final UUID targetId,
                                      final ShellOutputDTO shellOutputDTO) {
-    return this.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO, false);
+    throw new UnsupportedOperationException("postWorkUnitResult is deprecated");
   }
 
   @Override
   public Response postWorkUnitResult(UUID agentId, UUID workUnitId, UUID targetId, ShellOutputDTO shellOutputDTO,
                                      boolean forceToQueue) {
-    PostWorkUnitResultTask task = new PostWorkUnitResultTask(agentId, workUnitId, targetId, shellOutputDTO);
-
-    if (forceToQueue) {
-      addTaskToSmallestQueue(task);
-      return Response.status(Response.Status.NOT_ACCEPTABLE).build();
-    } else {
-
-      try {
-        resultPostingMeter.mark();
-        parsePostingResponse(wrapped.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO));
-        scheduleTaskForSizing(task);
-      } catch (RuntimeException ex) {
-        handleTaskRetry(ex, task);
-        return Response.status(Response.Status.NOT_ACCEPTABLE).build();
-      }
-      return Response.ok().build();
-    }
+    throw new UnsupportedOperationException("postWorkUnitResult is deprecated");
   }
 
   @Override
@@ -740,41 +718,41 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   @Override
   public void hostConnectionFailed(UUID agentId, UUID hostId, String details) {
-    wrapped.hostConnectionFailed(agentId, hostId, details);
+    throw new UnsupportedOperationException("Invalid operation");
   }
 
   @Override
   public void hostConnectionEstablished(UUID agentId, UUID hostId) {
-    wrapped.hostConnectionEstablished(agentId, hostId);
+    throw new UnsupportedOperationException("Invalid operation");
   }
 
   @Override
   public void hostAuthenticated(UUID agentId, UUID hostId) {
-    wrapped.hostAuthenticated(agentId, hostId);
+    throw new UnsupportedOperationException("Invalid operation");
   }
 
   @Override
   public Response removeTag(String id, String token, String tagValue) {
-    return removeTag(id, token, tagValue, false);
+    return removeTag(id, tagValue, false);
   }
 
   @Override
   public Response removeDescription(String id, String token) {
-    return removeDescription(id, token, false);
+    return removeDescription(id, false);
   }
 
   @Override
   public Response setTags(String id, String token, List<String> tagValuesToSet) {
-     return setTags(id, token, tagValuesToSet, false);
+     return setTags(id, tagValuesToSet, false);
   }
 
   @Override
   public Response setDescription(String id, String token, String description) {
-    return setDescription(id, token, description, false);
+    return setDescription(id, description, false);
   }
 
   @Override
-  public Response setTags(String id, String token, List<String> tagValuesToSet, boolean forceToQueue) {
+  public Response setTags(String id, List<String> tagValuesToSet, boolean forceToQueue) {
     PostSourceTagResultTask task = new PostSourceTagResultTask(id, tagValuesToSet,
         PostSourceTagResultTask.ActionType.save, PostSourceTagResultTask.MessageType.tag, token);
 
@@ -801,7 +779,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public Response removeDescription(String id, String token, boolean forceToQueue) {
+  public Response removeDescription(String id, boolean forceToQueue) {
     PostSourceTagResultTask task = new PostSourceTagResultTask(id, StringUtils.EMPTY,
         PostSourceTagResultTask.ActionType.delete, PostSourceTagResultTask.MessageType.desc, token);
 
@@ -826,7 +804,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public Response setDescription(String id, String token, String desc, boolean forceToQueue) {
+  public Response setDescription(String id, String desc, boolean forceToQueue) {
     PostSourceTagResultTask task = new PostSourceTagResultTask(id, desc,
         PostSourceTagResultTask.ActionType.save, PostSourceTagResultTask.MessageType.desc, token);
 
@@ -851,7 +829,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public Response removeTag(String id, String token, String tagValue, boolean forceToQueue) {
+  public Response removeTag(String id, String tagValue, boolean forceToQueue) {
 
     PostSourceTagResultTask task = new PostSourceTagResultTask(id, tagValue,
         PostSourceTagResultTask.ActionType.delete, PostSourceTagResultTask.MessageType.tag, token);
@@ -876,47 +854,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     }
   }
 
-  public static class PostWorkUnitResultTask extends ResubmissionTask {
-
-    @VisibleForTesting
-    final UUID agentId;
-    @VisibleForTesting
-    final UUID workUnitId;
-    @VisibleForTesting
-    final UUID hostId;
-    @VisibleForTesting
-    final ShellOutputDTO shellOutputDTO;
-
-    public PostWorkUnitResultTask(UUID agentId, UUID workUnitId, UUID hostId, ShellOutputDTO shellOutputDTO) {
-      this.agentId = agentId;
-      this.workUnitId = workUnitId;
-      this.hostId = hostId;
-      this.shellOutputDTO = shellOutputDTO;
-    }
-
-    @Override
-    public void execute(Object callback) {
-      parsePostingResponse(service.postWorkUnitResult(currentAgentId, workUnitId, hostId, shellOutputDTO));
-    }
-
-    @Override
-    public List<PostWorkUnitResultTask> splitTask() {
-      // doesn't make sense to split this, so just return a new task
-      return of(new PostWorkUnitResultTask(agentId, workUnitId, hostId, shellOutputDTO));
-    }
-
-    @Override
-    public int size() {
-      return 1;
-    }
-  }
-
   public static class PostSourceTagResultTask extends ResubmissionTask<PostSourceTagResultTask> {
     private final String id;
     private final String[] tagValues;
     private final String description;
     private final int taskSize;
-    private final String token;
 
     public enum ActionType {save, delete}
     public enum MessageType {tag, desc}

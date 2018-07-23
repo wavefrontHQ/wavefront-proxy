@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.agent.channel;
 
 import com.yammer.metrics.core.Counter;
 

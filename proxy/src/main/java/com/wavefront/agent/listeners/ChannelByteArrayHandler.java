@@ -1,9 +1,11 @@
-package com.wavefront.agent;
+package com.wavefront.agent.listeners;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
-import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.agent.PointHandler;
+import com.wavefront.agent.PointHandlerImpl;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.GraphiteDecoder;
 
@@ -26,7 +28,7 @@ import wavefront.report.ReportPoint;
  * @author Mike McLaughlin (mike@wavefront.com)
  */
 @ChannelHandler.Sharable
-class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
+public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
   private static final Logger logger = Logger.getLogger(ChannelByteArrayHandler.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
@@ -34,15 +36,15 @@ class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
   private final PointHandler pointHandler;
 
   @Nullable
-  private final PointPreprocessor preprocessor;
+  private final ReportableEntityPreprocessor preprocessor;
   private final GraphiteDecoder recoder;
 
   /**
    * Constructor.
    */
-  ChannelByteArrayHandler(Decoder<byte[]> decoder,
+  public ChannelByteArrayHandler(Decoder<byte[]> decoder,
                           final PointHandler pointHandler,
-                          @Nullable final PointPreprocessor preprocessor) {
+                          @Nullable final ReportableEntityPreprocessor preprocessor) {
     this.decoder = decoder;
     this.pointHandler = pointHandler;
     this.preprocessor = preprocessor;

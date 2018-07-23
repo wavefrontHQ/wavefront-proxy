@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.wavefront.agent.Validation;
+import com.wavefront.data.Validation;
 import com.wavefront.agent.logsharvesting.LogsMessage;
 
 import org.apache.commons.lang3.StringUtils;

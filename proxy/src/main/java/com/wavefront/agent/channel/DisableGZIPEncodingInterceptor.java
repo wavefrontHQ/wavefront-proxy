@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.agent.channel;
 
 import java.io.IOException;
 import java.util.logging.Logger;

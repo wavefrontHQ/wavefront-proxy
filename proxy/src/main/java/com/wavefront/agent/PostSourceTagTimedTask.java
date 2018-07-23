@@ -29,6 +29,7 @@ import wavefront.report.ReportSourceTag;
  *
  * @author Suranjan Pramanik (suranjan@wavefront.com)
  */
+@Deprecated
 public class PostSourceTagTimedTask implements Runnable {
 
   private static final Logger logger =
@@ -111,10 +112,9 @@ public class PostSourceTagTimedTask implements Runnable {
             switch (sourceTag.getSourceTagLiteral()) {
               case "SourceDescription":
                 if (sourceTag.getAction().equals("delete")) {
-                  response = agentAPI.removeDescription(sourceTag.getSource(), token, forceToQueue);
+                  response = agentAPI.removeDescription(sourceTag.getSource(), forceToQueue);
                 } else {
-                  response = agentAPI.setDescription(sourceTag.getSource(), token,
-                      sourceTag.getDescription(), forceToQueue);
+                  response = agentAPI.setDescription(sourceTag.getSource(), sourceTag.getDescription(), forceToQueue);
                 }
                 break;
               case "SourceTag":
@@ -123,13 +123,11 @@ public class PostSourceTagTimedTask implements Runnable {
                   // TODO: right now it only deletes the first tag (because that server-side api
                   // only handles one tag at a time. Once the server-side api is updated we
                   // should update this code to remove multiple tags at a time.
-                  response = agentAPI.removeTag(sourceTag.getSource(), token,
-                      sourceTag.getAnnotations().get(0), forceToQueue);
+                  response = agentAPI.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0), forceToQueue);
 
                 } else { //
                   // call the api, if we receive a 406 message then we add them to the queue
-                  response = agentAPI.setTags(sourceTag.getSource(), token,
-                      sourceTag.getAnnotations(), forceToQueue);
+                  response = agentAPI.setTags(sourceTag.getSource(), sourceTag.getAnnotations(), forceToQueue);
                 }
                 break;
               default:
@@ -137,7 +135,7 @@ public class PostSourceTagTimedTask implements Runnable {
                     "SourceDescription. Input = " + sourceTag);
             }
             this.sourceTagsAttempted.inc();
-            if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
+            if (response != null && response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
               this.sourceTagsQueued.inc();
               forceToQueue = true;
             }
@@ -175,19 +173,19 @@ public class PostSourceTagTimedTask implements Runnable {
             switch (sourceTag.getSourceTagLiteral()) {
               case "SourceDescription":
                 if (sourceTag.getAction().equals("delete")) {
-                  agentAPI.removeDescription(sourceTag.getSource(), token, true);
+                  agentAPI.removeDescription(sourceTag.getSource(), true);
                 } else {
-                  agentAPI.setDescription(sourceTag.getSource(), token, sourceTag.getDescription(), true);
+                  agentAPI.setDescription(sourceTag.getSource(), sourceTag.getDescription(), true);
                 }
                 break;
               case "SourceTag":
                 if (sourceTag.getAction().equals("delete")) {
                   // delete the source tag
-                  agentAPI.removeTag(sourceTag.getSource(), token, sourceTag.getAnnotations().get(0),
+                  agentAPI.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0),
                       true);
                 } else {
                   // add the source tag
-                  agentAPI.setTags(sourceTag.getSource(), token, sourceTag.getAnnotations(), true);
+                  agentAPI.setTags(sourceTag.getSource(), sourceTag.getAnnotations(), true);
                 }
                 break;
             }

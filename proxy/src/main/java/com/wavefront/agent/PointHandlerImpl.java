@@ -1,6 +1,7 @@
 package com.wavefront.agent;
 
 import com.wavefront.common.Clock;
+import com.wavefront.data.Validation;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
@@ -21,7 +22,7 @@ import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
 
-import static com.wavefront.agent.Validation.validatePoint;
+import static com.wavefront.data.Validation.validatePoint;
 
 /**
  * Adds all graphite strings to a working list, and batches them up on a set schedule (100ms) to be sent (through the
@@ -88,8 +89,7 @@ public class PointHandlerImpl implements PointHandler {
       }
       validatePoint(
           point,
-          "" + handle,
-          debugLine,
+          handle,
           validationLevel == null ? null : Validation.Level.valueOf(validationLevel));
 
       String strPoint = pointToString(point);
@@ -116,8 +116,9 @@ public class PointHandlerImpl implements PointHandler {
       receivedPointLag.update(Clock.now() - point.getTimestamp());
 
     } catch (IllegalArgumentException e) {
-      blockedPointsLogger.warning(pointToString(point));
-      this.handleBlockedPoint(e.getMessage());
+      String pointString = pointToString(point);
+      blockedPointsLogger.warning(pointString);
+      this.handleBlockedPoint(e.getMessage() + " (" + (debugLine == null ? pointString : debugLine) + ")");
     } catch (Exception ex) {
       logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point (" +
           (debugLine == null ? pointToString(point) : debugLine) + ")", ex);

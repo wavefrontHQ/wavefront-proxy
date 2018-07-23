@@ -12,25 +12,24 @@ import wavefront.report.ReportSourceTag;
  *
  * @author Suranjan Pramanik (suranjan@wavefront.com).
  */
-@Deprecated
-public class SourceTagDecoder {
+public class ReportSourceTagDecoder implements ReportableEntityDecoder<String, ReportSourceTag>{
 
   public static final String SOURCE_TAG = "@SourceTag";
   public static final String SOURCE_DESCRIPTION = "@SourceDescription";
 
   private static final AbstractIngesterFormatter<ReportSourceTag> FORMAT =
       ReportSourceTagIngesterFormatter.newBuilder()
-      .whiteSpace()
-      .appendCaseSensitiveLiterals(new String[]{SOURCE_TAG, SOURCE_DESCRIPTION})
-      .whiteSpace()
-      .appendLoopOfKeywords()
-      .whiteSpace()
-      .appendLoopOfValues()
-      .build();
+          .whiteSpace()
+          .appendCaseSensitiveLiterals(new String[]{SOURCE_TAG, SOURCE_DESCRIPTION})
+          .whiteSpace()
+          .appendLoopOfKeywords()
+          .whiteSpace()
+          .appendLoopOfValues()
+          .build();
 
-  public void decodeSourceTagLine(String msg, List<ReportSourceTag> out) {
-    ReportSourceTag reportSourceTag =
-        FORMAT.drive(msg, "dummy", "dummy", null);
+  @Override
+  public void decode(String msg, List<ReportSourceTag> out, String customerId) {
+    ReportSourceTag reportSourceTag = FORMAT.drive(msg, "dummy", customerId, null);
     if (out != null) out.add(reportSourceTag);
   }
 }

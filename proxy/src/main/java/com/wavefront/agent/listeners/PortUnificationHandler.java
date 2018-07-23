@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.agent.listeners;
 
 import com.google.common.base.Throwables;
 
@@ -7,6 +7,9 @@ import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
 
+import org.apache.commons.lang.StringUtils;
+
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,11 +22,13 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.codec.TooLongFrameException;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.util.CharsetUtil;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -36,25 +41,57 @@ import io.netty.handler.codec.http.HttpVersion;
  * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
-abstract class PortUnificationHandler extends SimpleChannelInboundHandler<Object> {
+public abstract class PortUnificationHandler extends SimpleChannelInboundHandler<Object> {
   private static final Logger logger = Logger.getLogger(
       PortUnificationHandler.class.getCanonicalName());
 
   protected volatile Histogram httpRequestHandleDuration;
 
-  PortUnificationHandler() {}
+  protected final String handle;
+
+  public PortUnificationHandler() {
+    this(null);
+  }
+
+  public PortUnificationHandler(@Nullable final String handle) {
+    this.handle = handle;
+  }
 
   /**
-   * Handles an incoming HTTP message.
+   * Handles an incoming HTTP message. Accepts HTTP POST on all paths
    */
-  protected abstract void handleHttpMessage(final ChannelHandlerContext ctx,
-                                            final FullHttpRequest message) throws Exception;
+  protected void handleHttpMessage(final ChannelHandlerContext ctx,
+                                   final FullHttpRequest request) {
+    StringBuilder output = new StringBuilder();
+    boolean isKeepAlive = HttpUtil.isKeepAlive(request);
+
+    HttpResponseStatus status;
+    try {
+      for (String line : StringUtils.split(request.content().toString(CharsetUtil.UTF_8), '\n')) {
+        processLine(ctx, line.trim());
+      }
+      status = HttpResponseStatus.NO_CONTENT;
+    } catch (Exception e) {
+      status = HttpResponseStatus.BAD_REQUEST;
+      writeExceptionText(e, output);
+      logWarning("WF-300: Failed to handle HTTP POST", e, ctx);
+    }
+    writeHttpResponse(ctx, status, output, isKeepAlive);
+  }
 
   /**
-   * Handles an incoming plain text (string) message.
+   * Handles an incoming plain text (string) message. By default simply passes a string to
+   * {@link #processLine(ChannelHandlerContext, String)} method.
    */
-  protected abstract void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                                 final String message) throws Exception;
+  protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
+                                        final String message) throws Exception {
+    if (message == null) {
+      throw new IllegalArgumentException("Message cannot be null");
+    }
+    processLine(ctx, message.trim());
+  }
+
+  protected abstract void processLine(final ChannelHandlerContext ctx, final String message);
 
   @Override
   public void channelReadComplete(ChannelHandlerContext ctx) {
@@ -63,6 +100,13 @@ abstract class PortUnificationHandler extends SimpleChannelInboundHandler<Object
 
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+    if (cause instanceof TooLongFrameException) {
+      logWarning("Received line is too long, consider increasing pushListenerMaxReceivedLength", cause, ctx);
+    }
+    if (cause instanceof IOException && cause.getMessage().contains("Connection reset by peer")) {
+      // These errors are caused by the client and are safe to ignore
+      return;
+    }
     logWarning("Handler failed", cause, ctx);
     logger.log(Level.WARNING, "Unexpected error: ", cause);
   }

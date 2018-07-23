@@ -7,7 +7,7 @@ import com.squareup.tape.InMemoryObjectQueue;
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.PointHandler;
-import com.wavefront.agent.Validation;
+import com.wavefront.data.Validation;
 import com.wavefront.agent.histogram.Utils;
 import com.wavefront.agent.histogram.Utils.HistogramKey;
 import com.wavefront.ingester.GraphiteDecoder;

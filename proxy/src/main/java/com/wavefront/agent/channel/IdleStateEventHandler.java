@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.agent.channel;
 
 import com.yammer.metrics.core.Counter;
 
@@ -25,7 +25,7 @@ public class IdleStateEventHandler extends ChannelInboundHandlerAdapter {
 
   private Counter idleClosedConnections;
 
-  IdleStateEventHandler(@NotNull Counter idleClosedConnectionsCounter) {
+  public IdleStateEventHandler(@NotNull Counter idleClosedConnectionsCounter) {
     this.idleClosedConnections = idleClosedConnectionsCounter;
   }
 

@@ -1,10 +1,12 @@
-package com.wavefront.agent;
+package com.wavefront.agent.listeners;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.agent.PointHandler;
+import com.wavefront.agent.PointHandlerImpl;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.metrics.JsonMetricsParser;
@@ -32,7 +34,7 @@ import wavefront.report.ReportPoint;
  *
  * @author Mike McLaughlin (mike@wavefront.com)
  */
-class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
+public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
   private static final Logger logger = Logger.getLogger(
       OpenTSDBPortUnificationHandler.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
@@ -48,11 +50,11 @@ class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
   private final OpenTSDBDecoder decoder;
 
   @Nullable
-  private final PointPreprocessor preprocessor;
+  private final ReportableEntityPreprocessor preprocessor;
 
-  OpenTSDBPortUnificationHandler(final OpenTSDBDecoder decoder,
+  public OpenTSDBPortUnificationHandler(final OpenTSDBDecoder decoder,
                                  final PointHandler pointHandler,
-                                 @Nullable final PointPreprocessor preprocessor) {
+                                 @Nullable final ReportableEntityPreprocessor preprocessor) {
     super();
     this.decoder = decoder;
     this.pointHandler = pointHandler;
@@ -125,6 +127,11 @@ class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
     } else {
       ChannelStringHandler.processPointLine(message, decoder, pointHandler, preprocessor, ctx);
     }
+  }
+
+  @Override
+  protected void processLine(final ChannelHandlerContext ctx, final String message) {
+    throw new UnsupportedOperationException("Invalid context for processLine");
   }
 
   /**

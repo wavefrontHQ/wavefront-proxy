@@ -1,8 +1,10 @@
-package com.wavefront.agent;
+package com.wavefront.agent.listeners;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.agent.PointHandler;
+import com.wavefront.agent.PointHandlerImpl;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
@@ -33,7 +35,7 @@ import wavefront.report.ReportPoint;
  * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
-class DataDogPortUnificationHandler extends PortUnificationHandler {
+public class DataDogPortUnificationHandler extends PortUnificationHandler {
   private static final Logger logger = Logger.getLogger(DataDogPortUnificationHandler.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
   private static final Pattern INVALID_METRIC_CHARACTERS = Pattern.compile("[^-_\\.\\dA-Za-z]");
@@ -47,10 +49,10 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
   private final PointHandler pointHandler;
 
   @Nullable
-  private final PointPreprocessor preprocessor;
+  private final ReportableEntityPreprocessor preprocessor;
 
-  DataDogPortUnificationHandler(final PointHandler pointHandler,
-                                @Nullable final PointPreprocessor preprocessor) {
+  public DataDogPortUnificationHandler(final PointHandler pointHandler,
+                                       @Nullable final ReportableEntityPreprocessor preprocessor) {
     super();
     this.pointHandler = pointHandler;
     this.preprocessor = preprocessor;
@@ -103,6 +105,7 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
   /**
    * Handles an incoming plain text (string) message. Handles :
    */
+  @Override
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
                                         final String message) throws Exception {
     if (message == null) {
@@ -114,6 +117,11 @@ class DataDogPortUnificationHandler extends PortUnificationHandler {
     } catch (Exception e) {
       logWarning("WF-300: Unable to parse JSON on plaintext port", e, ctx);
     }
+  }
+
+  @Override
+  protected void processLine(final ChannelHandlerContext ctx, final String message) {
+    throw new UnsupportedOperationException("Invalid context for processLine");
   }
 
   /**

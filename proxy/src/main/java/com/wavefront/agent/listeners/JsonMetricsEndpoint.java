@@ -1,10 +1,13 @@
-package com.wavefront.agent;
+package com.wavefront.agent.listeners;
 
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wavefront.agent.preprocessor.PointPreprocessor;
+import com.wavefront.agent.PointHandler;
+import com.wavefront.agent.PointHandlerImpl;
+import com.wavefront.agent.PostPushDataTimedTask;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.metrics.JsonMetricsParser;
 
@@ -38,14 +41,14 @@ public class JsonMetricsEndpoint extends AbstractHandler {
   private final String prefix;
   private final String defaultHost;
   @Nullable
-  private final PointPreprocessor preprocessor;
+  private final ReportableEntityPreprocessor preprocessor;
   private final PointHandler handler;
 
   public JsonMetricsEndpoint(final String port, final String host,
                              @Nullable
                              final String prefix, final String validationLevel, final int blockedPointsPerBatch,
                              PostPushDataTimedTask[] postPushDataTimedTasks,
-                             @Nullable final PointPreprocessor preprocessor) {
+                             @Nullable final ReportableEntityPreprocessor preprocessor) {
     this.handler = new PointHandlerImpl(port, validationLevel, blockedPointsPerBatch, postPushDataTimedTasks);
     this.prefix = prefix;
     this.defaultHost = host;

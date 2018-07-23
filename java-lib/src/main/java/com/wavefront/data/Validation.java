@@ -1,11 +1,10 @@
-package com.wavefront.agent;
+package com.wavefront.data;
 
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DateUtils;
 
 import java.util.Map;
 
@@ -14,8 +13,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
-import static com.wavefront.agent.PointHandlerImpl.pointToString;
-import static com.wavefront.agent.Validation.Level.NO_VALIDATION;
+import static com.wavefront.data.Validation.Level.NO_VALIDATION;
 
 /**
  * Consolidates point validation logic for point handlers
@@ -51,7 +49,7 @@ public class Validation {
     return true;
   }
 
-  static boolean annotationKeysAreValid(ReportPoint point) {
+  public static boolean annotationKeysAreValid(ReportPoint point) {
     for (String key : point.getAnnotations().keySet()) {
       if (!charactersAreValid(key)) {
         return false;
@@ -60,51 +58,35 @@ public class Validation {
     return true;
   }
 
-  public static void validatePoint(
-      ReportPoint point,
-      String source,
-      String debugLine,
-      @Nullable Level validationLevel) {
+  public static void validatePoint(ReportPoint point, String source, @Nullable Level validationLevel) {
     Object pointValue = point.getValue();
 
     if (StringUtils.isBlank(point.getHost())) {
-      String errorMessage = "WF-301: Source/host name is required (" +
-          (debugLine == null ? pointToString(point) : debugLine) + ")";
-      throw new IllegalArgumentException(errorMessage);
+      throw new IllegalArgumentException("WF-301: Source/host name is required");
 
     }
     if (point.getHost().length() >= 1024) {
-      String errorMessage = "WF-301: Source/host name is too long: " + point.getHost() + "(" +
-          (debugLine == null ? pointToString(point) : debugLine) + ")";
-      throw new IllegalArgumentException(errorMessage);
+      throw new IllegalArgumentException("WF-301: Source/host name is too long: " + point.getHost());
     }
 
     if (point.getMetric().length() >= 1024) {
-      String errorMessage = "WF-301: Metric name is too long: " + point.getMetric() +
-          " (" + (debugLine == null ? pointToString(point) : debugLine) + ")";
-      throw new IllegalArgumentException(errorMessage);
+      throw new IllegalArgumentException("WF-301: Metric name is too long: " + point.getMetric());
     }
 
     if (!charactersAreValid(point.getMetric())) {
       illegalCharacterPoints.inc();
-      String errorMessage = "WF-400 " + source + ": Point metric has illegal character (" +
-          (debugLine == null ? pointToString(point) : debugLine) + ")";
-      throw new IllegalArgumentException(errorMessage);
+      throw new IllegalArgumentException("WF-400 " + source + ": Point metric has illegal character");
     }
 
     if (point.getAnnotations() != null) {
       if (!annotationKeysAreValid(point)) {
-        String errorMessage = "WF-401 " + source + ": Point annotation key has illegal character (" +
-            (debugLine == null ? pointToString(point) : debugLine) + ")";
-        throw new IllegalArgumentException(errorMessage);
+        throw new IllegalArgumentException("WF-401 " + source + ": Point annotation key has illegal character");
       }
 
       // Each tag of the form "k=v" must be < 256
       for (Map.Entry<String, String> tag : point.getAnnotations().entrySet()) {
         if (tag.getKey().length() + tag.getValue().length() >= 255) {
-          String errorMessage = "Tag too long: " + tag.getKey() + "=" + tag.getValue() + " (" +
-              (debugLine == null ? pointToString(point) : debugLine) + ")";
-          throw new IllegalArgumentException(errorMessage);
+          throw new IllegalArgumentException("Tag too long: " + tag.getKey() + "=" + tag.getValue());
         }
       }
     }
@@ -114,9 +96,7 @@ public class Validation {
       switch (validationLevel) {
         case NUMERIC_ONLY:
           if (!(pointValue instanceof Long) && !(pointValue instanceof Double) && !(pointValue instanceof Histogram)) {
-            String errorMessage = "WF-403 " + source + ": Was not long/double/histogram object (" +
-                (debugLine == null ? pointToString(point) : debugLine) + ")";
-            throw new IllegalArgumentException(errorMessage);
+            throw new IllegalArgumentException("WF-403 " + source + ": Was not long/double/histogram object");
           }
           break;
       }

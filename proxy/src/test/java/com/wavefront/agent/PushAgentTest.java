@@ -2,7 +2,10 @@ package com.wavefront.agent;
 
 import com.google.common.collect.ImmutableList;
 
-import org.easymock.EasyMock;
+import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -16,12 +19,18 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
 import javax.net.SocketFactory;
 
+import wavefront.report.Annotation;
+import wavefront.report.Histogram;
+import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
+import wavefront.report.ReportSourceTag;
+import wavefront.report.Span;
 
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
@@ -32,9 +41,21 @@ public class PushAgentTest {
   protected static final Logger logger = Logger.getLogger(PushAgentTest.class.getCanonicalName());
 
   private PushAgent proxy;
-  private long startTime = System.currentTimeMillis() / 1000;
+  private long startTime = System.currentTimeMillis() / 1000 / 60 * 60;
   private int port;
-  private PointHandler mockPointHandler = EasyMock.createMock(PointHandlerImpl.class);
+  private int tracePort;
+  private ReportableEntityHandler<ReportPoint> mockPointHandler =
+      MockReportableEntityHandlerFactory.getMockReportPointHandler();
+  private ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler =
+      MockReportableEntityHandlerFactory.getMockSourceTagHandler();
+  private ReportableEntityHandler<ReportPoint> mockHistogramHandler =
+      MockReportableEntityHandlerFactory.getMockHistogramHandler();
+  private ReportableEntityHandler<Span> mockTraceHandler =
+      MockReportableEntityHandlerFactory.getMockTraceHandler();
+  private ReportableEntityHandlerFactory mockHandlerFactory =
+      MockReportableEntityHandlerFactory.createMockHandlerFactory(mockPointHandler, mockSourceTagHandler,
+          mockHistogramHandler, mockTraceHandler);
+
 
   private static int findAvailablePort(int startingPortNumber) {
     int portNum = startingPortNumber;
@@ -45,7 +66,7 @@ public class PushAgentTest {
         socket.close();
         return portNum;
       } catch (IOException exc) {
-        // ignore
+        logger.log(Level.WARNING, "Port " + portNum + " is not available:", exc);
       }
       portNum++;
     }
@@ -55,12 +76,16 @@ public class PushAgentTest {
 
   @Before
   public void setup() throws Exception {
+
     port = findAvailablePort(2888);
+    tracePort = findAvailablePort(3888);
     proxy = new PushAgent();
     proxy.flushThreads = 2;
     proxy.retryThreads = 1;
     proxy.pushListenerPorts = String.valueOf(port);
-    proxy.startGraphiteListener(proxy.pushListenerPorts, mockPointHandler, false);
+    proxy.traceListenerPorts = String.valueOf(tracePort);
+    proxy.startGraphiteListener(proxy.pushListenerPorts, mockHandlerFactory, null);
+    proxy.startTraceListener(proxy.traceListenerPorts, mockHandlerFactory);
     TimeUnit.MILLISECONDS.sleep(500);
   }
 
@@ -68,11 +93,11 @@ public class PushAgentTest {
   @Test
   public void testWavefrontUnifiedPortHandlerPlaintextUncompressed() throws Exception {
     reset(mockPointHandler);
-    mockPointHandler.reportPoints(ImmutableList.of(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build()));
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
-    mockPointHandler.reportPoints(ImmutableList.of(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build()));
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
     expectLastCall();
     replay(mockPointHandler);
 
@@ -91,11 +116,11 @@ public class PushAgentTest {
   @Test
   public void testWavefrontUnifiedPortHandlerGzippedPlaintextStream() throws Exception {
     reset(mockPointHandler);
-    mockPointHandler.reportPoints(ImmutableList.of(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric2.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build()));
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric2.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
-    mockPointHandler.reportPoints(ImmutableList.of(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric2.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build()));
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric2.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
     expectLastCall();
     replay(mockPointHandler);
 
@@ -117,14 +142,14 @@ public class PushAgentTest {
   @Test
   public void testWavefrontUnifiedPortHandlerPlaintextOverHttp() throws Exception {
     reset(mockPointHandler);
-    mockPointHandler.reportPoints(ImmutableList.of(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric3.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build()));
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric3.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
-    mockPointHandler.reportPoints(ImmutableList.of(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric3.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build()));
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric3.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
     expectLastCall();
-    mockPointHandler.reportPoints(ImmutableList.of(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric3.test").setHost("test3").setTimestamp((startTime + 2) * 1000).setValue(2.0d).build()));
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric3.test").setHost("test3").setTimestamp((startTime + 2) * 1000).setValue(2.0d).build());
     expectLastCall();
     replay(mockPointHandler);
 
@@ -149,14 +174,14 @@ public class PushAgentTest {
   @Test
   public void testWavefrontUnifiedPortHandlerHttpGzipped() throws Exception {
     reset(mockPointHandler);
-    mockPointHandler.reportPoints(ImmutableList.of(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric4.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build()));
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
-    mockPointHandler.reportPoints(ImmutableList.of(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric4.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build()));
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
     expectLastCall();
-    mockPointHandler.reportPoints(ImmutableList.of(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric4.test").setHost("test3").setTimestamp((startTime + 2) * 1000).setValue(2.0d).build()));
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test3").setTimestamp((startTime + 2) * 1000).setValue(2.0d).build());
     expectLastCall();
     replay(mockPointHandler);
 
@@ -181,4 +206,103 @@ public class PushAgentTest {
     verify(mockPointHandler);
   }
 
+  // test that histograms received on Wavefront port get routed to the correct handler
+  @Test
+  public void testHistogramDataOnWavefrontUnifiedPortHandlerPlaintextUncompressed() throws Exception {
+    reset(mockHistogramHandler);
+    mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.histo").setHost("test1").setTimestamp(startTime * 1000).setValue(
+            Histogram.newBuilder()
+                .setType(HistogramType.TDIGEST)
+                .setDuration(60000)
+                .setBins(ImmutableList.of(10.0d, 100.0d))
+                .setCounts(ImmutableList.of(5, 10))
+                .build())
+        .build());
+    mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.histo").setHost("test2").setTimestamp((startTime + 60) * 1000).setValue(
+            Histogram.newBuilder()
+                .setType(HistogramType.TDIGEST)
+                .setDuration(60000)
+                .setBins(ImmutableList.of(20.0d, 30.0d, 40.0d))
+                .setCounts(ImmutableList.of(5, 6, 7))
+                .build())
+        .build());
+    expectLastCall();
+    replay(mockHistogramHandler);
+
+    Socket socket = SocketFactory.getDefault().createSocket("localhost", port);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    String payloadStr = "!M " + startTime + " #5 10.0 #10 100.0 metric.test.histo source=test1\n" +
+        "!M " + (startTime + 60) + " #5 20.0 #6 30.0 #7 40.0 metric.test.histo source=test2\n";
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+    TimeUnit.MILLISECONDS.sleep(500);
+    verify(mockHistogramHandler);
+  }
+
+  // test Wavefront port handler with mixed payload: metrics, histograms, source tags
+  @Test
+  public void testWavefrontUnifiedPortHandlerPlaintextUncompressedMixedDataPayload() throws Exception {
+    reset(mockHistogramHandler);
+    reset(mockPointHandler);
+    reset(mockSourceTagHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.mixed").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(10d).build());
+    mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.mixed").setHost("test1").setTimestamp(startTime * 1000).setValue(
+        Histogram.newBuilder()
+            .setType(HistogramType.TDIGEST)
+            .setDuration(60000)
+            .setBins(ImmutableList.of(10.0d, 100.0d))
+            .setCounts(ImmutableList.of(5, 10))
+            .build())
+        .build());
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.mixed").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(9d).build());
+    mockSourceTagHandler.report(ReportSourceTag.newBuilder().setSourceTagLiteral("SourceTag").setAction("save")
+        .setSource("testSource").setAnnotations(ImmutableList.of("newtag1", "newtag2")).setDescription("").build());
+    expectLastCall();
+    replay(mockPointHandler);
+    replay(mockHistogramHandler);
+
+    Socket socket = SocketFactory.getDefault().createSocket("localhost", port);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    String payloadStr = "metric.test.mixed 10.0 " + (startTime + 1) + " source=test2\n" +
+        "!M " + startTime + " #5 10.0 #10 100.0 metric.test.mixed source=test1\n" +
+        "@SourceTag action=save source=testSource newtag1 newtag2\n" +
+        "metric.test.mixed 9.0 " + (startTime + 1) + " source=test2\n";
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+    TimeUnit.MILLISECONDS.sleep(500);
+    verify(mockPointHandler);
+    verify(mockHistogramHandler);
+  }
+
+  @Test
+  public void testTraceUnifiedPortHandlerPlaintext() throws Exception {
+    reset(mockTraceHandler);
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000 * 1000)
+        .setDuration(1000 * 1000)
+        .setName("testSpanName")
+        .setSource("testsource")
+        .setSpanId("testspanid")
+        .setTraceId("testtraceid")
+        .setAnnotations(ImmutableList.of(new Annotation("parent", "parent1"), new Annotation("parent", "parent2")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler);
+
+    Socket socket = SocketFactory.getDefault().createSocket("localhost", tracePort);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    String payloadStr = "testSpanName parent=parent1 source=testsource spanId=testspanid traceId=testtraceid " +
+        "parent=parent2 " + startTime + " " + (startTime + 1) + "\n";
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+    TimeUnit.MILLISECONDS.sleep(500);
+    verify(mockTraceHandler);
+  }
 }
