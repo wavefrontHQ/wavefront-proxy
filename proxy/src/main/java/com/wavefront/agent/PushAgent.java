@@ -505,10 +505,18 @@ public class PushAgent extends AbstractAgent {
     histogramExecutor.scheduleWithFixedDelay(
         () -> {
           // warn if accumulator is more than 1.5x the original size, as ChronicleMap starts losing efficiency
-          if (accumulator.size() > accumulatorSize * 1.5) {
+          if (accumulator.size() > accumulatorSize * 5) {
+            logger.severe("Histogram " + listenerBinType + " accumulator size (" + accumulator.size() +
+                ") is more than 5x higher than currently configured size (" + accumulatorSize +
+                "), which may cause severe performance degradation issues or crashes! " +
+                "If the data volume is expected to stay at this level, we strongly recommend increasing the value " +
+                "for accumulator size in wavefront.conf and restarting the proxy.");
+          } else if (accumulator.size() > accumulatorSize * 2) {
             logger.warning("Histogram " + listenerBinType + " accumulator size (" + accumulator.size() +
-                ") is much higher than configured size (" + accumulatorSize +
-                "), proxy may experience performance issues or crash!");
+                ") is more than 2x higher than currently configured size (" + accumulatorSize +
+                "), which may cause performance issues. " +
+                "If the data volume is expected to stay at this level, we strongly recommend increasing the value " +
+                "for accumulator size in wavefront.conf and restarting the proxy.");
           }
         },
         10,

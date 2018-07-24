@@ -41,9 +41,11 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
 
   /**
    * Allow ChronicleMap to grow beyond initially allocated size instead of crashing. Since it makes the map a lot less
-   * efficient, we should log a warning if the actual number of elements exceeds the allocated
+   * efficient, we should log a warning if the actual number of elements exceeds the allocated.
+   * A bloat factor of 1000 is the highest possible value which we are going to use here, as we need to prevent
+   * crashes at all costs.
    */
-  private static final double MAX_BLOAT_FACTOR = 5;
+  private static final double MAX_BLOAT_FACTOR = 1000;
 
   private final Class<K> keyClass;
   private final Class<V> valueClass;
