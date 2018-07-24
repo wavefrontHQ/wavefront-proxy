@@ -1,6 +1,7 @@
 package com.wavefront.agent.histogram.accumulator;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.RateLimiter;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.CacheWriter;
@@ -40,8 +41,16 @@ public class AccumulationCache {
 
   private final Counter binCreatedCounter = Metrics.newCounter(
       new MetricName("histogram.accumulator", "", "bin_created"));
+  private final Counter flushedCounter = Metrics.newCounter(
+      new MetricName("histogram.accumulator.cache", "", "flushed"));
+  private final Counter cacheOverflowCounter = Metrics.newCounter(
+      new MetricName("histogram.accumulator.cache", "", "size_exceeded"));
+  private final Counter failureCounter = Metrics.newCounter(
+      new MetricName("histogram.accumulator", "", "failure"));
   private final Cache<HistogramKey, AgentDigest> cache;
   private final ConcurrentMap<HistogramKey, AgentDigest> backingStore;
+
+  private final RateLimiter failureMessageLimiter = RateLimiter.create(1);
 
   /**
    * In-memory index for dispatch timestamps to avoid iterating the backing store map, which is an expensive
@@ -85,21 +94,36 @@ public class AccumulationCache {
             if (value == null) {
               return;
             }
-            // flush out to backing store
-            backingStore.merge(key, value, (digestA, digestB) -> {
-              if (digestA != null && digestB != null) {
-                // Merge both digests
-                if (digestA.centroidCount() >= digestB.centroidCount()) {
-                  digestA.add(digestB);
-                  return digestA;
+            flushedCounter.inc();
+            if (cause == RemovalCause.SIZE) cacheOverflowCounter.inc();
+            try {
+              // flush out to backing store
+              backingStore.merge(key, value, (digestA, digestB) -> {
+                if (digestA != null && digestB != null) {
+                  // Merge both digests
+                  if (digestA.centroidCount() >= digestB.centroidCount()) {
+                    digestA.add(digestB);
+                    return digestA;
+                  } else {
+                    digestB.add(digestA);
+                    return digestB;
+                  }
                 } else {
-                  digestB.add(digestA);
-                  return digestB;
+                  return (digestB == null ? digestA : digestB);
+                }
+              });
+            } catch (IllegalStateException e) {
+              if (e.getMessage().contains("Attempt to allocate")) {
+                failureCounter.inc();
+                if (failureMessageLimiter.tryAcquire()) {
+                  logger.severe("CRITICAL: Histogram accumulator overflow - losing histogram data!!! " +
+                      "Accumulator size configuration setting is not appropriate for workload, please increase " +
+                      "the value as appropriate and restart the proxy!");
                 }
               } else {
-                return (digestB == null ? digestA : digestB);
+                throw e;
               }
-            });
+            }
           }
         }).build();
   }

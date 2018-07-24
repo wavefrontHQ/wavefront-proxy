@@ -508,7 +508,7 @@ public class PushAgent extends AbstractAgent {
           if (accumulator.size() > accumulatorSize * 5) {
             logger.severe("Histogram " + listenerBinType + " accumulator size (" + accumulator.size() +
                 ") is more than 5x higher than currently configured size (" + accumulatorSize +
-                "), which may cause severe performance degradation issues or crashes! " +
+                "), which may cause severe performance degradation issues or data loss! " +
                 "If the data volume is expected to stay at this level, we strongly recommend increasing the value " +
                 "for accumulator size in wavefront.conf and restarting the proxy.");
           } else if (accumulator.size() > accumulatorSize * 2) {
