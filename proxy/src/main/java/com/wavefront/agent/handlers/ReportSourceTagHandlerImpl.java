@@ -37,7 +37,7 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
     this.deliveredCounter = Metrics.newCounter(new MetricName("sourceTags." + handle, "", "delivered"));
 
     statisticOutputExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
-    statisticOutputExecutor.scheduleAtFixedRate(this::printTotal, 10, 10, TimeUnit.SECONDS);
+    statisticOutputExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
   }
 
   @Override
@@ -62,8 +62,8 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
   }
 
   private void printStats() {
-    logger.info("[" + this.handle + "] sourceTags received rate: " + Math.round(receivedMeter.oneMinuteRate()) +
-        " pps (1 min), " + Math.round(receivedMeter.fiveMinuteRate()) + " pps (5 min), " +
+    logger.info("[" + this.handle + "] sourceTags received rate: " + getReceivedOneMinuteRate() +
+        " pps (1 min), " + getReceivedFiveMinuteRate() + " pps (5 min), " +
         this.receivedBurstRateCurrent + " pps (current).");
   }
 

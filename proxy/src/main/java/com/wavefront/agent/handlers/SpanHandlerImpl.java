@@ -77,7 +77,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
       validTracesLogger.info(strSpan);
     }
     getTask().add(strSpan);
-    receivedMeter.mark();
     receivedCounter.inc();
   }
 
@@ -95,8 +94,8 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
   }
 
   private void printStats() {
-    logger.info("[" + this.handle + "] Traces received rate: " + Math.round(receivedMeter.oneMinuteRate()) +
-        " tps (1 min), " + Math.round(receivedMeter.fiveMinuteRate()) + " tps (5 min), " +
+    logger.info("[" + this.handle + "] Traces received rate: " + getReceivedOneMinuteRate() +
+        " tps (1 min), " + getReceivedFiveMinuteRate() + " tps (5 min), " +
         this.receivedBurstRateCurrent + " tps (current).");
   }
 

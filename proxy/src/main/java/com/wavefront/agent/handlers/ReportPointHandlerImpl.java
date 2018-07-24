@@ -90,7 +90,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       validPointsLogger.info(strPoint);
     }
     getTask().add(strPoint);
-    receivedMeter.mark();
     receivedCounter.inc();
     receivedPointLag.update(Clock.now() - point.getTimestamp());
   }
@@ -109,8 +108,8 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   }
 
   private void printStats() {
-    logger.info("[" + this.handle + "] Points received rate: " + Math.round(receivedMeter.oneMinuteRate()) +
-        " pps (1 min), " + Math.round(receivedMeter.fiveMinuteRate()) + " pps (5 min), " +
+    logger.info("[" + this.handle + "] Points received rate: " + this.getReceivedOneMinuteRate() +
+        " pps (1 min), " + getReceivedFiveMinuteRate() + " pps (5 min), " +
         this.receivedBurstRateCurrent + " pps (current).");
   }
 

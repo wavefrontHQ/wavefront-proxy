@@ -14,6 +14,7 @@ import com.yammer.metrics.core.MetricName;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,7 +54,7 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   final Function<T, String> serializer;
   List<SenderTask<T>> senderTasks;
 
-  final Meter receivedMeter;
+  final ArrayList<Long> receivedStats = new ArrayList<>(Collections.nCopies(300, 0L));
   private final Histogram receivedBurstRateHistogram;
   private long receivedPrevious;
   long receivedBurstRateCurrent;
@@ -97,8 +98,6 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
     for (SenderTask task : senderTasks) {
       this.senderTasks.add((SenderTask<T>) task);
     }
-    this.receivedMeter = metricsRegistry.newMeter(AbstractReportableEntityHandler.class,
-        "received-" + strEntityType + "." + handle, strEntityType, TimeUnit.SECONDS);
     this.receivedBurstRateHistogram = metricsRegistry.newHistogram(AbstractReportableEntityHandler.class,
         "received-" + strEntityType + ".burst-rate." + handle);
     Metrics.newGauge(new MetricName(strEntityType + "." + handle + ".received", "",
@@ -118,6 +117,8 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
       this.receivedBurstRateCurrent = received - this.receivedPrevious;
       this.receivedBurstRateHistogram.update(this.receivedBurstRateCurrent);
       this.receivedPrevious = received;
+      receivedStats.remove(0);
+      receivedStats.add(this.receivedBurstRateCurrent);
     }, 1, 1, TimeUnit.SECONDS);
   }
 
@@ -191,6 +192,14 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   }
 
   abstract void reportInternal(T item);
+
+  protected long getReceivedOneMinuteRate() {
+    return receivedStats.subList(240, 300).stream().mapToLong(i -> i).sum() / 60;
+  }
+
+  protected long getReceivedFiveMinuteRate() {
+    return receivedStats.stream().mapToLong(i -> i).sum() / 300;
+  }
 
   protected SenderTask getTask() {
     return senderTasks.get((int)(roundRobinCounter.getAndIncrement() % senderTasks.size()));
