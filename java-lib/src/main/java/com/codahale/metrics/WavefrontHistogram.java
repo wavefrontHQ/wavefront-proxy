@@ -94,22 +94,16 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   @Override
-  public void update(int value) { update((double) value); }
+  public void update(int value) {
+    update((double) value);
+  }
 
   /**
    * Helper to retrieve the current bin. Will be invoked per thread.
    */
   private MinuteBin getCurrent() {
     long key = Thread.currentThread().getId();
-    LinkedList<MinuteBin> bins = perThreadHistogramBins.get(key);
-    if (bins == null) {
-      bins = new LinkedList<>();
-      LinkedList<MinuteBin> existing = perThreadHistogramBins.putIfAbsent(key, bins);
-      if (existing != null) {
-        bins = existing;
-      }
-    }
-
+    LinkedList<MinuteBin> bins = perThreadHistogramBins.computeIfAbsent(key, k -> new LinkedList<>());
     long currMinuteMillis = currMinuteMillis();
 
     // bins with clear == true flag will drain (CONSUMER) the list,
@@ -141,10 +135,14 @@ public class WavefrontHistogram extends Histogram implements Metric {
     }
   }
 
-  public void update(double value) { getCurrent().getDist().add(value); }
+  public void update(double value) {
+    getCurrent().getDist().add(value);
+  }
 
   @Override
-  public void update(long value) { update((double)value); }
+  public void update(long value) {
+    update((double)value);
+  }
 
   @Override
   public long getCount() {
