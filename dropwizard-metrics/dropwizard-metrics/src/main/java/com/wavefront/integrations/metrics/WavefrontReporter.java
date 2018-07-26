@@ -1,27 +1,20 @@
 package com.wavefront.integrations.metrics;
 
+import com.codahale.metrics.*;
+import com.codahale.metrics.Timer;
 import com.google.common.base.Preconditions;
 
-import com.codahale.metrics.Clock;
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.DeltaCounter;
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Metered;
-import com.codahale.metrics.MetricAttribute;
-import com.codahale.metrics.MetricFilter;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.ScheduledReporter;
-import com.codahale.metrics.Snapshot;
-import com.codahale.metrics.Timer;
 import com.codahale.metrics.jvm.BufferPoolMetricSet;
 import com.codahale.metrics.jvm.ClassLoadingGaugeSet;
 import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.SafeFileDescriptorRatioGauge;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
+import com.tdunning.math.stats.Centroid;
+import com.wavefront.common.HistogramGranularity;
 import com.wavefront.common.MetricConstants;
+import com.wavefront.common.MinuteBin;
+import com.wavefront.common.Pair;
 import com.wavefront.integrations.Wavefront;
 import com.wavefront.integrations.WavefrontDirectSender;
 import com.wavefront.integrations.WavefrontSender;
@@ -33,11 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -77,6 +66,7 @@ public class WavefrontReporter extends ScheduledReporter {
     private Map<String, String> pointTags;
     private boolean includeJvmMetrics;
     private Set<MetricAttribute> disabledMetricAttributes;
+    private HistogramGranularity histogramGranularity;
 
     private Builder(MetricRegistry registry) {
       this.registry = registry;
@@ -89,6 +79,7 @@ public class WavefrontReporter extends ScheduledReporter {
       this.pointTags = new HashMap<>();
       this.includeJvmMetrics = false;
       this.disabledMetricAttributes = Collections.emptySet();
+      this.histogramGranularity = HistogramGranularity.MINUTE;
     }
 
     /**
@@ -213,6 +204,11 @@ public class WavefrontReporter extends ScheduledReporter {
       return this;
     }
 
+    public Builder withHistogramGranularity(HistogramGranularity histogramGranularity) {
+      this.histogramGranularity = histogramGranularity;
+      return this;
+    }
+
     /**
      * Builds a {@link WavefrontReporter} from the VCAP_SERVICES env variable, sending metrics
      * using the given {@link WavefrontSender}. This should be used in PCF environment only. It
@@ -299,7 +295,8 @@ public class WavefrontReporter extends ScheduledReporter {
           durationUnit,
           filter,
           includeJvmMetrics,
-          disabledMetricAttributes);
+          disabledMetricAttributes,
+          histogramGranularity);
     }
 
     /**
@@ -313,7 +310,7 @@ public class WavefrontReporter extends ScheduledReporter {
     public WavefrontReporter buildDirect(String server, String token) {
       WavefrontSender wavefrontSender = new WavefrontDirectSender(server, token);
       return new WavefrontReporter(registry, wavefrontSender, clock, prefix, source, pointTags, rateUnit,
-          durationUnit, filter, includeJvmMetrics, disabledMetricAttributes);
+          durationUnit, filter, includeJvmMetrics, disabledMetricAttributes, histogramGranularity);
     }
 
     /**
@@ -336,7 +333,8 @@ public class WavefrontReporter extends ScheduledReporter {
           durationUnit,
           filter,
           includeJvmMetrics,
-          disabledMetricAttributes);
+          disabledMetricAttributes,
+          histogramGranularity);
     }
 
   /**
@@ -357,7 +355,8 @@ public class WavefrontReporter extends ScheduledReporter {
             durationUnit,
             filter,
             includeJvmMetrics,
-            disabledMetricAttributes);
+            disabledMetricAttributes,
+            histogramGranularity);
   }
 }
 
@@ -366,6 +365,7 @@ public class WavefrontReporter extends ScheduledReporter {
   private final String prefix;
   private final String source;
   private final Map<String, String> pointTags;
+  private final HistogramGranularity histogramGranularity;
 
   private WavefrontReporter(MetricRegistry registry,
                             WavefrontSender wavefrontSender,
@@ -377,7 +377,8 @@ public class WavefrontReporter extends ScheduledReporter {
                             TimeUnit durationUnit,
                             MetricFilter filter,
                             boolean includeJvmMetrics,
-                            Set<MetricAttribute> disabledMetricAttributes) {
+                            Set<MetricAttribute> disabledMetricAttributes,
+                            HistogramGranularity histogramGranularity) {
     super(registry, "wavefront-reporter", filter, rateUnit, durationUnit, Executors.newSingleThreadScheduledExecutor(),
         true, disabledMetricAttributes == null ? Collections.emptySet() : disabledMetricAttributes);
     this.wavefront = wavefrontSender;
@@ -385,6 +386,7 @@ public class WavefrontReporter extends ScheduledReporter {
     this.prefix = prefix;
     this.source = source;
     this.pointTags = pointTags;
+    this.histogramGranularity = histogramGranularity;
 
     if (includeJvmMetrics) {
       registry.register("jvm.uptime", (Gauge<Long>) () -> ManagementFactory.getRuntimeMXBean().getUptime());
@@ -409,9 +411,10 @@ public class WavefrontReporter extends ScheduledReporter {
                             TimeUnit durationUnit,
                             MetricFilter filter,
                             boolean includeJvmMetrics,
-                            Set<MetricAttribute> disabledMetricAttributes) {
+                            Set<MetricAttribute> disabledMetricAttributes,
+                            HistogramGranularity histogramGranularity) {
     this(registry, new Wavefront(proxyHostname, proxyPort), clock, prefix, source, pointTags, rateUnit,
-        durationUnit, filter, includeJvmMetrics, disabledMetricAttributes);
+        durationUnit, filter, includeJvmMetrics, disabledMetricAttributes, histogramGranularity);
   }
 
   @Override
@@ -499,19 +502,34 @@ public class WavefrontReporter extends ScheduledReporter {
   }
 
   private void reportHistogram(String name, Histogram histogram) throws IOException {
-    final Snapshot snapshot = histogram.getSnapshot();
-    final long time = clock.getTime() / 1000;
-    sendIfEnabled(MetricAttribute.COUNT, name, histogram.getCount(), time);
-    sendIfEnabled(MetricAttribute.MAX, name, snapshot.getMax(), time);
-    sendIfEnabled(MetricAttribute.MEAN, name, snapshot.getMean(), time);
-    sendIfEnabled(MetricAttribute.MIN, name, snapshot.getMin(), time);
-    sendIfEnabled(MetricAttribute.STDDEV, name, snapshot.getStdDev(), time);
-    sendIfEnabled(MetricAttribute.P50, name, snapshot.getMedian(), time);
-    sendIfEnabled(MetricAttribute.P75, name, snapshot.get75thPercentile(), time);
-    sendIfEnabled(MetricAttribute.P95, name, snapshot.get95thPercentile(), time);
-    sendIfEnabled(MetricAttribute.P98, name, snapshot.get98thPercentile(), time);
-    sendIfEnabled(MetricAttribute.P99, name, snapshot.get99thPercentile(), time);
-    sendIfEnabled(MetricAttribute.P999, name, snapshot.get999thPercentile(), time);
+    if (histogram instanceof WavefrontHistogram) {
+      // for (Dropwizard Metrics) WavefrontHistogram, report the distribution
+      WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
+      List<MinuteBin> bins = wavefrontHistogram.bins(true);
+      if (bins.isEmpty()) return; // don't send empty histograms
+      for (MinuteBin minuteBin : bins) {
+        List<Pair<Double, Integer>> distribution = new ArrayList<>();
+        for (Centroid c : minuteBin.getDist().centroids()) {
+          distribution.add(new Pair<>(c.mean(), c.count()));
+        }
+        wavefront.send(histogramGranularity, minuteBin.getMinuteMillis() / 1000,
+            distribution, prefixAndSanitize(name), source, pointTags);
+      }
+    } else {
+      final Snapshot snapshot = histogram.getSnapshot();
+      final long time = clock.getTime() / 1000;
+      sendIfEnabled(MetricAttribute.COUNT, name, histogram.getCount(), time);
+      sendIfEnabled(MetricAttribute.MAX, name, snapshot.getMax(), time);
+      sendIfEnabled(MetricAttribute.MEAN, name, snapshot.getMean(), time);
+      sendIfEnabled(MetricAttribute.MIN, name, snapshot.getMin(), time);
+      sendIfEnabled(MetricAttribute.STDDEV, name, snapshot.getStdDev(), time);
+      sendIfEnabled(MetricAttribute.P50, name, snapshot.getMedian(), time);
+      sendIfEnabled(MetricAttribute.P75, name, snapshot.get75thPercentile(), time);
+      sendIfEnabled(MetricAttribute.P95, name, snapshot.get95thPercentile(), time);
+      sendIfEnabled(MetricAttribute.P98, name, snapshot.get98thPercentile(), time);
+      sendIfEnabled(MetricAttribute.P99, name, snapshot.get99thPercentile(), time);
+      sendIfEnabled(MetricAttribute.P999, name, snapshot.get999thPercentile(), time);
+    }
   }
 
   private void reportCounter(String name, Counter counter) throws IOException {
