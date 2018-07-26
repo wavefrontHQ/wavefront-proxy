@@ -23,6 +23,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.TooLongFrameException;
+import io.netty.handler.codec.compression.DecompressionException;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -102,6 +103,11 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
     if (cause instanceof TooLongFrameException) {
       logWarning("Received line is too long, consider increasing pushListenerMaxReceivedLength", cause, ctx);
+    }
+    if (cause instanceof DecompressionException) {
+      logWarning("Decompression error", cause, ctx);
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Decompression error: " + cause.getMessage(), false);
+      return;
     }
     if (cause instanceof IOException && cause.getMessage().contains("Connection reset by peer")) {
       // These errors are caused by the client and are safe to ignore
