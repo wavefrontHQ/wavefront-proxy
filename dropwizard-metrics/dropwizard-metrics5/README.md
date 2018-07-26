@@ -2,11 +2,11 @@
 
 This is a Wavefront Reporter for the Stable (5.0.0-rc2) version of [Dropwizard Metrics](https://dropwizard.github.io) (formerly Coda Hale & Yammer Metrics).
 
-It sends data to the Wavefront service via a proxy and supports point tags being assigned at the Reporter level.
+It sends data to the Wavefront service via proxy or direct ingestion and supports point tags being assigned at the Reporter level as well as at the individual metric level.
 
 ## Usage
 
-This Reporter sends data to Wavefront via a proxy. Version 3.5 or later is required. You can easily install the proxy by following [these instructions](https://docs.wavefront.com/proxies_installing.html).
+This Reporter sends data to Wavefront via proxy or direct ingestion. Version 3.5 or later is required. You can easily install the proxy by following [these instructions](https://docs.wavefront.com/proxies_installing.html).
 
 To use the Reporter you'll need to know the hostname and port (which by default is 2878) where the Wavefront proxy is running.
 
@@ -38,7 +38,7 @@ You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wave
 
 The Wavefront Reporter lets you use DropWizard metrics exactly as you normally would. See its [getting started guide](https://dropwizard.github.io/metrics/3.1.0/getting-started/) if you haven't used it before.
 
-It simply gives you a new Reporter that will seamlessly work with Wavefront. First `import com.wavefront.integrations.metrics.WavefrontDropwizardReporter;`
+It simply gives you a new Reporter that will seamlessly work with Wavefront. First `import com.wavefront.integrations.metrics5.WavefrontReporter;`
 
 Then for example to create a Reporter which will emit data every 10 seconds for:
 
@@ -46,11 +46,19 @@ Then for example to create a Reporter which will emit data every 10 seconds for:
 - A Wavefront proxy on `localhost` at port `2878`
 - Data that should appear in Wavefront as `source=app-1.company.com`
 - Two point tags named `dc` and `service`
+- Two metric level point tags named `pointTag1` and `pointTag2`
 
 you would do something like this:
 
 ```java
-WavefrontDropwizardReporter reporter = WavefrontDropwizardReporter.forRegistry(metrics)
+MetricRegistry registry = new MetricRegistry();
+HashMap<String, String> tags = new HashMap<>();
+tags.put("pointTag1", "ptag1");
+tags.put("pointTag2", "ptag2");
+MetricName counterMetric = new MetricName("proxy.foo.bar", tags);
+// Register the counter with the metric registry
+Counter counter = registry.counter(counterMetric);
+WavefrontReporter reporter = WavefrontReporter.forRegistry(metrics)
         .withSource("app-1.company.com")
     	.withPointTag("dc", "dallas")
     	.withPointTag("service", "query")
