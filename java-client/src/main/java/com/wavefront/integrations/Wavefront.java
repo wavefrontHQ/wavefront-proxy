@@ -1,10 +1,14 @@
 package com.wavefront.integrations;
 
+import com.wavefront.common.HistogramGranularity;
+import com.wavefront.common.Pair;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
@@ -109,6 +113,33 @@ public class Wavefront extends AbstractProxyConnectionHandler implements Wavefro
     internalSend(name, value, timestamp, source, pointTags);
   }
 
+  @Override
+  public void send(HistogramGranularity histogramGranularity, List<Pair<Double, Integer>> distribution, String name) throws IOException {
+    internalSend(histogramGranularity, null, distribution, name, source, null);
+  }
+
+  @Override
+  public void send(HistogramGranularity histogramGranularity, @Nullable Long timestamp, List<Pair<Double, Integer>> distribution, String name) throws IOException {
+    internalSend(histogramGranularity, timestamp, distribution, name, source, null);
+  }
+
+  @Override
+  public void send(HistogramGranularity histogramGranularity, @Nullable Long timestamp, List<Pair<Double, Integer>> distribution, String name, String source) throws IOException {
+    internalSend(histogramGranularity, timestamp, distribution, name, source, null);
+  }
+
+  @Override
+  public void send(HistogramGranularity histogramGranularity, List<Pair<Double, Integer>> distribution, String name, String source, @Nullable Map<String, String> pointTags) throws IOException {
+    internalSend(histogramGranularity, null, distribution, name, source, pointTags);
+  }
+
+  @Override
+  public void send(HistogramGranularity histogramGranularity, @Nullable Long timestamp,
+                   List<Pair<Double, Integer>> distribution, String name, String source,
+                   @Nullable Map<String, String> pointTags) throws IOException {
+    internalSend(histogramGranularity, timestamp, distribution, name, source, pointTags);
+  }
+
   private void internalSend(String name, double value, @Nullable Long timestamp, String source,
                             @Nullable Map<String, String> pointTags) throws IOException {
     if (!isConnected()) {
@@ -135,20 +166,7 @@ public class Wavefront extends AbstractProxyConnectionHandler implements Wavefro
       }
       sb.append(" host=");
       sb.append(sanitize(source));
-      if (pointTags != null) {
-        for (final Map.Entry<String, String> tag : pointTags.entrySet()) {
-          if (isBlank(tag.getKey())) {
-            throw new IllegalArgumentException("point tag key cannot be blank");
-          }
-          if (isBlank(tag.getValue())) {
-            throw new IllegalArgumentException("point tag value cannot be blank");
-          }
-          sb.append(' ');
-          sb.append(sanitize(tag.getKey()));
-          sb.append('=');
-          sb.append(sanitize(tag.getValue()));
-        }
-      }
+      sb.append(pointTagsToString(pointTags));
       sb.append('\n');
       try {
         sendData(sb.toString());
@@ -159,6 +177,83 @@ public class Wavefront extends AbstractProxyConnectionHandler implements Wavefro
       failures.incrementAndGet();
       throw e;
     }
+  }
+
+  private void internalSend(HistogramGranularity histogramGranularity, @Nullable Long timestamp,
+                            List<Pair<Double, Integer>> distribution, String name, String source,
+                            @Nullable Map<String, String> pointTags) throws IOException {
+    if (distribution == null || distribution.isEmpty()) {
+      return; // don't send if distribution is empty
+    }
+    if (!isConnected()) {
+      try {
+        connect();
+      } catch (IllegalStateException ex) {
+        // already connected.
+      }
+    }
+    if (histogramGranularity == null) {
+      throw new IllegalArgumentException("histogram granularity cannot be null");
+    }
+    if (isBlank(name)) {
+      throw new IllegalArgumentException("metric name cannot be blank");
+    }
+    if (isBlank(source)) {
+      throw new IllegalArgumentException("source cannot be blank");
+    }
+    final StringBuilder sb = new StringBuilder();
+    try {
+      sb.append(histogramGranularity.identifier);
+      if (timestamp != null) {
+        sb.append(" ").append(Long.toString(timestamp));
+      }
+      for (Pair<Double, Integer> pair : distribution) {
+        if (pair == null) {
+          throw new IllegalArgumentException("distribution pair cannot be null");
+        }
+        if (pair._1 == null) {
+          throw new IllegalArgumentException("distribution value cannot be null");
+        }
+        if (pair._2 == null) {
+          throw new IllegalArgumentException("distribution count cannot be null");
+        }
+        if (pair._2 <= 0) {
+          throw new IllegalArgumentException("distribution count cannot be less than 1");
+        }
+        sb.append(" #").append(Integer.toString(pair._2)).append(" ").append(Double.toString(pair._1));
+      }
+      sb.append(" ").append(sanitize(name));
+      sb.append(" host=").append(sanitize(source));
+      sb.append(pointTagsToString(pointTags));
+      sb.append('\n');
+      try {
+        sendData(sb.toString());
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
+    } catch (IOException e) {
+      failures.incrementAndGet();
+      throw e;
+    }
+  }
+
+  private String pointTagsToString(Map<String, String> pointTags) {
+    StringBuilder sb = new StringBuilder();
+    if (pointTags != null) {
+      for (final Map.Entry<String, String> tag : pointTags.entrySet()) {
+        if (isBlank(tag.getKey())) {
+          throw new IllegalArgumentException("point tag key cannot be blank");
+        }
+        if (isBlank(tag.getValue())) {
+          throw new IllegalArgumentException("point tag value cannot be blank");
+        }
+        sb.append(' ');
+        sb.append(sanitize(tag.getKey()));
+        sb.append('=');
+        sb.append(sanitize(tag.getValue()));
+      }
+    }
+    return sb.toString();
   }
 
   @Override
