@@ -1,7 +1,19 @@
 package com.wavefront.integrations.metrics;
 
-import com.codahale.metrics.*;
+import com.codahale.metrics.Clock;
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.DeltaCounter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metered;
+import com.codahale.metrics.MetricAttribute;
+import com.codahale.metrics.MetricFilter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.ScheduledReporter;
+import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
+import com.codahale.metrics.WavefrontHistogram;
 import com.google.common.base.Preconditions;
 
 import com.codahale.metrics.jvm.BufferPoolMetricSet;
@@ -26,7 +38,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -66,7 +85,7 @@ public class WavefrontReporter extends ScheduledReporter {
     private Map<String, String> pointTags;
     private boolean includeJvmMetrics;
     private Set<MetricAttribute> disabledMetricAttributes;
-    private HistogramGranularity histogramGranularity;
+    private final Set<HistogramGranularity> histogramGranularities;
 
     private Builder(MetricRegistry registry) {
       this.registry = registry;
@@ -79,7 +98,7 @@ public class WavefrontReporter extends ScheduledReporter {
       this.pointTags = new HashMap<>();
       this.includeJvmMetrics = false;
       this.disabledMetricAttributes = Collections.emptySet();
-      this.histogramGranularity = HistogramGranularity.MINUTE;
+      this.histogramGranularities = new HashSet<>();
     }
 
     /**
@@ -204,8 +223,33 @@ public class WavefrontReporter extends ScheduledReporter {
       return this;
     }
 
-    public Builder withHistogramGranularity(HistogramGranularity histogramGranularity) {
-      this.histogramGranularity = histogramGranularity;
+    /**
+     * Report histogram distributions aggregated into minute intervals
+     *
+     * @return {@code this}
+     */
+    public Builder reportMinuteDistribution() {
+      this.histogramGranularities.add(HistogramGranularity.MINUTE);
+      return this;
+    }
+
+    /**
+     * Report histogram distributions aggregated into hour intervals
+     *
+     * @return {@code this}
+     */
+    public Builder reportHourDistribution() {
+      this.histogramGranularities.add(HistogramGranularity.HOUR);
+      return this;
+    }
+
+    /**
+     * Report histogram distributions aggregated into day intervals
+     *
+     * @return {@code this}
+     */
+    public Builder reportDayDistribution() {
+      this.histogramGranularities.add(HistogramGranularity.DAY);
       return this;
     }
 
@@ -248,7 +292,7 @@ public class WavefrontReporter extends ScheduledReporter {
       Preconditions.checkNotNull(proxyServiceName, "proxyServiceName arg should not be null");
 
       String proxyHostname;
-      int proxyPort;
+      int proxyMetricsPort;
       // read the env variable VCAP_SERVICES
       String services = System.getenv("VCAP_SERVICES");
       if (services == null || services.length() == 0) {
@@ -259,7 +303,7 @@ public class WavefrontReporter extends ScheduledReporter {
               "to wavefront proxy.");
           // since the wavefront-proxy is not tied to the app, use dummy hostname and port.
           proxyHostname = "";
-          proxyPort = 2878;
+          proxyMetricsPort = 2878;
         }
       } else {
         // parse the json to read the hostname and port
@@ -275,18 +319,18 @@ public class WavefrontReporter extends ScheduledReporter {
                 "metrics will be reported to wavefront proxy.");
             // since the wavefront-proxy is not tied to the app, use dummy hostname and port.
             proxyHostname = "";
-            proxyPort = 2878;
+            proxyMetricsPort = 2878;
           }
         } else {
           JSONObject details = jsonArray.getJSONObject(0);
           JSONObject credentials = details.getJSONObject("credentials");
           proxyHostname = credentials.getString("hostname");
-          proxyPort = credentials.getInt("port");
+          proxyMetricsPort = credentials.getInt("port");
         }
       }
       return new WavefrontReporter(registry,
           proxyHostname,
-          proxyPort,
+          proxyMetricsPort,
           clock,
           prefix,
           source,
@@ -296,7 +340,7 @@ public class WavefrontReporter extends ScheduledReporter {
           filter,
           includeJvmMetrics,
           disabledMetricAttributes,
-          histogramGranularity);
+          histogramGranularities);
     }
 
     /**
@@ -310,21 +354,21 @@ public class WavefrontReporter extends ScheduledReporter {
     public WavefrontReporter buildDirect(String server, String token) {
       WavefrontSender wavefrontSender = new WavefrontDirectSender(server, token);
       return new WavefrontReporter(registry, wavefrontSender, clock, prefix, source, pointTags, rateUnit,
-          durationUnit, filter, includeJvmMetrics, disabledMetricAttributes, histogramGranularity);
+          durationUnit, filter, includeJvmMetrics, disabledMetricAttributes, histogramGranularities);
     }
 
     /**
      * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
      * {@link WavefrontSender}.
      *
-     * @param proxyHostname Wavefront Proxy hostname.
-     * @param proxyPort     Wavefront Proxy port.
+     * @param proxyHostname     Wavefront Proxy hostname.
+     * @param proxyMetricsPort  Wavefront Proxy port for receiving metrics.
      * @return a {@link WavefrontReporter}
      */
-    public WavefrontReporter build(String proxyHostname, int proxyPort) {
+    public WavefrontReporter build(String proxyHostname, int proxyMetricsPort) {
       return new WavefrontReporter(registry,
           proxyHostname,
-          proxyPort,
+          proxyMetricsPort,
           clock,
           prefix,
           source,
@@ -334,38 +378,68 @@ public class WavefrontReporter extends ScheduledReporter {
           filter,
           includeJvmMetrics,
           disabledMetricAttributes,
-          histogramGranularity);
+          histogramGranularities);
     }
 
-  /**
-   * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
-   * {@link WavefrontSender}.
-   *
-   * @param Wavefront a {@link WavefrontSender}.
-   * @return a {@link WavefrontReporter}
-   */
-  public WavefrontReporter build(WavefrontSender wavefrontSender) {
-    return new WavefrontReporter(registry,
-            wavefrontSender,
-            clock,
-            prefix,
-            source,
-            pointTags,
-            rateUnit,
-            durationUnit,
-            filter,
-            includeJvmMetrics,
-            disabledMetricAttributes,
-            histogramGranularity);
+    /**
+     * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
+     * {@link WavefrontSender}.
+     *
+     * @param proxyHostname         Wavefront Proxy hostname.
+     * @param proxyMetricsPort      Wavefront Proxy port for receiving metrics.
+     * @param proxyDistributionPort Wavefront Proxy port for receiving histogram distributions.
+     * @return a {@link WavefrontReporter}
+     */
+    public WavefrontReporter build(String proxyHostname, int proxyMetricsPort, int proxyDistributionPort) {
+      return new WavefrontReporter(registry,
+          proxyHostname,
+          proxyMetricsPort,
+          proxyDistributionPort,
+          clock,
+          prefix,
+          source,
+          pointTags,
+          rateUnit,
+          durationUnit,
+          filter,
+          includeJvmMetrics,
+          disabledMetricAttributes,
+          histogramGranularities);
+    }
+
+    /**
+     * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
+     * {@link WavefrontSender}.
+     *
+     * @param wavefrontSender   {@link WavefrontSender}.
+     * @return a {@link WavefrontReporter}
+     */
+    public WavefrontReporter build(WavefrontSender wavefrontSender) {
+      return new WavefrontReporter(registry,
+              wavefrontSender,
+              clock,
+              prefix,
+              source,
+              pointTags,
+              rateUnit,
+              durationUnit,
+              filter,
+              includeJvmMetrics,
+              disabledMetricAttributes,
+              histogramGranularities);
+    }
   }
-}
 
   private final WavefrontSender wavefront;
   private final Clock clock;
   private final String prefix;
   private final String source;
   private final Map<String, String> pointTags;
-  private final HistogramGranularity histogramGranularity;
+  private final Set<HistogramGranularity> histogramGranularities;
+
+  // indicates whether or not histogram distributions can be reported
+  // true if (a) reporting directly or (b) reporting to proxy and a histogram port has been provided
+  private final boolean reportWavefrontHistogram;
 
   private WavefrontReporter(MetricRegistry registry,
                             WavefrontSender wavefrontSender,
@@ -378,7 +452,7 @@ public class WavefrontReporter extends ScheduledReporter {
                             MetricFilter filter,
                             boolean includeJvmMetrics,
                             Set<MetricAttribute> disabledMetricAttributes,
-                            HistogramGranularity histogramGranularity) {
+                            Set<HistogramGranularity> histogramGranularities) {
     super(registry, "wavefront-reporter", filter, rateUnit, durationUnit, Executors.newSingleThreadScheduledExecutor(),
         true, disabledMetricAttributes == null ? Collections.emptySet() : disabledMetricAttributes);
     this.wavefront = wavefrontSender;
@@ -386,7 +460,15 @@ public class WavefrontReporter extends ScheduledReporter {
     this.prefix = prefix;
     this.source = source;
     this.pointTags = pointTags;
-    this.histogramGranularity = histogramGranularity;
+    this.histogramGranularities = histogramGranularities;
+
+    if (wavefrontSender instanceof WavefrontDirectSender) {
+      this.reportWavefrontHistogram = true;
+    } else if (wavefrontSender instanceof Wavefront && ((Wavefront) wavefrontSender).canHandleDistributions()) {
+      this.reportWavefrontHistogram = true;
+    } else {
+      this.reportWavefrontHistogram = false;
+    }
 
     if (includeJvmMetrics) {
       registry.register("jvm.uptime", (Gauge<Long>) () -> ManagementFactory.getRuntimeMXBean().getUptime());
@@ -402,7 +484,7 @@ public class WavefrontReporter extends ScheduledReporter {
 
   private WavefrontReporter(MetricRegistry registry,
                             String proxyHostname,
-                            int proxyPort,
+                            int proxyMetricsPort,
                             final Clock clock,
                             String prefix,
                             String source,
@@ -412,9 +494,27 @@ public class WavefrontReporter extends ScheduledReporter {
                             MetricFilter filter,
                             boolean includeJvmMetrics,
                             Set<MetricAttribute> disabledMetricAttributes,
-                            HistogramGranularity histogramGranularity) {
-    this(registry, new Wavefront(proxyHostname, proxyPort), clock, prefix, source, pointTags, rateUnit,
-        durationUnit, filter, includeJvmMetrics, disabledMetricAttributes, histogramGranularity);
+                            Set<HistogramGranularity> histogramGranularities) {
+    this(registry, new Wavefront(proxyHostname, proxyMetricsPort), clock, prefix, source,
+        pointTags, rateUnit, durationUnit, filter, includeJvmMetrics, disabledMetricAttributes, histogramGranularities);
+  }
+
+  private WavefrontReporter(MetricRegistry registry,
+                            String proxyHostname,
+                            int proxyMetricsPort,
+                            int proxyDistributionPort,
+                            final Clock clock,
+                            String prefix,
+                            String source,
+                            Map<String, String> pointTags,
+                            TimeUnit rateUnit,
+                            TimeUnit durationUnit,
+                            MetricFilter filter,
+                            boolean includeJvmMetrics,
+                            Set<MetricAttribute> disabledMetricAttributes,
+                            Set<HistogramGranularity> histogramGranularities) {
+    this(registry, new Wavefront(proxyHostname, proxyMetricsPort, proxyDistributionPort), clock, prefix, source,
+        pointTags, rateUnit, durationUnit, filter, includeJvmMetrics, disabledMetricAttributes, histogramGranularities);
   }
 
   @Override
@@ -503,17 +603,27 @@ public class WavefrontReporter extends ScheduledReporter {
 
   private void reportHistogram(String name, Histogram histogram) throws IOException {
     if (histogram instanceof WavefrontHistogram) {
-      // for (Dropwizard Metrics) WavefrontHistogram, report the distribution
-      WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
-      List<MinuteBin> bins = wavefrontHistogram.bins(true);
-      if (bins.isEmpty()) return; // don't send empty histograms
-      for (MinuteBin minuteBin : bins) {
-        List<Pair<Double, Integer>> distribution = new ArrayList<>();
-        for (Centroid c : minuteBin.getDist().centroids()) {
-          distribution.add(new Pair<>(c.mean(), c.count()));
+      // for (Dropwizard Metrics) WavefrontHistogram...
+      if (reportWavefrontHistogram && !histogramGranularities.isEmpty()) {
+        // ...if we're able to send a distribution and at least one aggregation interval has been specified,
+        // then send as a distribution
+        WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
+        List<MinuteBin> bins = wavefrontHistogram.bins(true);
+        if (bins.isEmpty()) return; // don't send empty histograms
+        for (MinuteBin minuteBin : bins) {
+          List<Pair<Double, Integer>> distribution = new ArrayList<>();
+          for (Centroid c : minuteBin.getDist().centroids()) {
+            distribution.add(new Pair<>(c.mean(), c.count()));
+          }
+          wavefront.send(histogramGranularities, minuteBin.getMinuteMillis() / 1000,
+              distribution, prefixAndSanitize(name), source, pointTags);
         }
-        wavefront.send(histogramGranularity, minuteBin.getMinuteMillis() / 1000,
-            distribution, prefixAndSanitize(name), source, pointTags);
+      } else if (!reportWavefrontHistogram) {
+        // ...if we're unable to send a distribution, log an error message
+        LOGGER.error("Unable to report WavefrontHistogram " + name + " because the histogram port is disabled on the proxy");
+      } else {  // histogramGranularities.isEmpty()
+        // ...if no aggregation intervals have been specified, no-op
+        return;
       }
     } else {
       final Snapshot snapshot = histogram.getSnapshot();

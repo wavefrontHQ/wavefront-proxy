@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -20,7 +21,7 @@ import javax.annotation.Nullable;
 public interface WavefrontSender extends WavefrontConnectionHandler, Closeable {
 
   /**
-   * Send a measurement to Wavefront. The current machine's hostname would be used as the source. The point will be
+   * Send a metric to Wavefront. The current machine's hostname would be used as the source. The point will be
    * timestamped at the agent.
    *
    * @param name  The name of the metric. Spaces are replaced with '-' (dashes) and quotes will be automatically
@@ -32,7 +33,7 @@ public interface WavefrontSender extends WavefrontConnectionHandler, Closeable {
   void send(String name, double value) throws IOException;
 
   /**
-   * Send a measurement to Wavefront. The current machine's hostname would be used as the source.
+   * Send a metric to Wavefront. The current machine's hostname would be used as the source.
    *
    * @param name      The name of the metric. Spaces are replaced with '-' (dashes) and quotes will be automatically
    *                  escaped.
@@ -44,7 +45,7 @@ public interface WavefrontSender extends WavefrontConnectionHandler, Closeable {
   void send(String name, double value, @Nullable Long timestamp) throws IOException;
 
   /**
-   * Send a measurement to Wavefront.
+   * Send a metric to Wavefront.
    *
    * @param name      The name of the metric. Spaces are replaced with '-' (dashes) and quotes will be automatically
    *                  escaped.
@@ -56,26 +57,26 @@ public interface WavefrontSender extends WavefrontConnectionHandler, Closeable {
   void send(String name, double value, @Nullable Long timestamp, String source) throws IOException;
 
   /**
-   * Send the given measurement to the server.
+   * Send the given metric to the server.
    *
    * @param name      The name of the metric. Spaces are replaced with '-' (dashes) and quotes will be automatically
    *                  escaped.
    * @param value     The value to be sent.
    * @param source    The source (or host) that's sending the metric. Null to use machine hostname.
-   * @param pointTags The point tags associated with this measurement.
+   * @param pointTags The point tags associated with this metric.
    * @throws IOException if there was an error sending the metric.
    */
   void send(String name, double value, String source, @Nullable Map<String, String> pointTags) throws IOException;
 
   /**
-   * Send the given measurement to the server.
+   * Send the given metric to the server.
    *
    * @param name      The name of the metric. Spaces are replaced with '-' (dashes) and quotes will be automatically
    *                  escaped.
    * @param value     The value to be sent.
    * @param timestamp The timestamp in seconds since the epoch to be sent. Null to use agent assigned timestamp.
    * @param source    The source (or host) that's sending the metric. Null to use machine hostname.
-   * @param pointTags The point tags associated with this measurement.
+   * @param pointTags The point tags associated with this metric.
    * @throws IOException if there was an error sending the metric.
    */
   void send(String name, double value, @Nullable Long timestamp, String source,
@@ -85,103 +86,85 @@ public interface WavefrontSender extends WavefrontConnectionHandler, Closeable {
    * Send a histogram distribution to Wavefront. The current machine's hostname would be used as the source.
    * The distribution will be timestamped at the agent.
    *
-   * @param histogramGranularity  The interval (minute, hour, or day) by which histogram data is aggregated,
-   *                              of type {@link HistogramGranularity}.
-   * @param distribution          The distribution of histogram points to be sent. Each point is a {@link Pair}
-   *                              that holds the value of the point (as a Double) and the number of points
-   *                              (as an Integer).
-   * @param name                  The name of the histogram. Spaces are replaced with '-' (dashes) and quotes
-   *                              will be automatically escaped.
+   * @param histogramGranularities  The set of intervals (minute, hour, and/or day) by which histogram data should be
+   *                                aggregated, of type {@link HistogramGranularity}.
+   * @param distribution            The distribution of histogram points to be sent. Each point is a {@link Pair}
+   *                                that holds the value of the point (as a Double) and the number of points
+   *                                (as an Integer).
+   * @param name                    The name of the histogram. Spaces are replaced with '-' (dashes) and quotes
+   *                                will be automatically escaped.
    * @throws IOException if there was an error sending the distribution.
    */
-  void send(HistogramGranularity histogramGranularity, List<Pair<Double, Integer>> distribution, String name) throws IOException;
+  void send(Set<HistogramGranularity> histogramGranularities, List<Pair<Double, Integer>> distribution, String name)
+      throws IOException;
 
   /**
    * Send a histogram distribution to Wavefront. The current machine's hostname would be used as the source.
    *
-   * @param histogramGranularity  The interval (minute, hour, or day) by which histogram data is aggregated,
-   *                              of type {@link HistogramGranularity}.
-   * @param timestamp             The timestamp in seconds since the epoch to be sent. Null to use agent assigned timestamp.
-   * @param distribution          The distribution of histogram points to be sent. Each point is a {@link Pair}
-   *                              that holds the value of the point (as a Double) and the number of points
-   *                              (as an Integer).
-   * @param name                  The name of the histogram. Spaces are replaced with '-' (dashes) and quotes
-   *                              will be automatically escaped.
+   * @param histogramGranularities  The set of intervals (minute, hour, and/or day) by which histogram data should be
+   *                                aggregated, of type {@link HistogramGranularity}.
+   * @param timestamp               The timestamp in seconds since the epoch to be sent. Null to use agent assigned timestamp.
+   * @param distribution            The distribution of histogram points to be sent. Each point is a {@link Pair}
+   *                                that holds the value of the point (as a Double) and the number of points
+   *                                (as an Integer).
+   * @param name                    The name of the histogram. Spaces are replaced with '-' (dashes) and quotes
+   *                                will be automatically escaped.
    * @throws IOException if there was an error sending the distribution.
    */
-  void send(HistogramGranularity histogramGranularity, @Nullable Long timestamp,
+  void send(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
             List<Pair<Double, Integer>> distribution, String name) throws IOException;
 
   /**
    * Send a histogram distribution to Wavefront.
    *
-   * @param histogramGranularity  The interval (minute, hour, or day) by which histogram data is aggregated,
-   *                              of type {@link HistogramGranularity}.
-   * @param timestamp             The timestamp in seconds since the epoch to be sent. Null to use agent assigned timestamp.
-   * @param distribution          The distribution of histogram points to be sent. Each point is a {@link Pair}
-   *                              that holds the value of the point (as a Double) and the number of points
-   *                              (as an Integer).
-   * @param name                  The name of the histogram. Spaces are replaced with '-' (dashes) and quotes
-   *                              will be automatically escaped.
-   * @param source                The source (or host) that's sending the histogram. Null to use machine hostname.
+   * @param histogramGranularities  The set of intervals (minute, hour, and/or day) by which histogram data should be
+   *                                aggregated, of type {@link HistogramGranularity}.
+   * @param timestamp               The timestamp in seconds since the epoch to be sent. Null to use agent assigned timestamp.
+   * @param distribution            The distribution of histogram points to be sent. Each point is a {@link Pair}
+   *                                that holds the value of the point (as a Double) and the number of points
+   *                                (as an Integer).
+   * @param name                    The name of the histogram. Spaces are replaced with '-' (dashes) and quotes
+   *                                will be automatically escaped.
+   * @param source                  The source (or host) that's sending the histogram. Null to use machine hostname.
    * @throws IOException if there was an error sending the distribution.
    */
-  void send(HistogramGranularity histogramGranularity, @Nullable Long timestamp,
+  void send(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
             List<Pair<Double, Integer>> distribution, String name, String source) throws IOException;
 
   /**
    * Send a histogram distribution to Wavefront. The distribution will be timestamped at the agent.
    *
-   * @param histogramGranularity  The interval (minute, hour, or day) by which histogram data is aggregated,
-   *                              of type {@link HistogramGranularity}.
-   * @param distribution          The distribution of histogram points to be sent. Each point is a {@link Pair}
-   *                              that holds the value of the point (as a Double) and the number of points
-   *                              (as an Integer).
-   * @param name                  The name of the histogram. Spaces are replaced with '-' (dashes) and quotes
-   *                              will be automatically escaped.
-   * @param source                The source (or host) that's sending the histogram. Null to use machine hostname.
-   * @param pointTags             The point tags associated with this histogram.
+   * @param histogramGranularities  The set of intervals (minute, hour, and/or day) by which histogram data should be
+   *                                aggregated, of type {@link HistogramGranularity}.
+   * @param distribution            The distribution of histogram points to be sent. Each point is a {@link Pair}
+   *                                that holds the value of the point (as a Double) and the number of points
+   *                                (as an Integer).
+   * @param name                    The name of the histogram. Spaces are replaced with '-' (dashes) and quotes
+   *                                will be automatically escaped.
+   * @param source                  The source (or host) that's sending the histogram. Null to use machine hostname.
+   * @param pointTags               The point tags associated with this histogram.
    * @throws IOException if there was an error sending the distribution.
    */
-  void send(HistogramGranularity histogramGranularity,
+  void send(Set<HistogramGranularity> histogramGranularities,
             List<Pair<Double, Integer>> distribution, String name, String source,
             @Nullable Map<String, String> pointTags) throws IOException;
 
   /**
    * Send a histogram distribution to Wavefront.
    *
-   * @param histogramGranularity  The interval (minute, hour, or day) by which histogram data is aggregated,
-   *                              of type {@link HistogramGranularity}.
-   * @param timestamp             The timestamp in seconds since the epoch to be sent. Null to use agent assigned timestamp.
-   * @param distribution          The distribution of histogram points to be sent. Each point is a {@link Pair}
-   *                              that holds the value of the point (as a Double) and the number of points
-   *                              (as an Integer).
-   * @param name                  The name of the histogram. Spaces are replaced with '-' (dashes) and quotes
-   *                              will be automatically escaped.
-   * @param source                The source (or host) that's sending the histogram. Null to use machine hostname.
-   * @param pointTags             The point tags associated with this histogram.
+   * @param histogramGranularities  The set of intervals (minute, hour, and/or day) by which histogram data should be
+   *                                aggregated, of type {@link HistogramGranularity}.
+   * @param timestamp               The timestamp in seconds since the epoch to be sent. Null to use agent assigned timestamp.
+   * @param distribution            The distribution of histogram points to be sent. Each point is a {@link Pair}
+   *                                that holds the value of the point (as a Double) and the number of points
+   *                                (as an Integer).
+   * @param name                    The name of the histogram. Spaces are replaced with '-' (dashes) and quotes
+   *                                will be automatically escaped.
+   * @param source                  The source (or host) that's sending the histogram. Null to use machine hostname.
+   * @param pointTags               The point tags associated with this histogram.
    * @throws IOException if there was an error sending the distribution.
    */
-  void send(HistogramGranularity histogramGranularity, @Nullable Long timestamp,
+  void send(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
             List<Pair<Double, Integer>> distribution, String name, String source,
             @Nullable Map<String, String> pointTags) throws IOException;
-
-  /**
-   * Flushes buffer, if applicable
-   *
-   * @throws IOException
-   */
-  void flush() throws IOException;
-
-  /**
-   * Returns true if ready to send data
-   */
-  boolean isConnected();
-
-  /**
-   * Returns the number of failed writes to the server.
-   *
-   * @return the number of failed writes to the server
-   */
-  int getFailureCount();
 }

@@ -1,5 +1,7 @@
 package com.codahale.metrics;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.annotations.VisibleForTesting;
 
 import com.tdunning.math.stats.AVLTreeDigest;
@@ -10,11 +12,9 @@ import com.wavefront.common.MinuteBin;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -35,11 +35,16 @@ public class WavefrontHistogram extends Histogram implements Metric {
   private final Supplier<Long> clockMillis;
 
   /**
-   * Map of thread ids to bin queues. By giving each thread its own bin queue, we can ensure
+   * Cache of thread ids to bin queues. By giving each thread its own bin queue, we can ensure
    * thread safety by locking only the relevant bin queue for a particular thread. This is more performant
    * than locking the entire histogram.
+   *
+   * Entries are automatically removed if they aren't accessed for 1 hour, which serves to remove empty bin queues
+   * for threads that are no longer reporting distributions.
    */
-  private final ConcurrentMap<Long, LinkedList<MinuteBin>> perThreadHistogramBins = new ConcurrentHashMap<>();
+  private final LoadingCache<Long, LinkedList<MinuteBin>> perThreadHistogramBins = Caffeine.newBuilder()
+      .expireAfterAccess(1, TimeUnit.HOURS)
+      .build(key -> new LinkedList<>());
 
   private WavefrontHistogram(TDigestReservoir reservoir, Supplier<Long> clockMillis) {
     super(reservoir);
@@ -70,8 +75,9 @@ public class WavefrontHistogram extends Histogram implements Metric {
    */
   public List<MinuteBin> bins(boolean clear) {
     final List<MinuteBin> result = new ArrayList<>();
-    final long cutoffMillis = currMinuteMillis();
-    perThreadHistogramBins.values().stream().flatMap(List::stream).
+    final long cutoffMillis = currentMinuteMillis();
+
+    perThreadHistogramBins.asMap().values().stream().flatMap(List::stream).
         filter(i -> i.getMinuteMillis() < cutoffMillis).forEach(result::add);
 
     if (clear) {
@@ -81,7 +87,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
     return result;
   }
 
-  private long currMinuteMillis() {
+  private long currentMinuteMillis() {
     long currMillis;
     if (clockMillis == null) {
       // happens because WavefrontHistogram.get() invokes the super() Histogram constructor
@@ -103,8 +109,8 @@ public class WavefrontHistogram extends Histogram implements Metric {
    */
   private MinuteBin getCurrent() {
     long key = Thread.currentThread().getId();
-    LinkedList<MinuteBin> bins = perThreadHistogramBins.computeIfAbsent(key, k -> new LinkedList<>());
-    long currMinuteMillis = currMinuteMillis();
+    LinkedList<MinuteBin> bins = perThreadHistogramBins.get(key);
+    long currMinuteMillis = currentMinuteMillis();
 
     // bins with clear == true flag will drain (CONSUMER) the list,
     // so synchronize the access to the respective 'bins' list
@@ -146,7 +152,8 @@ public class WavefrontHistogram extends Histogram implements Metric {
 
   @Override
   public long getCount() {
-    return perThreadHistogramBins.values().stream().flatMap(List::stream).mapToLong(bin -> bin.getDist().size()).sum();
+    return perThreadHistogramBins.asMap().values().stream().flatMap(List::stream).mapToLong(bin -> bin.getDist().size())
+        .sum();
   }
 
   private double mean() {
@@ -167,16 +174,10 @@ public class WavefrontHistogram extends Histogram implements Metric {
       // which will be invoke clear() method
       return;
     }
-    for (LinkedList bins : perThreadHistogramBins.values()) {
+    for (LinkedList<MinuteBin> bins : perThreadHistogramBins.asMap().values()) {
       // getCurrent() method will add (PRODUCER) item to the bins list, so synchronize the access
       synchronized (bins) {
-        Iterator<MinuteBin> iter = bins.iterator();
-        while (iter.hasNext()) {
-          if (iter.next().getMinuteMillis() < cutoffMillis) {
-            iter.remove();
-          }
-        }
-        // TODO - what happens if the list is empty ?? remove from hashmap ??
+        bins.removeIf(minuteBin -> minuteBin.getMinuteMillis() < cutoffMillis);
       }
     }
   }
@@ -184,7 +185,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
   // TODO - how to ensure thread safety? do we care?
   private TDigest snapshot() {
     final TDigest snapshot = new AVLTreeDigest(ACCURACY);
-    perThreadHistogramBins.values().stream().flatMap(List::stream).forEach(bin -> snapshot.add(bin.getDist()));
+    perThreadHistogramBins.asMap().values().stream().flatMap(List::stream).forEach(bin -> snapshot.add(bin.getDist()));
     return snapshot;
   }
 

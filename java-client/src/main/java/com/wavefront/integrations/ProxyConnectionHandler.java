@@ -4,25 +4,29 @@ import com.wavefront.metrics.ReconnectingSocket;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.SocketFactory;
 
 /**
- * Abstract base class for sending data to a Wavefront proxy.
+ * Base class for sending data to a Wavefront proxy port.
  *
  * @author Clement Pang (clement@wavefront.com).
  * @author Vikram Raman (vikram@wavefront.com).
+ * @author Han Zhang (zhanghan@vmware.com).
  */
-public abstract class AbstractProxyConnectionHandler implements WavefrontConnectionHandler {
+public class ProxyConnectionHandler implements WavefrontConnectionHandler {
 
   private final InetSocketAddress address;
   private final SocketFactory socketFactory;
   private volatile ReconnectingSocket reconnectingSocket;
+  private final AtomicInteger failures;
 
-  protected AbstractProxyConnectionHandler(InetSocketAddress address, SocketFactory socketFactory) {
+  protected ProxyConnectionHandler(InetSocketAddress address, SocketFactory socketFactory) {
     this.address = address;
     this.socketFactory = socketFactory;
     this.reconnectingSocket = null;
+    failures = new AtomicInteger();
   }
 
   @Override
@@ -47,6 +51,15 @@ public abstract class AbstractProxyConnectionHandler implements WavefrontConnect
     if (reconnectingSocket != null) {
       reconnectingSocket.flush();
     }
+  }
+
+  @Override
+  public int getFailureCount() {
+    return failures.get();
+  }
+
+  public int incrementAndGetFailureCount() {
+    return failures.incrementAndGet();
   }
 
   @Override
