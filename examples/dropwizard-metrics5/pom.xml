@@ -1,0 +1,70 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<artifactId>dropwizard-metrics5-examples</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+    <name>Wavefront Dropwizard Metrics Examples</name>
+	<description>Wavefront Dropwizard5 Metrics Examples</description>
+
+	<parent>
+		<groupId>com.wavefront</groupId>
+		<artifactId>wavefront</artifactId>
+		<version>4.30-SNAPSHOT</version>
+	</parent>
+
+	<dependencies>
+		<dependency>
+			<groupId>io.dropwizard.metrics5</groupId>
+			<artifactId>metrics-core</artifactId>
+			<version>5.0.0-rc2</version>
+		</dependency>
+		<dependency>
+			<groupId>io.dropwizard.metrics5</groupId>
+			<artifactId>metrics-jvm</artifactId>
+			<version>5.0.0-rc2</version>
+		</dependency>
+		<dependency>
+			<groupId>com.wavefront</groupId>
+			<artifactId>dropwizard-metrics5</artifactId>
+			<version>4.30-SNAPSHOT</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.5.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>3.0.0</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<filters>
+								<filter>
+									<excludes>
+										<exclude>META-INF/license/**</exclude>
+										<exclude>license/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build> 
+</project>
