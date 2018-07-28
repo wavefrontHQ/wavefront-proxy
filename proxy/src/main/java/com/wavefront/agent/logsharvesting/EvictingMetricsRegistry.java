@@ -7,11 +7,12 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.wavefront.agent.config.MetricMatcher;
 import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
+import com.yammer.metrics.core.DeltaCounter;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.util.Set;
@@ -20,8 +21,12 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 /**
- * Wrapper for a Yammer {@link com.yammer.metrics.core.MetricsRegistry}, but has extra features regarding
- * automatic removal of metrics.
+ * Wrapper for a Yammer {@link com.yammer.metrics.core.MetricsRegistry}, but has extra features
+ * regarding automatic removal of metrics.
+ *
+ * With the introduction of Delta Counter for Yammer metrics, this class now treats Counters as
+ * Delta Counters. So anybody using this {@link #getCounter(MetricName, MetricMatcher)} method
+ * will get an instance of Delta counter.
  *
  * @author Mori Bellamy (mori@wavefront.com)
  */
@@ -51,8 +56,12 @@ public class EvictingMetricsRegistry {
   }
 
   public Counter getCounter(MetricName metricName, MetricMatcher metricMatcher) {
-    metricNamesForMetricMatchers.get(metricMatcher).add(metricName);
-    return (Counter) metricCache.get(metricName, metricsRegistry::newCounter);
+    // use delta counters instead of regular counters. It helps with load balancers present in
+    // front of proxy (PUB-125)
+    MetricName newMetricName = DeltaCounter.getDeltaCounterMetricName(metricName);
+    metricNamesForMetricMatchers.get(metricMatcher).add(newMetricName);
+    return (Counter) metricCache.get(newMetricName, key -> DeltaCounter.get(metricsRegistry,
+            newMetricName));
   }
 
   public Gauge getGauge(MetricName metricName, MetricMatcher metricMatcher) {

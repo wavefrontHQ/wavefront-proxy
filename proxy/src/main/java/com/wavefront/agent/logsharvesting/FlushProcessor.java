@@ -3,13 +3,14 @@ package com.wavefront.agent.logsharvesting;
 import com.beust.jcommander.internal.Lists;
 import com.wavefront.common.MetricsToTimeseries;
 import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.DeltaCounter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.Metered;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricProcessor;
-import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.WavefrontHistogram;
+import com.yammer.metrics.core.MetricProcessor;
+import com.yammer.metrics.core.Metered;
+import com.yammer.metrics.core.Timer;
 
 import java.util.Map;
 import java.util.function.Supplier;
@@ -17,6 +18,9 @@ import java.util.function.Supplier;
 import wavefront.report.HistogramType;
 
 /**
+ * Wrapper for {@link com.yammer.metrics.core.MetricProcessor}. It provides additional support
+ * for Delta Counters and WavefrontHistogram.
+ *
  * @author Mori Bellamy (mori@wavefront.com)
  */
 class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
@@ -54,7 +58,14 @@ class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
 
   @Override
   public void processCounter(MetricName name, Counter counter, FlushProcessorContext context) throws Exception {
-    context.report(counter.count());
+    long count;
+    // handle delta counter
+    if (counter instanceof DeltaCounter) {
+      count = DeltaCounter.processDeltaCounter((DeltaCounter) counter);
+    } else {
+      count = counter.count();
+    }
+    context.report(count);
     sentCounter.inc();
   }
 
