@@ -1,6 +1,7 @@
 package com.wavefront.examples;
 
-import com.wavefront.integrations.metrics.WavefrontReporter;
+import com.wavefront.integrations.dropwizard_metrics5.WavefrontReporter;
+
 import io.dropwizard.metrics5.Counter;
 import io.dropwizard.metrics5.MetricName;
 import io.dropwizard.metrics5.MetricRegistry;

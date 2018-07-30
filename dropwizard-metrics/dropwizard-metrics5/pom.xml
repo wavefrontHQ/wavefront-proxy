@@ -10,7 +10,7 @@
 
     <artifactId>dropwizard-metrics5</artifactId>
     <version>4.30-SNAPSHOT</version>
-    <name>Wavefront Dropwizard5 Metrics eporter</name>
+    <name>Wavefront Dropwizard5 Metrics reporter</name>
     <description>Report metrics via the Wavefront Proxy</description>
 
     <dependencies>

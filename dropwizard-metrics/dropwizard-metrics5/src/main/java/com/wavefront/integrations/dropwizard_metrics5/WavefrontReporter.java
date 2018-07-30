@@ -1,4 +1,4 @@
-package com.wavefront.integrations.metrics;
+package com.wavefront.integrations.dropwizard_metrics5;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
