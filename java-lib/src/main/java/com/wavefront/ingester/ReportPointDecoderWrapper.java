@@ -15,12 +15,12 @@ public class ReportPointDecoderWrapper implements ReportableEntityDecoder<String
 
   private final Decoder<String> delegate;
 
-    public ReportPointDecoderWrapper(@NotNull Decoder<String> delegate) {
-      this.delegate = delegate;
-    }
+  public ReportPointDecoderWrapper(@NotNull Decoder<String> delegate) {
+    this.delegate = delegate;
+  }
 
-    @Override
-    public void decode(String msg, List<ReportPoint> out, String customerId) {
-      delegate.decodeReportPoints(msg, out, customerId);
-    }
+  @Override
+  public void decode(String msg, List<ReportPoint> out, String customerId) {
+    delegate.decodeReportPoints(msg, out, customerId);
+  }
 }
