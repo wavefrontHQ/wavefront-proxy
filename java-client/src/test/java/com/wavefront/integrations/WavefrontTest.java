@@ -9,7 +9,6 @@ import static org.junit.Assert.assertTrue;
  * Tests for {@link Wavefront}
  *
  * @author Clement Pang (clement@wavefront.com).
- * @author Han Zhang (zhanghan@vmware.com).
  */
 public class WavefrontTest {
 

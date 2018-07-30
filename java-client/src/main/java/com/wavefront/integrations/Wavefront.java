@@ -133,36 +133,36 @@ public class Wavefront implements WavefrontSender {
   }
 
   @Override
-  public void send(Set<HistogramGranularity> histogramGranularities, List<Pair<Double, Integer>> distribution, String name)
+  public void send(Set<HistogramGranularity> histogramGranularities, List<Pair<Double, Integer>> centroids, String name)
       throws IOException {
-    internalSend(histogramGranularities, null, distribution, name, source, null);
+    internalSend(histogramGranularities, null, centroids, name, source, null);
   }
 
   @Override
   public void send(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
-                   List<Pair<Double, Integer>> distribution, String name) throws IOException {
-    internalSend(histogramGranularities, timestamp, distribution, name, source, null);
+                   List<Pair<Double, Integer>> centroids, String name) throws IOException {
+    internalSend(histogramGranularities, timestamp, centroids, name, source, null);
   }
 
   @Override
   public void send(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
                    List<Pair<Double, Integer>>
-      distribution, String name, String source) throws IOException {
-    internalSend(histogramGranularities, timestamp, distribution, name, source, null);
+                       centroids, String name, String source) throws IOException {
+    internalSend(histogramGranularities, timestamp, centroids, name, source, null);
   }
 
   @Override
   public void send(Set<HistogramGranularity> histogramGranularities,
-                   List<Pair<Double, Integer>> distribution, String name, String source,
+                   List<Pair<Double, Integer>> centroids, String name, String source,
                    @Nullable Map<String, String> pointTags) throws IOException {
-    internalSend(histogramGranularities, null, distribution, name, source, pointTags);
+    internalSend(histogramGranularities, null, centroids, name, source, pointTags);
   }
 
   @Override
   public void send(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
-                   List<Pair<Double, Integer>> distribution, String name, String source,
+                   List<Pair<Double, Integer>> centroids, String name, String source,
                    @Nullable Map<String, String> pointTags) throws IOException {
-    internalSend(histogramGranularities, timestamp, distribution, name, source, pointTags);
+    internalSend(histogramGranularities, timestamp, centroids, name, source, pointTags);
   }
 
   private void internalSend(String name, double value, @Nullable Long timestamp, String source,
@@ -188,9 +188,12 @@ public class Wavefront implements WavefrontSender {
   }
 
   private void internalSend(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
-                            List<Pair<Double, Integer>> distribution, String name, String source,
+                            List<Pair<Double, Integer>> centroids, String name, String source,
                             @Nullable Map<String, String> pointTags) throws IOException {
-    if (distribution == null || distribution.isEmpty()) {
+    if (!canHandleDistributions()) {
+      return; // don't send if there's no connection to distribution port
+    }
+    if (centroids == null || centroids.isEmpty()) {
       return; // don't send if distribution is empty
     }
     if (!distributionProxyConnectionHandler.isConnected()) {
@@ -200,7 +203,7 @@ public class Wavefront implements WavefrontSender {
         // already connected.
       }
     }
-    List<String> histograms = WavefrontDataFormat.histogramToStrings(histogramGranularities, timestamp, distribution,
+    List<String> histograms = WavefrontDataFormat.histogramToStrings(histogramGranularities, timestamp, centroids,
         name, source, pointTags, true);
     for (String histogram : histograms) {
       try {

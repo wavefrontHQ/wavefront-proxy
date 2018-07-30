@@ -29,7 +29,6 @@ import static com.wavefront.api.agent.Constants.PUSH_FORMAT_HISTOGRAM;
  * Wavefront Client that sends data directly to Wavefront via the direct ingestion APIs.
  *
  * @author Vikram Raman (vikram@wavefront.com)
- * @author Han Zhang (zhanghan@vmware.com)
  */
 public class WavefrontDirectSender extends AbstractDirectConnectionHandler implements WavefrontSender {
 
@@ -83,35 +82,35 @@ public class WavefrontDirectSender extends AbstractDirectConnectionHandler imple
   }
 
   @Override
-  public void send(Set<HistogramGranularity> histogramGranularities, List<Pair<Double, Integer>> distribution, String name)
+  public void send(Set<HistogramGranularity> histogramGranularities, List<Pair<Double, Integer>> centroids, String name)
       throws IOException {
-    addHistogram(histogramGranularities, null, distribution, name, getDefaultSource(), null);
+    addHistogram(histogramGranularities, null, centroids, name, getDefaultSource(), null);
   }
 
   @Override
   public void send(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
-                   List<Pair<Double, Integer>> distribution, String name) throws IOException {
-    addHistogram(histogramGranularities, timestamp, distribution, name, getDefaultSource(), null);
+                   List<Pair<Double, Integer>> centroids, String name) throws IOException {
+    addHistogram(histogramGranularities, timestamp, centroids, name, getDefaultSource(), null);
   }
 
   @Override
   public void send(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
-                   List<Pair<Double, Integer>> distribution, String name, String source) throws IOException {
-    addHistogram(histogramGranularities, timestamp, distribution, name, source, null);
+                   List<Pair<Double, Integer>> centroids, String name, String source) throws IOException {
+    addHistogram(histogramGranularities, timestamp, centroids, name, source, null);
   }
 
   @Override
   public void send(Set<HistogramGranularity> histogramGranularities,
-                   List<Pair<Double, Integer>> distribution, String name, String source,
+                   List<Pair<Double, Integer>> centroids, String name, String source,
                    @Nullable Map<String, String> pointTags) throws IOException {
-    addHistogram(histogramGranularities, null, distribution, name, source, pointTags);
+    addHistogram(histogramGranularities, null, centroids, name, source, pointTags);
   }
 
   @Override
   public void send(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
-                   List<Pair<Double, Integer>> distribution, String name, String source,
+                   List<Pair<Double, Integer>> centroids, String name, String source,
                    @Nullable Map<String, String> pointTags) throws IOException {
-    addHistogram(histogramGranularities, timestamp, distribution, name, source, pointTags);
+    addHistogram(histogramGranularities, timestamp, centroids, name, source, pointTags);
   }
 
   private void addPoint(@NotNull String name, double value, @Nullable Long timestamp, @NotNull String source,
@@ -129,11 +128,11 @@ public class WavefrontDirectSender extends AbstractDirectConnectionHandler imple
   }
 
   private void addHistogram(Set<HistogramGranularity> histogramGranularities, @Nullable Long timestamp,
-                            List<Pair<Double, Integer>> distribution, String name, String source,
+                            List<Pair<Double, Integer>> centroids, String name, String source,
                             @Nullable Map<String, String> pointTags) throws IOException {
     List<String> histograms;
     try {
-      histograms = WavefrontDataFormat.histogramToStrings(histogramGranularities, timestamp, distribution, name, source,
+      histograms = WavefrontDataFormat.histogramToStrings(histogramGranularities, timestamp, centroids, name, source,
           pointTags, false);
     } catch (IllegalArgumentException e) {
       LOGGER.debug("Invalid histogram: " + e.getMessage());

@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- *
+ * Helper functions that convert metric data into Wavefront Data Format syntax
  *
  * @author Han Zhang (zhanghan@vmware.com)
  */
@@ -46,7 +46,7 @@ public class WavefrontDataFormat {
 
   public static List<String> histogramToStrings(Set<HistogramGranularity> histogramGranularities,
                                                 @Nullable Long timestamp,
-                                                List<Pair<Double, Integer>> distribution,
+                                                List<Pair<Double, Integer>> centroids,
                                                 String name,
                                                 String source,
                                                 @Nullable Map<String, String> pointTags,
@@ -55,8 +55,8 @@ public class WavefrontDataFormat {
     if (histogramGranularities == null || histogramGranularities.isEmpty()) {
       throw new IllegalArgumentException("histogram granularities cannot be null or empty");
     }
-    if (distribution == null || distribution.isEmpty()) {
-      throw new IllegalArgumentException("distribution cannot be null or empty");
+    if (centroids == null || centroids.isEmpty()) {
+      throw new IllegalArgumentException("centroids cannot be null or empty");
     }
     if (StringUtils.isBlank(name)) {
       throw new IllegalArgumentException("distribution name cannot be blank");
@@ -68,20 +68,20 @@ public class WavefrontDataFormat {
     if (timestamp != null) {
       sb.append(" ").append(Long.toString(timestamp));
     }
-    for (Pair<Double, Integer> pair : distribution) {
-      if (pair == null) {
-        throw new IllegalArgumentException("distribution pair cannot be null");
+    for (Pair<Double, Integer> centroid : centroids) {
+      if (centroid == null) {
+        throw new IllegalArgumentException("centroid cannot be null");
       }
-      if (pair._1 == null) {
-        throw new IllegalArgumentException("distribution value cannot be null");
+      if (centroid._1 == null) {
+        throw new IllegalArgumentException("centroid value cannot be null");
       }
-      if (pair._2 == null) {
-        throw new IllegalArgumentException("distribution count cannot be null");
+      if (centroid._2 == null) {
+        throw new IllegalArgumentException("centroid count cannot be null");
       }
-      if (pair._2 <= 0) {
-        throw new IllegalArgumentException("distribution count cannot be less than 1");
+      if (centroid._2 <= 0) {
+        throw new IllegalArgumentException("centroid count cannot be less than 1");
       }
-      sb.append(" #").append(Integer.toString(pair._2)).append(" ").append(Double.toString(pair._1));
+      sb.append(" #").append(Integer.toString(centroid._2)).append(" ").append(Double.toString(centroid._1));
     }
     sb.append(" ").append(sanitize(name));
     sb.append(" source=").append(sanitize(source));

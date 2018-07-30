@@ -10,7 +10,11 @@ import com.tdunning.math.stats.TDigest;
  */
 public class MinuteBin {
   private final TDigest dist;
-  private final long minuteMillis;  // timestamp at the start of the minute
+
+  /**
+   * timestamp at the start of the minute
+   */
+  private final long minuteMillis;
 
   public MinuteBin(int accuracy, long minuteMillis) {
     dist = new AVLTreeDigest(accuracy);

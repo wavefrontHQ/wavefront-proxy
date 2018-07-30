@@ -609,21 +609,27 @@ public class WavefrontReporter extends ScheduledReporter {
         // then send as a distribution
         WavefrontHistogram wavefrontHistogram = (WavefrontHistogram) histogram;
         List<MinuteBin> bins = wavefrontHistogram.bins(true);
-        if (bins.isEmpty()) return; // don't send empty histograms
+        if (bins.isEmpty()) {
+          // don't send empty histograms
+          return;
+        }
         for (MinuteBin minuteBin : bins) {
-          List<Pair<Double, Integer>> distribution = new ArrayList<>();
+          List<Pair<Double, Integer>> centroids = new ArrayList<>();
           for (Centroid c : minuteBin.getDist().centroids()) {
-            distribution.add(new Pair<>(c.mean(), c.count()));
+            centroids.add(new Pair<>(c.mean(), c.count()));
           }
           wavefront.send(histogramGranularities, minuteBin.getMinuteMillis() / 1000,
-              distribution, prefixAndSanitize(name), source, pointTags);
+              centroids, prefixAndSanitize(name), source, pointTags);
         }
       } else if (!reportWavefrontHistogram) {
         // ...if we're unable to send a distribution, log an error message
-        LOGGER.error("Unable to report WavefrontHistogram " + name + " because the histogram port is disabled on the proxy");
+        LOGGER.error("Unable to report WavefrontHistogram " + name + " because the histogram port is disabled on the" +
+            " proxy.");
       } else {  // histogramGranularities.isEmpty()
-        // ...if no aggregation intervals have been specified, no-op
-        return;
+        // ...if no aggregation intervals have been specified, log an info message
+        // TODO: do we want to default to !M instead?
+        LOGGER.info("Unable to report WavefrontHistogram " + name + " because no aggregation intervals have been " +
+            "specified.");
       }
     } else {
       final Snapshot snapshot = histogram.getSnapshot();

@@ -9,11 +9,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.SocketFactory;
 
 /**
- * Base class for sending data to a Wavefront proxy port.
+ * Base class for sending data to a Wavefront proxy port, which can be a metric or histogram port.
  *
  * @author Clement Pang (clement@wavefront.com).
  * @author Vikram Raman (vikram@wavefront.com).
- * @author Han Zhang (zhanghan@vmware.com).
  */
 public class ProxyConnectionHandler implements WavefrontConnectionHandler {
 

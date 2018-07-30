@@ -59,10 +59,10 @@ public class WavefrontDataFormatTest {
     Set<HistogramGranularity> histogramGranularities = new HashSet<>();
     histogramGranularities.add(HistogramGranularity.MINUTE);
 
-    List<Pair<Double, Integer>> distribution = new ArrayList<>();
-    distribution.add(new Pair<>(1.23, 5));
+    List<Pair<Double, Integer>> centroids = new ArrayList<>();
+    centroids.add(new Pair<>(1.23, 5));
 
-    List<String> actual = WavefrontDataFormat.histogramToStrings(histogramGranularities, null, distribution, "name",
+    List<String> actual = WavefrontDataFormat.histogramToStrings(histogramGranularities, null, centroids, "name",
         "source", null, false);
 
     assertThat(actual, CoreMatchers.hasItems("!M #5 1.23 \"name\" source=\"source\""));
@@ -70,12 +70,12 @@ public class WavefrontDataFormatTest {
 
     histogramGranularities.add(HistogramGranularity.HOUR);
     histogramGranularities.add(HistogramGranularity.DAY);
-    distribution.add(new Pair<>(10.0, 1));
-    distribution.add(new Pair<>(456346.3453453451, 501));
-    distribution.add(new Pair<>(1.23, 1));
-    distribution.add(new Pair<>(-9.3, 12));
+    centroids.add(new Pair<>(10.0, 1));
+    centroids.add(new Pair<>(456346.3453453451, 501));
+    centroids.add(new Pair<>(1.23, 1));
+    centroids.add(new Pair<>(-9.3, 12));
 
-    actual = WavefrontDataFormat.histogramToStrings(histogramGranularities, 1532456268L, distribution,
+    actual = WavefrontDataFormat.histogramToStrings(histogramGranularities, 1532456268L, centroids,
         "name", "source", ImmutableMap.of("foo", "bar", "bar", "foo"), true);
 
     assertThat(actual, CoreMatchers.hasItems(
@@ -95,9 +95,9 @@ public class WavefrontDataFormatTest {
   }
 
   @Test
-  public void testHistogramWithoutDistribution() {
+  public void testHistogramWithoutCentroids() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(is("distribution cannot be null or empty"));
+    thrown.expectMessage(is("centroids cannot be null or empty"));
     WavefrontDataFormat.histogramToStrings(ImmutableSet.of(HistogramGranularity.MINUTE), null, new ArrayList<>(),
         "name", "source", null, false);
   }
@@ -121,17 +121,17 @@ public class WavefrontDataFormatTest {
   @Test
   public void testHistogramWithNullPair() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(is("distribution pair cannot be null"));
-    List<Pair<Double, Integer>> distribution = new ArrayList<>();
-    distribution.add(null);
-    WavefrontDataFormat.histogramToStrings(ImmutableSet.of(HistogramGranularity.MINUTE), null, distribution,
+    thrown.expectMessage(is("centroid cannot be null"));
+    List<Pair<Double, Integer>> centroids = new ArrayList<>();
+    centroids.add(null);
+    WavefrontDataFormat.histogramToStrings(ImmutableSet.of(HistogramGranularity.MINUTE), null, centroids,
         "name", "source", null, false);
   }
 
   @Test
   public void testHistogramWithNullValue() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(is("distribution value cannot be null"));
+    thrown.expectMessage(is("centroid value cannot be null"));
     WavefrontDataFormat.histogramToStrings(ImmutableSet.of(HistogramGranularity.MINUTE), null, ImmutableList.of(new
         Pair<>(null, 5)), "name", "source", null, false);
   }
@@ -139,7 +139,7 @@ public class WavefrontDataFormatTest {
   @Test
   public void testHistogramWithNullCount() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(is("distribution count cannot be null"));
+    thrown.expectMessage(is("centroid count cannot be null"));
     WavefrontDataFormat.histogramToStrings(ImmutableSet.of(HistogramGranularity.MINUTE), null, ImmutableList.of(new
         Pair<>(1.23, null)), "name", "source", null, false);
   }
@@ -147,7 +147,7 @@ public class WavefrontDataFormatTest {
   @Test
   public void testHistogramWithNonPositiveCount() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(is("distribution count cannot be less than 1"));
+    thrown.expectMessage(is("centroid count cannot be less than 1"));
     WavefrontDataFormat.histogramToStrings(ImmutableSet.of(HistogramGranularity.MINUTE), null, ImmutableList.of(new
         Pair<>(1.23, 0)), "name", "source", null, false);
   }

@@ -42,9 +42,9 @@ public class WavefrontHistogram extends Histogram implements Metric {
    * Entries are automatically removed if they aren't accessed for 1 hour, which serves to remove empty bin queues
    * for threads that are no longer reporting distributions.
    */
-  private final LoadingCache<Long, LinkedList<MinuteBin>> perThreadHistogramBins = Caffeine.newBuilder()
-      .expireAfterAccess(1, TimeUnit.HOURS)
-      .build(key -> new LinkedList<>());
+  private final LoadingCache<Long, LinkedList<MinuteBin>> perThreadHistogramBins = Caffeine.newBuilder().
+      expireAfterAccess(1, TimeUnit.HOURS).
+      build(key -> new LinkedList<>());
 
   private WavefrontHistogram(TDigestReservoir reservoir, Supplier<Long> clockMillis) {
     super(reservoir);
@@ -152,8 +152,8 @@ public class WavefrontHistogram extends Histogram implements Metric {
 
   @Override
   public long getCount() {
-    return perThreadHistogramBins.asMap().values().stream().flatMap(List::stream).mapToLong(bin -> bin.getDist().size())
-        .sum();
+    return perThreadHistogramBins.asMap().values().stream().flatMap(List::stream).
+        mapToLong(bin -> bin.getDist().size()).sum();
   }
 
   private double mean() {
