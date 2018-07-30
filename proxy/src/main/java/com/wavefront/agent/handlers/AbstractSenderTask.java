@@ -49,7 +49,6 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   final Counter attemptedCounter;
   final Counter queuedCounter;
   final Counter blockedCounter;
-  final Counter deliveredCounter;
   final Counter bufferFlushCounter;
 
   boolean isBuffering = false;
@@ -88,7 +87,6 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     this.queuedCounter = Metrics.newCounter(new MetricName(entityType + "." + handle, "", "queued"));
     this.blockedCounter = Metrics.newCounter(new MetricName(entityType + "." + handle, "", "blocked"));
     this.receivedCounter = Metrics.newCounter(new MetricName(entityType + "." + handle, "", "received"));
-    this.deliveredCounter = Metrics.newCounter(new MetricName(entityType + "." + handle, "", "delivered"));
     this.bufferFlushCounter = Metrics.newCounter(new TaggedMetricName("buffer", "flush-count", "port", handle));
 
   }

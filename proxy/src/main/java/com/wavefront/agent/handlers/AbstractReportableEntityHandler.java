@@ -202,19 +202,20 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   }
 
   protected SenderTask getTask() {
-    return senderTasks.get((int)(roundRobinCounter.getAndIncrement() % senderTasks.size()));
-  }
-  /*
-  protected SenderTask getTask() {
-    SenderTask toReturn = null;
-    long bestScore = Long.MAX_VALUE;
-    for (SenderTask task : senderTasks) {
-      long score = task.getTaskRelativeScore();
-      if (score < bestScore) {
-        bestScore = score;
-        toReturn = task;
+    // roundrobin all tasks, skipping the worst one (usually with the highest number of points)
+    int nextTaskId = (int)(roundRobinCounter.getAndIncrement() % senderTasks.size());
+    long worstScore = 0L;
+    int worstTaskId = 0;
+    for (int i = 0; i < senderTasks.size(); i++) {
+      long score = senderTasks.get(i).getTaskRelativeScore();
+      if (score > worstScore) {
+        worstScore = score;
+        worstTaskId = i;
       }
     }
-    return toReturn;
-  }*/
+    if (nextTaskId == worstTaskId) {
+      nextTaskId = (int)(roundRobinCounter.getAndIncrement() % senderTasks.size());
+    }
+    return senderTasks.get(nextTaskId);
+  }
 }

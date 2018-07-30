@@ -35,7 +35,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
 
   private final Counter attemptedCounter;
   private final Counter queuedCounter;
-  private final Counter deliveredCounter;
   private final Histogram receivedPointLag;
 
   private boolean logData = false;
@@ -67,7 +66,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle + ".received", "", "lag"));
     this.attemptedCounter = Metrics.newCounter(new MetricName("points." + handle, "", "sent"));
     this.queuedCounter = Metrics.newCounter(new MetricName("points." + handle, "", "queued"));
-    this.deliveredCounter = Metrics.newCounter(new MetricName("points." + handle, "", "delivered"));
 
     this.statisticOutputExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
     this.statisticOutputExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
@@ -115,6 +113,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
 
   private void printTotal() {
     logger.info("[" + this.handle + "] Total points processed since start: " + this.attemptedCounter.count() +
-        "; blocked: " + this.blockedCounter.count()); // + "; sent: " + this.deliveredCounter.count());
+        "; blocked: " + this.blockedCounter.count());
   }
 }

@@ -266,7 +266,7 @@ public abstract class AbstractIngesterFormatter<T> {
   }
 
   /**
-   * This class provides a wrapper around ReportPoint.
+   * This class provides a wrapper around Span.
    */
   protected static class SpanWrapper extends AbstractWrapper {
     Span span;

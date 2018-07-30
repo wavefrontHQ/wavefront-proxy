@@ -27,14 +27,12 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
 
   private final Counter attemptedCounter;
   private final Counter queuedCounter;
-  private final Counter deliveredCounter;
 
   public ReportSourceTagHandlerImpl(final String handle, final int blockedItemsPerBatch,
                                     final Collection<SenderTask> senderTasks) {
     super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch, new ReportSourceTagSerializer(), senderTasks);
     this.attemptedCounter = Metrics.newCounter(new MetricName("sourceTags." + handle, "", "sent"));
     this.queuedCounter = Metrics.newCounter(new MetricName("sourceTags." + handle, "", "queued"));
-    this.deliveredCounter = Metrics.newCounter(new MetricName("sourceTags." + handle, "", "delivered"));
 
     statisticOutputExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
     statisticOutputExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
@@ -69,7 +67,7 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
 
   private void printTotal() {
     logger.info("[" + this.handle + "] Total sourceTags processed since start: " + this.attemptedCounter.count() +
-        "; blocked: " + this.blockedCounter.count()); // + "; sent: " + this.deliveredCounter.count());
+        "; blocked: " + this.blockedCounter.count());
   }
 
 }

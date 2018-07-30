@@ -32,7 +32,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
 
   private final Counter attemptedCounter;
   private final Counter queuedCounter;
-  private final Counter deliveredCounter;
 
   private boolean logData = false;
   private final double logSampleRate;
@@ -56,7 +55,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
 
     this.attemptedCounter = Metrics.newCounter(new MetricName("traces." + handle, "", "sent"));
     this.queuedCounter = Metrics.newCounter(new MetricName("traces." + handle, "", "queued"));
-    this.deliveredCounter = Metrics.newCounter(new MetricName("traces." + handle, "", "delivered"));
 
     this.statisticOutputExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
     this.statisticOutputExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
@@ -65,8 +63,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
   @Override
   @SuppressWarnings("unchecked")
   protected void reportInternal(Span span) {
-    //validatePoint(span, handle, Validation.Level.NUMERIC_ONLY);
-
     String strSpan = serializer.apply(span);
 
     refreshValidDataLoggerState();
@@ -101,7 +97,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
 
   private void printTotal() {
     logger.info("[" + this.handle + "] Total traces processed since start: " + this.attemptedCounter.count() +
-        "; blocked: " + this.blockedCounter.count()); // + "; sent: " + this.deliveredCounter.count());
+        "; blocked: " + this.blockedCounter.count());
 
   }
 }
