@@ -134,7 +134,7 @@
       <plugin>
         <groupId>org.antlr</groupId>
         <artifactId>antlr4-maven-plugin</artifactId>
-        <version>4.5</version>
+        <version>4.7.1</version>
         <configuration>
           <outputDirectory>target/generated-sources/antlr4/queryserver/parser</outputDirectory>
           <sourceDirectory>${project.basedir}/src/main/antlr4</sourceDirectory>
