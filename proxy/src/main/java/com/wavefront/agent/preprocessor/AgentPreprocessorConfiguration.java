@@ -26,17 +26,17 @@ public class AgentPreprocessorConfiguration {
 
   private static final Logger logger = Logger.getLogger(AgentPreprocessorConfiguration.class.getCanonicalName());
 
-  private final Map<String, PointPreprocessor> portMap = new HashMap<>();
+  private final Map<String, ReportableEntityPreprocessor> portMap = new HashMap<>();
 
   @VisibleForTesting
   int totalInvalidRules = 0;
   @VisibleForTesting
   int totalValidRules = 0;
 
-  public PointPreprocessor forPort(final String strPort) {
-    PointPreprocessor preprocessor = portMap.get(strPort);
+  public ReportableEntityPreprocessor forPort(final String strPort) {
+    ReportableEntityPreprocessor preprocessor = portMap.get(strPort);
     if (preprocessor == null) {
-      preprocessor = new PointPreprocessor();
+      preprocessor = new ReportableEntityPreprocessor();
       portMap.put(strPort, preprocessor);
     }
     return preprocessor;

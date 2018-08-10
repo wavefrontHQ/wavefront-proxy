@@ -23,26 +23,26 @@ public class Preprocessor<T> {
 
   /**
    * Apply all transformation rules sequentially
-   * @param point input point
+   * @param item input point
    * @return transformed point
    */
-  public T transform(@NotNull T point) {
+  public T transform(@NotNull T item) {
     for (final Function<T, T> func : transformers) {
-      point = func.apply(point);
+      item = func.apply(item);
     }
-    return point;
+    return item;
   }
 
   /**
    * Apply all filter predicates sequentially, stop at the first "false" result
-   * @param point point to apply predicates to
+   * @param item item to apply predicates to
    * @return true if all predicates returned "true"
    */
-  public boolean filter(@NotNull T point) {
+  public boolean filter(@NotNull T item) {
     message = null;
     for (final AnnotatedPredicate<T> predicate : filters) {
-      if (!predicate.apply(point)) {
-        message = predicate.getMessage(point);
+      if (!predicate.apply(item)) {
+        message = predicate.getMessage(item);
         return false;
       }
     }

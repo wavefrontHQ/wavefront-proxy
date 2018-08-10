@@ -25,6 +25,11 @@ public abstract class ResubmissionTask<T extends ResubmissionTask<T>> implements
   protected transient UUID currentAgentId = null;
 
   /**
+   * To be injected. Should be null when serialized.
+   */
+  protected transient String token = null;
+
+  /**
    * @return The relative size of the task
    */
   public abstract int size();
