@@ -1,20 +1,18 @@
 # Wavefront Reporter
 
-This is a Wavefront Reporter for the Stable (3.1.x/3.2.x) version of [Dropwizard Metrics](https://dropwizard.github.io/metrics/3.1.0/) (formerly Coda Hale & Yammer Metrics).
+This is a Wavefront Reporter compatible with versions 3.1.x, 3.2.x and 4.0.x of [Dropwizard Metrics](https://metrics.dropwizard.io/) (formerly Coda Hale & Yammer Metrics).
 
-It sends data to the Wavefront service via a proxy and supports point tags being assigned at the Reporter level.
+It sends data to the Wavefront service using the [Wavefront proxy](https://docs.wavefront.com/proxies.html) or using [direct ingestion](https://docs.wavefront.com/direct_ingestion.html) and supports point tags being assigned at the Reporter level.
 
 ## Usage
 
-This Reporter sends data to Wavefront via a proxy. Version 3.5 or later is required. You can easily install the proxy by following [these instructions](https://docs.wavefront.com/proxies_installing.html).
+The Wavefront Reporter lets you use Dropwizard metrics exactly as you normally would. See its [getting started guide](https://dropwizard.github.io/metrics/3.1.0/getting-started/) if you haven't used it before.
 
-To use the Reporter you'll need to know the hostname and port (which by default is 2878) where the Wavefront proxy is running.
-
-It is designed to be used with the [stable version 3.1.x of Dropwizard Metrics](https://dropwizard.github.io/metrics/3.1.0/getting-started/).
+It simply gives you a new Reporter that will work seamlessly with Wavefront. Set up Maven as given below, `import com.wavefront.integrations.metrics.WavefrontReporter;` and then report to a Wavefront proxy or directly to a Wavefront server.
 
 ### Setting up Maven
 
-You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wavefront` libraries as dependencies. Logging depends on `org.slf4j`:
+You will need both the DropWizard `metrics-core` and the Wavefront `dropwizard-metrics` libraries as dependencies. Logging depends on `org.slf4j`:
 
 ```Maven
    <dependency>
@@ -24,7 +22,7 @@ You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wave
     </dependency>
     <dependency>
       <groupId>com.wavefront</groupId>
-      <artifactId>dropwizard-metrics-3.1</artifactId>
+      <artifactId>dropwizard-metrics</artifactId>
       <version>[LATEST VERSION]</version>
     </dependency>
     <dependency>
@@ -34,32 +32,52 @@ You will need both the DropWizard `metrics-core` and the Wavefront `metrics-wave
     </dependency>       
 ```
 
-Versions `3.1.0` and `3.1.1` of `metrics-core` will also work.
+Versions `3.1.x`, `3.2.x` and `4.0.x` of `metrics-core` will work.
 
-### Example Usage
+### Report to a Wavefront Proxy
 
-The Wavefront Reporter lets you use DropWizard metrics exactly as you normally would. See its [getting started guide](https://dropwizard.github.io/metrics/3.1.0/getting-started/) if you haven't used it before.
+You can install the proxy by following [these instructions](https://docs.wavefront.com/proxies_installing.html).
+To use the Reporter you'll need to provide the hostname and port (which by default is 2878) of the Wavefront proxy.
 
-It simply gives you a new Reporter that will seamlessly work with Wavefront. First `import com.wavefront.integrations.metrics.WavefrontReporter;`
-
-Then for example to create a Reporter which will emit data every 10 seconds for:
-
-- A `MetricsRegistry` named `metrics`
-- A Wavefront proxy on `localhost` at port `2878`
-- Data that should appear in Wavefront as `source=app-1.company.com`
-- Two point tags named `dc` and `service`
-
-you would do something like this:
+For example to create a Reporter which will emit data to a Wavefront proxy every 5 seconds:
 
 ```java
-WavefrontReporter reporter = WavefrontReporter.forRegistry(metrics)
-        .withSource("app-1.company.com")
-    	.withPointTag("dc", "dallas")
-    	.withPointTag("service", "query")
-    	.build("localhost", 2878);
+MetricRegistry registry = new MetricRegistry();
+Counter evictions = registry.counter("cache-evictions");
+
+String hostname = "wavefront.proxy.hostname";
+int port = 2878;
+
+WavefrontReporter reporter = WavefrontReporter.forRegistry(registry).
+    withSource("app-1.company.com").
+    withPointTag("dc", "us-west-2").
+    withPointTag("service", "query").
+    build(hostname, port);
+reporter.start(5, TimeUnit.SECONDS);
 ```
 
-You must provide the source using the `.withSource(String source)` method and pass the Hostname and Port of the Wavefront proxy using the `.build(String hostname, long port)` method.
+### Report to a Wavefront Server
+
+You can send metrics directly to a Wavefront service. To use the Reporter you'll need to provide the Wavefront server URL and a token with direct data ingestion permission.
+
+For example to create a Reporter which will emit data to a Wavefront server every 5 seconds:
+
+```java
+MetricRegistry registry = new MetricRegistry();
+Counter evictions = registry.counter("cache-evictions");
+
+String server = "https://<instance>.wavefront.com";
+String token = "<valid_wavefront_token>";
+
+WavefrontReporter reporter = WavefrontReporter.forRegistry(registry).
+    withSource("app-1.company.com").
+    withPointTag("dc", "us-west-2").
+    withPointTag("service", "query").
+    buildDirect(server, token);
+reporter.start(5, TimeUnit.SECONDS);
+```
+
+### Extended Usage
 
 The Reporter provides all the same options that the [GraphiteReporter](http://metrics.dropwizard.io/3.1.0/manual/graphite/) does. By default:
 
@@ -89,7 +107,7 @@ registry.register("jvm.current_time", new Gauge<Long>() {
 	    return clock.getTime();
     }
 });
-    
+
 registry.register("jvm.classes", new ClassLoadingGaugeSet());
 registry.register("jvm.fd_usage", new FileDescriptorRatioGauge());
 registry.register("jvm.buffers", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
