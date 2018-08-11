@@ -718,8 +718,8 @@ public abstract class AbstractIngesterFormatter<T> {
         // convert both timestamps to millis
         if (startTs > 999999999999999999L) {
           // 19 digits == nanoseconds,
-          wrapper.setTimestamp(startTs / 1000000);
-          wrapper.setDuration(duration / 1000000);
+          wrapper.setTimestamp(startTs / 1000_000);
+          wrapper.setDuration(duration / 1000_000);
         } else if (startTs > 999999999999999L) {
           // 16 digits == microseconds
           wrapper.setTimestamp(startTs / 1000);
