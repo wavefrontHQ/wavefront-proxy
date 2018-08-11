@@ -20,10 +20,10 @@ public class SpanDecoderTest {
 
   // Decoder is supposed to convert all timestamps to this unit. Should we decide to change the timestamp precision
   // in the Span object, this is the only change required to keep unit tests valid.
-  private static TimeUnit expectedTimeUnit = TimeUnit.MICROSECONDS;
+  private static TimeUnit expectedTimeUnit = TimeUnit.MILLISECONDS;
 
-  private static long startTs = 1532012145123456L;
-  private static long duration = 1111111;
+  private static long startTs = 1532012145123L;
+  private static long duration = 1111;
 
   private SpanDecoder decoder = new SpanDecoder("unitTest");
 
@@ -121,8 +121,8 @@ public class SpanDecoderTest {
   public void testBasicSpanParse() {
     List<Span> out = new ArrayList<>();
     decoder.decode("testSpanName source=spanSource spanId=4217104a-690d-4927-baff-d9aa779414c2 " +
-            "traceId=d5355bf7-fc8d-48d1-b761-75b170f396e0 tagkey1=tagvalue1 t2=v2 1532012145123456 1532012146234567 ",
-        out);
+            "traceId=d5355bf7-fc8d-48d1-b761-75b170f396e0 tagkey1=tagvalue1 " +
+            "t2=v2 1532012145123 1532012146234", out);
     assertEquals(1, out.size());
     assertEquals("testSpanName", out.get(0).getName());
     assertEquals("spanSource", out.get(0).getSource());
@@ -133,14 +133,16 @@ public class SpanDecoderTest {
     assertEquals("tagvalue1", out.get(0).getAnnotations().get(0).getValue());
     assertEquals("t2", out.get(0).getAnnotations().get(1).getKey());
     assertEquals("v2", out.get(0).getAnnotations().get(1).getValue());
-    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MICROSECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MICROSECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MILLISECONDS), 
+        (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MILLISECONDS), 
+        (long) out.get(0).getDuration());
 
     out.clear();
     // test that annotations order doesn't matter
     decoder.decode("testSpanName tagkey1=tagvalue1 traceId=d5355bf7-fc8d-48d1-b761-75b170f396e0 " +
             "spanId=4217104a-690d-4927-baff-d9aa779414c2 source=spanSource " +
-            "t2=v2 1532012145123456 1532012146234567 ", out);
+            "t2=v2 1532012145123 1532012146234 ", out);
     assertEquals(1, out.size());
     assertEquals("testSpanName", out.get(0).getName());
     assertEquals("spanSource", out.get(0).getSource());
@@ -151,8 +153,8 @@ public class SpanDecoderTest {
     assertEquals("tagvalue1", out.get(0).getAnnotations().get(0).getValue());
     assertEquals("t2", out.get(0).getAnnotations().get(1).getKey());
     assertEquals("v2", out.get(0).getAnnotations().get(1).getValue());
-    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MICROSECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MICROSECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MILLISECONDS), (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MILLISECONDS), (long) out.get(0).getDuration());
 
   }
 
@@ -161,7 +163,7 @@ public class SpanDecoderTest {
     List<Span> out = new ArrayList<>();
     decoder.decode("\"testSpanName\" \"source\"=\"spanSource\" \"spanId\"=\"4217104a-690d-4927-baff-d9aa779414c2\" " +
             "\"traceId\"=\"d5355bf7-fc8d-48d1-b761-75b170f396e0\" \"tagkey1\"=\"tagvalue1\" \"t2\"=\"v2\" " +
-            "1532012145123456 1532012146234567", out);
+            "1532012145123 1532012146234", out);
     assertEquals(1, out.size());
     assertEquals("testSpanName", out.get(0).getName());
     assertEquals("spanSource", out.get(0).getSource());
@@ -172,67 +174,67 @@ public class SpanDecoderTest {
     assertEquals("tagvalue1", out.get(0).getAnnotations().get(0).getValue());
     assertEquals("t2", out.get(0).getAnnotations().get(1).getKey());
     assertEquals("v2", out.get(0).getAnnotations().get(1).getValue());
-    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MICROSECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MICROSECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MILLISECONDS), (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MILLISECONDS), (long) out.get(0).getDuration());
   }
 
   @Test
   public void testSpanTimestampFormats() {
     List<Span> out = new ArrayList<>();
     // nanoseconds with end_ts
-    decoder.decode("testSpanName source=spanSource spanId=spanid traceId=traceid 1532012145123456789 1532012146234567890",
+    decoder.decode("testSpanName source=spanSource spanId=spanid traceId=traceid 1532012145123456 1532012146234567",
         out);
-    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MICROSECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MICROSECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MILLISECONDS), (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MILLISECONDS), (long) out.get(0).getDuration());
     out.clear();
 
     // nanoseconds with duration
     decoder.decode("testSpanName source=spanSource spanId=spanid traceId=traceid 1532012145123456789 1111111111",
         out);
-    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MICROSECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MICROSECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MILLISECONDS), (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MILLISECONDS), (long) out.get(0).getDuration());
     out.clear();
 
     // microseconds with end_ts
     decoder.decode("testSpanName source=spanSource spanId=spanid traceId=traceid 1532012145123456 1532012146234567 ",
         out);
-    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MICROSECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MICROSECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MILLISECONDS), (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MILLISECONDS), (long) out.get(0).getDuration());
     out.clear();
 
     // microseconds with duration
     decoder.decode("testSpanName source=spanSource spanId=spanid traceId=traceid 1532012145123456 1111111 ",
         out);
-    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MICROSECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MICROSECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MILLISECONDS), (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MILLISECONDS), (long) out.get(0).getDuration());
     out.clear();
 
     // milliseconds with end_ts
     decoder.decode("testSpanName source=spanSource spanId=spanid traceId=traceid 1532012145123 1532012146234",
         out);
-    assertEquals(expectedTimeUnit.convert(startTs / 1000, TimeUnit.MILLISECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration/ 1000, TimeUnit.MILLISECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MILLISECONDS), (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MILLISECONDS), (long) out.get(0).getDuration());
     out.clear();
 
     // milliseconds with duration
     decoder.decode("testSpanName source=spanSource spanId=spanid traceId=traceid 1532012145123 1111",
         out);
-    assertEquals(expectedTimeUnit.convert(startTs / 1000, TimeUnit.MILLISECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration/ 1000, TimeUnit.MILLISECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs, TimeUnit.MILLISECONDS), (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration, TimeUnit.MILLISECONDS), (long) out.get(0).getDuration());
     out.clear();
 
     // seconds with end_ts
     decoder.decode("testSpanName source=spanSource spanId=spanid traceId=traceid 1532012145 1532012146",
         out);
-    assertEquals(expectedTimeUnit.convert(startTs / 1000000, TimeUnit.SECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration/ 1000000, TimeUnit.SECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs / 1000, TimeUnit.SECONDS), (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration/ 1000, TimeUnit.SECONDS), (long) out.get(0).getDuration());
     out.clear();
 
     // seconds with duration
     decoder.decode("testSpanName source=spanSource spanId=spanid traceId=traceid 1532012145 1",
         out);
-    assertEquals(expectedTimeUnit.convert(startTs / 1000000, TimeUnit.SECONDS), (long) out.get(0).getStartMillis());
-    assertEquals(expectedTimeUnit.convert(duration/ 1000000, TimeUnit.SECONDS), (long) out.get(0).getDuration());
+    assertEquals(expectedTimeUnit.convert(startTs / 1000, TimeUnit.SECONDS), (long) out.get(0).getStartMillis());
+    assertEquals(expectedTimeUnit.convert(duration/ 1000, TimeUnit.SECONDS), (long) out.get(0).getDuration());
     out.clear();
   }
 }
