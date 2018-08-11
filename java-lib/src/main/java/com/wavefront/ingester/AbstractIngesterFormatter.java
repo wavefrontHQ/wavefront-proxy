@@ -715,22 +715,22 @@ public abstract class AbstractIngesterFormatter<T> {
       Long startTs = wrapper.getTimestamp();
       if (timestamp != null && startTs != null) {
         long duration = (timestamp - startTs >= 0) ? timestamp - startTs : timestamp;
-        // convert both timestamps to micros
+        // convert both timestamps to millis
         if (startTs > 999999999999999999L) {
           // 19 digits == nanoseconds,
-          wrapper.setTimestamp(startTs / 1000);
-          wrapper.setDuration(duration / 1000);
+          wrapper.setTimestamp(startTs / 1000_000);
+          wrapper.setDuration(duration / 1000_000);
         } else if (startTs > 999999999999999L) {
           // 16 digits == microseconds
-          wrapper.setDuration(duration);
+          wrapper.setTimestamp(startTs / 1000);
+          wrapper.setDuration(duration / 1000);
         } else if (startTs > 999999999999L) {
           // 13 digits == milliseconds
-          wrapper.setTimestamp(startTs * 1000);
-          wrapper.setDuration(duration * 1000);
+          wrapper.setDuration(duration);
         } else {
           // seconds
-          wrapper.setTimestamp(startTs * 1000000);
-          wrapper.setDuration(duration * 1000000);
+          wrapper.setTimestamp(startTs * 1000);
+          wrapper.setDuration(duration * 1000);
         }
       } else {
         throw new RuntimeException("Both timestamp and duration expected");

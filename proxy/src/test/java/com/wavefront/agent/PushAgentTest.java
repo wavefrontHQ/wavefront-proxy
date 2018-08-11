@@ -285,8 +285,8 @@ public class PushAgentTest {
   @Test
   public void testTraceUnifiedPortHandlerPlaintext() throws Exception {
     reset(mockTraceHandler);
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000 * 1000)
-        .setDuration(1000 * 1000)
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
+        .setDuration(1000)
         .setName("testSpanName")
         .setSource("testsource")
         .setSpanId("testspanid")
