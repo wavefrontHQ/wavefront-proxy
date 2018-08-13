@@ -5,7 +5,7 @@
   <parent>
     <groupId>com.wavefront</groupId>
     <artifactId>wavefront</artifactId>
-    <version>4.25</version>
+    <version>4.26-SNAPSHOT</version>
   </parent>
 
   <properties>
@@ -14,8 +14,8 @@
 
   <artifactId>proxy</artifactId>
 
-  <name>Wavefront Proxy Agent</name>
-  <description>Agent that proxies graphite/carbon traffic to Wavefront</description>
+  <name>Wavefront Proxy</name>
+  <description>Service for batching and relaying metric traffic to Wavefront</description>
 
   <dependencies>
     <dependency>

@@ -108,6 +108,11 @@ public class AgentPreprocessorConfiguration {
                       new ReportPointReplaceRegexTransformer(rule.get("scope"), rule.get("search"), rule.get("replace"),
                           rule.get("match"), Integer.parseInt(rule.getOrDefault("iterations", "1")), counter));
                   break;
+                case "forceLowercase":
+                  allowArguments(rule, "rule", "action", "scope", "match");
+                  this.forPort(strPort).forReportPoint().addTransformer(
+                      new ReportPointForceLowercaseTransformer(rule.get("scope"), rule.get("match"), counter));
+                  break;
                 case "addTag":
                   allowArguments(rule, "rule", "action", "tag", "value");
                   this.forPort(strPort).forReportPoint().addTransformer(

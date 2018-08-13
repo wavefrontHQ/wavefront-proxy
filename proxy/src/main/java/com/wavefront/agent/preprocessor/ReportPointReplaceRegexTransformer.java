@@ -47,7 +47,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     this.ruleAppliedCounter = ruleAppliedCounter;
   }
 
-  private String replaceString(String content) {
+  private String replaceString(@NotNull ReportPoint reportPoint, String content) {
     Matcher patternMatcher;
     patternMatcher = compiledSearchPattern.matcher(content);
     if (!patternMatcher.find()) {
@@ -57,9 +57,11 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
       ruleAppliedCounter.inc();
     }
 
+    String replacement = PreprocessorUtil.expandPlaceholders(patternReplace, reportPoint);
+
     int currentIteration = 0;
     while (currentIteration < maxIterations) {
-      content = patternMatcher.replaceAll(patternReplace);
+      content = patternMatcher.replaceAll(replacement);
       patternMatcher = compiledSearchPattern.matcher(content);
       if (!patternMatcher.find()) {
         break;
@@ -71,31 +73,18 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
 
   @Override
   public ReportPoint apply(@NotNull ReportPoint reportPoint) {
-    Matcher patternMatcher;
     switch (scope) {
       case "metricName":
         if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getMetric()).matches()) {
           break;
         }
-        patternMatcher = compiledSearchPattern.matcher(reportPoint.getMetric());
-        if (patternMatcher.find()) {
-          reportPoint.setMetric(patternMatcher.replaceAll(patternReplace));
-          if (ruleAppliedCounter != null) {
-            ruleAppliedCounter.inc();
-          }
-        }
+        reportPoint.setMetric(replaceString(reportPoint, reportPoint.getMetric()));
         break;
       case "sourceName":
         if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getHost()).matches()) {
           break;
         }
-        patternMatcher = compiledSearchPattern.matcher(reportPoint.getHost());
-        if (patternMatcher.find()) {
-          reportPoint.setHost(patternMatcher.replaceAll(patternReplace));
-          if (ruleAppliedCounter != null) {
-            ruleAppliedCounter.inc();
-          }
-        }
+        reportPoint.setHost(replaceString(reportPoint, reportPoint.getHost()));
         break;
       default:
         if (reportPoint.getAnnotations() != null) {
@@ -104,13 +93,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
             if (compiledMatchPattern != null && !compiledMatchPattern.matcher(tagValue).matches()) {
               break;
             }
-            patternMatcher = compiledSearchPattern.matcher(tagValue);
-            if (patternMatcher.find()) {
-              reportPoint.getAnnotations().put(scope, patternMatcher.replaceAll(patternReplace));
-              if (ruleAppliedCounter != null) {
-                ruleAppliedCounter.inc();
-              }
-            }
+           reportPoint.getAnnotations().put(scope, replaceString(reportPoint, tagValue));
           }
         }
     }

@@ -38,7 +38,7 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
     if (reportPoint.getAnnotations() == null) {
       reportPoint.setAnnotations(Maps.<String, String>newHashMap());
     }
-    reportPoint.getAnnotations().put(tag, value);
+    reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
     if (ruleAppliedCounter != null) {
       ruleAppliedCounter.inc();
     }

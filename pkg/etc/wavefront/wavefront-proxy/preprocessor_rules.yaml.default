@@ -13,6 +13,7 @@
 ##   - replaceRegex: perform search/replace substitutions (substring match)
 ##   - whitelistRegex: reject all points not matching a regex pattern (full match)
 ##   - blacklistRegex: reject all points matching a regex pattern (full match)
+##   - forceLowercase: convert a point's component (metric name, source, point tag value) to lowercase
 ##   - dropTag: remove a point tag. optional: remove tag only when its value matches a regex pattern (full match))
 ##   - addTag: add a new point tag. if such point tag already exists, an existing value will be replaced
 ##   - addTagIfNotExists: add a new point tag, but don't overwrite an existing value if such point tag already exists
@@ -136,6 +137,13 @@
   #  scope   : metricName
   #  search  : "([^\\.]+)(\\..+?)(\\..*)"
   #  replace : "$1$3"
+
+  # force lowercase on metric name (with optional regex match)
+  ################################################################
+  #- rule    : example-force-lowercase
+  #  action  : forceLowercase
+  #  scope   : metricName
+  #  match   : "^UPPERCASE.*$"
 
   ## rename a point tag
   ################################################################
