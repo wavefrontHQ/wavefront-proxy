@@ -10,7 +10,6 @@
     <module>proxy</module>
     <module>java-client</module>
     <module>dropwizard-metrics/dropwizard-metrics5</module>
-    <module>examples/dropwizard-metrics5</module>
     <module>dropwizard-metrics/dropwizard-metrics</module>
     <module>dropwizard-metrics/dropwizard-metrics-wavefront</module>
     <module>yammer-metrics</module>
