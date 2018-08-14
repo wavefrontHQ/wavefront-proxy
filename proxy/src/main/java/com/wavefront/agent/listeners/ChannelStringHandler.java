@@ -9,14 +9,19 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.Decoder;
 
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Random;
 
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+
+import org.apache.commons.lang.math.NumberUtils;
 import wavefront.report.ReportPoint;
 
 /**
@@ -32,6 +37,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   private static final Logger rawDataLogger = Logger.getLogger("RawDataLogger");
 
   private final Decoder<String> decoder;
+  private static final Random RANDOM = new Random();
 
   /**
    * Transformer to transform each line.
@@ -39,7 +45,9 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   @Nullable
   private final ReportableEntityPreprocessor preprocessor;
   private final PointHandler pointHandler;
+  
   private final boolean logRawDataFlag;
+  private double logRawDataRate;
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
@@ -63,6 +71,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       rawDataLogger.info("Raw data logging is enabled with " + (logRawDataRate * 100) + "% sampling");
     }
   }
+
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
