@@ -22,6 +22,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
 import org.apache.commons.lang.math.NumberUtils;
+
 import wavefront.report.ReportPoint;
 
 /**
@@ -45,7 +46,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   @Nullable
   private final ReportableEntityPreprocessor preprocessor;
   private final PointHandler pointHandler;
-  
+
   private final boolean logRawDataFlag;
   private double logRawDataRate;
 
@@ -61,13 +62,12 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     logRawDataFlag = logRawDataProperty != null && logRawDataProperty.equalsIgnoreCase("true");
 
     // make sure the rate fits between 0.0d - 1.0d
-    if(logRawDataRate < 0.0d) {
+    if (logRawDataRate < 0.0d) {
       logRawDataRate = 0.0d;
-    }
-    else if(logRawDataRate > 1.0d) {
+    } else if (logRawDataRate > 1.0d) {
       logRawDataRate = 1.0d;
     }
-    if(logRawDataRate > 0.0d && rawDataLogger.isLoggable(Level.FINEST)) {
+    if (logRawDataRate > 0.0d && rawDataLogger.isLoggable(Level.FINEST)) {
       rawDataLogger.info("Raw data logging is enabled with " + (logRawDataRate * 100) + "% sampling");
     }
   }
@@ -77,8 +77,8 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
     // use data rate to determine sampling rate
     // logging includes the source host and port
-    if(logRawDataRate >= 1.0d || (logRawDataRate > 0.0d && RANDOM.nextDouble() < logRawDataRate)) {
-      if(ctx.channel().remoteAddress() != null) {
+    if (logRawDataRate >= 1.0d || (logRawDataRate > 0.0d && RANDOM.nextDouble() < logRawDataRate)) {
+      if (ctx.channel().remoteAddress() != null) {
         String hostAddress = ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().getHostAddress();
         int localPort = ((InetSocketAddress) ctx.channel().localAddress()).getPort();
         rawDataLogger.info(String.format("[%s>%d]%s", hostAddress, localPort, msg));
