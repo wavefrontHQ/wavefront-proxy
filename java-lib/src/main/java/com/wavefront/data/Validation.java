@@ -98,6 +98,13 @@ public class Validation {
           if (!(pointValue instanceof Long) && !(pointValue instanceof Double) && !(pointValue instanceof Histogram)) {
             throw new IllegalArgumentException("WF-403 " + source + ": Was not long/double/histogram object");
           }
+          if (pointValue instanceof Histogram) {
+            Histogram histogram = (Histogram) pointValue;
+            if (histogram.getCounts().size() == 0 || histogram.getBins().size() == 0 ||
+                histogram.getCounts().stream().allMatch(i -> i == 0)) {
+              throw new IllegalArgumentException("WF-405 " + source + ": Empty histogram");
+            }
+          }
           break;
       }
     }
