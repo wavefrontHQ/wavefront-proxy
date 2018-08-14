@@ -93,7 +93,7 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     }
 
     if ((logRawData || logRawDataFlag) &&
-        (logRawDataRate >= 1.0d || (logRawDataRate > 0.0d && RANDOM.nextDouble() < logRawDataRate)) {
+        (logRawDataRate >= 1.0d || (logRawDataRate > 0.0d && RANDOM.nextDouble() < logRawDataRate))) {
       if (ctx.channel().remoteAddress() != null) {
         String hostAddress = ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().getHostAddress();
         int localPort = ((InetSocketAddress) ctx.channel().localAddress()).getPort();
