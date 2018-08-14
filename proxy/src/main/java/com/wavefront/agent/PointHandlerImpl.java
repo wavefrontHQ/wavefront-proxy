@@ -93,7 +93,6 @@ public class PointHandlerImpl implements PointHandler {
           validationLevel == null ? null : Validation.Level.valueOf(validationLevel));
 
       String strPoint = pointToString(point);
-
       if (logPointsUpdatedMillis + TimeUnit.SECONDS.toMillis(1) < System.currentTimeMillis()) {
         // refresh validPointsLogger level once a second
         if (logPoints != validPointsLogger.isLoggable(Level.FINEST)) {

@@ -9,14 +9,20 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.Decoder;
 
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Random;
 
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+
+import org.apache.commons.lang.math.NumberUtils;
+
 import wavefront.report.ReportPoint;
 
 /**
@@ -29,8 +35,10 @@ import wavefront.report.ReportPoint;
 public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
 
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
+  private static final Logger rawDataLogger = Logger.getLogger("RawDataLogger");
 
   private final Decoder<String> decoder;
+  private static final Random RANDOM = new Random();
 
   /**
    * Transformer to transform each line.
@@ -39,17 +47,46 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   private final ReportableEntityPreprocessor preprocessor;
   private final PointHandler pointHandler;
 
+  private final boolean logRawDataFlag;
+  private double logRawDataRate;
+
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
                               @Nullable final ReportableEntityPreprocessor preprocessor) {
     this.decoder = decoder;
     this.pointHandler = pointhandler;
     this.preprocessor = preprocessor;
+
+    // check the property setting for logging raw data
+    String logRawDataProperty = System.getProperty("wavefront.proxy.lograwdata");
+    logRawDataFlag = logRawDataProperty != null && logRawDataProperty.equalsIgnoreCase("true");
+
+    // make sure the rate fits between 0.0d - 1.0d
+    if (logRawDataRate < 0.0d) {
+      logRawDataRate = 0.0d;
+    } else if (logRawDataRate > 1.0d) {
+      logRawDataRate = 1.0d;
+    }
+    if (logRawDataRate > 0.0d && rawDataLogger.isLoggable(Level.FINEST)) {
+      rawDataLogger.info("Raw data logging is enabled with " + (logRawDataRate * 100) + "% sampling");
+    }
   }
+
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, String msg) throws Exception {
-    // if msg does not match metadata keywords then treat it as a point
+    // use data rate to determine sampling rate
+    // logging includes the source host and port
+    if (logRawDataRate >= 1.0d || (logRawDataRate > 0.0d && RANDOM.nextDouble() < logRawDataRate)) {
+      if (ctx.channel().remoteAddress() != null) {
+        String hostAddress = ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().getHostAddress();
+        int localPort = ((InetSocketAddress) ctx.channel().localAddress()).getPort();
+        rawDataLogger.info(String.format("[%s>%d]%s", hostAddress, localPort, msg));
+      } else {
+        int localPort = ((InetSocketAddress) ctx.channel().localAddress()).getPort();
+        rawDataLogger.info(String.format("[>%d]%s", localPort, msg));
+      }
+    }
     processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
   }
 
@@ -70,7 +107,6 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     // transform the line if needed
     if (preprocessor != null) {
       pointLine = preprocessor.forPointLine().transform(pointLine);
-
       // apply white/black lists after formatting
       if (!preprocessor.forPointLine().filter(pointLine)) {
         if (preprocessor.forPointLine().getLastFilterResult() != null) {
