@@ -177,7 +177,7 @@ restart()
 
 condrestart()
 {
-    [ -f "$pid_file" ] && restart
+    [ -f "$pid_file" ] && restart || :
 }
 case "$1" in
 start) start ;;
