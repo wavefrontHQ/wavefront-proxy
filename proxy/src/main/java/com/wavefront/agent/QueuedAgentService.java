@@ -513,19 +513,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     return smallestQueue.orElse(null);
   }
 
-  private ResubmissionTaskQueue getSmallestSourceTagQueue() {
-    int size = Integer.MAX_VALUE;
-    ResubmissionTaskQueue toReturn = null;
-    for (ResubmissionTaskQueue queue : sourceTagTaskQueues) {
-      if (queue.size() == 0) return queue;
-      else if (queue.size() < size){
-        toReturn = queue;
-        size = queue.size();
-      }
-    }
-    return toReturn;
-  }
-
   private Runnable getPostingSizerTask(final ResubmissionTask task) {
     return () -> {
       try {
@@ -639,8 +626,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     addSourceTagTaskToSmallestQueue(taskToRetry);
   }
 
-  private void addSourceTagTaskToSmallestQueue(ResubmissionTask taskToRetry) {
-    ResubmissionTaskQueue queue = getSmallestSourceTagQueue();
+  private void addSourceTagTaskToSmallestQueue(PostSourceTagResultTask taskToRetry) {
+    // we need to make sure the we preserve the order of operations for each source
+    ResubmissionTaskQueue queue = sourceTagTaskQueues.get(taskToRetry.id.hashCode() % sourceTagTaskQueues.size());
     if (queue != null) {
       try {
         queue.add(taskToRetry);
