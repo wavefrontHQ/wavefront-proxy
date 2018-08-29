@@ -1,6 +1,7 @@
 package com.wavefront.ingester;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -15,9 +16,11 @@ import org.apache.commons.lang.time.DateUtils;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -25,12 +28,15 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 
 import queryserver.parser.DSWrapperLexer;
+import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
+import wavefront.report.Span;
 
 /**
  * This is the base class for formatting the content.
@@ -127,19 +133,15 @@ public abstract class AbstractIngesterFormatter<T> {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
-    Map<String, String> getAnnotations() {
+    void setDuration(Long value) {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
-    void setAnnotations(Map<String, String> annotations) {
+    void addAnnotation(String key, String value) {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
-    void setAnnotations(List<String> annotations) {
-      throw new UnsupportedOperationException("Should not be invoked.");
-    }
-
-    void addToAnnotations(String value) {
+    void addAnnotation(String value) {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
@@ -147,23 +149,19 @@ public abstract class AbstractIngesterFormatter<T> {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
-    String getSourceTagLiteral() {
+    String getLiteral() {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
-    void setSourceTagLiteral(String literal) {
+    void setLiteral(String literal) {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
-    void setAction(String action) {
+    void setCustomer(String name) {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
 
-    void setSource(String source) {
-      throw new UnsupportedOperationException("Should not be invoked.");
-    }
-
-    void setDescription(String description) {
+    void setName(String value) {
       throw new UnsupportedOperationException("Should not be invoked.");
     }
   }
@@ -214,13 +212,11 @@ public abstract class AbstractIngesterFormatter<T> {
     }
 
     @Override
-    Map<String, String> getAnnotations() {
-      return reportPoint.getAnnotations();
-    }
-
-    @Override
-    void setAnnotations(Map<String, String> annotations) {
-      reportPoint.setAnnotations(annotations);
+    void addAnnotation(String key, String value) {
+      if (reportPoint.getAnnotations() == null) {
+        reportPoint.setAnnotations(new HashMap<>());
+      }
+      reportPoint.getAnnotations().put(key, value);
     }
 
     @Override
@@ -233,47 +229,78 @@ public abstract class AbstractIngesterFormatter<T> {
    * This class provides a wrapper around ReportSourceTag
    */
   protected static class ReportSourceTagWrapper extends AbstractWrapper {
-    ReportSourceTag reportSourceTag;
+    final ReportSourceTag reportSourceTag;
+    final Map<String, String> annotations;
 
     ReportSourceTagWrapper(ReportSourceTag reportSourceTag) {
       this.reportSourceTag = reportSourceTag;
+      this.annotations = Maps.newHashMap();
     }
 
     @Override
-    String getSourceTagLiteral() {
+    String getLiteral() {
       return reportSourceTag.getSourceTagLiteral();
     }
 
     @Override
-    void setSourceTagLiteral(String literal) {
+    void setLiteral(String literal) {
       reportSourceTag.setSourceTagLiteral(literal);
     }
 
     @Override
-    void setAnnotations(List<String> annotations) {
-      reportSourceTag.setAnnotations(annotations);
+    void addAnnotation(String key, String value) {
+      annotations.put(key, value);
     }
 
     @Override
-    void setSource(String source) {
-      reportSourceTag.setSource(source);
-    }
-
-    @Override
-    void setAction(String action) {
-      reportSourceTag.setAction(action);
-    }
-
-    @Override
-    void setDescription(String description) {
-      reportSourceTag.setDescription(description);
-    }
-
-    @Override
-    void addToAnnotations(String value) {
+    void addAnnotation(String value) {
       if (reportSourceTag.getAnnotations() == null)
         reportSourceTag.setAnnotations(Lists.<String>newArrayList());
       reportSourceTag.getAnnotations().add(value);
+    }
+
+    @NotNull
+    Map<String, String> getAnnotationMap() {
+      return annotations;
+    }
+  }
+
+  /**
+   * This class provides a wrapper around Span.
+   */
+  protected static class SpanWrapper extends AbstractWrapper {
+    Span span;
+
+    SpanWrapper(Span span) {
+      this.span = span;
+    }
+
+    @Override
+    void setDuration(Long value) {
+      span.setDuration(value);
+    }
+
+    @Override
+    Long getTimestamp() {
+      return span.getStartMillis();
+    }
+
+    @Override
+    void setTimestamp(Long value) {
+      span.setStartMillis(value);
+    }
+
+    @Override
+    void setName(String name) { //
+      span.setName(name);
+    }
+
+    @Override
+    void addAnnotation(String key, String value) {
+      if (span.getAnnotations() == null) {
+        span.setAnnotations(Lists.newArrayList());
+      }
+      span.getAnnotations().add(new Annotation(key, value));
     }
   }
 
@@ -337,6 +364,27 @@ public abstract class AbstractIngesterFormatter<T> {
       return this;
     }
 
+    public IngesterFormatBuilder<T> appendRawTimestamp() {
+      elements.add(new AdaptiveTimestamp(false, false));
+      return this;
+    }
+
+    public IngesterFormatBuilder<T> appendDuration() {
+      elements.add(new Duration(false));
+      return this;
+    }
+
+    public IngesterFormatBuilder<T> appendName() {
+      elements.add(new Name());
+      return this;
+    }
+
+    public IngesterFormatBuilder<T> appendBoundedAnnotationsConsumer() {
+      elements.add(new GuardedLoop(new Tag(), ImmutableSortedSet.of(DSWrapperLexer.Literal, DSWrapperLexer.Letters,
+          DSWrapperLexer.Quoted), false));
+      return this;
+    }
+
     public IngesterFormatBuilder<T> appendAnnotationsConsumer() {
       elements.add(new Loop(new Tag()));
       return this;
@@ -368,7 +416,7 @@ public abstract class AbstractIngesterFormatter<T> {
     }
 
     public IngesterFormatBuilder<T> appendLoopOfValues() {
-      elements.add(new LoopOfValues());
+      elements.add(new Loop(new AlphaNumericValue()));
       return this;
     }
 
@@ -481,21 +529,28 @@ public abstract class AbstractIngesterFormatter<T> {
    */
   public static class GuardedLoop implements FormatterElement {
     private final FormatterElement element;
-    private final int acceptedToken;
+    private final Set<Integer> acceptedTokens;
     private final boolean optional;
 
     public GuardedLoop(FormatterElement element, int acceptedToken, boolean optional) {
       this.element = element;
-      this.acceptedToken = acceptedToken;
+      this.acceptedTokens = ImmutableSortedSet.of(acceptedToken);
       this.optional = optional;
     }
+
+    public GuardedLoop(FormatterElement element, Set<Integer> acceptedTokens, boolean optional) {
+      this.element = element;
+      this.acceptedTokens = acceptedTokens;
+      this.optional = optional;
+    }
+
 
     @Override
     public void consume(Queue<Token> tokenQueue, AbstractWrapper point) {
       boolean satisfied = optional;
       while (!tokenQueue.isEmpty()) {
         WHITESPACE_ELEMENT.consume(tokenQueue, point);
-        if (tokenQueue.peek() == null || tokenQueue.peek().getType() != acceptedToken) {
+        if (tokenQueue.peek() == null || !acceptedTokens.contains(tokenQueue.peek().getType())) {
           break;
         }
         satisfied = true;
@@ -546,10 +601,7 @@ public abstract class AbstractIngesterFormatter<T> {
       WHITESPACE_ELEMENT.consume(queue, point);
       String tagv = getLiteral(queue);
       if (tagv.length() == 0) throw new RuntimeException("Invalid tag value for: " + tagk);
-      if (point.getAnnotations() == null) {
-        point.setAnnotations(Maps.newHashMap());
-      }
-      point.getAnnotations().put(tagk, tagv);
+      point.addAnnotation(tagk, tagv);
     }
   }
 
@@ -603,7 +655,7 @@ public abstract class AbstractIngesterFormatter<T> {
       } else {
         throw new RuntimeException("invalid value: " + current.getText());
       }
-      sourceTag.addToAnnotations(value);
+      sourceTag.addAnnotation(value);
     }
   }
 
@@ -615,7 +667,7 @@ public abstract class AbstractIngesterFormatter<T> {
     }
   }
 
-  private static Long parseTimestamp(Queue<Token> tokenQueue, boolean optional) {
+  private static Long parseTimestamp(Queue<Token> tokenQueue, boolean optional, boolean convertToMillis) {
     Token peek = tokenQueue.peek();
     if (peek == null || peek.getType() != DSWrapperLexer.Number) {
       if (optional) return null;
@@ -625,6 +677,10 @@ public abstract class AbstractIngesterFormatter<T> {
     try {
       Double timestamp = Double.parseDouble(tokenQueue.poll().getText());
       Long timestampLong = timestamp.longValue();
+      if (!convertToMillis) {
+        // as-is
+        return timestampLong;
+      }
       int timestampDigits = timestampLong.toString().length();
       if (timestampDigits == 19) {
         // nanoseconds.
@@ -644,17 +700,70 @@ public abstract class AbstractIngesterFormatter<T> {
     }
   }
 
-  public static class AdaptiveTimestamp implements FormatterElement {
+  public static class Duration implements FormatterElement {
 
     private final boolean optional;
 
-    public AdaptiveTimestamp(boolean optional) {
+    public Duration(boolean optional) {
       this.optional = optional;
     }
 
     @Override
+    public void consume(Queue<Token> tokenQueue, AbstractWrapper wrapper) {
+      Long timestamp = parseTimestamp(tokenQueue, optional, false);
+
+      Long startTs = wrapper.getTimestamp();
+      if (timestamp != null && startTs != null) {
+        long duration = (timestamp - startTs >= 0) ? timestamp - startTs : timestamp;
+        // convert both timestamps to millis
+        if (startTs > 999999999999999999L) {
+          // 19 digits == nanoseconds,
+          wrapper.setTimestamp(startTs / 1000_000);
+          wrapper.setDuration(duration / 1000_000);
+        } else if (startTs > 999999999999999L) {
+          // 16 digits == microseconds
+          wrapper.setTimestamp(startTs / 1000);
+          wrapper.setDuration(duration / 1000);
+        } else if (startTs > 999999999999L) {
+          // 13 digits == milliseconds
+          wrapper.setDuration(duration);
+        } else {
+          // seconds
+          wrapper.setTimestamp(startTs * 1000);
+          wrapper.setDuration(duration * 1000);
+        }
+      } else {
+        throw new RuntimeException("Both timestamp and duration expected");
+      }
+    }
+  }
+
+  public static class Name implements FormatterElement {
+    @Override
     public void consume(Queue<Token> tokenQueue, AbstractWrapper point) {
-      Long timestamp = parseTimestamp(tokenQueue, optional);
+      String name = getLiteral(tokenQueue);
+      if (name.length() == 0) throw new RuntimeException("Invalid name");
+      point.setName(name);
+    }
+  }
+
+  public static class AdaptiveTimestamp implements FormatterElement {
+
+    private final boolean optional;
+    private final boolean convertToMillis;
+
+    public AdaptiveTimestamp(boolean optional) {
+      this(optional, true);
+    }
+
+    public AdaptiveTimestamp(boolean optional, boolean convertToMillis) {
+      this.optional = optional;
+      this.convertToMillis = convertToMillis;
+    }
+
+    @Override
+    public void consume(Queue<Token> tokenQueue, AbstractWrapper point) {
+      Long timestamp = parseTimestamp(tokenQueue, optional, convertToMillis);
 
       // Do not override with null on satisfied
       if (timestamp != null) {
@@ -720,58 +829,21 @@ public abstract class AbstractIngesterFormatter<T> {
     }
   }
 
-  public static class Keyword implements FormatterElement {
-
-    @Override
-    public void consume(Queue<Token> queue, AbstractWrapper sourceTag) {
-      // extract tags.
-      String tagk;
-      tagk = getLiteral(queue);
-      if (tagk.length() == 0) {
-        throw new RuntimeException("Invalid tag name");
-      }
-      WHITESPACE_ELEMENT.consume(queue, sourceTag);
-      Token current = queue.poll();
-      if (current == null || current.getType() != DSWrapperLexer.EQ) {
-        throw new RuntimeException("Tag keys and values must be separated by '='" +
-            (current != null ? ", " + "found: " + current.getText() : ", found EOF"));
-      }
-      WHITESPACE_ELEMENT.consume(queue, sourceTag);
-      String tagv = getLiteral(queue);
-      if (tagv.length() == 0) throw new RuntimeException("Invalid tag value for: " + tagk);
-
-      switch (tagk) {
-        case ReportSourceTagIngesterFormatter.ACTION:
-          sourceTag.setAction(tagv);
-          break;
-        case ReportSourceTagIngesterFormatter.SOURCE:
-          sourceTag.setSource(tagv);
-          break;
-        case ReportSourceTagIngesterFormatter.DESCRIPTION:
-          sourceTag.setDescription(tagv);
-          break;
-        default:
-          throw new RuntimeException("Unknown tag key = " + tagk + " specified.");
-      }
-    }
-  }
-
-
   /**
    * This class handles a sequence of key value pairs. Currently it works for source tag related
    * inputs only.
    */
   public static class LoopOfKeywords implements FormatterElement {
 
-    private final FormatterElement tagElement = new Keyword();
+    private final FormatterElement tagElement = new Tag();
 
     @Override
     public void consume(Queue<Token> tokenQueue, AbstractWrapper sourceTag) {
-      if (sourceTag.getSourceTagLiteral() == null) {
+      if (sourceTag.getLiteral() == null) {
         // throw an exception since we expected that field to be populated
         throw new RuntimeException("Expected either @SourceTag or @SourceDescription in the " +
             "message");
-      } else if (sourceTag.getSourceTagLiteral().equals("SourceTag")) {
+      } else if (sourceTag.getLiteral().equals("SourceTag")) {
         // process it as a sourceTag -- 2 tag elements; action="add" source="aSource"
         int count = 0, max = 2;
         while (count < max) {
@@ -779,7 +851,7 @@ public abstract class AbstractIngesterFormatter<T> {
           tagElement.consume(tokenQueue, sourceTag);
           count++;
         }
-      } else if (sourceTag.getSourceTagLiteral().equals("SourceDescription")) {
+      } else if (sourceTag.getLiteral().equals("SourceDescription")) {
         // process it as a description -- all the remaining should be tags
         while (!tokenQueue.isEmpty()) {
           WHITESPACE_ELEMENT.consume(tokenQueue, sourceTag);
@@ -789,22 +861,6 @@ public abstract class AbstractIngesterFormatter<T> {
         // throw exception, since it should be one of the above
         throw new RuntimeException("Expected either @SourceTag or @SourceDescription in the " +
             "message");
-      }
-    }
-  }
-
-  /**
-   * This class handles a sequence of values.
-   */
-  public static class LoopOfValues implements FormatterElement {
-    private final FormatterElement valueElement = new AlphaNumericValue();
-
-    @Override
-    public void consume(Queue<Token> tokenQueue, AbstractWrapper sourceTag) {
-      while (!tokenQueue.isEmpty()) {
-        WHITESPACE_ELEMENT.consume(tokenQueue, sourceTag);
-        if (tokenQueue.isEmpty()) return;
-        valueElement.consume(tokenQueue, sourceTag);
       }
     }
   }
@@ -831,7 +887,7 @@ public abstract class AbstractIngesterFormatter<T> {
       if (caseSensitive) {
         for (String specLiteral : literals) {
           if (literal.equals(specLiteral)) {
-            point.setSourceTagLiteral(literal.substring(1));
+            point.setLiteral(literal.substring(1));
             return;
           }
         }
@@ -840,7 +896,7 @@ public abstract class AbstractIngesterFormatter<T> {
       } else {
         for (String specLiteral : literals) {
           if (literal.equalsIgnoreCase(specLiteral)) {
-            point.setSourceTagLiteral(literal.substring(1));
+            point.setLiteral(literal.substring(1));
             return;
           }
         }

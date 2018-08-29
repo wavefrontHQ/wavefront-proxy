@@ -4,16 +4,7 @@ import com.tdunning.math.stats.Centroid;
 import com.wavefront.common.MetricsToTimeseries;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.ReconnectingSocket;
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.Metered;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricProcessor;
-import com.yammer.metrics.core.Sampling;
-import com.yammer.metrics.core.Summarizable;
-import com.yammer.metrics.core.Timer;
-import com.yammer.metrics.core.WavefrontHistogram;
+import com.yammer.metrics.core.*;
 
 import java.io.IOException;
 import java.util.List;
@@ -122,7 +113,14 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
   @Override
   public void processCounter(MetricName name, Counter counter, Void context) throws Exception {
     if (!sendZeroCounters && counter.count() == 0) return;
-    writeMetric(name, null, counter.count());
+
+    // handle delta counters
+    if (counter instanceof DeltaCounter) {
+      long count = DeltaCounter.processDeltaCounter((DeltaCounter) counter);
+      writeMetric(name, null, count);
+    } else {
+      writeMetric(name, null, counter.count());
+    }
   }
 
   @Override

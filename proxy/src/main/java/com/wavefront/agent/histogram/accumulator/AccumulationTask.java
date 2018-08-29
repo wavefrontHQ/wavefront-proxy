@@ -6,7 +6,7 @@ import com.google.common.collect.Lists;
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.PointHandler;
-import com.wavefront.agent.Validation;
+import com.wavefront.data.Validation;
 import com.wavefront.agent.histogram.Utils;
 import com.wavefront.ingester.Decoder;
 import com.yammer.metrics.Metrics;
@@ -114,10 +114,8 @@ public class AccumulationTask implements Runnable {
           // now have the point, continue like in PointHandlerImpl
           ReportPoint event = points.get(0);
 
-          // need the granularity here
           Validation.validatePoint(
               event,
-              granularity.name(),
               line,
               validationLevel);
 

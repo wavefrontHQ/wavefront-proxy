@@ -7,7 +7,7 @@
   <parent>
     <groupId>com.wavefront</groupId>
     <artifactId>wavefront</artifactId>
-    <version>4.30-SNAPSHOT</version>
+    <version>4.31-SNAPSHOT</version>
   </parent>
 
   <name>Wavefront Java Libraries</name>
@@ -45,6 +45,10 @@
     <dependency>
       <groupId>commons-lang</groupId>
       <artifactId>commons-lang</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>commons-collections</groupId>
+      <artifactId>commons-collections</artifactId>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -103,6 +107,11 @@
       <artifactId>metrics-core</artifactId>
       <version>3.1.2</version>
     </dependency>
+    <dependency>
+      <groupId>io.dropwizard.metrics5</groupId>
+      <artifactId>metrics-core</artifactId>
+      <version>5.0.0-rc2</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -129,7 +138,7 @@
       <plugin>
         <groupId>org.antlr</groupId>
         <artifactId>antlr4-maven-plugin</artifactId>
-        <version>4.5</version>
+        <version>4.7.1</version>
         <configuration>
           <outputDirectory>target/generated-sources/antlr4/queryserver/parser</outputDirectory>
           <sourceDirectory>${project.basedir}/src/main/antlr4</sourceDirectory>

@@ -76,6 +76,14 @@ public class GraphiteDecoderTest {
     assertEquals(100.0, point.getValue());
     assertEquals("ip1", point.getHost());
 
+    points = Lists.newArrayList();
+    decoder.decodeReportPoints("∆test.devnag.10 100 host=ip1", points, "tsdb");
+    point = points.get(0);
+    assertEquals("tsdb", point.getTable());
+    assertEquals("∆test.devnag.10", point.getMetric());
+    assertEquals(100.0, point.getValue());
+    assertEquals("ip1", point.getHost());
+
     points.clear();
     decoder.decodeReportPoints("test.devnag.10 100 host=ip1 a=500", points, "tsdb");
     point = points.get(0);

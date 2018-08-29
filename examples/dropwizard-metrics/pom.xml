@@ -10,7 +10,7 @@
 	<parent>
 		<groupId>com.wavefront</groupId>
 		<artifactId>wavefront</artifactId>
-		<version>4.29-SNAPSHOT</version>
+		<version>4.30-SNAPSHOT</version>
 	</parent>
 
 	<dependencies>
@@ -26,8 +26,8 @@
 		</dependency>
 		<dependency>
 			<groupId>com.wavefront</groupId>
-			<artifactId>dropwizard-metrics-3.1</artifactId>
-			<version>4.29-SNAPSHOT</version>
+			<artifactId>dropwizard-metrics</artifactId>
+			<version>4.29</version>
 		</dependency>
 	</dependencies>
 

@@ -2,6 +2,7 @@ package com.wavefront.agent.logsharvesting;
 
 import com.wavefront.agent.PointHandler;
 
+import com.wavefront.common.MetricConstants;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;
@@ -27,11 +28,20 @@ public class FlushProcessorContext {
   }
 
   private ReportPoint.Builder reportPointBuilder() {
+    String newName = timeSeries.getMetric();
+    // if prefix is provided then add the delta before the prefix
+    if (prefix != null && (newName.startsWith(MetricConstants.DELTA_PREFIX) ||
+            newName.startsWith(MetricConstants.DELTA_PREFIX_2))) {
+      newName = MetricConstants.DELTA_PREFIX + prefix + "." + newName.substring(MetricConstants
+              .DELTA_PREFIX.length());
+    } else {
+      newName = prefix == null ? timeSeries.getMetric() : prefix + "." + timeSeries.getMetric();
+    }
     return ReportPoint.newBuilder()
         .setHost(timeSeries.getHost())
         .setAnnotations(timeSeries.getAnnotations())
         .setTimestamp(timestamp)
-        .setMetric(prefix == null ? timeSeries.getMetric() : prefix + "." + timeSeries.getMetric());
+        .setMetric(newName);
   }
 
   void report(ReportPoint reportPoint) {

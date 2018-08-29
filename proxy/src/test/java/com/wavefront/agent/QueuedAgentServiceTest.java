@@ -32,6 +32,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import javax.ws.rs.core.Response;
 
+import io.netty.util.internal.StringUtil;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -66,7 +68,7 @@ public class QueuedAgentServiceTest {
             toReturn.setName("unit test submission worker: " + counter.getAndIncrement());
             return toReturn;
           }
-        }), true, newAgentId, false, (RecyclableRateLimiter) null);
+        }), true, newAgentId, false, (RecyclableRateLimiter) null, StringUtil.EMPTY_STRING);
   }
   // post sourcetag metadata
 
@@ -93,7 +95,7 @@ public class QueuedAgentServiceTest {
   public void postSourceTagIntoQueue() {
     String id = "localhost";
     String tagValue = "sourceTag1";
-    Response response = queuedAgentService.removeTag(id, StringUtils.EMPTY, tagValue, true);
+    Response response = queuedAgentService.removeTag(id, tagValue, true);
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
   }
@@ -108,7 +110,7 @@ public class QueuedAgentServiceTest {
     String id = "dummy";
     EasyMock.expect(mockAgentAPI.removeDescription(id, StringUtils.EMPTY)).andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.removeDescription(id, StringUtils.EMPTY);
+    Response response = queuedAgentService.removeDescription(id, false);
     EasyMock.verify(mockAgentAPI);
     assertEquals("Response code was incorrect.", Response.Status.OK.getStatusCode(), response
         .getStatus());
@@ -124,7 +126,7 @@ public class QueuedAgentServiceTest {
   public void postSourceDescriptionIntoQueue() throws Exception {
     String id = "localhost";
     String desc = "A Description";
-    Response response = queuedAgentService.setDescription(id, StringUtils.EMPTY, desc, true);
+    Response response = queuedAgentService.setDescription(id, desc, true);
     assertEquals("Response code did not match", Response.Status.NOT_ACCEPTABLE.getStatusCode(),
         response.getStatus());
     assertEquals("No task found in the backlog queue", 1, queuedAgentService
@@ -143,7 +145,7 @@ public class QueuedAgentServiceTest {
     EasyMock.expect(mockAgentAPI.setTags(id, StringUtils.EMPTY,
         Arrays.asList(tags))).andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setTags(id, StringUtils.EMPTY, Arrays.asList(tags));
+    Response response = queuedAgentService.setTags(id, Arrays.asList(tags), false);
     EasyMock.verify(mockAgentAPI);
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
   }
@@ -161,7 +163,7 @@ public class QueuedAgentServiceTest {
     EasyMock.expect(mockAgentAPI.setDescription(id, StringUtils.EMPTY, desc)).andReturn(Response.ok()
         .build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setDescription(id, StringUtils.EMPTY, desc);
+    Response response = queuedAgentService.setDescription(id, desc, false);
     EasyMock.verify(mockAgentAPI);
     assertEquals("Response code did not match.", Response.Status.OK.getStatusCode(),
         response.getStatus());
@@ -185,7 +187,7 @@ public class QueuedAgentServiceTest {
         .Status.OK).build()).once();
     EasyMock.replay(mockAgentAPI);
     // call the api
-    Response response = queuedAgentService.removeTag(id, StringUtils.EMPTY, tagValue);
+    Response response = queuedAgentService.removeTag(id, tagValue, false);
     // verify
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
@@ -210,7 +212,7 @@ public class QueuedAgentServiceTest {
     EasyMock.expect(mockAgentAPI.setTags(id, StringUtils.EMPTY, Arrays.asList(tags))).andReturn(
         Response.status(Response.Status.OK).build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setTags(id, StringUtils.EMPTY, Arrays.asList(tags));
+    Response response = queuedAgentService.setTags(id, Arrays.asList(tags), false);
     // verify
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
@@ -237,7 +239,7 @@ public class QueuedAgentServiceTest {
         .status
         (Response.Status.OK).build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setDescription(id, StringUtils.EMPTY, description);
+    Response response = queuedAgentService.setDescription(id, description, false);
     // verify
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
@@ -245,64 +247,6 @@ public class QueuedAgentServiceTest {
     TimeUnit.SECONDS.sleep(5);
     EasyMock.verify(mockAgentAPI);
     assertEquals(0, queuedAgentService.getQueuedSourceTagTasksCount());
-  }
-
-  // postWorkUnitResult
-
-  @Test
-  public void postWorkUnitResultCallsApproriateServiceMethodAndReturnsOK() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO)).
-        andReturn(Response.ok().build()).once();
-    EasyMock.replay(mockAgentAPI);
-
-    Response response = queuedAgentService.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO);
-
-    EasyMock.verify(mockAgentAPI);
-    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
-  }
-
-  @Test
-  public void postWorkUnitResultServiceReturns406RequeuesAndReturnsNotAcceptable() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO)).
-        andReturn(Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
-    EasyMock.replay(mockAgentAPI);
-
-    Response response = queuedAgentService.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO);
-
-    EasyMock.verify(mockAgentAPI);
-    assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
-    assertEquals(1, queuedAgentService.getQueuedTasksCount());
-  }
-
-  @Test
-  public void postWorkUnitResultServiceReturns413RequeuesAndReturnsNotAcceptable() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO)).
-        andReturn(Response.status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
-    EasyMock.replay(mockAgentAPI);
-
-    Response response = queuedAgentService.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO);
-
-    EasyMock.verify(mockAgentAPI);
-    assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
-    assertEquals(1, queuedAgentService.getQueuedTasksCount());
   }
 
   // postPushData
@@ -434,131 +378,6 @@ public class QueuedAgentServiceTest {
         task.currentAgentId = newAgentId;
       }
     }.injectMembers(task);
-  }
-
-  // *******
-  // ** PostWorkUnitResultTask
-  // *******
-  @Test
-  public void postWorkUnitResultTaskExecuteCallsAppropriateService() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    QueuedAgentService.PostWorkUnitResultTask task = new QueuedAgentService.PostWorkUnitResultTask(
-        agentId,
-        workUnitId,
-        targetId,
-        shellOutputDTO
-    );
-
-    injectServiceToResubmissionTask(task);
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(newAgentId, workUnitId, targetId, shellOutputDTO))
-        .andReturn(Response.ok().build()).once();
-
-    EasyMock.replay(mockAgentAPI);
-
-    task.execute(null);
-
-    EasyMock.verify(mockAgentAPI);
-  }
-
-  @Test
-  public void postWorkUnitResultTaskExecuteServiceReturns406ThrowsException() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    QueuedAgentService.PostWorkUnitResultTask task = new QueuedAgentService.PostWorkUnitResultTask(
-        agentId,
-        workUnitId,
-        targetId,
-        shellOutputDTO
-    );
-
-    injectServiceToResubmissionTask(task);
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(newAgentId, workUnitId, targetId, shellOutputDTO))
-        .andReturn(Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
-
-    EasyMock.replay(mockAgentAPI);
-
-    boolean exceptionThrown = false;
-
-    try {
-      task.execute(null);
-    } catch (RejectedExecutionException e) {
-      exceptionThrown = true;
-    }
-
-    assertTrue(exceptionThrown);
-    EasyMock.verify(mockAgentAPI);
-  }
-
-
-  @Test
-  public void postWorkUnitResultTaskExecuteServiceReturns413ThrowsException() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    QueuedAgentService.PostWorkUnitResultTask task = new QueuedAgentService.PostWorkUnitResultTask(
-        agentId,
-        workUnitId,
-        targetId,
-        shellOutputDTO
-    );
-
-    injectServiceToResubmissionTask(task);
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(newAgentId, workUnitId, targetId, shellOutputDTO))
-        .andReturn(Response.status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
-
-    EasyMock.replay(mockAgentAPI);
-
-    boolean exceptionThrown = false;
-
-    try {
-      task.execute(null);
-    } catch (QueuedPushTooLargeException e) {
-      exceptionThrown = true;
-    }
-
-    assertTrue(exceptionThrown);
-    EasyMock.verify(mockAgentAPI);
-  }
-
-  @Test
-  public void postWorkUnitResultTaskSplitReturnsListOfOne() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    QueuedAgentService.PostWorkUnitResultTask task = new QueuedAgentService.PostWorkUnitResultTask(
-        agentId,
-        workUnitId,
-        targetId,
-        shellOutputDTO
-    );
-
-    injectServiceToResubmissionTask(task);
-
-    List<QueuedAgentService.PostWorkUnitResultTask> splitTasks = task.splitTask();
-    assertEquals(1, splitTasks.size());
-    assertEquals(task.agentId, splitTasks.get(0).agentId);
-    assertEquals(task.hostId, splitTasks.get(0).hostId);
-    assertEquals(task.workUnitId, splitTasks.get(0).workUnitId);
-    assertEquals(task.shellOutputDTO, splitTasks.get(0).shellOutputDTO);
-    assertNull(splitTasks.get(0).service);
   }
 
   // *******

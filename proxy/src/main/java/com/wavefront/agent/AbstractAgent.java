@@ -19,6 +19,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
+import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
@@ -522,6 +523,10 @@ public abstract class AbstractAgent {
       "data. Defaults to none.")
   protected String picklePorts;
 
+  @Parameter(names = {"--traceListenerPorts"}, description = "Comma-separated list of ports to listen on for trace " +
+      "data. Defaults to none.")
+  protected String traceListenerPorts;
+
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
 
@@ -600,7 +605,6 @@ public abstract class AbstractAgent {
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
-  protected final List<PostSourceTagTimedTask> managedSourceTagTasks = new ArrayList<>();
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
@@ -725,7 +729,8 @@ public abstract class AbstractAgent {
       String allPorts = StringUtils.join(new String[]{
           pushListenerPorts == null ? "" : pushListenerPorts,
           graphitePorts == null ? "" : graphitePorts,
-          picklePorts == null ? "" : picklePorts
+          picklePorts == null ? "" : picklePorts,
+          traceListenerPorts == null ? "" : traceListenerPorts
       }, ",");
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(allPorts);
       for (String strPort : ports) {
@@ -941,6 +946,7 @@ public abstract class AbstractAgent {
         ephemeral = config.getBoolean("ephemeral", ephemeral);
         disableRdnsLookup = config.getBoolean("disableRdnsLookup", disableRdnsLookup);
         picklePorts = config.getString("picklePorts", picklePorts);
+        traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
         bufferFile = config.getString("buffer", bufferFile);
         preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
         dataBackfillCutoffHours = config.getNumber("dataBackfillCutoffHours", dataBackfillCutoffHours).intValue();
@@ -1287,7 +1293,7 @@ public abstract class AbstractAgent {
       }
     });
     agentAPI = new QueuedAgentService(service, bufferFile, retryThreads, queuedAgentExecutor, purgeBuffer,
-        agentId, splitPushWhenRateLimited, pushRateLimiter);
+        agentId, splitPushWhenRateLimited, pushRateLimiter, token);
   }
 
   /**
@@ -1455,19 +1461,6 @@ public abstract class AbstractAgent {
     return toReturn;
   }
 
-  protected PostSourceTagTimedTask[] getSourceTagFlushTasks(int port) {
-    PostSourceTagTimedTask[] toReturn = new PostSourceTagTimedTask[flushThreads];
-    logger.info("Using " + flushThreads + " flush threads to send batched data to Wavefront for " +
-        "data received on port: " + port);
-    for (int i = 0; i < flushThreads; i++) {
-      final PostSourceTagTimedTask postSourceTagTimedTask = new PostSourceTagTimedTask(agentAPI, pushLogLevel, port,
-          i, pushFlushInterval.get(), token);
-      toReturn[i] = postSourceTagTimedTask;
-      managedSourceTagTasks.add(postSourceTagTimedTask);
-    }
-    return toReturn;
-  }
-
   /**
    * Actual agents can do additional configuration.
    *
@@ -1513,11 +1506,6 @@ public abstract class AbstractAgent {
 
       for (PostPushDataTimedTask task : managedTasks) {
         while (task.getNumPointsToSend() > 0) {
-          task.drainBuffersToQueue();
-        }
-      }
-      for (PostSourceTagTimedTask task : managedSourceTagTasks) {
-        while (task.getNumDataToSend() > 0) {
           task.drainBuffersToQueue();
         }
       }

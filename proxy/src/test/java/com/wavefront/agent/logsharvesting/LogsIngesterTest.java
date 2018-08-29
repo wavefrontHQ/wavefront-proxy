@@ -13,6 +13,7 @@ import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
 
+import com.wavefront.common.MetricConstants;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
@@ -154,7 +155,8 @@ public class LogsIngesterTest {
         mockPointHandler, () -> logsIngestionConfig, "myPrefix", now::get);
     assertThat(
         getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(1L, "myPrefix.plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "myPrefix" +
+                        ".plainCounter", ImmutableMap.of())));
   }
 
   @Test
@@ -162,7 +164,8 @@ public class LogsIngesterTest {
     setup("test.yml");
     assertThat(
         getPoints(1, 0, this::receiveFilebeatLog, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                ImmutableMap.of())));
   }
 
   @Test
@@ -170,7 +173,8 @@ public class LogsIngesterTest {
     setup("test.yml");
     assertThat(
         getPoints(1, 0, this::receiveRawLog, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                ImmutableMap.of())));
   }
 
   @Test(expected = ConfigurationException.class)
@@ -188,13 +192,18 @@ public class LogsIngesterTest {
     setup("test.yml");
     assertThat(
         getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                ImmutableMap.of())));
+    // once the counter is reported, it is reset because now it is treated as delta counter.
+    // hence we check that plainCounter has value 1L below.
     assertThat(
         getPoints(2, "plainCounter", "counterWithValue 42"),
         containsInAnyOrder(
             ImmutableList.of(
-                PointMatchers.matches(42L, "counterWithValue", ImmutableMap.of()),
-                PointMatchers.matches(2L, "plainCounter", ImmutableMap.of()))));
+                PointMatchers.matches(42L, MetricConstants.DELTA_PREFIX + "counterWithValue",
+                        ImmutableMap.of()),
+                PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                        ImmutableMap.of()))));
     List<MetricMatcher> counters = Lists.newCopyOnWriteArrayList(logsIngestionConfig.counters);
     int oldSize = counters.size();
     counters.removeIf((metricMatcher -> metricMatcher.getPattern().equals("plainCounter")));
@@ -205,9 +214,12 @@ public class LogsIngesterTest {
     logsIngestionConfig.verifyAndInit();
     logsIngestionConfig.counters = counters;
     logsIngesterUnderTest.logsIngestionConfigManager.forceConfigReload();
+    // once the counter is reported, it is reset because now it is treated as delta counter.
+    // hence we check that counterWithValue has value 0L below.
     assertThat(
         getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(42L, "counterWithValue", ImmutableMap.of())));
+        contains(PointMatchers.matches(0L, MetricConstants.DELTA_PREFIX + "counterWithValue",
+                ImmutableMap.of())));
   }
 
   @Test
@@ -221,20 +233,29 @@ public class LogsIngesterTest {
             "dynamicCounter foo 1 done", "dynamicCounter foo 2 done", "dynamicCounter baz 1 done"),
         containsInAnyOrder(
             ImmutableList.of(
-                PointMatchers.matches(2L, "plainCounter", ImmutableMap.of()),
-                PointMatchers.matches(5L, "counterWithValue", ImmutableMap.of()),
-                PointMatchers.matches(1L, "dynamic_foo_1", ImmutableMap.of()),
-                PointMatchers.matches(1L, "dynamic_foo_2", ImmutableMap.of()),
-                PointMatchers.matches(1L, "dynamic_baz_1", ImmutableMap.of()),
+                PointMatchers.matches(2L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                        ImmutableMap.of()),
+                PointMatchers.matches(5L, MetricConstants.DELTA_PREFIX + "counterWithValue",
+                        ImmutableMap.of()),
+                PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "dynamic_foo_1",
+                        ImmutableMap.of()),
+                PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "dynamic_foo_2",
+                        ImmutableMap.of()),
+                PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "dynamic_baz_1",
+                        ImmutableMap.of()),
                 PointMatchers.matches(42.0, "myGauge", ImmutableMap.of())))
     );
   }
+
+  /**
+   * This test is not required, because delta counters have different naming convention than gauges
 
   @Test(expected = ClassCastException.class)
   public void testDuplicateMetric() throws Exception {
     setup("dupe.yml");
     assertThat(getPoints(2, "plainCounter", "plainGauge 42"), notNullValue());
   }
+   */
 
   @Test
   public void testDynamicLabels() throws Exception {
@@ -247,9 +268,12 @@ public class LogsIngesterTest {
             "operation bar took 4 seconds in DC=wavefront AZ=2a"),
         containsInAnyOrder(
             ImmutableList.of(
-                PointMatchers.matches(4L, "foo.totalSeconds", ImmutableMap.of("theDC", "wavefront", "theAZ", "2a")),
-                PointMatchers.matches(3L, "foo.totalSeconds", ImmutableMap.of("theDC", "wavefront", "theAZ", "2b")),
-                PointMatchers.matches(4L, "bar.totalSeconds", ImmutableMap.of("theDC", "wavefront", "theAZ", "2a"))
+                PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX + "foo.totalSeconds",
+                        ImmutableMap.of("theDC", "wavefront", "theAZ", "2a")),
+                PointMatchers.matches(3L, MetricConstants.DELTA_PREFIX + "foo.totalSeconds",
+                        ImmutableMap.of("theDC", "wavefront", "theAZ", "2b")),
+                PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX + "bar.totalSeconds",
+                        ImmutableMap.of("theDC", "wavefront", "theAZ", "2a"))
             )
         ));
   }
@@ -265,11 +289,14 @@ public class LogsIngesterTest {
             "operation TagValue bar took 4 seconds in DC=wavefront AZ=2a"),
         containsInAnyOrder(
             ImmutableList.of(
-                PointMatchers.matches(4L, "TagValue.foo.totalSeconds",
+                PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX +
+                                "TagValue.foo.totalSeconds",
                     ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2a", "static", "value", "noMatch", "aa%{q}bb")),
-                PointMatchers.matches(3L, "TagValue.foo.totalSeconds",
+                PointMatchers.matches(3L, MetricConstants.DELTA_PREFIX +
+                                "TagValue.foo.totalSeconds",
                     ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2b", "static", "value", "noMatch", "aa%{q}bb")),
-                PointMatchers.matches(4L, "TagValue.bar.totalSeconds",
+                PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX +
+                                "TagValue.bar.totalSeconds",
                     ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2a", "static", "value", "noMatch", "aa%{q}bb"))
             )
         ));
@@ -280,7 +307,8 @@ public class LogsIngesterTest {
     setup("test.yml");
     assertThat(
         getPoints(1, "foo and 42"),
-        contains(PointMatchers.matches(42L, "customPatternCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(42L, MetricConstants.DELTA_PREFIX +
+                "customPatternCounter", ImmutableMap.of())));
   }
 
   @Test
@@ -295,8 +323,10 @@ public class LogsIngesterTest {
         ),
         containsInAnyOrder(
             ImmutableList.of(
-                PointMatchers.matches(632L, "apacheBytes", ImmutableMap.of()),
-                PointMatchers.matches(632L, "apacheBytes2", ImmutableMap.of()),
+                PointMatchers.matches(632L, MetricConstants.DELTA_PREFIX + "apacheBytes",
+                        ImmutableMap.of()),
+                PointMatchers.matches(632L, MetricConstants.DELTA_PREFIX + "apacheBytes2",
+                        ImmutableMap.of()),
                 PointMatchers.matches(200.0, "apacheStatus", ImmutableMap.of())
             )
         ));
@@ -307,10 +337,14 @@ public class LogsIngesterTest {
     setup("test.yml");
     assertThat(
         getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                ImmutableMap.of())));
+    // once the counter has been reported, the counter is reset because it is now treated as delta
+    // counter. Hence we check that plainCounter has value 1 below.
     assertThat(
         getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(2L, "plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                ImmutableMap.of())));
   }
 
   @Test

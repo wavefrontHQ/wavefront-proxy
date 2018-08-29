@@ -4,11 +4,12 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>4.30-SNAPSHOT</version>
+  <version>4.31-SNAPSHOT</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
     <module>java-client</module>
+    <module>dropwizard-metrics/dropwizard-metrics5</module>
     <module>dropwizard-metrics/dropwizard-metrics</module>
     <module>dropwizard-metrics/dropwizard-metrics-wavefront</module>
     <module>yammer-metrics</module>
@@ -56,10 +57,11 @@
     <truth.version>0.29</truth.version>
 
     <java.version>1.8</java.version>
+    <log4j.version>2.11.1</log4j.version>
     <jetty.version>9.4.11.v20180605</jetty.version>
-    <jackson.version>2.9.2</jackson.version>
+    <jackson.version>2.9.6</jackson.version>
     <netty.version>4.1.25.Final</netty.version>
-    <public.project.version>4.30-SNAPSHOT</public.project.version>
+    <public.project.version>4.31-SNAPSHOT</public.project.version>
   </properties>
 
   <build>
@@ -117,6 +119,11 @@
       </dependency>
       <dependency>
         <groupId>com.wavefront</groupId>
+        <artifactId>dropwizard-metrics5</artifactId>
+        <version>${public.project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.wavefront</groupId>
         <artifactId>dropwizard-metrics-4.0</artifactId>
         <version>${public.project.version}</version>
       </dependency>
@@ -128,7 +135,7 @@
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>18.0</version>
+        <version>26.0-jre</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
@@ -178,34 +185,44 @@
         <version>2.5.2</version>
       </dependency>
       <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.25</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>jcl-over-slf4j</artifactId>
+        <version>1.7.25</version>
+      </dependency>
+      <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-core</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-api</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-1.2-api</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-slf4j-impl</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-jul</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-web</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>com.yammer.metrics</groupId>
@@ -252,7 +269,7 @@
       <dependency>
         <groupId>org.antlr</groupId>
         <artifactId>antlr4-runtime</artifactId>
-        <version>4.5.2-1</version>
+        <version>4.7.1</version>
       </dependency>
       <dependency>
         <groupId>io.netty</groupId>

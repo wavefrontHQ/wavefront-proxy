@@ -76,7 +76,7 @@ public class PointHandlerDispatcher implements Runnable {
           }
           try {
             ReportPoint out = Utils.pointFromKeyAndDigest(k, v);
-            output.reportPoint(out, k.toString());
+            output.reportPoint(out, null);
             dispatchCounter.inc();
           } catch (Exception e) {
             dispatchErrorCounter.inc();

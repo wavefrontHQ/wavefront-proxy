@@ -26,17 +26,17 @@ public class AgentPreprocessorConfiguration {
 
   private static final Logger logger = Logger.getLogger(AgentPreprocessorConfiguration.class.getCanonicalName());
 
-  private final Map<String, PointPreprocessor> portMap = new HashMap<>();
+  private final Map<String, ReportableEntityPreprocessor> portMap = new HashMap<>();
 
   @VisibleForTesting
   int totalInvalidRules = 0;
   @VisibleForTesting
   int totalValidRules = 0;
 
-  public PointPreprocessor forPort(final String strPort) {
-    PointPreprocessor preprocessor = portMap.get(strPort);
+  public ReportableEntityPreprocessor forPort(final String strPort) {
+    ReportableEntityPreprocessor preprocessor = portMap.get(strPort);
     if (preprocessor == null) {
-      preprocessor = new PointPreprocessor();
+      preprocessor = new ReportableEntityPreprocessor();
       portMap.put(strPort, preprocessor);
     }
     return preprocessor;
@@ -74,7 +74,7 @@ public class AgentPreprocessorConfiguration {
           try {
             requireArguments(rule, "rule", "action");
             allowArguments(rule, "rule", "action", "scope", "search", "replace", "match",
-                "tag", "newtag", "value", "source", "iterations", "replaceSource");
+                "tag", "newtag", "value", "source", "iterations", "replaceSource", "replaceInput");
             String ruleName = rule.get("rule").replaceAll("[^a-z0-9_-]", "");
             PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
                 Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName, "count", "port", strPort)),
@@ -133,18 +133,19 @@ public class AgentPreprocessorConfiguration {
                   break;
                 case "extractTag":
                   allowArguments(rule, "rule", "action", "tag", "source", "search", "replace", "replaceSource",
-                      "match");
+                      "replaceInput", "match");
                   this.forPort(strPort).forReportPoint().addTransformer(
                       new ReportPointExtractTagTransformer(rule.get("tag"), rule.get("source"), rule.get("search"),
-                          rule.get("replace"), rule.get("replaceSource"), rule.get("match"), ruleMetrics));
+                          rule.get("replace"), rule.getOrDefault("replaceInput", rule.get("replaceSource")),
+                          rule.get("match"), ruleMetrics));
                   break;
                 case "extractTagIfNotExists":
                   allowArguments(rule, "rule", "action", "tag", "source", "search", "replace", "replaceSource",
-                      "match");
+                      "replaceInput", "match");
                   this.forPort(strPort).forReportPoint().addTransformer(
                       new ReportPointExtractTagIfNotExistsTransformer(rule.get("tag"), rule.get("source"),
-                          rule.get("search"), rule.get("replace"), rule.get("replaceSource"), rule.get("match"),
-                          ruleMetrics));
+                          rule.get("search"), rule.get("replace"), rule.getOrDefault("replaceInput",
+                          rule.get("replaceSource")), rule.get("match"), ruleMetrics));
                   break;
                 case "renameTag":
                   allowArguments(rule, "rule", "action", "tag", "newtag", "match");

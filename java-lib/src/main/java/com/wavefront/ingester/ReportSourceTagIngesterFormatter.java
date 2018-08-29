@@ -3,6 +3,7 @@ package com.wavefront.ingester;
 import org.antlr.v4.runtime.Token;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 
 import wavefront.report.ReportSourceTag;
@@ -55,6 +56,23 @@ public class ReportSourceTagIngesterFormatter extends AbstractIngesterFormatter<
     if (!queue.isEmpty()) {
       throw new RuntimeException("Could not parse: " + input);
     }
+    Map<String, String> annotations = wrapper.getAnnotationMap();
+    for (Map.Entry<String, String> entry : annotations.entrySet()) {
+      switch (entry.getKey()) {
+        case ReportSourceTagIngesterFormatter.ACTION:
+          sourceTag.setAction(entry.getValue());
+          break;
+        case ReportSourceTagIngesterFormatter.SOURCE:
+          sourceTag.setSource(entry.getValue());
+          break;
+        case ReportSourceTagIngesterFormatter.DESCRIPTION:
+          sourceTag.setDescription(entry.getValue());
+          break;
+        default:
+          throw new RuntimeException("Unknown tag key = " + entry.getKey() + " specified.");
+      }
+    }
+
     // verify the values - especially 'action' field
     if (sourceTag.getSource() == null)
       throw new RuntimeException("No source key was present in the input: " + input);
