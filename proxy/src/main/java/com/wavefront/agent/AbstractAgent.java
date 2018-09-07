@@ -527,6 +527,10 @@ public abstract class AbstractAgent {
       "data. Defaults to none.")
   protected String traceListenerPorts;
 
+  @Parameter(names = {"--traceJaegerListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
+      "on for jaeger thrift formatted data. Defaults to none.")
+  protected String traceJaegerListenerPorts;
+
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
 
@@ -626,6 +630,7 @@ public abstract class AbstractAgent {
   // Will be updated inside processConfiguration method and the new configuration is periodically
   // loaded from the server by invoking agentAPI.checkin
   protected final AtomicBoolean histogramDisabled = new AtomicBoolean(false);
+  protected final AtomicBoolean traceDisabled = new AtomicBoolean(false);
 
   /**
    * Executors for support tasks.
@@ -947,6 +952,7 @@ public abstract class AbstractAgent {
         disableRdnsLookup = config.getBoolean("disableRdnsLookup", disableRdnsLookup);
         picklePorts = config.getString("picklePorts", picklePorts);
         traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
+        traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
         bufferFile = config.getString("buffer", bufferFile);
         preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
         dataBackfillCutoffHours = config.getNumber("dataBackfillCutoffHours", dataBackfillCutoffHours).intValue();
