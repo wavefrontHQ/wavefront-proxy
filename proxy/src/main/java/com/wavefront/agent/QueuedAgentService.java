@@ -628,7 +628,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
   private void addSourceTagTaskToSmallestQueue(PostSourceTagResultTask taskToRetry) {
     // we need to make sure the we preserve the order of operations for each source
-    ResubmissionTaskQueue queue = sourceTagTaskQueues.get(taskToRetry.id.hashCode() % sourceTagTaskQueues.size());
+    ResubmissionTaskQueue queue = sourceTagTaskQueues.get(Math.abs(taskToRetry.id.hashCode()) % sourceTagTaskQueues.size());
     if (queue != null) {
       try {
         queue.add(taskToRetry);

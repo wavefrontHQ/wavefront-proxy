@@ -72,6 +72,6 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
 
   private SenderTask getTask(ReportSourceTag sourceTag) {
     // we need to make sure the we preserve the order of operations for each source
-    return senderTasks.get(sourceTag.getSource().hashCode() % senderTasks.size());
+    return senderTasks.get(Math.abs(sourceTag.getSource().hashCode()) % senderTasks.size());
   }
 }
