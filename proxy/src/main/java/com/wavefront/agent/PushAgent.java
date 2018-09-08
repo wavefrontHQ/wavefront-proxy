@@ -11,7 +11,6 @@ import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
@@ -689,6 +688,23 @@ public class PushAgent extends AbstractAgent {
         // restores the agent setting
         pushFlushMaxPoints.set(pushFlushMaxPointsInitialValue);
         logger.fine("Proxy push batch set to (locally) " + pushFlushMaxPoints.get());
+      }
+
+      if (config.getCollectorSetsRateLimit() != null && config.getCollectorSetsRateLimit()) {
+        Long collectorRateLimit = config.getCollectorRateLimit();
+        if (pushRateLimiter != null && collectorRateLimit != null && pushRateLimiter.getRate() != collectorRateLimit) {
+          pushRateLimiter.setRate(collectorRateLimit);
+          logger.info("Proxy rate limit set to " + collectorRateLimit + " remotely");
+        }
+      } else {
+        if (pushRateLimiter != null && pushRateLimiter.getRate() != pushRateLimit) {
+          pushRateLimiter.setRate(pushRateLimit);
+          if (pushRateLimit >= 10_000_000) {
+            logger.info("Proxy rate limit no longer enforced");
+          } else {
+            logger.info("Proxy rate limit restored to " + pushRateLimit);
+          }
+        }
       }
 
       if (config.getCollectorSetsRetryBackoff() != null &&
