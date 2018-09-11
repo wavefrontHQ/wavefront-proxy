@@ -11,7 +11,6 @@ import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
@@ -289,8 +288,8 @@ public class PushAgent extends AbstractAgent {
         logger.info("listening on port: " + strPort + " for trace data");
       }
     }
-    if (httpJsonPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(httpJsonPorts);
+    if (jsonListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(jsonListenerPorts);
       for (String strPort : ports) {
         preprocessors.forPort(strPort).forReportPoint()
             .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
@@ -319,8 +318,8 @@ public class PushAgent extends AbstractAgent {
             "listener-plaintext-json-" + strPort);
       }
     }
-    if (writeHttpJsonPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonPorts);
+    if (writeHttpJsonListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonListenerPorts);
       for (String strPort : ports) {
         preprocessors.forPort(strPort).forReportPoint()
             .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
