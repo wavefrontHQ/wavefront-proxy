@@ -39,6 +39,8 @@ public class AgentConfiguration {
   // If the value is true, then histogram feature is disabled.
   // If the value is null or false, then histograms are not disabled i.e. enabled (default behavior)
   private Boolean histogramDisabled;
+  // If the value is true, then trace feature is disabled; feature enabled if the value is null or false
+  private Boolean traceDisabled;
 
   public Boolean getCollectorSetsRetryBackoff() {
     return collectorSetsRetryBackoff;
@@ -124,6 +126,14 @@ public class AgentConfiguration {
 
   public void setHistogramDisabled(Boolean histogramDisabled) {
     this.histogramDisabled = histogramDisabled;
+  }
+
+  public Boolean getTraceDisabled() {
+    return this.traceDisabled;
+  }
+
+  public void setTraceDisabled(Boolean traceDisabled) {
+    this.traceDisabled = traceDisabled;
   }
 
   public void validate(boolean local) {

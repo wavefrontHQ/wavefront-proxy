@@ -9,6 +9,8 @@ import com.google.common.collect.ImmutableMap;
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
+import com.uber.tchannel.api.TChannel;
+import com.uber.tchannel.channels.Connection;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -27,6 +29,7 @@ import com.wavefront.agent.histogram.accumulator.AccumulationTask;
 import com.wavefront.agent.histogram.tape.TapeDeck;
 import com.wavefront.agent.histogram.tape.TapeStringListConverter;
 import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
+import com.wavefront.agent.listeners.JaegerThriftCollectorHandler;
 import com.wavefront.agent.listeners.JsonMetricsEndpoint;
 import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
 import com.wavefront.agent.listeners.TracePortUnificationHandler;
@@ -71,6 +74,7 @@ import org.logstash.beats.Server;
 import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
+import java.net.InetAddress;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -288,6 +292,13 @@ public class PushAgent extends AbstractAgent {
         logger.info("listening on port: " + strPort + " for trace data");
       }
     }
+    if (traceJaegerListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceJaegerListenerPorts);
+      for (String strPort : ports) {
+        startTraceJaegerListener(strPort, handlerFactory);
+        logger.info("listening on port: " + traceJaegerListenerPorts + " for trace data (Jaeger format)");
+      }
+    }
     if (jsonListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(jsonListenerPorts);
       for (String strPort : ports) {
@@ -494,6 +505,30 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
         .withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
+  }
+
+  protected void startTraceJaegerListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    startAsManagedThread(() -> {
+      activeListeners.inc();
+      try {
+        TChannel server = new TChannel.Builder("jaeger-collector").
+            setServerHost(InetAddress.getLoopbackAddress()).
+            setServerPort(Integer.valueOf(strPort)).
+            build();
+        server.
+            makeSubChannel("jaeger-collector", Connection.Direction.IN).
+            register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort, handlerFactory,
+                traceDisabled));
+        server.listen().channel().closeFuture().sync();
+        server.shutdown(false);
+      } catch (InterruptedException e) {
+        logger.info("Listener on port " + strPort + " shut down.");
+      } catch (Exception e) {
+        logger.log(Level.SEVERE, "Jaeger trace collector exception", e);
+      } finally {
+        activeListeners.dec();
+      }
+    }, "listener-jaeger-thrift-" + strPort);
   }
 
   @VisibleForTesting
@@ -728,6 +763,7 @@ public class PushAgent extends AbstractAgent {
       }
 
       histogramDisabled.set(BooleanUtils.toBoolean(config.getHistogramDisabled()));
+      traceDisabled.set(BooleanUtils.toBoolean(config.getTraceDisabled()));
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
     }
