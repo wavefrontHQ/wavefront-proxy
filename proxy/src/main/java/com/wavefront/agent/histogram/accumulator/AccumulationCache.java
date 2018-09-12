@@ -45,12 +45,9 @@ public class AccumulationCache {
       new MetricName("histogram.accumulator.cache", "", "flushed"));
   private final Counter cacheOverflowCounter = Metrics.newCounter(
       new MetricName("histogram.accumulator.cache", "", "size_exceeded"));
-  private final Counter failureCounter = Metrics.newCounter(
-      new MetricName("histogram.accumulator", "", "failure"));
   private final Cache<HistogramKey, AgentDigest> cache;
   private final ConcurrentMap<HistogramKey, AgentDigest> backingStore;
 
-  private final RateLimiter failureMessageLimiter = RateLimiter.create(1);
 
   /**
    * In-memory index for dispatch timestamps to avoid iterating the backing store map, which is an expensive
@@ -65,14 +62,34 @@ public class AccumulationCache {
    *
    * @param backingStore a {@code ConcurrentMap} storing AgentDigests
    * @param cacheSize maximum size of the cache
-   * @param ticker a nanosecond-precision time source (to
+   * @param ticker a nanosecond-precision time source
    */
   public AccumulationCache(
       final ConcurrentMap<HistogramKey, AgentDigest> backingStore,
       final long cacheSize,
       @Nullable Ticker ticker) {
+    this(backingStore, cacheSize, ticker, null);
+  }
+
+  /**
+   * Constructs a new AccumulationCache instance around {@code backingStore} and builds an in-memory index maintaining
+   * dispatch times in milliseconds for all HistogramKeys in backingStore
+   * Setting cacheSize to 0 disables in-memory caching so the cache only maintains the dispatch time index.
+   *
+   * @param backingStore a {@code ConcurrentMap} storing AgentDigests
+   * @param cacheSize maximum size of the cache
+   * @param ticker a nanosecond-precision time source
+   * @param onFailure a {@code Runnable} that is invoked when backing store overflows
+   */
+  @VisibleForTesting
+  protected AccumulationCache(
+      final ConcurrentMap<HistogramKey, AgentDigest> backingStore,
+      final long cacheSize,
+      @Nullable Ticker ticker,
+      @Nullable Runnable onFailure) {
     this.backingStore = backingStore;
     this.keyIndex = new ConcurrentHashMap<>(backingStore.size());
+    final Runnable failureHandler = onFailure == null ? new AccumulationCacheMonitor() : onFailure;
     if (backingStore.size() > 0) {
       logger.info("Started: Indexing histogram accumulator");
       for (Map.Entry<HistogramKey, AgentDigest> entry : this.backingStore.entrySet()) {
@@ -114,12 +131,7 @@ public class AccumulationCache {
               });
             } catch (IllegalStateException e) {
               if (e.getMessage().contains("Attempt to allocate")) {
-                failureCounter.inc();
-                if (failureMessageLimiter.tryAcquire()) {
-                  logger.severe("CRITICAL: Histogram accumulator overflow - losing histogram data!!! " +
-                      "Accumulator size configuration setting is not appropriate for workload, please increase " +
-                      "the value as appropriate and restart the proxy!");
-                }
+                failureHandler.run();
               } else {
                 throw e;
               }
@@ -291,5 +303,24 @@ public class AccumulationCache {
    */
   public Runnable getResolveTask() {
     return cache::invalidateAll;
+  }
+
+  public class AccumulationCacheMonitor implements Runnable {
+
+    private Counter failureCounter;
+    private final RateLimiter failureMessageLimiter = RateLimiter.create(1);
+
+    @Override
+    public void run() {
+      if (failureCounter == null) {
+        failureCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "failure"));
+      }
+      failureCounter.inc();
+      if (failureMessageLimiter.tryAcquire()) {
+        logger.severe("CRITICAL: Histogram accumulator overflow - losing histogram data!!! " +
+            "Accumulator size configuration setting is not appropriate for workload, please increase " +
+            "the value as appropriate and restart the proxy!");
+      }
+    }
   }
 }
