@@ -69,6 +69,10 @@ import com.yammer.metrics.core.Counter;
 import net.openhft.chronicle.map.ChronicleMap;
 
 import org.apache.commons.lang.BooleanUtils;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.logstash.beats.Server;
 
 import java.io.File;
@@ -278,10 +282,23 @@ public class PushAgent extends AbstractAgent {
     }
     if (dataDogJsonPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(dataDogJsonPorts);
+
+      HttpClient httpClient = HttpClientBuilder.create().
+          useSystemProperties().
+          setUserAgent(httpUserAgent).
+          setConnectionTimeToLive(1, TimeUnit.MINUTES).
+          setRetryHandler(new DefaultHttpRequestRetryHandler(httpAutoRetries, true)).
+          setDefaultRequestConfig(
+              RequestConfig.custom().
+                  setContentCompressionEnabled(true).
+                  setRedirectsEnabled(true).
+                  setConnectTimeout(httpConnectTimeout).
+                  setConnectionRequestTimeout(httpConnectTimeout).
+                  setSocketTimeout(httpRequestTimeout).build()).
+          build();
+
       for (String strPort : ports) {
-        PointHandler pointHandler = new PointHandlerImpl(strPort, pushValidationLevel,
-            pushBlockedSamples, getFlushTasks(strPort));
-        startDataDogListener(strPort, pointHandler);
+        startDataDogListener(strPort, handlerFactory, httpClient);
         logger.info("listening on port: " + strPort + " for DataDog metrics");
       }
     }
@@ -445,7 +462,8 @@ public class PushAgent extends AbstractAgent {
             .withChildChannelOptions(childChannelOptions), "listener-plaintext-opentsdb-" + port);
   }
 
-  protected void startDataDogListener(final String strPort, PointHandler pointHandler) {
+  protected void startDataDogListener(final String strPort, ReportableEntityHandlerFactory handlerFactory,
+                                      HttpClient httpClient) {
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
@@ -453,7 +471,9 @@ public class PushAgent extends AbstractAgent {
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     final int port = Integer.parseInt(strPort);
 
-    ChannelHandler channelHandler = new DataDogPortUnificationHandler(pointHandler, preprocessors.forPort(strPort));
+    ChannelHandler channelHandler = new DataDogPortUnificationHandler(strPort, handlerFactory,
+        dataDogProcessSystemMetrics, dataDogProcessServiceChecks, httpClient, dataDogRequestRelayTarget,
+        preprocessors.forPort(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
             .withChildChannelOptions(childChannelOptions), "listener-plaintext-datadog-" + port);

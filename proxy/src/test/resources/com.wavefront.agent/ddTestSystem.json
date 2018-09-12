@@ -1,0 +1,74 @@
+{
+  "apiKey": "REDACTED",
+  "cpuSystem": 13.45,
+  "memShared": 15,
+  "ioStats": {
+    "dm-1": {
+      "wrqm/s": "0.00",
+      "avgrq-sz": "0.00",
+      "r_await": "0.00",
+      "rkB/s": "0.00",
+      "await": "0.00",
+      "w/s": "0.00",
+      "avgqu-sz": "0.00",
+      "svctm": "0.00",
+      "wkB/s": "0.00",
+      "rrqm/s": "0.00",
+      "r/s": "0.00",
+      "%util": "0.00",
+      "w_await": "0.00"
+    }
+  },
+  "system.load.1": 1.04,
+  "memPhysUsable": 4302,
+  "agentVersion": "9.99.9",
+  "host-tags": {},
+  "memPageTables": 107,
+  "memSwapUsed": 15,
+  "memSwapPctFree": 0.9961568024596464,
+  "memPhysFree": 255,
+  "memPhysPctUsable": 0.5389626659984966,
+  "memPhysTotal": 7982,
+  "cpuUser": 22.09,
+  "system.fs.file_handles.used": 21920.0,
+  "cpuGuest": 0.0,
+  "memPhysUsed": 7727,
+  "system.load.norm.1": 0.52,
+  "system.load.norm.5": 0.42,
+  "events": {},
+  "resources": {
+    "processes": {
+      "snaps": [
+      ]
+    },
+    "meta": {
+      "host": "testHost"
+    }
+  },
+  "system.load.5": 0.84,
+  "system.uptime": 470095.33,
+  "memSlab": 338,
+  "collection_timestamp": 1531327550.911327,
+  "cpuWait": 0.0,
+  "system.load.15": 0.72,
+  "memSwapFree": 3888,
+  "system.load.norm.15": 0.36,
+  "memCached": 3608,
+  "system.fs.file_handles.allocated_unused": 0.0,
+  "system.fs.file_handles.in_use": 0.02700478497193572,
+  "processes": {
+    "processes": [],
+    "apiKey": "REDACTED",
+    "host": "testHost"
+  },
+  "external_host_tags": {},
+  "system.fs.file_handles.allocated": 21920.0,
+  "system.fs.file_handles.max": 811708.0,
+  "internalHostname": "testHost",
+  "memSwapTotal": 3903,
+  "cpuIdle": 64.12,
+  "memBuffers": 521,
+  "cpuStolen": 0.33,
+  "memSwapCached": 1,
+  "os": "linux"
+}

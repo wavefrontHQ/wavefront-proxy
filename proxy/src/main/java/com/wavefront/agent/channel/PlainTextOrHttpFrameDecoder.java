@@ -98,8 +98,8 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
       pipeline
           .addLast("decoder", new HttpRequestDecoder())
           .addLast("inflater", new HttpContentDecompressor())
-          .addLast("aggregator", new HttpObjectAggregator(maxLengthHttp))
           .addLast("encoder", new HttpResponseEncoder())
+          .addLast("aggregator", new HttpObjectAggregator(maxLengthHttp))
           .addLast("handler", this.handler);
     } else {
       logger.fine("Using TCP plaintext protocol");
