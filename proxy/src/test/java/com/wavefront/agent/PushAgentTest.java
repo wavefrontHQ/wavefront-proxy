@@ -336,9 +336,7 @@ public class PushAgentTest {
     mockPointHandler.report(anyObject());
     expectLastCall().times(46);
     replay(mockHttpClient, mockHttpResponse, mockStatusLine, mockPointHandler);
-
     gzippedHttpPost("http://localhost:" + ddPort2 + "/intake", getResource("ddTestSystem.json"));
-
     verify(mockHttpClient, mockPointHandler);
 
     // test 2: post to /intake with system metrics disabled and http relay disabled
@@ -346,9 +344,7 @@ public class PushAgentTest {
     mockPointHandler.report(anyObject());
     expectLastCall().andThrow(new AssertionFailedError()).anyTimes();
     replay(mockPointHandler);
-
     gzippedHttpPost("http://localhost:" + ddPort + "/intake", getResource("ddTestSystem.json"));
-
     verify(mockPointHandler);
 
     // test 3: post to /intake with system metrics enabled and http relay enabled, but remote unavailable
@@ -360,9 +356,7 @@ public class PushAgentTest {
     mockPointHandler.report(anyObject());
     expectLastCall().andThrow(new AssertionFailedError()).anyTimes(); // we are not supposed to actually process data!
     replay(mockHttpClient, mockHttpResponse, mockStatusLine, mockPointHandler);
-
     gzippedHttpPost("http://localhost:" + ddPort2 + "/intake", getResource("ddTestSystem.json"));
-
     verify(mockHttpClient, mockPointHandler);
 
     // test 4: post to /api/v1/check_run with service checks disabled
@@ -374,9 +368,7 @@ public class PushAgentTest {
     mockPointHandler.report(anyObject());
     expectLastCall().andThrow(new AssertionFailedError()).anyTimes(); // we are not supposed to actually process data!
     replay(mockHttpClient, mockHttpResponse, mockStatusLine, mockPointHandler);
-
     gzippedHttpPost("http://localhost:" + ddPort2 + "/api/v1/check_run", getResource("ddTestServiceCheck.json"));
-
     verify(mockHttpClient, mockPointHandler);
 
     // test 5: post to /api/v1/check_run with service checks enabled
@@ -390,9 +382,7 @@ public class PushAgentTest {
         build());
     expectLastCall().once();
     replay(mockPointHandler);
-
     gzippedHttpPost("http://localhost:" + ddPort + "/api/v1/check_run", getResource("ddTestServiceCheck.json"));
-
     verify(mockPointHandler);
 
     // test 6: post to /api/v1/series
@@ -422,13 +412,8 @@ public class PushAgentTest {
         build());
     expectLastCall().once();
     replay(mockPointHandler);
-
     gzippedHttpPost("http://localhost:" + ddPort + "/api/v1/series", getResource("ddTestTimeseries.json"));
-
     verify(mockPointHandler);
-
-
-
   }
 
   private String getResource(String resourceName) throws Exception {
@@ -451,7 +436,5 @@ public class PushAgentTest {
     connection.getOutputStream().write(baos.toByteArray());
     connection.getOutputStream().flush();
     logger.info("HTTP response code (gzipped content): " + connection.getResponseCode());
-
   }
-
 }
