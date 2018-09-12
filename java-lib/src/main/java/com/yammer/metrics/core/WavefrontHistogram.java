@@ -49,9 +49,9 @@ public class WavefrontHistogram extends Histogram implements Metric {
   }
 
   @VisibleForTesting
-  public static synchronized WavefrontHistogram get(MetricsRegistry registry,
-                                                    MetricName metricName,
-                                                    Supplier<Long> clock) {
+  public static WavefrontHistogram get(MetricsRegistry registry,
+                                       MetricName metricName,
+                                       Supplier<Long> clock) {
     // Awkward construction trying to fit in with Yammer Histograms
     TDigestSample sample = new TDigestSample();
     WavefrontHistogram tDigestHistogram = new WavefrontHistogram(sample, clock);
@@ -147,7 +147,7 @@ public class WavefrontHistogram extends Histogram implements Metric {
 
   @Override
   public void update(long value) {
-    update((double)value);
+    update((double) value);
   }
 
   @Override

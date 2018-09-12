@@ -1,9 +1,13 @@
 package com.wavefront.data;
 
+import com.wavefront.ingester.HistogramDecoder;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import wavefront.report.ReportPoint;
@@ -104,4 +108,20 @@ public class ValidationTest {
     Assert.assertFalse(Validation.annotationKeysAreValid(rp));
   }
 
+  @Test
+  public void testValidHistogram() {
+    HistogramDecoder decoder = new HistogramDecoder();
+    List<ReportPoint> out = new ArrayList<>();
+    decoder.decodeReportPoints("!M 1533849540 #1 0.0 #2 1.0 #3 3.0 TestMetric source=Test key=value", out, "dummy");
+    Validation.validatePoint(out.get(0), "test", Validation.Level.NUMERIC_ONLY);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testEmptyHistogramThrows() {
+    HistogramDecoder decoder = new HistogramDecoder();
+    List<ReportPoint> out = new ArrayList<>();
+    decoder.decodeReportPoints("!M 1533849540 #0 0.0 #0 1.0 #0 3.0 TestMetric source=Test key=value", out, "dummy");
+    Validation.validatePoint(out.get(0), "test", Validation.Level.NUMERIC_ONLY);
+    Assert.fail("Empty Histogram should fail validation!");
+  }
 }

@@ -299,8 +299,8 @@ public class PushAgent extends AbstractAgent {
         logger.info("listening on port: " + traceJaegerListenerPorts + " for trace data (Jaeger format)");
       }
     }
-    if (httpJsonPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(httpJsonPorts);
+    if (jsonListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(jsonListenerPorts);
       for (String strPort : ports) {
         preprocessors.forPort(strPort).forReportPoint()
             .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
@@ -329,8 +329,8 @@ public class PushAgent extends AbstractAgent {
             "listener-plaintext-json-" + strPort);
       }
     }
-    if (writeHttpJsonPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonPorts);
+    if (writeHttpJsonListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonListenerPorts);
       for (String strPort : ports) {
         preprocessors.forPort(strPort).forReportPoint()
             .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
@@ -575,10 +575,18 @@ public class PushAgent extends AbstractAgent {
     histogramExecutor.scheduleWithFixedDelay(
         () -> {
           // warn if accumulator is more than 1.5x the original size, as ChronicleMap starts losing efficiency
-          if (accumulator.size() > accumulatorSize * 1.5) {
+          if (accumulator.size() > accumulatorSize * 5) {
+            logger.severe("Histogram " + listenerBinType + " accumulator size (" + accumulator.size() +
+                ") is more than 5x higher than currently configured size (" + accumulatorSize +
+                "), which may cause severe performance degradation issues or data loss! " +
+                "If the data volume is expected to stay at this level, we strongly recommend increasing the value " +
+                "for accumulator size in wavefront.conf and restarting the proxy.");
+          } else if (accumulator.size() > accumulatorSize * 2) {
             logger.warning("Histogram " + listenerBinType + " accumulator size (" + accumulator.size() +
-                ") is much higher than configured size (" + accumulatorSize +
-                "), proxy may experience performance issues or crash!");
+                ") is more than 2x higher than currently configured size (" + accumulatorSize +
+                "), which may cause performance issues. " +
+                "If the data volume is expected to stay at this level, we strongly recommend increasing the value " +
+                "for accumulator size in wavefront.conf and restarting the proxy.");
           }
         },
         10,
@@ -712,8 +720,7 @@ public class PushAgent extends AbstractAgent {
     try {
       agentAPI.agentConfigProcessed(agentId);
       Long pointsPerBatch = config.getPointsPerBatch();
-      if (config.getCollectorSetsPointsPerBatch() != null &&
-          config.getCollectorSetsPointsPerBatch()) {
+      if (BooleanUtils.isTrue(config.getCollectorSetsPointsPerBatch())) {
         if (pointsPerBatch != null) {
           // if the collector is in charge and it provided a setting, use it
           pushFlushMaxPoints.set(pointsPerBatch.intValue());
@@ -725,8 +732,24 @@ public class PushAgent extends AbstractAgent {
         logger.fine("Proxy push batch set to (locally) " + pushFlushMaxPoints.get());
       }
 
-      if (config.getCollectorSetsRetryBackoff() != null &&
-          config.getCollectorSetsRetryBackoff()) {
+      if (BooleanUtils.isTrue(config.getCollectorSetsRateLimit())) {
+        Long collectorRateLimit = config.getCollectorRateLimit();
+        if (pushRateLimiter != null && collectorRateLimit != null && pushRateLimiter.getRate() != collectorRateLimit) {
+          pushRateLimiter.setRate(collectorRateLimit);
+          logger.warning("Proxy rate limit set to " + collectorRateLimit + " remotely");
+        }
+      } else {
+        if (pushRateLimiter != null && pushRateLimiter.getRate() != pushRateLimit) {
+          pushRateLimiter.setRate(pushRateLimit);
+          if (pushRateLimit >= 10_000_000) {
+            logger.warning("Proxy rate limit no longer enforced by remote");
+          } else {
+            logger.warning("Proxy rate limit restored to " + pushRateLimit);
+          }
+        }
+      }
+
+      if (BooleanUtils.isTrue(config.getCollectorSetsRetryBackoff())) {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
           retryBackoffBaseSeconds.set(config.getRetryBackoffBaseSeconds());

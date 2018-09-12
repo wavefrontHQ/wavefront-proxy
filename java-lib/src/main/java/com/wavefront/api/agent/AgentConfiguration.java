@@ -32,6 +32,8 @@ public class AgentConfiguration {
   private Long pointsPerBatch;
   private Boolean collectorSetsRetryBackoff;
   private Double retryBackoffBaseSeconds;
+  private Boolean collectorSetsRateLimit;
+  private Long collectorRateLimit;
   private Boolean shutOffAgents = false;
   private Boolean showTrialExpired = false;
   // If the value is true, then histogram feature is disabled.
@@ -54,6 +56,22 @@ public class AgentConfiguration {
 
   public void setRetryBackoffBaseSeconds(Double retryBackoffBaseSeconds) {
     this.retryBackoffBaseSeconds = retryBackoffBaseSeconds;
+  }
+
+  public Boolean getCollectorSetsRateLimit() {
+    return this.collectorSetsRateLimit;
+  }
+
+  public void setCollectorSetsRateLimit(Boolean collectorSetsRateLimit) {
+    this.collectorSetsRateLimit = collectorSetsRateLimit;
+  }
+
+  public Long getCollectorRateLimit() {
+    return this.collectorRateLimit;
+  }
+
+  public void setCollectorRateLimit(Long collectorRateLimit) {
+    this.collectorRateLimit = collectorRateLimit;
   }
 
   public List<WorkUnit> getWorkUnits() {

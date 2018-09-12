@@ -1,6 +1,7 @@
 package com.wavefront.agent.histogram.accumulator;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.RateLimiter;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.CacheWriter;
@@ -40,8 +41,13 @@ public class AccumulationCache {
 
   private final Counter binCreatedCounter = Metrics.newCounter(
       new MetricName("histogram.accumulator", "", "bin_created"));
+  private final Counter flushedCounter = Metrics.newCounter(
+      new MetricName("histogram.accumulator.cache", "", "flushed"));
+  private final Counter cacheOverflowCounter = Metrics.newCounter(
+      new MetricName("histogram.accumulator.cache", "", "size_exceeded"));
   private final Cache<HistogramKey, AgentDigest> cache;
   private final ConcurrentMap<HistogramKey, AgentDigest> backingStore;
+
 
   /**
    * In-memory index for dispatch timestamps to avoid iterating the backing store map, which is an expensive
@@ -56,14 +62,34 @@ public class AccumulationCache {
    *
    * @param backingStore a {@code ConcurrentMap} storing AgentDigests
    * @param cacheSize maximum size of the cache
-   * @param ticker a nanosecond-precision time source (to
+   * @param ticker a nanosecond-precision time source
    */
   public AccumulationCache(
       final ConcurrentMap<HistogramKey, AgentDigest> backingStore,
       final long cacheSize,
       @Nullable Ticker ticker) {
+    this(backingStore, cacheSize, ticker, null);
+  }
+
+  /**
+   * Constructs a new AccumulationCache instance around {@code backingStore} and builds an in-memory index maintaining
+   * dispatch times in milliseconds for all HistogramKeys in backingStore
+   * Setting cacheSize to 0 disables in-memory caching so the cache only maintains the dispatch time index.
+   *
+   * @param backingStore a {@code ConcurrentMap} storing AgentDigests
+   * @param cacheSize maximum size of the cache
+   * @param ticker a nanosecond-precision time source
+   * @param onFailure a {@code Runnable} that is invoked when backing store overflows
+   */
+  @VisibleForTesting
+  protected AccumulationCache(
+      final ConcurrentMap<HistogramKey, AgentDigest> backingStore,
+      final long cacheSize,
+      @Nullable Ticker ticker,
+      @Nullable Runnable onFailure) {
     this.backingStore = backingStore;
     this.keyIndex = new ConcurrentHashMap<>(backingStore.size());
+    final Runnable failureHandler = onFailure == null ? new AccumulationCacheMonitor() : onFailure;
     if (backingStore.size() > 0) {
       logger.info("Started: Indexing histogram accumulator");
       for (Map.Entry<HistogramKey, AgentDigest> entry : this.backingStore.entrySet()) {
@@ -85,21 +111,31 @@ public class AccumulationCache {
             if (value == null) {
               return;
             }
-            // flush out to backing store
-            backingStore.merge(key, value, (digestA, digestB) -> {
-              if (digestA != null && digestB != null) {
-                // Merge both digests
-                if (digestA.centroidCount() >= digestB.centroidCount()) {
-                  digestA.add(digestB);
-                  return digestA;
+            flushedCounter.inc();
+            if (cause == RemovalCause.SIZE) cacheOverflowCounter.inc();
+            try {
+              // flush out to backing store
+              backingStore.merge(key, value, (digestA, digestB) -> {
+                if (digestA != null && digestB != null) {
+                  // Merge both digests
+                  if (digestA.centroidCount() >= digestB.centroidCount()) {
+                    digestA.add(digestB);
+                    return digestA;
+                  } else {
+                    digestB.add(digestA);
+                    return digestB;
+                  }
                 } else {
-                  digestB.add(digestA);
-                  return digestB;
+                  return (digestB == null ? digestA : digestB);
                 }
+              });
+            } catch (IllegalStateException e) {
+              if (e.getMessage().contains("Attempt to allocate")) {
+                failureHandler.run();
               } else {
-                return (digestB == null ? digestA : digestB);
+                throw e;
               }
-            });
+            }
           }
         }).build();
   }
@@ -267,5 +303,24 @@ public class AccumulationCache {
    */
   public Runnable getResolveTask() {
     return cache::invalidateAll;
+  }
+
+  public class AccumulationCacheMonitor implements Runnable {
+
+    private Counter failureCounter;
+    private final RateLimiter failureMessageLimiter = RateLimiter.create(1);
+
+    @Override
+    public void run() {
+      if (failureCounter == null) {
+        failureCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "failure"));
+      }
+      failureCounter.inc();
+      if (failureMessageLimiter.tryAcquire()) {
+        logger.severe("CRITICAL: Histogram accumulator overflow - losing histogram data!!! " +
+            "Accumulator size configuration setting is not appropriate for workload, please increase " +
+            "the value as appropriate and restart the proxy!");
+      }
+    }
   }
 }

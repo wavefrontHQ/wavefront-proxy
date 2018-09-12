@@ -3,7 +3,10 @@ package com.wavefront.agent.histogram.accumulator;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.histogram.TestUtils;
+import com.wavefront.agent.histogram.Utils;
 import com.wavefront.agent.histogram.Utils.HistogramKey;
+
+import net.openhft.chronicle.map.ChronicleMap;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -11,7 +14,9 @@ import org.junit.Test;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -21,6 +26,8 @@ import static com.google.common.truth.Truth.assertThat;
  * @author Tim Schmidt (tim@wavefront.com).
  */
 public class AccumulationCacheTest {
+  private final static Logger logger = Logger.getLogger(AccumulationCacheTest.class.getCanonicalName());
+
   private final static long CAPACITY = 2L;
   private final static short COMPRESSION = 100;
 
@@ -87,5 +94,29 @@ public class AccumulationCacheTest {
     cache.cleanUp();
 
     assertThat(backingStore.size()).isAtLeast(1);
+  }
+
+  @Test
+  public void testChronicleMapOverflow() {
+    ConcurrentMap<HistogramKey, AgentDigest> chronicleMap = ChronicleMap.of(HistogramKey.class, AgentDigest.class).
+        keyMarshaller(Utils.HistogramKeyMarshaller.get()).
+        valueMarshaller(AgentDigest.AgentDigestMarshaller.get()).
+        entries(10)
+        .averageKeySize(20)
+        .averageValueSize(20)
+        .maxBloatFactor(10)
+        .create();
+    AtomicBoolean hasFailed = new AtomicBoolean(false);
+    AccumulationCache ac = new AccumulationCache(chronicleMap, 10, tickerTime::get, () -> hasFailed.set(true));
+
+    for (int i = 0; i < 1000; i++) {
+      ac.put(TestUtils.makeKey("key-" + i), digestA);
+      ac.getResolveTask().run();
+      if (hasFailed.get()) {
+        logger.info("Chronicle map overflow detected when adding object #" + i);
+        break;
+      }
+    }
+    assertThat(hasFailed.get()).isTrue();
   }
 }
