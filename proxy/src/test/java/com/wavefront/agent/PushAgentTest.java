@@ -9,6 +9,8 @@ import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 
 import junit.framework.AssertionFailedError;
 
+import net.jcip.annotations.NotThreadSafe;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -16,6 +18,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.easymock.EasyMock;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -50,17 +53,15 @@ import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
 
+@NotThreadSafe
 public class PushAgentTest {
   protected static final Logger logger = Logger.getLogger(PushAgentTest.class.getCanonicalName());
 
   private PushAgent proxy;
-  private PushAgent proxy2;
   private long startTime = System.currentTimeMillis() / 1000 / 60 * 60;
   private int port;
-  private int port2;
   private int tracePort;
   private int ddPort;
-  private int ddPort2;
   private ReportableEntityHandler<ReportPoint> mockPointHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
   private ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler =
@@ -94,7 +95,6 @@ public class PushAgentTest {
 
   @Before
   public void setup() throws Exception {
-
     port = findAvailablePort(2888);
     tracePort = findAvailablePort(3888);
     ddPort = findAvailablePort(4888);
@@ -109,18 +109,13 @@ public class PushAgentTest {
     proxy.startGraphiteListener(proxy.pushListenerPorts, mockHandlerFactory, null);
     proxy.startTraceListener(proxy.traceListenerPorts, mockHandlerFactory);
     proxy.startDataDogListener(proxy.dataDogJsonPorts, mockHandlerFactory, mockHttpClient);
-
-    ddPort2 = findAvailablePort(4988);
-    proxy2 = new PushAgent();
-    proxy2.flushThreads = 2;
-    proxy2.retryThreads = 1;
-    proxy2.dataDogJsonPorts = String.valueOf(ddPort2);
-    proxy2.dataDogProcessSystemMetrics = true;
-    proxy2.dataDogProcessServiceChecks = false;
-    proxy2.dataDogRequestRelayTarget = "http://relay-to:1234";
-    proxy2.startDataDogListener(proxy2.dataDogJsonPorts, mockHandlerFactory, mockHttpClient);
+    TimeUnit.MILLISECONDS.sleep(500);
   }
 
+  @After
+  public void teardown() {
+    proxy.shutdown();
+  }
 
   @Test
   public void testWavefrontUnifiedPortHandlerPlaintextUncompressed() throws Exception {
@@ -324,8 +319,19 @@ public class PushAgentTest {
     verify(mockTraceHandler);
   }
 
-  @Test
+  @Test(timeout = 30000)
   public void testDataDogUnifiedPortHandler() throws Exception {
+    int ddPort2 = findAvailablePort(4988);
+    PushAgent proxy2 = new PushAgent();
+    proxy2.flushThreads = 2;
+    proxy2.retryThreads = 1;
+    proxy2.dataDogJsonPorts = String.valueOf(ddPort2);
+    proxy2.dataDogProcessSystemMetrics = true;
+    proxy2.dataDogProcessServiceChecks = false;
+    proxy2.dataDogRequestRelayTarget = "http://relay-to:1234";
+    proxy2.startDataDogListener(proxy2.dataDogJsonPorts, mockHandlerFactory, mockHttpClient);
+    TimeUnit.MILLISECONDS.sleep(500);
+
     // test 1: post to /intake with system metrics enabled and http relay enabled
     HttpResponse mockHttpResponse = EasyMock.createMock(HttpResponse.class);
     StatusLine mockStatusLine = EasyMock.createMock(StatusLine.class);
