@@ -677,8 +677,7 @@ public class PushAgent extends AbstractAgent {
     try {
       agentAPI.agentConfigProcessed(agentId);
       Long pointsPerBatch = config.getPointsPerBatch();
-      if (config.getCollectorSetsPointsPerBatch() != null &&
-          config.getCollectorSetsPointsPerBatch()) {
+      if (BooleanUtils.isTrue(config.getCollectorSetsPointsPerBatch())) {
         if (pointsPerBatch != null) {
           // if the collector is in charge and it provided a setting, use it
           pushFlushMaxPoints.set(pointsPerBatch.intValue());
@@ -690,8 +689,24 @@ public class PushAgent extends AbstractAgent {
         logger.fine("Proxy push batch set to (locally) " + pushFlushMaxPoints.get());
       }
 
-      if (config.getCollectorSetsRetryBackoff() != null &&
-          config.getCollectorSetsRetryBackoff()) {
+      if (BooleanUtils.isTrue(config.getCollectorSetsRateLimit())) {
+        Long collectorRateLimit = config.getCollectorRateLimit();
+        if (pushRateLimiter != null && collectorRateLimit != null && pushRateLimiter.getRate() != collectorRateLimit) {
+          pushRateLimiter.setRate(collectorRateLimit);
+          logger.warning("Proxy rate limit set to " + collectorRateLimit + " remotely");
+        }
+      } else {
+        if (pushRateLimiter != null && pushRateLimiter.getRate() != pushRateLimit) {
+          pushRateLimiter.setRate(pushRateLimit);
+          if (pushRateLimit >= 10_000_000) {
+            logger.warning("Proxy rate limit no longer enforced by remote");
+          } else {
+            logger.warning("Proxy rate limit restored to " + pushRateLimit);
+          }
+        }
+      }
+
+      if (BooleanUtils.isTrue(config.getCollectorSetsRetryBackoff())) {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
           retryBackoffBaseSeconds.set(config.getRetryBackoffBaseSeconds());

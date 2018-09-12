@@ -154,10 +154,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       logger.severe("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
           "setting retryThreads to a value > 0");
     }
-    if (pushRateLimiter != null) {
+    if (pushRateLimiter != null && pushRateLimiter.getRate() < 10_000_000) {
       logger.info("Point rate limited at the proxy at : " + String.valueOf(pushRateLimiter.getRate()));
     } else {
-      logger.info("No rate limit is configured ");
+      logger.info("No rate limit configured.");
     }
     resubmissionTaskMarshaller = new GsonBuilder().
         registerTypeHierarchyAdapter(ResubmissionTask.class, new ResubmissionTaskDeserializer()).create();

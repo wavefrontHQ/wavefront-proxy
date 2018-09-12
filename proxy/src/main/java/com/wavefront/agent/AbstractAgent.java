@@ -178,7 +178,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
-  protected Integer pushRateLimit = -1;
+  protected Integer pushRateLimit = 10_000_000;
 
   @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
       "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
