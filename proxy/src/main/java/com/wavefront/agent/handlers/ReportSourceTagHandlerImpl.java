@@ -44,7 +44,7 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
     if (!annotationKeysAreValid(sourceTag)) {
       throw new IllegalArgumentException("WF-401: SourceTag annotation key has illegal characters.");
     }
-    getTask().add(sourceTag);
+    getTask(sourceTag).add(sourceTag);
   }
 
   @VisibleForTesting
@@ -70,4 +70,8 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
         "; blocked: " + this.blockedCounter.count());
   }
 
+  private SenderTask getTask(ReportSourceTag sourceTag) {
+    // we need to make sure the we preserve the order of operations for each source
+    return senderTasks.get(Math.abs(sourceTag.getSource().hashCode()) % senderTasks.size());
+  }
 }

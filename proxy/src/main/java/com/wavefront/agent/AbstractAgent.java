@@ -36,6 +36,7 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.http.HttpRequest;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
@@ -177,7 +178,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
-  protected Integer pushRateLimit = -1;
+  protected Integer pushRateLimit = 10_000_000;
 
   @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
       "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
@@ -470,8 +471,12 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--graphiteFieldsToRemove"}, description = "Comma-separated list of metric segments to remove (1-based)")
   protected String graphiteFieldsToRemove;
 
-  @Parameter(names = {"--httpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics " +
-      "data. Binds, by default, to none.")
+  @Parameter(names = {"--jsonListenerPorts"}, description = "Comma-separated list of ports to listen on for json " +
+      "metrics data. Binds, by default, to none.")
+  protected String jsonListenerPorts = "";
+
+  @Deprecated
+  @Parameter(names = {"--httpJsonPorts"}, description = "DEPRECATED - use jsonListenerPorts")
   protected String httpJsonPorts = "";
 
   @Parameter(names = {"--dataDogJsonPorts"}, description = "Comma-separated list of ports to listen on for JSON " +
@@ -490,8 +495,12 @@ public abstract class AbstractAgent {
       "Defaults to true.")
   protected boolean dataDogProcessServiceChecks = true;
 
-  @Parameter(names = {"--writeHttpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics from collectd write_http json format " +
-      "data. Binds, by default, to none.")
+  @Parameter(names = {"--writeHttpJsonListenerPorts"}, description = "Comma-separated list of ports to listen on " +
+      "for json metrics from collectd write_http json format data. Binds, by default, to none.")
+  protected String writeHttpJsonListenerPorts = "";
+
+  @Deprecated
+  @Parameter(names = {"--writeHttpJsonPorts"}, description = "DEPRECATED - use writeHttpJsonListenerPorts")
   protected String writeHttpJsonPorts = "";
 
   @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
@@ -925,8 +934,10 @@ public abstract class AbstractAgent {
 
         retryThreads = config.getNumber("retryThreads", retryThreads).intValue();
         flushThreads = config.getNumber("flushThreads", flushThreads).intValue();
-        httpJsonPorts = config.getString("jsonListenerPorts", httpJsonPorts);
-        writeHttpJsonPorts = config.getString("writeHttpJsonListenerPorts", writeHttpJsonPorts);
+        jsonListenerPorts = config.getString("jsonListenerPorts",
+            ObjectUtils.firstNonNull(jsonListenerPorts, httpJsonPorts));
+        writeHttpJsonListenerPorts = config.getString("writeHttpJsonListenerPorts",
+            ObjectUtils.firstNonNull(writeHttpJsonListenerPorts, writeHttpJsonPorts));
         dataDogJsonPorts = config.getString("dataDogJsonPorts", dataDogJsonPorts);
         dataDogRequestRelayTarget = config.getString("dataDogRequestRelayTarget", dataDogRequestRelayTarget);
         dataDogProcessSystemMetrics = config.getBoolean("dataDogProcessSystemMetrics", dataDogProcessSystemMetrics);

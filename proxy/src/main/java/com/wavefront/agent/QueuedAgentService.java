@@ -154,10 +154,10 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       logger.severe("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
           "setting retryThreads to a value > 0");
     }
-    if (pushRateLimiter != null) {
+    if (pushRateLimiter != null && pushRateLimiter.getRate() < 10_000_000) {
       logger.info("Point rate limited at the proxy at : " + String.valueOf(pushRateLimiter.getRate()));
     } else {
-      logger.info("No rate limit is configured ");
+      logger.info("No rate limit configured.");
     }
     resubmissionTaskMarshaller = new GsonBuilder().
         registerTypeHierarchyAdapter(ResubmissionTask.class, new ResubmissionTaskDeserializer()).create();
@@ -513,19 +513,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     return smallestQueue.orElse(null);
   }
 
-  private ResubmissionTaskQueue getSmallestSourceTagQueue() {
-    int size = Integer.MAX_VALUE;
-    ResubmissionTaskQueue toReturn = null;
-    for (ResubmissionTaskQueue queue : sourceTagTaskQueues) {
-      if (queue.size() == 0) return queue;
-      else if (queue.size() < size){
-        toReturn = queue;
-        size = queue.size();
-      }
-    }
-    return toReturn;
-  }
-
   private Runnable getPostingSizerTask(final ResubmissionTask task) {
     return () -> {
       try {
@@ -639,8 +626,9 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     addSourceTagTaskToSmallestQueue(taskToRetry);
   }
 
-  private void addSourceTagTaskToSmallestQueue(ResubmissionTask taskToRetry) {
-    ResubmissionTaskQueue queue = getSmallestSourceTagQueue();
+  private void addSourceTagTaskToSmallestQueue(PostSourceTagResultTask taskToRetry) {
+    // we need to make sure the we preserve the order of operations for each source
+    ResubmissionTaskQueue queue = sourceTagTaskQueues.get(Math.abs(taskToRetry.id.hashCode()) % sourceTagTaskQueues.size());
     if (queue != null) {
       try {
         queue.add(taskToRetry);
