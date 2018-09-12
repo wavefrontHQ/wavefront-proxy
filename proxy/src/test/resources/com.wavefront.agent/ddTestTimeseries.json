@@ -1,0 +1,41 @@
+{
+  "series": [
+    {
+      "source_type_name": "System",
+      "type": "gauge",
+      "metric": "system.net.tcp.retrans_segs",
+      "points": [
+        [
+          1531176936,
+          0.0
+        ]
+      ],
+      "host": "testHost"
+    },
+    {
+      "source_type_name": "System",
+      "type": "gauge",
+      "metric": "system.net.tcp.listen_drops",
+      "points": [
+        [
+          1531176936,
+          0.0
+        ]
+      ],
+      "host": "testHost"
+    },
+    {
+      "type": "gauge",
+      "host": "testHost",
+      "points": [
+        [
+          1531176936,
+          12.052631578947368
+        ]
+      ],
+      "source_type_name": "System",
+      "metric": "system.net.packets_in.count",
+      "device": "eth0"
+    }
+  ]
+}

@@ -478,6 +478,18 @@ public abstract class AbstractAgent {
       "metrics data in DataDog format. Binds, by default, to none.")
   protected String dataDogJsonPorts = "";
 
+  @Parameter(names = {"--dataDogRequestRelayTarget"}, description = "HTTP/HTTPS target for relaying all incoming " +
+      "requests on dataDogJsonPorts to. Defaults to none (do not relay incoming requests)")
+  protected String dataDogRequestRelayTarget = null;
+
+  @Parameter(names = {"--dataDogProcessSystemMetrics"}, description = "If true, handle system metrics as reported by " +
+      "DataDog collection agent. Defaults to false.")
+  protected boolean dataDogProcessSystemMetrics = false;
+
+  @Parameter(names = {"--dataDogProcessServiceChecks"}, description = "If true, convert service checks to metrics. " +
+      "Defaults to true.")
+  protected boolean dataDogProcessServiceChecks = true;
+
   @Parameter(names = {"--writeHttpJsonPorts"}, description = "Comma-separated list of ports to listen on for json metrics from collectd write_http json format " +
       "data. Binds, by default, to none.")
   protected String writeHttpJsonPorts = "";
@@ -916,6 +928,9 @@ public abstract class AbstractAgent {
         httpJsonPorts = config.getString("jsonListenerPorts", httpJsonPorts);
         writeHttpJsonPorts = config.getString("writeHttpJsonListenerPorts", writeHttpJsonPorts);
         dataDogJsonPorts = config.getString("dataDogJsonPorts", dataDogJsonPorts);
+        dataDogRequestRelayTarget = config.getString("dataDogRequestRelayTarget", dataDogRequestRelayTarget);
+        dataDogProcessSystemMetrics = config.getBoolean("dataDogProcessSystemMetrics", dataDogProcessSystemMetrics);
+        dataDogProcessServiceChecks = config.getBoolean("dataDogProcessServiceChecks", dataDogProcessServiceChecks);
         graphitePorts = config.getString("graphitePorts", graphitePorts);
         graphiteFormat = config.getString("graphiteFormat", graphiteFormat);
         graphiteFieldsToRemove = config.getString("graphiteFieldsToRemove", graphiteFieldsToRemove);

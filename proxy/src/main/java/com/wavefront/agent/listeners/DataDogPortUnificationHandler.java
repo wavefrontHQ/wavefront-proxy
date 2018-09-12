@@ -1,20 +1,31 @@
 package com.wavefront.agent.listeners;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.PointHandlerImpl;
+import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.common.Clock;
 import com.wavefront.common.TaggedMetricName;
+import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 
-import java.net.InetSocketAddress;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.util.EntityUtils;
+
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -35,6 +46,8 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.util.CharsetUtil;
 import wavefront.report.ReportPoint;
 
+import static io.netty.handler.codec.http.HttpMethod.POST;
+
 /**
  * This class handles an incoming message of either String or FullHttpRequest type.  All other types are ignored.
  *
@@ -48,12 +61,19 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
   private static final Pattern INVALID_TAG_CHARACTERS = Pattern.compile("[^-_:\\.\\\\/\\dA-Za-z]");
 
   private volatile Histogram httpRequestSize;
-  private volatile Gauge tagsCacheSize;
+
+  private final String handle;
 
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and retries, etc
    */
-  private final PointHandler pointHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final boolean processSystemMetrics;
+  private final boolean processServiceChecks;
+  @Nullable
+  private final HttpClient requestRelayClient;
+  @Nullable
+  private final String requestRelayTarget;
 
   @Nullable
   private final ReportableEntityPreprocessor preprocessor;
@@ -65,49 +85,110 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
       maximumSize(100_000).
       build();
 
-  public DataDogPortUnificationHandler(final PointHandler pointHandler,
+  @SuppressWarnings("unchecked")
+  public DataDogPortUnificationHandler(final String handle,
+                                       final ReportableEntityHandlerFactory handlerFactory,
+                                       final boolean processSystemMetrics,
+                                       final boolean processServiceChecks,
+                                       @Nullable final HttpClient requestRelayClient,
+                                       @Nullable final String requestRelayTarget,
                                        @Nullable final ReportableEntityPreprocessor preprocessor) {
+    this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)), processSystemMetrics,
+        processServiceChecks, requestRelayClient, requestRelayTarget, preprocessor);
+  }
+
+
+  @VisibleForTesting
+  protected DataDogPortUnificationHandler(final String handle,
+                                          final ReportableEntityHandler<ReportPoint> pointHandler,
+                                          final boolean processSystemMetrics,
+                                          final boolean processServiceChecks,
+                                          @Nullable final HttpClient requestRelayClient,
+                                          @Nullable final String requestRelayTarget,
+                                          @Nullable final ReportableEntityPreprocessor preprocessor) {
     super();
+    this.handle = handle;
     this.pointHandler = pointHandler;
+    this.processSystemMetrics = processSystemMetrics;
+    this.processServiceChecks = processServiceChecks;
+    this.requestRelayClient = requestRelayClient;
+    this.requestRelayTarget = requestRelayTarget;
     this.preprocessor = preprocessor;
     this.jsonParser = new ObjectMapper();
+    this.httpRequestSize = Metrics.newHistogram(new TaggedMetricName("listeners", "http-requests.payload-points",
+        "port", handle));
+
+    Metrics.newGauge(new TaggedMetricName("listeners", "tags-cache-size",
+        "port", handle), new Gauge<Long>() {
+      @Override
+      public Long value() {
+        return tagsCache.estimatedSize();
+      }
+    });
+
   }
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest request) {
+                                   final FullHttpRequest incomingRequest) {
     URI uri;
     StringBuilder output = new StringBuilder();
-    boolean isKeepAlive = HttpUtil.isKeepAlive(request);
-    if (httpRequestSize == null || tagsCacheSize == null) { // doesn't have to be threadsafe
-      httpRequestSize = Metrics.newHistogram(new TaggedMetricName("listeners", "http-requests.payload-points",
-          "port", String.valueOf(((InetSocketAddress) ctx.channel().localAddress()).getPort())));
-      tagsCacheSize = Metrics.newGauge(new TaggedMetricName("listeners", "tags-cache-size",
-          "port", String.valueOf(((InetSocketAddress) ctx.channel().localAddress()).getPort())), new Gauge<Long>() {
-        @Override
-        public Long value() {
-          return tagsCache.estimatedSize();
-        }
-      });
-    }
+    boolean isKeepAlive = HttpUtil.isKeepAlive(incomingRequest);
     AtomicInteger pointsPerRequest = new AtomicInteger();
 
     try {
-      uri = new URI(request.uri());
+      uri = new URI(incomingRequest.uri());
     } catch (URISyntaxException e) {
       writeExceptionText(e, output);
       writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, output, isKeepAlive);
-      logWarning("WF-300: Request URI '" + request.uri() + "' cannot be parsed", e, ctx);
+      logWarning("WF-300: Request URI '" + incomingRequest.uri() + "' cannot be parsed", e, ctx);
       return;
     }
     HttpResponseStatus status;
+    String requestBody = incomingRequest.content().toString(CharsetUtil.UTF_8);
 
-    switch (uri.getPath()) {
-      case "/api/v1/series":
+    if (requestRelayClient != null && requestRelayTarget != null && incomingRequest.method() == POST) {
+      Histogram requestRelayDuration = Metrics.newHistogram(new TaggedMetricName("listeners", "http-relay.duration",
+              "port", handle));
+      Long startNanos = System.nanoTime();
+      try {
+        String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + incomingRequest.uri();
+        HttpPost outgoingRequest = new HttpPost(outgoingUrl);
+        if (incomingRequest.headers().contains("Content-Type")) {
+          outgoingRequest.addHeader("Content-Type", incomingRequest.headers().get("Content-Type"));
+        }
+        outgoingRequest.setEntity(new StringEntity(requestBody));
+        logger.info("Relaying incoming HTTP request to " + outgoingUrl);
+        HttpResponse response = requestRelayClient.execute(outgoingRequest);
+        int httpStatusCode = response.getStatusLine().getStatusCode();
+        Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.status." + httpStatusCode + ".count",
+            "port", handle)).inc();
+
+        if (httpStatusCode < 200 || httpStatusCode >= 300) {
+          // anything that is not 2xx is relayed as is to the client, don't process the payload
+          writeHttpResponse(ctx, HttpResponseStatus.valueOf(httpStatusCode),
+              EntityUtils.toString(response.getEntity(), "UTF-8"), isKeepAlive);
+          return;
+        }
+
+      } catch (IOException e) {
+        logger.warning("Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
+        Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.failed",
+            "port", handle)).inc();
+        writeHttpResponse(ctx, HttpResponseStatus.BAD_GATEWAY, "Unable to relay request: " + e.getMessage(),
+            isKeepAlive);
+        return;
+      } finally {
+        requestRelayDuration.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos));
+      }
+    }
+
+    String path = uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
+    switch (path) {
       case "/api/v1/series/":
         try {
-          if (reportMetrics(jsonParser.readTree(request.content().toString(CharsetUtil.UTF_8)), pointsPerRequest)) {
-            status = HttpResponseStatus.NO_CONTENT;
+          if (reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest)) {
+            status = HttpResponseStatus.ACCEPTED;
           } else {
             status = HttpResponseStatus.BAD_REQUEST;
             output.append("At least one data point had error.");
@@ -115,17 +196,42 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
           writeExceptionText(e, output);
-          logger.log(Level.SEVERE, "WF-300: Failed to handle /api/v1/series request", e);
           logWarning("WF-300: Failed to handle /api/v1/series request", e, ctx);
         }
         httpRequestSize.update(pointsPerRequest.intValue());
         writeHttpResponse(ctx, status, output, isKeepAlive);
         break;
-      case "/intake":
-      case "/intake/":
+
+      case "/api/v1/check_run/":
+        if (!processServiceChecks) {
+          Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port", handle)).inc();
+          writeHttpResponse(ctx, HttpResponseStatus.ACCEPTED, output, isKeepAlive);
+          return;
+        }
         try {
-          if(reportSystemMetrics(jsonParser.readTree(request.content().toString(CharsetUtil.UTF_8)), pointsPerRequest)) {
-            status = HttpResponseStatus.NO_CONTENT;
+          if (reportCheck(jsonParser.readTree(requestBody), pointsPerRequest)) {
+            status = HttpResponseStatus.ACCEPTED;
+          } else {
+            status = HttpResponseStatus.BAD_REQUEST;
+            output.append("Invalid service check payload.");
+          }
+        } catch (Exception e) {
+          status = HttpResponseStatus.BAD_REQUEST;
+          writeExceptionText(e, output);
+          logWarning("WF-300: Failed to handle /api/v1/check_run request", e, ctx);
+        }
+        writeHttpResponse(ctx, status, output, isKeepAlive);
+        break;
+
+      case "/intake/":
+        if (!processSystemMetrics) {
+          Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port", handle)).inc();
+          writeHttpResponse(ctx, HttpResponseStatus.ACCEPTED, output, isKeepAlive);
+          return;
+        }
+        try {
+          if(reportSystemMetrics(jsonParser.readTree(requestBody), pointsPerRequest)) {
+            status = HttpResponseStatus.ACCEPTED;
           } else {
             status = HttpResponseStatus.BAD_REQUEST;
             output.append("At least one data point had error.");
@@ -138,9 +244,10 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
         httpRequestSize.update(pointsPerRequest.intValue());
         writeHttpResponse(ctx, status, output, isKeepAlive);
         break;
+
       default:
-        writeHttpResponse(ctx, HttpResponseStatus.NOT_FOUND, "Unsupported path", isKeepAlive);
-        logWarning("WF-300: Unexpected path '" + request.uri() + "', returning HTTP 404", null, ctx);
+        writeHttpResponse(ctx, HttpResponseStatus.NO_CONTENT, output, isKeepAlive);
+        logWarning("WF-300: Unexpected path '" + incomingRequest.uri() + "', returning HTTP 204", null, ctx);
         break;
     }
   }
@@ -179,12 +286,12 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
    */
   private boolean reportMetrics(final JsonNode metrics, @Nullable final AtomicInteger pointCounter) {
     if (metrics == null || !metrics.isObject() || !metrics.has("series")) {
-      pointHandler.handleBlockedPoint("WF-300: Payload missing 'series' field");
+      pointHandler.reject((ReportPoint) null, "WF-300: Payload missing 'series' field");
       return false;
     }
     JsonNode series = metrics.get("series");
     if (!series.isArray()) {
-      pointHandler.handleBlockedPoint("WF-300: 'series' field must be an array");
+      pointHandler.reject((ReportPoint) null, "WF-300: 'series' field must be an array");
       return false;
     }
     boolean successful = true;
@@ -206,12 +313,12 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
    */
   private boolean reportMetric(final JsonNode metric, @Nullable final AtomicInteger pointCounter) {
     if (metric == null) {
-      pointHandler.handleBlockedPoint("Skipping - series object null.");
+      pointHandler.reject((ReportPoint) null, "Skipping - series object null.");
       return false;
     }
     try {
       if (metric.get("metric") == null ) {
-        pointHandler.handleBlockedPoint("Skipping - 'metric' field missing.");
+        pointHandler.reject((ReportPoint) null, "Skipping - 'metric' field missing.");
         return false;
       }
       String metricName = INVALID_METRIC_CHARACTERS.matcher(metric.get("metric").textValue()).replaceAll("_");
@@ -225,14 +332,14 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
       extractTags(tagsNode, tags); // tags sent with the data override system host-level tags
       JsonNode pointsNode = metric.get("points");
       if (pointsNode == null) {
-        pointHandler.handleBlockedPoint("Skipping - 'points' field missing.");
+        pointHandler.reject((ReportPoint) null, "Skipping - 'points' field missing.");
         return false;
       }
       for (JsonNode node : pointsNode) {
         if (node.size() == 2) {
           reportValue(metricName, hostName, tags, node.get(1), node.get(0).longValue() * 1000, pointCounter);
         } else {
-          pointHandler.handleBlockedPoint("WF-300: Inconsistent point value size (expected: 2)");
+          pointHandler.reject((ReportPoint) null, "WF-300: Inconsistent point value size (expected: 2)");
         }
       }
       return true;
@@ -242,14 +349,52 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
     }
   }
 
+  private boolean reportCheck(final JsonNode check, @Nullable final AtomicInteger pointCounter) {
+    if (check == null) {
+      pointHandler.reject((ReportPoint) null, "Skipping - check object is null.");
+      return false;
+    }
+    try {
+      if (check.get("check") == null ) {
+        pointHandler.reject((ReportPoint) null, "Skipping - 'check' field missing.");
+        return false;
+      }
+      if (check.get("host_name") == null ) {
+        pointHandler.reject((ReportPoint) null, "Skipping - 'host_name' field missing.");
+        return false;
+      }
+      if (check.get("status") == null ) {
+        // ignore - there is no status to update
+        return true;
+      }
+      String metricName = INVALID_METRIC_CHARACTERS.matcher(check.get("check").textValue()).replaceAll("_");
+      String hostName = check.get("host_name").textValue().toLowerCase();
+      JsonNode tagsNode = check.get("tags");
+      Map<String, String> systemTags;
+      Map<String, String> tags = new HashMap<>();
+      if ((systemTags = tagsCache.getIfPresent(hostName)) != null) {
+        tags.putAll(systemTags);
+      }
+      extractTags(tagsNode, tags); // tags sent with the data override system host-level tags
+
+      long timestamp = check.get("timestamp") == null ? Clock.now() : check.get("timestamp").asLong() * 1000;
+      reportValue(metricName, hostName, tags, check.get("status"), timestamp, pointCounter);
+      return true;
+    } catch (final Exception e) {
+      logger.log(Level.WARNING, "WF-300: Failed to add metric", e);
+      return false;
+    }
+  }
+
+
   private boolean reportSystemMetrics(final JsonNode metrics, @Nullable final AtomicInteger pointCounter) {
     if (metrics == null || !metrics.isObject() || !metrics.has("collection_timestamp")) {
-      pointHandler.handleBlockedPoint("WF-300: Payload missing 'collection_timestamp' field");
+      pointHandler.reject((ReportPoint) null, "WF-300: Payload missing 'collection_timestamp' field");
       return false;
     }
     long timestamp = metrics.get("collection_timestamp").asLong() * 1000;
     if (!metrics.has("internalHostname")) {
-      pointHandler.handleBlockedPoint("WF-300: Payload missing 'internalHostname' field");
+      pointHandler.reject((ReportPoint) null, "WF-300: Payload missing 'internalHostname' field");
       return false;
     }
     String hostName = metrics.get("internalHostname").textValue().toLowerCase();
@@ -351,11 +496,11 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
         } else {
           blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
         }
-        pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+        pointHandler.reject(point, preprocessor.forReportPoint().getLastFilterResult());
         return;
       }
     }
-    pointHandler.reportPoint(point, null);
+    pointHandler.report(point);
   }
 
   private void extractTags(JsonNode tagsNode, final Map<String, String> tags) {
@@ -385,4 +530,3 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
     }
   }
 }
-

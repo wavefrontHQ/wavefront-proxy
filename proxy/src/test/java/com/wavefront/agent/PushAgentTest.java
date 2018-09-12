@@ -1,17 +1,28 @@
 package com.wavefront.agent;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.Resources;
 
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 
+import junit.framework.AssertionFailedError;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
@@ -32,6 +43,8 @@ import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.Span;
 
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
@@ -41,9 +54,13 @@ public class PushAgentTest {
   protected static final Logger logger = Logger.getLogger(PushAgentTest.class.getCanonicalName());
 
   private PushAgent proxy;
+  private PushAgent proxy2;
   private long startTime = System.currentTimeMillis() / 1000 / 60 * 60;
   private int port;
+  private int port2;
   private int tracePort;
+  private int ddPort;
+  private int ddPort2;
   private ReportableEntityHandler<ReportPoint> mockPointHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
   private ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler =
@@ -55,7 +72,7 @@ public class PushAgentTest {
   private ReportableEntityHandlerFactory mockHandlerFactory =
       MockReportableEntityHandlerFactory.createMockHandlerFactory(mockPointHandler, mockSourceTagHandler,
           mockHistogramHandler, mockTraceHandler);
-
+  private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
 
   private static int findAvailablePort(int startingPortNumber) {
     int portNum = startingPortNumber;
@@ -80,14 +97,28 @@ public class PushAgentTest {
 
     port = findAvailablePort(2888);
     tracePort = findAvailablePort(3888);
+    ddPort = findAvailablePort(4888);
     proxy = new PushAgent();
     proxy.flushThreads = 2;
     proxy.retryThreads = 1;
     proxy.pushListenerPorts = String.valueOf(port);
     proxy.traceListenerPorts = String.valueOf(tracePort);
+    proxy.dataDogJsonPorts = String.valueOf(ddPort);
+    proxy.dataDogProcessSystemMetrics = false;
+    proxy.dataDogProcessServiceChecks = true;
     proxy.startGraphiteListener(proxy.pushListenerPorts, mockHandlerFactory, null);
     proxy.startTraceListener(proxy.traceListenerPorts, mockHandlerFactory);
-    TimeUnit.MILLISECONDS.sleep(500);
+    proxy.startDataDogListener(proxy.dataDogJsonPorts, mockHandlerFactory, mockHttpClient);
+
+    ddPort2 = findAvailablePort(4988);
+    proxy2 = new PushAgent();
+    proxy2.flushThreads = 2;
+    proxy2.retryThreads = 1;
+    proxy2.dataDogJsonPorts = String.valueOf(ddPort2);
+    proxy2.dataDogProcessSystemMetrics = true;
+    proxy2.dataDogProcessServiceChecks = false;
+    proxy2.dataDogRequestRelayTarget = "http://relay-to:1234";
+    proxy2.startDataDogListener(proxy2.dataDogJsonPorts, mockHandlerFactory, mockHttpClient);
   }
 
 
@@ -168,7 +199,6 @@ public class PushAgentTest {
     writer.flush();
     writer.close();
     logger.info("HTTP response code (plaintext content): " + connection.getResponseCode());
-    TimeUnit.MILLISECONDS.sleep(500);
     verify(mockPointHandler);
   }
 
@@ -190,20 +220,7 @@ public class PushAgentTest {
     String payloadStr = "metric4.test 0 " + startTime + " source=test1\n" +
         "metric4.test 1 " + (startTime + 1) + " source=test2\n" +
         "metric4.test 2 " + (startTime + 2) + " source=test3"; // note the lack of newline at the end!
-    URL url = new URL("http://localhost:" + port);
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("POST");
-    connection.setDoOutput(true);
-    connection.setDoInput(true);
-    connection.setRequestProperty("Content-Encoding", "gzip");
-    ByteArrayOutputStream baos = new ByteArrayOutputStream(payloadStr.length());
-    GZIPOutputStream gzip = new GZIPOutputStream(baos);
-    gzip.write(payloadStr.getBytes("UTF-8"));
-    gzip.close();
-    connection.getOutputStream().write(baos.toByteArray());
-    connection.getOutputStream().flush();
-    logger.info("HTTP response code (gzipped content): " + connection.getResponseCode());
-    TimeUnit.MILLISECONDS.sleep(500);
+    gzippedHttpPost("http://localhost:" + port, payloadStr);
     verify(mockPointHandler);
   }
 
@@ -306,4 +323,135 @@ public class PushAgentTest {
     TimeUnit.MILLISECONDS.sleep(500);
     verify(mockTraceHandler);
   }
+
+  @Test
+  public void testDataDogUnifiedPortHandler() throws Exception {
+    // test 1: post to /intake with system metrics enabled and http relay enabled
+    HttpResponse mockHttpResponse = EasyMock.createMock(HttpResponse.class);
+    StatusLine mockStatusLine = EasyMock.createMock(StatusLine.class);
+    reset(mockPointHandler, mockHttpClient, mockHttpResponse, mockStatusLine);
+    expect(mockStatusLine.getStatusCode()).andReturn(200);
+    expect(mockHttpResponse.getStatusLine()).andReturn(mockStatusLine);
+    expect(mockHttpClient.execute(anyObject(HttpPost.class))).andReturn(mockHttpResponse);
+    mockPointHandler.report(anyObject());
+    expectLastCall().times(46);
+    replay(mockHttpClient, mockHttpResponse, mockStatusLine, mockPointHandler);
+
+    gzippedHttpPost("http://localhost:" + ddPort2 + "/intake", getResource("ddTestSystem.json"));
+
+    verify(mockHttpClient, mockPointHandler);
+
+    // test 2: post to /intake with system metrics disabled and http relay disabled
+    reset(mockPointHandler);
+    mockPointHandler.report(anyObject());
+    expectLastCall().andThrow(new AssertionFailedError()).anyTimes();
+    replay(mockPointHandler);
+
+    gzippedHttpPost("http://localhost:" + ddPort + "/intake", getResource("ddTestSystem.json"));
+
+    verify(mockPointHandler);
+
+    // test 3: post to /intake with system metrics enabled and http relay enabled, but remote unavailable
+    reset(mockPointHandler, mockHttpClient, mockHttpResponse, mockStatusLine);
+    expect(mockStatusLine.getStatusCode()).andReturn(404); // remote returns a error http code
+    expect(mockHttpResponse.getStatusLine()).andReturn(mockStatusLine);
+    expect(mockHttpResponse.getEntity()).andReturn(new StringEntity(""));
+    expect(mockHttpClient.execute(anyObject(HttpPost.class))).andReturn(mockHttpResponse);
+    mockPointHandler.report(anyObject());
+    expectLastCall().andThrow(new AssertionFailedError()).anyTimes(); // we are not supposed to actually process data!
+    replay(mockHttpClient, mockHttpResponse, mockStatusLine, mockPointHandler);
+
+    gzippedHttpPost("http://localhost:" + ddPort2 + "/intake", getResource("ddTestSystem.json"));
+
+    verify(mockHttpClient, mockPointHandler);
+
+    // test 4: post to /api/v1/check_run with service checks disabled
+    reset(mockPointHandler, mockHttpClient, mockHttpResponse, mockStatusLine);
+    expect(mockStatusLine.getStatusCode()).andReturn(202); // remote returns a error http code
+    expect(mockHttpResponse.getStatusLine()).andReturn(mockStatusLine);
+    expect(mockHttpResponse.getEntity()).andReturn(new StringEntity(""));
+    expect(mockHttpClient.execute(anyObject(HttpPost.class))).andReturn(mockHttpResponse);
+    mockPointHandler.report(anyObject());
+    expectLastCall().andThrow(new AssertionFailedError()).anyTimes(); // we are not supposed to actually process data!
+    replay(mockHttpClient, mockHttpResponse, mockStatusLine, mockPointHandler);
+
+    gzippedHttpPost("http://localhost:" + ddPort2 + "/api/v1/check_run", getResource("ddTestServiceCheck.json"));
+
+    verify(mockHttpClient, mockPointHandler);
+
+    // test 5: post to /api/v1/check_run with service checks enabled
+    reset(mockPointHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().
+        setTable("dummy").
+        setMetric("testApp.status").
+        setHost("testhost").
+        setTimestamp(1536719228000L).
+        setValue(3.0d).
+        build());
+    expectLastCall().once();
+    replay(mockPointHandler);
+
+    gzippedHttpPost("http://localhost:" + ddPort + "/api/v1/check_run", getResource("ddTestServiceCheck.json"));
+
+    verify(mockPointHandler);
+
+    // test 6: post to /api/v1/series
+    reset(mockPointHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().
+        setTable("dummy").
+        setMetric("system.net.tcp.retrans_segs").
+        setHost("testhost").
+        setTimestamp(1531176936000L).
+        setValue(0.0d).
+        build());
+    expectLastCall().once();
+    mockPointHandler.report(ReportPoint.newBuilder().
+        setTable("dummy").
+        setMetric("system.net.tcp.listen_drops").
+        setHost("testhost").
+        setTimestamp(1531176936000L).
+        setValue(0.0d).
+        build());
+    expectLastCall().once();
+    mockPointHandler.report(ReportPoint.newBuilder().
+        setTable("dummy").
+        setMetric("system.net.packets_in.count").
+        setHost("testhost").
+        setTimestamp(1531176936000L).
+        setValue(12.052631578947368d).
+        build());
+    expectLastCall().once();
+    replay(mockPointHandler);
+
+    gzippedHttpPost("http://localhost:" + ddPort + "/api/v1/series", getResource("ddTestTimeseries.json"));
+
+    verify(mockPointHandler);
+
+
+
+  }
+
+  private String getResource(String resourceName) throws Exception {
+    URL url = Resources.getResource("com.wavefront.agent/" + resourceName);
+    File myFile = new File(url.toURI());
+    return FileUtils.readFileToString(myFile, "UTF-8");
+  }
+
+  private void gzippedHttpPost(String postUrl, String payload) throws Exception {
+    URL url = new URL(postUrl);
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("POST");
+    connection.setDoOutput(true);
+    connection.setDoInput(true);
+    connection.setRequestProperty("Content-Encoding", "gzip");
+    ByteArrayOutputStream baos = new ByteArrayOutputStream(payload.length());
+    GZIPOutputStream gzip = new GZIPOutputStream(baos);
+    gzip.write(payload.getBytes("UTF-8"));
+    gzip.close();
+    connection.getOutputStream().write(baos.toByteArray());
+    connection.getOutputStream().flush();
+    logger.info("HTTP response code (gzipped content): " + connection.getResponseCode());
+
+  }
+
 }
