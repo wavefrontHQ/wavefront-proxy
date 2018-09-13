@@ -5,6 +5,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -16,10 +17,10 @@ import com.beust.jcommander.Parameter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
-import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
@@ -36,7 +37,6 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.ObjectUtils;
 import org.apache.http.HttpRequest;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
@@ -80,6 +80,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -92,6 +93,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.annotation.Nullable;
 import javax.management.NotificationEmitter;
@@ -138,12 +141,12 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
   private boolean testLogs = false;
 
-  @Parameter(names = {"-l", "--loglevel"}, description =
+  @Parameter(names = {"-l", "--loglevel", "--pushLogLevel"}, description =
       "Log level for push data (NONE/SUMMARY/DETAILED); NONE is default")
   protected String pushLogLevel = "NONE";
 
-  @Parameter(names = {"-v", "--validationlevel"}, description =
-      "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY/TEXT_ONLY/ALL); NO_VALIDATION is default")
+  @Parameter(names = {"-v", "--validationlevel", "--pushValidationLevel"}, description =
+      "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY); NUMERIC_ONLY is default")
   protected String pushValidationLevel = "NUMERIC_ONLY";
 
   @Parameter(names = {"-h", "--host"}, description = "Server URL", order = 1)
@@ -172,9 +175,9 @@ public abstract class AbstractAgent {
   protected int pushFlushIntervalInitialValue = 1000; // store initially configured value to revert to
 
   @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points in a single push flush. Defaults" +
-      " to 50,000")
-  protected AtomicInteger pushFlushMaxPoints = new AtomicInteger(50000);
-  protected int pushFlushMaxPointsInitialValue = 50000; // store initially configured value to revert to
+      " to 40,000")
+  protected AtomicInteger pushFlushMaxPoints = new AtomicInteger(40000);
+  protected int pushFlushMaxPointsInitialValue = 40000; // store initially configured value to revert to
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
@@ -471,13 +474,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--graphiteFieldsToRemove"}, description = "Comma-separated list of metric segments to remove (1-based)")
   protected String graphiteFieldsToRemove;
 
-  @Parameter(names = {"--jsonListenerPorts"}, description = "Comma-separated list of ports to listen on for json " +
-      "metrics data. Binds, by default, to none.")
+  @Parameter(names = {"--jsonListenerPorts", "--httpJsonPorts"}, description = "Comma-separated list of ports to " +
+      "listen on for json metrics data. Binds, by default, to none.")
   protected String jsonListenerPorts = "";
-
-  @Deprecated
-  @Parameter(names = {"--httpJsonPorts"}, description = "DEPRECATED - use jsonListenerPorts")
-  protected String httpJsonPorts = "";
 
   @Parameter(names = {"--dataDogJsonPorts"}, description = "Comma-separated list of ports to listen on for JSON " +
       "metrics data in DataDog format. Binds, by default, to none.")
@@ -495,13 +494,9 @@ public abstract class AbstractAgent {
       "Defaults to true.")
   protected boolean dataDogProcessServiceChecks = true;
 
-  @Parameter(names = {"--writeHttpJsonListenerPorts"}, description = "Comma-separated list of ports to listen on " +
-      "for json metrics from collectd write_http json format data. Binds, by default, to none.")
+  @Parameter(names = {"--writeHttpJsonListenerPorts", "--writeHttpJsonPorts"}, description = "Comma-separated list " +
+      "of ports to listen on for json metrics from collectd write_http json format data. Binds, by default, to none.")
   protected String writeHttpJsonListenerPorts = "";
-
-  @Deprecated
-  @Parameter(names = {"--writeHttpJsonPorts"}, description = "DEPRECATED - use writeHttpJsonListenerPorts")
-  protected String writeHttpJsonPorts = "";
 
   @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
   protected Integer filebeatPort = 0;
@@ -515,7 +510,8 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--hostname"}, description = "Hostname for the proxy. Defaults to FQDN of machine.")
   protected String hostname;
 
-  @Parameter(names = {"--idFile"}, description = "File to read proxy id from. Defaults to ~/.dshell/id")
+  @Parameter(names = {"--idFile"}, description = "File to read proxy id from. Defaults to ~/.dshell/id." +
+      "This property is ignored if ephemeral=true.")
   protected String idFile = null;
 
   @Parameter(names = {"--graphiteWhitelistRegex"}, description = "(DEPRECATED for whitelistRegex)", hidden = true)
@@ -624,6 +620,11 @@ public abstract class AbstractAgent {
 
   @Parameter(description = "")
   protected List<String> unparsed_params;
+
+  /**
+   * A set of commandline parameters to hide when echoing command line arguments
+   */
+  protected static final Set<String> PARAMETERS_TO_HIDE = ImmutableSet.of("-t", "--token", "--proxyPassword");
 
   protected QueuedAgentService agentAPI;
   protected ResourceBundle props;
@@ -939,10 +940,8 @@ public abstract class AbstractAgent {
 
         retryThreads = config.getNumber("retryThreads", retryThreads).intValue();
         flushThreads = config.getNumber("flushThreads", flushThreads).intValue();
-        jsonListenerPorts = config.getString("jsonListenerPorts",
-            ObjectUtils.firstNonNull(jsonListenerPorts, httpJsonPorts));
-        writeHttpJsonListenerPorts = config.getString("writeHttpJsonListenerPorts",
-            ObjectUtils.firstNonNull(writeHttpJsonListenerPorts, writeHttpJsonPorts));
+        jsonListenerPorts = config.getString("jsonListenerPorts", jsonListenerPorts);
+        writeHttpJsonListenerPorts = config.getString("writeHttpJsonListenerPorts", writeHttpJsonListenerPorts);
         dataDogJsonPorts = config.getString("dataDogJsonPorts", dataDogJsonPorts);
         dataDogRequestRelayTarget = config.getString("dataDogRequestRelayTarget", dataDogRequestRelayTarget);
         dataDogProcessSystemMetrics = config.getBoolean("dataDogProcessSystemMetrics", dataDogProcessSystemMetrics);
@@ -1089,10 +1088,16 @@ public abstract class AbstractAgent {
       props = ResourceBundle.getBundle("build");
       logger.info("Starting proxy version " + props.getString("build.version"));
 
-      logger.info("Arguments: " + Joiner.on(", ").join(args));
-      JCommander jCommander = new JCommander(this, args);
+      logger.info("Arguments: " + IntStream.range(0, args.length).
+          mapToObj(i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i]).
+          collect(Collectors.joining(", ")));
+      JCommander jCommander = JCommander.newBuilder().
+          programName(this.getClass().getCanonicalName()).
+          addObject(this).
+          allowParameterOverwriting(true).
+          build();
+      jCommander.parse(args);
       if (help) {
-        jCommander.setProgramName(this.getClass().getCanonicalName());
         jCommander.usage();
         System.exit(0);
       }
@@ -1121,7 +1126,12 @@ public abstract class AbstractAgent {
       }
 
       // 2. Read or create the unique Id for the daemon running on this machine.
-      readOrCreateDaemonId();
+      if (ephemeral) {
+        agentId = UUID.randomUUID(); // don't need to store one
+        logger.info("Ephemeral proxy id created: " + agentId);
+      } else {
+        readOrCreateDaemonId();
+      }
 
       if (proxyHost != null) {
         System.setProperty("http.proxyHost", proxyHost);
