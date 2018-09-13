@@ -23,10 +23,9 @@ server=https://try.wavefront.com/api/
 #
 #token=XXX
 
-# If true, this proxy is removed from Wavefront after 24 hours of inactivity. It's intended to be
-# set to true when the proxy is frequently restarted on a new infrastructure (which is often the
-# case when running inside containers for example).
-ephemeral=false
+## Set to true when running proxy inside containers or when the proxy is frequently restarted on a new infrastructure.
+## When true, terminated proxies will be automatically removed from the UI after 24 hours of inactivity.
+#ephemeral=false
 
 # Comma separated list of ports to listen on for Wavefront formatted data
 pushListenerPorts=2878
@@ -52,11 +51,11 @@ pushListenerPorts=2878
 ## too small to the server and wasting connections. This setting is per listening port.
 #flushThreads=4
 
-# Max points per flush. Typically 40000.
-pushFlushMaxPoints=40000
+## Max points per flush. Typically 40000.
+#pushFlushMaxPoints=40000
 
-# Milliseconds between flushes to the Wavefront servers. Typically 1000.
-pushFlushInterval=1000
+## Milliseconds between flushes to the Wavefront servers. Typically 1000.
+#pushFlushInterval=1000
 
 ## Limit pps rate at the proxy. Default: do not throttle
 #pushRateLimit=20000
@@ -70,17 +69,17 @@ pushFlushInterval=1000
 ## the proxy to spool to disk more frequently if you have points arriving at the proxy in short bursts.
 #pushMemoryBufferLimit=640000
 
-# If there are blocked points, how many lines to print to the log every 10 flushes. Typically 5.
-pushBlockedSamples=5
+## If there are blocked points, how many lines to print to the log every 10 flushes. Typically 5.
+#pushBlockedSamples=5
 
 # The push log level determines how much information will be printed to the log.
 #   Options: NONE, SUMMARY, DETAILED. Typically SUMMARY.
 pushLogLevel=SUMMARY
 
-# The validation level keeps certain data from being sent to Wavefront.
-#   We strongly recommend keeping this at NUMERIC_ONLY
-#   Options: NUMERIC_ONLY, NO_VALIDATION.
-pushValidationLevel=NUMERIC_ONLY
+## The validation level keeps certain data from being sent to Wavefront.
+##   We strongly recommend keeping this at NUMERIC_ONLY
+##   Options: NUMERIC_ONLY, NO_VALIDATION.
+#pushValidationLevel=NUMERIC_ONLY
 
 # When using the Wavefront or TSDB data formats the Proxy will automatically look for a tag named
 # source= or host= (preferring source=) and treat that as the source/host within Wavefront.
@@ -92,7 +91,7 @@ customSourceTags=fqdn, hostname
 ## prepended to all data points coming through this proxy (such as 'prod').
 #prefix=production
 
-## ID file for the proxy
+## ID file for the proxy. Not used if ephemeral=true
 idFile=/etc/wavefront/wavefront-proxy/.wavefront_id
 
 ## Default location of buffer.* files for saving failed transmission for retry.
