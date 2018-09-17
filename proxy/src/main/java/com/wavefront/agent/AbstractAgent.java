@@ -643,8 +643,9 @@ public abstract class AbstractAgent {
   protected boolean shuttingDown = false;
 
   /**
-   * If process ID A random value assigned at proxy start-up, to be reported in hexadecimal form as a point tag with
-   * ~agent.session.id metric to detect ~agent metrics collisions caused by duplicate proxy names
+   * A unique process ID value (PID, when available, or a random hexadecimal string), assigned at proxy start-up,
+   * to be reported with all ~proxy metrics as a "processId" point tag  to prevent potential ~proxy metrics
+   * collisions caused by users spinning up multiple proxies with duplicate names.
    */
   protected final String processId = getProcessId();
 
