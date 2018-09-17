@@ -18,7 +18,7 @@ public abstract class Clock {
     Metrics.newGauge(new MetricName("clock", "", "drift"), new Gauge<Long>() {
       @Override
       public Long value() {
-        return (long)Math.floor(clockDrift / 1000 + 0.5d);
+        return clockDrift == null ? null : (long)Math.floor(clockDrift / 1000 + 0.5d);
       }
     });
   }
