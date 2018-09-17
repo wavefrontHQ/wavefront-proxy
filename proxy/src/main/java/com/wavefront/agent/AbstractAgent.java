@@ -77,6 +77,7 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -638,13 +639,15 @@ public abstract class AbstractAgent {
   protected final MemoryPoolMXBean tenuredGenPool = getTenuredGenPool();
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
+  protected AtomicBoolean hadSuccessfulCheckin = new AtomicBoolean(false);
   protected boolean shuttingDown = false;
 
   /**
-   * A random value assigned at proxy start-up, to be reported in hexadecimal form as a point tag with
-   * ~agent.session.id metric to detect ~agent metrics collisions caused by duplicate proxy names
+   * A unique process ID value (PID, when available, or a random hexadecimal string), assigned at proxy start-up,
+   * to be reported with all ~proxy metrics as a "processId" point tag  to prevent potential ~proxy metrics
+   * collisions caused by users spinning up multiple proxies with duplicate names.
    */
-  protected final int sessionId = (int)(Math.random() * Integer.MAX_VALUE);
+  protected final String processId = getProcessId();
 
   protected final boolean localAgent;
   protected final boolean pushAgent;
@@ -681,7 +684,7 @@ public abstract class AbstractAgent {
   };
 
   private final Runnable updateAgentMetrics = () -> {
-    @Nullable Map<String, String> pointTags = null;
+    @Nullable Map<String, String> pointTags = new HashMap<>();
     try {
       // calculate disk space available for queueing
       long maxAvailableSpace = 0;
@@ -705,8 +708,9 @@ public abstract class AbstractAgent {
       }
 
       if (agentMetricsPointTags != null) {
-        pointTags = Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags);
+        pointTags.putAll(Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags));
       }
+      pointTags.put("processId", processId);
       synchronized (agentConfigurationExecutor) {
         agentMetricsCaptureTs = System.currentTimeMillis();
         agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
@@ -733,16 +737,6 @@ public abstract class AbstractAgent {
           }
         }
     );
-
-    Metrics.newGauge(new TaggedMetricName("session", "id", "id", Integer.toHexString(sessionId)),
-        new Gauge<Integer>() {
-          @Override
-          public Integer value() {
-            return 1;
-          }
-        }
-    );
-
   }
 
   protected abstract void startListeners();
@@ -1395,12 +1389,16 @@ public abstract class AbstractAgent {
   }
 
   private void fetchConfigError(String errMsg, @Nullable String secondErrMsg) {
-    logger.severe(Strings.repeat("*", errMsg.length()));
-    logger.severe(errMsg);
-    if (secondErrMsg != null) {
-      logger.severe(secondErrMsg);
+    if (hadSuccessfulCheckin.get()) {
+      logger.severe(errMsg + (secondErrMsg == null ? "" : " " + secondErrMsg));
+    } else {
+      logger.severe(Strings.repeat("*", errMsg.length()));
+      logger.severe(errMsg);
+      if (secondErrMsg != null) {
+        logger.severe(secondErrMsg);
+      }
+      logger.severe(Strings.repeat("*", errMsg.length()));
     }
-    logger.severe(Strings.repeat("*", errMsg.length()));
   }
 
   /**
@@ -1424,10 +1422,12 @@ public abstract class AbstractAgent {
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
           agentMetricsCaptureTsWorkingCopy, localAgent, agentMetricsWorkingCopy, pushAgent, ephemeral);
       agentMetricsWorkingCopy = null;
+      hadSuccessfulCheckin.set(true);
     } catch (NotAuthorizedException ex) {
       fetchConfigError("HTTP 401 Unauthorized: Please verify that your server and token settings",
           "are correct and that the token has Proxy Management permission!");
-      return null;
+      agentMetricsWorkingCopy = null;
+      return new AgentConfiguration(); // return empty configuration to prevent checking in every second
     } catch (ClientErrorException ex) {
       if (ex.getResponse().getStatus() == 407) {
         fetchConfigError("HTTP 407 Proxy Authentication Required: Please verify that proxyUser and proxyPassword",
@@ -1625,5 +1625,17 @@ public abstract class AbstractAgent {
         logger.info("Draining buffers to disk: finished");
       }
     }, null, null);
+  }
+
+  private static String getProcessId() {
+    try {
+      final String runtime = ManagementFactory.getRuntimeMXBean().getName();
+      if (runtime.indexOf("@") >= 1) {
+        return Long.toString(Long.parseLong(runtime.substring(0, runtime.indexOf("@"))));
+      }
+    } catch (Exception e) {
+      // can't resolve process ID, fall back to using random ID
+    }
+    return Integer.toHexString((int) (Math.random() * Integer.MAX_VALUE));
   }
 }
