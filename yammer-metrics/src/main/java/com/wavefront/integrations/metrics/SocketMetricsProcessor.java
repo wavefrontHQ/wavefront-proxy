@@ -174,7 +174,9 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
 
   @Override
   public void processGauge(MetricName name, Gauge<?> gauge, Void context) throws Exception {
-    writeMetric(name, null, Double.valueOf(gauge.value().toString()));
+    if (gauge.value() != null) {
+      writeMetric(name, null, Double.valueOf(gauge.value().toString()));
+    }
   }
 
   public void flush() throws IOException {
