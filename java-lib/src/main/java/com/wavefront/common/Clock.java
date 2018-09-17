@@ -14,19 +14,21 @@ public abstract class Clock {
   private static Long localTime;
   private static Long clockDrift;
 
-  static {
-    Metrics.newGauge(new MetricName("clock", "", "drift"), new Gauge<Long>() {
-      @Override
-      public Long value() {
-        return clockDrift == null ? null : (long)Math.floor(clockDrift / 1000 + 0.5d);
-      }
-    });
-  }
+  private static Gauge clockDriftGauge;
 
   public static void set(long serverTime) {
     localTime = System.currentTimeMillis();
     Clock.serverTime = serverTime;
     clockDrift = serverTime - localTime;
+    if (clockDriftGauge == null) {
+      // doesn't have to be synchronized, ok to initialize clockDriftGauge more than once
+      clockDriftGauge = Metrics.newGauge(new MetricName("clock", "", "drift"), new Gauge<Long>() {
+        @Override
+        public Long value() {
+          return clockDrift == null ? null : (long)Math.floor(clockDrift / 1000 + 0.5d);
+        }
+      });
+    }
   }
 
   public static long now() {
