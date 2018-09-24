@@ -67,16 +67,16 @@ public class WavefrontReporter extends ScheduledReporter {
    * named "unknown", no point Tags, and not filtering any metrics.
    */
   public static class Builder {
-    private final MetricRegistry registry;
-    private Clock clock;
-    private String prefix;
-    private TimeUnit rateUnit;
-    private TimeUnit durationUnit;
-    private MetricFilter filter;
-    private String source;
-    private Map<String, String> pointTags;
-    private boolean includeJvmMetrics;
-    private Set<MetricAttribute> disabledMetricAttributes;
+    protected final MetricRegistry registry;
+    protected Clock clock;
+    protected String prefix;
+    protected TimeUnit rateUnit;
+    protected TimeUnit durationUnit;
+    protected MetricFilter filter;
+    protected String source;
+    protected Map<String, String> pointTags;
+    protected boolean includeJvmMetrics;
+    protected Set<MetricAttribute> disabledMetricAttributes;
 
     private Builder(MetricRegistry registry) {
       this.registry = registry;
@@ -343,7 +343,7 @@ public class WavefrontReporter extends ScheduledReporter {
    * Builds a {@link WavefrontReporter} with the given properties, sending metrics using the given
    * {@link WavefrontSender}.
    *
-   * @param Wavefront a {@link WavefrontSender}.
+   * @param wavefrontSender a {@link WavefrontSender}.
    * @return a {@link WavefrontReporter}
    */
   public WavefrontReporter build(WavefrontSender wavefrontSender) {
@@ -361,13 +361,13 @@ public class WavefrontReporter extends ScheduledReporter {
   }
 }
 
-  private final WavefrontSender wavefront;
-  private final Clock clock;
-  private final String prefix;
-  private final String source;
-  private final Map<String, String> pointTags;
+  protected final WavefrontSender wavefront;
+  protected final Clock clock;
+  protected final String prefix;
+  protected final String source;
+  protected final Map<String, String> pointTags;
 
-  private WavefrontReporter(MetricRegistry registry,
+  protected WavefrontReporter(MetricRegistry registry,
                             WavefrontSender wavefrontSender,
                             final Clock clock,
                             String prefix,
@@ -398,7 +398,7 @@ public class WavefrontReporter extends ScheduledReporter {
     }
   }
 
-  private WavefrontReporter(MetricRegistry registry,
+  protected WavefrontReporter(MetricRegistry registry,
                             String proxyHostname,
                             int proxyPort,
                             final Clock clock,
@@ -514,7 +514,7 @@ public class WavefrontReporter extends ScheduledReporter {
     sendIfEnabled(MetricAttribute.P999, name, snapshot.get999thPercentile(), time);
   }
 
-  private void reportCounter(String name, Counter counter) throws IOException {
+  protected void reportCounter(String name, Counter counter) throws IOException {
     if (counter instanceof DeltaCounter) {
       long count = counter.getCount();
       name = MetricConstants.DELTA_PREFIX + prefixAndSanitize(name.substring(1), "count");
@@ -529,17 +529,17 @@ public class WavefrontReporter extends ScheduledReporter {
     wavefront.send(prefixAndSanitize(name), gauge.getValue().doubleValue(), clock.getTime() / 1000, source, pointTags);
   }
 
-  private void sendIfEnabled(MetricAttribute type, String name, double value, long timestamp) throws IOException {
+  protected void sendIfEnabled(MetricAttribute type, String name, double value, long timestamp) throws IOException {
     if (!getDisabledMetricAttributes().contains(type)) {
       wavefront.send(prefixAndSanitize(name, type.getCode()), value, timestamp, source, pointTags);
     }
   }
 
-  private String prefixAndSanitize(String... components) {
+  protected String prefixAndSanitize(String... components) {
     return sanitize(MetricRegistry.name(prefix, components));
   }
 
-  private static String sanitize(String name) {
+  protected static String sanitize(String name) {
     return SIMPLE_NAMES.matcher(name).replaceAll("_");
   }
 
