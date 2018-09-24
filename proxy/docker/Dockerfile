@@ -1,4 +1,4 @@
-FROM ubuntu:14.04
+FROM ubuntu:18.04
 
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
@@ -12,6 +12,8 @@ FROM ubuntu:14.04
 # Dumb-init
 RUN apt-get -y update
 RUN apt-get install -y curl
+RUN apt-get install -y sudo
+RUN apt-get install -y gnupg2
 RUN curl -SLO https://github.com/Yelp/dumb-init/releases/download/v1.1.3/dumb-init_1.1.3_amd64.deb
 RUN dpkg -i dumb-init_*.deb
 RUN rm dumb-init_*.deb
