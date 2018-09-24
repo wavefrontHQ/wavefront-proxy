@@ -101,6 +101,7 @@ import javax.annotation.Nullable;
 import javax.management.NotificationEmitter;
 import javax.net.ssl.HttpsURLConnection;
 import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.ProcessingException;
 
@@ -1426,6 +1427,10 @@ public abstract class AbstractAgent {
     } catch (NotAuthorizedException ex) {
       fetchConfigError("HTTP 401 Unauthorized: Please verify that your server and token settings",
           "are correct and that the token has Proxy Management permission!");
+      agentMetricsWorkingCopy = null;
+      return new AgentConfiguration(); // return empty configuration to prevent checking in every second
+    } catch (ForbiddenException ex) {
+      fetchConfigError("HTTP 403 Forbidden: Please verify that your token has Proxy Management permission!", null);
       agentMetricsWorkingCopy = null;
       return new AgentConfiguration(); // return empty configuration to prevent checking in every second
     } catch (ClientErrorException ex) {
