@@ -4,7 +4,9 @@ import com.wavefront.metrics.ReconnectingSocket;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.function.Supplier;
 
+import javax.annotation.Nullable;
 import javax.net.SocketFactory;
 
 /**
@@ -18,10 +20,22 @@ public abstract class AbstractProxyConnectionHandler implements WavefrontConnect
   private final InetSocketAddress address;
   private final SocketFactory socketFactory;
   private volatile ReconnectingSocket reconnectingSocket;
+  @Nullable
+  private final Long connectionTimeToLiveMillis;
+  @Nullable
+  private final Supplier<Long> timeSupplier;
 
   protected AbstractProxyConnectionHandler(InetSocketAddress address, SocketFactory socketFactory) {
+    this(address, socketFactory, null, null);
+  }
+
+  protected AbstractProxyConnectionHandler(InetSocketAddress address, SocketFactory socketFactory,
+                                           @Nullable Long connectionTimeToLiveMillis,
+                                           @Nullable Supplier<Long> timeSupplier) {
     this.address = address;
     this.socketFactory = socketFactory;
+    this.connectionTimeToLiveMillis = connectionTimeToLiveMillis;
+    this.timeSupplier = timeSupplier;
     this.reconnectingSocket = null;
   }
 
@@ -31,7 +45,8 @@ public abstract class AbstractProxyConnectionHandler implements WavefrontConnect
       throw new IllegalStateException("Already connected");
     }
     try {
-      reconnectingSocket = new ReconnectingSocket(address.getHostName(), address.getPort(), socketFactory);
+      reconnectingSocket = new ReconnectingSocket(address.getHostName(), address.getPort(), socketFactory,
+          connectionTimeToLiveMillis, timeSupplier);
     } catch (Exception e) {
       throw new IOException(e);
     }

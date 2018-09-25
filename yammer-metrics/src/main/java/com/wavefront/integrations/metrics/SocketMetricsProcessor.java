@@ -12,6 +12,9 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+import javax.net.SocketFactory;
+
 /**
  * Yammer MetricProcessor that sends metrics to a TCP Socket in Wavefront-format.
  *
@@ -41,11 +44,31 @@ public class SocketMetricsProcessor implements MetricProcessor<Void> {
   SocketMetricsProcessor(String hostname, int port, int wavefrontHistogramPort, Supplier<Long> timeSupplier,
                          boolean prependGroupName, boolean clear, boolean sendZeroCounters, boolean sendEmptyHistograms)
       throws IOException {
+    this(hostname, port, wavefrontHistogramPort, timeSupplier, prependGroupName, clear, sendZeroCounters,
+        sendEmptyHistograms, null);
+  }
+
+  /**
+   * @param hostname                    Host of the WF-graphite telemetry sink.
+   * @param port                        Port of the WF-graphite telemetry sink.
+   * @param wavefrontHistogramPort      Port of the WF histogram sink.
+   * @param timeSupplier                Gets the epoch timestamp in milliseconds.
+   * @param prependGroupName            If true, metrics have their group name prepended when flushed.
+   * @param clear                       If true, clear histograms and timers after flush.
+   * @param connectionTimeToLiveMillis  Connection TTL, with expiration checked after each flush. When null,
+   *                                    TTL is not enforced.
+   */
+  SocketMetricsProcessor(String hostname, int port, int wavefrontHistogramPort, Supplier<Long> timeSupplier,
+                         boolean prependGroupName, boolean clear, boolean sendZeroCounters, boolean sendEmptyHistograms,
+                         @Nullable Long connectionTimeToLiveMillis)
+      throws IOException {
     this.timeSupplier = timeSupplier;
     this.sendZeroCounters = sendZeroCounters;
     this.sendEmptyHistograms = sendEmptyHistograms;
-    this.metricsSocket = new ReconnectingSocket(hostname, port);
-    this.histogramsSocket = new ReconnectingSocket(hostname, wavefrontHistogramPort);
+    this.metricsSocket = new ReconnectingSocket(hostname, port, SocketFactory.getDefault(), connectionTimeToLiveMillis,
+        timeSupplier);
+    this.histogramsSocket = new ReconnectingSocket(hostname, wavefrontHistogramPort, SocketFactory.getDefault(),
+        connectionTimeToLiveMillis, timeSupplier);
     this.prependGroupName = prependGroupName;
     this.clear = clear;
   }

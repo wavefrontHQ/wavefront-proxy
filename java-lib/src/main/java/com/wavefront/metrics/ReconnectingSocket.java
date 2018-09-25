@@ -11,9 +11,11 @@ import java.net.UnknownHostException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
 import javax.net.SocketFactory;
 
 /**
@@ -34,8 +36,11 @@ public class ReconnectingSocket {
 
   private final String host;
   private final int port;
+  private final long connectionTimeToLiveMillis;
+  private final Supplier<Long> timeSupplier;
   private final SocketFactory socketFactory;
   private volatile boolean serverTerminated;
+  private volatile long lastConnectionTimeMillis;
   private final Timer pollingTimer;
   private AtomicReference<Socket> underlyingSocket;
   private AtomicReference<BufferedOutputStream> socketOutputStream;
@@ -44,14 +49,32 @@ public class ReconnectingSocket {
    * @throws IOException When we cannot open the remote socket.
    */
   public ReconnectingSocket(String host, int port, SocketFactory socketFactory) throws IOException {
+    this(host, port, socketFactory, null, null);
+  }
+
+  /**
+   * @param host                        Hostname to connect to
+   * @param port                        Port to connect to
+   * @param socketFactory               SocketFactory used to instantiate new sockets
+   * @param connectionTimeToLiveMillis  Connection TTL, with expiration checked after each flush. When null,
+   *                                    TTL is not enforced.
+   * @param timeSupplier                Get current timestamp in millis
+   * @throws IOException When we cannot open the remote socket.
+   */
+  public ReconnectingSocket(String host, int port, SocketFactory socketFactory,
+                            @Nullable Long connectionTimeToLiveMillis, @Nullable Supplier<Long> timeSupplier)
+      throws IOException {
     this.host = host;
     this.port = port;
     this.serverTerminated = false;
     this.socketFactory = socketFactory;
+    this.connectionTimeToLiveMillis = connectionTimeToLiveMillis == null ? Long.MAX_VALUE : connectionTimeToLiveMillis;
+    this.timeSupplier = timeSupplier == null ? System::currentTimeMillis : timeSupplier;
 
     this.underlyingSocket = new AtomicReference<>(socketFactory.createSocket(host, port));
     this.underlyingSocket.get().setSoTimeout(SERVER_READ_TIMEOUT_MILLIS);
     this.socketOutputStream = new AtomicReference<>(new BufferedOutputStream(underlyingSocket.get().getOutputStream()));
+    this.lastConnectionTimeMillis = this.timeSupplier.get();
 
     this.pollingTimer = new Timer();
 
@@ -108,6 +131,7 @@ public class ReconnectingSocket {
       }
       underlyingSocket.get().setSoTimeout(SERVER_READ_TIMEOUT_MILLIS);
       socketOutputStream.set(new BufferedOutputStream(underlyingSocket.get().getOutputStream()));
+      lastConnectionTimeMillis = timeSupplier.get();
       logger.log(Level.INFO, String.format("Successfully reset connection to %s:%d", host, port));
     }
   }
@@ -139,11 +163,15 @@ public class ReconnectingSocket {
   /**
    * Flushes the outputStream best-effort. If that fails, we reset the connection.
    */
-  public void flush() throws IOException {
+  public synchronized void flush() throws IOException {
     try {
       socketOutputStream.get().flush();
     } catch (Exception e) {
       logger.log(Level.WARNING, "Attempting to reset socket connection.", e);
+      resetSocket();
+    }
+    if (timeSupplier.get() - lastConnectionTimeMillis > connectionTimeToLiveMillis) {
+      logger.info("Connection TTL expired, reconnecting");
       resetSocket();
     }
   }
