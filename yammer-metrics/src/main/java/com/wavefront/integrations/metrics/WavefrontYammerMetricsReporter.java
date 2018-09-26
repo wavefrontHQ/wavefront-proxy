@@ -127,7 +127,7 @@ public class WavefrontYammerMetricsReporter extends AbstractReporter implements 
     this.executor = metricsRegistry.newScheduledThreadPool(1, name);
     this.metricTranslator = metricTranslator;
     this.socketMetricProcessor = new SocketMetricsProcessor(hostname, port, wavefrontHistogramPort, timeSupplier,
-        prependGroupName, clearMetrics, sendZeroCounters, sendEmptyHistograms);
+        prependGroupName, clearMetrics, sendZeroCounters, sendEmptyHistograms, connectionTimeToLiveMillis);
     this.includeJvmMetrics = includeJvmMetrics;
     this.gaugeMap = new ConcurrentHashMap<>();
   }
