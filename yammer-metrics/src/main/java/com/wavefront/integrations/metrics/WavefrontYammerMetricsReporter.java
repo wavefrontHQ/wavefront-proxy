@@ -89,11 +89,45 @@ public class WavefrontYammerMetricsReporter extends AbstractReporter implements 
                                         boolean clearMetrics,
                                         boolean sendZeroCounters,
                                         boolean sendEmptyHistograms) throws IOException {
+    this(metricsRegistry, name, hostname, port, wavefrontHistogramPort, timeSupplier, prependGroupName,
+        metricTranslator, includeJvmMetrics, clearMetrics, sendZeroCounters, sendEmptyHistograms, null);
+  }
+
+  /**
+   * Reporter of a Yammer metrics registry to Wavefront.
+   *
+   * @param metricsRegistry             The registry to scan-and-report
+   * @param name                        A human readable name for this reporter
+   * @param hostname                    The remote host where the wavefront proxy resides
+   * @param port                        Listening port on Wavefront proxy of graphite-like telemetry data
+   * @param wavefrontHistogramPort      Listening port for Wavefront histogram data
+   * @param timeSupplier                Get current timestamp, stubbed for testing
+   * @param prependGroupName            If true, outgoing telemetry is of the form "group.name" rather than "name".
+   * @param metricTranslator            If present, applied to each MetricName/Metric pair before flushing to Wavefront.
+   *                                    This is useful for adding point tags. Warning: this is called once per metric
+   *                                    per scan, so it should probably be performant. May be null.
+   * @param clearMetrics                If true, clear histograms and timers per flush.
+   * @param sendZeroCounters            Whether counters with a value of zero is sent across.
+   * @param sendEmptyHistograms         Whether empty histograms are sent across the wire.
+   * @param includeJvmMetrics           Whether JVM metrics are automatically included.
+   * @param connectionTimeToLiveMillis  Connection TTL, with expiration checked after each flush. When null,
+   *                                    TTL is not enforced.
+   * @throws IOException When we can't remotely connect to Wavefront.
+   */
+  public WavefrontYammerMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname, int port,
+                                        int wavefrontHistogramPort, Supplier<Long> timeSupplier,
+                                        boolean prependGroupName,
+                                        @Nullable MetricTranslator metricTranslator,
+                                        boolean includeJvmMetrics,
+                                        boolean clearMetrics,
+                                        boolean sendZeroCounters,
+                                        boolean sendEmptyHistograms,
+                                        @Nullable Long connectionTimeToLiveMillis) throws IOException {
     super(metricsRegistry);
     this.executor = metricsRegistry.newScheduledThreadPool(1, name);
     this.metricTranslator = metricTranslator;
     this.socketMetricProcessor = new SocketMetricsProcessor(hostname, port, wavefrontHistogramPort, timeSupplier,
-        prependGroupName, clearMetrics, sendZeroCounters, sendEmptyHistograms);
+        prependGroupName, clearMetrics, sendZeroCounters, sendEmptyHistograms, connectionTimeToLiveMillis);
     this.includeJvmMetrics = includeJvmMetrics;
     this.gaugeMap = new ConcurrentHashMap<>();
   }

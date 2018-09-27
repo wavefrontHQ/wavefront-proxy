@@ -7,6 +7,7 @@ import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -71,7 +72,21 @@ public class Wavefront extends AbstractProxyConnectionHandler implements Wavefro
    * @param socketFactory the socket factory
    */
   public Wavefront(InetSocketAddress agentAddress, SocketFactory socketFactory) {
-    super(agentAddress, socketFactory);
+    this(agentAddress, socketFactory, null, null);
+  }
+
+  /**
+   * Creates a new client which connects to the given address and socket factory and enforces connection TTL limit
+   *
+   * @param agentAddress                the address of the Wavefront Proxy Agent
+   * @param socketFactory               the socket factory
+   * @param connectionTimeToLiveMillis  Connection TTL, with expiration checked after each flush. When null,
+   *                                    TTL is not enforced.
+   * @param timeSupplier                Get current timestamp in millis
+   */
+  public Wavefront(InetSocketAddress agentAddress, SocketFactory socketFactory,
+                   @Nullable Long connectionTimeToLiveMillis, @Nullable Supplier<Long> timeSupplier) {
+    super(agentAddress, socketFactory, connectionTimeToLiveMillis, timeSupplier);
   }
 
   private void initializeSource() throws UnknownHostException {
