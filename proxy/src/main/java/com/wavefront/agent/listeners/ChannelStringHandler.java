@@ -64,16 +64,18 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     this.preprocessor = preprocessor;
 
     // check the property setting for logging raw data
-    String logRawDataProperty = System.getProperty("wavefront.proxy.lograwdata");
+    @Nullable String logRawDataProperty = System.getProperty("wavefront.proxy.lograwdata");
     logRawDataFlag = logRawDataProperty != null && logRawDataProperty.equalsIgnoreCase("true");
-    String logRawDataSampleRateProperty = System.getProperty("wavefront.proxy.lograwdata.sample-rate");
+    @Nullable String logRawDataSampleRateProperty = System.getProperty("wavefront.proxy.lograwdata.sample-rate");
     this.logRawDataRate = logRawDataSampleRateProperty != null &&
         NumberUtils.isNumber(logRawDataSampleRateProperty) ? Double.parseDouble(logRawDataSampleRateProperty) : 1.0d;
 
     // make sure the rate fits between 0.0d - 1.0d
     if (logRawDataRate < 0.0d) {
+      rawDataLogger.info("Invalid log raw data rate:" + logRawDataRate + ", adjusted to 0.0");
       logRawDataRate = 0.0d;
     } else if (logRawDataRate > 1.0d) {
+      rawDataLogger.info("Invalid log raw data rate:" + logRawDataRate + ", adjusted to 1.0");
       logRawDataRate = 1.0d;
     }
   }
