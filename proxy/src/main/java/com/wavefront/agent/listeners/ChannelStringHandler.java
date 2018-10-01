@@ -48,13 +48,13 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
   private final ReportableEntityPreprocessor preprocessor;
   private final PointHandler pointHandler;
 
-  private boolean logRawData = false;
   /**
    * Value of system property wavefront.proxy.lograwdata (for backwards compatibility)
    */
   private final boolean logRawDataFlag;
   private double logRawDataRate;
   private volatile long logRawUpdatedMillis = 0L;
+  private boolean logRawData = false;
 
   public ChannelStringHandler(Decoder<String> decoder,
                               final PointHandler pointhandler,
