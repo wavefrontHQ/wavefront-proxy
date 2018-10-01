@@ -99,10 +99,11 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
       if (ctx.channel().remoteAddress() != null) {
         String hostAddress = ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().getHostAddress();
         int localPort = ((InetSocketAddress) ctx.channel().localAddress()).getPort();
-        rawDataLogger.info(String.format("[%s>%d]%s", hostAddress, localPort, msg));
+        rawDataLogger.info("[" + hostAddress + ">" + localPort + "]" + msg);
       } else {
         int localPort = ((InetSocketAddress) ctx.channel().localAddress()).getPort();
-        rawDataLogger.info(String.format("[>%d]%s", localPort, msg));
+        rawDataLogger.info("[>" + localPort + "]" + msg);
+        
       }
     }
     processPointLine(msg, decoder, pointHandler, preprocessor, ctx);
