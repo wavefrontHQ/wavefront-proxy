@@ -28,4 +28,4 @@ $ mvn clean install -DskipTests
 ```
 
 ## Contributing
-Public contributions are always welcome. Please feel free to report issues or raise pull requests.
+Public contributions are always welcome. Please feel free to report issues or submit pull requests.
