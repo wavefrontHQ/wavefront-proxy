@@ -15,6 +15,9 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.logging.Logger;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import io.netty.channel.ChannelHandlerContext;
 import wavefront.report.Span;
 
@@ -36,25 +39,24 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
 
   @SuppressWarnings("unchecked")
   public TracePortUnificationHandler(final String handle,
-                              final TokenAuthenticator tokenAuthenticator,
-                              final ReportableEntityDecoder<String, Span> traceDecoder,
-                              final ReportableEntityPreprocessor preprocessor,
-                              final ReportableEntityHandlerFactory handlerFactory) {
+                                     final TokenAuthenticator tokenAuthenticator,
+                                     final ReportableEntityDecoder<String, Span> traceDecoder,
+                                     @Nullable final ReportableEntityPreprocessor preprocessor,
+                                     final ReportableEntityHandlerFactory handlerFactory) {
     this(handle, tokenAuthenticator, traceDecoder, preprocessor,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)));
   }
 
   public TracePortUnificationHandler(final String handle,
-                              final TokenAuthenticator tokenAuthenticator,
-                              final ReportableEntityDecoder<String, Span> traceDecoder,
-                              final ReportableEntityPreprocessor preprocessor,
-                              final ReportableEntityHandler<Span> handler) {
+                                     final TokenAuthenticator tokenAuthenticator,
+                                     final ReportableEntityDecoder<String, Span> traceDecoder,
+                                     @Nullable final ReportableEntityPreprocessor preprocessor,
+                                     final ReportableEntityHandler<Span> handler) {
     super(tokenAuthenticator, handle);
     this.decoder = traceDecoder;
     this.handler = handler;
     this.preprocessor = preprocessor;
   }
-
 
   @Override
   protected void processLine(final ChannelHandlerContext ctx, String message) {
@@ -109,4 +111,3 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
     }
   }
 }
-

@@ -338,29 +338,27 @@ public class PushAgent extends AbstractAgent {
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
 
     startAsManagedThread(() -> {
-          activeListeners.inc();
-          try {
-            org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(Integer.parseInt(strPort));
-            server.setHandler(new JsonMetricsEndpoint(strPort, hostname, prefix,
-                pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort)));
-            server.start();
-            server.join();
-          } catch (InterruptedException e) {
-            logger.warning("Http Json server interrupted.");
-          } catch (Exception e) {
-            if (e instanceof BindException) {
-              bindErrors.inc();
-              logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
-            } else {
-              logger.log(Level.SEVERE, "HttpJson exception", e);
-            }
-          } finally {
-            activeListeners.dec();
-          }
-        },
-        "listener-plaintext-json-" + strPort);
+      activeListeners.inc();
+      try {
+        org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(Integer.parseInt(strPort));
+        server.setHandler(new JsonMetricsEndpoint(strPort, hostname, prefix,
+            pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort)));
+        server.start();
+        server.join();
+      } catch (InterruptedException e) {
+        logger.warning("Http Json server interrupted.");
+      } catch (Exception e) {
+        if (e instanceof BindException) {
+          bindErrors.inc();
+          logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
+        } else {
+          logger.log(Level.SEVERE, "HttpJson exception", e);
+        }
+      } finally {
+        activeListeners.dec();
+      }
+    }, "listener-plaintext-json-" + strPort);
   }
-
 
   protected void startWriteHttpJsonListener(String strPort) {
     if (tokenAuthenticator.authRequired()) {
@@ -371,28 +369,26 @@ public class PushAgent extends AbstractAgent {
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
 
     startAsManagedThread(() -> {
-          activeListeners.inc();
-          try {
-            org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(Integer.parseInt(strPort));
-            server.setHandler(new WriteHttpJsonMetricsEndpoint(strPort, hostname, prefix,
-                pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort)));
-            server.start();
-            server.join();
-          } catch (InterruptedException e) {
-            logger.warning("WriteHttpJson server interrupted.");
-          } catch (Exception e) {
-            if (e instanceof BindException) {
-              bindErrors.inc();
-              logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
-            } else {
-              logger.log(Level.SEVERE, "WriteHttpJson exception", e);
-            }
-          } finally {
-            activeListeners.dec();
-          }
-        },
-        "listener-plaintext-writehttpjson-" + strPort);
-
+      activeListeners.inc();
+      try {
+        org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(Integer.parseInt(strPort));
+        server.setHandler(new WriteHttpJsonMetricsEndpoint(strPort, hostname, prefix,
+            pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort)));
+        server.start();
+        server.join();
+      } catch (InterruptedException e) {
+        logger.warning("WriteHttpJson server interrupted.");
+      } catch (Exception e) {
+        if (e instanceof BindException) {
+          bindErrors.inc();
+          logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
+        } else {
+          logger.log(Level.SEVERE, "WriteHttpJson exception", e);
+        }
+      } finally {
+        activeListeners.dec();
+      }
+    }, "listener-plaintext-writehttpjson-" + strPort);
   }
 
   protected void startLogsIngestionListeners(int portFilebeat, int portRawLogs, PointHandler pointHandler) {

@@ -55,12 +55,12 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
   /**
    * Create new instance with lazy initialization for handlers.
    *
-   * @param handle         handle/port number.
+   * @param handle              handle/port number.
    * @param tokenAuthenticator  tokenAuthenticator for incoming requests.
-   * @param decoders       decoders.
-   * @param handlerFactory factory for ReportableEntityHandler objects.
-   * @param annotator      hostAnnotator that makes sure all points have a source= tag.
-   * @param preprocessor   preprocessor.
+   * @param decoders            decoders.
+   * @param handlerFactory      factory for ReportableEntityHandler objects.
+   * @param annotator           hostAnnotator that makes sure all points have a source= tag.
+   * @param preprocessor        preprocessor.
    */
   @SuppressWarnings("unchecked")
   public WavefrontPortUnificationHandler(final String handle,
