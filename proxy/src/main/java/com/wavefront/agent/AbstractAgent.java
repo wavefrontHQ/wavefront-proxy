@@ -17,6 +17,9 @@ import com.beust.jcommander.Parameter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
+import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.ReportableConfig;
@@ -620,6 +623,31 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--logsIngestionConfigFile"}, description = "Location of logs ingestions config yaml file.")
   protected String logsIngestionConfigFile = null;
 
+  @Parameter(names = {"--authMethod"}, converter = TokenValidationMethod.TokenValidationMethodConverter.class,
+      description = "Authenticate all incoming HTTP requests and disables TCP streams when set to a value " +
+          "other than NONE. Allowed values are: NONE, STATIC_TOKEN, BASIC, OAUTH2. Default: NONE")
+  protected TokenValidationMethod authMethod = TokenValidationMethod.NONE;
+
+  @Parameter(names = {"--authTokenIntrospectionServiceUrl"}, description = "URL for the RFC7662-compliant token " +
+      "introspection endpoint used to validate tokens for incoming HTTP requests. Required for authMethod = OAUTH2.")
+  protected String authTokenIntrospectionServiceUrl = null;
+
+  @Parameter(names = {"--authTokenIntrospectionAuthorizationHeader"}, description = "Optional credentials for use " +
+      "with the token introspection endpoint.")
+  protected String authTokenIntrospectionAuthorizationHeader = null;
+
+  @Parameter(names = {"--authResponseRefreshInterval"}, description = "Cache TTL (in seconds) for token validation " +
+      "results (re-authenticate when expired). Default: 600 seconds")
+  protected int authResponseRefreshInterval = 600;
+
+  @Parameter(names = {"--authResponseMaxTtl"}, description = "Maximum allowed cache TTL (in seconds) for token " +
+      "validation results when token introspection service is unavailable. Default: 86400 seconds (1 day)")
+  protected int authResponseMaxTtl = 86400;
+
+  @Parameter(names = {"--authStaticToken"}, description = "Static token that is considered valid for all incoming " +
+      "HTTP requests. Required when authMethod = STATIC_TOKEN.")
+  protected String authStaticToken = null;
+
   @Parameter(description = "")
   protected List<String> unparsed_params;
 
@@ -637,6 +665,7 @@ public abstract class AbstractAgent {
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
   protected RecyclableRateLimiter pushRateLimiter = null;
+  protected TokenAuthenticator tokenAuthenticator = null;
   protected final MemoryPoolMXBean tenuredGenPool = getTenuredGenPool();
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
@@ -982,6 +1011,16 @@ public abstract class AbstractAgent {
         rawLogsMaxReceivedLength = config.getNumber("rawLogsMaxReceivedLength", rawLogsMaxReceivedLength).intValue();
         logsIngestionConfigFile = config.getString("logsIngestionConfigFile", logsIngestionConfigFile);
 
+        authMethod = TokenValidationMethod.fromString(config.getString("authMethod", authMethod.toString()));
+        authTokenIntrospectionServiceUrl = config.getString("authTokenIntrospectionServiceUrl",
+            authTokenIntrospectionServiceUrl);
+        authTokenIntrospectionAuthorizationHeader = config.getString("authTokenIntrospectionAuthorizationHeader",
+            authTokenIntrospectionAuthorizationHeader);
+        authResponseRefreshInterval = config.getNumber("authResponseRefreshInterval", authResponseRefreshInterval).
+            intValue();
+        authResponseMaxTtl = config.getNumber("authResponseMaxTtl", authResponseMaxTtl).intValue();
+        authStaticToken = config.getString("authStaticToken", authStaticToken);
+
         // track mutable settings
         pushFlushIntervalInitialValue = Integer.parseInt(config.getRawProperty("pushFlushInterval",
             String.valueOf(pushFlushInterval.get())).trim());
@@ -1107,6 +1146,7 @@ public abstract class AbstractAgent {
       // 1. Load the listener configurations.
       loadListenerConfigurationFile();
       loadLogsIngestionConfig();
+      configureTokenAuthenticator();
 
       managedExecutors.add(agentConfigurationExecutor);
 
@@ -1241,6 +1281,32 @@ public abstract class AbstractAgent {
       logger.log(Level.SEVERE, "Aborting start-up", t);
       System.exit(1);
     }
+  }
+
+  protected void configureTokenAuthenticator() {
+    HttpClient httpClient = HttpClientBuilder.create().
+        useSystemProperties().
+        setUserAgent(httpUserAgent).
+        setConnectionTimeToLive(1, TimeUnit.MINUTES).
+        setRetryHandler(new DefaultHttpRequestRetryHandler(httpAutoRetries, true)).
+        setDefaultRequestConfig(
+            RequestConfig.custom().
+                setContentCompressionEnabled(true).
+                setRedirectsEnabled(true).
+                setConnectTimeout(httpConnectTimeout).
+                setConnectionRequestTimeout(httpConnectTimeout).
+                setSocketTimeout(httpRequestTimeout).build()).
+        build();
+
+    this.tokenAuthenticator = TokenAuthenticatorBuilder.create().
+        setTokenValidationMethod(authMethod).
+        setHttpClient(httpClient).
+        setTokenIntrospectionServiceUrl(authTokenIntrospectionServiceUrl).
+        setTokenIntrospectionAuthorizationHeader(authTokenIntrospectionAuthorizationHeader).
+        setAuthResponseRefreshInterval(authResponseRefreshInterval).
+        setAuthResponseMaxTtl(authResponseMaxTtl).
+        setStaticToken(authStaticToken).
+        build();
   }
 
   /**

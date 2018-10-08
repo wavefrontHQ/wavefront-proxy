@@ -3,14 +3,21 @@ package com.wavefront.agent.listeners;
 import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Histogram;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -47,14 +54,19 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
       PortUnificationHandler.class.getCanonicalName());
 
   protected volatile Histogram httpRequestHandleDuration;
+  protected volatile Counter pointsDiscarded;
 
   protected final String handle;
+  protected final TokenAuthenticator tokenAuthenticator;
 
-  public PortUnificationHandler() {
-    this(null);
-  }
-
-  public PortUnificationHandler(@Nullable final String handle) {
+  /**
+   * Create new instance.
+   *
+   * @param tokenAuthenticator  tokenAuthenticator for incoming requests.
+   * @param handle              handle/port number.
+   */
+  public PortUnificationHandler(@Nonnull TokenAuthenticator tokenAuthenticator, @Nullable final String handle) {
+    this.tokenAuthenticator = tokenAuthenticator;
     this.handle = handle;
   }
 
@@ -65,6 +77,33 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
                                    final FullHttpRequest request) {
     StringBuilder output = new StringBuilder();
     boolean isKeepAlive = HttpUtil.isKeepAlive(request);
+
+    if (tokenAuthenticator.authRequired()) {
+      String token = null;
+      String authorizationHeader = request.headers().getAsString("Authorization");
+      if (authorizationHeader.startsWith("Bearer ")) {
+        token = authorizationHeader.replace("Bearer ", "").trim();
+      }
+      URI requestUri;
+      try {
+        requestUri = new URI(request.uri());
+      } catch (URISyntaxException e) {
+        writeExceptionText(e, output);
+        writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, output, isKeepAlive);
+        logWarning("WF-300: Request URI '" + request.uri() + "' cannot be parsed", e, ctx);
+        return;
+      }
+      Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(requestUri, CharsetUtil.UTF_8).stream().
+          filter(x -> x.getName().equals("t")).findFirst();
+      if (tokenParam.isPresent()) {
+        token = tokenParam.get().getValue();
+      }
+      if (!tokenAuthenticator.authorize(token)) { // 401 if no token or auth fails
+        output.append("401 Unauthorized\n");
+        writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, output, isKeepAlive);
+        return;
+      }
+    }
 
     HttpResponseStatus status;
     try {
@@ -88,6 +127,14 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
                                         final String message) throws Exception {
     if (message == null) {
       throw new IllegalArgumentException("Message cannot be null");
+    }
+    if (tokenAuthenticator.authRequired()) { // plaintext is disabled with auth enabled
+      logger.warning("Point discarded: plaintext protocol disabled when authentication is enabled");
+      if (pointsDiscarded == null) {
+        pointsDiscarded = Metrics.newCounter(new TaggedMetricName("listeners", "items-discarded", "port", handle));
+      }
+      pointsDiscarded.inc();
+      return;
     }
     processLine(ctx, message.trim());
   }

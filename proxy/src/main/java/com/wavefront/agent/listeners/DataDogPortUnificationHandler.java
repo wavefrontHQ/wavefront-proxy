@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.wavefront.agent.PointHandlerImpl;
+import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
+import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -62,8 +64,6 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
 
   private volatile Histogram httpRequestSize;
 
-  private final String handle;
-
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and retries, etc
    */
@@ -106,8 +106,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
                                           @Nullable final HttpClient requestRelayClient,
                                           @Nullable final String requestRelayTarget,
                                           @Nullable final ReportableEntityPreprocessor preprocessor) {
-    super();
-    this.handle = handle;
+    super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(), handle);
     this.pointHandler = pointHandler;
     this.processSystemMetrics = processSystemMetrics;
     this.processServiceChecks = processServiceChecks;

@@ -3,6 +3,7 @@ package com.wavefront.agent.listeners;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
+import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -35,18 +36,20 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
 
   @SuppressWarnings("unchecked")
   public TracePortUnificationHandler(final String handle,
+                              final TokenAuthenticator tokenAuthenticator,
                               final ReportableEntityDecoder<String, Span> traceDecoder,
                               final ReportableEntityPreprocessor preprocessor,
                               final ReportableEntityHandlerFactory handlerFactory) {
-    this(handle, traceDecoder, preprocessor, handlerFactory.getHandler(
-        HandlerKey.of(ReportableEntityType.TRACE, handle)));
+    this(handle, tokenAuthenticator, traceDecoder, preprocessor,
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)));
   }
 
   public TracePortUnificationHandler(final String handle,
+                              final TokenAuthenticator tokenAuthenticator,
                               final ReportableEntityDecoder<String, Span> traceDecoder,
                               final ReportableEntityPreprocessor preprocessor,
                               final ReportableEntityHandler<Span> handler) {
-    super(handle);
+    super(tokenAuthenticator, handle);
     this.decoder = traceDecoder;
     this.handler = handler;
     this.preprocessor = preprocessor;

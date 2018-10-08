@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -63,11 +64,12 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
 
   @SuppressWarnings("unchecked")
   public OpenTSDBPortUnificationHandler(final String handle,
+                                        final TokenAuthenticator tokenAuthenticator,
                                         final ReportableEntityDecoder<String, ReportPoint> decoder,
                                         final ReportableEntityHandlerFactory handlerFactory,
                                         @Nullable final ReportableEntityPreprocessor preprocessor,
                                         @Nullable final CachingGraphiteHostAnnotator annotator) {
-    super();
+    super(tokenAuthenticator, handle);
     this.decoder = decoder;
     this.pointHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
     this.preprocessor = preprocessor;
@@ -125,12 +127,16 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
   }
 
   /**
-   * Handles an incoming plain text (string) message. Handles :
+   * Handles an incoming plain text (string) message.
    */
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
                                         String message) throws Exception {
     if (message == null) {
       throw new IllegalArgumentException("Message cannot be null");
+    }
+    if (tokenAuthenticator.authRequired()) { // plaintext is disabled with auth enabled
+      pointHandler.reject(message, "Plaintext protocol disabled when authentication is enabled, ignoring");
+      return;
     }
     if (message.startsWith("version")) {
       ChannelFuture f = ctx.writeAndFlush("Wavefront OpenTSDB Endpoint\n");
@@ -226,7 +232,7 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
       } else if (wftags.containsKey("source")) {
         hostName = wftags.get("source");
       } else {
-        hostName = annotator.getRemoteHost(ctx);
+        hostName = annotator == null ? "unknown" : annotator.getRemoteHost(ctx);
       }
       // remove source/host from the tags list
       Map<String, String> wftags2 = new HashMap<>();

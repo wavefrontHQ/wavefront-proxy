@@ -2,6 +2,7 @@ package com.wavefront.agent.listeners;
 
 import com.google.common.collect.Lists;
 
+import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -55,6 +56,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
    * Create new instance with lazy initialization for handlers.
    *
    * @param handle         handle/port number.
+   * @param tokenAuthenticator  tokenAuthenticator for incoming requests.
    * @param decoders       decoders.
    * @param handlerFactory factory for ReportableEntityHandler objects.
    * @param annotator      hostAnnotator that makes sure all points have a source= tag.
@@ -62,11 +64,12 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
    */
   @SuppressWarnings("unchecked")
   public WavefrontPortUnificationHandler(final String handle,
+                                         final TokenAuthenticator tokenAuthenticator,
                                          final Map<ReportableEntityType, ReportableEntityDecoder> decoders,
                                          final ReportableEntityHandlerFactory handlerFactory,
                                          @Nullable final CachingGraphiteHostAnnotator annotator,
                                          @Nullable final ReportableEntityPreprocessor preprocessor) {
-    super(handle);
+    super(tokenAuthenticator, handle);
     this.decoders = decoders;
     this.wavefrontDecoder = (ReportableEntityDecoder<String, ReportPoint>)(decoders.get(ReportableEntityType.POINT));
     this.handlerFactory = handlerFactory;
