@@ -665,7 +665,8 @@ public abstract class AbstractAgent {
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
   protected RecyclableRateLimiter pushRateLimiter = null;
-  protected TokenAuthenticator tokenAuthenticator = null;
+  protected TokenAuthenticator tokenAuthenticator = TokenAuthenticatorBuilder.create().
+      setTokenValidationMethod(TokenValidationMethod.NONE).build();
   protected final MemoryPoolMXBean tenuredGenPool = getTenuredGenPool();
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
