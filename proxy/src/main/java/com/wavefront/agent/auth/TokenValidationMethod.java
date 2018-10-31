@@ -9,7 +9,7 @@ import com.beust.jcommander.ParameterException;
  * @author vasily@wavefront.com
  */
 public enum TokenValidationMethod {
-  NONE, STATIC_TOKEN, BASIC, OAUTH2;
+  NONE, STATIC_TOKEN, HTTP_GET, OAUTH2;
 
   public static TokenValidationMethod fromString(String name) {
     for (TokenValidationMethod method : TokenValidationMethod.values()) {

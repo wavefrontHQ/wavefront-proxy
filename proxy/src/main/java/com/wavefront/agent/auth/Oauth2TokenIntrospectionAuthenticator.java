@@ -1,5 +1,6 @@
 package com.wavefront.agent.auth;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,7 +17,11 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.function.Supplier;
 import java.util.logging.Logger;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * {@link TokenIntrospectionAuthenticator} that validates tokens against an OAuth 2.0-compliant
@@ -36,10 +41,19 @@ class Oauth2TokenIntrospectionAuthenticator extends TokenIntrospectionAuthentica
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
-  Oauth2TokenIntrospectionAuthenticator(HttpClient httpClient, String tokenIntrospectionServiceUrl,
-                                        String tokenIntrospectionAuthorizationHeader, int authResponseRefreshInterval,
-                                        int authResponseMaxTtl) {
-    super(authResponseRefreshInterval, authResponseMaxTtl);
+  Oauth2TokenIntrospectionAuthenticator(@Nonnull HttpClient httpClient, @Nonnull String tokenIntrospectionServiceUrl,
+                                        @Nullable String tokenIntrospectionAuthorizationHeader,
+                                        int authResponseRefreshInterval, int authResponseMaxTtl) {
+    this(httpClient, tokenIntrospectionServiceUrl, tokenIntrospectionAuthorizationHeader, authResponseRefreshInterval,
+        authResponseMaxTtl, System::currentTimeMillis);
+  }
+
+  @VisibleForTesting
+  Oauth2TokenIntrospectionAuthenticator(@Nonnull HttpClient httpClient, @Nonnull String tokenIntrospectionServiceUrl,
+                                        @Nullable String tokenIntrospectionAuthorizationHeader,
+                                        int authResponseRefreshInterval, int authResponseMaxTtl,
+                                        @Nonnull Supplier<Long> timeSupplier) {
+    super(authResponseRefreshInterval, authResponseMaxTtl, timeSupplier);
     this.httpClient = httpClient;
     this.tokenIntrospectionServiceUrl = tokenIntrospectionServiceUrl;
     this.tokenIntrospectionAuthorizationHeader = tokenIntrospectionAuthorizationHeader;

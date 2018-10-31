@@ -69,7 +69,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
                                          final ReportableEntityHandlerFactory handlerFactory,
                                          @Nullable final CachingGraphiteHostAnnotator annotator,
                                          @Nullable final ReportableEntityPreprocessor preprocessor) {
-    super(tokenAuthenticator, handle);
+    super(tokenAuthenticator, handle, true, true);
     this.decoders = decoders;
     this.wavefrontDecoder = (ReportableEntityDecoder<String, ReportPoint>)(decoders.get(ReportableEntityType.POINT));
     this.handlerFactory = handlerFactory;

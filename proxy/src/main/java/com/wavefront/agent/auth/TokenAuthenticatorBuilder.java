@@ -75,8 +75,8 @@ public class TokenAuthenticatorBuilder {
         return new DummyAuthenticator();
       case STATIC_TOKEN:
         return new StaticTokenAuthenticator(staticToken);
-      case BASIC:
-        return new BasicTokenIntrospectionAuthenticator(httpClient, tokenIntrospectionServiceUrl,
+      case HTTP_GET:
+        return new HttpGetTokenIntrospectionAuthenticator(httpClient, tokenIntrospectionServiceUrl,
             tokenIntrospectionAuthorizationHeader, authResponseRefreshInterval, authResponseMaxTtl);
       case OAUTH2:
         return new Oauth2TokenIntrospectionAuthenticator(httpClient, tokenIntrospectionServiceUrl,

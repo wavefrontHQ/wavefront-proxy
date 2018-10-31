@@ -18,6 +18,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -42,6 +43,9 @@ import io.netty.util.CharsetUtil;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpVersion;
 
+import static com.wavefront.agent.Utils.lazySupplier;
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+
 /**
  * This class handles an incoming message of either String or FullHttpRequest type.  All other types are ignored. This
  * will likely be passed to the PlainTextOrHttpFrameDecoder as the handler for messages.
@@ -53,11 +57,14 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   private static final Logger logger = Logger.getLogger(
       PortUnificationHandler.class.getCanonicalName());
 
-  protected volatile Histogram httpRequestHandleDuration;
-  protected volatile Counter pointsDiscarded;
+  protected final Supplier<Histogram> httpRequestHandleDuration;
+  protected final Supplier<Counter> requestsDiscarded;
+  protected final Supplier<Counter> pointsDiscarded;
 
   protected final String handle;
   protected final TokenAuthenticator tokenAuthenticator;
+  protected final boolean plaintextEnabled;
+  protected final boolean httpEnabled;
 
   /**
    * Create new instance.
@@ -65,9 +72,19 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
    * @param tokenAuthenticator  tokenAuthenticator for incoming requests.
    * @param handle              handle/port number.
    */
-  public PortUnificationHandler(@Nonnull TokenAuthenticator tokenAuthenticator, @Nullable final String handle) {
+  public PortUnificationHandler(@Nonnull TokenAuthenticator tokenAuthenticator, @Nullable final String handle,
+                                boolean plaintextEnabled, boolean httpEnabled) {
     this.tokenAuthenticator = tokenAuthenticator;
-    this.handle = handle;
+    this.handle = firstNonNull(handle, "unknown");
+    this.plaintextEnabled = plaintextEnabled;
+    this.httpEnabled = httpEnabled;
+
+    this.httpRequestHandleDuration = lazySupplier(() -> Metrics.newHistogram(new TaggedMetricName("listeners",
+        "http-requests.duration-nanos", "port", this.handle)));
+    this.requestsDiscarded = lazySupplier(() -> Metrics.newCounter(new TaggedMetricName("listeners",
+        "http-requests.discarded", "port", this.handle)));
+    this.pointsDiscarded = lazySupplier(() -> Metrics.newCounter(new TaggedMetricName("listeners",
+        "items-discarded", "port", this.handle)));
   }
 
   /**
@@ -77,33 +94,6 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
                                    final FullHttpRequest request) {
     StringBuilder output = new StringBuilder();
     boolean isKeepAlive = HttpUtil.isKeepAlive(request);
-
-    if (tokenAuthenticator.authRequired()) {
-      String token = null;
-      String authorizationHeader = request.headers().getAsString("Authorization");
-      if (authorizationHeader.startsWith("Bearer ")) {
-        token = authorizationHeader.replace("Bearer ", "").trim();
-      }
-      URI requestUri;
-      try {
-        requestUri = new URI(request.uri());
-      } catch (URISyntaxException e) {
-        writeExceptionText(e, output);
-        writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, output, isKeepAlive);
-        logWarning("WF-300: Request URI '" + request.uri() + "' cannot be parsed", e, ctx);
-        return;
-      }
-      Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(requestUri, CharsetUtil.UTF_8).stream().
-          filter(x -> x.getName().equals("t")).findFirst();
-      if (tokenParam.isPresent()) {
-        token = tokenParam.get().getValue();
-      }
-      if (!tokenAuthenticator.authorize(token)) { // 401 if no token or auth fails
-        output.append("401 Unauthorized\n");
-        writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, output, isKeepAlive);
-        return;
-      }
-    }
 
     HttpResponseStatus status;
     try {
@@ -128,12 +118,10 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
     if (message == null) {
       throw new IllegalArgumentException("Message cannot be null");
     }
-    if (tokenAuthenticator.authRequired()) { // plaintext is disabled with auth enabled
-      logger.warning("Point discarded: plaintext protocol disabled when authentication is enabled");
-      if (pointsDiscarded == null) {
-        pointsDiscarded = Metrics.newCounter(new TaggedMetricName("listeners", "items-discarded", "port", handle));
-      }
-      pointsDiscarded.inc();
+    if (!plaintextEnabled || tokenAuthenticator.authRequired()) { // plaintext is disabled with auth enabled
+      pointsDiscarded.get().inc();
+      logger.warning("Input discarded: plaintext protocol is not supported on port " + handle +
+          (tokenAuthenticator.authRequired() ? " (authentication enabled)" : ""));
       return;
     }
     processLine(ctx, message.trim());
@@ -164,6 +152,31 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
     logger.log(Level.WARNING, "Unexpected error: ", cause);
   }
 
+  private boolean authorized(final ChannelHandlerContext ctx, final FullHttpRequest request) {
+    if (tokenAuthenticator.authRequired()) {
+      String token = firstNonNull(request.headers().getAsString("X-AUTH-TOKEN"),
+          request.headers().getAsString("Authorization"), "").replaceAll("^Bearer ", "").trim();
+      URI requestUri;
+      try {
+        requestUri = new URI(request.uri());
+      } catch (URISyntaxException e) {
+        writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Request URI cannot be parsed", false);
+        logWarning("WF-300: Request URI '" + request.uri() + "' cannot be parsed", e, ctx);
+        return false;
+      }
+      Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(requestUri, CharsetUtil.UTF_8).stream().
+          filter(x -> x.getName().equals("t")).findFirst();
+      if (tokenParam.isPresent()) {
+        token = tokenParam.get().getValue();
+      }
+      if (!tokenAuthenticator.authorize(token)) { // 401 if no token or auth fails
+        writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, "401 Unauthorized\n", false);
+        return false;
+      }
+    }
+    return true;
+  }
+
   @Override
   protected void channelRead0(final ChannelHandlerContext ctx, final Object message) {
     try {
@@ -171,13 +184,17 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
         if (message instanceof String) {
           handlePlainTextMessage(ctx, (String) message);
         } else if (message instanceof FullHttpRequest) {
-          if (httpRequestHandleDuration == null) { // doesn't have to be threadsafe
-            httpRequestHandleDuration = Metrics.newHistogram(new TaggedMetricName("listeners", "http-requests.duration",
-                "port", String.valueOf(((InetSocketAddress) ctx.channel().localAddress()).getPort())));
+          if (!httpEnabled) {
+            requestsDiscarded.get().inc();
+            logger.warning("Inbound HTTP request discarded: HTTP disabled on port " + handle);
+            return;
           }
-          long startTime = System.nanoTime();
-          handleHttpMessage(ctx, (FullHttpRequest) message);
-          httpRequestHandleDuration.update(System.nanoTime() - startTime);
+          FullHttpRequest request = (FullHttpRequest) message;
+          if (authorized(ctx, request)) {
+            long startTime = System.nanoTime();
+            handleHttpMessage(ctx, request);
+            httpRequestHandleDuration.get().update(System.nanoTime() - startTime);
+          }
         } else {
           logWarning("Received unexpected message type " + message.getClass().getName(), null, ctx);
         }

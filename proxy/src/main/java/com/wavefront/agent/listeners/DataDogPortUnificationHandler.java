@@ -106,7 +106,8 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
                                           @Nullable final HttpClient requestRelayClient,
                                           @Nullable final String requestRelayTarget,
                                           @Nullable final ReportableEntityPreprocessor preprocessor) {
-    super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(), handle);
+    super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(), handle,
+        false, true);
     this.pointHandler = pointHandler;
     this.processSystemMetrics = processSystemMetrics;
     this.processServiceChecks = processServiceChecks;
@@ -147,8 +148,8 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
     String requestBody = incomingRequest.content().toString(CharsetUtil.UTF_8);
 
     if (requestRelayClient != null && requestRelayTarget != null && incomingRequest.method() == POST) {
-      Histogram requestRelayDuration = Metrics.newHistogram(new TaggedMetricName("listeners", "http-relay.duration",
-              "port", handle));
+      Histogram requestRelayDuration = Metrics.newHistogram(new TaggedMetricName("listeners",
+          "http-relay.duration-nanos", "port", handle));
       Long startNanos = System.nanoTime();
       try {
         String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + incomingRequest.uri();

@@ -8,6 +8,7 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,13 +34,15 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
 
   private final LoadingCache<String, Boolean> tokenValidityCache;
 
-  TokenIntrospectionAuthenticator(int authResponseRefreshInterval, int authResponseMaxTtl) {
+  TokenIntrospectionAuthenticator(int authResponseRefreshInterval, int authResponseMaxTtl,
+                                  @Nonnull Supplier<Long> timeSupplier) {
     this.authResponseMaxTtlMillis = TimeUnit.MILLISECONDS.convert(authResponseMaxTtl, TimeUnit.SECONDS);
 
     this.tokenValidityCache = Caffeine.newBuilder()
         .maximumSize(50_000)
         .refreshAfterWrite(authResponseRefreshInterval, TimeUnit.SECONDS)
         .expireAfterAccess(authResponseMaxTtl, TimeUnit.SECONDS)
+        .ticker(() -> timeSupplier.get() * 1_000_000) // millisecond precision is fine
         .build(new CacheLoader<String, Boolean>() {
           @Override
           public Boolean load(@Nonnull String key) {
@@ -47,7 +50,7 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
             boolean result;
             try {
               result = callAuthService(key);
-              lastSuccessfulCallTs = System.currentTimeMillis();
+              lastSuccessfulCallTs = timeSupplier.get();
             } catch (Exception e) {
               errorCount.inc();
               logger.log(Level.WARNING, "Error during Token Introspection Service call", e);
@@ -63,12 +66,12 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
             boolean result;
             try {
               result = callAuthService(key);
-              lastSuccessfulCallTs = System.currentTimeMillis();
+              lastSuccessfulCallTs = timeSupplier.get();
             } catch (Exception e) {
               errorCount.inc();
               logger.log(Level.WARNING, "Error during Token Introspection Service call", e);
               if (lastSuccessfulCallTs != null &&
-                  System.currentTimeMillis() - lastSuccessfulCallTs > authResponseMaxTtlMillis) {
+                  timeSupplier.get() - lastSuccessfulCallTs > authResponseMaxTtlMillis) {
                 return null;
               }
               return oldValue;

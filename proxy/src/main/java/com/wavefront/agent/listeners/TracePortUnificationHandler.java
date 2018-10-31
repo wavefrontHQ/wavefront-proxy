@@ -52,7 +52,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
                                      final ReportableEntityDecoder<String, Span> traceDecoder,
                                      @Nullable final ReportableEntityPreprocessor preprocessor,
                                      final ReportableEntityHandler<Span> handler) {
-    super(tokenAuthenticator, handle);
+    super(tokenAuthenticator, handle, true, true);
     this.decoder = traceDecoder;
     this.handler = handler;
     this.preprocessor = preprocessor;

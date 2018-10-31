@@ -1,5 +1,6 @@
 package com.wavefront.agent.auth;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import com.yammer.metrics.Metrics;
@@ -10,6 +11,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -21,8 +23,8 @@ import javax.annotation.Nullable;
  *
  * @author vasily@wavefront.com
  */
-class BasicTokenIntrospectionAuthenticator extends TokenIntrospectionAuthenticator {
-  private static final Logger logger = Logger.getLogger(BasicTokenIntrospectionAuthenticator.class.getCanonicalName());
+class HttpGetTokenIntrospectionAuthenticator extends TokenIntrospectionAuthenticator {
+  private static final Logger logger = Logger.getLogger(HttpGetTokenIntrospectionAuthenticator.class.getCanonicalName());
 
   private final HttpClient httpClient;
   private final String tokenIntrospectionServiceUrl;
@@ -31,10 +33,19 @@ class BasicTokenIntrospectionAuthenticator extends TokenIntrospectionAuthenticat
   private final Counter accessGrantedResponses = Metrics.newCounter(new MetricName("auth", "", "access-granted"));
   private final Counter accessDeniedResponses = Metrics.newCounter(new MetricName("auth", "", "access-denied"));
 
-  BasicTokenIntrospectionAuthenticator(@Nonnull HttpClient httpClient, @Nonnull String tokenIntrospectionServiceUrl,
-                                       @Nullable String tokenIntrospectionServiceAuthorizationHeader,
-                                       int authResponseRefreshInterval, int authResponseMaxTtl) {
-    super(authResponseRefreshInterval, authResponseMaxTtl);
+  HttpGetTokenIntrospectionAuthenticator(@Nonnull HttpClient httpClient, @Nonnull String tokenIntrospectionServiceUrl,
+                                         @Nullable String tokenIntrospectionServiceAuthorizationHeader,
+                                         int authResponseRefreshInterval, int authResponseMaxTtl) {
+    this(httpClient, tokenIntrospectionServiceUrl, tokenIntrospectionServiceAuthorizationHeader,
+        authResponseRefreshInterval, authResponseMaxTtl, System::currentTimeMillis);
+
+  }
+  @VisibleForTesting
+  HttpGetTokenIntrospectionAuthenticator(@Nonnull HttpClient httpClient, @Nonnull String tokenIntrospectionServiceUrl,
+                                         @Nullable String tokenIntrospectionServiceAuthorizationHeader,
+                                         int authResponseRefreshInterval, int authResponseMaxTtl,
+                                         @Nonnull Supplier<Long> timeSupplier) {
+    super(authResponseRefreshInterval, authResponseMaxTtl, timeSupplier);
     Preconditions.checkNotNull(httpClient, "httpClient must be set");
     Preconditions.checkNotNull(tokenIntrospectionServiceUrl, "tokenIntrospectionServiceUrl parameter must be set");
     this.httpClient = httpClient;

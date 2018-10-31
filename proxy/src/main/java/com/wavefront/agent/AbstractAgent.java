@@ -625,11 +625,13 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--authMethod"}, converter = TokenValidationMethod.TokenValidationMethodConverter.class,
       description = "Authenticate all incoming HTTP requests and disables TCP streams when set to a value " +
-          "other than NONE. Allowed values are: NONE, STATIC_TOKEN, BASIC, OAUTH2. Default: NONE")
+          "other than NONE. Allowed values are: NONE, STATIC_TOKEN, HTTP_GET, OAUTH2. Default: NONE")
   protected TokenValidationMethod authMethod = TokenValidationMethod.NONE;
 
-  @Parameter(names = {"--authTokenIntrospectionServiceUrl"}, description = "URL for the RFC7662-compliant token " +
-      "introspection endpoint used to validate tokens for incoming HTTP requests. Required for authMethod = OAUTH2.")
+  @Parameter(names = {"--authTokenIntrospectionServiceUrl"}, description = "URL for the token introspection endpoint " +
+      "used to validate tokens for incoming HTTP requests. Required for authMethod = OAUTH2 (endpoint must be " +
+      "RFC7662-compliant) and authMethod = HTTP_GET (use {{token}} placeholder in the URL to pass token to the " +
+      "service, endpoint must return any 2xx status for valid tokens, any other response code is a fail)")
   protected String authTokenIntrospectionServiceUrl = null;
 
   @Parameter(names = {"--authTokenIntrospectionAuthorizationHeader"}, description = "Optional credentials for use " +

@@ -69,7 +69,7 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
                                         final ReportableEntityHandlerFactory handlerFactory,
                                         @Nullable final ReportableEntityPreprocessor preprocessor,
                                         @Nullable final CachingGraphiteHostAnnotator annotator) {
-    super(tokenAuthenticator, handle);
+    super(tokenAuthenticator, handle, true, true);
     this.decoder = decoder;
     this.pointHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
     this.preprocessor = preprocessor;
