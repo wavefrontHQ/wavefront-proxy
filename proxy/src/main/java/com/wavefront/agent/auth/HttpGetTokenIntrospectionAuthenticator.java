@@ -10,6 +10,7 @@ import com.yammer.metrics.core.MetricName;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.util.EntityUtils;
 
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -61,6 +62,7 @@ class HttpGetTokenIntrospectionAuthenticator extends TokenIntrospectionAuthentic
     }
     HttpResponse response = httpClient.execute(request);
     int status = response.getStatusLine().getStatusCode();
+    EntityUtils.consumeQuietly(response.getEntity());
     if (status >= 200 && status < 300) { // all 2xx responses should be considered OK
       accessGrantedResponses.inc();
       return true;
