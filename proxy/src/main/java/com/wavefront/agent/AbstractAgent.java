@@ -550,6 +550,12 @@ public abstract class AbstractAgent {
       "on for jaeger thrift formatted data. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
+  @Parameter(names = {"--traceSamplingRate"}, description = "Value between 0.0 and 1.0. Defaults to 1.0 (allow all spans).")
+  protected double traceSamplingRate = 1.0d;
+
+  @Parameter(names = {"--traceSamplingDuration"}, description = "Sample spans by duration in milliseconds. Defaults to 0 (ignore duration based sampling).")
+  protected Integer traceSamplingDuration = 0;
+
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
 
@@ -973,6 +979,9 @@ public abstract class AbstractAgent {
         picklePorts = config.getString("picklePorts", picklePorts);
         traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
         traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
+        traceSamplingRate = Double.parseDouble(config.getRawProperty("traceSamplingRate",
+            String.valueOf(traceSamplingRate)).trim());
+        traceSamplingDuration = config.getNumber("traceSamplingDuration", traceSamplingDuration).intValue();
         bufferFile = config.getString("buffer", bufferFile);
         preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
         dataBackfillCutoffHours = config.getNumber("dataBackfillCutoffHours", dataBackfillCutoffHours).intValue();

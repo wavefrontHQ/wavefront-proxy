@@ -7,6 +7,7 @@ import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.ReportableEntitySampler;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
 
@@ -32,24 +33,28 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
   private final ReportableEntityHandler<Span> handler;
   private final ReportableEntityDecoder<String, Span> decoder;
   private final ReportableEntityPreprocessor preprocessor;
+  private final ReportableEntitySampler<Span> sampler;
 
   @SuppressWarnings("unchecked")
   public TracePortUnificationHandler(final String handle,
                               final ReportableEntityDecoder<String, Span> traceDecoder,
                               final ReportableEntityPreprocessor preprocessor,
-                              final ReportableEntityHandlerFactory handlerFactory) {
+                              final ReportableEntityHandlerFactory handlerFactory,
+                              final ReportableEntitySampler<Span> sampler) {
     this(handle, traceDecoder, preprocessor, handlerFactory.getHandler(
-        HandlerKey.of(ReportableEntityType.TRACE, handle)));
+        HandlerKey.of(ReportableEntityType.TRACE, handle)), sampler);
   }
 
   public TracePortUnificationHandler(final String handle,
                               final ReportableEntityDecoder<String, Span> traceDecoder,
                               final ReportableEntityPreprocessor preprocessor,
-                              final ReportableEntityHandler<Span> handler) {
+                              final ReportableEntityHandler<Span> handler,
+                              final ReportableEntitySampler<Span> sampler) {
     super(handle);
     this.decoder = traceDecoder;
     this.handler = handler;
     this.preprocessor = preprocessor;
+    this.sampler = sampler;
   }
 
 
@@ -102,7 +107,9 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
           return;
         }
       }
-      handler.report(object);
+      if (sampler.sample(object)) {
+        handler.report(object);
+      }
     }
   }
 }

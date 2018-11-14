@@ -11,6 +11,10 @@ import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.uber.tchannel.api.TChannel;
 import com.uber.tchannel.channels.Connection;
+import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
+import com.wavefront.agent.channel.ConnectionTrackingHandler;
+import com.wavefront.agent.channel.IdleStateEventHandler;
+import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -28,6 +32,7 @@ import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.AccumulationTask;
 import com.wavefront.agent.histogram.tape.TapeDeck;
 import com.wavefront.agent.histogram.tape.TapeStringListConverter;
+import com.wavefront.agent.listeners.ChannelByteArrayHandler;
 import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
 import com.wavefront.agent.listeners.JaegerThriftCollectorHandler;
 import com.wavefront.agent.listeners.JsonMetricsEndpoint;
@@ -38,31 +43,30 @@ import com.wavefront.agent.listeners.WriteHttpJsonMetricsEndpoint;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.logsharvesting.RawLogsIngester;
-import com.wavefront.agent.listeners.ChannelByteArrayHandler;
-import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
-import com.wavefront.agent.channel.ConnectionTrackingHandler;
-import com.wavefront.agent.channel.IdleStateEventHandler;
-import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
+import com.wavefront.agent.sampler.ReportableEntitySampler;
+import com.wavefront.agent.sampler.SpanSamplerUtils;
+import com.wavefront.agent.sampler.SpanSamplerImpl;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
+import com.wavefront.data.Validation;
 import com.wavefront.ingester.Decoder;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.HistogramDecoder;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.ingester.PickleProtocolDecoder;
+import com.wavefront.ingester.ReportPointDecoderWrapper;
 import com.wavefront.ingester.ReportSourceTagDecoder;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.ingester.SpanDecoder;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.TcpIngester;
-import com.wavefront.data.Validation;
-import com.wavefront.ingester.ReportPointDecoderWrapper;
 import com.wavefront.metrics.ExpectedAgentMetric;
+import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 
@@ -102,6 +106,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
 import wavefront.report.ReportPoint;
+import wavefront.report.Span;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -520,8 +525,13 @@ public class PushAgent extends AbstractAgent {
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     final int port = Integer.parseInt(strPort);
 
+    Sampler rateSampler = SpanSamplerUtils.getRateSampler(traceSamplingRate);
+    Sampler durationSampler = SpanSamplerUtils.getDurationSampler(traceSamplingDuration);
+    List<Sampler> samplers = SpanSamplerUtils.fromSamplers(rateSampler, durationSampler);
+    ReportableEntitySampler<Span> spanSampler = new SpanSamplerImpl(samplers);
+
     ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, new SpanDecoder("unknown"),
-        preprocessors.forPort(strPort), handlerFactory);
+        preprocessors.forPort(strPort), handlerFactory, spanSampler);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
         .withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
