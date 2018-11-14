@@ -12,10 +12,12 @@ import junit.framework.AssertionFailedError;
 import net.jcip.annotations.NotThreadSafe;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.entity.StringEntity;
 import org.easymock.EasyMock;
 import org.junit.After;
@@ -338,6 +340,7 @@ public class PushAgentTest {
     reset(mockPointHandler, mockHttpClient, mockHttpResponse, mockStatusLine);
     expect(mockStatusLine.getStatusCode()).andReturn(200);
     expect(mockHttpResponse.getStatusLine()).andReturn(mockStatusLine);
+    expect(mockHttpResponse.getEntity()).andReturn(new StringEntity(""));
     expect(mockHttpClient.execute(anyObject(HttpPost.class))).andReturn(mockHttpResponse);
     mockPointHandler.report(anyObject());
     expectLastCall().times(46);

@@ -1,6 +1,7 @@
 package com.wavefront.agent.auth;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -54,6 +55,8 @@ class Oauth2TokenIntrospectionAuthenticator extends TokenIntrospectionAuthentica
                                         int authResponseRefreshInterval, int authResponseMaxTtl,
                                         @Nonnull Supplier<Long> timeSupplier) {
     super(authResponseRefreshInterval, authResponseMaxTtl, timeSupplier);
+    Preconditions.checkNotNull(httpClient, "httpClient must be set");
+    Preconditions.checkNotNull(tokenIntrospectionServiceUrl, "tokenIntrospectionServiceUrl parameter must be set");
     this.httpClient = httpClient;
     this.tokenIntrospectionServiceUrl = tokenIntrospectionServiceUrl;
     this.tokenIntrospectionAuthorizationHeader = tokenIntrospectionAuthorizationHeader;

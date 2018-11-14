@@ -18,7 +18,6 @@ import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.metrics.JsonMetricsParser;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +30,6 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
 import io.netty.util.CharsetUtil;
 import wavefront.report.ReportPoint;
 
@@ -79,50 +77,46 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest request) {
-    URI uri;
     StringBuilder output = new StringBuilder();
-    boolean isKeepAlive = HttpUtil.isKeepAlive(request);
 
-    try {
-      uri = new URI(request.uri());
-    } catch (URISyntaxException e) {
-      writeExceptionText(e, output);
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, output, isKeepAlive);
-      logWarning("WF-300: Request URI '" + request.uri() + "' cannot be parsed", e, ctx);
-      return;
-    }
+    URI uri = parseUri(ctx, request);
+    if (uri == null) return;
 
-    if (uri.getPath().equals("/api/put")) {
-      final ObjectMapper jsonTree = new ObjectMapper();
-      HttpResponseStatus status;
-      // from the docs:
-      // The put endpoint will respond with a 204 HTTP status code and no content if all data points
-      // were stored successfully. If one or more data points had an error, the API will return a 400.
-      try {
-        if (reportMetrics(jsonTree.readTree(request.content().toString(CharsetUtil.UTF_8)), ctx)) {
-          status = HttpResponseStatus.NO_CONTENT;
-        } else {
-          // TODO: improve error message
-          // http://opentsdb.net/docs/build/html/api_http/put.html#response
-          // User should understand that successful points are processed and the reason for BAD_REQUEST
-          // is due to at least one failure point.
+    switch (uri.getPath()) {
+      case "/api/put":
+        final ObjectMapper jsonTree = new ObjectMapper();
+        HttpResponseStatus status;
+        // from the docs:
+        // The put endpoint will respond with a 204 HTTP status code and no content if all data points
+        // were stored successfully. If one or more data points had an error, the API will return a 400.
+        try {
+          if (reportMetrics(jsonTree.readTree(request.content().toString(CharsetUtil.UTF_8)), ctx)) {
+            status = HttpResponseStatus.NO_CONTENT;
+          } else {
+            // TODO: improve error message
+            // http://opentsdb.net/docs/build/html/api_http/put.html#response
+            // User should understand that successful points are processed and the reason for BAD_REQUEST
+            // is due to at least one failure point.
+            status = HttpResponseStatus.BAD_REQUEST;
+            output.append("At least one data point had error.");
+          }
+        } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
-          output.append("At least one data point had error.");
+          writeExceptionText(e, output);
+          logWarning("WF-300: Failed to handle /api/put request", e, ctx);
         }
-      } catch (Exception e) {
-        status = HttpResponseStatus.BAD_REQUEST;
-        writeExceptionText(e, output);
-        logWarning("WF-300: Failed to handle /api/put request", e, ctx);
-      }
-      writeHttpResponse(ctx, status, output, isKeepAlive);
-    } else if (uri.getPath().equals("/api/version")) {
-      // http://opentsdb.net/docs/build/html/api_http/version.html
-      ObjectNode node = JsonNodeFactory.instance.objectNode();
-      node.put("version", ResourceBundle.getBundle("build").getString("build.version"));
-      writeHttpResponse(ctx, HttpResponseStatus.OK, node, isKeepAlive);
-    } else {
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported path", isKeepAlive);
-      logWarning("WF-300: Unexpected path '" + request.uri() + "'", null, ctx);
+        writeHttpResponse(ctx, status, output, request);
+        break;
+      case "/api/version":
+        // http://opentsdb.net/docs/build/html/api_http/version.html
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("version", ResourceBundle.getBundle("build").getString("build.version"));
+        writeHttpResponse(ctx, HttpResponseStatus.OK, node, request);
+        break;
+      default:
+        writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported path", request);
+        logWarning("WF-300: Unexpected path '" + request.uri() + "'", null, ctx);
+        break;
     }
   }
 

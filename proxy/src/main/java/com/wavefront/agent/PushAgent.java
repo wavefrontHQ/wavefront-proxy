@@ -32,6 +32,7 @@ import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
 import com.wavefront.agent.listeners.JaegerThriftCollectorHandler;
 import com.wavefront.agent.listeners.JsonMetricsEndpoint;
 import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
+import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonMetricsEndpoint;
@@ -308,6 +309,11 @@ public class PushAgent extends AbstractAgent {
     if (traceJaegerListenerPorts != null) {
       Splitter.on(",").omitEmptyStrings().trimResults().split(traceJaegerListenerPorts).forEach(
           strPort -> startTraceJaegerListener(strPort, handlerFactory)
+      );
+    }
+    if (pushRelayListenerPorts != null) {
+      Splitter.on(",").omitEmptyStrings().trimResults().split(pushRelayListenerPorts).forEach(
+          strPort -> startRelayListener(strPort, handlerFactory)
       );
     }
     if (jsonListenerPorts != null) {
@@ -595,6 +601,26 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(
         new TcpIngester(createInitializer(channelHandler, strPort), port).
             withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
+  }
+
+  @VisibleForTesting
+  protected void startRelayListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    final int port = Integer.parseInt(strPort);
+
+    if (prefix != null && !prefix.isEmpty()) {
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
+    }
+    preprocessors.forPort(strPort).forReportPoint()
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+
+    Map<ReportableEntityType, ReportableEntityDecoder> decoders = ImmutableMap.of(
+        ReportableEntityType.POINT, getDecoderInstance(),
+        ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
+    ChannelHandler channelHandler = new RelayPortUnificationHandler(strPort, tokenAuthenticator, decoders,
+        handlerFactory, preprocessors.forPort(strPort));
+    startAsManagedThread(
+        new TcpIngester(createInitializer(channelHandler, strPort), port).
+            withChildChannelOptions(childChannelOptions), "listener-relay-" + port);
   }
 
   protected void startHistogramListeners(Iterator<String> ports, Decoder<String> decoder, PointHandler pointHandler,

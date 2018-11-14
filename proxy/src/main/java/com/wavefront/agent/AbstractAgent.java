@@ -554,6 +554,10 @@ public abstract class AbstractAgent {
       "on for jaeger thrift formatted data. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
+  @Parameter(names = {"--pushRelayListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
+      "on for proxy chaining data. For internal use. Defaults to none.")
+  protected String pushRelayListenerPorts;
+
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
 
@@ -1010,6 +1014,7 @@ public abstract class AbstractAgent {
       picklePorts = config.getString("picklePorts", picklePorts);
       traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
       traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
+      pushRelayListenerPorts = config.getString("pushRelayListenerPorts", pushRelayListenerPorts);
       bufferFile = config.getString("buffer", bufferFile);
       preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
       dataBackfillCutoffHours = config.getNumber("dataBackfillCutoffHours", dataBackfillCutoffHours).intValue();

@@ -40,8 +40,7 @@ abstract class TokenIntrospectionAuthenticator implements TokenAuthenticator {
 
     this.tokenValidityCache = Caffeine.newBuilder()
         .maximumSize(50_000)
-        .refreshAfterWrite(authResponseRefreshInterval, TimeUnit.SECONDS)
-        .expireAfterAccess(authResponseMaxTtl, TimeUnit.SECONDS)
+        .refreshAfterWrite(Math.min(authResponseRefreshInterval, authResponseMaxTtl), TimeUnit.SECONDS)
         .ticker(() -> timeSupplier.get() * 1_000_000) // millisecond precision is fine
         .build(new CacheLoader<String, Boolean>() {
           @Override

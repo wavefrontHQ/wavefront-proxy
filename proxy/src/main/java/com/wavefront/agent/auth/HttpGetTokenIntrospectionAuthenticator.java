@@ -9,7 +9,7 @@ import com.yammer.metrics.core.MetricName;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.util.EntityUtils;
 
 import java.util.function.Supplier;
@@ -41,6 +41,7 @@ class HttpGetTokenIntrospectionAuthenticator extends TokenIntrospectionAuthentic
         authResponseRefreshInterval, authResponseMaxTtl, System::currentTimeMillis);
 
   }
+
   @VisibleForTesting
   HttpGetTokenIntrospectionAuthenticator(@Nonnull HttpClient httpClient, @Nonnull String tokenIntrospectionServiceUrl,
                                          @Nullable String tokenIntrospectionServiceAuthorizationHeader,
@@ -56,7 +57,7 @@ class HttpGetTokenIntrospectionAuthenticator extends TokenIntrospectionAuthentic
 
   @Override
   boolean callAuthService(@Nonnull String token) throws Exception {
-    HttpPost request = new HttpPost(tokenIntrospectionServiceUrl.replace("{{token}}", token));
+    HttpGet request = new HttpGet(tokenIntrospectionServiceUrl.replace("{{token}}", token));
     if (tokenIntrospectionServiceAuthorizationHeader != null) {
       request.setHeader("Authorization", tokenIntrospectionServiceAuthorizationHeader);
     }

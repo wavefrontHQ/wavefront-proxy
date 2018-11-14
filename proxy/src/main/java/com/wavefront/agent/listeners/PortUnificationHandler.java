@@ -93,7 +93,6 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest request) {
     StringBuilder output = new StringBuilder();
-    boolean isKeepAlive = HttpUtil.isKeepAlive(request);
 
     HttpResponseStatus status;
     try {
@@ -106,7 +105,7 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
       writeExceptionText(e, output);
       logWarning("WF-300: Failed to handle HTTP POST", e, ctx);
     }
-    writeHttpResponse(ctx, status, output, isKeepAlive);
+    writeHttpResponse(ctx, status, output, request);
   }
 
   /**
@@ -138,10 +137,11 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
     if (cause instanceof TooLongFrameException) {
       logWarning("Received line is too long, consider increasing pushListenerMaxReceivedLength", cause, ctx);
+      return;
     }
     if (cause instanceof DecompressionException) {
       logWarning("Decompression error", cause, ctx);
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Decompression error: " + cause.getMessage(), false);
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Decompression error: " + cause.getMessage());
       return;
     }
     if (cause instanceof IOException && cause.getMessage().contains("Connection reset by peer")) {
@@ -152,25 +152,25 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
     logger.log(Level.WARNING, "Unexpected error: ", cause);
   }
 
-  private boolean authorized(final ChannelHandlerContext ctx, final FullHttpRequest request) {
+  protected String extractToken(final ChannelHandlerContext ctx, final FullHttpRequest request) {
+    URI requestUri = parseUri(ctx, request);
+    if (requestUri == null) return null;
+    String token = firstNonNull(request.headers().getAsString("X-AUTH-TOKEN"),
+        request.headers().getAsString("Authorization"), "").replaceAll("^Bearer ", "").trim();
+    Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(requestUri, CharsetUtil.UTF_8).stream().
+        filter(x -> x.getName().equals("t") || x.getName().equals("token") || x.getName().equals("api_key")).
+        findFirst();
+    if (tokenParam.isPresent()) {
+      token = tokenParam.get().getValue();
+    }
+    return token;
+  }
+
+  protected boolean authorized(final ChannelHandlerContext ctx, final FullHttpRequest request) {
     if (tokenAuthenticator.authRequired()) {
-      String token = firstNonNull(request.headers().getAsString("X-AUTH-TOKEN"),
-          request.headers().getAsString("Authorization"), "").replaceAll("^Bearer ", "").trim();
-      URI requestUri;
-      try {
-        requestUri = new URI(request.uri());
-      } catch (URISyntaxException e) {
-        writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Request URI cannot be parsed", false);
-        logWarning("WF-300: Request URI '" + request.uri() + "' cannot be parsed", e, ctx);
-        return false;
-      }
-      Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(requestUri, CharsetUtil.UTF_8).stream().
-          filter(x -> x.getName().equals("t")).findFirst();
-      if (tokenParam.isPresent()) {
-        token = tokenParam.get().getValue();
-      }
+      String token = extractToken(ctx, request);
       if (!tokenAuthenticator.authorize(token)) { // 401 if no token or auth fails
-        writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, "401 Unauthorized\n", false);
+        writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, "401 Unauthorized\n");
         return false;
       }
     }
@@ -204,10 +204,32 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
     }
   }
 
+  protected URI parseUri(final ChannelHandlerContext ctx, FullHttpRequest request) {
+    try {
+      return new URI(request.uri());
+    } catch (URISyntaxException e) {
+      StringBuilder output = new StringBuilder();
+      writeExceptionText(e, output);
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, output, request);
+      logWarning("WF-300: Request URI '" + request.uri() + "' cannot be parsed", e, ctx);
+      return null;
+    }
+  }
+
+  protected void writeHttpResponse(final ChannelHandlerContext ctx, final HttpResponseStatus status,
+                                   final Object contents) {
+    writeHttpResponse(ctx, status, contents, false);
+  }
+
+  protected void writeHttpResponse(final ChannelHandlerContext ctx, final HttpResponseStatus status,
+                                   final Object contents, final FullHttpRequest request) {
+    writeHttpResponse(ctx, status, contents, HttpUtil.isKeepAlive(request));
+  }
+
   /**
    * Writes an HTTP response.
    */
-  protected void writeHttpResponse(final ChannelHandlerContext ctx, final HttpResponseStatus status,
+  private void writeHttpResponse(final ChannelHandlerContext ctx, final HttpResponseStatus status,
                                    final Object contents, boolean keepAlive) {
     final FullHttpResponse response;
     if (contents instanceof JsonNode) {

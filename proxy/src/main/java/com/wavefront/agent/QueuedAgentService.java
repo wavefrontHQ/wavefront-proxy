@@ -659,7 +659,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private static void parsePostingResponse(Response response) {
     if (response == null) throw new RuntimeException("No response from server");
     try {
-      if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+      if (response.getStatus() < 200 || response.getStatus() >= 300) {
         if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
           throw new RejectedExecutionException("Response not accepted by server: " + response.getStatus());
         } else if (response.getStatus() == Response.Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode()) {
