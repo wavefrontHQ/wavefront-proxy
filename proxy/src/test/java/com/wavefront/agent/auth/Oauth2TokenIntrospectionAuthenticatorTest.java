@@ -39,6 +39,7 @@ public class Oauth2TokenIntrospectionAuthenticatorTest {
     TestUtils.expectHttpResponse(client, request, "{\"active\": false}".getBytes(), 200);
 
     assertFalse(authenticator.authorize(uuid)); // should call http
+    Thread.sleep(100);
 
     fakeClock.getAndAdd(60_000);
 
@@ -51,6 +52,8 @@ public class Oauth2TokenIntrospectionAuthenticatorTest {
     TestUtils.expectHttpResponse(client, request, "{\"active\": true}".getBytes(), 200);
 
     assertFalse(authenticator.authorize(uuid)); // cache expired - should trigger a refresh
+    Thread.sleep(100);
+
     assertTrue(authenticator.authorize(uuid)); // should call http and get an updated token
 
     fakeClock.getAndAdd(180_000);
@@ -87,6 +90,7 @@ public class Oauth2TokenIntrospectionAuthenticatorTest {
     TestUtils.expectHttpResponse(client, request, "{\"active\": true}".getBytes(), 204);
 
     assertTrue(authenticator.authorize(uuid)); // should call http
+    Thread.sleep(100);
 
     fakeClock.getAndAdd(630_000);
 
