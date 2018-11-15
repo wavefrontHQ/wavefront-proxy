@@ -39,7 +39,7 @@ public class JaegerThriftCollectorHandlerTest {
         .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(new Annotation("service", "frontend"),
-            new Annotation("application", "defaultApplication")))
+            new Annotation("application", "Jaeger")))
         .build());
     expectLastCall();
 
@@ -53,7 +53,7 @@ public class JaegerThriftCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
-            new Annotation("application", "defaultApplication")))
+            new Annotation("application", "Jaeger")))
         .build());
     expectLastCall();
 

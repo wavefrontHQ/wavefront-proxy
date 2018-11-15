@@ -46,7 +46,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
   private final static String APPLICATION_KEY = "application";
   private final static String SERVICE_KEY = "service";
-  private final static String DEFAULT_APPLICATION = "defaultApplication";
+  private final static String DEFAULT_APPLICATION = "Jaeger";
 
   private final String handle;
   private final ReportableEntityHandler<Span> handler;
@@ -150,7 +150,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     }
 
     if (!applicationTagPresent) {
-      // Original Jaeger span did not have application set, will populate defaultApplication.
+      // Original Jaeger span did not have application set, will default to 'Jaeger'
       Annotation annotation = new Annotation(APPLICATION_KEY, DEFAULT_APPLICATION);
       annotations.add(annotation);
     }
