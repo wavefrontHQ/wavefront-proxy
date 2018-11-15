@@ -420,6 +420,30 @@ public class PushAgentTest {
     replay(mockPointHandler);
     gzippedHttpPost("http://localhost:" + ddPort + "/api/v1/series", getResource("ddTestTimeseries.json"));
     verify(mockPointHandler);
+
+    // test 7: post multiple checks to /api/v1/check_run with service checks enabled
+    reset(mockPointHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().
+        setTable("dummy").
+        setMetric("testApp.status").
+        setHost("testhost").
+        setTimestamp(1536719228000L).
+        setValue(3.0d).
+        build());
+    expectLastCall().once();
+    mockPointHandler.report(ReportPoint.newBuilder().
+        setTable("dummy").
+        setMetric("testApp2.status").
+        setHost("testhost2").
+        setTimestamp(1536719228000L).
+        setValue(2.0d).
+        build());
+    expectLastCall().once();
+    replay(mockPointHandler);
+    gzippedHttpPost("http://localhost:" + ddPort + "/api/v1/check_run",
+        getResource("ddTestMultipleServiceChecks.json"));
+    verify(mockPointHandler);
+
   }
 
   private String getResource(String resourceName) throws Exception {
