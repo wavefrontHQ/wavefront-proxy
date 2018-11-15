@@ -37,7 +37,9 @@ public class JaegerThriftCollectorHandlerTest {
         .setSource("10.0.0.1")
         .setSpanId("00000000-0000-0000-0000-00000012d687")
         .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
-        .setAnnotations(ImmutableList.of(new Annotation("serviceName", "frontend")))
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger")))
         .build());
     expectLastCall();
 
@@ -47,8 +49,11 @@ public class JaegerThriftCollectorHandlerTest {
         .setSource("10.0.0.1")
         .setSpanId("00000000-0000-0000-0000-00000023cace")
         .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
-        .setAnnotations(ImmutableList.of(new Annotation("serviceName", "frontend"),
-            new Annotation("parent", "00000000-0000-0000-0000-00000012d687")))
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
+            new Annotation("application", "Jaeger")))
         .build());
     expectLastCall();
 
