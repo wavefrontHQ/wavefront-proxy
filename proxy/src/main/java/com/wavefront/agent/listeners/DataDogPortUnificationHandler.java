@@ -170,6 +170,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
               EntityUtils.toString(response.getEntity(), "UTF-8"), isKeepAlive);
           return;
         }
+        EntityUtils.consumeQuietly(response.getEntity());
 
       } catch (IOException e) {
         logger.warning("Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
