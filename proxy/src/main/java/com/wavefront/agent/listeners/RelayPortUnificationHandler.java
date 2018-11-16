@@ -39,8 +39,8 @@ import io.netty.util.CharsetUtil;
 public class RelayPortUnificationHandler extends WavefrontPortUnificationHandler {
   private static final Logger logger = Logger.getLogger(RelayPortUnificationHandler.class.getCanonicalName());
 
-  private static final Pattern PATTERN_CHECKIN = Pattern.compile("/daemon/(.*)/checkin");
-  private static final Pattern PATTERN_PUSHDATA = Pattern.compile("/daemon/(.*)/pushdata/(.*)");
+  private static final Pattern PATTERN_CHECKIN = Pattern.compile("/api/daemon/(.*)/checkin");
+  private static final Pattern PATTERN_PUSHDATA = Pattern.compile("/api/daemon/(.*)/pushdata/(.*)");
 
   private Cache<String, String> proxyTokenCache = Caffeine.newBuilder()
       .expireAfterWrite(10, TimeUnit.MINUTES)
@@ -92,7 +92,7 @@ public class RelayPortUnificationHandler extends WavefrontPortUnificationHandler
     URI uri = parseUri(ctx, request);
     if (uri == null) return;
 
-    if (uri.getPath().startsWith("/daemon") && uri.getPath().endsWith("/checkin")) {
+    if (uri.getPath().startsWith("/api/daemon") && uri.getPath().endsWith("/checkin")) {
       // simulate checkin response for proxy chaining
       ObjectNode jsonResponse = JsonNodeFactory.instance.objectNode();
       jsonResponse.put("currentTime", Clock.now());
