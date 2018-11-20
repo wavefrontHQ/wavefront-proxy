@@ -338,6 +338,7 @@ public class PushAgentTest {
     reset(mockPointHandler, mockHttpClient, mockHttpResponse, mockStatusLine);
     expect(mockStatusLine.getStatusCode()).andReturn(200);
     expect(mockHttpResponse.getStatusLine()).andReturn(mockStatusLine);
+    expect(mockHttpResponse.getEntity()).andReturn(new StringEntity(""));
     expect(mockHttpClient.execute(anyObject(HttpPost.class))).andReturn(mockHttpResponse);
     mockPointHandler.report(anyObject());
     expectLastCall().times(46);
