@@ -32,7 +32,11 @@ RUN curl -s https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz | ta
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Configure agent
+ENV DO_SERVICE_RESTART=false
+RUN cp /etc/wavefront/wavefront-proxy/wavefront.conf.default /etc/wavefront/wavefront-proxy/wavefront.conf
 RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
+RUN echo '\nephemeral=true' >> /etc/wavefront/wavefront-proxy/wavefront.conf
+RUN echo '\nflushThreads=6' >> /etc/wavefront/wavefront-proxy/wavefront.conf
 
 # Run the agent
 EXPOSE 3878
@@ -40,5 +44,6 @@ EXPOSE 2878
 EXPOSE 4242
 
 ENV PATH=/opt/wavefront/wavefront-proxy/jre/bin:$PATH
+ENV WAVEFRONT_USE_GRAPHITE=false
 ADD run.sh run.sh
 CMD ["/bin/bash", "/run.sh"]
