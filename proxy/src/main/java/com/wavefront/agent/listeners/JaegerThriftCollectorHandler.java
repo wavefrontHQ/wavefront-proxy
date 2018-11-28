@@ -159,11 +159,11 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       for (SpanRef reference : span.getReferences()) {
         switch (reference.refType) {
           case CHILD_OF:
-            if (reference.getSpanId() > 0 && reference.getSpanId() != parentSpanId) {
+            if (reference.getSpanId() != 0 && reference.getSpanId() != parentSpanId) {
               annotations.add(new Annotation("parent", new UUID(0, reference.getSpanId()).toString()));
             }
           case FOLLOWS_FROM:
-            if (reference.getSpanId() > 0) {
+            if (reference.getSpanId() != 0) {
               annotations.add(new Annotation("followsFrom", new UUID(0, reference.getSpanId()).toString()));
             }
           default:
