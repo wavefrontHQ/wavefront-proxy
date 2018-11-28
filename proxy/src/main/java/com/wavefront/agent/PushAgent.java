@@ -532,7 +532,6 @@ public class PushAgent extends AbstractAgent {
       activeListeners.inc();
       try {
         TChannel server = new TChannel.Builder("jaeger-collector").
-            setServerHost(InetAddress.getLoopbackAddress()).
             setServerPort(Integer.valueOf(strPort)).
             build();
         server.
