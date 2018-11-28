@@ -71,10 +71,10 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     this.handle = handle;
     this.handler = handler;
     this.traceDisabled = traceDisabled;
-    this.discardedTraces = Metrics.newCounter(new MetricName("traces." + handle, "", "discarded"));
-    this.discardedBatches = Metrics.newCounter(new MetricName("traces." + handle + ".batches", "", "discarded"));
-    this.processedBatches = Metrics.newCounter(new MetricName("traces." + handle + ".batches", "", "processed"));
-    this.failedBatches = Metrics.newCounter(new MetricName("traces." + handle + ".batches", "", "failed"));
+    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+    this.discardedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
+    this.processedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
+    this.failedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "failed"));
   }
 
   @Override
@@ -164,7 +164,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
             }
           case FOLLOWS_FROM:
             if (reference.getSpanId() > 0) {
-              annotations.add(new Annotation("followedFrom", new UUID(0, reference.getSpanId()).toString()));
+              annotations.add(new Annotation("followsFrom", new UUID(0, reference.getSpanId()).toString()));
             }
           default:
         }

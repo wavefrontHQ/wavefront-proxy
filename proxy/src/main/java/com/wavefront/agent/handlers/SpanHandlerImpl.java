@@ -26,7 +26,7 @@ import wavefront.report.Span;
 public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
 
   private static final Logger logger = Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
-  private static final Logger validTracesLogger = Logger.getLogger("RawValidTraces");
+  private static final Logger validTracesLogger = Logger.getLogger("RawValidSpans");
   private static final Random RANDOM = new Random();
   private static SharedMetricsRegistry metricsRegistry = SharedMetricsRegistry.getInstance();
 
@@ -49,12 +49,12 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
                   final Collection<SenderTask> sendDataTasks) {
     super(ReportableEntityType.TRACE, handle, blockedItemsPerBatch, new SpanSerializer(), sendDataTasks);
 
-    String logTracesSampleRateProperty = System.getProperty("wavefront.proxy.logtraces.sample-rate");
+    String logTracesSampleRateProperty = System.getProperty("wavefront.proxy.logspans.sample-rate");
     this.logSampleRate = NumberUtils.isNumber(logTracesSampleRateProperty) ?
         Double.parseDouble(logTracesSampleRateProperty) : 1.0d;
 
-    this.attemptedCounter = Metrics.newCounter(new MetricName("traces." + handle, "", "sent"));
-    this.queuedCounter = Metrics.newCounter(new MetricName("traces." + handle, "", "queued"));
+    this.attemptedCounter = Metrics.newCounter(new MetricName("spans." + handle, "", "sent"));
+    this.queuedCounter = Metrics.newCounter(new MetricName("spans." + handle, "", "queued"));
 
     this.statisticOutputExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
     this.statisticOutputExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
@@ -68,7 +68,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
     refreshValidDataLoggerState();
 
     if (logData && (logSampleRate >= 1.0d || (logSampleRate > 0.0d && RANDOM.nextDouble() < logSampleRate))) {
-      // we log valid trace data only if RawValidTraces log level is set to "ALL". This is done to prevent
+      // we log valid trace data only if RawValidSpans log level is set to "ALL". This is done to prevent
       // introducing overhead and accidentally logging raw data to the main log. Honor sample rate limit, if set.
       validTracesLogger.info(strSpan);
     }
@@ -81,7 +81,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
       // refresh validTracesLogger level once a second
       if (logData != validTracesLogger.isLoggable(Level.FINEST)) {
         logData = !logData;
-        logger.info("Valid traces logging is now " + (logData ?
+        logger.info("Valid spans logging is now " + (logData ?
             "enabled with " + (logSampleRate * 100) + "% sampling":
             "disabled"));
       }
@@ -90,13 +90,13 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
   }
 
   private void printStats() {
-    logger.info("[" + this.handle + "] Traces received rate: " + getReceivedOneMinuteRate() +
+    logger.info("[" + this.handle + "] Tracing spans received rate: " + getReceivedOneMinuteRate() +
         " tps (1 min), " + getReceivedFiveMinuteRate() + " tps (5 min), " +
         this.receivedBurstRateCurrent + " tps (current).");
   }
 
   private void printTotal() {
-    logger.info("[" + this.handle + "] Total traces processed since start: " + this.attemptedCounter.count() +
+    logger.info("[" + this.handle + "] Total trace spans processed since start: " + this.attemptedCounter.count() +
         "; blocked: " + this.blockedCounter.count());
 
   }

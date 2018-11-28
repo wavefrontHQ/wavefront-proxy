@@ -547,7 +547,7 @@ public abstract class AbstractAgent {
   protected String traceListenerPorts;
 
   @Parameter(names = {"--traceJaegerListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
-      "on for jaeger thrift formatted data. Defaults to none.")
+      "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
