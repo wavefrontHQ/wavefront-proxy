@@ -135,7 +135,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
     URI uri = parseUri(ctx, incomingRequest);
     if (uri == null) return;
 
-    HttpResponseStatus status;
+    HttpResponseStatus status = HttpResponseStatus.ACCEPTED;
     String requestBody = incomingRequest.content().toString(CharsetUtil.UTF_8);
 
     if (requestRelayClient != null && requestRelayTarget != null && incomingRequest.method() == POST) {
