@@ -188,9 +188,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
     switch (path) {
       case "/api/v1/series/":
         try {
-          if (reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest)) {
-
-          } else {
+          if (!reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest)) {
             status = HttpResponseStatus.BAD_REQUEST;
             output.append("At least one data point had error.");
           }
