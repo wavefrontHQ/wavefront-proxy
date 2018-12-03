@@ -32,6 +32,7 @@ import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
 import com.wavefront.agent.listeners.JaegerThriftCollectorHandler;
 import com.wavefront.agent.listeners.JsonMetricsEndpoint;
 import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
+import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonMetricsEndpoint;
@@ -69,6 +70,7 @@ import com.yammer.metrics.core.Counter;
 import net.openhft.chronicle.map.ChronicleMap;
 
 import org.apache.commons.lang.BooleanUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
@@ -250,39 +252,37 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
-    GraphiteFormatter graphiteFormatter = null;
-    if (graphitePorts != null || picklePorts != null) {
-      Preconditions.checkNotNull(graphiteFormat, "graphiteFormat must be supplied to enable graphite support");
-      Preconditions.checkNotNull(graphiteDelimiters, "graphiteDelimiters must be supplied to enable graphite support");
-      graphiteFormatter = new GraphiteFormatter(graphiteFormat, graphiteDelimiters, graphiteFieldsToRemove);
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(graphitePorts);
-      for (String strPort : ports) {
-        preprocessors.forPort(strPort).forPointLine().addTransformer(0, graphiteFormatter);
-        startGraphiteListener(strPort, handlerFactory, null);
-        logger.info("listening on port: " + strPort + " for graphite metrics");
+    if (StringUtils.isNotBlank(graphitePorts) || StringUtils.isNotBlank(picklePorts)) {
+      if (tokenAuthenticator.authRequired()) {
+        logger.warning("Graphite mode is not compatible with HTTP authentication, ignoring");
+      } else {
+        Preconditions.checkNotNull(graphiteFormat, "graphiteFormat must be supplied to enable graphite support");
+        Preconditions.checkNotNull(graphiteDelimiters, "graphiteDelimiters must be supplied to enable graphite support");
+        GraphiteFormatter graphiteFormatter = new GraphiteFormatter(graphiteFormat, graphiteDelimiters,
+            graphiteFieldsToRemove);
+        Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(graphitePorts);
+        for (String strPort : ports) {
+          preprocessors.forPort(strPort).forPointLine().addTransformer(0, graphiteFormatter);
+          startGraphiteListener(strPort, handlerFactory, null);
+          logger.info("listening on port: " + strPort + " for graphite metrics");
+        }
+        if (picklePorts != null) {
+          Splitter.on(",").omitEmptyStrings().trimResults().split(picklePorts).forEach(
+              strPort -> {
+                PointHandler pointHandler = new PointHandlerImpl(strPort, pushValidationLevel,
+                    pushBlockedSamples, getFlushTasks(strPort));
+                startPickleListener(strPort, pointHandler, graphiteFormatter);
+              }
+          );
+        }
       }
     }
     if (opentsdbPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(opentsdbPorts);
-      for (String strPort : ports) {
-        PointHandler handler = new PointHandlerImpl(strPort, pushValidationLevel, pushBlockedSamples,
-            getFlushTasks(strPort));
-        startOpenTsdbListener(strPort, handlerFactory);
-        logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
-      }
-    }
-    if (picklePorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(picklePorts);
-      for (String strPort : ports) {
-        PointHandler pointHandler = new PointHandlerImpl(strPort, pushValidationLevel,
-            pushBlockedSamples, getFlushTasks(strPort));
-        startPickleListener(strPort, pointHandler, graphiteFormatter);
-        logger.info("listening on port: " + strPort + " for pickle protocol metrics");
-      }
+      Splitter.on(",").omitEmptyStrings().trimResults().split(opentsdbPorts).forEach(
+          strPort -> startOpenTsdbListener(strPort, handlerFactory)
+      );
     }
     if (dataDogJsonPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(dataDogJsonPorts);
-
       HttpClient httpClient = HttpClientBuilder.create().
           useSystemProperties().
           setUserAgent(httpUserAgent).
@@ -297,84 +297,31 @@ public class PushAgent extends AbstractAgent {
                   setSocketTimeout(httpRequestTimeout).build()).
           build();
 
-      for (String strPort : ports) {
-        startDataDogListener(strPort, handlerFactory, httpClient);
-        logger.info("listening on port: " + strPort + " for DataDog metrics");
-      }
+      Splitter.on(",").omitEmptyStrings().trimResults().split(dataDogJsonPorts).forEach(
+          strPort -> startDataDogListener(strPort, handlerFactory, httpClient)
+      );
     }
     if (traceListenerPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceListenerPorts);
-      for (String strPort : ports) {
-        startTraceListener(strPort, handlerFactory);
-        logger.info("listening on port: " + strPort + " for trace data");
-      }
+      Splitter.on(",").omitEmptyStrings().trimResults().split(traceListenerPorts).forEach(
+          strPort -> startTraceListener(strPort, handlerFactory)
+      );
     }
     if (traceJaegerListenerPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceJaegerListenerPorts);
-      for (String strPort : ports) {
-        startTraceJaegerListener(strPort, handlerFactory);
-        logger.info("listening on port: " + traceJaegerListenerPorts + " for trace data (Jaeger format)");
-      }
+      Splitter.on(",").omitEmptyStrings().trimResults().split(traceJaegerListenerPorts).forEach(
+          strPort -> startTraceJaegerListener(strPort, handlerFactory)
+      );
+    }
+    if (pushRelayListenerPorts != null) {
+      Splitter.on(",").omitEmptyStrings().trimResults().split(pushRelayListenerPorts).forEach(
+          strPort -> startRelayListener(strPort, handlerFactory)
+      );
     }
     if (jsonListenerPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(jsonListenerPorts);
-      for (String strPort : ports) {
-        preprocessors.forPort(strPort).forReportPoint()
-            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
-
-        startAsManagedThread(() -> {
-              activeListeners.inc();
-              try {
-                org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(Integer.parseInt(strPort));
-                server.setHandler(new JsonMetricsEndpoint(strPort, hostname, prefix,
-                    pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort)));
-                server.start();
-                server.join();
-              } catch (InterruptedException e) {
-                logger.warning("Http Json server interrupted.");
-              } catch (Exception e) {
-                if (e instanceof BindException) {
-                  bindErrors.inc();
-                  logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
-                } else {
-                  logger.log(Level.SEVERE, "HttpJson exception", e);
-                }
-              } finally {
-                activeListeners.dec();
-              }
-            },
-            "listener-plaintext-json-" + strPort);
-      }
+      Splitter.on(",").omitEmptyStrings().trimResults().split(jsonListenerPorts).forEach(this::startJsonListener);
     }
     if (writeHttpJsonListenerPorts != null) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonListenerPorts);
-      for (String strPort : ports) {
-        preprocessors.forPort(strPort).forReportPoint()
-            .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
-
-        startAsManagedThread(() -> {
-              activeListeners.inc();
-              try {
-                org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(Integer.parseInt(strPort));
-                server.setHandler(new WriteHttpJsonMetricsEndpoint(strPort, hostname, prefix,
-                    pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort)));
-                server.start();
-                server.join();
-              } catch (InterruptedException e) {
-                logger.warning("WriteHttpJson server interrupted.");
-              } catch (Exception e) {
-                if (e instanceof BindException) {
-                  bindErrors.inc();
-                  logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
-                } else {
-                  logger.log(Level.SEVERE, "WriteHttpJson exception", e);
-                }
-              } finally {
-                activeListeners.dec();
-              }
-            },
-            "listener-plaintext-writehttpjson-" + strPort);
-      }
+      Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonListenerPorts).
+          forEach(this::startWriteHttpJsonListener);
     }
 
     // Logs ingestion.
@@ -388,7 +335,73 @@ public class PushAgent extends AbstractAgent {
     }
   }
 
+  protected void startJsonListener(String strPort) {
+    if (tokenAuthenticator.authRequired()) {
+      logger.warning("Port " + strPort + " (jsonListener) is not compatible with HTTP authentication, ignoring");
+      return;
+    }
+    preprocessors.forPort(strPort).forReportPoint()
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+
+    startAsManagedThread(() -> {
+      activeListeners.inc();
+      try {
+        org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(Integer.parseInt(strPort));
+        server.setHandler(new JsonMetricsEndpoint(strPort, hostname, prefix,
+            pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort)));
+        server.start();
+        server.join();
+      } catch (InterruptedException e) {
+        logger.warning("Http Json server interrupted.");
+      } catch (Exception e) {
+        if (e instanceof BindException) {
+          bindErrors.inc();
+          logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
+        } else {
+          logger.log(Level.SEVERE, "HttpJson exception", e);
+        }
+      } finally {
+        activeListeners.dec();
+      }
+    }, "listener-plaintext-json-" + strPort);
+  }
+
+  protected void startWriteHttpJsonListener(String strPort) {
+    if (tokenAuthenticator.authRequired()) {
+      logger.warning("Port " + strPort + " (writeHttpJson) is not compatible with HTTP authentication, ignoring");
+      return;
+    }
+    preprocessors.forPort(strPort).forReportPoint()
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+
+    startAsManagedThread(() -> {
+      activeListeners.inc();
+      try {
+        org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(Integer.parseInt(strPort));
+        server.setHandler(new WriteHttpJsonMetricsEndpoint(strPort, hostname, prefix,
+            pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort)));
+        server.start();
+        server.join();
+      } catch (InterruptedException e) {
+        logger.warning("WriteHttpJson server interrupted.");
+      } catch (Exception e) {
+        if (e instanceof BindException) {
+          bindErrors.inc();
+          logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
+        } else {
+          logger.log(Level.SEVERE, "WriteHttpJson exception", e);
+        }
+      } finally {
+        activeListeners.dec();
+      }
+    }, "listener-plaintext-writehttpjson-" + strPort);
+  }
+
   protected void startLogsIngestionListeners(int portFilebeat, int portRawLogs, PointHandler pointHandler) {
+    if (tokenAuthenticator.authRequired()) {
+      logger.warning("Logs ingestion is not compatible with HTTP authentication, ignoring");
+      return;
+    }
     try {
       final LogsIngester logsIngester = new LogsIngester(pointHandler, this::loadLogsIngestionConfig, prefix,
           System::currentTimeMillis);
@@ -455,15 +468,20 @@ public class PushAgent extends AbstractAgent {
     ReportableEntityDecoder<String, ReportPoint> openTSDBDecoder = new ReportPointDecoderWrapper(
         new OpenTSDBDecoder("unknown", customSourceTags));
 
-    ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(strPort, openTSDBDecoder, handlerFactory,
-        preprocessors.forPort(strPort), remoteHostAnnotator);
+    ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(strPort, tokenAuthenticator, openTSDBDecoder,
+        handlerFactory, preprocessors.forPort(strPort), remoteHostAnnotator);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
             .withChildChannelOptions(childChannelOptions), "listener-plaintext-opentsdb-" + port);
+    logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
   }
 
   protected void startDataDogListener(final String strPort, ReportableEntityHandlerFactory handlerFactory,
                                       HttpClient httpClient) {
+    if (tokenAuthenticator.authRequired()) {
+      logger.warning("Port: " + strPort + " (DataDog) is not compatible with HTTP authentication, ignoring");
+      return;
+    }
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
@@ -477,9 +495,14 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
             .withChildChannelOptions(childChannelOptions), "listener-plaintext-datadog-" + port);
+    logger.info("listening on port: " + strPort + " for DataDog metrics");
   }
 
   protected void startPickleListener(String strPort, PointHandler pointHandler, GraphiteFormatter formatter) {
+    if (tokenAuthenticator.authRequired()) {
+      logger.warning("Port: " + strPort + " (pickle format) is not compatible with HTTP authentication, ignoring");
+      return;
+    }
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
@@ -510,6 +533,7 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(new StreamIngester(new FrameDecoderFactoryImpl(), channelHandler, port)
         .withChildChannelOptions(childChannelOptions), "listener-binary-pickle-" + port);
+    logger.info("listening on port: " + strPort + " for pickle protocol metrics");
   }
 
   protected void startTraceListener(final String strPort, ReportableEntityHandlerFactory handlerFactory) {
@@ -520,14 +544,19 @@ public class PushAgent extends AbstractAgent {
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     final int port = Integer.parseInt(strPort);
 
-    ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, new SpanDecoder("unknown"),
-        preprocessors.forPort(strPort), handlerFactory);
+    ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, tokenAuthenticator,
+        new SpanDecoder("unknown"), preprocessors.forPort(strPort), handlerFactory);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
         .withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
+    logger.info("listening on port: " + strPort + " for trace data");
   }
 
   protected void startTraceJaegerListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    if (tokenAuthenticator.authRequired()) {
+      logger.warning("Port: " + strPort + " is not compatible with HTTP authentication, ignoring");
+      return;
+    }
     startAsManagedThread(() -> {
       activeListeners.inc();
       try {
@@ -548,6 +577,7 @@ public class PushAgent extends AbstractAgent {
         activeListeners.dec();
       }
     }, "listener-jaeger-thrift-" + strPort);
+    logger.info("listening on port: " + strPort + " for trace data (Jaeger format)");
   }
 
   @VisibleForTesting
@@ -565,17 +595,41 @@ public class PushAgent extends AbstractAgent {
         ReportableEntityType.POINT, getDecoderInstance(),
         ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
         ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
-    ChannelHandler channelHandler = new WavefrontPortUnificationHandler(strPort, decoders, handlerFactory,
-        hostAnnotator, preprocessors.forPort(strPort));
+    ChannelHandler channelHandler = new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, decoders,
+        handlerFactory, hostAnnotator, preprocessors.forPort(strPort));
     startAsManagedThread(
         new TcpIngester(createInitializer(channelHandler, strPort), port).
             withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
+  }
+
+  @VisibleForTesting
+  protected void startRelayListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    final int port = Integer.parseInt(strPort);
+
+    if (prefix != null && !prefix.isEmpty()) {
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
+    }
+    preprocessors.forPort(strPort).forReportPoint()
+        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+
+    Map<ReportableEntityType, ReportableEntityDecoder> decoders = ImmutableMap.of(
+        ReportableEntityType.POINT, getDecoderInstance(),
+        ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
+    ChannelHandler channelHandler = new RelayPortUnificationHandler(strPort, tokenAuthenticator, decoders,
+        handlerFactory, preprocessors.forPort(strPort));
+    startAsManagedThread(
+        new TcpIngester(createInitializer(channelHandler, strPort), port).
+            withChildChannelOptions(childChannelOptions), "listener-relay-" + port);
   }
 
   protected void startHistogramListeners(Iterator<String> ports, Decoder<String> decoder, PointHandler pointHandler,
                                          TapeDeck<List<String>> receiveDeck, @Nullable Utils.Granularity granularity,
                                          int flushSecs, int fanout, boolean memoryCacheEnabled, File baseDirectory,
                                          Long accumulatorSize, int avgKeyBytes, int avgDigestBytes, short compression) {
+    if (tokenAuthenticator.authRequired()) {
+      logger.warning("Histograms are not compatible with HTTP authentication, ignoring");
+      return;
+    }
     String listenerBinType = Utils.Granularity.granularityToString(granularity);
     // Accumulator
     MapLoader<HistogramKey, AgentDigest, HistogramKeyMarshaller, AgentDigestMarshaller> mapLoader = new MapLoader<>(
