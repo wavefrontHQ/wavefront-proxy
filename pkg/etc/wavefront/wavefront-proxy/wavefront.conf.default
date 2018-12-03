@@ -143,6 +143,12 @@ buffer=/var/spool/wavefront-proxy/buffer
 ## Default (and recommended) value is 24 (1 day), so all the data points from more than 1 day in future will be rejected.
 #dataPrefillCutoffHours=24
 
+## The following settings are used to configure distributed tracing span ingestion:
+## Comma-separated list of ports to listen on for Wavefront trace data. Defaults to none.
+#traceListenerPorts=30000
+## Comma-separated list of ports on which to listen on for Jaeger Thrift formatted data. Defaults to none.
+#traceJaegerListenerPorts=30001
+
 ## The following settings are used to configure histogram ingestion:
 ## Histograms can be ingested in wavefront scalar and distribution format. For scalar samples ports can be specified for
 ## minute, hour and day granularity. Granularity for the distribution format is encoded inline.

@@ -39,7 +39,7 @@ public class ValidationTest {
 
     // first character can no longer be ~
     input = "~good.metric7";
-    Assert.assertFalse(Validation.charactersAreValid(input));
+    Assert.assertTrue(Validation.charactersAreValid(input));
 
     // first character can be ∆ (\u2206)
     input = "∆delta.metric8";

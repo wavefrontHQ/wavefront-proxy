@@ -10,6 +10,7 @@ import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
+import com.yammer.metrics.core.SafeVirtualMachineMetrics;
 import com.yammer.metrics.core.VirtualMachineMetrics;
 import com.yammer.metrics.core.WavefrontHistogram;
 import com.yammer.metrics.reporting.AbstractReporter;
@@ -34,7 +35,7 @@ public class WavefrontYammerMetricsReporter extends AbstractReporter implements 
   protected static final Logger logger = Logger.getLogger(WavefrontYammerMetricsReporter.class.getCanonicalName());
 
   private static final Clock clock = Clock.defaultClock();
-  private static final VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
+  private static final VirtualMachineMetrics vm = SafeVirtualMachineMetrics.getInstance();
   private final ScheduledExecutorService executor;
 
   private final boolean includeJvmMetrics;
