@@ -144,7 +144,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
       logWarning("WF-300: Request URI '" + incomingRequest.uri() + "' cannot be parsed", e, ctx);
       return;
     }
-    HttpResponseStatus status;
+    HttpResponseStatus status = HttpResponseStatus.ACCEPTED;
     String requestBody = incomingRequest.content().toString(CharsetUtil.UTF_8);
 
     if (requestRelayClient != null && requestRelayTarget != null && incomingRequest.method() == POST) {
@@ -170,6 +170,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
               EntityUtils.toString(response.getEntity(), "UTF-8"), isKeepAlive);
           return;
         }
+        EntityUtils.consumeQuietly(response.getEntity());
 
       } catch (IOException e) {
         logger.warning("Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
@@ -187,9 +188,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
     switch (path) {
       case "/api/v1/series/":
         try {
-          if (reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest)) {
-            status = HttpResponseStatus.ACCEPTED;
-          } else {
+          if (!reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest)) {
             status = HttpResponseStatus.BAD_REQUEST;
             output.append("At least one data point had error.");
           }
@@ -209,11 +208,8 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
           return;
         }
         try {
-          if (reportCheck(jsonParser.readTree(requestBody), pointsPerRequest)) {
-            status = HttpResponseStatus.ACCEPTED;
-          } else {
-            status = HttpResponseStatus.BAD_REQUEST;
-            output.append("Invalid service check payload.");
+          if (!reportChecks(jsonParser.readTree(requestBody), pointsPerRequest)) {
+            output.append("One or more checks were not valid.");
           }
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
@@ -223,6 +219,10 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
         writeHttpResponse(ctx, status, output, isKeepAlive);
         break;
 
+      case "/api/v1/validate/":
+        writeHttpResponse(ctx, HttpResponseStatus.OK, output, isKeepAlive);
+        break;
+
       case "/intake/":
         if (!processSystemMetrics) {
           Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port", handle)).inc();
@@ -230,10 +230,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
           return;
         }
         try {
-          if(reportSystemMetrics(jsonParser.readTree(requestBody), pointsPerRequest)) {
-            status = HttpResponseStatus.ACCEPTED;
-          } else {
-            status = HttpResponseStatus.BAD_REQUEST;
+          if (!reportSystemMetrics(jsonParser.readTree(requestBody), pointsPerRequest)) {
             output.append("At least one data point had error.");
           }
         } catch (Exception e) {
@@ -349,11 +346,23 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
     }
   }
 
-  private boolean reportCheck(final JsonNode check, @Nullable final AtomicInteger pointCounter) {
-    if (check == null) {
+  private boolean reportChecks(final JsonNode checkNode, @Nullable final AtomicInteger pointCounter) {
+    if (checkNode == null) {
       pointHandler.reject((ReportPoint) null, "Skipping - check object is null.");
       return false;
     }
+    if (checkNode.isArray()) {
+      boolean result = true;
+      for (JsonNode check : checkNode) {
+        result &= reportCheck(check, pointCounter);
+      }
+      return result;
+    } else {
+      return reportCheck(checkNode, pointCounter);
+    }
+  }
+
+  private boolean reportCheck(final JsonNode check, @Nullable final AtomicInteger pointCounter) {
     try {
       if (check.get("check") == null ) {
         pointHandler.reject((ReportPoint) null, "Skipping - 'check' field missing.");
