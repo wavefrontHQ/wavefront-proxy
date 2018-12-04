@@ -211,7 +211,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
         break;
 
       case "/api/v1/validate/":
-        writeHttpResponse(ctx, HttpResponseStatus.OK, output, isKeepAlive);
+        writeHttpResponse(ctx, HttpResponseStatus.OK, output, incomingRequest);
         break;
 
       case "/intake/":
