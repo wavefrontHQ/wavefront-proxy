@@ -44,6 +44,9 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
   // TODO: support sampling
   private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
+  private final static String APPLICATION_KEY = "application";
+  private final static String SERVICE_KEY = "service";
+  private final static String DEFAULT_APPLICATION = "Jaeger";
 
   private final String handle;
   private final ReportableEntityHandler<Span> handler;
@@ -68,10 +71,10 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     this.handle = handle;
     this.handler = handler;
     this.traceDisabled = traceDisabled;
-    this.discardedTraces = Metrics.newCounter(new MetricName("traces." + handle, "", "discarded"));
-    this.discardedBatches = Metrics.newCounter(new MetricName("traces." + handle + ".batches", "", "discarded"));
-    this.processedBatches = Metrics.newCounter(new MetricName("traces." + handle + ".batches", "", "processed"));
-    this.failedBatches = Metrics.newCounter(new MetricName("traces." + handle + ".batches", "", "failed"));
+    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+    this.discardedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
+    this.processedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
+    this.failedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "failed"));
   }
 
   @Override
@@ -119,18 +122,23 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     for (io.jaegertracing.thriftjava.Span span : batch.getSpans()) {
       processSpan(span, serviceName, sourceName);
     }
-
   }
 
   private void processSpan(io.jaegertracing.thriftjava.Span span, String serviceName, String sourceName) {
     List<Annotation> annotations = new ArrayList<>();
-    annotations.add(new Annotation("serviceName", serviceName));
+    // serviceName is mandatory in Jaeger
+    annotations.add(new Annotation(SERVICE_KEY, serviceName));
     long parentSpanId = span.getParentSpanId();
     if (parentSpanId > 0) {
       annotations.add(new Annotation("parent", new UUID(0, parentSpanId).toString()));
     }
+
+    boolean applicationTagPresent = false;
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
+        if (applicationTagPresent || tag.getKey().equals(APPLICATION_KEY)) {
+          applicationTagPresent = true;
+        }
         if (IGNORE_TAGS.contains(tag.getKey())) {
           continue;
         }
@@ -140,16 +148,23 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         }
       }
     }
+
+    if (!applicationTagPresent) {
+      // Original Jaeger span did not have application set, will default to 'Jaeger'
+      Annotation annotation = new Annotation(APPLICATION_KEY, DEFAULT_APPLICATION);
+      annotations.add(annotation);
+    }
+
     if (span.getReferences() != null) {
       for (SpanRef reference : span.getReferences()) {
         switch (reference.refType) {
           case CHILD_OF:
-            if (reference.getSpanId() > 0 && reference.getSpanId() != parentSpanId) {
+            if (reference.getSpanId() != 0 && reference.getSpanId() != parentSpanId) {
               annotations.add(new Annotation("parent", new UUID(0, reference.getSpanId()).toString()));
             }
           case FOLLOWS_FROM:
-            if (reference.getSpanId() > 0) {
-              annotations.add(new Annotation("followedFrom", new UUID(0, reference.getSpanId()).toString()));
+            if (reference.getSpanId() != 0) {
+              annotations.add(new Annotation("followsFrom", new UUID(0, reference.getSpanId()).toString()));
             }
           default:
         }

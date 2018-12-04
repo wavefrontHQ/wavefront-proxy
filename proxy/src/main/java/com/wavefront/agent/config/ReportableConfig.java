@@ -33,6 +33,9 @@ public class ReportableConfig {
     prop.load(new FileInputStream(fileName));
   }
 
+  public ReportableConfig() {
+  }
+
   /**
    * Returns string value for the property without tracking it as a metric
    *

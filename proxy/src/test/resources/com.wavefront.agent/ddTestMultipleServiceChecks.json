@@ -1,0 +1,14 @@
+[
+  {
+    "check": "testApp.status",
+    "host_name": "testHost",
+    "timestamp": 1536719228,
+    "status": 3
+  },
+  {
+    "check": "testApp2.status",
+    "host_name": "testHost2",
+    "timestamp": 1536719228,
+    "status": 2
+  }
+]

@@ -3,6 +3,7 @@ package com.wavefront.agent.listeners;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
+import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -15,6 +16,8 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
+
+import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandlerContext;
 import wavefront.report.Span;
@@ -38,26 +41,27 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
 
   @SuppressWarnings("unchecked")
   public TracePortUnificationHandler(final String handle,
-                              final ReportableEntityDecoder<String, Span> traceDecoder,
-                              final ReportableEntityPreprocessor preprocessor,
-                              final ReportableEntityHandlerFactory handlerFactory,
-                              final Sampler sampler) {
-    this(handle, traceDecoder, preprocessor, handlerFactory.getHandler(
-        HandlerKey.of(ReportableEntityType.TRACE, handle)), sampler);
+                                     final TokenAuthenticator tokenAuthenticator,
+                                     final ReportableEntityDecoder<String, Span> traceDecoder,
+                                     @Nullable final ReportableEntityPreprocessor preprocessor,
+                                     final ReportableEntityHandlerFactory handlerFactory,
+                                     final Sampler sampler) {
+    this(handle, tokenAuthenticator, traceDecoder, preprocessor,
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)), sampler);
   }
 
   public TracePortUnificationHandler(final String handle,
-                              final ReportableEntityDecoder<String, Span> traceDecoder,
-                              final ReportableEntityPreprocessor preprocessor,
-                              final ReportableEntityHandler<Span> handler,
-                              final Sampler sampler) {
-    super(handle);
+                                     final TokenAuthenticator tokenAuthenticator,
+                                     final ReportableEntityDecoder<String, Span> traceDecoder,
+                                     @Nullable final ReportableEntityPreprocessor preprocessor,
+                                     final ReportableEntityHandler<Span> handler,
+                                     final Sampler sampler) {
+    super(tokenAuthenticator, handle, true, true);
     this.decoder = traceDecoder;
     this.handler = handler;
     this.preprocessor = preprocessor;
     this.sampler = sampler;
   }
-
 
   @Override
   protected void processLine(final ChannelHandlerContext ctx, String message) {
@@ -115,4 +119,3 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
     }
   }
 }
-
