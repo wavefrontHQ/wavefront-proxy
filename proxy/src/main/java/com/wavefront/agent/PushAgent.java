@@ -45,9 +45,7 @@ import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.logsharvesting.RawLogsIngester;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
-import com.wavefront.agent.sampler.ReportableEntitySampler;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
-import com.wavefront.agent.sampler.SpanSamplerImpl;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
 import com.wavefront.common.NamedThreadFactory;
@@ -66,6 +64,7 @@ import com.wavefront.ingester.SpanDecoder;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.TcpIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
+import com.wavefront.sdk.entities.tracing.sampling.CompositeSampler;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -106,7 +105,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
 import wavefront.report.ReportPoint;
-import wavefront.report.Span;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -528,10 +526,10 @@ public class PushAgent extends AbstractAgent {
     Sampler rateSampler = SpanSamplerUtils.getRateSampler(traceSamplingRate);
     Sampler durationSampler = SpanSamplerUtils.getDurationSampler(traceSamplingDuration);
     List<Sampler> samplers = SpanSamplerUtils.fromSamplers(rateSampler, durationSampler);
-    ReportableEntitySampler<Span> spanSampler = new SpanSamplerImpl(samplers);
+    Sampler compositeSampler = new CompositeSampler(samplers);
 
     ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, new SpanDecoder("unknown"),
-        preprocessors.forPort(strPort), handlerFactory, spanSampler);
+        preprocessors.forPort(strPort), handlerFactory, compositeSampler);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
         .withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
