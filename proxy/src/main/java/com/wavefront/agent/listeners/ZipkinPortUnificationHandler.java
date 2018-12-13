@@ -41,7 +41,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   private final ReportableEntityHandler<Span> handler;
   private final AtomicBoolean traceDisabled;
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
-  private final Counter discardedTraces;
+  private final Counter discardedSpans;
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
@@ -54,6 +54,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   private final static String SHARD_KEY = "shard";
   private final static String SOURCE_KEY = "source";
   private final static String DEFAULT_APPLICATION = "Zipkin";
+  private final static String DEFAULT_SOURCE = "zipkin";
 
   public ZipkinPortUnificationHandler(String handle,
                                       ReportableEntityHandlerFactory handlerFactory,
@@ -69,7 +70,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     this.handle = handle;
     this.handler = handler;
     this.traceDisabled = traceDisabled;
-    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+    this.discardedSpans = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
     this.processedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
     this.failedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "failed"));
@@ -121,7 +122,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
         logger.info("Ingested spans discarded because tracing feature is not enabled on the server");
       }
       discardedBatches.inc();
-      discardedTraces.inc(zipkinSpans.size());
+      discardedSpans.inc(zipkinSpans.size());
       return;
     }
 
@@ -134,7 +135,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     List<Annotation> annotations = addAnnotations(zipkinSpan);
 
     // TODO: Confirm source value
-    String sourceName = zipkinSpan.tags().get(SOURCE_KEY) == null ? "unknown" : zipkinSpan.tags().get(SOURCE_KEY);
+    String sourceName = zipkinSpan.tags().get(SOURCE_KEY) == null ? DEFAULT_SOURCE : zipkinSpan.tags().get
+        (SOURCE_KEY);
     annotations.add(new Annotation(SOURCE_KEY, sourceName));
 
     //Build wavefront span

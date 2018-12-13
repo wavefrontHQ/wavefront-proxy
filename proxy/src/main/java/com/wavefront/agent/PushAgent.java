@@ -583,8 +583,8 @@ public class PushAgent extends AbstractAgent {
     final int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, traceDisabled);
 
-    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
-            .withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port).
+            withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
   }
 
   @VisibleForTesting
