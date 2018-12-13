@@ -550,6 +550,10 @@ public abstract class AbstractAgent {
       "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
+  @Parameter(names = {"--traceZipkinListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
+          "on for zipkin trace data over HTTP. Defaults to none.")
+  protected String traceZipkinListenerPorts;
+
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
 
@@ -973,6 +977,7 @@ public abstract class AbstractAgent {
         picklePorts = config.getString("picklePorts", picklePorts);
         traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
         traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
+        traceZipkinListenerPorts = config.getString("traceZipkinListenerPorts", traceZipkinListenerPorts);
         bufferFile = config.getString("buffer", bufferFile);
         preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
         dataBackfillCutoffHours = config.getNumber("dataBackfillCutoffHours", dataBackfillCutoffHours).intValue();

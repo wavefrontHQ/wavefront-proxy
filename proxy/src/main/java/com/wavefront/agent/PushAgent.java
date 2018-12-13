@@ -28,17 +28,10 @@ import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.AccumulationTask;
 import com.wavefront.agent.histogram.tape.TapeDeck;
 import com.wavefront.agent.histogram.tape.TapeStringListConverter;
-import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
-import com.wavefront.agent.listeners.JaegerThriftCollectorHandler;
-import com.wavefront.agent.listeners.JsonMetricsEndpoint;
-import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
-import com.wavefront.agent.listeners.TracePortUnificationHandler;
-import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
-import com.wavefront.agent.listeners.WriteHttpJsonMetricsEndpoint;
+import com.wavefront.agent.listeners.*;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.logsharvesting.RawLogsIngester;
-import com.wavefront.agent.listeners.ChannelByteArrayHandler;
 import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
 import com.wavefront.agent.channel.ConnectionTrackingHandler;
 import com.wavefront.agent.channel.IdleStateEventHandler;
@@ -316,6 +309,13 @@ public class PushAgent extends AbstractAgent {
         logger.info("listening on port: " + traceJaegerListenerPorts + " for trace data (Jaeger format)");
       }
     }
+    if (traceZipkinListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceZipkinListenerPorts);
+      for (String strPort : ports) {
+        startTraceZipkinListener(strPort, handlerFactory);
+        logger.info("listening on port: " + traceZipkinListenerPorts + " for Zipkin trace data.");
+      }
+    }
     if (jsonListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(jsonListenerPorts);
       for (String strPort : ports) {
@@ -548,6 +548,14 @@ public class PushAgent extends AbstractAgent {
         activeListeners.dec();
       }
     }, "listener-jaeger-thrift-" + strPort);
+  }
+
+  protected void startTraceZipkinListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    final int port = Integer.parseInt(strPort);
+    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, traceDisabled);
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
+            .withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
   }
 
   @VisibleForTesting
