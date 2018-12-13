@@ -15,14 +15,12 @@ import com.yammer.metrics.core.MetricName;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -225,7 +223,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     return spanUuid;
   }
 
-  private static String padLeft(String id, int desiredLength){
+  private static String padLeft(String id, int desiredLength) {
       StringBuilder builder = new StringBuilder(desiredLength);
       int offset = desiredLength - id.length();
 
@@ -234,13 +232,13 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
       return builder.toString();
     }
 
-  private static String addHyphens (String id){
+  private static String addHyphens(String id) {
     return id.replaceAll(
             "(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})",
             "$1-$2-$3-$4-$5");
   }
 
-  private static String convertToUuidString (String id){
+  private static String convertToUuidString(String id) {
     String uuid = null;
     if (id == null) {
       return null;
@@ -255,7 +253,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   }
 
     @Override
-    protected void processLine ( final ChannelHandlerContext ctx, final String message){
+    protected void processLine(final ChannelHandlerContext ctx, final String message) {
       throw new UnsupportedOperationException("Invalid context for processLine");
     }
   }
