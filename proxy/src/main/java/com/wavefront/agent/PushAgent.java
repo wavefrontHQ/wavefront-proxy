@@ -323,6 +323,13 @@ public class PushAgent extends AbstractAgent {
         logger.info("listening on port: " + traceZipkinListenerPorts + " for Zipkin trace data.");
       }
     }
+    if (traceZipkinListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceZipkinListenerPorts);
+      for (String strPort : ports) {
+        startTraceZipkinListener(strPort, handlerFactory);
+        logger.info("listening on port: " + traceZipkinListenerPorts + " for Zipkin trace data.");
+      }
+    }
     if (jsonListenerPorts != null) {
       Splitter.on(",").omitEmptyStrings().trimResults().split(jsonListenerPorts).forEach(this::startJsonListener);
     }
@@ -585,6 +592,14 @@ public class PushAgent extends AbstractAgent {
       }
     }, "listener-jaeger-thrift-" + strPort);
     logger.info("listening on port: " + strPort + " for trace data (Jaeger format)");
+  }
+
+  protected void startTraceZipkinListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    final int port = Integer.parseInt(strPort);
+    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, traceDisabled);
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
+            .withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
   }
 
   protected void startTraceZipkinListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
