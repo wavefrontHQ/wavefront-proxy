@@ -1721,11 +1721,22 @@ public abstract class AbstractAgent {
     }, null, null);
   }
 
+  /**
+   * Return a unique process identifier used to prevent collisions in ~proxy metrics.
+   * Try to extract system PID from RuntimeMXBean name string (usually in the "11111@hostname" format).
+   * If it's not parsable or an extracted PID is too low, for example, when running in containerized
+   * environment, chances of ID collision are much higher, so we use a random 32bit hex string instead.
+   *
+   * @return unique process identifier string
+   */
   private static String getProcessId() {
     try {
       final String runtime = ManagementFactory.getRuntimeMXBean().getName();
       if (runtime.indexOf("@") >= 1) {
-        return Long.toString(Long.parseLong(runtime.substring(0, runtime.indexOf("@"))));
+        long id = Long.parseLong(runtime.substring(0, runtime.indexOf("@")));
+        if (id > 1000) {
+          return Long.toString(id);
+        }
       }
     } catch (Exception e) {
       // can't resolve process ID, fall back to using random ID
