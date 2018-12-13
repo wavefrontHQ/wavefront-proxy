@@ -3,6 +3,8 @@ package com.wavefront.agent.listeners;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.RateLimiter;
+import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
+import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -64,7 +66,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   public ZipkinPortUnificationHandler(final String handle,
                                       ReportableEntityHandler<Span> handler,
                                       AtomicBoolean traceDisabled) {
-    super();
+    super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(), handle,
+            false, true);
     this.handle = handle;
     this.handler = handler;
     this.traceDisabled = traceDisabled;
@@ -76,38 +79,29 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest request) {
-    URI uri;
-    StringBuilder output = new StringBuilder();
-    boolean isKeepAlive = HttpUtil.isKeepAlive(request);
-
-    try {
-      uri = new URI(request.uri());
-    } catch (URISyntaxException e) {
-      writeExceptionText(e, output);
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, output, isKeepAlive);
-      logWarning("WF-400: Request URI '" + request.uri() + "' cannot be parsed", e, ctx);
-      return;
-    }
+                                   final FullHttpRequest incomingRequest) {
+    URI uri = parseUri(ctx, incomingRequest);
+    if (uri == null) return;
 
     String path = uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
 
     // Validate Uri Path and HTTP method of incoming Zipkin spans.
     if (!ZIPKIN_VALID_PATHS.contains(path)) {
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported URL path.", isKeepAlive);
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported URL path.", incomingRequest);
       logWarning("WF-400: Requested URI path '" + path + "' is not supported.", null, ctx);
       return;
     }
-    if (!request.method().toString().equalsIgnoreCase(ZIPKIN_VALID_HTTP_METHOD)) {
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported Http method.", isKeepAlive);
-      logWarning("WF-400: Requested http method '" + request.method().toString() + "' is not supported.", null, ctx);
+    if (!incomingRequest.method().toString().equalsIgnoreCase(ZIPKIN_VALID_HTTP_METHOD)) {
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported Http method.", incomingRequest);
+      logWarning("WF-400: Requested http method '" + incomingRequest.method().toString() + "' is not supported.", null, ctx);
       return;
     }
 
     HttpResponseStatus status;
+    StringBuilder output = new StringBuilder();
     try {
-      byte[] bytesArray = new byte[request.content().nioBuffer().remaining()];
-      request.content().nioBuffer().get(bytesArray, 0, bytesArray.length);
+      byte[] bytesArray = new byte[incomingRequest.content().nioBuffer().remaining()];
+      incomingRequest.content().nioBuffer().get(bytesArray, 0, bytesArray.length);
       BytesDecoder<zipkin2.Span> decoder = SpanBytesDecoderDetector.decoderForListMessage(bytesArray);
       List<zipkin2.Span> zipkinSpanSink = new ArrayList<>();
       decoder.decodeList(bytesArray, zipkinSpanSink);
@@ -120,7 +114,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
       status = HttpResponseStatus.BAD_REQUEST;
       logger.log(Level.WARNING, "Zipkin Thrift batch processing failed", Throwables.getRootCause(e));
     }
-    writeHttpResponse(ctx, status, output, isKeepAlive);
+    writeHttpResponse(ctx, status, output, incomingRequest);
   }
 
   private void processZipkinSpans(List<zipkin2.Span> zipkinSpans) {
