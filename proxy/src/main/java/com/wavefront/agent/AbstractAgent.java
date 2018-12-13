@@ -554,6 +554,10 @@ public abstract class AbstractAgent {
       "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
+  @Parameter(names = {"--traceZipkinListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
+          "on for zipkin trace data over HTTP. Defaults to none.")
+  protected String traceZipkinListenerPorts;
+
   @Parameter(names = {"--pushRelayListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for proxy chaining data. For internal use. Defaults to none.")
   protected String pushRelayListenerPorts;
