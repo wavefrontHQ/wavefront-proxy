@@ -554,10 +554,12 @@ public abstract class AbstractAgent {
       "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
-  @Parameter(names = {"--traceSamplingRate"}, description = "Value between 0.0 and 1.0. Defaults to 1.0 (allow all spans).")
+  @Parameter(names = {"--traceSamplingRate"}, description = "Value between 0.0 and 1.0. " +
+      "Defaults to 1.0 (allow all spans).")
   protected double traceSamplingRate = 1.0d;
 
-  @Parameter(names = {"--traceSamplingDuration"}, description = "Sample spans by duration in milliseconds. Defaults to 0 (ignore duration based sampling).")
+  @Parameter(names = {"--traceSamplingDuration"}, description = "Sample spans by duration in " +
+      "milliseconds. " + "Defaults to 0 (ignore duration based sampling).")
   protected Integer traceSamplingDuration = 0;
 
   @Parameter(names = {"--pushRelayListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
