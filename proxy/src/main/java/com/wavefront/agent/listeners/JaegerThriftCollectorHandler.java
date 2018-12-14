@@ -47,6 +47,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final static String APPLICATION_KEY = "application";
   private final static String SERVICE_KEY = "service";
   private final static String DEFAULT_APPLICATION = "Jaeger";
+  private static final Logger jaegerDataLogger = Logger.getLogger("JaegerDataLogger");
 
   private final String handle;
   private final ReportableEntityHandler<Span> handler;
@@ -180,6 +181,13 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         .setDuration(span.getDuration() / 1000)
         .setAnnotations(annotations)
         .build();
+
+    // Log Jaeger spans as well as Wavefront spans for debugging purposes.
+    if (jaegerDataLogger.isLoggable(Level.FINEST)) {
+      logger.info("JaegerToWavefrontSpan: " + span.toString());
+      logger.info("JaegerToWavefrontSpan: " + newSpan.toString());
+    }
+
     handler.report(newSpan);
   }
 
