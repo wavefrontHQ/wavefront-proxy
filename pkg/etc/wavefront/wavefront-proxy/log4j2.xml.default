@@ -88,6 +88,12 @@
             <AppenderRef ref="ValidPointsFile"/>
             -->
         </AsyncLogger>
+        <!-- Uncomment AppenderRef and set level="ALL" to log Jaeger data to a file -->
+        <AsyncLogger name="JaegerDataLogger" level="DEBUG" additivity="false">
+            <!--
+            <AppenderRef ref="JaegerDataFile"/>
+            -->
+        </AsyncLogger>
         <Root level="INFO">
             <AppenderRef ref="RollingFile"/>
             <AppenderRef ref="Console" />
