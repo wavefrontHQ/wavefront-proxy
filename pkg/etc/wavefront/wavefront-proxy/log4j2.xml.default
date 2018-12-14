@@ -72,6 +72,25 @@
             </DefaultRolloverStrategy>
         </RollingFile>
         -->
+        <!-- Uncomment the RollingFile section below to log all Jaeger tracing spans to a file -->
+        <!--
+        <RollingFile name="JaegerDataFile" fileName="${log-path}/wavefront-jaeger-data.log"
+                     filePattern="${log-path}/wavefront-jaeger-data-%d{yyyy-MM-dd}-%i.log" >
+            <PatternLayout>
+                <pattern>%m%n</pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="1024 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                    <IfFileName glob="wavefront-jaeger*.log" />
+                    <IfLastModified age="7d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        -->
     </Appenders>
     <Loggers>
         <!-- Uncomment AppenderRef to log blocked points to a file.
