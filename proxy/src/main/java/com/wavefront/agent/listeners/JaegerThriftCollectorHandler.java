@@ -184,8 +184,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
     // Log Jaeger spans as well as Wavefront spans for debugging purposes.
     if (jaegerDataLogger.isLoggable(Level.FINEST)) {
-      logger.info("JaegerToWavefrontSpan: " + span.toString());
-      logger.info("JaegerToWavefrontSpan: " + newSpan.toString());
+      jaegerDataLogger.info("Inbound Jaeger span: " + span.toString());
+      jaegerDataLogger.info("Converted Wavefront span: " + newSpan.toString());
     }
 
     handler.report(newSpan);
