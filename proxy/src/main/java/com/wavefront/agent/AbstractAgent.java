@@ -554,6 +554,14 @@ public abstract class AbstractAgent {
       "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
+  @Parameter(names = {"--traceSamplingRate"}, description = "Value between 0.0 and 1.0. " +
+      "Defaults to 1.0 (allow all spans).")
+  protected double traceSamplingRate = 1.0d;
+
+  @Parameter(names = {"--traceSamplingDuration"}, description = "Sample spans by duration in " +
+      "milliseconds. " + "Defaults to 0 (ignore duration based sampling).")
+  protected Integer traceSamplingDuration = 0;
+
   @Parameter(names = {"--pushRelayListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for proxy chaining data. For internal use. Defaults to none.")
   protected String pushRelayListenerPorts;
@@ -1014,6 +1022,9 @@ public abstract class AbstractAgent {
       picklePorts = config.getString("picklePorts", picklePorts);
       traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
       traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
+      traceSamplingRate = Double.parseDouble(config.getRawProperty("traceSamplingRate",
+          String.valueOf(traceSamplingRate)).trim());
+      traceSamplingDuration = config.getNumber("traceSamplingDuration", traceSamplingDuration).intValue();
       pushRelayListenerPorts = config.getString("pushRelayListenerPorts", pushRelayListenerPorts);
       bufferFile = config.getString("buffer", bufferFile);
       preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
