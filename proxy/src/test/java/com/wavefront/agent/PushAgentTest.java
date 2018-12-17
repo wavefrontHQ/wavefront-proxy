@@ -12,12 +12,10 @@ import junit.framework.AssertionFailedError;
 import net.jcip.annotations.NotThreadSafe;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.entity.StringEntity;
 import org.easymock.EasyMock;
 import org.junit.After;
@@ -34,6 +32,7 @@ import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -299,12 +298,13 @@ public class PushAgentTest {
   @Test
   public void testTraceUnifiedPortHandlerPlaintext() throws Exception {
     reset(mockTraceHandler);
+    String traceId = UUID.randomUUID().toString();
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
         .setDuration(1000)
         .setName("testSpanName")
         .setSource("testsource")
         .setSpanId("testspanid")
-        .setTraceId("testtraceid")
+        .setTraceId(traceId)
         .setAnnotations(ImmutableList.of(new Annotation("parent", "parent1"), new Annotation("parent", "parent2")))
         .build());
     expectLastCall();
@@ -312,8 +312,8 @@ public class PushAgentTest {
 
     Socket socket = SocketFactory.getDefault().createSocket("localhost", tracePort);
     BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
-    String payloadStr = "testSpanName parent=parent1 source=testsource spanId=testspanid traceId=testtraceid " +
-        "parent=parent2 " + startTime + " " + (startTime + 1) + "\n";
+    String payloadStr = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
+        "traceId=" + traceId + " parent=parent2 " + startTime + " " + (startTime + 1) + "\n";
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();

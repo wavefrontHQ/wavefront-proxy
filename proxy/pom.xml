@@ -23,6 +23,11 @@
       <artifactId>java-lib</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.wavefront</groupId>
+      <artifactId>wavefront-sdk-java</artifactId>
+      <version>1.1</version>
+    </dependency>
+    <dependency>
       <groupId>com.beust</groupId>
       <artifactId>jcommander</artifactId>
       <version>1.72</version>
