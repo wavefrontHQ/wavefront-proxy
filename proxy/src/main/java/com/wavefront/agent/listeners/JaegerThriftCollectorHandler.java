@@ -10,7 +10,9 @@ import com.uber.tchannel.messages.ThriftResponse;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
+import com.wavefront.sdk.common.Constants;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -44,8 +46,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
   // TODO: support sampling
   private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
-  private final static String APPLICATION_KEY = "application";
-  private final static String SERVICE_KEY = "service";
+  private final static String APPLICATION_KEY = Constants.APPLICATION_TAG_KEY;
+  private final static String SERVICE_KEY = Constants.SERVICE_TAG_KEY;
   private final static String DEFAULT_APPLICATION = "Jaeger";
   private static final Logger jaegerDataLogger = Logger.getLogger("JaegerDataLogger");
 
@@ -161,11 +163,12 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         switch (reference.refType) {
           case CHILD_OF:
             if (reference.getSpanId() != 0 && reference.getSpanId() != parentSpanId) {
-              annotations.add(new Annotation("parent", new UUID(0, reference.getSpanId()).toString()));
+              annotations.add(new Annotation(TraceConstants.PARENT_KEY, new UUID(0, reference.getSpanId()).toString()));
             }
           case FOLLOWS_FROM:
             if (reference.getSpanId() != 0) {
-              annotations.add(new Annotation("followsFrom", new UUID(0, reference.getSpanId()).toString()));
+              annotations.add(new Annotation(TraceConstants.FOLLOWS_FROM_KEY, new UUID(0, reference.getSpanId())
+                  .toString()));
             }
           default:
         }
