@@ -4,23 +4,18 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.RateLimiter;
 
+import com.wavefront.agent.Utils;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
+import com.wavefront.sdk.common.Constants;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import wavefront.report.Annotation;
-import wavefront.report.Span;
-import zipkin2.SpanBytesDecoderDetector;
-import zipkin2.codec.BytesDecoder;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -30,6 +25,14 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import wavefront.report.Annotation;
+import wavefront.report.Span;
+import zipkin2.SpanBytesDecoderDetector;
+import zipkin2.codec.BytesDecoder;
 
 /**
  * Handler that processes Zipkin trace data over HTTP and converts them to Wavefront format.
@@ -43,7 +46,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   private final ReportableEntityHandler<Span> handler;
   private final AtomicBoolean traceDisabled;
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
-  private final Counter discardedSpans;
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
@@ -52,13 +54,15 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
       "/api/v1/spans/",
       "/api/v2/spans/");
   private final static String ZIPKIN_VALID_HTTP_METHOD = "POST";
-  private final static String APPLICATION_KEY = "application";
-  private final static String SERVICE_KEY = "service";
-  private final static String CLUSTER_KEY = "cluster";
-  private final static String SHARD_KEY = "shard";
-  private final static String SOURCE_KEY = "source";
+  private final static String APPLICATION_KEY = Constants.APPLICATION_TAG_KEY;
+  private final static String SERVICE_KEY = Constants.SERVICE_TAG_KEY;
+  private final static String CLUSTER_KEY = Constants.CLUSTER_TAG_KEY;
+  private final static String SHARD_KEY = Constants.SHARD_TAG_KEY;
+  private final static String SOURCE_KEY = Constants.SOURCE_KEY;
   private final static String DEFAULT_APPLICATION = "Zipkin";
   private final static String DEFAULT_SOURCE = "zipkin";
+
+  private static final Logger zipkinDataLogger = Logger.getLogger("ZipkinDataLogger");
 
   public ZipkinPortUnificationHandler(String handle,
                                       ReportableEntityHandlerFactory handlerFactory,
@@ -72,16 +76,16 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
                                       ReportableEntityHandler<Span> handler,
                                       AtomicBoolean traceDisabled) {
     super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(),
-        handle,
-        false,
-        true);
+        handle, false, true);
     this.handle = handle;
     this.handler = handler;
     this.traceDisabled = traceDisabled;
-    this.discardedSpans = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
-    this.discardedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
-    this.processedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
-    this.failedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "failed"));
+    this.discardedBatches = Metrics.newCounter(new MetricName(
+        "spans." + handle + ".batches", "", "discarded"));
+    this.processedBatches = Metrics.newCounter(new MetricName(
+        "spans." + handle + ".batches", "", "processed"));
+    this.failedBatches = Metrics.newCounter(new MetricName(
+        "spans." + handle + ".batches", "", "failed"));
   }
 
   @Override
@@ -107,6 +111,22 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
 
     HttpResponseStatus status;
     StringBuilder output = new StringBuilder();
+
+    // Handle case when tracing is disabled, ignore reported spans.
+    if (traceDisabled.get()) {
+      if (warningLoggerRateLimiter.tryAcquire()) {
+        logger.info("Ingested spans discarded because tracing feature is not enabled on the " +
+            "server");
+      }
+      discardedBatches.inc();
+      output.append("Ingested spans discarded because tracing feature is not enabled on the " +
+          "server.");
+      status = HttpResponseStatus.ACCEPTED;
+      writeHttpResponse(ctx, status, output, incomingRequest);
+      return;
+    }
+
+
     try {
       byte[] bytesArray = new byte[incomingRequest.content().nioBuffer().remaining()];
       incomingRequest.content().nioBuffer().get(bytesArray, 0, bytesArray.length);
@@ -126,15 +146,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   }
 
   private void processZipkinSpans(List<zipkin2.Span> zipkinSpans) {
-    if (traceDisabled.get()) {
-      if (warningLoggerRateLimiter.tryAcquire()) {
-        logger.info("Ingested spans discarded because tracing feature is not enabled on the server");
-      }
-      discardedBatches.inc();
-      discardedSpans.inc(zipkinSpans.size());
-      return;
-    }
-
     for (zipkin2.Span zipkinSpan : zipkinSpans) {
       processZipkinSpan(zipkinSpan);
     }
@@ -143,9 +154,17 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   private void processZipkinSpan(zipkin2.Span zipkinSpan) {
     List<Annotation> annotations = addAnnotations(zipkinSpan);
 
-    // TODO: Confirm source value
-    String sourceName = zipkinSpan.tags().get(SOURCE_KEY) == null ? DEFAULT_SOURCE : zipkinSpan
-        .tags().get(SOURCE_KEY);
+    /** Add source of the span following the below:
+     *    1. If "source" is provided by span tags , use it else
+     *    2. Set "source" to local service endpoint's ipv4 address, else
+     *    3. Default "source" to "zipkin".
+     */
+    String sourceName = DEFAULT_SOURCE;
+    if (zipkinSpan.tags().get(SOURCE_KEY) != null) {
+      sourceName = zipkinSpan.tags().get(SOURCE_KEY);
+    } else if (zipkinSpan.localEndpoint().ipv4() != null) {
+      sourceName = zipkinSpan.localEndpoint().ipv4();
+    }
     annotations.add(new Annotation(SOURCE_KEY, sourceName));
 
     //Build wavefront span
@@ -154,11 +173,18 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
         setName(zipkinSpan.name()).
         setSource(sourceName).
         setSpanId(getSpanUuid(zipkinSpan)).
-        setTraceId(convertToUuidString(zipkinSpan.traceId())).
+        setTraceId(Utils.convertToUuidString(zipkinSpan.traceId())).
         setStartMillis(zipkinSpan.timestampAsLong() / 1000).
         setDuration(zipkinSpan.durationAsLong() / 1000).
         setAnnotations(annotations).
         build();
+
+    // Log Zipkin spans as well as Wavefront spans for debugging purposes.
+    if (zipkinDataLogger.isLoggable(Level.FINEST)) {
+      zipkinDataLogger.info("Inbound Zipkin span: " + zipkinSpan.toString());
+      zipkinDataLogger.info("Converted Wavefront span: " + newSpan.toString());
+    }
+
     handler.report(newSpan);
   }
 
@@ -181,7 +207,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
 
     // Set Span's References.
     if (zipkinSpan.parentId() != null) {
-      annotations.add(new Annotation("parent", convertToUuidString(zipkinSpan.parentId())));
+      annotations.add(new Annotation(TraceConstants.PARENT_KEY, Utils.convertToUuidString(zipkinSpan
+          .parentId())));
     }
 
     // Set Span Http Tags.
@@ -207,7 +234,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     if (zipkinSpan.kind().toString().equalsIgnoreCase("client")) {
       return createAlternateSpanId(zipkinSpan.id());
     }
-    return convertToUuidString(zipkinSpan.id());
+    return Utils.convertToUuidString(zipkinSpan.id());
   }
 
   /**
@@ -217,47 +244,15 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
    * Ex: clients zipkin spanId = Encoded as 16 digit hex (Ex: 2822889fe47043bd) clients wavefront
    * spanUuId = randomly generated 16 digit hex + zipkin spanId
    */
-  private static String createAlternateSpanId(String spanId) {
+  private static String createAlternateSpanId(String zipkinSpanId) {
     String spanUuid;
-    Long mostSigBits = UUID.randomUUID().getMostSignificantBits();
-    String mostSig = String.valueOf(mostSigBits);
-    // Handle negative numbers.
-    if (mostSig.startsWith("-")) {
-      mostSig = mostSig.substring(1);
-    }
-    spanUuid = UUID.fromString(mostSig.replaceAll("(\\w{8})(\\w{4})(\\w{4})", "$1-$2-$3") +
-        "-" +
-        spanId.replaceAll("(\\w{4})(\\w{12})", "$1-$2")).toString();
+    // Returned in format <8-4-4>.
+    String mostSig = UUID.randomUUID().toString().substring(0,18);
+
+    spanUuid = mostSig + "-" +
+        zipkinSpanId.substring(0,4) + "-" +
+        zipkinSpanId.substring(4,16);
     return spanUuid;
-  }
-
-  private static String padLeft(String id, int desiredLength) {
-    StringBuilder builder = new StringBuilder(desiredLength);
-    int offset = desiredLength - id.length();
-
-    for (int i = 0; i < offset; i++) builder.append('0');
-    builder.append(id);
-    return builder.toString();
-  }
-
-  private static String addHyphens(String id) {
-    return id.replaceAll(
-        "(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})",
-        "$1-$2-$3-$4-$5");
-  }
-
-  private static String convertToUuidString(String id) {
-    String uuid = null;
-    if (id == null) {
-      return null;
-    }
-    if (id.length() == 32) {
-      uuid = addHyphens(id);
-    } else {
-      String paddedId = padLeft(id, 32);
-      uuid = addHyphens(paddedId);
-    }
-    return uuid;
   }
 
   @Override
