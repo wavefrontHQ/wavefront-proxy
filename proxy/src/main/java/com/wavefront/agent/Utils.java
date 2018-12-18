@@ -55,7 +55,7 @@ public abstract class Utils {
    * This Method specifically converts id's with less than 32 digit hex characters into UUID
    * format (See <a href="http://www.ietf.org/rfc/rfc4122.txt"> <i>RFC&nbsp;4122: A
    * Universally Unique IDentifier (UUID) URN Namespace</i></a>) by left padding id with Zeroes
-   * and adding hyphens. It assumes that if the input id contains hyphens it is already an UUID
+   * and adding hyphens. It assumes that if the input id contains hyphens it is already an UUID.
    * Please don't use this method to validate/guarantee your id as an UUID.
    *
    * @param id
