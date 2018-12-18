@@ -140,7 +140,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
       failedBatches.inc();
       writeExceptionText(e, output);
       status = HttpResponseStatus.BAD_REQUEST;
-      logger.log(Level.WARNING, "Zipkin Thrift batch processing failed", Throwables.getRootCause(e));
+      logger.log(Level.WARNING, "Zipkin batch processing failed", Throwables.getRootCause(e));
     }
     writeHttpResponse(ctx, status, output, incomingRequest);
   }
