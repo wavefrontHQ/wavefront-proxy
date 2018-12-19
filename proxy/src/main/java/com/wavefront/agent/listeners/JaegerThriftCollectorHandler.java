@@ -132,7 +132,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     // serviceName is mandatory in Jaeger
     annotations.add(new Annotation(SERVICE_KEY, serviceName));
     long parentSpanId = span.getParentSpanId();
-    if (parentSpanId > 0) {
+    if (parentSpanId != 0) {
       annotations.add(new Annotation("parent", new UUID(0, parentSpanId).toString()));
     }
 
