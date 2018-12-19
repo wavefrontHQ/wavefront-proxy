@@ -129,7 +129,7 @@
       <groupId>org.easymock</groupId>
       <artifactId>easymock</artifactId>
       <scope>test</scope>
-      <version>3.4</version>
+      <version>4.0.1</version>
     </dependency>
     <!-- https://mvnrepository.com/artifact/org.hamcrest/hamcrest-all -->
     <dependency>

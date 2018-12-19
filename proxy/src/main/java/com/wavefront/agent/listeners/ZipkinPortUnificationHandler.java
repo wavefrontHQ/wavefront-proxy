@@ -165,7 +165,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     } else if (zipkinSpan.localEndpoint().ipv4() != null) {
       sourceName = zipkinSpan.localEndpoint().ipv4();
     }
-    annotations.add(new Annotation(SOURCE_KEY, sourceName));
 
     //Build wavefront span
     Span newSpan = Span.newBuilder().
