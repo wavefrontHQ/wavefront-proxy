@@ -57,6 +57,21 @@ public class JaegerThriftCollectorHandlerTest {
         .build());
     expectLastCall();
 
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(3456)
+        .setName("HTTP GET /")
+        .setSource("10.0.0.1")
+        .setSpanId("00000000-0000-0000-9a12-b85901d53397")
+        .setTraceId("00000000-0000-0000-fea4-87ee36e58cab")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("parent", "00000000-0000-0000-fea4-87ee36e58cab"),
+            new Annotation("application", "Jaeger")))
+        .build());
+    expectLastCall();
+
+
     replay(mockTraceHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
@@ -71,12 +86,16 @@ public class JaegerThriftCollectorHandlerTest {
     io.jaegertracing.thriftjava.Span span2 = new io.jaegertracing.thriftjava.Span(1234567890123L, 1234567890L,
         2345678L, 1234567L, "HTTP GET /", 1, startTime * 1000, 2345 * 1000);
 
+    // check negative span IDs too
+    io.jaegertracing.thriftjava.Span span3 = new io.jaegertracing.thriftjava.Span(-97803834702328661L, 0L,
+        -7344605349865507945L, -97803834702328661L, "HTTP GET /", 1, startTime * 1000, 3456 * 1000);
+
     Batch testBatch = new Batch();
     testBatch.process = new Process();
     testBatch.process.serviceName = "frontend";
     testBatch.process.setTags(ImmutableList.of(tag1));
 
-    testBatch.setSpans(ImmutableList.of(span1, span2));
+    testBatch.setSpans(ImmutableList.of(span1, span2, span3));
 
     Collector.submitBatches_args batches = new Collector.submitBatches_args();
     batches.addToBatches(testBatch);
