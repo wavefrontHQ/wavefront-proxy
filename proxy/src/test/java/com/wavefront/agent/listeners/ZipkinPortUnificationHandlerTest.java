@@ -102,39 +102,39 @@ public class ZipkinPortUnificationHandlerTest {
     reset(mockTraceHandler);
 
     // Set Expectation
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
-        .setDuration(1234)
-        .setName("getservice")
-        .setSource("10.0.0.1")
-        .setSpanId("00000000-0000-0000-2822-889fe47043bd")
-        .setTraceId("00000000-0000-0000-2822-889fe47043bd")
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+        setDuration(1234).
+        setName("getservice").
+        setSource("10.0.0.1").
+        setSpanId("00000000-0000-0000-2822-889fe47043bd").
+        setTraceId("00000000-0000-0000-2822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
-        .setAnnotations(ImmutableList.of(
+        setAnnotations(ImmutableList.of(
             new Annotation("application", "Zipkin"),
             new Annotation("span.kind", "server"),
             new Annotation("service", "frontend"),
             new Annotation("http.method", "GET"),
             new Annotation("http.url", "none+h1c://localhost:8881/"),
-            new Annotation("http.status_code", "200")))
-        .build());
+            new Annotation("http.status_code", "200"))).
+        build());
     expectLastCall();
 
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
-        .setDuration(2234)
-        .setName("getbackendservice")
-        .setSource("10.0.0.1")
-        .setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8")
-        .setTraceId("00000000-0000-0000-2822-889fe47043bd")
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+        setDuration(2234).
+        setName("getbackendservice").
+        setSource("10.0.0.1").
+        setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
+        setTraceId("00000000-0000-0000-2822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
-        .setAnnotations(ImmutableList.of(
+        setAnnotations(ImmutableList.of(
             new Annotation("application", "Zipkin"),
             new Annotation("parent", "00000000-0000-0000-2822-889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("service", "backend"),
             new Annotation("http.method", "GET"),
             new Annotation("http.url", "none+h2c://localhost:9000/api"),
-            new Annotation("http.status_code", "200")))
-        .build());
+            new Annotation("http.status_code", "200"))).
+        build());
     expectLastCall();
 
     // Replay

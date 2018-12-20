@@ -6,6 +6,8 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 /**
  * A placeholder class for miscellaneous utility methods.
  *
@@ -61,7 +63,8 @@ public abstract class Utils {
    * @param id a string encoded in hex characters.
    * @return a UUID string.
    */
-  public static String convertToUuidString(String id) {
+  @Nullable
+  public static String convertToUuidString(@Nullable String id) {
     if (id == null || id.contains("-")) {
       return id;
     }

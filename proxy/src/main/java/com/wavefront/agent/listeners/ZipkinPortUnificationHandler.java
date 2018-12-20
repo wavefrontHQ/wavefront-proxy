@@ -61,8 +61,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   private final static String ZIPKIN_VALID_HTTP_METHOD = "POST";
   private final static String DEFAULT_APPLICATION = "Zipkin";
   private final static String DEFAULT_SOURCE = "zipkin";
-  private final static String DEFAULT_SERVICE = "unknown";
-  private final static String DEFAULT_SPAN_NAME = "unknown";
+  private final static String DEFAULT_SERVICE = "defaultService";
+  private final static String DEFAULT_SPAN_NAME = "defaultOperation";
 
   private static final Logger zipkinDataLogger = Logger.getLogger("ZipkinDataLogger");
 
@@ -128,7 +128,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
       return;
     }
 
-
     try {
       byte[] bytesArray = new byte[incomingRequest.content().nioBuffer().remaining()];
       incomingRequest.content().nioBuffer().get(bytesArray, 0, bytesArray.length);
@@ -154,6 +153,9 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   }
 
   private void processZipkinSpan(zipkin2.Span zipkinSpan) {
+    if (zipkinDataLogger.isLoggable(Level.FINEST)) {
+      zipkinDataLogger.info("Inbound Zipkin span: " + zipkinSpan.toString());
+    }
     // Add application tags, span references , span kind and http uri, responses etc.
     List<Annotation> annotations = addAnnotations(zipkinSpan);
 
@@ -177,7 +179,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
         setCustomer("dummy").
         setName(spanName).
         setSource(sourceName).
-        setSpanId(getSpanUuid(zipkinSpan)).
+        setSpanId(Utils.convertToUuidString(zipkinSpan.id())).
         setTraceId(Utils.convertToUuidString(zipkinSpan.traceId())).
         setStartMillis(zipkinSpan.timestampAsLong() / 1000).
         setDuration(zipkinSpan.durationAsLong() / 1000).
@@ -186,7 +188,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
 
     // Log Zipkin spans as well as Wavefront spans for debugging purposes.
     if (zipkinDataLogger.isLoggable(Level.FINEST)) {
-      zipkinDataLogger.info("Inbound Zipkin span: " + zipkinSpan.toString());
       zipkinDataLogger.info("Converted Wavefront span: " + newSpan.toString());
     }
 
@@ -202,8 +203,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
 
     // Set Span's References.
     if (zipkinSpan.parentId() != null) {
-      annotations.add(new Annotation(TraceConstants.PARENT_KEY, Utils.convertToUuidString(zipkinSpan
-          .parentId())));
+      annotations.add(new Annotation(TraceConstants.PARENT_KEY,
+          Utils.convertToUuidString(zipkinSpan.parentId())));
     }
 
     // Set Span Kind.
@@ -235,37 +236,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     } else if (defaultValue != null) {
       annotations.add(new Annotation(key, defaultValue));
     }
-  }
-
-  private static String getSpanUuid(zipkin2.Span zipkinSpan) {
-
-    /**
-     * Handle span Id's in Zipkin to separate client and server spans and comply with wavefront format.
-     * Otherwise, A Zipkin span with span.kind as "client" or "server", both share the same span
-     * Id and both won't be shown in the tracing UI.
-     */
-    if (zipkinSpan.kind().toString().equalsIgnoreCase("client")) {
-      return createAlternateSpanId(zipkinSpan.id());
-    }
-    return Utils.convertToUuidString(zipkinSpan.id());
-  }
-
-  /**
-   * Method to create alternate wavefront spanId for client spans assuming zipkin spanId is Encoded
-   * as 16 lowercase hex characters.
-   *
-   * Ex: clients zipkin spanId = Encoded as 16 digit hex (Ex: 2822889fe47043bd) clients wavefront
-   * spanUuId = randomly generated 16 digit hex + zipkin spanId
-   */
-  private static String createAlternateSpanId(String zipkinSpanId) {
-    String spanUuid;
-    // Returned in format <8-4-4>.
-    String mostSig = UUID.randomUUID().toString().substring(0, 18);
-
-    spanUuid = mostSig + "-" +
-        zipkinSpanId.substring(0, 4) + "-" +
-        zipkinSpanId.substring(4, 16);
-    return spanUuid;
   }
 
   @Override
