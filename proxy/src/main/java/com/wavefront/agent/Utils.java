@@ -42,7 +42,7 @@ public abstract class Utils {
    * Requires an input uuid string Encoded as 32 hex characters.
    * For example {@code cced093a76eea418ffdc9bb9a6453df3}
    *
-   * @param uuid string encoded as 32 hex characters
+   * @param uuid string encoded as 32 hex characters.
    * @return uuid string encoded in 8-4-4-4-12 (rfc4122) format.
    */
   public static String addHyphensToUuid(String uuid) {
@@ -58,11 +58,13 @@ public abstract class Utils {
    * and adding hyphens. It assumes that if the input id contains hyphens it is already an UUID.
    * Please don't use this method to validate/guarantee your id as an UUID.
    *
-   * @param id
+   * @param id a string encoded in hex characters.
    * @return a UUID string.
    */
   public static String convertToUuidString(String id) {
-    if (id == null || id.contains("-")) return id;
+    if (id == null || id.contains("-")) {
+      return id;
+    }
     return addHyphensToUuid(StringUtils.leftPad(id, 32, '0'));
   }
 }

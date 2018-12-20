@@ -12,7 +12,6 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
-import com.wavefront.sdk.common.Constants;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -34,6 +33,12 @@ import wavefront.report.Span;
 import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
+import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
+
 /**
  * Handler that processes Zipkin trace data over HTTP and converts them to Wavefront format.
  *
@@ -54,13 +59,10 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
       "/api/v1/spans/",
       "/api/v2/spans/");
   private final static String ZIPKIN_VALID_HTTP_METHOD = "POST";
-  private final static String APPLICATION_KEY = Constants.APPLICATION_TAG_KEY;
-  private final static String SERVICE_KEY = Constants.SERVICE_TAG_KEY;
-  private final static String CLUSTER_KEY = Constants.CLUSTER_TAG_KEY;
-  private final static String SHARD_KEY = Constants.SHARD_TAG_KEY;
-  private final static String SOURCE_KEY = Constants.SOURCE_KEY;
   private final static String DEFAULT_APPLICATION = "Zipkin";
   private final static String DEFAULT_SOURCE = "zipkin";
+  private final static String DEFAULT_SERVICE = "unknown";
+  private final static String DEFAULT_SPAN_NAME = "unknown";
 
   private static final Logger zipkinDataLogger = Logger.getLogger("ZipkinDataLogger");
 
@@ -152,6 +154,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   }
 
   private void processZipkinSpan(zipkin2.Span zipkinSpan) {
+    // Add application tags, span references , span kind and http uri, responses etc.
     List<Annotation> annotations = addAnnotations(zipkinSpan);
 
     /** Add source of the span following the below:
@@ -160,16 +163,19 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
      *    3. Default "source" to "zipkin".
      */
     String sourceName = DEFAULT_SOURCE;
-    if (zipkinSpan.tags().get(SOURCE_KEY) != null) {
-      sourceName = zipkinSpan.tags().get(SOURCE_KEY);
-    } else if (zipkinSpan.localEndpoint().ipv4() != null) {
-      sourceName = zipkinSpan.localEndpoint().ipv4();
+    if (zipkinSpan.tags() != null && zipkinSpan.tags().size() > 0) {
+      if (zipkinSpan.tags().get(SOURCE_KEY) != null) {
+        sourceName = zipkinSpan.tags().get(SOURCE_KEY);
+      } else if (zipkinSpan.localEndpoint() != null && zipkinSpan.localEndpoint().ipv4() != null) {
+        sourceName = zipkinSpan.localEndpoint().ipv4();
+      }
     }
-
+    // Set spanName.
+    String spanName = zipkinSpan.name() == null ? DEFAULT_SPAN_NAME : zipkinSpan.name();
     //Build wavefront span
     Span newSpan = Span.newBuilder().
         setCustomer("dummy").
-        setName(zipkinSpan.name()).
+        setName(spanName).
         setSource(sourceName).
         setSpanId(getSpanUuid(zipkinSpan)).
         setTraceId(Utils.convertToUuidString(zipkinSpan.traceId())).
@@ -189,20 +195,10 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
 
   private List<Annotation> addAnnotations(zipkin2.Span zipkinSpan) {
     List<Annotation> annotations = new ArrayList<>();
-
     // Set Span's Application Tags.
-    String applicationName = zipkinSpan.tags().get(APPLICATION_KEY) == null ? DEFAULT_APPLICATION
-        : zipkinSpan.tags().get(APPLICATION_KEY);
-    annotations.add(new Annotation(APPLICATION_KEY, applicationName));
-
-    annotations.add(new Annotation(SERVICE_KEY, zipkinSpan.localServiceName()));
-
-    if (zipkinSpan.tags().get(CLUSTER_KEY) != null) {
-      annotations.add(new Annotation(CLUSTER_KEY, zipkinSpan.tags().get(CLUSTER_KEY)));
-    }
-    if (zipkinSpan.tags().get(SHARD_KEY) != null) {
-      annotations.add(new Annotation(SHARD_KEY, zipkinSpan.tags().get(SHARD_KEY)));
-    }
+    addTagWithKey(zipkinSpan, annotations, APPLICATION_TAG_KEY, DEFAULT_APPLICATION);
+    addTagWithKey(zipkinSpan, annotations, CLUSTER_TAG_KEY, null);
+    addTagWithKey(zipkinSpan, annotations, SHARD_TAG_KEY, null);
 
     // Set Span's References.
     if (zipkinSpan.parentId() != null) {
@@ -210,17 +206,35 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
           .parentId())));
     }
 
-    // Set Span Http Tags.
-    if (zipkinSpan.tags() != null && zipkinSpan.tags().size() > 0) {
+    // Set Span Kind.
+    if (zipkinSpan.kind() != null) {
       annotations.add(new Annotation("span.kind", zipkinSpan.kind().toString().toLowerCase()));
-      // TODO: Check if these tags are required for a span with span.kind = client.
-      if (!zipkinSpan.kind().toString().equalsIgnoreCase("client")) {
-        annotations.add(new Annotation("http.method", zipkinSpan.tags().get("http.method")));
-        annotations.add(new Annotation("http.url", zipkinSpan.tags().get("http.url")));
-        annotations.add(new Annotation("http.status_code", zipkinSpan.tags().get("http.status_code")));
-      }
+    }
+
+    //Set Span's service name.
+    String serviceName = zipkinSpan.localServiceName() == null ? DEFAULT_SERVICE :
+        zipkinSpan.localServiceName();
+    annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
+
+    // Set Span Http Tags.
+    // TODO: Check if these tags are required for a span with span.kind = client.
+    if (zipkinSpan.kind() != null && !zipkinSpan.kind().toString().equalsIgnoreCase("client")) {
+      addTagWithKey(zipkinSpan, annotations, "http.method", null);
+      addTagWithKey(zipkinSpan, annotations, "http.url", null);
+      addTagWithKey(zipkinSpan, annotations, "http.status_code", null);
     }
     return annotations;
+  }
+
+  private static void addTagWithKey(zipkin2.Span zipkinSpan,
+                                    List<Annotation> annotations,
+                                    String key,
+                                    String defaultValue) {
+    if (zipkinSpan.tags() != null && zipkinSpan.tags().size() > 0 && zipkinSpan.tags().get(key) != null) {
+      annotations.add(new Annotation(key, zipkinSpan.tags().get(key)));
+    } else if (defaultValue != null) {
+      annotations.add(new Annotation(key, defaultValue));
+    }
   }
 
   private static String getSpanUuid(zipkin2.Span zipkinSpan) {
@@ -246,11 +260,11 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   private static String createAlternateSpanId(String zipkinSpanId) {
     String spanUuid;
     // Returned in format <8-4-4>.
-    String mostSig = UUID.randomUUID().toString().substring(0,18);
+    String mostSig = UUID.randomUUID().toString().substring(0, 18);
 
     spanUuid = mostSig + "-" +
-        zipkinSpanId.substring(0,4) + "-" +
-        zipkinSpanId.substring(4,16);
+        zipkinSpanId.substring(0, 4) + "-" +
+        zipkinSpanId.substring(4, 16);
     return spanUuid;
   }
 
