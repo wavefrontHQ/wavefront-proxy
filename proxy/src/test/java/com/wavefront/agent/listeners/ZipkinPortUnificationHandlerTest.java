@@ -110,12 +110,12 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-2822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
         setAnnotations(ImmutableList.of(
-            new Annotation("application", "Zipkin"),
             new Annotation("span.kind", "server"),
             new Annotation("service", "frontend"),
+            new Annotation("application", "Zipkin"),
             new Annotation("http.method", "GET"),
-            new Annotation("http.url", "none+h1c://localhost:8881/"),
-            new Annotation("http.status_code", "200"))).
+            new Annotation("http.status_code", "200"),
+            new Annotation("http.url", "none+h1c://localhost:8881/"))).
         build());
     expectLastCall();
 
@@ -127,13 +127,13 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-2822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
         setAnnotations(ImmutableList.of(
-            new Annotation("application", "Zipkin"),
             new Annotation("parent", "00000000-0000-0000-2822-889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("service", "backend"),
+            new Annotation("application", "Zipkin"),
             new Annotation("http.method", "GET"),
-            new Annotation("http.url", "none+h2c://localhost:9000/api"),
-            new Annotation("http.status_code", "200"))).
+            new Annotation("http.status_code", "200"),
+            new Annotation("http.url", "none+h2c://localhost:9000/api"))).
         build());
     expectLastCall();
 

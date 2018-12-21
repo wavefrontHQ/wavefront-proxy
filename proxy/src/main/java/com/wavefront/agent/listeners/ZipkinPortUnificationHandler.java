@@ -1,6 +1,7 @@
 package com.wavefront.agent.listeners;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.RateLimiter;
 
@@ -19,8 +20,8 @@ import com.yammer.metrics.core.MetricName;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -34,9 +35,7 @@ import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 
 /**
@@ -174,6 +173,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     }
     // Set spanName.
     String spanName = zipkinSpan.name() == null ? DEFAULT_SPAN_NAME : zipkinSpan.name();
+
     //Build wavefront span
     Span newSpan = Span.newBuilder().
         setCustomer("dummy").
@@ -196,10 +196,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
 
   private List<Annotation> addAnnotations(zipkin2.Span zipkinSpan) {
     List<Annotation> annotations = new ArrayList<>();
-    // Set Span's Application Tags.
-    addTagWithKey(zipkinSpan, annotations, APPLICATION_TAG_KEY, DEFAULT_APPLICATION);
-    addTagWithKey(zipkinSpan, annotations, CLUSTER_TAG_KEY, null);
-    addTagWithKey(zipkinSpan, annotations, SHARD_TAG_KEY, null);
 
     // Set Span's References.
     if (zipkinSpan.parentId() != null) {
@@ -212,19 +208,31 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
       annotations.add(new Annotation("span.kind", zipkinSpan.kind().toString().toLowerCase()));
     }
 
-    //Set Span's service name.
+    // Set Span's service name.
     String serviceName = zipkinSpan.localServiceName() == null ? DEFAULT_SERVICE :
         zipkinSpan.localServiceName();
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
 
-    // Set Span Http Tags.
-    // TODO: Check if these tags are required for a span with span.kind = client.
-    if (zipkinSpan.kind() != null && !zipkinSpan.kind().toString().equalsIgnoreCase("client")) {
-      addTagWithKey(zipkinSpan, annotations, "http.method", null);
-      addTagWithKey(zipkinSpan, annotations, "http.url", null);
-      addTagWithKey(zipkinSpan, annotations, "http.status_code", null);
-    }
+    // Set Span's Application Tag.
+    // Mandatory tags are com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY and
+    // com.wavefront.sdk.common.Constants.SOURCE_KEY for which we declare defaults.
+    addTagWithKey(zipkinSpan, annotations, APPLICATION_TAG_KEY, DEFAULT_APPLICATION);
+
+    // Set all other Span Tags.
+    addSpanTags(zipkinSpan, annotations, ImmutableList.of(APPLICATION_TAG_KEY, SOURCE_KEY));
     return annotations;
+  }
+
+  private static void addSpanTags(zipkin2.Span zipkinSpan,
+                                  List<Annotation> annotations,
+                                  List<String> ignoreKeys) {
+    if (zipkinSpan.tags() != null && zipkinSpan.tags().size() > 0) {
+      for (Map.Entry<String, String> tag : zipkinSpan.tags().entrySet()) {
+        if (!ignoreKeys.contains(tag.getKey().toLowerCase())) {
+          annotations.add(new Annotation(tag.getKey(), tag.getValue()));
+        }
+      }
+    }
   }
 
   private static void addTagWithKey(zipkin2.Span zipkinSpan,
