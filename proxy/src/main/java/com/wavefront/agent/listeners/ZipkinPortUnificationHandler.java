@@ -54,7 +54,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   private final Counter processedBatches;
   private final Counter failedBatches;
 
-  private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
   private final static Set<String> ZIPKIN_VALID_PATHS = ImmutableSet.of(
       "/api/v1/spans/",
       "/api/v2/spans/");
@@ -229,10 +228,9 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
                                   List<String> ignoreKeys) {
     if (zipkinSpan.tags() != null && zipkinSpan.tags().size() > 0) {
       for (Map.Entry<String, String> tag : zipkinSpan.tags().entrySet()) {
-        if (ignoreKeys.contains(tag.getKey().toLowerCase()) || IGNORE_TAGS.contains(tag.getKey())) {
-          continue;
+        if (!ignoreKeys.contains(tag.getKey().toLowerCase())) {
+          annotations.add(new Annotation(tag.getKey(), tag.getValue()));
         }
-        annotations.add(new Annotation(tag.getKey(), tag.getValue()));
       }
     }
   }
