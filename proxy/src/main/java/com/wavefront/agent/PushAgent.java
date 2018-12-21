@@ -32,6 +32,9 @@ import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.AccumulationTask;
 import com.wavefront.agent.histogram.tape.TapeDeck;
 import com.wavefront.agent.histogram.tape.TapeStringListConverter;
+import com.wavefront.agent.logsharvesting.FilebeatIngester;
+import com.wavefront.agent.logsharvesting.LogsIngester;
+import com.wavefront.agent.logsharvesting.RawLogsIngester;
 import com.wavefront.agent.listeners.ChannelByteArrayHandler;
 import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
 import com.wavefront.agent.listeners.JaegerThriftCollectorHandler;
@@ -41,9 +44,14 @@ import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonMetricsEndpoint;
+import com.wavefront.agent.listeners.ZipkinPortUnificationHandler;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.logsharvesting.RawLogsIngester;
+import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
+import com.wavefront.agent.channel.ConnectionTrackingHandler;
+import com.wavefront.agent.channel.IdleStateEventHandler;
+import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
@@ -319,6 +327,13 @@ public class PushAgent extends AbstractAgent {
           strPort -> startRelayListener(strPort, handlerFactory)
       );
     }
+    if (traceZipkinListenerPorts != null) {
+      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceZipkinListenerPorts);
+      for (String strPort : ports) {
+        startTraceZipkinListener(strPort, handlerFactory);
+        logger.info("listening on port: " + traceZipkinListenerPorts + " for Zipkin trace data.");
+      }
+    }
     if (jsonListenerPorts != null) {
       Splitter.on(",").omitEmptyStrings().trimResults().split(jsonListenerPorts).forEach(this::startJsonListener);
     }
@@ -586,6 +601,14 @@ public class PushAgent extends AbstractAgent {
       }
     }, "listener-jaeger-thrift-" + strPort);
     logger.info("listening on port: " + strPort + " for trace data (Jaeger format)");
+  }
+
+  protected void startTraceZipkinListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    final int port = Integer.parseInt(strPort);
+    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, traceDisabled);
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port).
+        withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
   }
 
   @VisibleForTesting

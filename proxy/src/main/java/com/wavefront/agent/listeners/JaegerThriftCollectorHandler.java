@@ -10,6 +10,7 @@ import com.uber.tchannel.messages.ThriftResponse;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -33,6 +34,9 @@ import io.jaegertracing.thriftjava.TagType;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
+import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+
 /**
  * Handler that processes trace data in Jaeger Thrift compact format and converts them to Wavefront format
  *
@@ -44,8 +48,6 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
   // TODO: support sampling
   private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
-  private final static String APPLICATION_KEY = "application";
-  private final static String SERVICE_KEY = "service";
   private final static String DEFAULT_APPLICATION = "Jaeger";
   private static final Logger jaegerDataLogger = Logger.getLogger("JaegerDataLogger");
 
@@ -128,7 +130,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private void processSpan(io.jaegertracing.thriftjava.Span span, String serviceName, String sourceName) {
     List<Annotation> annotations = new ArrayList<>();
     // serviceName is mandatory in Jaeger
-    annotations.add(new Annotation(SERVICE_KEY, serviceName));
+    annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
     long parentSpanId = span.getParentSpanId();
     if (parentSpanId != 0) {
       annotations.add(new Annotation("parent", new UUID(0, parentSpanId).toString()));
@@ -137,7 +139,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     boolean applicationTagPresent = false;
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
-        if (applicationTagPresent || tag.getKey().equals(APPLICATION_KEY)) {
+        if (applicationTagPresent || tag.getKey().equals(APPLICATION_TAG_KEY)) {
           applicationTagPresent = true;
         }
         if (IGNORE_TAGS.contains(tag.getKey())) {
@@ -152,7 +154,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
     if (!applicationTagPresent) {
       // Original Jaeger span did not have application set, will default to 'Jaeger'
-      Annotation annotation = new Annotation(APPLICATION_KEY, DEFAULT_APPLICATION);
+      Annotation annotation = new Annotation(APPLICATION_TAG_KEY, DEFAULT_APPLICATION);
       annotations.add(annotation);
     }
 
@@ -161,11 +163,12 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         switch (reference.refType) {
           case CHILD_OF:
             if (reference.getSpanId() != 0 && reference.getSpanId() != parentSpanId) {
-              annotations.add(new Annotation("parent", new UUID(0, reference.getSpanId()).toString()));
+              annotations.add(new Annotation(TraceConstants.PARENT_KEY, new UUID(0, reference.getSpanId()).toString()));
             }
           case FOLLOWS_FROM:
             if (reference.getSpanId() != 0) {
-              annotations.add(new Annotation("followsFrom", new UUID(0, reference.getSpanId()).toString()));
+              annotations.add(new Annotation(TraceConstants.FOLLOWS_FROM_KEY, new UUID(0, reference.getSpanId())
+                  .toString()));
             }
           default:
         }
