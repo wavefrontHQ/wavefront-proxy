@@ -15,13 +15,6 @@ import javax.annotation.Nullable;
  */
 public abstract class Utils {
 
-  private final static String TRACING_DERIVED_PREFIX = "tracing.derived";
-  private final static String INVOCATION_SUFFIX = ".invocation";
-  private final static String ERROR_SUFFIX = ".error";
-  private final static String DURATION_SUFFIX = ".duration.micros";
-  private final static String TOTAL_TIME_SUFFIX = "total_time.millis";
-  private final static String OPERATION_NAME_TAG = "operationName";
-
   private static final Pattern patternUuid = Pattern.compile(
       "(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})");
 

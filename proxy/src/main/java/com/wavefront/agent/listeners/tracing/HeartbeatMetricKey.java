@@ -3,7 +3,7 @@ package com.wavefront.agent.listeners.tracing;
 import javax.annotation.Nonnull;
 
 /**
- * Composition class that make up the heartbeat metric
+ * Composition class that makes up the heartbeat metric
  *
  * @author Sushant Dewan (sushant@wavefront.com).
  */

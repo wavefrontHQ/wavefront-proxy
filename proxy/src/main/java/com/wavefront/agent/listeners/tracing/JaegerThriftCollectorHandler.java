@@ -46,7 +46,10 @@ import wavefront.report.Span;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 
 /**
  * Handler that processes trace data in Jaeger Thrift compact format and
@@ -172,24 +175,44 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       annotations.add(new Annotation("parent", new UUID(0, parentSpanId).toString()));
     }
 
+    String applicationName = NULL_TAG_VAL;
+    String cluster = NULL_TAG_VAL;
+    String shard = NULL_TAG_VAL;
+    boolean isError = false;
+
     boolean applicationTagPresent = false;
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
         if (applicationTagPresent || tag.getKey().equals(APPLICATION_TAG_KEY)) {
+          applicationName = tag.getKey();
           applicationTagPresent = true;
         }
         if (IGNORE_TAGS.contains(tag.getKey())) {
           continue;
         }
+
         Annotation annotation = tagToAnnotation(tag);
         if (annotation != null) {
           annotations.add(annotation);
+
+          switch (annotation.getKey()) {
+            case CLUSTER_TAG_KEY:
+              cluster = annotation.getValue();
+              continue;
+            case SHARD_TAG_KEY:
+              shard = annotation.getValue();
+              continue;
+            case "error":
+              // only error=true is supported
+              isError = annotation.getValue().equals("true");
+          }
         }
       }
     }
 
     if (!applicationTagPresent) {
       // Original Jaeger span did not have application set, will default to 'Jaeger'
+      applicationName = DEFAULT_APPLICATION;
       Annotation annotation = new Annotation(APPLICATION_TAG_KEY, DEFAULT_APPLICATION);
       annotations.add(annotation);
     }
@@ -232,8 +255,9 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     spanHandler.report(wavefrontSpan);
 
     // report converted metrics/histograms from the span
-    discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wavefrontSpan,
-        span.getDuration()), true);
+    discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(span.getOperationName(),
+        applicationName, serviceName, cluster, shard, sourceName, isError, span.getDuration()),
+        true);
   }
 
   @Nullable

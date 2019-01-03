@@ -8,10 +8,10 @@ import com.yammer.metrics.core.WavefrontHistogram;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
-import wavefront.report.Span;
 
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
@@ -22,7 +22,7 @@ import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 
 /**
- * // TODO - javadoc
+ * Util methods to generate data (metrics/histograms/heartbeats) from tracing spans
  *
  * @author Sushant Dewan (sushant@wavefront.com).
  */
@@ -38,73 +38,68 @@ public class SpanDerivedMetricsUtils {
   /**
    * Report generated metrics and histograms from the wavefront tracing span.
    *
-   * @param span               Wavefront tracing span.
-   * @param spanDurationMicros Original span duration (both Zipkin and Jaeger support micros
-   *                           duration).
-   * @return HeartbeatMetricKey so that it is added to discovered keys
+   * @param operationName          span operation name
+   * @param application            name of the application
+   * @param service                name of the service
+   * @param cluster                name of the cluster
+   * @param shard                  name of the shard
+   * @param source                 reporting source
+   * @param isError                indicates if the span is erroneous
+   * @param spanDurationMicros     Original span duration (both Zipkin and Jaeger support micros
+   *                               duration).
+   * @return HeartbeatMetricKey so that it is added to discovered keys.
    */
-  static HeartbeatMetricKey reportWavefrontGeneratedData(Span span, long spanDurationMicros) {
+  static HeartbeatMetricKey reportWavefrontGeneratedData(String operationName, String application,
+                                                         String service, String cluster,
+                                                         String shard, String source,
+                                                         boolean isError, long spanDurationMicros) {
     /*
      * 1) Can only propagate mandatory application/service and optional cluster/shard tags.
      * 2) Cannot convert ApplicationTags.customTags unfortunately as those are not well-known.
      * 3) Both Jaeger and Zipkin support error=true tag for erroneous spans
      */
-    String applicationName = NULL_TAG_VAL;
-    String serviceName = NULL_TAG_VAL;
-    String cluster = NULL_TAG_VAL;
-    String shard = NULL_TAG_VAL;
-    boolean isError = false;
-
-    for (Annotation annotation : span.getAnnotations()) {
-      switch (annotation.getKey()) {
-        case APPLICATION_TAG_KEY:
-          applicationName = annotation.getValue();
-          continue;
-        case SERVICE_TAG_KEY:
-          serviceName = annotation.getValue();
-          continue;
-        case CLUSTER_TAG_KEY:
-          cluster = annotation.getValue();
-          continue;
-        case SHARD_TAG_KEY:
-          shard = annotation.getValue();
-          continue;
-        case "error":
-          // only error=true is supported
-          isError = annotation.getValue().equals("true");
-      }
-    }
-
     // tracing.derived.<application>.<service>.<operation>.invocation.count
     Metrics.newCounter(new TaggedMetricName(TRACING_DERIVED_PREFIX,
-        applicationName + "." + serviceName + "." + span.getName() + INVOCATION_SUFFIX,
-        APPLICATION_TAG_KEY, applicationName, SERVICE_TAG_KEY, serviceName, CLUSTER_TAG_KEY,
-        cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, span.getName())).inc();
+        sanitize(application + "." + service + "." + operationName + INVOCATION_SUFFIX),
+        APPLICATION_TAG_KEY, application, SERVICE_TAG_KEY, service, CLUSTER_TAG_KEY,
+        cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, operationName)).inc();
     if (isError) {
       // tracing.derived.<application>.<service>.<operation>.error.count
       Metrics.newCounter(new TaggedMetricName(TRACING_DERIVED_PREFIX,
-          applicationName + "." + serviceName + "." + span.getName() + ERROR_SUFFIX,
-          APPLICATION_TAG_KEY, applicationName, SERVICE_TAG_KEY, serviceName, CLUSTER_TAG_KEY,
-          cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, span.getName())).inc();
+          sanitize(application + "." + service + "." + operationName + ERROR_SUFFIX),
+          APPLICATION_TAG_KEY, application, SERVICE_TAG_KEY, service, CLUSTER_TAG_KEY,
+          cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, operationName)).inc();
     }
 
     // tracing.derived.<application>.<service>.<operation>.duration.micros.m
     WavefrontHistogram.get(new TaggedMetricName(TRACING_DERIVED_PREFIX,
-        applicationName + "." + serviceName + "." + span.getName() + DURATION_SUFFIX,
-        APPLICATION_TAG_KEY, applicationName, SERVICE_TAG_KEY, serviceName, CLUSTER_TAG_KEY,
-        cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, span.getName())).
+        sanitize(application + "." + service + "." + operationName + DURATION_SUFFIX),
+        APPLICATION_TAG_KEY, application, SERVICE_TAG_KEY, service, CLUSTER_TAG_KEY,
+        cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, operationName)).
         update(spanDurationMicros);
 
-    // tracing.derived.<application>.<service>.<operation>.error.count
+    // tracing.derived.<application>.<service>.<operation>.total_time.millis.count
     Metrics.newCounter(new TaggedMetricName(TRACING_DERIVED_PREFIX,
-        applicationName + "." + serviceName + "." + span.getName() + TOTAL_TIME_SUFFIX,
-        APPLICATION_TAG_KEY, applicationName, SERVICE_TAG_KEY, serviceName, CLUSTER_TAG_KEY,
-        cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, span.getName())).inc(span.getDuration());
-    return new HeartbeatMetricKey(applicationName, serviceName, cluster, shard, span.getSource());
+        sanitize(application + "." + service + "." + operationName + TOTAL_TIME_SUFFIX),
+        APPLICATION_TAG_KEY, application, SERVICE_TAG_KEY, service, CLUSTER_TAG_KEY,
+        cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, operationName))
+        .inc(spanDurationMicros / 10000);
+    return new HeartbeatMetricKey(application, service, cluster, shard, source);
+  }
+
+  private static String sanitize(String s) {
+    Pattern WHITESPACE = Pattern.compile("[\\s]+");
+    final String whitespaceSanitized = WHITESPACE.matcher(s).replaceAll("-");
+    if (s.contains("\"") || s.contains("'")) {
+      // for single quotes, once we are double-quoted, single quotes can exist happily inside it.
+      return whitespaceSanitized.replaceAll("\"", "\\\\\"");
+    } else {
+      return whitespaceSanitized;
+    }
   }
 
   /**
-   * Report discovered heartbeats to Wavefront
+   * Report discovered heartbeats to Wavefront.
    *
    * @param pointHandler                Handler to report metric points to Wavefront.
    * @param discoveredHeartbeatMetrics  Discovered heartbeats.
