@@ -30,7 +30,7 @@ public class SpanDerivedMetricsUtils {
   private final static String INVOCATION_SUFFIX = ".invocation";
   private final static String ERROR_SUFFIX = ".error";
   private final static String DURATION_SUFFIX = ".duration.micros";
-  private final static String TOTAL_TIME_SUFFIX = "total_time.millis";
+  private final static String TOTAL_TIME_SUFFIX = ".total_time.millis";
   private final static String OPERATION_NAME_TAG = "operationName";
   public final static String ERROR_SPAN_TAG_KEY = "error";
   public final static String ERROR_SPAN_TAG_VAL = "true";
