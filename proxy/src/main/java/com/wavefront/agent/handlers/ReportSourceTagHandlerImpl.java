@@ -3,8 +3,8 @@ package com.wavefront.agent.handlers;
 import com.google.common.annotations.VisibleForTesting;
 
 import com.wavefront.data.ReportableEntityType;
-import com.wavefront.ingester.ReportSourceTagSerializer;
 import com.wavefront.data.Validation;
+import com.wavefront.ingester.ReportSourceTagSerializer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;

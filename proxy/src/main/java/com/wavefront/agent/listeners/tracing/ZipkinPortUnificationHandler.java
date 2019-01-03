@@ -1,4 +1,4 @@
-package com.wavefront.agent.listeners;
+package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -11,29 +11,43 @@ import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.listeners.PortUnificationHandler;
+import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import wavefront.report.Annotation;
+import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
@@ -43,43 +57,52 @@ import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
  *
  * @author Anil Kodali (akodali@vmware.com)
  */
-public class ZipkinPortUnificationHandler extends PortUnificationHandler {
+public class ZipkinPortUnificationHandler extends PortUnificationHandler
+    implements Runnable, Closeable {
   private static final Logger logger = Logger.getLogger(
       ZipkinPortUnificationHandler.class.getCanonicalName());
   private final String handle;
-  private final ReportableEntityHandler<Span> handler;
+  private final ReportableEntityHandler<Span> spanHandler;
+  @Nullable
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
   private final AtomicBoolean traceDisabled;
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
+  private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
+  private final ScheduledExecutorService scheduledExecutorService;
 
   private final static Set<String> ZIPKIN_VALID_PATHS = ImmutableSet.of(
       "/api/v1/spans/",
       "/api/v2/spans/");
   private final static String ZIPKIN_VALID_HTTP_METHOD = "POST";
+  private final static String ZIPKIN_COMPONENT = "zipkin";
   private final static String DEFAULT_APPLICATION = "Zipkin";
   private final static String DEFAULT_SOURCE = "zipkin";
   private final static String DEFAULT_SERVICE = "defaultService";
   private final static String DEFAULT_SPAN_NAME = "defaultOperation";
 
-  private static final Logger zipkinDataLogger = Logger.getLogger("ZipkinDataLogger");
+  private static final Logger ZIPKIN_DATA_LOGGER = Logger.getLogger("ZipkinDataLogger");
 
   public ZipkinPortUnificationHandler(String handle,
                                       ReportableEntityHandlerFactory handlerFactory,
+                                      @Nullable ReportableEntityHandler<ReportPoint> pointHandler,
                                       AtomicBoolean traceDisabled) {
     this(handle,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        traceDisabled);
+        pointHandler, traceDisabled);
   }
 
   public ZipkinPortUnificationHandler(final String handle,
-                                      ReportableEntityHandler<Span> handler,
+                                      ReportableEntityHandler<Span> spanHandler,
+                                      @Nullable ReportableEntityHandler<ReportPoint> pointHandler,
                                       AtomicBoolean traceDisabled) {
     super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(),
         handle, false, true);
     this.handle = handle;
-    this.handler = handler;
+    this.spanHandler = spanHandler;
+    this.pointHandler = pointHandler;
     this.traceDisabled = traceDisabled;
     this.discardedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "discarded"));
@@ -87,6 +110,10 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
         "spans." + handle + ".batches", "", "processed"));
     this.failedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "failed"));
+    this.discoveredHeartbeatMetrics =  new ConcurrentHashMap<>();
+    this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
+        new NamedThreadFactory("zipkin-heart-beater"));
+    scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
   }
 
   @Override
@@ -152,8 +179,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   }
 
   private void processZipkinSpan(zipkin2.Span zipkinSpan) {
-    if (zipkinDataLogger.isLoggable(Level.FINEST)) {
-      zipkinDataLogger.info("Inbound Zipkin span: " + zipkinSpan.toString());
+    if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINEST)) {
+      ZIPKIN_DATA_LOGGER.info("Inbound Zipkin span: " + zipkinSpan.toString());
     }
     // Add application tags, span references , span kind and http uri, responses etc.
     List<Annotation> annotations = addAnnotations(zipkinSpan);
@@ -175,7 +202,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     String spanName = zipkinSpan.name() == null ? DEFAULT_SPAN_NAME : zipkinSpan.name();
 
     //Build wavefront span
-    Span newSpan = Span.newBuilder().
+    Span wavefrontSpan = Span.newBuilder().
         setCustomer("dummy").
         setName(spanName).
         setSource(sourceName).
@@ -187,11 +214,15 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
         build();
 
     // Log Zipkin spans as well as Wavefront spans for debugging purposes.
-    if (zipkinDataLogger.isLoggable(Level.FINEST)) {
-      zipkinDataLogger.info("Converted Wavefront span: " + newSpan.toString());
+    if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINEST)) {
+      ZIPKIN_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
     }
 
-    handler.report(newSpan);
+    spanHandler.report(wavefrontSpan);
+
+    // report converted metrics/histograms from the span
+    discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wavefrontSpan,
+        zipkinSpan.durationAsLong()), true);
   }
 
   private List<Annotation> addAnnotations(zipkin2.Span zipkinSpan) {
@@ -250,5 +281,14 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   protected void processLine(final ChannelHandlerContext ctx, final String message) {
     throw new UnsupportedOperationException("Invalid context for processLine");
   }
-}
 
+  @Override
+  public void run() {
+    reportHeartbeats(ZIPKIN_COMPONENT, pointHandler, discoveredHeartbeatMetrics);
+  }
+
+  @Override
+  public void close() throws IOException {
+    scheduledExecutorService.shutdownNow();
+  }
+}

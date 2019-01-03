@@ -174,4 +174,8 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
       handler.report(object);
     }
   }
+
+  public ReportableEntityHandler<ReportPoint> getWavefrontHandler() {
+    return wavefrontHandler;
+  }
 }

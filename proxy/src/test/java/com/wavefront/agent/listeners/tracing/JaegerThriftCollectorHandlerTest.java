@@ -1,4 +1,4 @@
-package com.wavefront.agent.listeners;
+package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableList;
 
@@ -75,7 +75,7 @@ public class JaegerThriftCollectorHandlerTest {
     replay(mockTraceHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
-        new AtomicBoolean(false));
+        null, new AtomicBoolean(false));
 
     Tag tag1 = new Tag("ip", TagType.STRING);
     tag1.setVStr("10.0.0.1");

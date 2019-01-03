@@ -1,15 +1,17 @@
 package com.wavefront.api.agent;
 
 import com.wavefront.api.json.InstantMarshaller;
+
 import org.codehaus.jackson.map.annotate.JsonDeserialize;
 import org.codehaus.jackson.map.annotate.JsonSerialize;
 import org.joda.time.Instant;
 
+import java.io.Serializable;
+import java.util.UUID;
+
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Null;
 import javax.validation.groups.Default;
-import java.io.Serializable;
-import java.util.UUID;
 
 /**
  * A POJO representing the shell output from running commands in a work unit. The {@link Default}

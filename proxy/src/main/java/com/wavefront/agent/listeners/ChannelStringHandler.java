@@ -8,22 +8,20 @@ import com.wavefront.agent.PointHandlerImpl;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.Decoder;
 
+import org.apache.commons.lang.math.NumberUtils;
+
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-
-import org.apache.commons.lang.math.NumberUtils;
-
 import wavefront.report.ReportPoint;
 
 /**

@@ -6,7 +6,8 @@ import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.wavefront.agent.histogram.Utils.*;
+import static com.wavefront.agent.histogram.Utils.Granularity;
+import static com.wavefront.agent.histogram.Utils.HistogramKey;
 
 /**
  * Shared test helpers around histograms

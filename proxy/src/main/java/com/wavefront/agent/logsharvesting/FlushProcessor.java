@@ -3,14 +3,14 @@ package com.wavefront.agent.logsharvesting;
 import com.beust.jcommander.internal.Lists;
 import com.wavefront.common.MetricsToTimeseries;
 import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.DeltaCounter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.WavefrontHistogram;
-import com.yammer.metrics.core.MetricProcessor;
 import com.yammer.metrics.core.Metered;
+import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.MetricProcessor;
 import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.util.Map;
 import java.util.function.Supplier;

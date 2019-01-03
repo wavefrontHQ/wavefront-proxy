@@ -1,4 +1,4 @@
-package com.wavefront.agent.listeners;
+package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
@@ -10,16 +10,24 @@ import com.uber.tchannel.messages.ThriftResponse;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,27 +40,36 @@ import io.jaegertracing.thriftjava.SpanRef;
 import io.jaegertracing.thriftjava.Tag;
 import io.jaegertracing.thriftjava.TagType;
 import wavefront.report.Annotation;
+import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 
 /**
- * Handler that processes trace data in Jaeger Thrift compact format and converts them to Wavefront format
+ * Handler that processes trace data in Jaeger Thrift compact format and
+ * converts them to Wavefront format
  *
  * @author vasily@wavefront.com
  */
 public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector.submitBatches_args,
-    Collector.submitBatches_result> {
-  protected static final Logger logger = Logger.getLogger(JaegerThriftCollectorHandler.class.getCanonicalName());
+    Collector.submitBatches_result> implements Runnable, Closeable {
+  protected static final Logger logger =
+      Logger.getLogger(JaegerThriftCollectorHandler.class.getCanonicalName());
 
   // TODO: support sampling
-  private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
+  private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type",
+      "sampler.param");
+  private final static String JAEGER_COMPONENT = "jaeger";
   private final static String DEFAULT_APPLICATION = "Jaeger";
-  private static final Logger jaegerDataLogger = Logger.getLogger("JaegerDataLogger");
+  private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
 
   private final String handle;
-  private final ReportableEntityHandler<Span> handler;
+  private final ReportableEntityHandler<Span> spanHandler;
+  @Nullable
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
   private final AtomicBoolean traceDisabled;
 
   // log every 5 seconds
@@ -62,22 +79,37 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
+  private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
+  private final ScheduledExecutorService scheduledExecutorService;
 
   @SuppressWarnings("unchecked")
   public JaegerThriftCollectorHandler(String handle, ReportableEntityHandlerFactory handlerFactory,
+                                      @Nullable ReportableEntityHandler<ReportPoint> pointHandler,
                                       AtomicBoolean traceDisabled) {
-    this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)), traceDisabled);
+    this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
+        pointHandler, traceDisabled);
   }
 
-  public JaegerThriftCollectorHandler(String handle, ReportableEntityHandler<Span> handler,
+  public JaegerThriftCollectorHandler(String handle,
+                                      ReportableEntityHandler<Span> spanHandler,
+                                      @Nullable ReportableEntityHandler<ReportPoint> pointHandler,
                                       AtomicBoolean traceDisabled) {
     this.handle = handle;
-    this.handler = handler;
+    this.spanHandler = spanHandler;
+    this.pointHandler = pointHandler;
     this.traceDisabled = traceDisabled;
-    this.discardedTraces = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
-    this.discardedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
-    this.processedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
-    this.failedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "failed"));
+    this.discardedTraces = Metrics.newCounter(
+        new MetricName("spans." + handle, "", "discarded"));
+    this.discardedBatches = Metrics.newCounter(
+        new MetricName("spans." + handle + ".batches", "", "discarded"));
+    this.processedBatches = Metrics.newCounter(
+        new MetricName("spans." + handle + ".batches", "", "processed"));
+    this.failedBatches = Metrics.newCounter(
+        new MetricName("spans." + handle + ".batches", "", "failed"));
+    this.discoveredHeartbeatMetrics =  new ConcurrentHashMap<>();
+    this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
+        new NamedThreadFactory("jaeger-heart-beater"));
+    scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
   }
 
   @Override
@@ -89,7 +121,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         processedBatches.inc();
       } catch (Exception e) {
         failedBatches.inc();
-        logger.log(Level.WARNING, "Jaeger Thrift batch processing failed", Throwables.getRootCause(e));
+        logger.log(Level.WARNING, "Jaeger Thrift batch processing failed",
+            Throwables.getRootCause(e));
       }
     }
     return new ThriftResponse.Builder<Collector.submitBatches_result>(request)
@@ -116,7 +149,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     }
     if (traceDisabled.get()) {
       if (warningLoggerRateLimiter.tryAcquire()) {
-        logger.info("Ingested spans discarded because tracing feature is not enabled on the server");
+        logger.info("Ingested spans discarded because tracing feature is not " +
+            "enabled on the server");
       }
       discardedBatches.inc();
       discardedTraces.inc(batch.getSpansSize());
@@ -127,7 +161,9 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     }
   }
 
-  private void processSpan(io.jaegertracing.thriftjava.Span span, String serviceName, String sourceName) {
+  private void processSpan(io.jaegertracing.thriftjava.Span span,
+                           String serviceName,
+                           String sourceName) {
     List<Annotation> annotations = new ArrayList<>();
     // serviceName is mandatory in Jaeger
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
@@ -163,18 +199,20 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         switch (reference.refType) {
           case CHILD_OF:
             if (reference.getSpanId() != 0 && reference.getSpanId() != parentSpanId) {
-              annotations.add(new Annotation(TraceConstants.PARENT_KEY, new UUID(0, reference.getSpanId()).toString()));
+              annotations.add(new Annotation(TraceConstants.PARENT_KEY,
+                  new UUID(0, reference.getSpanId()).toString()));
             }
           case FOLLOWS_FROM:
             if (reference.getSpanId() != 0) {
-              annotations.add(new Annotation(TraceConstants.FOLLOWS_FROM_KEY, new UUID(0, reference.getSpanId())
+              annotations.add(new Annotation(TraceConstants.FOLLOWS_FROM_KEY,
+                  new UUID(0, reference.getSpanId())
                   .toString()));
             }
           default:
         }
       }
     }
-    Span newSpan = Span.newBuilder()
+    Span wavefrontSpan = Span.newBuilder()
         .setCustomer("dummy")
         .setName(span.getOperationName())
         .setSource(sourceName)
@@ -186,12 +224,16 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         .build();
 
     // Log Jaeger spans as well as Wavefront spans for debugging purposes.
-    if (jaegerDataLogger.isLoggable(Level.FINEST)) {
-      jaegerDataLogger.info("Inbound Jaeger span: " + span.toString());
-      jaegerDataLogger.info("Converted Wavefront span: " + newSpan.toString());
+    if (JAEGER_DATA_LOGGER.isLoggable(Level.FINEST)) {
+      JAEGER_DATA_LOGGER.info("Inbound Jaeger span: " + span.toString());
+      JAEGER_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
     }
 
-    handler.report(newSpan);
+    spanHandler.report(wavefrontSpan);
+
+    // report converted metrics/histograms from the span
+    discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wavefrontSpan,
+        span.getDuration()), true);
   }
 
   @Nullable
@@ -209,5 +251,15 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       default:
         return null;
     }
+  }
+
+  @Override
+  public void run() {
+    reportHeartbeats(JAEGER_COMPONENT, pointHandler, discoveredHeartbeatMetrics);
+  }
+
+  @Override
+  public void close() throws IOException {
+    scheduledExecutorService.shutdownNow();
   }
 }

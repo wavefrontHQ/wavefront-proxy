@@ -18,7 +18,6 @@ import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import wavefront.report.ReportPoint;
 
 /**
  * Given a raw Graphite/Wavefront line, look for any host tag, and add it if implicit.

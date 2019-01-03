@@ -2,42 +2,50 @@ package com.wavefront.integrations.dropwizard_metrics5;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+
 import com.wavefront.common.MetricConstants;
 import com.wavefront.integrations.Wavefront;
 import com.wavefront.integrations.WavefrontDirectSender;
 import com.wavefront.integrations.WavefrontSender;
-import io.dropwizard.metrics5.ScheduledReporter;
-import io.dropwizard.metrics5.MetricRegistry;
-import io.dropwizard.metrics5.Clock;
-import io.dropwizard.metrics5.MetricFilter;
-import io.dropwizard.metrics5.MetricAttribute;
-import io.dropwizard.metrics5.Timer;
-import io.dropwizard.metrics5.Gauge;
-import io.dropwizard.metrics5.MetricName;
-import io.dropwizard.metrics5.Counter;
-import io.dropwizard.metrics5.Histogram;
-import io.dropwizard.metrics5.Snapshot;
-import io.dropwizard.metrics5.Meter;
-import io.dropwizard.metrics5.Metered;
-import io.dropwizard.metrics5.DeltaCounter;
-import io.dropwizard.metrics5.jvm.ClassLoadingGaugeSet;
-import io.dropwizard.metrics5.jvm.SafeFileDescriptorRatioGauge;
-import io.dropwizard.metrics5.jvm.BufferPoolMetricSet;
-import io.dropwizard.metrics5.jvm.GarbageCollectorMetricSet;
-import io.dropwizard.metrics5.jvm.MemoryUsageGaugeSet;
-import io.dropwizard.metrics5.jvm.ThreadStatesGaugeSet;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+
+import javax.validation.constraints.NotNull;
+
+import io.dropwizard.metrics5.Clock;
+import io.dropwizard.metrics5.Counter;
+import io.dropwizard.metrics5.DeltaCounter;
+import io.dropwizard.metrics5.Gauge;
+import io.dropwizard.metrics5.Histogram;
+import io.dropwizard.metrics5.Meter;
+import io.dropwizard.metrics5.Metered;
+import io.dropwizard.metrics5.MetricAttribute;
+import io.dropwizard.metrics5.MetricFilter;
+import io.dropwizard.metrics5.MetricName;
+import io.dropwizard.metrics5.MetricRegistry;
+import io.dropwizard.metrics5.ScheduledReporter;
+import io.dropwizard.metrics5.Snapshot;
+import io.dropwizard.metrics5.Timer;
+import io.dropwizard.metrics5.jvm.BufferPoolMetricSet;
+import io.dropwizard.metrics5.jvm.ClassLoadingGaugeSet;
+import io.dropwizard.metrics5.jvm.GarbageCollectorMetricSet;
+import io.dropwizard.metrics5.jvm.MemoryUsageGaugeSet;
+import io.dropwizard.metrics5.jvm.SafeFileDescriptorRatioGauge;
+import io.dropwizard.metrics5.jvm.ThreadStatesGaugeSet;
 
 /**
  * A reporter which publishes metric values to a Wavefront Proxy from a Dropwizard {@link MetricRegistry}.

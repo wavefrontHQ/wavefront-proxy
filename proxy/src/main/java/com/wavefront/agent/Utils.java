@@ -15,8 +15,16 @@ import javax.annotation.Nullable;
  */
 public abstract class Utils {
 
+  private final static String TRACING_DERIVED_PREFIX = "tracing.derived";
+  private final static String INVOCATION_SUFFIX = ".invocation";
+  private final static String ERROR_SUFFIX = ".error";
+  private final static String DURATION_SUFFIX = ".duration.micros";
+  private final static String TOTAL_TIME_SUFFIX = "total_time.millis";
+  private final static String OPERATION_NAME_TAG = "operationName";
+
   private static final Pattern patternUuid = Pattern.compile(
       "(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})");
+
   /**
    * A lazy initialization wrapper for {@code Supplier}
    *
@@ -26,6 +34,7 @@ public abstract class Utils {
   public static <T> Supplier<T> lazySupplier(Supplier<T> supplier) {
     return new Supplier<T>() {
       private volatile T value = null;
+
       @Override
       public T get() {
         if (value == null) {
@@ -41,8 +50,8 @@ public abstract class Utils {
   }
 
   /**
-   * Requires an input uuid string Encoded as 32 hex characters.
-   * For example {@code cced093a76eea418ffdc9bb9a6453df3}
+   * Requires an input uuid string Encoded as 32 hex characters. For example {@code
+   * cced093a76eea418ffdc9bb9a6453df3}
    *
    * @param uuid string encoded as 32 hex characters.
    * @return uuid string encoded in 8-4-4-4-12 (rfc4122) format.
@@ -53,12 +62,11 @@ public abstract class Utils {
   }
 
   /**
-   * Method converts a string Id to {@code UUID}.
-   * This Method specifically converts id's with less than 32 digit hex characters into UUID
-   * format (See <a href="http://www.ietf.org/rfc/rfc4122.txt"> <i>RFC&nbsp;4122: A
-   * Universally Unique IDentifier (UUID) URN Namespace</i></a>) by left padding id with Zeroes
-   * and adding hyphens. It assumes that if the input id contains hyphens it is already an UUID.
-   * Please don't use this method to validate/guarantee your id as an UUID.
+   * Method converts a string Id to {@code UUID}. This Method specifically converts id's with less
+   * than 32 digit hex characters into UUID format (See <a href="http://www.ietf.org/rfc/rfc4122.txt">
+   * <i>RFC&nbsp;4122: A Universally Unique IDentifier (UUID) URN Namespace</i></a>) by left padding
+   * id with Zeroes and adding hyphens. It assumes that if the input id contains hyphens it is
+   * already an UUID. Please don't use this method to validate/guarantee your id as an UUID.
    *
    * @param id a string encoded in hex characters.
    * @return a UUID string.

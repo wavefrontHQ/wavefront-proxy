@@ -1,4 +1,4 @@
-package com.wavefront.agent.listeners;
+package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableList;
 
@@ -38,7 +38,7 @@ public class ZipkinPortUnificationHandlerTest {
   @Test
   public void testZipkinHandler() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
-        mockTraceHandler,
+        mockTraceHandler, null,
         new AtomicBoolean(false));
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
