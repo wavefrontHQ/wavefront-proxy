@@ -17,7 +17,6 @@ import com.wavefront.agent.channel.IdleStateEventHandler;
 import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
@@ -67,8 +66,10 @@ import com.wavefront.ingester.SpanDecoder;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.TcpIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
+import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.CompositeSampler;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
+import com.wavefront.sdk.proxy.WavefrontProxyClient;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 
@@ -163,17 +164,17 @@ public class PushAgent extends AbstractAgent {
         pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples, flushThreads);
 
-    @Nullable
-    ReportableEntityHandler<ReportPoint> anyReportPointEntityHandler = null;
+    Integer metricsPort = null;
     if (pushListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
       for (String strPort : ports) {
-        anyReportPointEntityHandler = startGraphiteListener(strPort, handlerFactory,
-            remoteHostAnnotator);
+        metricsPort = Integer.parseInt(strPort);
+        startGraphiteListener(strPort, handlerFactory, remoteHostAnnotator);
         logger.info("listening on port: " + strPort + " for Wavefront metrics");
       }
     }
 
+    Integer distributionPort = null;
     {
       // Histogram bootstrap.
       Iterator<String> histMinPorts = Strings.isNullOrEmpty(histogramMinuteListenerPorts) ?
@@ -191,6 +192,14 @@ public class PushAgent extends AbstractAgent {
       Iterator<String> histDistPorts = Strings.isNullOrEmpty(histogramDistListenerPorts) ?
           Collections.emptyIterator() :
           Splitter.on(",").omitEmptyStrings().trimResults().split(histogramDistListenerPorts).iterator();
+
+      // Use a tmp iterator so that we don't modify `histDistPorts` iterator
+      Iterator<String> tmpDistPorts = Strings.isNullOrEmpty(histogramDistListenerPorts) ?
+          Collections.emptyIterator() :
+          Splitter.on(",").omitEmptyStrings().trimResults().split(histogramDistListenerPorts).iterator();
+      if (tmpDistPorts.hasNext()) {
+        distributionPort = Integer.parseInt(tmpDistPorts.next());
+      }
 
       int activeHistogramAggregationTypes = (histDayPorts.hasNext() ? 1 : 0) + (histHourPorts.hasNext() ? 1 : 0) +
           (histMinPorts.hasNext() ? 1 : 0) + (histDistPorts.hasNext() ? 1 : 0);
@@ -259,6 +268,15 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
+    @Nullable
+    WavefrontSender wfSender;
+    if (metricsPort != null && distributionPort != null) {
+      wfSender = new WavefrontProxyClient.Builder("localhost").
+          metricsPort(metricsPort).distributionPort(distributionPort).build();
+    } else {
+      wfSender = null;
+    }
+
     if (StringUtils.isNotBlank(graphitePorts) || StringUtils.isNotBlank(picklePorts)) {
       if (tokenAuthenticator.authRequired()) {
         logger.warning("Graphite mode is not compatible with HTTP authentication, ignoring");
@@ -314,11 +332,8 @@ public class PushAgent extends AbstractAgent {
       );
     }
     if (traceJaegerListenerPorts != null) {
-      @Nullable
-      final ReportableEntityHandler<ReportPoint> finalReportPointEntityHandler =
-          anyReportPointEntityHandler;
       Splitter.on(",").omitEmptyStrings().trimResults().split(traceJaegerListenerPorts).forEach(
-          strPort -> startTraceJaegerListener(strPort, handlerFactory, finalReportPointEntityHandler)
+          strPort -> startTraceJaegerListener(strPort, handlerFactory, wfSender)
       );
     }
     if (pushRelayListenerPorts != null) {
@@ -329,7 +344,7 @@ public class PushAgent extends AbstractAgent {
     if (traceZipkinListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceZipkinListenerPorts);
       for (String strPort : ports) {
-        startTraceZipkinListener(strPort, handlerFactory, anyReportPointEntityHandler);
+        startTraceZipkinListener(strPort, handlerFactory, wfSender);
         logger.info("listening on port: " + traceZipkinListenerPorts + " for Zipkin trace data.");
       }
     }
@@ -577,7 +592,7 @@ public class PushAgent extends AbstractAgent {
   protected void startTraceJaegerListener(
       String strPort,
       ReportableEntityHandlerFactory handlerFactory,
-      @Nullable ReportableEntityHandler<ReportPoint> pointHandler) {
+      @Nullable WavefrontSender wfSender) {
     if (tokenAuthenticator.authRequired()) {
       logger.warning("Port: " + strPort + " is not compatible with HTTP authentication, ignoring");
       return;
@@ -590,7 +605,7 @@ public class PushAgent extends AbstractAgent {
             build();
         server.makeSubChannel("jaeger-collector", Connection.Direction.IN).
             register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort,
-                handlerFactory, pointHandler, traceDisabled));
+                handlerFactory, wfSender, traceDisabled));
         server.listen().channel().closeFuture().sync();
         server.shutdown(false);
       } catch (InterruptedException e) {
@@ -607,16 +622,16 @@ public class PushAgent extends AbstractAgent {
   protected void startTraceZipkinListener(
       String strPort,
       ReportableEntityHandlerFactory handlerFactory,
-      @Nullable ReportableEntityHandler<ReportPoint> pointHandler) {
+      @Nullable WavefrontSender wfSender) {
     final int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory,
-        pointHandler, traceDisabled);
+        wfSender, traceDisabled);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port).
         withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
   }
 
   @VisibleForTesting
-  protected ReportableEntityHandler<ReportPoint> startGraphiteListener(
+  protected void startGraphiteListener(
       String strPort,
       ReportableEntityHandlerFactory handlerFactory,
       CachingGraphiteHostAnnotator hostAnnotator) {
@@ -639,7 +654,6 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort), port).
             withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
-    return wavefrontPortUnificationHandler.getWavefrontHandler();
   }
 
   @VisibleForTesting

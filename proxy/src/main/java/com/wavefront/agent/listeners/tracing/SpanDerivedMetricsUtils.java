@@ -1,16 +1,14 @@
 package com.wavefront.agent.listeners.tracing;
 
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.common.TaggedMetricName;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.WavefrontHistogram;
+import com.wavefront.internal.reporter.WavefrontInternalReporter;
+import com.wavefront.internal_reporter_java.io.dropwizard.metrics5.MetricName;
+import com.wavefront.sdk.common.WavefrontSender;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.regex.Pattern;
-
-import wavefront.report.ReportPoint;
 
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
@@ -49,41 +47,43 @@ public class SpanDerivedMetricsUtils {
    *                               duration).
    * @return HeartbeatMetricKey so that it is added to discovered keys.
    */
-  static HeartbeatMetricKey reportWavefrontGeneratedData(String operationName, String application,
-                                                         String service, String cluster,
-                                                         String shard, String source,
-                                                         boolean isError, long spanDurationMicros) {
+  static HeartbeatMetricKey reportWavefrontGeneratedData(
+      WavefrontInternalReporter wfInternalReporter, String operationName, String application,
+      String service, String cluster, String shard, String source,
+      boolean isError, long spanDurationMicros) {
     /*
      * 1) Can only propagate mandatory application/service and optional cluster/shard tags.
      * 2) Cannot convert ApplicationTags.customTags unfortunately as those are not well-known.
      * 3) Both Jaeger and Zipkin support error=true tag for erroneous spans
      */
+
+    Map<String, String> pointTags = new HashMap<String, String>() {{
+      put(APPLICATION_TAG_KEY, application);
+      put(SERVICE_TAG_KEY, service);
+      put(CLUSTER_TAG_KEY, cluster);
+      put(SHARD_TAG_KEY, shard);
+      put(OPERATION_NAME_TAG, operationName);
+    }};
+
     // tracing.derived.<application>.<service>.<operation>.invocation.count
-    Metrics.newCounter(new TaggedMetricName(TRACING_DERIVED_PREFIX,
-        sanitize(application + "." + service + "." + operationName + INVOCATION_SUFFIX),
-        APPLICATION_TAG_KEY, application, SERVICE_TAG_KEY, service, CLUSTER_TAG_KEY,
-        cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, operationName)).inc();
+    wfInternalReporter.newCounter(new MetricName(sanitize(TRACING_DERIVED_PREFIX +
+        application + "." + service + "." + operationName + INVOCATION_SUFFIX), pointTags)).inc();
+
     if (isError) {
       // tracing.derived.<application>.<service>.<operation>.error.count
-      Metrics.newCounter(new TaggedMetricName(TRACING_DERIVED_PREFIX,
-          sanitize(application + "." + service + "." + operationName + ERROR_SUFFIX),
-          APPLICATION_TAG_KEY, application, SERVICE_TAG_KEY, service, CLUSTER_TAG_KEY,
-          cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, operationName)).inc();
+      wfInternalReporter.newCounter(new MetricName(sanitize(TRACING_DERIVED_PREFIX +
+          application + "." + service + "." + operationName + ERROR_SUFFIX), pointTags)).inc();
     }
 
     // tracing.derived.<application>.<service>.<operation>.duration.micros.m
-    WavefrontHistogram.get(new TaggedMetricName(TRACING_DERIVED_PREFIX,
-        sanitize(application + "." + service + "." + operationName + DURATION_SUFFIX),
-        APPLICATION_TAG_KEY, application, SERVICE_TAG_KEY, service, CLUSTER_TAG_KEY,
-        cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, operationName)).
+    wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(TRACING_DERIVED_PREFIX +
+            application + "." + service + "." + operationName + DURATION_SUFFIX), pointTags)).
         update(spanDurationMicros);
 
     // tracing.derived.<application>.<service>.<operation>.total_time.millis.count
-    Metrics.newCounter(new TaggedMetricName(TRACING_DERIVED_PREFIX,
-        sanitize(application + "." + service + "." + operationName + TOTAL_TIME_SUFFIX),
-        APPLICATION_TAG_KEY, application, SERVICE_TAG_KEY, service, CLUSTER_TAG_KEY,
-        cluster, SHARD_TAG_KEY, shard, OPERATION_NAME_TAG, operationName))
-        .inc(spanDurationMicros / 10000);
+    wfInternalReporter.newCounter(new MetricName(sanitize(TRACING_DERIVED_PREFIX +
+        application + "." + service + "." + operationName + TOTAL_TIME_SUFFIX), pointTags)).
+        inc(spanDurationMicros / 10000);
     return new HeartbeatMetricKey(application, service, cluster, shard, source);
   }
 
@@ -101,32 +101,27 @@ public class SpanDerivedMetricsUtils {
   /**
    * Report discovered heartbeats to Wavefront.
    *
-   * @param pointHandler                Handler to report metric points to Wavefront.
+   * @param wavefrontSender             Wavefront sender via proxy.
    * @param discoveredHeartbeatMetrics  Discovered heartbeats.
    */
   static void reportHeartbeats(String component,
-      ReportableEntityHandler<ReportPoint> pointHandler,
-      Map<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics) {
-    if (pointHandler == null) {
+      WavefrontSender wavefrontSender,
+      Map<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics) throws IOException {
+    if (wavefrontSender == null) {
       // should never happen
       return;
     }
     Iterator<HeartbeatMetricKey> iter = discoveredHeartbeatMetrics.keySet().iterator();
     while (iter.hasNext()) {
       HeartbeatMetricKey key = iter.next();
-      ReportPoint heartbeatPoint = ReportPoint.newBuilder().
-          setTable("dummy").
-          setMetric(HEART_BEAT_METRIC).
-          setHost(key.getSource()).
-          setTimestamp(System.currentTimeMillis()).
-          setAnnotations(new HashMap<String, String>() {{
-            put(APPLICATION_TAG_KEY, key.getApplication());
-            put(SERVICE_TAG_KEY, key.getService());
-            put(CLUSTER_TAG_KEY, key.getCluster());
-            put(SHARD_TAG_KEY, key.getShard());
-            put(COMPONENT_TAG_KEY, component);
-          }}).setValue(1L).build();
-      pointHandler.report(heartbeatPoint);
+      wavefrontSender.sendMetric(HEART_BEAT_METRIC, 1.0, System.currentTimeMillis(),
+          key.getSource(), new HashMap<String, String>() {{
+        put(APPLICATION_TAG_KEY, key.getApplication());
+        put(SERVICE_TAG_KEY, key.getService());
+        put(CLUSTER_TAG_KEY, key.getCluster());
+        put(SHARD_TAG_KEY, key.getShard());
+        put(COMPONENT_TAG_KEY, component);
+      }});
       // remove from discovered list so that it is only reported on subsequent discovery
       discoveredHeartbeatMetrics.remove(key);
     }

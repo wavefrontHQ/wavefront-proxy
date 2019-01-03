@@ -14,6 +14,8 @@ import com.wavefront.agent.listeners.PortUnificationHandler;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
+import com.wavefront.internal.reporter.WavefrontInternalReporter;
+import com.wavefront.sdk.common.WavefrontSender;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -41,7 +43,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import wavefront.report.Annotation;
-import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
@@ -69,7 +70,9 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final String handle;
   private final ReportableEntityHandler<Span> spanHandler;
   @Nullable
-  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final WavefrontSender wfSender;
+  @Nullable
+  private final WavefrontInternalReporter wfInternalReporter;
   private final AtomicBoolean traceDisabled;
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
   private final Counter discardedBatches;
@@ -92,22 +95,21 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
 
   public ZipkinPortUnificationHandler(String handle,
                                       ReportableEntityHandlerFactory handlerFactory,
-                                      @Nullable ReportableEntityHandler<ReportPoint> pointHandler,
+                                      @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled) {
-    this(handle,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        pointHandler, traceDisabled);
+    this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
+        wfSender, traceDisabled);
   }
 
   public ZipkinPortUnificationHandler(final String handle,
                                       ReportableEntityHandler<Span> spanHandler,
-                                      @Nullable ReportableEntityHandler<ReportPoint> pointHandler,
+                                      @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled) {
     super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(),
         handle, false, true);
     this.handle = handle;
     this.spanHandler = spanHandler;
-    this.pointHandler = pointHandler;
+    this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
     this.discardedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "discarded"));
@@ -119,6 +121,16 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("zipkin-heart-beater"));
     scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
+
+    if (wfSender != null) {
+      wfInternalReporter = new WavefrontInternalReporter.Builder().
+          prefixedWith("tracing.derived").withSource(DEFAULT_SOURCE).reportMinuteDistribution().
+          build(wfSender);
+      // Start the reporter
+      wfInternalReporter.start(1, TimeUnit.MINUTES);
+    } else {
+      wfInternalReporter = null;
+    }
   }
 
   @Override
@@ -277,10 +289,13 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
 
     spanHandler.report(wavefrontSpan);
 
-    // report converted metrics/histograms from the span
-    discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(spanName, applicationName,
-        serviceName, cluster, shard, sourceName, isError,
-        zipkinSpan.durationAsLong()), true);
+    if (wfInternalReporter != null) {
+      // report converted metrics/histograms from the span
+      discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
+          spanName, applicationName,
+          serviceName, cluster, shard, sourceName, isError,
+          zipkinSpan.durationAsLong()), true);
+    }
   }
 
   @Nullable
@@ -307,7 +322,11 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
 
   @Override
   public void run() {
-    reportHeartbeats(ZIPKIN_COMPONENT, pointHandler, discoveredHeartbeatMetrics);
+    try {
+      reportHeartbeats(ZIPKIN_COMPONENT, wfSender, discoveredHeartbeatMetrics);
+    } catch (IOException e) {
+      logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
+    }
   }
 
   @Override

@@ -13,6 +13,8 @@ import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
+import com.wavefront.internal.reporter.WavefrontInternalReporter;
+import com.wavefront.sdk.common.WavefrontSender;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -40,7 +42,6 @@ import io.jaegertracing.thriftjava.SpanRef;
 import io.jaegertracing.thriftjava.Tag;
 import io.jaegertracing.thriftjava.TagType;
 import wavefront.report.Annotation;
-import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
@@ -69,12 +70,15 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       "sampler.param");
   private final static String JAEGER_COMPONENT = "jaeger";
   private final static String DEFAULT_APPLICATION = "Jaeger";
+  private final static String DEFAULT_SOURCE = "jaeger";
   private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
 
   private final String handle;
   private final ReportableEntityHandler<Span> spanHandler;
   @Nullable
-  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final WavefrontSender wfSender;
+  @Nullable
+  private final WavefrontInternalReporter wfInternalReporter;
   private final AtomicBoolean traceDisabled;
 
   // log every 5 seconds
@@ -89,19 +93,19 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
   @SuppressWarnings("unchecked")
   public JaegerThriftCollectorHandler(String handle, ReportableEntityHandlerFactory handlerFactory,
-                                      @Nullable ReportableEntityHandler<ReportPoint> pointHandler,
+                                      @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        pointHandler, traceDisabled);
+        wfSender, traceDisabled);
   }
 
   public JaegerThriftCollectorHandler(String handle,
                                       ReportableEntityHandler<Span> spanHandler,
-                                      @Nullable ReportableEntityHandler<ReportPoint> pointHandler,
+                                      @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled) {
     this.handle = handle;
     this.spanHandler = spanHandler;
-    this.pointHandler = pointHandler;
+    this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
     this.discardedTraces = Metrics.newCounter(
         new MetricName("spans." + handle, "", "discarded"));
@@ -115,6 +119,16 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("jaeger-heart-beater"));
     scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
+
+    if (wfSender != null) {
+      wfInternalReporter = new WavefrontInternalReporter.Builder().
+          prefixedWith("tracing.derived").withSource(DEFAULT_SOURCE).reportMinuteDistribution().
+          build(wfSender);
+      // Start the reporter
+      wfInternalReporter.start(1, TimeUnit.MINUTES);
+    } else {
+      wfInternalReporter = null;
+    }
   }
 
   @Override
@@ -149,7 +163,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         }
       }
       if (sourceName == null) {
-        sourceName = "unknown";
+        sourceName = DEFAULT_SOURCE;
       }
     }
     if (traceDisabled.get()) {
@@ -177,12 +191,14 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       annotations.add(new Annotation("parent", new UUID(0, parentSpanId).toString()));
     }
 
-    String applicationName = NULL_TAG_VAL;
+    String applicationName = DEFAULT_APPLICATION;
     String cluster = NULL_TAG_VAL;
     String shard = NULL_TAG_VAL;
     boolean isError = false;
 
     boolean applicationTagPresent = false;
+    boolean clusterTagPresent = false;
+    boolean shardTagPresent = false;
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
         if (applicationTagPresent || tag.getKey().equals(APPLICATION_TAG_KEY)) {
@@ -199,9 +215,11 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
           switch (annotation.getKey()) {
             case CLUSTER_TAG_KEY:
+              clusterTagPresent =  true;
               cluster = annotation.getValue();
               continue;
             case SHARD_TAG_KEY:
+              shardTagPresent = true;
               shard = annotation.getValue();
               continue;
             case ERROR_SPAN_TAG_KEY:
@@ -214,9 +232,17 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
     if (!applicationTagPresent) {
       // Original Jaeger span did not have application set, will default to 'Jaeger'
-      applicationName = DEFAULT_APPLICATION;
-      Annotation annotation = new Annotation(APPLICATION_TAG_KEY, DEFAULT_APPLICATION);
-      annotations.add(annotation);
+      annotations.add(new Annotation(APPLICATION_TAG_KEY, DEFAULT_APPLICATION));
+    }
+
+    if (!clusterTagPresent) {
+      // Original Jaeger span did not have cluster set, will default to 'none'
+      annotations.add(new Annotation(CLUSTER_TAG_KEY, cluster));
+    }
+
+    if (!shardTagPresent) {
+      // Original Jaeger span did not have shard set, will default to 'none'
+      annotations.add(new Annotation(SHARD_TAG_KEY, shard));
     }
 
     if (span.getReferences() != null) {
@@ -256,10 +282,12 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
     spanHandler.report(wavefrontSpan);
 
-    // report converted metrics/histograms from the span
-    discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(span.getOperationName(),
-        applicationName, serviceName, cluster, shard, sourceName, isError, span.getDuration()),
-        true);
+    if (wfInternalReporter != null) {
+      // report converted metrics/histograms from the span
+      discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
+          span.getOperationName(), applicationName, serviceName, cluster, shard, sourceName,
+          isError, span.getDuration()), true);
+    }
   }
 
   @Nullable
@@ -281,7 +309,11 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
   @Override
   public void run() {
-    reportHeartbeats(JAEGER_COMPONENT, pointHandler, discoveredHeartbeatMetrics);
+    try {
+      reportHeartbeats(JAEGER_COMPONENT, wfSender, discoveredHeartbeatMetrics);
+    } catch (IOException e) {
+      logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
+    }
   }
 
   @Override
