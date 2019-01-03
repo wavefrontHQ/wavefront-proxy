@@ -43,6 +43,8 @@ import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
@@ -202,9 +204,9 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
             case SHARD_TAG_KEY:
               shard = annotation.getValue();
               continue;
-            case "error":
+            case ERROR_SPAN_TAG_KEY:
               // only error=true is supported
-              isError = annotation.getValue().equals("true");
+              isError = annotation.getValue().equals(ERROR_SPAN_TAG_VAL);
           }
         }
       }

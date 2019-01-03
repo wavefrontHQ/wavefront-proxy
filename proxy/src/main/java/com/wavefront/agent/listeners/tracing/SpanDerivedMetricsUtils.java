@@ -10,14 +10,12 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
 
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
-import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 
@@ -34,6 +32,8 @@ public class SpanDerivedMetricsUtils {
   private final static String DURATION_SUFFIX = ".duration.micros";
   private final static String TOTAL_TIME_SUFFIX = "total_time.millis";
   private final static String OPERATION_NAME_TAG = "operationName";
+  public final static String ERROR_SPAN_TAG_KEY = "error";
+  public final static String ERROR_SPAN_TAG_VAL = "true";
 
   /**
    * Report generated metrics and histograms from the wavefront tracing span.
@@ -128,7 +128,7 @@ public class SpanDerivedMetricsUtils {
           }}).setValue(1L).build();
       pointHandler.report(heartbeatPoint);
       // remove from discovered list so that it is only reported on subsequent discovery
-      iter.remove();
+      discoveredHeartbeatMetrics.remove(key);
     }
   }
 }
