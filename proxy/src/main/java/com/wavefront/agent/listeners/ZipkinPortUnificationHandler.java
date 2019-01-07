@@ -62,6 +62,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   private final static String DEFAULT_SOURCE = "zipkin";
   private final static String DEFAULT_SERVICE = "defaultService";
   private final static String DEFAULT_SPAN_NAME = "defaultOperation";
+  private final static String SPAN_TAG_ERROR = "error";
 
   private static final Logger zipkinDataLogger = Logger.getLogger("ZipkinDataLogger");
 
@@ -174,17 +175,27 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     // Set spanName.
     String spanName = zipkinSpan.name() == null ? DEFAULT_SPAN_NAME : zipkinSpan.name();
 
+    String spanId = Utils.convertToUuidString(zipkinSpan.id());
+    String traceId = Utils.convertToUuidString(zipkinSpan.traceId());
     //Build wavefront span
     Span newSpan = Span.newBuilder().
         setCustomer("dummy").
         setName(spanName).
         setSource(sourceName).
-        setSpanId(Utils.convertToUuidString(zipkinSpan.id())).
-        setTraceId(Utils.convertToUuidString(zipkinSpan.traceId())).
+        setSpanId(spanId).
+        setTraceId(traceId).
         setStartMillis(zipkinSpan.timestampAsLong() / 1000).
         setDuration(zipkinSpan.durationAsLong() / 1000).
         setAnnotations(annotations).
         build();
+
+    if (zipkinSpan.tags().containsKey(SPAN_TAG_ERROR)) {
+      if (zipkinDataLogger.isLoggable(Level.FINER)) {
+        zipkinDataLogger.info("Span id :: " + spanId + " with trace id :: " + traceId +
+            " , failed with Error :: " + zipkinSpan.tags().get(SPAN_TAG_ERROR));
+      }
+    }
+
 
     // Log Zipkin spans as well as Wavefront spans for debugging purposes.
     if (zipkinDataLogger.isLoggable(Level.FINEST)) {
@@ -229,6 +240,11 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     if (zipkinSpan.tags() != null && zipkinSpan.tags().size() > 0) {
       for (Map.Entry<String, String> tag : zipkinSpan.tags().entrySet()) {
         if (!ignoreKeys.contains(tag.getKey().toLowerCase())) {
+          // Handle error tags. Ignore the error
+          if (tag.getKey().equalsIgnoreCase(SPAN_TAG_ERROR)) {
+            annotations.add(new Annotation(SPAN_TAG_ERROR, "true"));
+            continue;
+          }
           annotations.add(new Annotation(tag.getKey(), tag.getValue()));
         }
       }
