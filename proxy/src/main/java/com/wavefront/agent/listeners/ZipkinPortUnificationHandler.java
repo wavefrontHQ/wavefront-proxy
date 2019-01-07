@@ -192,7 +192,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
     if (zipkinSpan.tags().containsKey(SPAN_TAG_ERROR)) {
       if (zipkinDataLogger.isLoggable(Level.FINER)) {
         zipkinDataLogger.info("Span id :: " + spanId + " with trace id :: " + traceId +
-            " , failed with Error :: " + zipkinSpan.tags().get(SPAN_TAG_ERROR));
+            " , includes error tag :: " + zipkinSpan.tags().get(SPAN_TAG_ERROR));
       }
     }
 
