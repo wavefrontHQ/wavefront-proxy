@@ -148,6 +148,10 @@ buffer=/var/spool/wavefront-proxy/buffer
 #traceListenerPorts=30000
 ## Comma-separated list of ports on which to listen on for Jaeger Thrift formatted data. Defaults to none.
 #traceJaegerListenerPorts=30001
+## Comma-separated list of ports on which to listen on for zipkin trace data over HTTP. Defaults to none.
+## Recommended value is 9411, which is the port zipkin's server listens on and is the default
+configuration in Istio.
+#traceZipkinListenerPorts=9411
 
 ## The following settings are used to configure histogram ingestion:
 ## Histograms can be ingested in wavefront scalar and distribution format. For scalar samples ports can be specified for
