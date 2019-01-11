@@ -108,6 +108,7 @@ import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.ProcessingException;
+import javax.ws.rs.client.ClientRequestFilter;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
@@ -1404,12 +1405,17 @@ public abstract class AbstractAgent {
       httpEngine = apacheHttpClient4Engine;
     }
     ResteasyClient client = new ResteasyClientBuilder().
-          httpEngine(httpEngine).
-          providerFactory(factory).
-          register(GZIPDecodingInterceptor.class).
-          register(gzipCompression ? GZIPEncodingInterceptor.class : DisableGZIPEncodingInterceptor.class).
-          register(AcceptEncodingGZIPFilter.class).
-          build();
+        httpEngine(httpEngine).
+        providerFactory(factory).
+        register(GZIPDecodingInterceptor.class).
+        register(gzipCompression ? GZIPEncodingInterceptor.class : DisableGZIPEncodingInterceptor.class).
+        register(AcceptEncodingGZIPFilter.class).
+        register((ClientRequestFilter) context -> {
+          if (context.getUri().getPath().contains("/pushdata/")) {
+            context.getHeaders().add("Authorization", "Bearer " + token);
+           }
+        }).
+        build();
     ResteasyWebTarget target = client.target(server);
     return target.proxy(WavefrontAPI.class);
   }
