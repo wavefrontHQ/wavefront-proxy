@@ -268,14 +268,6 @@ public class PushAgent extends AbstractAgent {
       }
     }
 
-    @Nullable
-    WavefrontSender wfSender;
-    if (metricsPort != null && distributionPort != null) {
-      wfSender = new InternalProxyWavefrontClient(handlerFactory);
-    } else {
-      wfSender = null;
-    }
-
     if (StringUtils.isNotBlank(graphitePorts) || StringUtils.isNotBlank(picklePorts)) {
       if (tokenAuthenticator.authRequired()) {
         logger.warning("Graphite mode is not compatible with HTTP authentication, ignoring");
@@ -331,8 +323,16 @@ public class PushAgent extends AbstractAgent {
       );
     }
     if (traceJaegerListenerPorts != null) {
+      final Integer finalMetricsPort = metricsPort;
+      final Integer finalDistributionPort = distributionPort;
       Splitter.on(",").omitEmptyStrings().trimResults().split(traceJaegerListenerPorts).forEach(
-          strPort -> startTraceJaegerListener(strPort, handlerFactory, wfSender)
+          strPort -> {
+            WavefrontSender wfSender = null;
+            if (finalMetricsPort != null && finalDistributionPort != null) {
+              wfSender = new InternalProxyWavefrontClient(handlerFactory, strPort);
+            }
+            startTraceJaegerListener(strPort, handlerFactory, wfSender);
+          }
       );
     }
     if (pushRelayListenerPorts != null) {
@@ -343,6 +343,10 @@ public class PushAgent extends AbstractAgent {
     if (traceZipkinListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceZipkinListenerPorts);
       for (String strPort : ports) {
+        WavefrontSender wfSender = null;
+        if (metricsPort != null && distributionPort != null) {
+          wfSender = new InternalProxyWavefrontClient(handlerFactory, strPort);
+        }
         startTraceZipkinListener(strPort, handlerFactory, wfSender);
         logger.info("listening on port: " + traceZipkinListenerPorts + " for Zipkin trace data.");
       }
