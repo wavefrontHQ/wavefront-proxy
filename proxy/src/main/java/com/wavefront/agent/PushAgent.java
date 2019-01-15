@@ -17,6 +17,7 @@ import com.wavefront.agent.channel.IdleStateEventHandler;
 import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
+import com.wavefront.agent.handlers.InternalProxyWavefrontClient;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
@@ -271,8 +272,7 @@ public class PushAgent extends AbstractAgent {
     @Nullable
     WavefrontSender wfSender;
     if (metricsPort != null && distributionPort != null) {
-      wfSender = new WavefrontProxyClient.Builder("localhost").
-          metricsPort(metricsPort).distributionPort(distributionPort).build();
+      wfSender = new InternalProxyWavefrontClient(handlerFactory);
     } else {
       wfSender = null;
     }

@@ -90,6 +90,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final static String DEFAULT_SOURCE = "zipkin";
   private final static String DEFAULT_SERVICE = "defaultService";
   private final static String DEFAULT_SPAN_NAME = "defaultOperation";
+  private final static String SPAN_TAG_ERROR = "error";
 
   private static final Logger ZIPKIN_DATA_LOGGER = Logger.getLogger("ZipkinDataLogger");
 
@@ -241,13 +242,17 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
           switch (annotation.getKey()) {
             case CLUSTER_TAG_KEY:
               cluster = annotation.getValue();
-              continue;
+              break;
             case SHARD_TAG_KEY:
               shard = annotation.getValue();
-              continue;
+              break;
             case ERROR_SPAN_TAG_KEY:
               isError = annotation.getValue().equals(ERROR_SPAN_TAG_VAL);
-              continue;
+              if (isError) {
+                // Ignore the original error value
+                annotation.setValue(ERROR_SPAN_TAG_VAL);
+              }
+              break;
           }
           annotations.add(annotation);
         }
@@ -270,17 +275,27 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     // Set spanName.
     String spanName = zipkinSpan.name() == null ? DEFAULT_SPAN_NAME : zipkinSpan.name();
 
+    String spanId = Utils.convertToUuidString(zipkinSpan.id());
+    String traceId = Utils.convertToUuidString(zipkinSpan.traceId());
     //Build wavefront span
     Span wavefrontSpan = Span.newBuilder().
         setCustomer("dummy").
         setName(spanName).
         setSource(sourceName).
-        setSpanId(Utils.convertToUuidString(zipkinSpan.id())).
-        setTraceId(Utils.convertToUuidString(zipkinSpan.traceId())).
+        setSpanId(spanId).
+        setTraceId(traceId).
         setStartMillis(zipkinSpan.timestampAsLong() / 1000).
         setDuration(zipkinSpan.durationAsLong() / 1000).
         setAnnotations(annotations).
         build();
+
+    if (zipkinSpan.tags().containsKey(SPAN_TAG_ERROR)) {
+      if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINER)) {
+        ZIPKIN_DATA_LOGGER.info("Span id :: " + spanId + " with trace id :: " + traceId +
+            " , includes error tag :: " + zipkinSpan.tags().get(SPAN_TAG_ERROR));
+      }
+    }
+
 
     // Log Zipkin spans as well as Wavefront spans for debugging purposes.
     if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINEST)) {
