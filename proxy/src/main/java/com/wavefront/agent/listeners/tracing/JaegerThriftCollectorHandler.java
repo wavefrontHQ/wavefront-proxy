@@ -46,6 +46,7 @@ import wavefront.report.Span;
 
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
@@ -122,7 +123,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
     if (wfSender != null) {
       wfInternalReporter = new WavefrontInternalReporter.Builder().
-          prefixedWith("tracing.derived").withSource(DEFAULT_SOURCE).reportMinuteDistribution().
+          prefixedWith(TRACING_DERIVED_PREFIX).withSource(DEFAULT_SOURCE).reportMinuteDistribution().
           build(wfSender);
       // Start the reporter
       wfInternalReporter.start(1, TimeUnit.MINUTES);

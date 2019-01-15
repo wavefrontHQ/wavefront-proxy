@@ -45,11 +45,23 @@ public class ReportPointSerializer implements Function<ReportPoint, String> {
 
   @VisibleForTesting
   protected static String pointToString(ReportPoint point) {
-    if (point.getValue() instanceof Double || point.getValue() instanceof Long || point.getValue() instanceof String) {
+    if (point.getValue() instanceof Double || point.getValue() instanceof Long ||
+        point.getValue() instanceof String) {
+      long originalTimestamp = point.getTimestamp();
+      int timestampSize = Long.toString(originalTimestamp).length();
+      long timestampSeconds;
+      if (timestampSize == 10) {
+        timestampSeconds = originalTimestamp;
+      } else if (timestampSize == 13) {
+        timestampSeconds = originalTimestamp / 1000;
+      } else {
+        // should never get here ...
+        throw new IllegalArgumentException("Invalid timestamp for point: " + point);
+      }
       StringBuilder sb = new StringBuilder(quote)
           .append(escapeQuotes(point.getMetric())).append(quote).append(" ")
           .append(point.getValue()).append(" ")
-          .append(point.getTimestamp() / 1000).append(" ")
+          .append(timestampSeconds).append(" ")
           .append("source=").append(quote).append(escapeQuotes(point.getHost())).append(quote);
       appendTagMap(sb, point.getAnnotations());
       return sb.toString();

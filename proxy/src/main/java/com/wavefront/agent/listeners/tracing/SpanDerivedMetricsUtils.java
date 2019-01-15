@@ -24,7 +24,7 @@ import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
  */
 public class SpanDerivedMetricsUtils {
 
-  private final static String TRACING_DERIVED_PREFIX = "tracing.derived";
+  public final static String TRACING_DERIVED_PREFIX = "tracing.derived";
   private final static String INVOCATION_SUFFIX = ".invocation";
   private final static String ERROR_SUFFIX = ".error";
   private final static String DURATION_SUFFIX = ".duration.micros";
@@ -66,23 +66,19 @@ public class SpanDerivedMetricsUtils {
     }};
 
     // tracing.derived.<application>.<service>.<operation>.invocation.count
-    wfInternalReporter.newCounter(new MetricName(sanitize(TRACING_DERIVED_PREFIX +
-        application + "." + service + "." + operationName + INVOCATION_SUFFIX), pointTags)).inc();
+    wfInternalReporter.newCounter(new MetricName(sanitize(application + "." + service + "." + operationName + INVOCATION_SUFFIX), pointTags)).inc();
 
     if (isError) {
       // tracing.derived.<application>.<service>.<operation>.error.count
-      wfInternalReporter.newCounter(new MetricName(sanitize(TRACING_DERIVED_PREFIX +
-          application + "." + service + "." + operationName + ERROR_SUFFIX), pointTags)).inc();
+      wfInternalReporter.newCounter(new MetricName(sanitize(application + "." + service + "." + operationName + ERROR_SUFFIX), pointTags)).inc();
     }
 
     // tracing.derived.<application>.<service>.<operation>.duration.micros.m
-    wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(TRACING_DERIVED_PREFIX +
-            application + "." + service + "." + operationName + DURATION_SUFFIX), pointTags)).
+    wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(application + "." + service + "." + operationName + DURATION_SUFFIX), pointTags)).
         update(spanDurationMicros);
 
     // tracing.derived.<application>.<service>.<operation>.total_time.millis.count
-    wfInternalReporter.newCounter(new MetricName(sanitize(TRACING_DERIVED_PREFIX +
-        application + "." + service + "." + operationName + TOTAL_TIME_SUFFIX), pointTags)).
+    wfInternalReporter.newCounter(new MetricName(sanitize(application + "." + service + "." + operationName + TOTAL_TIME_SUFFIX), pointTags)).
         inc(spanDurationMicros / 10000);
     return new HeartbeatMetricKey(application, service, cluster, shard, source);
   }
