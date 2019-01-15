@@ -256,8 +256,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
           case FOLLOWS_FROM:
             if (reference.getSpanId() != 0) {
               annotations.add(new Annotation(TraceConstants.FOLLOWS_FROM_KEY,
-                  new UUID(0, reference.getSpanId())
-                  .toString()));
+                  new UUID(0, reference.getSpanId()).toString()));
             }
           default:
         }

@@ -219,16 +219,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
         zipkinSpan.localServiceName();
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
 
-    // Set Span's Application Tag.
-    // Mandatory tags are com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY and
-    // com.wavefront.sdk.common.Constants.SOURCE_KEY for which we declare defaults.
-    Annotation app = addTagWithKey(zipkinSpan, annotations, APPLICATION_TAG_KEY,
-        DEFAULT_APPLICATION);
     String applicationName = DEFAULT_APPLICATION;
-    if (app != null && app.getKey().equals(APPLICATION_TAG_KEY)) {
-      applicationName = app.getValue();
-    }
-
     String cluster = NULL_TAG_VAL;
     String shard = NULL_TAG_VAL;
     boolean isError = false;
@@ -240,6 +231,9 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
         if (!ignoreKeys.contains(tag.getKey().toLowerCase())) {
           Annotation annotation = new Annotation(tag.getKey(), tag.getValue());
           switch (annotation.getKey()) {
+            case APPLICATION_TAG_KEY:
+              applicationName = annotation.getValue();
+              break;
             case CLUSTER_TAG_KEY:
               cluster = annotation.getValue();
               break;
@@ -247,11 +241,9 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
               shard = annotation.getValue();
               break;
             case ERROR_SPAN_TAG_KEY:
-              isError = annotation.getValue().equals(ERROR_SPAN_TAG_VAL);
-              if (isError) {
-                // Ignore the original error value
-                annotation.setValue(ERROR_SPAN_TAG_VAL);
-              }
+              isError = true;
+              // Ignore the original error value
+              annotation.setValue(ERROR_SPAN_TAG_VAL);
               break;
           }
           annotations.add(annotation);
@@ -311,23 +303,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
           serviceName, cluster, shard, sourceName, isError,
           zipkinSpan.durationAsLong()), true);
     }
-  }
-
-  @Nullable
-  private static Annotation addTagWithKey(zipkin2.Span zipkinSpan,
-                                          List<Annotation> annotations,
-                                          String key,
-                                          String defaultValue) {
-    Annotation annotation = null;
-    if (zipkinSpan.tags() != null && zipkinSpan.tags().size() > 0 &&
-        zipkinSpan.tags().get(key) != null) {
-      annotation = new Annotation(key, zipkinSpan.tags().get(key));
-      annotations.add(annotation);
-    } else if (defaultValue != null) {
-      annotation = new Annotation(key, defaultValue);
-      annotations.add(annotation);
-    }
-    return annotation;
   }
 
   @Override

@@ -70,7 +70,6 @@ import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.CompositeSampler;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
-import com.wavefront.sdk.proxy.WavefrontProxyClient;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 
