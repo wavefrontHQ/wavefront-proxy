@@ -10,6 +10,7 @@ import com.uber.tchannel.messages.ThriftResponse;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
@@ -54,6 +55,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final String handle;
   private final ReportableEntityHandler<Span> handler;
   private final AtomicBoolean traceDisabled;
+  private final ReportableEntityPreprocessor preprocessor;
 
   // log every 5 seconds
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
@@ -65,15 +67,17 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
   @SuppressWarnings("unchecked")
   public JaegerThriftCollectorHandler(String handle, ReportableEntityHandlerFactory handlerFactory,
-                                      AtomicBoolean traceDisabled) {
-    this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)), traceDisabled);
+                                      AtomicBoolean traceDisabled, ReportableEntityPreprocessor preprocessor) {
+    this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)), traceDisabled,
+        preprocessor);
   }
 
   public JaegerThriftCollectorHandler(String handle, ReportableEntityHandler<Span> handler,
-                                      AtomicBoolean traceDisabled) {
+                                      AtomicBoolean traceDisabled, ReportableEntityPreprocessor preprocessor) {
     this.handle = handle;
     this.handler = handler;
     this.traceDisabled = traceDisabled;
+    this.preprocessor = preprocessor;
     this.discardedTraces = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "discarded"));
     this.processedBatches = Metrics.newCounter(new MetricName("spans." + handle + ".batches", "", "processed"));
@@ -189,6 +193,18 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     if (jaegerDataLogger.isLoggable(Level.FINEST)) {
       jaegerDataLogger.info("Inbound Jaeger span: " + span.toString());
       jaegerDataLogger.info("Converted Wavefront span: " + newSpan.toString());
+    }
+
+    if (preprocessor != null) {
+      preprocessor.forSpan().transform(newSpan);
+      if (!preprocessor.forSpan().filter((newSpan))) {
+        if (preprocessor.forSpan().getLastFilterResult() != null) {
+          handler.reject(newSpan, preprocessor.forSpan().getLastFilterResult());
+        } else {
+          handler.block(newSpan);
+        }
+        return;
+      }
     }
 
     handler.report(newSpan);

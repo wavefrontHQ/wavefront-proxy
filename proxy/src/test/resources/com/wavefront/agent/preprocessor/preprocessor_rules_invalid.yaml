@@ -771,3 +771,74 @@
       search  : tag
       replace : ""
       value   : "1"
+
+    # test limitLength rule
+    # invalid subtype
+    - rule          : test-limitLength-1
+      action        : limitLength
+      actionSubtype : invalidsubtype
+      maxLength     : "10"
+
+    # "drop" can't be used with metricName scope
+    - rule          : test-limitLength-2
+      action        : limitLength
+      scope         : metricName
+      actionSubtype : drop
+      maxLength     : "5"
+
+    # "drop" can't be used with sourceName scope
+    - rule          : test-limitLength-3
+      action        : limitLength
+      scope         : sourceName
+      actionSubtype : drop
+      maxLength     : "5"
+
+    # maxLength should be >= 3 for truncateWithEllipsis
+    - rule          : test-limitLength-4
+      action        : limitLength
+      scope         : metricName
+      actionSubtype : truncateWithEllipsis
+      maxLength     : "2"
+
+    # maxLength should be > 0
+    - rule          : test-limitLength-5
+      action        : limitLength
+      scope         : metricName
+      actionSubtype : truncate
+      maxLength     : "0"
+
+    # test spanLimitLength rule
+
+    # invalid subtype
+    - rule          : test-spanLimitLength-1
+      action        : spanLimitLength
+      actionSubtype : invalidsubtype
+      maxLength     : "10"
+
+    # "drop" can't be used with spanName scope
+    - rule          : test-spanLimitLength-2
+      action        : spanLimitLength
+      scope         : spanName
+      actionSubtype : drop
+      maxLength     : "5"
+
+    # "drop" can't be used with sourceName scope
+    - rule          : test-spanLimitLength-3
+      action        : spanLimitLength
+      scope         : sourceName
+      actionSubtype : drop
+      maxLength     : "5"
+
+    # maxLength should be >= 3 for truncateWithEllipsis
+    - rule          : test-spanLimitLength-4
+      action        : spanLimitLength
+      scope         : metricName
+      actionSubtype : truncateWithEllipsis
+      maxLength     : "2"
+
+    # maxLength should be > 0
+    - rule          : test-spanLimitLength-5
+      action        : spanLimitLength
+      scope         : metricName
+      actionSubtype : truncate
+      maxLength     : "0"

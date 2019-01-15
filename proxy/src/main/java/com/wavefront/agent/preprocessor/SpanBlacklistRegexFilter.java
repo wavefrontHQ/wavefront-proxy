@@ -2,37 +2,28 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
 
-import com.yammer.metrics.core.Counter;
-
 import java.util.regex.Pattern;
 
-import javax.annotation.Nullable;
 import javax.annotation.Nonnull;
 
-import wavefront.report.ReportPoint;
+import wavefront.report.Annotation;
+import wavefront.report.Span;
 
 /**
- * Blacklist regex filter. Rejects a point if a specified component (metric, source, or point tag value, depending
+ * Blacklist regex filter. Rejects a span if a specified component (name, source, or annotation value, depending
  * on the "scope" parameter) doesn't match the regex.
  *
- * Created by Vasily on 9/13/16.
+ * @author vasily@wavefront.com
  */
-public class ReportPointBlacklistRegexFilter extends AnnotatedPredicate<ReportPoint> {
+public class SpanBlacklistRegexFilter extends AnnotatedPredicate<Span> {
 
   private final String scope;
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  @Deprecated
-  public ReportPointBlacklistRegexFilter(final String scope,
-                                         final String patternMatch,
-                                         @Nullable final Counter ruleAppliedCounter) {
-    this(scope, patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
-  public ReportPointBlacklistRegexFilter(final String scope,
-                                         final String patternMatch,
-                                         final PreprocessorRuleMetrics ruleMetrics) {
+  public SpanBlacklistRegexFilter(final String scope,
+                                  final String patternMatch,
+                                  final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
     Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
@@ -42,28 +33,27 @@ public class ReportPointBlacklistRegexFilter extends AnnotatedPredicate<ReportPo
   }
 
   @Override
-  public boolean apply(@Nonnull ReportPoint reportPoint) {
+  public boolean apply(@Nonnull Span span) {
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
-      case "metricName":
-        if (compiledPattern.matcher(reportPoint.getMetric()).matches()) {
+      case "spanName":
+        if (compiledPattern.matcher(span.getName()).matches()) {
           ruleMetrics.incrementRuleAppliedCounter();
           ruleMetrics.ruleEnd(startNanos);
           return false;
         }
         break;
       case "sourceName":
-        if (compiledPattern.matcher(reportPoint.getHost()).matches()) {
+        if (compiledPattern.matcher(span.getSource()).matches()) {
           ruleMetrics.incrementRuleAppliedCounter();
           ruleMetrics.ruleEnd(startNanos);
           return false;
         }
         break;
       default:
-        if (reportPoint.getAnnotations() != null) {
-          String tagValue = reportPoint.getAnnotations().get(scope);
-          if (tagValue != null) {
-            if (compiledPattern.matcher(tagValue).matches()) {
+        if (span.getAnnotations() != null) {
+          for (Annotation annotation : span.getAnnotations()) {
+            if (annotation.getKey().equals(scope) && compiledPattern.matcher(annotation.getValue()).matches()) {
               ruleMetrics.incrementRuleAppliedCounter();
               ruleMetrics.ruleEnd(startNanos);
               return false;

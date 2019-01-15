@@ -11,6 +11,7 @@ import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
@@ -25,6 +26,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -49,6 +52,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
   private final String handle;
   private final ReportableEntityHandler<Span> handler;
   private final AtomicBoolean traceDisabled;
+  private final ReportableEntityPreprocessor preprocessor;
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
   private final Counter discardedBatches;
   private final Counter processedBatches;
@@ -67,20 +71,23 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
 
   public ZipkinPortUnificationHandler(String handle,
                                       ReportableEntityHandlerFactory handlerFactory,
-                                      AtomicBoolean traceDisabled) {
+                                      AtomicBoolean traceDisabled,
+                                      @Nullable ReportableEntityPreprocessor preprocessor) {
     this(handle,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        traceDisabled);
+        traceDisabled, preprocessor);
   }
 
   public ZipkinPortUnificationHandler(final String handle,
                                       ReportableEntityHandler<Span> handler,
-                                      AtomicBoolean traceDisabled) {
+                                      AtomicBoolean traceDisabled,
+                                      @Nullable ReportableEntityPreprocessor preprocessor) {
     super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(),
         handle, false, true);
     this.handle = handle;
     this.handler = handler;
     this.traceDisabled = traceDisabled;
+    this.preprocessor = preprocessor;
     this.discardedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "discarded"));
     this.processedBatches = Metrics.newCounter(new MetricName(
@@ -191,6 +198,17 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler {
       zipkinDataLogger.info("Converted Wavefront span: " + newSpan.toString());
     }
 
+    if (preprocessor != null) {
+      preprocessor.forSpan().transform(newSpan);
+      if (!preprocessor.forSpan().filter((newSpan))) {
+        if (preprocessor.forSpan().getLastFilterResult() != null) {
+          handler.reject(newSpan, preprocessor.forSpan().getLastFilterResult());
+        } else {
+          handler.block(newSpan);
+        }
+        return;
+      }
+    }
     handler.report(newSpan);
   }
 

@@ -17,6 +17,7 @@ public abstract class Utils {
 
   private static final Pattern patternUuid = Pattern.compile(
       "(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})");
+
   /**
    * A lazy initialization wrapper for {@code Supplier}
    *
@@ -26,6 +27,7 @@ public abstract class Utils {
   public static <T> Supplier<T> lazySupplier(Supplier<T> supplier) {
     return new Supplier<T>() {
       private volatile T value = null;
+
       @Override
       public T get() {
         if (value == null) {
