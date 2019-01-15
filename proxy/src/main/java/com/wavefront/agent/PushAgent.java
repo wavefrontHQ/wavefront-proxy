@@ -164,17 +164,14 @@ public class PushAgent extends AbstractAgent {
         pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples, flushThreads);
 
-    Integer metricsPort = null;
     if (pushListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
       for (String strPort : ports) {
-        metricsPort = Integer.parseInt(strPort);
         startGraphiteListener(strPort, handlerFactory, remoteHostAnnotator);
         logger.info("listening on port: " + strPort + " for Wavefront metrics");
       }
     }
 
-    Integer distributionPort = null;
     {
       // Histogram bootstrap.
       Iterator<String> histMinPorts = Strings.isNullOrEmpty(histogramMinuteListenerPorts) ?
@@ -192,14 +189,6 @@ public class PushAgent extends AbstractAgent {
       Iterator<String> histDistPorts = Strings.isNullOrEmpty(histogramDistListenerPorts) ?
           Collections.emptyIterator() :
           Splitter.on(",").omitEmptyStrings().trimResults().split(histogramDistListenerPorts).iterator();
-
-      // Use a tmp iterator so that we don't modify `histDistPorts` iterator
-      Iterator<String> tmpDistPorts = Strings.isNullOrEmpty(histogramDistListenerPorts) ?
-          Collections.emptyIterator() :
-          Splitter.on(",").omitEmptyStrings().trimResults().split(histogramDistListenerPorts).iterator();
-      if (tmpDistPorts.hasNext()) {
-        distributionPort = Integer.parseInt(tmpDistPorts.next());
-      }
 
       int activeHistogramAggregationTypes = (histDayPorts.hasNext() ? 1 : 0) + (histHourPorts.hasNext() ? 1 : 0) +
           (histMinPorts.hasNext() ? 1 : 0) + (histDistPorts.hasNext() ? 1 : 0);
@@ -323,16 +312,9 @@ public class PushAgent extends AbstractAgent {
       );
     }
     if (traceJaegerListenerPorts != null) {
-      final Integer finalMetricsPort = metricsPort;
-      final Integer finalDistributionPort = distributionPort;
       Splitter.on(",").omitEmptyStrings().trimResults().split(traceJaegerListenerPorts).forEach(
-          strPort -> {
-            WavefrontSender wfSender = null;
-            if (finalMetricsPort != null && finalDistributionPort != null) {
-              wfSender = new InternalProxyWavefrontClient(handlerFactory, strPort);
-            }
-            startTraceJaegerListener(strPort, handlerFactory, wfSender);
-          }
+          strPort -> startTraceJaegerListener(strPort, handlerFactory,
+                new InternalProxyWavefrontClient(handlerFactory, strPort))
       );
     }
     if (pushRelayListenerPorts != null) {
@@ -343,11 +325,8 @@ public class PushAgent extends AbstractAgent {
     if (traceZipkinListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceZipkinListenerPorts);
       for (String strPort : ports) {
-        WavefrontSender wfSender = null;
-        if (metricsPort != null && distributionPort != null) {
-          wfSender = new InternalProxyWavefrontClient(handlerFactory, strPort);
-        }
-        startTraceZipkinListener(strPort, handlerFactory, wfSender);
+        startTraceZipkinListener(strPort, handlerFactory,
+            new InternalProxyWavefrontClient(handlerFactory, strPort));
         logger.info("listening on port: " + traceZipkinListenerPorts + " for Zipkin trace data.");
       }
     }
