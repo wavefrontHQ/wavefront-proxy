@@ -7,12 +7,12 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.wavefront.agent.config.MetricMatcher;
 import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Metric;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.DeltaCounter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.Metric;
+import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.MetricsRegistry;
 import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.util.Set;

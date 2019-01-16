@@ -1,10 +1,10 @@
 package com.wavefront.examples;
 
-import java.util.concurrent.TimeUnit;
-
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricRegistry;
 import com.wavefront.integrations.metrics.WavefrontReporter;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * Example for reporting dropwizard metrics into Wavefront via proxy.

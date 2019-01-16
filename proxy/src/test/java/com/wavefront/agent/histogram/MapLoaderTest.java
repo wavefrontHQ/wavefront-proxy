@@ -5,7 +5,6 @@ import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.wavefront.agent.histogram.Utils.HistogramKey;
 import com.wavefront.agent.histogram.Utils.HistogramKeyMarshaller;
 
-import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.map.VanillaChronicleMap;
 
 import org.junit.After;

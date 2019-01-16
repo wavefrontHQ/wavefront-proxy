@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.data.ReportableEntityType;

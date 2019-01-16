@@ -2,13 +2,16 @@ package com.wavefront.common;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+
 import com.yammer.metrics.core.MetricName;
-import wavefront.report.ReportPoint;
+
+import java.util.Collections;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.management.ObjectName;
-import java.util.Collections;
-import java.util.Map;
+
+import wavefront.report.ReportPoint;
 
 /**
  * A taggable metric name.

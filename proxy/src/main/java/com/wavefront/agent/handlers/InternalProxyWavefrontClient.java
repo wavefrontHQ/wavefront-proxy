@@ -95,11 +95,27 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   @Override
   public void sendMetric(String name, double value, Long timestamp, String source, Map<String, String> tags)
       throws IOException {
+    // default to millis
+    long timestampMillis = timestamp;
+    if (timestamp < 10_000_000_000L) {
+      // seconds
+      timestampMillis = timestamp * 1000;
+    } else if (timestamp < 10_000_000_000_000L) {
+      // millis
+      timestampMillis = timestamp;
+    } else if (timestamp < 10_000_000_000_000_000L) {
+      // micros
+      timestampMillis = timestamp / 1000;
+    } else if (timestamp <= 999_999_999_999_999_999L) {
+      // nanos
+      timestampMillis = timestamp / 1000_000;
+    }
+
     final ReportPoint point = ReportPoint.newBuilder().
         setTable("unknown").
         setMetric(name).
         setValue(value).
-        setTimestamp(timestamp).
+        setTimestamp(timestampMillis).
         setHost(source).
         setAnnotations(tags).
         build();

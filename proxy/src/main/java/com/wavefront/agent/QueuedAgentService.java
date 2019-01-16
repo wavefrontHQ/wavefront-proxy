@@ -78,8 +78,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 
-import static com.google.common.collect.ImmutableList.of;
-
 /**
  * A wrapper for any WavefrontAPI that queues up any result posting if the backend is not available.
  * Current data will always be submitted right away (thus prioritizing live data) while background

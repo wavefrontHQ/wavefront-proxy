@@ -1,18 +1,20 @@
 package com.wavefront.ingester;
 
 import com.google.common.base.Preconditions;
+
 import com.wavefront.common.MetricMangler;
 
 import net.razorvine.pickle.Unpickler;
-import wavefront.report.ReportPoint;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+
+import wavefront.report.ReportPoint;
 
 /**
  * Pickle protocol format decoder.

@@ -1,4 +1,4 @@
-package com.wavefront.agent.listeners;
+package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableList;
 
@@ -38,8 +38,11 @@ public class JaegerThriftCollectorHandlerTest {
         .setSpanId("00000000-0000-0000-0000-00000012d687")
         .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
         // Note: Order of annotations list matters for this unit test.
-        .setAnnotations(ImmutableList.of(new Annotation("service", "frontend"),
-            new Annotation("application", "Jaeger")))
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
         .build());
     expectLastCall();
 
@@ -53,7 +56,9 @@ public class JaegerThriftCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
-            new Annotation("application", "Jaeger")))
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
         .build());
     expectLastCall();
 
@@ -67,7 +72,9 @@ public class JaegerThriftCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-fea4-87ee36e58cab"),
-            new Annotation("application", "Jaeger")))
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
         .build());
     expectLastCall();
 
@@ -75,7 +82,7 @@ public class JaegerThriftCollectorHandlerTest {
     replay(mockTraceHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
-        new AtomicBoolean(false));
+        null, new AtomicBoolean(false));
 
     Tag tag1 = new Tag("ip", TagType.STRING);
     tag1.setVStr("10.0.0.1");

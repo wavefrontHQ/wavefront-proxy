@@ -1,20 +1,24 @@
 package com.wavefront.integrations.metrics;
 
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import io.dropwizard.metrics.BaseReporterFactory;
-import io.dropwizard.validation.PortRange;
+
 import org.hibernate.validator.constraints.NotEmpty;
 
-import javax.validation.constraints.NotNull;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.Map;
+
+import javax.validation.constraints.NotNull;
+
+import io.dropwizard.metrics.BaseReporterFactory;
+import io.dropwizard.validation.PortRange;
 
 /**
  * A factory for {@link WavefrontReporter} instances.

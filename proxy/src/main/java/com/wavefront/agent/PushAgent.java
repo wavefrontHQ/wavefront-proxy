@@ -17,6 +17,7 @@ import com.wavefront.agent.channel.IdleStateEventHandler;
 import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
+import com.wavefront.agent.handlers.InternalProxyWavefrontClient;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
@@ -32,26 +33,19 @@ import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.AccumulationTask;
 import com.wavefront.agent.histogram.tape.TapeDeck;
 import com.wavefront.agent.histogram.tape.TapeStringListConverter;
-import com.wavefront.agent.logsharvesting.FilebeatIngester;
-import com.wavefront.agent.logsharvesting.LogsIngester;
-import com.wavefront.agent.logsharvesting.RawLogsIngester;
 import com.wavefront.agent.listeners.ChannelByteArrayHandler;
 import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
-import com.wavefront.agent.listeners.JaegerThriftCollectorHandler;
 import com.wavefront.agent.listeners.JsonMetricsEndpoint;
 import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
-import com.wavefront.agent.listeners.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonMetricsEndpoint;
-import com.wavefront.agent.listeners.ZipkinPortUnificationHandler;
+import com.wavefront.agent.listeners.tracing.JaegerThriftCollectorHandler;
+import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
+import com.wavefront.agent.listeners.tracing.ZipkinPortUnificationHandler;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.logsharvesting.RawLogsIngester;
-import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
-import com.wavefront.agent.channel.ConnectionTrackingHandler;
-import com.wavefront.agent.channel.IdleStateEventHandler;
-import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
@@ -73,6 +67,7 @@ import com.wavefront.ingester.SpanDecoder;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.TcpIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
+import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.CompositeSampler;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
@@ -91,7 +86,6 @@ import org.logstash.beats.Server;
 import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
-import java.net.InetAddress;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -319,7 +313,8 @@ public class PushAgent extends AbstractAgent {
     }
     if (traceJaegerListenerPorts != null) {
       Splitter.on(",").omitEmptyStrings().trimResults().split(traceJaegerListenerPorts).forEach(
-          strPort -> startTraceJaegerListener(strPort, handlerFactory)
+          strPort -> startTraceJaegerListener(strPort, handlerFactory,
+                new InternalProxyWavefrontClient(handlerFactory, strPort))
       );
     }
     if (pushRelayListenerPorts != null) {
@@ -330,7 +325,8 @@ public class PushAgent extends AbstractAgent {
     if (traceZipkinListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceZipkinListenerPorts);
       for (String strPort : ports) {
-        startTraceZipkinListener(strPort, handlerFactory);
+        startTraceZipkinListener(strPort, handlerFactory,
+            new InternalProxyWavefrontClient(handlerFactory, strPort));
         logger.info("listening on port: " + traceZipkinListenerPorts + " for Zipkin trace data.");
       }
     }
@@ -575,7 +571,10 @@ public class PushAgent extends AbstractAgent {
     logger.info("listening on port: " + strPort + " for trace data");
   }
 
-  protected void startTraceJaegerListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+  protected void startTraceJaegerListener(
+      String strPort,
+      ReportableEntityHandlerFactory handlerFactory,
+      @Nullable WavefrontSender wfSender) {
     if (tokenAuthenticator.authRequired()) {
       logger.warning("Port: " + strPort + " is not compatible with HTTP authentication, ignoring");
       return;
@@ -586,10 +585,9 @@ public class PushAgent extends AbstractAgent {
         TChannel server = new TChannel.Builder("jaeger-collector").
             setServerPort(Integer.valueOf(strPort)).
             build();
-        server.
-            makeSubChannel("jaeger-collector", Connection.Direction.IN).
-            register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort, handlerFactory,
-                traceDisabled));
+        server.makeSubChannel("jaeger-collector", Connection.Direction.IN).
+            register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort,
+                handlerFactory, wfSender, traceDisabled));
         server.listen().channel().closeFuture().sync();
         server.shutdown(false);
       } catch (InterruptedException e) {
@@ -603,17 +601,22 @@ public class PushAgent extends AbstractAgent {
     logger.info("listening on port: " + strPort + " for trace data (Jaeger format)");
   }
 
-  protected void startTraceZipkinListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+  protected void startTraceZipkinListener(
+      String strPort,
+      ReportableEntityHandlerFactory handlerFactory,
+      @Nullable WavefrontSender wfSender) {
     final int port = Integer.parseInt(strPort);
-    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, traceDisabled);
-
+    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory,
+        wfSender, traceDisabled);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port).
         withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
   }
 
   @VisibleForTesting
-  protected void startGraphiteListener(String strPort, ReportableEntityHandlerFactory handlerFactory,
-                                       CachingGraphiteHostAnnotator hostAnnotator) {
+  protected void startGraphiteListener(
+      String strPort,
+      ReportableEntityHandlerFactory handlerFactory,
+      CachingGraphiteHostAnnotator hostAnnotator) {
     final int port = Integer.parseInt(strPort);
 
     if (prefix != null && !prefix.isEmpty()) {
@@ -626,10 +629,12 @@ public class PushAgent extends AbstractAgent {
         ReportableEntityType.POINT, getDecoderInstance(),
         ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
         ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
-    ChannelHandler channelHandler = new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, decoders,
+    WavefrontPortUnificationHandler wavefrontPortUnificationHandler = new WavefrontPortUnificationHandler
+        (strPort, tokenAuthenticator,
+        decoders,
         handlerFactory, hostAnnotator, preprocessors.forPort(strPort));
     startAsManagedThread(
-        new TcpIngester(createInitializer(channelHandler, strPort), port).
+        new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort), port).
             withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
   }
 

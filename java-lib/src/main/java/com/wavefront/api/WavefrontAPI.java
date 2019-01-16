@@ -3,15 +3,24 @@ package com.wavefront.api;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ShellOutputDTO;
-import org.jboss.resteasy.annotations.GZIP;
 
-import javax.validation.Valid;
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import org.jboss.resteasy.annotations.GZIP;
 
 import java.util.List;
 import java.util.UUID;
+
+import javax.validation.Valid;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 /**
  * API for the Agent.

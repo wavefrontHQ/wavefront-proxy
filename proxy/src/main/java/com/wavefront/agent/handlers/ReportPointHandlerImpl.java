@@ -2,8 +2,8 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
-import com.wavefront.ingester.ReportPointSerializer;
 import com.wavefront.data.Validation;
+import com.wavefront.ingester.ReportPointSerializer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Histogram;
