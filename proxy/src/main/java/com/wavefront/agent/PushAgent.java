@@ -327,7 +327,6 @@ public class PushAgent extends AbstractAgent {
       for (String strPort : ports) {
         startTraceZipkinListener(strPort, handlerFactory,
             new InternalProxyWavefrontClient(handlerFactory, strPort));
-        logger.info("listening on port: " + traceZipkinListenerPorts + " for Zipkin trace data.");
       }
     }
     if (jsonListenerPorts != null) {
@@ -610,6 +609,7 @@ public class PushAgent extends AbstractAgent {
         wfSender, traceDisabled);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port).
         withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
+    logger.info("listening on port: " + strPort + " for trace data (Zipkin format)");
   }
 
   @VisibleForTesting
