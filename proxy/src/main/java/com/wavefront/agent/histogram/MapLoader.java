@@ -7,9 +7,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import com.wavefront.agent.ResubmissionTask;
-import com.wavefront.agent.ResubmissionTaskDeserializer;
-
 import net.openhft.chronicle.hash.serialization.BytesReader;
 import net.openhft.chronicle.hash.serialization.BytesWriter;
 import net.openhft.chronicle.hash.serialization.SizedReader;
@@ -24,7 +21,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 

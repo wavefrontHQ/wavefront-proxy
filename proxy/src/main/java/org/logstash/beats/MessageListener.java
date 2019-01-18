@@ -1,7 +1,8 @@
 package org.logstash.beats;
 
-import io.netty.channel.ChannelHandlerContext;
 import org.apache.log4j.Logger;
+
+import io.netty.channel.ChannelHandlerContext;
 
 
 /**

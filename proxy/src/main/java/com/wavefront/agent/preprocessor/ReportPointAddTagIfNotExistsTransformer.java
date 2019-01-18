@@ -1,7 +1,5 @@
 package com.wavefront.agent.preprocessor;
 
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import com.yammer.metrics.core.Counter;

@@ -1,6 +1,7 @@
 package com.yammer.metrics.core;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import com.wavefront.common.MetricConstants;
 import com.yammer.metrics.Metrics;
 

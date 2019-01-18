@@ -2,12 +2,12 @@ package com.wavefront.examples;
 
 import com.wavefront.integrations.dropwizard_metrics5.WavefrontReporter;
 
+import java.util.HashMap;
+import java.util.concurrent.TimeUnit;
+
 import io.dropwizard.metrics5.Counter;
 import io.dropwizard.metrics5.MetricName;
 import io.dropwizard.metrics5.MetricRegistry;
-
-import java.util.HashMap;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Example for reporting dropwizard metrics into Wavefront via Direct Ingestion.

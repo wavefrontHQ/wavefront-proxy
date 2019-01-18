@@ -1,8 +1,8 @@
 package com.wavefront.agent.logsharvesting;
 
 import com.wavefront.agent.PointHandler;
-
 import com.wavefront.common.MetricConstants;
+
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;

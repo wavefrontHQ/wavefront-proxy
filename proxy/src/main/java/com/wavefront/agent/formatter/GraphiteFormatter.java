@@ -3,12 +3,9 @@ package com.wavefront.agent.formatter;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import com.wavefront.common.MetricMangler;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Specific formatter for the graphite/collectd world of metric-munged names.

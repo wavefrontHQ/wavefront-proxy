@@ -2,6 +2,9 @@ package com.wavefront.agent.channel;
 
 import com.google.common.base.Charsets;
 
+import java.util.List;
+import java.util.logging.Logger;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -11,14 +14,11 @@ import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.handler.codec.compression.ZlibCodecFactory;
 import io.netty.handler.codec.compression.ZlibWrapper;
 import io.netty.handler.codec.http.HttpContentDecompressor;
-import io.netty.handler.codec.string.StringDecoder;
-import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
-
-import java.util.List;
-import java.util.logging.Logger;
+import io.netty.handler.codec.string.StringDecoder;
+import io.netty.handler.codec.string.StringEncoder;
 
 /**
  * This class handles 2 different protocols on a single port.  Supported protocols include HTTP and

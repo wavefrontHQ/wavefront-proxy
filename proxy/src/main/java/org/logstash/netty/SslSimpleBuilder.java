@@ -1,19 +1,24 @@
 package org.logstash.netty;
 
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslHandler;
 import org.apache.log4j.Logger;
-import org.logstash.beats.Server;
 
-import javax.net.ssl.SSLEngine;
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+
+import javax.net.ssl.SSLEngine;
+
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
 
 /**
  * Created by ph on 2016-05-27.

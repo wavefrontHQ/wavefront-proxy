@@ -1,13 +1,14 @@
 package org.logstash.beats;
 
+import org.apache.log4j.Logger;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
-import org.apache.log4j.Logger;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @ChannelHandler.Sharable
 public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {

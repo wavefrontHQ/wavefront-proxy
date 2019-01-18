@@ -1,4 +1,4 @@
-package com.wavefront.agent.listeners;
+package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableList;
 
@@ -38,7 +38,7 @@ public class ZipkinPortUnificationHandlerTest {
   @Test
   public void testZipkinHandler() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
-        mockTraceHandler,
+        mockTraceHandler, null,
         new AtomicBoolean(false),
         null);
 
@@ -113,10 +113,10 @@ public class ZipkinPortUnificationHandlerTest {
         setAnnotations(ImmutableList.of(
             new Annotation("span.kind", "server"),
             new Annotation("service", "frontend"),
-            new Annotation("application", "Zipkin"),
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
-            new Annotation("http.url", "none+h1c://localhost:8881/"))).
+            new Annotation("http.url", "none+h1c://localhost:8881/"),
+            new Annotation("application", "Zipkin"))).
         build());
     expectLastCall();
 
@@ -131,10 +131,10 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("parent", "00000000-0000-0000-2822-889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("service", "backend"),
-            new Annotation("application", "Zipkin"),
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
-            new Annotation("http.url", "none+h2c://localhost:9000/api"))).
+            new Annotation("http.url", "none+h2c://localhost:9000/api"),
+            new Annotation("application", "Zipkin"))).
         build());
     expectLastCall();
 

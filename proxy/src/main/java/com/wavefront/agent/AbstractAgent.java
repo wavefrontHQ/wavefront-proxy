@@ -1026,6 +1026,7 @@ public abstract class AbstractAgent {
       picklePorts = config.getString("picklePorts", picklePorts);
       traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
       traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
+      traceZipkinListenerPorts = config.getString("traceZipkinListenerPorts", traceZipkinListenerPorts);
       traceSamplingRate = Double.parseDouble(config.getRawProperty("traceSamplingRate",
           String.valueOf(traceSamplingRate)).trim());
       traceSamplingDuration = config.getNumber("traceSamplingDuration", traceSamplingDuration).intValue();

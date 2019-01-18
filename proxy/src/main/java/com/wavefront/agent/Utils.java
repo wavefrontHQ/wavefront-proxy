@@ -43,8 +43,8 @@ public abstract class Utils {
   }
 
   /**
-   * Requires an input uuid string Encoded as 32 hex characters.
-   * For example {@code cced093a76eea418ffdc9bb9a6453df3}
+   * Requires an input uuid string Encoded as 32 hex characters. For example {@code
+   * cced093a76eea418ffdc9bb9a6453df3}
    *
    * @param uuid string encoded as 32 hex characters.
    * @return uuid string encoded in 8-4-4-4-12 (rfc4122) format.
@@ -55,12 +55,11 @@ public abstract class Utils {
   }
 
   /**
-   * Method converts a string Id to {@code UUID}.
-   * This Method specifically converts id's with less than 32 digit hex characters into UUID
-   * format (See <a href="http://www.ietf.org/rfc/rfc4122.txt"> <i>RFC&nbsp;4122: A
-   * Universally Unique IDentifier (UUID) URN Namespace</i></a>) by left padding id with Zeroes
-   * and adding hyphens. It assumes that if the input id contains hyphens it is already an UUID.
-   * Please don't use this method to validate/guarantee your id as an UUID.
+   * Method converts a string Id to {@code UUID}. This Method specifically converts id's with less
+   * than 32 digit hex characters into UUID format (See <a href="http://www.ietf.org/rfc/rfc4122.txt">
+   * <i>RFC&nbsp;4122: A Universally Unique IDentifier (UUID) URN Namespace</i></a>) by left padding
+   * id with Zeroes and adding hyphens. It assumes that if the input id contains hyphens it is
+   * already an UUID. Please don't use this method to validate/guarantee your id as an UUID.
    *
    * @param id a string encoded in hex characters.
    * @return a UUID string.

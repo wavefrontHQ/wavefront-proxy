@@ -6,7 +6,6 @@ import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.squareup.tape.TaskInjector;
 import com.wavefront.agent.QueuedAgentService.PostPushDataResultTask;
 import com.wavefront.api.WavefrontAPI;
-import com.wavefront.api.agent.ShellOutputDTO;
 import com.wavefront.ingester.StringLineIngester;
 
 import net.jcip.annotations.NotThreadSafe;
@@ -35,7 +34,6 @@ import javax.ws.rs.core.Response;
 import io.netty.util.internal.StringUtil;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**

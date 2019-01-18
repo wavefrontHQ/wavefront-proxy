@@ -1,10 +1,11 @@
 package io.dropwizard.metrics5.jvm;
 
-import io.dropwizard.metrics5.RatioGauge;
 import com.sun.management.UnixOperatingSystemMXBean;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
+
+import io.dropwizard.metrics5.RatioGauge;
 
 /**
  * Java 9 compatible implementation of FileDescriptorRatioGauge that doesn't use reflection

@@ -7,9 +7,9 @@ import com.squareup.tape.InMemoryObjectQueue;
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.PointHandler;
-import com.wavefront.data.Validation;
 import com.wavefront.agent.histogram.Utils;
 import com.wavefront.agent.histogram.Utils.HistogramKey;
+import com.wavefront.data.Validation;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.HistogramDecoder;
 
@@ -27,7 +27,9 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.wavefront.agent.histogram.TestUtils.DEFAULT_TIME_MILLIS;
 import static com.wavefront.agent.histogram.TestUtils.DEFAULT_VALUE;
 import static com.wavefront.agent.histogram.TestUtils.makeKey;
-import static com.wavefront.agent.histogram.Utils.Granularity.*;
+import static com.wavefront.agent.histogram.Utils.Granularity.DAY;
+import static com.wavefront.agent.histogram.Utils.Granularity.HOUR;
+import static com.wavefront.agent.histogram.Utils.Granularity.MINUTE;
 
 /**
  * Unit tests around {@link AccumulationTask}
