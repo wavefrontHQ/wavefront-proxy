@@ -1,5 +1,4 @@
 #!/bin/bash
-set -x
 
 spool_dir="/var/spool/wavefront-proxy"
 mkdir -p $spool_dir
