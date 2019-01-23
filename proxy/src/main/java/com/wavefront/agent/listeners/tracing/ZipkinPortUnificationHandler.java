@@ -221,6 +221,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
 
     String applicationName = DEFAULT_APPLICATION;
     boolean applicationTagPresent = false;
+    boolean clusterTagPresent = false;
+    boolean shardTagPresent = false;
     String cluster = NULL_TAG_VAL;
     String shard = NULL_TAG_VAL;
     boolean isError = false;
@@ -237,9 +239,11 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
               applicationName = annotation.getValue();
               break;
             case CLUSTER_TAG_KEY:
+              clusterTagPresent = true;
               cluster = annotation.getValue();
               break;
             case SHARD_TAG_KEY:
+              shardTagPresent = true;
               shard = annotation.getValue();
               break;
             case ERROR_SPAN_TAG_KEY:
@@ -255,6 +259,14 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
 
     if (!applicationTagPresent) {
       annotations.add(new Annotation(APPLICATION_TAG_KEY, applicationName));
+    }
+
+    if (!clusterTagPresent) {
+      annotations.add(new Annotation(CLUSTER_TAG_KEY, cluster));
+    }
+
+    if (!shardTagPresent) {
+      annotations.add(new Annotation(SHARD_TAG_KEY, shard));
     }
 
     /** Add source of the span following the below:
