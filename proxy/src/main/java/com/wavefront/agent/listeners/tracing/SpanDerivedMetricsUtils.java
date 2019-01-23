@@ -16,6 +16,7 @@ import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 
 /**
  * Util methods to generate data (metrics/histograms/heartbeats) from tracing spans
@@ -63,6 +64,7 @@ public class SpanDerivedMetricsUtils {
       put(CLUSTER_TAG_KEY, cluster);
       put(SHARD_TAG_KEY, shard);
       put(OPERATION_NAME_TAG, operationName);
+      put(SOURCE_KEY, source);
     }};
 
     // tracing.derived.<application>.<service>.<operation>.invocation.count
