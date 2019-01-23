@@ -115,7 +115,9 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
             new Annotation("http.url", "none+h1c://localhost:8881/"),
-            new Annotation("application", "Zipkin"))).
+            new Annotation("application", "Zipkin"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none"))).
         build());
     expectLastCall();
 
@@ -133,7 +135,9 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
             new Annotation("http.url", "none+h2c://localhost:9000/api"),
-            new Annotation("application", "Zipkin"))).
+            new Annotation("application", "Zipkin"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none"))).
         build());
     expectLastCall();
 
