@@ -13,7 +13,7 @@ java \
 	-t $WAVEFRONT_TOKEN \
 	--hostname ${WAVEFRONT_HOSTNAME:-$(hostname)} \
 	--ephemeral true \
-	--buffer ${spool_dir}/buffer} \
+	--buffer ${spool_dir}/buffer \
 	--flushThreads 6 \
 	--retryThreads 6 \
 	$WAVEFRONT_PROXY_ARGS
