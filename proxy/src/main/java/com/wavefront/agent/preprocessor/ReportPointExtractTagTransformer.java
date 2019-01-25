@@ -10,7 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -62,7 +62,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
     this.ruleMetrics = ruleMetrics;
   }
 
-  protected boolean extractTag(@NotNull ReportPoint reportPoint, final String extractFrom) {
+  protected boolean extractTag(@Nonnull ReportPoint reportPoint, final String extractFrom) {
     Matcher patternMatcher;
     if (extractFrom == null || (compiledMatchPattern != null && !compiledMatchPattern.matcher(extractFrom).matches())) {
       return false;
@@ -82,7 +82,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
     return true;
   }
 
-  protected void internalApply(@NotNull ReportPoint reportPoint) {
+  protected void internalApply(@Nonnull ReportPoint reportPoint) {
     switch (source) {
       case "metricName":
         if (extractTag(reportPoint, reportPoint.getMetric()) && patternReplaceSource != null) {
@@ -108,7 +108,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   }
 
   @Override
-  public ReportPoint apply(@NotNull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
     long startNanos = ruleMetrics.ruleStart();
     if (reportPoint.getAnnotations() == null) {
       reportPoint.setAnnotations(Maps.<String, String>newHashMap());

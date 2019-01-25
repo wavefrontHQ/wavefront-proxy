@@ -8,7 +8,7 @@ import com.yammer.metrics.core.Counter;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -43,7 +43,7 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
   }
 
   @Override
-  public ReportPoint apply(@NotNull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":

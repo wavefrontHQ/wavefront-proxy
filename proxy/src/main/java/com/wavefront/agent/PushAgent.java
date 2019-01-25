@@ -584,9 +584,10 @@ public class PushAgent extends AbstractAgent {
         TChannel server = new TChannel.Builder("jaeger-collector").
             setServerPort(Integer.valueOf(strPort)).
             build();
-        server.makeSubChannel("jaeger-collector", Connection.Direction.IN).
-            register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort,
-                handlerFactory, wfSender, traceDisabled));
+        server.
+            makeSubChannel("jaeger-collector", Connection.Direction.IN).
+            register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort, handlerFactory,
+                wfSender, traceDisabled, preprocessors.forPort(strPort)));
         server.listen().channel().closeFuture().sync();
         server.shutdown(false);
       } catch (InterruptedException e) {
@@ -605,8 +606,9 @@ public class PushAgent extends AbstractAgent {
       ReportableEntityHandlerFactory handlerFactory,
       @Nullable WavefrontSender wfSender) {
     final int port = Integer.parseInt(strPort);
-    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory,
-        wfSender, traceDisabled);
+    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, wfSender, traceDisabled,
+        preprocessors.forPort(strPort));
+
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port).
         withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
     logger.info("listening on port: " + strPort + " for trace data (Zipkin format)");
@@ -629,10 +631,8 @@ public class PushAgent extends AbstractAgent {
         ReportableEntityType.POINT, getDecoderInstance(),
         ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
         ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
-    WavefrontPortUnificationHandler wavefrontPortUnificationHandler = new WavefrontPortUnificationHandler
-        (strPort, tokenAuthenticator,
-        decoders,
-        handlerFactory, hostAnnotator, preprocessors.forPort(strPort));
+    WavefrontPortUnificationHandler wavefrontPortUnificationHandler = new WavefrontPortUnificationHandler(strPort,
+        tokenAuthenticator, decoders, handlerFactory, hostAnnotator, preprocessors.forPort(strPort));
     startAsManagedThread(
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort), port).
             withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);

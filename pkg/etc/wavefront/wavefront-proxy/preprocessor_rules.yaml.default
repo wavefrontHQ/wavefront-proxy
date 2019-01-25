@@ -22,6 +22,8 @@
 ##   - renameTag: rename a point tag, preserving its value. optional: rename it only when the point tag value matches
 ##                a regex pattern (full match). this functionality allows separating a point tag with mixed data into
 ##                separate tags.
+##   - limitLength: enforce custom string length limits for various data point's components (metric name, source,
+##                  point tag value). Available action sub-types: truncate, truncateWithEllipsis, drop
 ##
 ## "Scope" parameter for replaceRegex/whitelistRegex/blacklistRegex:
 ##   - pointLine: applies to the whole point string before it's parsed, which makes it possible to correct
@@ -34,6 +36,7 @@
 ##
 ## Notes:
 ##   - backslashes in regex patterns should be double-escaped
+##   - numeric values should be wrapped in quotes
 ##   - "match" patterns must be a full match, i.e. a regex to block the point line that contains "stage" substring
 ##     will look like ".*stage.*". replaceRegex "search" patterns are a substring match, so if the pattern is "A"
 ##     and replace is "B", it will simply replace all A's with B's.
@@ -224,3 +227,14 @@
   #  search  : "tsdb\\."
   #  replace : ""
 
+# rules for port 30001
+'30001':
+
+  ## truncate 'db.statement' annotation value at 240 characters,
+  ## replace last 3 characters with '...'.
+  ################################################################
+  - rule          : limit-db-statement
+    action        : spanLimitLength
+    scope         : "db.statement"
+    actionSubtype : truncateWithEllipsis
+    maxLength     : "240"

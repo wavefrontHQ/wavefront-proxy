@@ -10,6 +10,7 @@ import com.uber.tchannel.messages.ThriftResponse;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
@@ -81,6 +82,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   @Nullable
   private final WavefrontInternalReporter wfInternalReporter;
   private final AtomicBoolean traceDisabled;
+  private final ReportableEntityPreprocessor preprocessor;
 
   // log every 5 seconds
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
@@ -93,21 +95,25 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final ScheduledExecutorService scheduledExecutorService;
 
   @SuppressWarnings("unchecked")
-  public JaegerThriftCollectorHandler(String handle, ReportableEntityHandlerFactory handlerFactory,
+  public JaegerThriftCollectorHandler(String handle,
+                                      ReportableEntityHandlerFactory handlerFactory,
                                       @Nullable WavefrontSender wfSender,
-                                      AtomicBoolean traceDisabled) {
+                                      AtomicBoolean traceDisabled,
+                                      ReportableEntityPreprocessor preprocessor) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        wfSender, traceDisabled);
+        wfSender, traceDisabled, preprocessor);
   }
 
   public JaegerThriftCollectorHandler(String handle,
                                       ReportableEntityHandler<Span> spanHandler,
                                       @Nullable WavefrontSender wfSender,
-                                      AtomicBoolean traceDisabled) {
+                                      AtomicBoolean traceDisabled,
+                                      @Nullable ReportableEntityPreprocessor preprocessor) {
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
+    this.preprocessor = preprocessor;
     this.discardedTraces = Metrics.newCounter(
         new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(
@@ -278,6 +284,18 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     if (JAEGER_DATA_LOGGER.isLoggable(Level.FINEST)) {
       JAEGER_DATA_LOGGER.info("Inbound Jaeger span: " + span.toString());
       JAEGER_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
+    }
+
+    if (preprocessor != null) {
+      preprocessor.forSpan().transform(wavefrontSpan);
+      if (!preprocessor.forSpan().filter((wavefrontSpan))) {
+        if (preprocessor.forSpan().getLastFilterResult() != null) {
+          spanHandler.reject(wavefrontSpan, preprocessor.forSpan().getLastFilterResult());
+        } else {
+          spanHandler.block(wavefrontSpan);
+        }
+        return;
+      }
     }
 
     spanHandler.report(wavefrontSpan);
