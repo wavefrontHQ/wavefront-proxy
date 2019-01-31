@@ -81,7 +81,7 @@ public class SpanDerivedMetricsUtils {
 
     // tracing.derived.<application>.<service>.<operation>.total_time.millis.count
     wfInternalReporter.newCounter(new MetricName(sanitize(application + "." + service + "." + operationName + TOTAL_TIME_SUFFIX), pointTags)).
-        inc(spanDurationMicros / 10000);
+        inc(spanDurationMicros / 1000);
     return new HeartbeatMetricKey(application, service, cluster, shard, source);
   }
 

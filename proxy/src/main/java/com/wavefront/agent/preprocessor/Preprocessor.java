@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Generic container class for storing transformation and filter rules
@@ -26,7 +26,7 @@ public class Preprocessor<T> {
    * @param item input point
    * @return transformed point
    */
-  public T transform(@NotNull T item) {
+  public T transform(@Nonnull T item) {
     for (final Function<T, T> func : transformers) {
       item = func.apply(item);
     }
@@ -38,7 +38,7 @@ public class Preprocessor<T> {
    * @param item item to apply predicates to
    * @return true if all predicates returned "true"
    */
-  public boolean filter(@NotNull T item) {
+  public boolean filter(@Nonnull T item) {
     message = null;
     for (final AnnotatedPredicate<T> predicate : filters) {
       if (!predicate.apply(item)) {

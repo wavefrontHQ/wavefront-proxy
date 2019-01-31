@@ -9,7 +9,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -57,7 +57,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     this.ruleMetrics = ruleMetrics;
   }
 
-  private String replaceString(@NotNull ReportPoint reportPoint, String content) {
+  private String replaceString(@Nonnull ReportPoint reportPoint, String content) {
     Matcher patternMatcher;
     patternMatcher = compiledSearchPattern.matcher(content);
     if (!patternMatcher.find()) {
@@ -80,7 +80,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   }
 
   @Override
-  public ReportPoint apply(@NotNull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":

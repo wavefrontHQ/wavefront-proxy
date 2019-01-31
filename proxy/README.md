@@ -22,13 +22,13 @@ To set up a Wavefront proxy to listen for metrics, histograms, and trace data:
     ## wavefront.conf file
     ...
     # Listens for metric data. Default: 2878
-    pushListenerPort=2878
+    pushListenerPorts=2878
     ...
     # Listens for histogram distributions. Recommended: 40000
-    histogramDistListenerPort=40000
+    histogramDistListenerPorts=40000
     ...
     # Listens for trace data. Recommended: 30000
-    traceListenerPort=30000
+    traceListenerPorts=30000
     ```
 4. Save the `wavefront.conf` file.
 5. [Start](http://docs.wavefront.com/proxies_installing.html###starting-and-stopping-a-proxy) the proxy.

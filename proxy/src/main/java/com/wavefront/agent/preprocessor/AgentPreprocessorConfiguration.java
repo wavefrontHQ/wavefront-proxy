@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Parses and stores all preprocessor rules (organized by listening port)
@@ -42,7 +42,7 @@ public class AgentPreprocessorConfiguration {
     return preprocessor;
   }
 
-  private void requireArguments(@NotNull Map<String, String> rule, String... arguments) {
+  private void requireArguments(@Nonnull Map<String, String> rule, String... arguments) {
     if (rule == null)
       throw new IllegalArgumentException("Rule is empty");
     for (String argument : arguments) {
@@ -51,7 +51,7 @@ public class AgentPreprocessorConfiguration {
     }
   }
 
-  private void allowArguments(@NotNull Map<String, String> rule, String... arguments) {
+  private void allowArguments(@Nonnull Map<String, String> rule, String... arguments) {
     Sets.SetView<String> invalidArguments = Sets.difference(rule.keySet(), Sets.newHashSet(arguments));
     if (invalidArguments.size() > 0) {
       throw new IllegalArgumentException("Invalid or not applicable argument(s): " +
@@ -73,8 +73,9 @@ public class AgentPreprocessorConfiguration {
         for (Map<String, String> rule : rules) {
           try {
             requireArguments(rule, "rule", "action");
-            allowArguments(rule, "rule", "action", "scope", "search", "replace", "match",
-                "tag", "newtag", "value", "source", "iterations", "replaceSource", "replaceInput");
+            allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "tag", "key", "newtag",
+                "value", "source", "input", "iterations", "replaceSource", "replaceInput", "actionSubtype", "maxLength",
+                "firstMatchOnly");
             String ruleName = rule.get("rule").replaceAll("[^a-z0-9_-]", "");
             PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
                 Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName, "count", "port", strPort)),
@@ -105,6 +106,8 @@ public class AgentPreprocessorConfiguration {
               }
             } else {
               switch (rule.get("action")) {
+
+                // Rules for ReportPoint objects
                 case "replaceRegex":
                   allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "iterations");
                   this.forPort(strPort).forReportPoint().addTransformer(
@@ -153,6 +156,12 @@ public class AgentPreprocessorConfiguration {
                       new ReportPointRenameTagTransformer(
                           rule.get("tag"), rule.get("newtag"), rule.get("match"), ruleMetrics));
                   break;
+                case "limitLength":
+                  allowArguments(rule, "rule", "action", "scope", "actionSubtype", "maxLength", "match");
+                  this.forPort(strPort).forReportPoint().addTransformer(
+                      new ReportPointLimitLengthTransformer(rule.get("scope"), Integer.parseInt(rule.get("maxLength")),
+                  LengthLimitActionType.fromString(rule.get("actionSubtype")), rule.get("match"), ruleMetrics));
+                  break;
                 case "blacklistRegex":
                   allowArguments(rule, "rule", "action", "scope", "match");
                   this.forPort(strPort).forReportPoint().addFilter(
@@ -162,6 +171,72 @@ public class AgentPreprocessorConfiguration {
                   allowArguments(rule, "rule", "action", "scope", "match");
                   this.forPort(strPort).forReportPoint().addFilter(
                       new ReportPointWhitelistRegexFilter(rule.get("scope"), rule.get("match"), ruleMetrics));
+                  break;
+
+                // Rules for Span objects
+                case "spanReplaceRegex":
+                  allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "iterations",
+                      "firstMatchOnly");
+                  this.forPort(strPort).forSpan().addTransformer(
+                      new SpanReplaceRegexTransformer(rule.get("scope"), rule.get("search"), rule.get("replace"),
+                          rule.get("match"), Integer.parseInt(rule.getOrDefault("iterations", "1")),
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatch", "false")), ruleMetrics));
+                  break;
+                case "spanForceLowercase":
+                  allowArguments(rule, "rule", "action", "scope", "match", "firstMatchOnly");
+                  this.forPort(strPort).forSpan().addTransformer(
+                      new SpanForceLowercaseTransformer(rule.get("scope"), rule.get("match"),
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatch", "false")), ruleMetrics));
+                  break;
+                case "spanAddAnnotation":
+                  allowArguments(rule, "rule", "action", "key", "value");
+                  this.forPort(strPort).forSpan().addTransformer(
+                      new SpanAddAnnotationTransformer(rule.get("key"), rule.get("value"), ruleMetrics));
+                  break;
+                case "spanAddAnnotationIfNotExists":
+                  allowArguments(rule, "rule", "action", "key", "value");
+                  this.forPort(strPort).forSpan().addTransformer(
+                      new SpanAddAnnotationIfNotExistsTransformer(rule.get("key"), rule.get("value"), ruleMetrics));
+                  break;
+                case "spanDropAnnotation":
+                  allowArguments(rule, "rule", "action", "key", "match", "firstMatchOnly");
+                  this.forPort(strPort).forSpan().addTransformer(
+                      new SpanDropAnnotationTransformer(rule.get("key"), rule.get("match"),
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatch", "false")), ruleMetrics));
+                  break;
+                case "spanExtractAnnotation":
+                  allowArguments(rule, "rule", "action", "key", "input", "search", "replace", "replaceInput", "match",
+                      "firstMatchOnly");
+                  this.forPort(strPort).forSpan().addTransformer(
+                      new SpanExtractAnnotationTransformer(rule.get("key"), rule.get("input"), rule.get("search"),
+                          rule.get("replace"), rule.get("replaceInput"), rule.get("match"),
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatchOnly", "false")), ruleMetrics));
+                  break;
+                case "spanExtractAnnotationIfNotExists":
+                  allowArguments(rule, "rule", "action", "key", "input", "search", "replace", "replaceInput", "match",
+                      "firstMatchOnly");
+                  this.forPort(strPort).forSpan().addTransformer(
+                      new SpanExtractAnnotationIfNotExistsTransformer(rule.get("key"), rule.get("input"),
+                          rule.get("search"), rule.get("replace"), rule.get("replaceInput"), rule.get("match"),
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatchOnly", "false")), ruleMetrics));
+                  break;
+                case "spanLimitLength":
+                  allowArguments(rule, "rule", "action", "scope", "actionSubtype", "maxLength", "match",
+                      "firstMatchOnly");
+                  this.forPort(strPort).forSpan().addTransformer(
+                      new SpanLimitLengthTransformer(rule.get("scope"), Integer.parseInt(rule.get("maxLength")),
+                          LengthLimitActionType.fromString(rule.get("actionSubtype")), rule.get("match"),
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatchOnly", "false")), ruleMetrics));
+                  break;
+                case "spanBlacklistRegex":
+                  allowArguments(rule, "rule", "action", "scope", "match");
+                  this.forPort(strPort).forSpan().addFilter(
+                      new SpanBlacklistRegexFilter(rule.get("scope"), rule.get("match"), ruleMetrics));
+                  break;
+                case "spanWhitelistRegex":
+                  allowArguments(rule, "rule", "action", "scope", "match");
+                  this.forPort(strPort).forSpan().addFilter(
+                      new SpanWhitelistRegexFilter(rule.get("scope"), rule.get("match"), ruleMetrics));
                   break;
                 default:
                   throw new IllegalArgumentException("Action '" + rule.get("action") + "' is not valid");

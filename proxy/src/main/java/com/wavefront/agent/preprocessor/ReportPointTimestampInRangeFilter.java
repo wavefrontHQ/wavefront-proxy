@@ -8,7 +8,7 @@ import com.yammer.metrics.core.MetricName;
 import org.apache.commons.lang.time.DateUtils;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -37,7 +37,7 @@ public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<Report
   }
 
   @Override
-  public boolean apply(@NotNull ReportPoint point) {
+  public boolean apply(@Nonnull ReportPoint point) {
     this.message = null;
     long pointTime = point.getTimestamp();
     long rightNow = Clock.now();

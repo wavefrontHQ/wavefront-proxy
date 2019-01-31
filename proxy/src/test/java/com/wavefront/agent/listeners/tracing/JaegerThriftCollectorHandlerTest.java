@@ -82,7 +82,7 @@ public class JaegerThriftCollectorHandlerTest {
     replay(mockTraceHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
-        null, new AtomicBoolean(false));
+        null, new AtomicBoolean(false), null);
 
     Tag tag1 = new Tag("ip", TagType.STRING);
     tag1.setVStr("10.0.0.1");
