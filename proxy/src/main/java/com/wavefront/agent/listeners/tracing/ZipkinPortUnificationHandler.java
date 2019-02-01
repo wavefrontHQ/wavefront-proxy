@@ -17,6 +17,7 @@ import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.WavefrontSender;
+import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -29,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -76,6 +78,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final WavefrontInternalReporter wfInternalReporter;
   private final AtomicBoolean traceDisabled;
   private final ReportableEntityPreprocessor preprocessor;
+  private final Sampler sampler;
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
   private final Counter discardedBatches;
   private final Counter processedBatches;
@@ -101,17 +104,19 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       ReportableEntityHandlerFactory handlerFactory,
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
-                                      @Nullable ReportableEntityPreprocessor preprocessor) {
+                                      @Nullable ReportableEntityPreprocessor preprocessor,
+                                      Sampler sampler) {
     this(handle,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        wfSender, traceDisabled, preprocessor);
+        wfSender, traceDisabled, preprocessor, sampler);
   }
 
   public ZipkinPortUnificationHandler(final String handle,
                                       ReportableEntityHandler<Span> spanHandler,
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
-                                      @Nullable ReportableEntityPreprocessor preprocessor) {
+                                      @Nullable ReportableEntityPreprocessor preprocessor,
+                                      Sampler sampler) {
     super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(),
         handle, false, true);
     this.handle = handle;
@@ -119,6 +124,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
     this.preprocessor = preprocessor;
+    this.sampler = sampler;
     this.discardedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "discarded"));
     this.processedBatches = Metrics.newCounter(new MetricName(
@@ -327,8 +333,11 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
         return;
       }
     }
-    spanHandler.report(wavefrontSpan);
-
+    if (sampler.sample(wavefrontSpan.getName(), UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
+        wavefrontSpan.getDuration())) {
+      spanHandler.report(wavefrontSpan);
+    }
+    // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {
       // report converted metrics/histograms from the span
       discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,

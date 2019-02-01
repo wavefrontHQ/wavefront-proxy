@@ -16,6 +16,7 @@ import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.WavefrontSender;
+import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -83,6 +84,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final WavefrontInternalReporter wfInternalReporter;
   private final AtomicBoolean traceDisabled;
   private final ReportableEntityPreprocessor preprocessor;
+  private final Sampler sampler;
 
   // log every 5 seconds
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
@@ -99,21 +101,24 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       ReportableEntityHandlerFactory handlerFactory,
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
-                                      ReportableEntityPreprocessor preprocessor) {
+                                      ReportableEntityPreprocessor preprocessor,
+                                      Sampler sampler) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        wfSender, traceDisabled, preprocessor);
+        wfSender, traceDisabled, preprocessor, sampler);
   }
 
   public JaegerThriftCollectorHandler(String handle,
                                       ReportableEntityHandler<Span> spanHandler,
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
-                                      @Nullable ReportableEntityPreprocessor preprocessor) {
+                                      @Nullable ReportableEntityPreprocessor preprocessor,
+                                      Sampler sampler) {
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
     this.preprocessor = preprocessor;
+    this.sampler = sampler;
     this.discardedTraces = Metrics.newCounter(
         new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(
@@ -297,9 +302,11 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         return;
       }
     }
-
-    spanHandler.report(wavefrontSpan);
-
+    if (sampler.sample(wavefrontSpan.getName(), UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
+        wavefrontSpan.getDuration())) {
+      spanHandler.report(wavefrontSpan);
+    }
+    // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {
       // report converted metrics/histograms from the span
       discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
