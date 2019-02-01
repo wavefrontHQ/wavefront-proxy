@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
 import org.easymock.EasyMock;
 import org.junit.Test;
@@ -36,11 +37,9 @@ public class ZipkinPortUnificationHandlerTest {
   private long startTime = System.currentTimeMillis();
 
   @Test
-  public void testZipkinHandler() throws Exception {
-    ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
-        mockTraceHandler, null,
-        new AtomicBoolean(false),
-        null);
+  public void testZipkinHandler() {
+    ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411", mockTraceHandler, null,
+        new AtomicBoolean(false), null, new RateSampler(1.0D));
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
     zipkin2.Span spanServer1 = zipkin2.Span.newBuilder().

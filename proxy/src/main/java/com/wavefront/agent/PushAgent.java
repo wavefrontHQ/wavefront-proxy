@@ -306,15 +306,20 @@ public class PushAgent extends AbstractAgent {
           strPort -> startDataDogListener(strPort, handlerFactory, httpClient)
       );
     }
+    // sampler for spans
+    Sampler rateSampler = SpanSamplerUtils.getRateSampler(traceSamplingRate);
+    Sampler durationSampler = SpanSamplerUtils.getDurationSampler(traceSamplingDuration);
+    List<Sampler> samplers = SpanSamplerUtils.fromSamplers(rateSampler, durationSampler);
+    Sampler compositeSampler = new CompositeSampler(samplers);
     if (traceListenerPorts != null) {
       Splitter.on(",").omitEmptyStrings().trimResults().split(traceListenerPorts).forEach(
-          strPort -> startTraceListener(strPort, handlerFactory)
+          strPort -> startTraceListener(strPort, handlerFactory, compositeSampler)
       );
     }
     if (traceJaegerListenerPorts != null) {
       Splitter.on(",").omitEmptyStrings().trimResults().split(traceJaegerListenerPorts).forEach(
           strPort -> startTraceJaegerListener(strPort, handlerFactory,
-                new InternalProxyWavefrontClient(handlerFactory, strPort))
+                new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler)
       );
     }
     if (pushRelayListenerPorts != null) {
@@ -326,7 +331,7 @@ public class PushAgent extends AbstractAgent {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(traceZipkinListenerPorts);
       for (String strPort : ports) {
         startTraceZipkinListener(strPort, handlerFactory,
-            new InternalProxyWavefrontClient(handlerFactory, strPort));
+            new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
       }
     }
     if (jsonListenerPorts != null) {
@@ -549,7 +554,8 @@ public class PushAgent extends AbstractAgent {
     logger.info("listening on port: " + strPort + " for pickle protocol metrics");
   }
 
-  protected void startTraceListener(final String strPort, ReportableEntityHandlerFactory handlerFactory) {
+  protected void startTraceListener(final String strPort, ReportableEntityHandlerFactory handlerFactory,
+                                    Sampler sampler) {
     if (prefix != null && !prefix.isEmpty()) {
       preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
@@ -557,13 +563,9 @@ public class PushAgent extends AbstractAgent {
         .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     final int port = Integer.parseInt(strPort);
 
-    Sampler rateSampler = SpanSamplerUtils.getRateSampler(traceSamplingRate);
-    Sampler durationSampler = SpanSamplerUtils.getDurationSampler(traceSamplingDuration);
-    List<Sampler> samplers = SpanSamplerUtils.fromSamplers(rateSampler, durationSampler);
-    Sampler compositeSampler = new CompositeSampler(samplers);
 
     ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, tokenAuthenticator,
-        new SpanDecoder("unknown"), preprocessors.forPort(strPort), handlerFactory, compositeSampler);
+        new SpanDecoder("unknown"), preprocessors.forPort(strPort), handlerFactory, sampler);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
         .withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
@@ -573,7 +575,8 @@ public class PushAgent extends AbstractAgent {
   protected void startTraceJaegerListener(
       String strPort,
       ReportableEntityHandlerFactory handlerFactory,
-      @Nullable WavefrontSender wfSender) {
+      @Nullable WavefrontSender wfSender,
+      Sampler sampler) {
     if (tokenAuthenticator.authRequired()) {
       logger.warning("Port: " + strPort + " is not compatible with HTTP authentication, ignoring");
       return;
@@ -587,7 +590,7 @@ public class PushAgent extends AbstractAgent {
         server.
             makeSubChannel("jaeger-collector", Connection.Direction.IN).
             register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort, handlerFactory,
-                wfSender, traceDisabled, preprocessors.forPort(strPort)));
+                wfSender, traceDisabled, preprocessors.forPort(strPort), sampler));
         server.listen().channel().closeFuture().sync();
         server.shutdown(false);
       } catch (InterruptedException e) {
@@ -604,11 +607,11 @@ public class PushAgent extends AbstractAgent {
   protected void startTraceZipkinListener(
       String strPort,
       ReportableEntityHandlerFactory handlerFactory,
-      @Nullable WavefrontSender wfSender) {
+      @Nullable WavefrontSender wfSender,
+      Sampler sampler) {
     final int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, wfSender, traceDisabled,
-        preprocessors.forPort(strPort));
-
+        preprocessors.forPort(strPort), sampler);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port).
         withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
     logger.info("listening on port: " + strPort + " for trace data (Zipkin format)");
