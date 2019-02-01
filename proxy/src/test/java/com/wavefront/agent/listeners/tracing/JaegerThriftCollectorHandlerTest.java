@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.uber.tchannel.messages.ThriftRequest;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
 import org.junit.Test;
 
@@ -82,7 +83,7 @@ public class JaegerThriftCollectorHandlerTest {
     replay(mockTraceHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
-        null, new AtomicBoolean(false), null);
+        null, new AtomicBoolean(false), null, new RateSampler(1.0D));
 
     Tag tag1 = new Tag("ip", TagType.STRING);
     tag1.setVStr("10.0.0.1");

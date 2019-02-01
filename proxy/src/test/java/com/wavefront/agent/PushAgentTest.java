@@ -6,6 +6,7 @@ import com.google.common.io.Resources;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
 import junit.framework.AssertionFailedError;
 
@@ -108,7 +109,7 @@ public class PushAgentTest {
     proxy.dataDogProcessSystemMetrics = false;
     proxy.dataDogProcessServiceChecks = true;
     proxy.startGraphiteListener(proxy.pushListenerPorts, mockHandlerFactory, null);
-    proxy.startTraceListener(proxy.traceListenerPorts, mockHandlerFactory);
+    proxy.startTraceListener(proxy.traceListenerPorts, mockHandlerFactory, new RateSampler(1.0D));
     proxy.startDataDogListener(proxy.dataDogJsonPorts, mockHandlerFactory, mockHttpClient);
     TimeUnit.MILLISECONDS.sleep(500);
   }
