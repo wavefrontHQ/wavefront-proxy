@@ -85,6 +85,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final AtomicBoolean traceDisabled;
   private final ReportableEntityPreprocessor preprocessor;
   private final Sampler sampler;
+  private final boolean alwaysSampleErrors;
 
   // log every 5 seconds
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
@@ -102,9 +103,10 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
                                       ReportableEntityPreprocessor preprocessor,
-                                      Sampler sampler) {
+                                      Sampler sampler,
+                                      boolean alwaysSampleErrors) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        wfSender, traceDisabled, preprocessor, sampler);
+        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors);
   }
 
   public JaegerThriftCollectorHandler(String handle,
@@ -112,13 +114,15 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
                                       @Nullable ReportableEntityPreprocessor preprocessor,
-                                      Sampler sampler) {
+                                      Sampler sampler,
+                                      boolean alwaysSampleErrors) {
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
     this.preprocessor = preprocessor;
     this.sampler = sampler;
+    this.alwaysSampleErrors = alwaysSampleErrors;
     this.discardedTraces = Metrics.newCounter(
         new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(
@@ -302,8 +306,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         return;
       }
     }
-    if (sampler.sample(wavefrontSpan.getName(), UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
-        wavefrontSpan.getDuration())) {
+    if ((alwaysSampleErrors && isError) || sampler.sample(wavefrontSpan.getName(),
+        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(), wavefrontSpan.getDuration())) {
       spanHandler.report(wavefrontSpan);
     }
     // report stats irrespective of span sampling.

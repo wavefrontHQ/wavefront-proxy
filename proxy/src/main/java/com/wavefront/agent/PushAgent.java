@@ -565,7 +565,7 @@ public class PushAgent extends AbstractAgent {
 
 
     ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, tokenAuthenticator,
-        new SpanDecoder("unknown"), preprocessors.forPort(strPort), handlerFactory, sampler);
+        new SpanDecoder("unknown"), preprocessors.forPort(strPort), handlerFactory, sampler, traceAlwaysSampleErrors);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
         .withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
@@ -590,7 +590,7 @@ public class PushAgent extends AbstractAgent {
         server.
             makeSubChannel("jaeger-collector", Connection.Direction.IN).
             register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort, handlerFactory,
-                wfSender, traceDisabled, preprocessors.forPort(strPort), sampler));
+                wfSender, traceDisabled, preprocessors.forPort(strPort), sampler, traceAlwaysSampleErrors));
         server.listen().channel().closeFuture().sync();
         server.shutdown(false);
       } catch (InterruptedException e) {
@@ -611,7 +611,7 @@ public class PushAgent extends AbstractAgent {
       Sampler sampler) {
     final int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, wfSender, traceDisabled,
-        preprocessors.forPort(strPort), sampler);
+        preprocessors.forPort(strPort), sampler, traceAlwaysSampleErrors);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port).
         withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
     logger.info("listening on port: " + strPort + " for trace data (Zipkin format)");

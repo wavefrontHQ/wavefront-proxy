@@ -39,7 +39,7 @@ public class ZipkinPortUnificationHandlerTest {
   @Test
   public void testZipkinHandler() {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411", mockTraceHandler, null,
-        new AtomicBoolean(false), null, new RateSampler(1.0D));
+        new AtomicBoolean(false), null, new RateSampler(1.0D), false);
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
     zipkin2.Span spanServer1 = zipkin2.Span.newBuilder().

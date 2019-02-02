@@ -21,7 +21,11 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandlerContext;
+import wavefront.report.Annotation;
 import wavefront.report.Span;
+
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 
 /**
  * Process incoming trace-formatted data.
@@ -39,6 +43,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
   private final ReportableEntityDecoder<String, Span> decoder;
   private final ReportableEntityPreprocessor preprocessor;
   private final Sampler sampler;
+  private final boolean alwaysSampleErrors;
 
   @SuppressWarnings("unchecked")
   public TracePortUnificationHandler(final String handle,
@@ -46,9 +51,10 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
                                      final ReportableEntityDecoder<String, Span> traceDecoder,
                                      @Nullable final ReportableEntityPreprocessor preprocessor,
                                      final ReportableEntityHandlerFactory handlerFactory,
-                                     final Sampler sampler) {
+                                     final Sampler sampler,
+                                     final boolean alwaysSampleErrors) {
     this(handle, tokenAuthenticator, traceDecoder, preprocessor,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)), sampler);
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)), sampler, alwaysSampleErrors);
   }
 
   public TracePortUnificationHandler(final String handle,
@@ -56,12 +62,14 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
                                      final ReportableEntityDecoder<String, Span> traceDecoder,
                                      @Nullable final ReportableEntityPreprocessor preprocessor,
                                      final ReportableEntityHandler<Span> handler,
-                                     final Sampler sampler) {
+                                     final Sampler sampler,
+                                     final boolean alwaysSampleErrors) {
     super(tokenAuthenticator, handle, true, true);
     this.decoder = traceDecoder;
     this.handler = handler;
     this.preprocessor = preprocessor;
     this.sampler = sampler;
+    this.alwaysSampleErrors = alwaysSampleErrors;
   }
 
   @Override
@@ -113,8 +121,14 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
           return;
         }
       }
-      if (sampler.sample(object.getName(), UUID.fromString(object.getTraceId()).getLeastSignificantBits(),
-          object.getDuration())) {
+      boolean sampleError = false;
+      if (alwaysSampleErrors) {
+        // check whether error span tag exists.
+        sampleError = object.getAnnotations().stream().anyMatch(
+            t -> t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
+      }
+      if (sampleError || sampler.sample(object.getName(),
+          UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
         handler.report(object);
       }
     }

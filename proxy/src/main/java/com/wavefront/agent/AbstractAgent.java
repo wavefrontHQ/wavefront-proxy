@@ -566,6 +566,10 @@ public abstract class AbstractAgent {
       "milliseconds. " + "Defaults to 0 (ignore duration based sampling).")
   protected Integer traceSamplingDuration = 0;
 
+  @Parameter(names = {"--traceAlwaysSampleErrors"}, description = "Always sample spans with error tag (set to true) " +
+      "ignoring other sampling configuration. Defaults to false" )
+  protected boolean traceAlwaysSampleErrors = false;
+
   @Parameter(names = {"--pushRelayListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for proxy chaining data. For internal use. Defaults to none.")
   protected String pushRelayListenerPorts;
