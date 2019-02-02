@@ -79,6 +79,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final AtomicBoolean traceDisabled;
   private final ReportableEntityPreprocessor preprocessor;
   private final Sampler sampler;
+  private final boolean alwaysSampleErrors;
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
   private final Counter discardedBatches;
   private final Counter processedBatches;
@@ -105,10 +106,11 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
                                       @Nullable ReportableEntityPreprocessor preprocessor,
-                                      Sampler sampler) {
+                                      Sampler sampler,
+                                      boolean alwaysSampleErrors) {
     this(handle,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        wfSender, traceDisabled, preprocessor, sampler);
+        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors);
   }
 
   public ZipkinPortUnificationHandler(final String handle,
@@ -116,7 +118,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
                                       @Nullable ReportableEntityPreprocessor preprocessor,
-                                      Sampler sampler) {
+                                      Sampler sampler,
+                                      boolean alwaysSampleErrors) {
     super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(),
         handle, false, true);
     this.handle = handle;
@@ -125,6 +128,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.traceDisabled = traceDisabled;
     this.preprocessor = preprocessor;
     this.sampler = sampler;
+    this.alwaysSampleErrors = alwaysSampleErrors;
     this.discardedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "discarded"));
     this.processedBatches = Metrics.newCounter(new MetricName(
@@ -333,8 +337,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
         return;
       }
     }
-    if (sampler.sample(wavefrontSpan.getName(), UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
-        wavefrontSpan.getDuration())) {
+    if ((alwaysSampleErrors && isError) || sampler.sample(wavefrontSpan.getName(),
+        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(), wavefrontSpan.getDuration())) {
       spanHandler.report(wavefrontSpan);
     }
     // report stats irrespective of span sampling.
