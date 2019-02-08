@@ -56,6 +56,7 @@ import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.repo
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
@@ -242,6 +243,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     boolean shardTagPresent = false;
     String cluster = NULL_TAG_VAL;
     String shard = NULL_TAG_VAL;
+    String componentTagValue = NULL_TAG_VAL;
     boolean isError = false;
 
     // Set all other Span Tags.
@@ -262,6 +264,9 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
             case SHARD_TAG_KEY:
               shardTagPresent = true;
               shard = annotation.getValue();
+              break;
+            case COMPONENT_TAG_KEY:
+              componentTagValue = annotation.getValue();
               break;
             case ERROR_SPAN_TAG_KEY:
               isError = true;
@@ -345,9 +350,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     if (wfInternalReporter != null) {
       // report converted metrics/histograms from the span
       discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
-          spanName, applicationName,
-          serviceName, cluster, shard, sourceName, isError,
-          zipkinSpan.durationAsLong()), true);
+          spanName, applicationName, serviceName, cluster, shard, sourceName, componentTagValue,
+          isError, zipkinSpan.durationAsLong()), true);
     }
   }
 

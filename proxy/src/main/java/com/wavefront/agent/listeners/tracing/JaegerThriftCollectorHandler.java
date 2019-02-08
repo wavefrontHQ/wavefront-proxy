@@ -53,6 +53,7 @@ import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.repo
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
@@ -210,6 +211,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     String applicationName = DEFAULT_APPLICATION;
     String cluster = NULL_TAG_VAL;
     String shard = NULL_TAG_VAL;
+    String componentTagValue = NULL_TAG_VAL;
     boolean isError = false;
 
     boolean applicationTagPresent = false;
@@ -237,6 +239,9 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
             case SHARD_TAG_KEY:
               shardTagPresent = true;
               shard = annotation.getValue();
+              continue;
+            case COMPONENT_TAG_KEY:
+              componentTagValue = annotation.getValue();
               continue;
             case ERROR_SPAN_TAG_KEY:
               // only error=true is supported
@@ -315,7 +320,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       // report converted metrics/histograms from the span
       discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
           span.getOperationName(), applicationName, serviceName, cluster, shard, sourceName,
-          isError, span.getDuration()), true);
+          componentTagValue, isError, span.getDuration()), true);
     }
   }
 
