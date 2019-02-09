@@ -43,6 +43,7 @@ public class SpanDerivedMetricsUtils {
    * @param cluster                name of the cluster
    * @param shard                  name of the shard
    * @param source                 reporting source
+   * @param componentTagValue      component tag value
    * @param isError                indicates if the span is erroneous
    * @param spanDurationMicros     Original span duration (both Zipkin and Jaeger support micros
    *                               duration).
@@ -50,7 +51,7 @@ public class SpanDerivedMetricsUtils {
    */
   static HeartbeatMetricKey reportWavefrontGeneratedData(
       WavefrontInternalReporter wfInternalReporter, String operationName, String application,
-      String service, String cluster, String shard, String source,
+      String service, String cluster, String shard, String source, String componentTagValue,
       boolean isError, long spanDurationMicros) {
     /*
      * 1) Can only propagate mandatory application/service and optional cluster/shard tags.
@@ -64,6 +65,7 @@ public class SpanDerivedMetricsUtils {
       put(CLUSTER_TAG_KEY, cluster);
       put(SHARD_TAG_KEY, shard);
       put(OPERATION_NAME_TAG, operationName);
+      put(COMPONENT_TAG_KEY, componentTagValue);
       put(SOURCE_KEY, source);
     }};
 

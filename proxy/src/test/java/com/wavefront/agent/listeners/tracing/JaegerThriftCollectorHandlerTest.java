@@ -41,6 +41,7 @@ public class JaegerThriftCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
+            new Annotation("component", "db"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none")))
@@ -57,6 +58,7 @@ public class JaegerThriftCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
+            new Annotation("component", "db"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none")))
@@ -73,6 +75,7 @@ public class JaegerThriftCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-fea4-87ee36e58cab"),
+            new Annotation("component", "db"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none")))
@@ -85,8 +88,11 @@ public class JaegerThriftCollectorHandlerTest {
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
         null, new AtomicBoolean(false), null, new RateSampler(1.0D), false);
 
-    Tag tag1 = new Tag("ip", TagType.STRING);
-    tag1.setVStr("10.0.0.1");
+    Tag ipTag = new Tag("ip", TagType.STRING);
+    ipTag.setVStr("10.0.0.1");
+
+    Tag componentTag = new Tag("component", TagType.STRING);
+    componentTag.setVStr("db");
 
     io.jaegertracing.thriftjava.Span span1 = new io.jaegertracing.thriftjava.Span(1234567890123L, 1234567890L,
         1234567L, 0L, "HTTP GET", 1, startTime * 1000, 1234 * 1000);
@@ -98,10 +104,14 @@ public class JaegerThriftCollectorHandlerTest {
     io.jaegertracing.thriftjava.Span span3 = new io.jaegertracing.thriftjava.Span(-97803834702328661L, 0L,
         -7344605349865507945L, -97803834702328661L, "HTTP GET /", 1, startTime * 1000, 3456 * 1000);
 
+    span1.setTags(ImmutableList.of(componentTag));
+    span2.setTags(ImmutableList.of(componentTag));
+    span3.setTags(ImmutableList.of(componentTag));
+
     Batch testBatch = new Batch();
     testBatch.process = new Process();
     testBatch.process.serviceName = "frontend";
-    testBatch.process.setTags(ImmutableList.of(tag1));
+    testBatch.process.setTags(ImmutableList.of(ipTag));
 
     testBatch.setSpans(ImmutableList.of(span1, span2, span3));
 
