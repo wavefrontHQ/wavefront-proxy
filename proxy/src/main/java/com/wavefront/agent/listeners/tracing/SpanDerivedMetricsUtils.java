@@ -70,19 +70,23 @@ public class SpanDerivedMetricsUtils {
     }};
 
     // tracing.derived.<application>.<service>.<operation>.invocation.count
-    wfInternalReporter.newCounter(new MetricName(sanitize(application + "." + service + "." + operationName + INVOCATION_SUFFIX), pointTags)).inc();
+    wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
+        operationName + INVOCATION_SUFFIX), pointTags)).inc();
 
     if (isError) {
       // tracing.derived.<application>.<service>.<operation>.error.count
-      wfInternalReporter.newCounter(new MetricName(sanitize(application + "." + service + "." + operationName + ERROR_SUFFIX), pointTags)).inc();
+      wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
+          operationName + ERROR_SUFFIX), pointTags)).inc();
     }
 
     // tracing.derived.<application>.<service>.<operation>.duration.micros.m
-    wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(application + "." + service + "." + operationName + DURATION_SUFFIX), pointTags)).
+    wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(application + "." + service + "." +
+        operationName + DURATION_SUFFIX), pointTags)).
         update(spanDurationMicros);
 
     // tracing.derived.<application>.<service>.<operation>.total_time.millis.count
-    wfInternalReporter.newCounter(new MetricName(sanitize(application + "." + service + "." + operationName + TOTAL_TIME_SUFFIX), pointTags)).
+    wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
+        operationName + TOTAL_TIME_SUFFIX), pointTags)).
         inc(spanDurationMicros / 1000);
     return new HeartbeatMetricKey(application, service, cluster, shard, source);
   }
