@@ -1,6 +1,6 @@
 open_source_licenses.txt
 
-Wavefront by VMware 4.35 GA
+Wavefront by VMware 4.36 GA
 
 ======================================================================
 
@@ -60,7 +60,7 @@ SECTION 1: Apache License, V2.0
    >>> com.tdunning:t-digest-3.2
    >>> commons-codec:commons-codec-1.9
    >>> commons-collections:commons-collections-3.2.2
-   >>> commons-daemon-1.0.15
+   >>> commons-daemon:commons-daemon-1.0.15
    >>> commons-io:commons-io-2.5
    >>> commons-lang:commons-lang-2.6
    >>> commons-logging:commons-logging-1.2
@@ -96,14 +96,13 @@ SECTION 1: Apache License, V2.0
    >>> joda-time:joda-time-2.6
    >>> net.jafama:jafama-2.1.0
    >>> net.jpountz.lz4:lz4-1.3.0
-   >>> net.openhft:affinity-3.1.7
-   >>> net.openhft:chronicle-algorithms-1.15.0
-   >>> net.openhft:chronicle-bytes-1.16.21
-   >>> net.openhft:chronicle-core-1.16.16
-   >>> net.openhft:chronicle-map-3.16.0
-   >>> net.openhft:chronicle-threads-1.16.3
-   >>> net.openhft:chronicle-wire-1.16.15
-   >>> net.openhft:compiler-2.3.1
+   >>> net.openhft:affinity-3.1.10
+   >>> net.openhft:chronicle-algorithms-1.16.0
+   >>> net.openhft:chronicle-bytes-2.17.4
+   >>> net.openhft:chronicle-core-2.17.0
+   >>> net.openhft:chronicle-map-3.17.0
+   >>> net.openhft:chronicle-threads-2.17.0
+   >>> net.openhft:chronicle-wire-2.17.5
    >>> org.apache.avro:avro-1.8.2
    >>> org.apache.commons:commons-compress-1.8.1
    >>> org.apache.commons:commons-lang3-3.1
@@ -193,7 +192,7 @@ SECTION 7: GNU Lesser General Public License, V2.1
 
 SECTION 8: GNU Lesser General Public License, V3.0
 
-   >>> net.openhft:chronicle-values-1.16.0
+   >>> net.openhft:chronicle-values-2.16.1
 
 
 APPENDIX. Standard License Files
@@ -219,7 +218,6 @@ APPENDIX. Standard License Files
    >>> GNU General Public License, V2.0
    
    >>> Eclipse Public License, V2.0
-
 
 
 --------------- SECTION 1: Apache License, V2.0 ----------
@@ -410,13 +408,13 @@ License : The Apache Software License, Version 2.0
 
 >>> com.fasterxml.jackson.module:jackson-module-jaxb-annotations-2.8.6
 
-This copy of Jackson JSON processor databind module is licensed under the
-Apache (Software) License, version 2.0 ("the License").
-See the License for details about distribution rights, and the
-specific rights regarding derivate works.
-
-You may obtain a copy of the License at:
-
+This copy of Jackson JSON processor databind module is licensed under the
+Apache (Software) License, version 2.0 ("the License").
+See the License for details about distribution rights, and the
+specific rights regarding derivate works.
+
+You may obtain a copy of the License at:
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 >>> com.fasterxml.jackson.module:jackson-module-parameter-names-2.9.6
@@ -481,18 +479,18 @@ License : Apache 2.0
 
 >>> com.google.code.gson:gson-2.2.2
 
-Copyright (C) 2008 Google Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright (C) 2008 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 >>> com.google.errorprone:error_prone_annotations-2.1.3
@@ -649,19 +647,19 @@ limitations under the License.
 
 >>> com.tdunning:t-digest-3.1
 
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 >>> com.tdunning:t-digest-3.2
@@ -683,58 +681,60 @@ limitations under the License.
 
 >>> commons-codec:commons-codec-1.9
 
-Apache Commons Codec
-Copyright 2002-2013 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-src/test/org/apache/commons/codec/language/DoubleMetaphoneTest.java
-contains test data from http://aspell.net/test/orig/batch0.tab.
-Copyright (C) 2002 Kevin Atkinson (kevina@gnu.org)
-
-
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Commons Codec
+Copyright 2002-2013 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+src/test/org/apache/commons/codec/language/DoubleMetaphoneTest.java
+contains test data from http://aspell.net/test/orig/batch0.tab.
+Copyright (C) 2002 Kevin Atkinson (kevina@gnu.org)
+
+
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 >>> commons-collections:commons-collections-3.2.2
 
-Apache Commons Collections
-Copyright 2001-2015 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Commons Collections
+Copyright 2001-2015 The Apache Software Foundation
+
+This product includes software developed by
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
->>> commons-daemon-1.0.15
+>>> commons-daemon:commons-daemon-1.0.15
 
+Apache Commons Daemon
 Copyright 1999-2013 The Apache Software Foundation
+
 This product includes software developed by
 The Apache Software Foundation (http://www.apache.org/).
 
@@ -744,6 +744,7 @@ this work for additional information regarding copyright ownership.
 The ASF licenses this file to You under the Apache License, Version 2.0
 (the "License"); you may not use this file except in compliance with
 the License.  You may obtain a copy of the License at
+
 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
@@ -754,78 +755,78 @@ limitations under the License.
 
 >>> commons-io:commons-io-2.5
 
-Apache Commons IO
-Copyright 2002-2016 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
+Apache Commons IO
+Copyright 2002-2016 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
 under the License.
 
 >>> commons-lang:commons-lang-2.6
 
-Apache Commons Lang
-Copyright 2001-2011 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Commons Lang
+Copyright 2001-2011 The Apache Software Foundation
+
+This product includes software developed by
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 >>> commons-logging:commons-logging-1.2
 
-Apache Commons Logging
-Copyright 2003-2014 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-This software consists of voluntary contributions made by many
-individuals on behalf of the Apache Software Foundation.  For more
-information on the Apache Software Foundation, please see
+Apache Commons Logging
+Copyright 2003-2014 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+This software consists of voluntary contributions made by many
+individuals on behalf of the Apache Software Foundation.  For more
+information on the Apache Software Foundation, please see
 <http://www.apache.org/>.
 
 >>> io.dropwizard.metrics5:metrics-core-5.0.0-rc2
@@ -1428,38 +1429,22 @@ is preserved.
 
 >>> net.jpountz.lz4:lz4-1.3.0
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
->>> net.openhft:affinity-3.1.7
+>>> net.openhft:affinity-3.1.10
 
 Copyright 2016 higherfrequencytrading.com
 
-Licensed under the *Apache License, Version 2.0* (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
->>> net.openhft:chronicle-algorithms-1.15.0
-
-Copyright 2014 Higher Frequency Trading http://www.higherfrequencytrading.com
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -1472,12 +1457,29 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+>>> net.openhft:chronicle-algorithms-1.16.0
 
-ADDITIONAL LICENSES INFORMATION:
+Copyright 2014 Higher Frequency Trading
 
+http://www.higherfrequencytrading.com
 
->LGPL3.0
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissionsand
+limitations under the License.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> LGPL 3.0
+
+chronicle-algorithms-1.16.0-sources.jar\net\openhft\chronicle\algo\bytes\ RandomDataOutputAccess.java
 
 Copyright (C) 2015  higherfrequencytrading.com
 
@@ -1493,76 +1495,63 @@ GNU Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
->PUBLIC DOMAIN
-
-
-chronicle-algorithms-1.15.0-sources.jar\net\openhft\chronicle\algo\MemoryUnit.java
-
-
-Based on java.util.concurrent.TimeUnit, which is
-Written by Doug Lea with assistance from members of JCP JSR-166
-Expert Group and released to the public domain, as explained at
-http://creativecommons.org/publicdomain/zero/1.0/
-
->>> net.openhft:chronicle-bytes-1.16.21
-
-Copyright 2016 higherfrequencytrading.com
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
->>> net.openhft:chronicle-core-1.16.16
-
-Copyright 2016 higherfrequencytrading.com
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
->>> net.openhft:chronicle-map-3.16.0
-
-LICENSE: APACHE 2.0
-
->>> net.openhft:chronicle-threads-1.16.3
-
-Copyright 2015 Higher Frequency Trading
-
-http://www.higherfrequencytrading.com
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
->>> net.openhft:chronicle-wire-1.16.15
+>>> net.openhft:chronicle-bytes-2.17.4
 
 Copyright 2016 chronicle.software
 
+Licensed under the *Apache License, Version 2.0* (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+>>> net.openhft:chronicle-core-2.17.0
+
+Copyright 2016 chronicle.software
+
+Licensed under the *Apache License, Version 2.0* (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+>>> net.openhft:chronicle-map-3.17.0
+
+Copyright (C) 2015  chronicle.software
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses />.
+
+
+ADDITIONAL LICENSE INFORMATION:
+
+>Apache 2.0
+
+chronicle-map-3.17.0-sources.jar\net\openhft\xstream\converters\AbstractChronicleMapConverter.java
+
+Copyright 2012-2018 Chronicle Map Contributors
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -1575,13 +1564,27 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
->>> net.openhft:compiler-2.3.1
+>>> net.openhft:chronicle-threads-2.17.0
 
-Copyright 2014 Higher Frequency Trading
+Copyright 2016 chronicle.software
 
-http://www.higherfrequencytrading.com
+Licensed under the *Apache License, Version 2.0* (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-Licensed under the Apache License, Version 2.0 (the "License");
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+>>> net.openhft:chronicle-wire-2.17.5
+
+Copyright 2016 chronicle.software
+
+Licensed under the *Apache License, Version 2.0* (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
@@ -1617,10 +1620,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 
-ADDITIONAL LICENSE INFROMATION:
+ADDITIONAL LICENSE INFORMATION:
 
->
-avro-1.8.2.jar\META-INF\DEPENDENCIES
+> avro-1.8.2.jar\META-INF\DEPENDENCIES
 
 Transitive dependencies of this project determined from the
 maven pom organized by organization.
@@ -1693,27 +1695,27 @@ under the License.
 
 >>> org.apache.commons:commons-lang3-3.1
 
-Apache Commons Lang
-Copyright 2001-2011 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
-This product includes software from the Spring Framework,
-under the Apache License 2.0 (see: StringUtils.containsWhitespace())
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to You under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Apache Commons Lang
+Copyright 2001-2011 The Apache Software Foundation
+
+This product includes software developed by
+The Apache Software Foundation (http://www.apache.org/).
+
+This product includes software from the Spring Framework,
+under the Apache License 2.0 (see: StringUtils.containsWhitespace())
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 >>> org.apache.httpcomponents:httpclient-4.5.3
@@ -1763,30 +1765,30 @@ License: Apache License, Version 2.0  (http://www.apache.org/licenses/LICENSE-2.
 
 >>> org.apache.httpcomponents:httpcore-4.4.5
 
-Apache HttpCore
-Copyright 2005-2016 The Apache Software Foundation
-
-This product includes software developed at
-The Apache Software Foundation (http://www.apache.org/).
-
-This project contains annotations derived from JCIP-ANNOTATIONS
-Copyright (c) 2005 Brian Goetz and Tim Peierls. See http://www.jcip.net
-
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
+Apache HttpCore
+Copyright 2005-2016 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project contains annotations derived from JCIP-ANNOTATIONS
+Copyright (c) 2005 Brian Goetz and Tim Peierls. See http://www.jcip.net
+
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
 under the License.
 
 >>> org.apache.logging.log4j:log4j-1.2-api-2.11.1
@@ -1848,7 +1850,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the license for the specific language governing permissions and
 limitations under the license.
-
 
 >>> org.apache.logging.log4j:log4j-core-2.11.1
 
@@ -1954,7 +1955,6 @@ License: Apache License, Version 2.0  (https://www.apache.org/licenses/LICENSE-2
 From: 'xerial.org'
 - snappy-java (https://github.com/xerial/snappy-java) org.xerial.snappy:snappy-java:jar:1.1.7.1
 License: The Apache Software License, Version 2.0  (http://www.apache.org/licenses/LICENSE-2.0.txt)
-
 
 >>> org.apache.logging.log4j:log4j-jul-2.11.1
 
@@ -3015,18 +3015,18 @@ License.
 
 >>> org.jboss.logging:jboss-logging-3.3.0.final
 
-Copyright 2010 Red Hat, Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2010 Red Hat, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 >>> org.jboss.resteasy:resteasy-client-3.0.21.final
@@ -3116,57 +3116,57 @@ limitations under the License.
 
 >>> org.xerial.snappy:snappy-java-1.1.1.3
 
-Copyright 2011 Taro L. Saito
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+Copyright 2011 Taro L. Saito
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 >>> org.yaml:snakeyaml-1.17
 
-Copyright (c) 2008, http:www.snakeyaml.org
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http:www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> BSD
-
-snakeyaml-1.17-sources.jar\org\yaml\snakeyaml\external\biz\base64Coder\Base64Coder.java
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE BSD LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Copyright 2003-2010 Christian d'Heureuse, Inventec Informatik AG, Zurich, Switzerland
-www.source-code.biz, www.inventec.ch/chdh
-
-This module is multi-licensed and may be used under the terms
-of any of the following licenses:
-
-EPL, Eclipse Public License, V1.0 or later, http:www.eclipse.org/legal
-LGPL, GNU Lesser General Public License, V2.1 or later, http:www.gnu.org/licenses/lgpl.html
-GPL, GNU General Public License, V2 or later, http:www.gnu.org/licenses/gpl.html
-AL, Apache License, V2.0 or later, http:www.apache.org/licenses
-BSD, BSD License, http:www.opensource.org/licenses/bsd-license.php
-
-Please contact the author if you need another license.
+Copyright (c) 2008, http:www.snakeyaml.org
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http:www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> BSD
+
+snakeyaml-1.17-sources.jar\org\yaml\snakeyaml\external\biz\base64Coder\Base64Coder.java
+
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE BSD LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Copyright 2003-2010 Christian d'Heureuse, Inventec Informatik AG, Zurich, Switzerland
+www.source-code.biz, www.inventec.ch/chdh
+
+This module is multi-licensed and may be used under the terms
+of any of the following licenses:
+
+EPL, Eclipse Public License, V1.0 or later, http:www.eclipse.org/legal
+LGPL, GNU Lesser General Public License, V2.1 or later, http:www.gnu.org/licenses/lgpl.html
+GPL, GNU General Public License, V2 or later, http:www.gnu.org/licenses/gpl.html
+AL, Apache License, V2.0 or later, http:www.apache.org/licenses
+BSD, BSD License, http:www.opensource.org/licenses/bsd-license.php
+
+Please contact the author if you need another license.
 This module is provided "as is", without warranties of any kind.
 
 --------------- SECTION 2: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES ----------
@@ -3238,16 +3238,16 @@ THE SOFTWARE.
 
 >>> com.yammer.metrics:metrics-core-2.2.0
 
-Written by Doug Lea with assistance from members of JCP JSR-166
-
-Expert Group and released to the public domain, as explained at
-
+Written by Doug Lea with assistance from members of JCP JSR-166
+
+Expert Group and released to the public domain, as explained at
+
 http://creativecommons.org/publicdomain/zero/1.0/
 
 >>> io.dropwizard.metrics:metrics-core-3.1.2
 
-Written by Doug Lea with assistance from members of JCP JSR-166
-Expert Group and released to the public domain, as explained at
+Written by Doug Lea with assistance from members of JCP JSR-166
+Expert Group and released to the public domain, as explained at
 http://creativecommons.org/publicdomain/zero/1.0/
 
 >>> net.razorvine:pyrolite-4.10
@@ -3291,36 +3291,36 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 >>> org.hamcrest:hamcrest-all-1.3
 
-BSD License
-
-Copyright (c) 2000-2006, www.hamcrest.org
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer. Redistributions in binary form must reproduce
-the above copyright notice, this list of conditions and the following disclaimer in
-the documentation and/or other materials provided with the distribution.
-
-Neither the name of Hamcrest nor the names of its contributors may be used to endorse
-or promote products derived from this software without specific prior written
-permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
-WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-DAMAGE.
-ADDITIONAL LICENSE INFORMATION:
->Apache 2.0
-hamcrest-all-1.3.jar\META-INF\maven\com.thoughtworks.qdox\qdox\pom.xml
+BSD License
+
+Copyright (c) 2000-2006, www.hamcrest.org
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer. Redistributions in binary form must reproduce
+the above copyright notice, this list of conditions and the following disclaimer in
+the documentation and/or other materials provided with the distribution.
+
+Neither the name of Hamcrest nor the names of its contributors may be used to endorse
+or promote products derived from this software without specific prior written
+permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.
+ADDITIONAL LICENSE INFORMATION:
+>Apache 2.0
+hamcrest-all-1.3.jar\META-INF\maven\com.thoughtworks.qdox\qdox\pom.xml
 License : Apache 2.0
 
 >>> org.json:json-20160212
@@ -3373,9 +3373,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 >>> org.tukaani:xz-1.5
 
-Author: Lasse Collin <lasse.collin@tukaani.org>
-
-This file has been put into the public domain.
+Author: Lasse Collin <lasse.collin@tukaani.org>
+
+This file has been put into the public domain.
 You can do whatever you want with this file.
 
 >>> xmlpull:xmlpull-1.1.3.1
@@ -3384,59 +3384,59 @@ LICENSE: PUBLIC DOMAIN
 
 >>> xpp3:xpp3_min-1.1.4c
 
-Copyright (C) 2003 The Trustees of Indiana University.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-1) All redistributions of source code must retain the above
-copyright notice, the list of authors in the original source
-code, this list of conditions and the disclaimer listed in this
-license;
-
-2) All redistributions in binary form must reproduce the above
-copyright notice, this list of conditions and the disclaimer
-listed in this license in the documentation and/or other
-materials provided with the distribution;
-
-3) Any documentation included with all redistributions must include
-the following acknowledgement:
-
-"This product includes software developed by the Indiana
-University Extreme! Lab.  For further information please visit
-http://www.extreme.indiana.edu/"
-
-Alternatively, this acknowledgment may appear in the software
-itself, and wherever such third-party acknowledgments normally
-appear.
-
-4) The name "Indiana University" or "Indiana University
-Extreme! Lab" shall not be used to endorse or promote
-products derived from this software without prior written
-permission from Indiana University.  For written permission,
-please contact http://www.extreme.indiana.edu/.
-
-5) Products derived from this software may not use "Indiana
-University" name nor may "Indiana University" appear in their name,
-without prior written permission of the Indiana University.
-
-Indiana University provides no reassurances that the source code
-provided does not infringe the patent or any other intellectual
-property rights of any other entity.  Indiana University disclaims any
-liability to any recipient for claims brought by any other entity
-based on infringement of intellectual property rights or otherwise.
-
-LICENSEE UNDERSTANDS THAT SOFTWARE IS PROVIDED "AS IS" FOR WHICH
-NO WARRANTIES AS TO CAPABILITIES OR ACCURACY ARE MADE. INDIANA
-UNIVERSITY GIVES NO WARRANTIES AND MAKES NO REPRESENTATION THAT
-SOFTWARE IS FREE OF INFRINGEMENT OF THIRD PARTY PATENT, COPYRIGHT, OR
-OTHER PROPRIETARY RIGHTS.  INDIANA UNIVERSITY MAKES NO WARRANTIES THAT
-SOFTWARE IS FREE FROM "BUGS", "VIRUSES", "TROJAN HORSES", "TRAP
-DOORS", "WORMS", OR OTHER HARMFUL CODE.  LICENSEE ASSUMES THE ENTIRE
-RISK AS TO THE PERFORMANCE OF SOFTWARE AND/OR ASSOCIATED MATERIALS,
-AND TO THE PERFORMANCE AND VALIDITY OF INFORMATION GENERATED USING
+Copyright (C) 2003 The Trustees of Indiana University.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+1) All redistributions of source code must retain the above
+copyright notice, the list of authors in the original source
+code, this list of conditions and the disclaimer listed in this
+license;
+
+2) All redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the disclaimer
+listed in this license in the documentation and/or other
+materials provided with the distribution;
+
+3) Any documentation included with all redistributions must include
+the following acknowledgement:
+
+"This product includes software developed by the Indiana
+University Extreme! Lab.  For further information please visit
+http://www.extreme.indiana.edu/"
+
+Alternatively, this acknowledgment may appear in the software
+itself, and wherever such third-party acknowledgments normally
+appear.
+
+4) The name "Indiana University" or "Indiana University
+Extreme! Lab" shall not be used to endorse or promote
+products derived from this software without prior written
+permission from Indiana University.  For written permission,
+please contact http://www.extreme.indiana.edu/.
+
+5) Products derived from this software may not use "Indiana
+University" name nor may "Indiana University" appear in their name,
+without prior written permission of the Indiana University.
+
+Indiana University provides no reassurances that the source code
+provided does not infringe the patent or any other intellectual
+property rights of any other entity.  Indiana University disclaims any
+liability to any recipient for claims brought by any other entity
+based on infringement of intellectual property rights or otherwise.
+
+LICENSEE UNDERSTANDS THAT SOFTWARE IS PROVIDED "AS IS" FOR WHICH
+NO WARRANTIES AS TO CAPABILITIES OR ACCURACY ARE MADE. INDIANA
+UNIVERSITY GIVES NO WARRANTIES AND MAKES NO REPRESENTATION THAT
+SOFTWARE IS FREE OF INFRINGEMENT OF THIRD PARTY PATENT, COPYRIGHT, OR
+OTHER PROPRIETARY RIGHTS.  INDIANA UNIVERSITY MAKES NO WARRANTIES THAT
+SOFTWARE IS FREE FROM "BUGS", "VIRUSES", "TROJAN HORSES", "TRAP
+DOORS", "WORMS", OR OTHER HARMFUL CODE.  LICENSEE ASSUMES THE ENTIRE
+RISK AS TO THE PERFORMANCE OF SOFTWARE AND/OR ASSOCIATED MATERIALS,
+AND TO THE PERFORMANCE AND VALIDITY OF INFORMATION GENERATED USING
 SOFTWARE.
 
 --------------- SECTION 3: Common Development and Distribution License, V1.0 ----------
@@ -3465,6 +3465,8 @@ fields enclosed by brackets "[]" replaced with your
 own identifying information: Portions Copyright [yyyy]
 [name of copyright owner]
 
+Copyright 2005-2006 Sun Microsystems, Inc. All Rights Reserved.
+
 --------------- SECTION 4: Common Development and Distribution License, V1.1 ----------
 
 Common Development and Distribution License, V1.1 is applicable to the following component(s).
@@ -3472,194 +3474,194 @@ Common Development and Distribution License, V1.1 is applicable to the following
 
 >>> javax.activation:activation-1.1.1
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright 1997-2007 Sun Microsystems, Inc. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License. You can obtain
-a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
-or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
-Sun designates this particular file as subject to the "Classpath" exception
-as provided by Sun in the GPL Version 2 section of the License file that
-accompanied this code.  If applicable, add the following below the License
-Header, with the fields enclosed by brackets [] replaced by your own
-identifying information: "Portions Copyrighted [year]
-[name of copyright owner]"
-
-Contributor(s):
-
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright 1997-2007 Sun Microsystems, Inc. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License. You can obtain
+a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
+or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
+Sun designates this particular file as subject to the "Classpath" exception
+as provided by Sun in the GPL Version 2 section of the License file that
+accompanied this code.  If applicable, add the following below the License
+Header, with the fields enclosed by brackets [] replaced by your own
+identifying information: "Portions Copyrighted [year]
+[name of copyright owner]"
+
+Contributor(s):
+
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
 holder.
 
 >>> javax.annotation:javax.annotation-api-1.2
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE [CDDL 1.1 LICENSE].THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright (c) 2005-2011 Oracle and/or its affiliates. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License.  You can
-obtain a copy of the License at
-https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
-or packager/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at packager/legal/LICENSE.txt.
-
-GPL Classpath Exception:
-Oracle designates this particular file as subject to the "Classpath"
-exception as provided by Oracle in the GPL Version 2 section of the License
-file that accompanied this code.
-
-Modifications:
-If applicable, add the following below the License Header, with the fields
-enclosed by brackets [] replaced by your own identifying information:
-"Portions Copyright [year] [name of copyright owner]"
-
-Contributor(s):
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
-holder.
-
-ADDITIONAL LICENSE INFORMATION:
-
->CDDL 1.0
-
-javax.annotation-api-1.2-sources.jar\META-INF\LICENSE.txt
-
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE [CDDL 1.1 LICENSE].THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright (c) 2005-2011 Oracle and/or its affiliates. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License.  You can
+obtain a copy of the License at
+https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
+or packager/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at packager/legal/LICENSE.txt.
+
+GPL Classpath Exception:
+Oracle designates this particular file as subject to the "Classpath"
+exception as provided by Oracle in the GPL Version 2 section of the License
+file that accompanied this code.
+
+Modifications:
+If applicable, add the following below the License Header, with the fields
+enclosed by brackets [] replaced by your own identifying information:
+"Portions Copyright [year] [name of copyright owner]"
+
+Contributor(s):
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
+holder.
+
+ADDITIONAL LICENSE INFORMATION:
+
+>CDDL 1.0
+
+javax.annotation-api-1.2-sources.jar\META-INF\LICENSE.txt
+
 License : CDDL 1.0
 
 >>> javax.servlet:javax.servlet-api-3.1.0
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE.  PLEASE SEE APPENDIX FOR FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright (c) 2008-2013 Oracle and/or its affiliates. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License.  You can
-obtain a copy of the License at
-https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
-or packager/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at packager/legal/LICENSE.txt.
-
-GPL Classpath Exception:
-Oracle designates this particular file as subject to the "Classpath"
-exception as provided by Oracle in the GPL Version 2 section of the License
-file that accompanied this code.
-
-Modifications:
-If applicable, add the following below the License Header, with the fields
-enclosed by brackets [] replaced by your own identifying information:
-"Portions Copyright [year] [name of copyright owner]"
-
-Contributor(s):
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
-holder.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> Apache 2.0
-
-javax.servlet-api-3.1.0-sources.jar\javax\servlet\http\Cookie.java
-
-Copyright 2004 The Apache Software Foundation
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE.  PLEASE SEE APPENDIX FOR FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright (c) 2008-2013 Oracle and/or its affiliates. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License.  You can
+obtain a copy of the License at
+https://glassfish.dev.java.net/public/CDDL+GPL_1_1.html
+or packager/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at packager/legal/LICENSE.txt.
+
+GPL Classpath Exception:
+Oracle designates this particular file as subject to the "Classpath"
+exception as provided by Oracle in the GPL Version 2 section of the License
+file that accompanied this code.
+
+Modifications:
+If applicable, add the following below the License Header, with the fields
+enclosed by brackets [] replaced by your own identifying information:
+"Portions Copyright [year] [name of copyright owner]"
+
+Contributor(s):
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
+holder.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> Apache 2.0
+
+javax.servlet-api-3.1.0-sources.jar\javax\servlet\http\Cookie.java
+
+Copyright 2004 The Apache Software Foundation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
 limitations under the License.
 
 >>> javax.ws.rs:javax.ws.rs-api-2.0.1
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE. PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright (c) 2011-2013 Oracle and/or its affiliates. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License.  You can
-obtain a copy of the License at
-http://glassfish.java.net/public/CDDL+GPL_1_1.html
-or packager/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at packager/legal/LICENSE.txt.
-
-GPL Classpath Exception:
-Oracle designates this particular file as subject to the "Classpath"
-exception as provided by Oracle in the GPL Version 2 section of the License
-file that accompanied this code.
-
-Modifications:
-If applicable, add the following below the License Header, with the fields
-enclosed by brackets [] replaced by your own identifying information:
-"Portions Copyright [year] [name of copyright owner]"
-
-Contributor(s):
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1 LICENSE. PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE CDDL 1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright (c) 2011-2013 Oracle and/or its affiliates. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License.  You can
+obtain a copy of the License at
+http://glassfish.java.net/public/CDDL+GPL_1_1.html
+or packager/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at packager/legal/LICENSE.txt.
+
+GPL Classpath Exception:
+Oracle designates this particular file as subject to the "Classpath"
+exception as provided by Oracle in the GPL Version 2 section of the License
+file that accompanied this code.
+
+Modifications:
+If applicable, add the following below the License Header, with the fields
+enclosed by brackets [] replaced by your own identifying information:
+"Portions Copyright [year] [name of copyright owner]"
+
+Contributor(s):
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
 holder.
 
 >>> org.glassfish:javax.el-3.0.0
@@ -3706,70 +3708,70 @@ holder.
 
 >>> org.jboss.spec.javax.ws.rs:jboss-jaxrs-api_2.0_spec-1.0.1.beta1
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1.  PLEASE SEE THE APPENDIX TO REVIEW THE FULL TEXT OF THE CDDL 1.1.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-
-Copyright (c) 2012-2013 Oracle and/or its affiliates. All rights reserved.
-
-The contents of this file are subject to the terms of either the GNU
-General Public License Version 2 only ("GPL") or the Common Development
-and Distribution License("CDDL") (collectively, the "License").  You
-may not use this file except in compliance with the License.  You can
-obtain a copy of the License at
-http://glassfish.java.net/public/CDDL+GPL_1_1.html
-or packager/legal/LICENSE.txt.  See the License for the specific
-language governing permissions and limitations under the License.
-
-When distributing the software, include this License Header Notice in each
-file and include the License file at packager/legal/LICENSE.txt.
-
-GPL Classpath Exception:
-Oracle designates this particular file as subject to the "Classpath"
-exception as provided by Oracle in the GPL Version 2 section of the License
-file that accompanied this code.
-
-Modifications:
-If applicable, add the following below the License Header, with the fields
-enclosed by brackets [] replaced by your own identifying information:
-"Portions Copyright [year] [name of copyright owner]"
-
-Contributor(s):
-If you wish your version of this file to be governed by only the CDDL or
-only the GPL Version 2, indicate your decision by adding "[Contributor]
-elects to include this software in this distribution under the [CDDL or GPL
-Version 2] license."  If you don't indicate a single choice of license, a
-recipient has the option to distribute your version of this file under
-either the CDDL, the GPL Version 2 or to extend the choice of license to
-its licensees as provided above.  However, if you add GPL Version 2 code
-and therefore, elected the GPL Version 2 license, then the option applies
-only if the new code is made subject to such option by the copyright
-holder.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> Apache 2.0
-
-jboss-jaxrs-api_2.0_spec-1.0.1.Beta1-sources.jar\javax\ws\rs\core\GenericEntity.java
-
-Copyright (C) 2006 Google Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-> CDDL 1.0
-
-jboss-jaxrs-api_2.0_spec-1.0.1.Beta1-sources.jar\META-INF\LICENSE
-
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE CDDL 1.1.  PLEASE SEE THE APPENDIX TO REVIEW THE FULL TEXT OF THE CDDL 1.1.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+Copyright (c) 2012-2013 Oracle and/or its affiliates. All rights reserved.
+
+The contents of this file are subject to the terms of either the GNU
+General Public License Version 2 only ("GPL") or the Common Development
+and Distribution License("CDDL") (collectively, the "License").  You
+may not use this file except in compliance with the License.  You can
+obtain a copy of the License at
+http://glassfish.java.net/public/CDDL+GPL_1_1.html
+or packager/legal/LICENSE.txt.  See the License for the specific
+language governing permissions and limitations under the License.
+
+When distributing the software, include this License Header Notice in each
+file and include the License file at packager/legal/LICENSE.txt.
+
+GPL Classpath Exception:
+Oracle designates this particular file as subject to the "Classpath"
+exception as provided by Oracle in the GPL Version 2 section of the License
+file that accompanied this code.
+
+Modifications:
+If applicable, add the following below the License Header, with the fields
+enclosed by brackets [] replaced by your own identifying information:
+"Portions Copyright [year] [name of copyright owner]"
+
+Contributor(s):
+If you wish your version of this file to be governed by only the CDDL or
+only the GPL Version 2, indicate your decision by adding "[Contributor]
+elects to include this software in this distribution under the [CDDL or GPL
+Version 2] license."  If you don't indicate a single choice of license, a
+recipient has the option to distribute your version of this file under
+either the CDDL, the GPL Version 2 or to extend the choice of license to
+its licensees as provided above.  However, if you add GPL Version 2 code
+and therefore, elected the GPL Version 2 license, then the option applies
+only if the new code is made subject to such option by the copyright
+holder.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> Apache 2.0
+
+jboss-jaxrs-api_2.0_spec-1.0.1.Beta1-sources.jar\javax\ws\rs\core\GenericEntity.java
+
+Copyright (C) 2006 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+> CDDL 1.0
+
+jboss-jaxrs-api_2.0_spec-1.0.1.Beta1-sources.jar\META-INF\LICENSE
+
 License: CDDL 1.0
 
 --------------- SECTION 5: Creative Commons Attribution 2.5  ----------
@@ -3779,12 +3781,12 @@ Creative Commons Attribution 2.5 is applicable to the following component(s).
 
 >>> net.jcip:jcip-annotations-1.0
 
-Copyright (c) 2005 Brian Goetz and Tim Peierls
-Released under the Creative Commons Attribution License
-(http://creativecommons.org/licenses/by/2.5)
-Official home: http://www.jcip.net
- 
-Any republication or derived work distributed in source code form
+Copyright (c) 2005 Brian Goetz and Tim Peierls
+Released under the Creative Commons Attribution License
+(http://creativecommons.org/licenses/by/2.5)
+Official home: http://www.jcip.net
+ 
+Any republication or derived work distributed in source code form
 must include this copyright and license notice.
 
 --------------- SECTION 6: Eclipse Public License, V1.0 ----------
@@ -3841,313 +3843,309 @@ GNU Lesser General Public License, V2.1 is applicable to the following component
 
 >>> jna-4.2.1
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE LGPL 2.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-JNA is dual-licensed under 2 alternative Open Source/Free
-licenses: LGPL 2.1 and Apache License 2.0. (starting with
-JNA version 4.0.0).
-
-What this means is that one can choose either one of these
-licenses (for purposes of re-distributing JNA; usually by
-including it as one of jars another application or
-library uses) by downloading corresponding jar file,
-using it, and living happily everafter.
-
-You may obtain a copy of the LGPL License at:
-
-http://www.gnu.org/licenses/licenses.html
-
-A copy is also included in the downloadable source code package
-containing JNA, in file "LGPL2.1", under the same directory
-as this file.
-
-You may obtain a copy of the ASL License at:
-
-http://www.apache.org/licenses/
-
-A copy is also included in the downloadable source code package
-containing JNA, in file "ASL2.0", under the same directory
-as this file.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> LGPL 2.1
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\contrib\alphamaskdemo\com\sun\jna\contrib\demo\AlphaMaskDemo.java
-
-Copyright (c) 2007-2008 Timothy Wall, All Rights Reserved
-
-This library is free software; you can redistribute it and/or
-modify it under the terms of the GNU Lesser General Public
-License as published by the Free Software Foundation; either
-version 2.1 of the License, or (at your option) any later version.
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-Lesser General Public License for more details.
-
-> LGPL 3.0
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\contrib\platform\src\com\sun\jna\platform\mac\Carbon.java
-
-Copyright (c) 2011 Denis Tulskiy
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-version 3 along with this work.  If not, see <http://www.gnu.org/licenses/>.
-
-clover.jar
-
-> GPL 2.0
-
-[VMWARE DOES NOT DISTRIBUTE THE SUB-COMPONENT LICENSED UNDER GPL2.0]
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\native\libffi\doc\libffi.info
-
-Copyright (C) 2008, 2010, 2011 Red Hat, Inc.
-
-Permission is granted to copy, distribute and/or modify this
-document under the terms of the GNU General Public License as
-published by the Free Software Foundation; either version 2, or (at
-your option) any later version.  A copy of the license is included
-in the section entitled "GNU General Public License".
-
-> MIT
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\native\libffi\include\ffi.h.in
-
-libffi @VERSION@ - Copyright (c) 2011, 2014 Anthony Green
-- Copyright (c) 1996-2003, 2007, 2008 Red Hat, Inc.
-
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the ``Software''), to deal in the Software without
-restriction, including without limitation the rights to use, copy,
-modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED ``AS IS'', WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-
-> GPL 3.0
-
-[VMWARE DOES NOT DISTRIBUTE THE SUB-COMPONENT LICENSED UNDER GPL3.0]
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\native\libffi\testsuite\lib\libffi.exp
-
-Copyright (C) 2003, 2005, 2008, 2009, 2010, 2011, 2014 Free Software Foundation, Inc.
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; see the file COPYING3.  If not see
-<http://www.gnu.org/licenses/>.
-
-> Public Domain
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\native\libffi\src\dlmalloc.c
-
-This is a version (aka dlmalloc) of malloc/free/realloc written by
-Doug Lea and released to the public domain, as explained at
-http://creativecommons.org/licenses/publicdomain.  Send questions,
-comments, complaints, performance data, etc to dl@cs.oswego.edu
-
-> LGPL 2.1
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\native\libffi\msvcc.sh
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE LGPL 2.1 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE LGPL 2.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-BEGIN LICENSE BLOCK
-Version: MPL 1.1/GPL 2.0/LGPL 2.1
-
-The contents of this file are subject to the Mozilla Public License Version
-1.1 (the "License"); you may not use this file except in compliance with
-the License. You may obtain a copy of the License at
-http://www.mozilla.org/MPL/
-
-Software distributed under the License is distributed on an "AS IS" basis,
-WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-for the specific language governing rights and limitations under the
-License.
-
-The Original Code is the MSVC wrappificator.
-
-The Initial Developer of the Original Code is
-Timothy Wall <twalljava@dev.java.net>.
-Portions created by the Initial Developer are Copyright (C) 2009
-the Initial Developer. All Rights Reserved.
-
-Contributor(s):
-Daniel Witte <dwitte@mozilla.com>
-
-Alternatively, the contents of this file may be used under the terms of
-either the GNU General Public License Version 2 or later (the "GPL"), or
-the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-in which case the provisions of the GPL or the LGPL are applicable instead
-of those above. If you wish to allow use of your version of this file only
-under the terms of either the GPL or the LGPL, and not to allow others to
-use your version of this file under the terms of the MPL, indicate your
-decision by deleting the provisions above and replace them with the notice
-and other provisions required by the GPL or the LGPL. If you do not delete
-the provisions above, a recipient may use your version of this file under
-the terms of any one of the MPL, the GPL or the LGPL.
-
-END LICENSE BLOCK
-
-> Artistic 1.0
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\lib\clover.jar\html_res\overlibmws.js
-
-Copyright Foteos Macrides 2002-2008. All rights reserved.
-Initial: August 18, 2002 - Last Revised: March 22, 2008
-This module is subject to the same terms of usage as for Erik Bosrup's overLIB,
-though only a minority of the code and API now correspond with Erik's version.
-See the overlibmws Change History and Command Reference via:
-
-http://www.macridesweb.com/oltest/
-
-Published under an open source license: http://www.macridesweb.com/oltest/license.html
-Give credit on sites that use overlibmws and submit changes so others can use them as well.
-You can get Erik's version via: http://www.bosrup.com/web/overlib/
-
-> BSD
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\dist\src-full.zip\lib\clover.jar\html_res\utils.js
-
-Copyright (c) 2000, Derek Petillo
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
-
-Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-
-Neither the name of Praxis Software nor the names of its contributors
-may be used to endorse or promote products derived from this software
-without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-> Apache 1.1
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\lib\clover.jar\license\ANT-1.5.2-LICENSE.TXT
-
-The Apache Software License, Version 1.1
-
-Copyright (c) 2000-2003 The Apache Software Foundation.  All rights
-reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-
-1. Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in
-the documentation and/or other materials provided with the
-distribution.
-
-3. The end-user documentation included with the redistribution, if
-any, must include the following acknowlegement:
-"This product includes software developed by the
-Apache Software Foundation (http://www.apache.org/)."
-Alternately, this acknowlegement may appear in the software itself,
-if and wherever such third-party acknowlegements normally appear.
-
-4. The names "Ant" and "Apache Software
-Foundation" must not be used to endorse or promote products derived
-from this software without prior written permission. For written
-permission, please contact apache@apache.org.
-
-5. Products derived from this software may not be called "Apache"
-nor may "Apache" appear in their names without prior written
-permission of the Apache Group.
-
-THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
-WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED.  IN NO EVENT SHALL THE APACHE SOFTWARE FOUNDATION OR
-ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
-USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
-OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGE.
-====================================================================
-
-This software consists of voluntary contributions made by many
-individuals on behalf of the Apache Software Foundation.  For more
-information on the Apache Software Foundation, please see
-<http://www.apache.org/>.
-
-> Apache 2.0
-
-jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\src\com\sun\jna\WeakIdentityHashMap.java
-
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements. See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership. The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License. You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied. See the License for the
-specific language governing permissions and limitations
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE LGPL 2.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+JNA is dual-licensed under 2 alternative Open Source/Free
+licenses: LGPL 2.1 and Apache License 2.0. (starting with
+JNA version 4.0.0).
+
+What this means is that one can choose either one of these
+licenses (for purposes of re-distributing JNA; usually by
+including it as one of jars another application or
+library uses) by downloading corresponding jar file,
+using it, and living happily everafter.
+
+You may obtain a copy of the LGPL License at:
+
+http://www.gnu.org/licenses/licenses.html
+
+A copy is also included in the downloadable source code package
+containing JNA, in file "LGPL2.1", under the same directory
+as this file.
+
+You may obtain a copy of the ASL License at:
+
+http://www.apache.org/licenses/
+
+A copy is also included in the downloadable source code package
+containing JNA, in file "ASL2.0", under the same directory
+as this file.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> LGPL 2.1
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\contrib\alphamaskdemo\com\sun\jna\contrib\demo\AlphaMaskDemo.java
+
+Copyright (c) 2007-2008 Timothy Wall, All Rights Reserved
+
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+> LGPL 3.0
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\contrib\platform\src\com\sun\jna\platform\mac\Carbon.java
+
+Copyright (c) 2011 Denis Tulskiy
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+version 3 along with this work.  If not, see <http://www.gnu.org/licenses/>.
+
+clover.jar
+
+> GPL 2.0
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\native\libffi\doc\libffi.info
+
+Copyright (C) 2008, 2010, 2011 Red Hat, Inc.
+
+Permission is granted to copy, distribute and/or modify this
+document under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2, or (at
+your option) any later version.  A copy of the license is included
+in the section entitled "GNU General Public License".
+
+> MIT
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\native\libffi\include\ffi.h.in
+
+libffi @VERSION@ - Copyright (c) 2011, 2014 Anthony Green
+- Copyright (c) 1996-2003, 2007, 2008 Red Hat, Inc.
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the ``Software''), to deal in the Software without
+restriction, including without limitation the rights to use, copy,
+modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED ``AS IS'', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+> GPL 3.0
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\native\libffi\testsuite\lib\libffi.exp
+
+Copyright (C) 2003, 2005, 2008, 2009, 2010, 2011, 2014 Free Software Foundation, Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; see the file COPYING3.  If not see
+<http://www.gnu.org/licenses/>.
+
+> Public Domain
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\native\libffi\src\dlmalloc.c
+
+This is a version (aka dlmalloc) of malloc/free/realloc written by
+Doug Lea and released to the public domain, as explained at
+http://creativecommons.org/licenses/publicdomain.  Send questions,
+comments, complaints, performance data, etc to dl@cs.oswego.edu
+
+> LGPL 2.1
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\native\libffi\msvcc.sh
+
+[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE LGPL 2.1 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE LGPL 2.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+BEGIN LICENSE BLOCK
+Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+The contents of this file are subject to the Mozilla Public License Version
+1.1 (the "License"); you may not use this file except in compliance with
+the License. You may obtain a copy of the License at
+http://www.mozilla.org/MPL/
+
+Software distributed under the License is distributed on an "AS IS" basis,
+WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+for the specific language governing rights and limitations under the
+License.
+
+The Original Code is the MSVC wrappificator.
+
+The Initial Developer of the Original Code is
+Timothy Wall <twalljava@dev.java.net>.
+Portions created by the Initial Developer are Copyright (C) 2009
+the Initial Developer. All Rights Reserved.
+
+Contributor(s):
+Daniel Witte <dwitte@mozilla.com>
+
+Alternatively, the contents of this file may be used under the terms of
+either the GNU General Public License Version 2 or later (the "GPL"), or
+the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+in which case the provisions of the GPL or the LGPL are applicable instead
+of those above. If you wish to allow use of your version of this file only
+under the terms of either the GPL or the LGPL, and not to allow others to
+use your version of this file under the terms of the MPL, indicate your
+decision by deleting the provisions above and replace them with the notice
+and other provisions required by the GPL or the LGPL. If you do not delete
+the provisions above, a recipient may use your version of this file under
+the terms of any one of the MPL, the GPL or the LGPL.
+
+END LICENSE BLOCK
+
+> Artistic 1.0
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\lib\clover.jar\html_res\overlibmws.js
+
+Copyright Foteos Macrides 2002-2008. All rights reserved.
+Initial: August 18, 2002 - Last Revised: March 22, 2008
+This module is subject to the same terms of usage as for Erik Bosrup's overLIB,
+though only a minority of the code and API now correspond with Erik's version.
+See the overlibmws Change History and Command Reference via:
+
+http://www.macridesweb.com/oltest/
+
+Published under an open source license: http://www.macridesweb.com/oltest/license.html
+Give credit on sites that use overlibmws and submit changes so others can use them as well.
+You can get Erik's version via: http://www.bosrup.com/web/overlib/
+
+> BSD
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\dist\src-full.zip\lib\clover.jar\html_res\utils.js
+
+Copyright (c) 2000, Derek Petillo
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+Neither the name of Praxis Software nor the names of its contributors
+may be used to endorse or promote products derived from this software
+without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+> Apache 1.1
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\lib\clover.jar\license\ANT-1.5.2-LICENSE.TXT
+
+The Apache Software License, Version 1.1
+
+Copyright (c) 2000-2003 The Apache Software Foundation.  All rights
+reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in
+the documentation and/or other materials provided with the
+distribution.
+
+3. The end-user documentation included with the redistribution, if
+any, must include the following acknowlegement:
+"This product includes software developed by the
+Apache Software Foundation (http://www.apache.org/)."
+Alternately, this acknowlegement may appear in the software itself,
+if and wherever such third-party acknowlegements normally appear.
+
+4. The names "Ant" and "Apache Software
+Foundation" must not be used to endorse or promote products derived
+from this software without prior written permission. For written
+permission, please contact apache@apache.org.
+
+5. Products derived from this software may not be called "Apache"
+nor may "Apache" appear in their names without prior written
+permission of the Apache Group.
+
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED.  IN NO EVENT SHALL THE APACHE SOFTWARE FOUNDATION OR
+ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+====================================================================
+
+This software consists of voluntary contributions made by many
+individuals on behalf of the Apache Software Foundation.  For more
+information on the Apache Software Foundation, please see
+<http://www.apache.org/>.
+
+> Apache 2.0
+
+jna-4.2.1.tar.gz\jna-4.2.1.tar\jna-4.2.1\src\com\sun\jna\WeakIdentityHashMap.java
+
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements. See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied. See the License for the
+specific language governing permissions and limitations
 under the License.
 
 --------------- SECTION 8: GNU Lesser General Public License, V3.0 ----------
@@ -4155,9 +4153,10 @@ under the License.
 GNU Lesser General Public License, V3.0 is applicable to the following component(s).
 
 
->>> net.openhft:chronicle-values-1.16.0
+>>> net.openhft:chronicle-values-2.16.1
 
-Copyright (C) 2015  chronicle.software
+Copyright (C) 2015, 2016  higherfrequencytrading.com
+Copyright (C) 2016 Roman Leventov
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -4169,10 +4168,10 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses />.
-
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =============== APPENDIX. Standard License Files ============== 
+
 
 
 --------------- SECTION 1: Apache License, V2.0 -----------
@@ -6657,4 +6656,4 @@ Source Files is valid for three years from the date you acquired or last used th
 Software product. Alternatively, the Source Files may accompany the
 VMware service.
 
-[WAVEFRONTHQJAVA435GAMS011819]
+[WAVEFRONTHQJAVA436GAMS021819]
