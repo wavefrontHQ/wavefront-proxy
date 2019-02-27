@@ -19,7 +19,7 @@ public class SpanSamplerUtils {
 
   @Nullable
   public static Sampler getRateSampler(double rate) {
-    if (rate < 0.0 || rate > 1.0) {
+    if (rate < 0.0 || rate >= 1.0) {
       return null;
     }
     return new RateSampler(rate);
