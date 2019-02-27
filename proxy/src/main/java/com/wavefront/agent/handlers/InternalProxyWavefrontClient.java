@@ -97,7 +97,8 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   public void sendMetric(String name, double value, Long timestamp, String source, Map<String, String> tags)
       throws IOException {
     // default to millis
-    long timestampMillis = timestamp == null ? Clock.now() : timestamp;
+    long timestampMillis = 0;
+    timestamp = timestamp == null ? Clock.now() : timestamp;
     if (timestamp < 10_000_000_000L) {
       // seconds
       timestampMillis = timestamp * 1000;
