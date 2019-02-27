@@ -153,6 +153,14 @@ buffer=/var/spool/wavefront-proxy/buffer
 configuration in Istio.
 #traceZipkinListenerPorts=9411
 
+## The following settings are used to configure trace data sampling:
+## The rate for traces to be sampled. Can be from 0.0 to 1.0. Defaults to 1.0
+## Ex: The below property sets up a sampling rate of 10%. A sampling rate of 10% causes 1 out of 10 traces to be sent and ingested.
+#traceSamplingRate=.1
+## The duration for traces to be sampled. Defaults to 0.
+## Ex: The below property sets up a sampling duration of 45 milliseconds. A sampling duration of 45 sends spans to Wavefront only if the spans are longer than 45 milliseconds.
+#traceSamplingDuration=45
+
 ## The following settings are used to configure histogram ingestion:
 ## Histograms can be ingested in wavefront scalar and distribution format. For scalar samples ports can be specified for
 ## minute, hour and day granularity. Granularity for the distribution format is encoded inline.
