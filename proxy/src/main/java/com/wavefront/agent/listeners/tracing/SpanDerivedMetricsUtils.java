@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
+import com.wavefront.common.Clock;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.internal_reporter_java.io.dropwizard.metrics5.MetricName;
 import com.wavefront.sdk.common.WavefrontSender;
@@ -118,7 +119,7 @@ public class SpanDerivedMetricsUtils {
     Iterator<HeartbeatMetricKey> iter = discoveredHeartbeatMetrics.keySet().iterator();
     while (iter.hasNext()) {
       HeartbeatMetricKey key = iter.next();
-      wavefrontSender.sendMetric(HEART_BEAT_METRIC, 1.0, System.currentTimeMillis(),
+      wavefrontSender.sendMetric(HEART_BEAT_METRIC, 1.0, Clock.now(),
           key.getSource(), new HashMap<String, String>() {{
         put(APPLICATION_TAG_KEY, key.getApplication());
         put(SERVICE_TAG_KEY, key.getService());
