@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
@@ -115,7 +116,7 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
         setTable("unknown").
         setMetric(name).
         setValue(value).
-        setTimestamp(timestampMillis).
+        setTimestamp(timestamp == null ? Clock.now() : timestampMillis).
         setHost(source).
         setAnnotations(tags).
         build();
