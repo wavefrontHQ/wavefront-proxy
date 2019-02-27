@@ -155,7 +155,6 @@ configuration in Istio.
 
 ## The following settings are used to configure trace data sampling:
 ## The rate for traces to be sampled. Can be from 0.0 to 1.0. Defaults to 1.0
-## Ex: traceSamplingRate = .1 sets up a sampling rate of 10%. A sampling rate of 10% causes 1 out of 10 traces to be sent and ingested.
 #traceSamplingRate=1.0
 ## The duration in milliseconds for the spans to be sampled. Spans above the given duration are reported. Defaults to 0.
 #traceSamplingDuration=0
