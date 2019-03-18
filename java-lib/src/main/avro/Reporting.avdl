@@ -48,6 +48,16 @@ protocol Reporting {
     array<Annotation> annotations = {};
   }
 
+// Collection of spans with the same traceId.
+  record Trace {
+  // uuid of the trace
+    string traceId;
+  // the customer of the span
+    string customer;
+  // spans of the trace.
+    array<Span> spans;
+  }
+
   // The parts of a ReportPoint that uniquely identify a timeseries to wavefront.
   record TimeSeries {
     string metric;
