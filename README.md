@@ -10,7 +10,9 @@ This repository contains several independent Java projects for sending metrics t
 
 ## Overview
   * dropwizard-metrics: Wavefront reporter for [DropWizard Metrics](https://metrics.dropwizard.io).
+    * This project is now obsolete. Please refer to the new [Wavefront Level 2 Dropwizard Metrics SDK](https://github.com/wavefrontHQ/wavefront-dropwizard-metrics-sdk-java)
   * java-client: Libraries for sending metrics to Wavefront via proxy or direct ingestion.
+    * This project is now obsolete. Please refer to the new [Wavefront Level 1 Java SDK](https://github.com/wavefrontHQ/wavefront-sdk-java)
   * java-lib: Common set of Wavefront libraries used by the other java projects.
   * pkg: Build and runtime packaging for the Wavefront proxy.
   * proxy: [Wavefront Proxy](https://docs.wavefront.com/proxies.html) source code.
