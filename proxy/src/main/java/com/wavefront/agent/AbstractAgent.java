@@ -27,6 +27,7 @@ import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
+import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
@@ -148,9 +149,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
   private boolean testLogs = false;
 
-  @Parameter(names = {"-l", "--loglevel", "--pushLogLevel"}, description =
-      "Log level for push data (NONE/SUMMARY/DETAILED); NONE is default")
-  protected String pushLogLevel = "NONE";
+  @Parameter(names = {"-l", "--loglevel", "--pushLogLevel"}, hidden = true, description =
+      "(DEPRECATED) Log level for push data (NONE/SUMMARY/DETAILED); SUMMARY is default")
+  protected String pushLogLevel = "SUMMARY";
 
   @Parameter(names = {"-v", "--validationlevel", "--pushValidationLevel"}, description =
       "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY); NUMERIC_ONLY is default")
@@ -556,7 +557,7 @@ public abstract class AbstractAgent {
   protected String traceJaegerListenerPorts;
 
   @Parameter(names = {"--traceZipkinListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
-          "on for zipkin trace data over HTTP. Defaults to none.")
+      "on for zipkin trace data over HTTP. Defaults to none.")
   protected String traceZipkinListenerPorts;
 
   @Parameter(names = {"--traceSamplingRate"}, description = "Value between 0.0 and 1.0. " +
@@ -723,7 +724,7 @@ public abstract class AbstractAgent {
   private final Runnable updateConfiguration = () -> {
     boolean doShutDown = false;
     try {
-      AgentConfiguration config = fetchConfig();
+      AgentConfiguration config = checkin();
       if (config != null) {
         processConfiguration(config);
         doShutDown = config.getShutOffAgents();
@@ -798,51 +799,39 @@ public abstract class AbstractAgent {
 
   protected abstract void stopListeners();
 
+  private void addPreprocessorFilters(String commaDelimitedPorts, String whitelist, String blacklist) {
+    if (commaDelimitedPorts != null && (whitelist != null || blacklist != null)) {
+      for (String strPort : Splitter.on(",").omitEmptyStrings().trimResults().split(commaDelimitedPorts)) {
+        PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+            Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort)),
+            Metrics.newCounter(new TaggedMetricName("validationRegex", "cpu-nanos", "port", strPort)),
+            Metrics.newCounter(new TaggedMetricName("validationRegex", "points-checked", "port", strPort))
+        );
+        if (blacklist != null) {
+          preprocessors.forPort(strPort).forPointLine().addFilter(
+              new PointLineBlacklistRegexFilter(blacklistRegex, ruleMetrics));
+        }
+        if (whitelist != null) {
+          preprocessors.forPort(strPort).forPointLine().addFilter(
+              new PointLineWhitelistRegexFilter(whitelist, ruleMetrics));
+        }
+      }
+    }
+  }
+
   private void initPreprocessors() throws IOException {
     // convert blacklist/whitelist fields to filters for full backwards compatibility
     // blacklistRegex and whitelistRegex are applied to pushListenerPorts, graphitePorts and picklePorts
-    if (whitelistRegex != null || blacklistRegex != null) {
-      String allPorts = StringUtils.join(new String[]{
-          pushListenerPorts == null ? "" : pushListenerPorts,
-          graphitePorts == null ? "" : graphitePorts,
-          picklePorts == null ? "" : picklePorts,
-          traceListenerPorts == null ? "" : traceListenerPorts
-      }, ",");
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(allPorts);
-      for (String strPort : ports) {
-        if (blacklistRegex != null) {
-          preprocessors.forPort(strPort).forPointLine().addFilter(
-              new PointLineBlacklistRegexFilter(blacklistRegex,
-                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
-              ));
-        }
-        if (whitelistRegex != null) {
-          preprocessors.forPort(strPort).forPointLine().addFilter(
-              new PointLineWhitelistRegexFilter(whitelistRegex,
-                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
-              ));
-        }
-      }
-    }
+    String allPorts = StringUtils.join(new String[]{
+        pushListenerPorts == null ? "" : pushListenerPorts,
+        graphitePorts == null ? "" : graphitePorts,
+        picklePorts == null ? "" : picklePorts,
+        traceListenerPorts == null ? "" : traceListenerPorts
+    }, ",");
+    addPreprocessorFilters(allPorts, whitelistRegex, blacklistRegex);
 
     // opentsdbBlacklistRegex and opentsdbWhitelistRegex are applied to opentsdbPorts only
-    if (opentsdbPorts != null && (opentsdbWhitelistRegex != null || opentsdbBlacklistRegex != null)) {
-      Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(opentsdbPorts);
-      for (String strPort : ports) {
-        if (opentsdbBlacklistRegex != null) {
-          preprocessors.forPort(strPort).forPointLine().addFilter(
-              new PointLineBlacklistRegexFilter(opentsdbBlacklistRegex,
-                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
-              ));
-        }
-        if (opentsdbWhitelistRegex != null) {
-          preprocessors.forPort(strPort).forPointLine().addFilter(
-              new PointLineWhitelistRegexFilter(opentsdbWhitelistRegex,
-                  Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected", "port", strPort))
-              ));
-        }
-      }
-    }
+    addPreprocessorFilters(opentsdbPorts, opentsdbWhitelistRegex, opentsdbBlacklistRegex);
 
     if (preprocessorConfigFile != null) {
       FileInputStream stream = new FileInputStream(preprocessorConfigFile);
@@ -1094,7 +1083,9 @@ public abstract class AbstractAgent {
       logger.severe("Could not load configuration file " + pushConfigFile);
       throw exception;
     }
+  }
 
+  private void postProcessConfig() {
     // Compatibility with deprecated fields
     if (whitelistRegex == null && graphiteWhitelistRegex != null) {
       whitelistRegex = graphiteWhitelistRegex;
@@ -1103,8 +1094,6 @@ public abstract class AbstractAgent {
     if (blacklistRegex == null && graphiteBlacklistRegex != null) {
       blacklistRegex = graphiteBlacklistRegex;
     }
-
-    initPreprocessors();
 
     if (!persistMessages) {
       persistMessagesCompression = false;
@@ -1123,6 +1112,23 @@ public abstract class AbstractAgent {
         Math.min(retryBackoffBaseSeconds.get(), MAX_RETRY_BACKOFF_BASE_SECONDS),
         1.0));
     QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
+
+    // create List of custom tags from the configuration string
+    String[] tags = customSourceTagsProperty.split(",");
+    for (String tag : tags) {
+      tag = tag.trim();
+      if (!customSourceTags.contains(tag)) {
+        customSourceTags.add(tag);
+      } else {
+        logger.warning("Custom source tag: " + tag + " was repeated. Check the customSourceTags property in " +
+            "wavefront.conf");
+      }
+    }
+
+    if (StringUtils.isBlank(hostname.trim())) {
+      logger.severe("hostname cannot be blank! Please correct your configuration settings.");
+      System.exit(1);
+    }
 
     // for backwards compatibility - if pushLogLevel is defined in the config file, change log level programmatically
     Level level = null;
@@ -1144,6 +1150,25 @@ public abstract class AbstractAgent {
     }
   }
 
+  private void parseArguments(String[] args) {
+    logger.info("Arguments: " + IntStream.range(0, args.length).
+        mapToObj(i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i]).
+        collect(Collectors.joining(", ")));
+    JCommander jCommander = JCommander.newBuilder().
+        programName(this.getClass().getCanonicalName()).
+        addObject(this).
+        allowParameterOverwriting(true).
+        build();
+    jCommander.parse(args);
+    if (help) {
+      jCommander.usage();
+      System.exit(0);
+    }
+    if (unparsed_params != null) {
+      logger.info("Unparsed arguments: " + Joiner.on(", ").join(unparsed_params));
+    }
+  }
+
   /**
    * Entry-point for the application.
    *
@@ -1155,29 +1180,17 @@ public abstract class AbstractAgent {
       props = ResourceBundle.getBundle("build");
       logger.info("Starting proxy version " + props.getString("build.version"));
 
-      logger.info("Arguments: " + IntStream.range(0, args.length).
-          mapToObj(i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i]).
-          collect(Collectors.joining(", ")));
-      JCommander jCommander = JCommander.newBuilder().
-          programName(this.getClass().getCanonicalName()).
-          addObject(this).
-          allowParameterOverwriting(true).
-          build();
-      jCommander.parse(args);
-      if (help) {
-        jCommander.usage();
-        System.exit(0);
-      }
-      if (unparsed_params != null) {
-        logger.info("Unparsed arguments: " + Joiner.on(", ").join(unparsed_params));
-      }
-
       /* ------------------------------------------------------------------------------------
        * Configuration Setup.
        * ------------------------------------------------------------------------------------ */
 
-      // 1. Load the listener configurations.
+      // Parse commandline arguments
+      parseArguments(args);
+
+      // Load configuration
       loadListenerConfigurationFile();
+      postProcessConfig();
+      initPreprocessors();
       loadLogsIngestionConfig();
       configureTokenAuthenticator();
 
@@ -1201,41 +1214,41 @@ public abstract class AbstractAgent {
         readOrCreateDaemonId();
       }
 
-      if (proxyHost != null) {
-        System.setProperty("http.proxyHost", proxyHost);
-        System.setProperty("https.proxyHost", proxyHost);
-        System.setProperty("http.proxyPort", String.valueOf(proxyPort));
-        System.setProperty("https.proxyPort", String.valueOf(proxyPort));
-      }
-      if (proxyUser != null && proxyPassword != null) {
-        Authenticator.setDefault(
-            new Authenticator() {
-              @Override
-              public PasswordAuthentication getPasswordAuthentication() {
-                if (getRequestorType() == RequestorType.PROXY) {
-                  return new PasswordAuthentication(proxyUser, proxyPassword.toCharArray());
-                } else {
-                  return null;
-                }
-              }
-            }
-        );
-      }
+      configureHttpProxy();
 
-      // create List of custom tags from the configuration string
-      String[] tags = customSourceTagsProperty.split(",");
-      for (String tag : tags) {
-        tag = tag.trim();
-        if (!customSourceTags.contains(tag)) {
-          customSourceTags.add(tag);
-        } else {
-          logger.warning("Custom source tag: " + tag + " was repeated. Check the customSourceTags property in " +
-              "wavefront.conf");
-        }
-      }
-
-      // 3. Setup proxies.
       WavefrontAPI service = createAgentService();
+
+      // Poll or read the configuration file to use.
+      AgentConfiguration config;
+      if (configFile != null) {
+        logger.info("Loading configuration file from: " + configFile);
+        try {
+          config = GSON.fromJson(new FileReader(configFile),
+              AgentConfiguration.class);
+        } catch (FileNotFoundException e) {
+          throw new RuntimeException("Cannot read config file: " + configFile);
+        }
+        try {
+          config.validate(localAgent);
+        } catch (RuntimeException ex) {
+          logger.log(Level.SEVERE, "cannot parse config file", ex);
+          throw new RuntimeException("cannot parse config file", ex);
+        }
+        agentId = null;
+      } else {
+        updateAgentMetrics.run();
+        config = checkin();
+        logger.info("scheduling regular configuration polls");
+        agentConfigurationExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
+        agentConfigurationExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
+      }
+      // 6. Setup work units and targets based on the configuration.
+      if (config != null) {
+        logger.info("initial configuration is available, setting up proxy");
+        processConfiguration(config);
+      }
+
+      // Setup queueing.
       try {
         setupQueueing(service);
       } catch (IOException e) {
@@ -1243,69 +1256,34 @@ public abstract class AbstractAgent {
         throw e;
       }
 
-      // 4. Start the (push) listening endpoints
+      // Start the listening endpoints
       startListeners();
 
       // set up OoM memory guard
       if (memGuardFlushThreshold > 0) {
-        setupMemoryGuard((float)memGuardFlushThreshold / 100);
+        setupMemoryGuard((float) memGuardFlushThreshold / 100);
       }
 
       new Timer().schedule(
           new TimerTask() {
             @Override
             public void run() {
-              try {
-                // exit if no active listeners
-                if (activeListeners.count() == 0) {
-                  logger.severe("**** All listener threads failed to start - there is already a running instance " +
-                      "listening on configured ports, or no listening ports configured!");
-                  logger.severe("Aborting start-up");
-                  System.exit(1);
-                }
-
-                // 5. Poll or read the configuration file to use.
-                AgentConfiguration config;
-                if (configFile != null) {
-                  logger.info("Loading configuration file from: " + configFile);
-                  try {
-                    config = GSON.fromJson(new FileReader(configFile),
-                        AgentConfiguration.class);
-                  } catch (FileNotFoundException e) {
-                    throw new RuntimeException("Cannot read config file: " + configFile);
-                  }
-                  try {
-                    config.validate(localAgent);
-                  } catch (RuntimeException ex) {
-                    logger.log(Level.SEVERE, "cannot parse config file", ex);
-                    throw new RuntimeException("cannot parse config file", ex);
-                  }
-                  agentId = null;
-                } else {
-                  updateAgentMetrics.run();
-                  config = fetchConfig();
-                  logger.info("scheduling regular configuration polls");
-                  agentConfigurationExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
-                  agentConfigurationExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
-                }
-                // 6. Setup work units and targets based on the configuration.
-                if (config != null) {
-                  logger.info("initial configuration is available, setting up proxy");
-                  processConfiguration(config);
-                }
-
-                Runtime.getRuntime().addShutdownHook(new Thread("proxy-shutdown-hook") {
-                  @Override
-                  public void run() {
-                    shutdown();
-                  }
-                });
-
-                logger.info("setup complete");
-              } catch (Throwable t) {
-                logger.log(Level.SEVERE, "Aborting start-up", t);
+              // exit if no active listeners
+              if (activeListeners.count() == 0) {
+                logger.severe("**** All listener threads failed to start - there is already a running instance " +
+                    "listening on configured ports, or no listening ports configured!");
+                logger.severe("Aborting start-up");
                 System.exit(1);
               }
+
+              Runtime.getRuntime().addShutdownHook(new Thread("proxy-shutdown-hook") {
+                @Override
+                public void run() {
+                  shutdown();
+                }
+              });
+
+              logger.info("setup complete");
             }
           },
           5000
@@ -1313,6 +1291,29 @@ public abstract class AbstractAgent {
     } catch (Throwable t) {
       logger.log(Level.SEVERE, "Aborting start-up", t);
       System.exit(1);
+    }
+  }
+
+  private void configureHttpProxy() {
+    if (proxyHost != null) {
+      System.setProperty("http.proxyHost", proxyHost);
+      System.setProperty("https.proxyHost", proxyHost);
+      System.setProperty("http.proxyPort", String.valueOf(proxyPort));
+      System.setProperty("https.proxyPort", String.valueOf(proxyPort));
+    }
+    if (proxyUser != null && proxyPassword != null) {
+      Authenticator.setDefault(
+          new Authenticator() {
+            @Override
+            public PasswordAuthentication getPasswordAuthentication() {
+              if (getRequestorType() == RequestorType.PROXY) {
+                return new PasswordAuthentication(proxyUser, proxyPassword.toCharArray());
+              } else {
+                return null;
+              }
+            }
+          }
+      );
     }
   }
 
@@ -1418,7 +1419,7 @@ public abstract class AbstractAgent {
         register((ClientRequestFilter) context -> {
           if (context.getUri().getPath().contains("/pushdata/")) {
             context.getHeaders().add("Authorization", "Bearer " + token);
-           }
+          }
         }).
         build();
     ResteasyWebTarget target = client.target(server);
@@ -1495,7 +1496,7 @@ public abstract class AbstractAgent {
     }
   }
 
-  private void fetchConfigError(String errMsg, @Nullable String secondErrMsg) {
+  private void checkinError(String errMsg, @Nullable String secondErrMsg) {
     if (hadSuccessfulCheckin.get()) {
       logger.severe(errMsg + (secondErrMsg == null ? "" : " " + secondErrMsg));
     } else {
@@ -1509,12 +1510,12 @@ public abstract class AbstractAgent {
   }
 
   /**
-   * Fetch configuration of the daemon from remote server.
+   * Perform agent check-in and fetch configuration of the daemon from remote server.
    *
    * @return Fetched configuration. {@code null} if the configuration is invalid.
    */
   @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
-  private AgentConfiguration fetchConfig() {
+  private AgentConfiguration checkin() {
     AgentConfiguration newConfig = null;
     JsonNode agentMetricsWorkingCopy;
     long agentMetricsCaptureTsWorkingCopy;
@@ -1524,51 +1525,51 @@ public abstract class AbstractAgent {
       agentMetricsCaptureTsWorkingCopy = agentMetricsCaptureTs;
       agentMetrics = null;
     }
-    logger.info("fetching configuration from server at: " + server);
+    logger.info("Checking in: " + server);
     try {
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
           agentMetricsCaptureTsWorkingCopy, localAgent, agentMetricsWorkingCopy, pushAgent, ephemeral);
       agentMetricsWorkingCopy = null;
       hadSuccessfulCheckin.set(true);
     } catch (NotAuthorizedException ex) {
-      fetchConfigError("HTTP 401 Unauthorized: Please verify that your server and token settings",
+      checkinError("HTTP 401 Unauthorized: Please verify that your server and token settings",
           "are correct and that the token has Proxy Management permission!");
       agentMetricsWorkingCopy = null;
       return new AgentConfiguration(); // return empty configuration to prevent checking in every second
     } catch (ForbiddenException ex) {
-      fetchConfigError("HTTP 403 Forbidden: Please verify that your token has Proxy Management permission!", null);
+      checkinError("HTTP 403 Forbidden: Please verify that your token has Proxy Management permission!", null);
       agentMetricsWorkingCopy = null;
       return new AgentConfiguration(); // return empty configuration to prevent checking in every second
     } catch (ClientErrorException ex) {
       if (ex.getResponse().getStatus() == 407) {
-        fetchConfigError("HTTP 407 Proxy Authentication Required: Please verify that proxyUser and proxyPassword",
+        checkinError("HTTP 407 Proxy Authentication Required: Please verify that proxyUser and proxyPassword",
             "settings are correct and make sure your HTTP proxy is not rate limiting!");
         return null;
       }
       if (ex.getResponse().getStatus() == 404) {
-        fetchConfigError("HTTP 404 Not Found: Please verify that your server setting is correct: " + server, null);
+        checkinError("HTTP 404 Not Found: Please verify that your server setting is correct: " + server, null);
         return null;
       }
-      fetchConfigError("HTTP " + ex.getResponse().getStatus() + " error: Unable to retrieve proxy configuration!",
+      checkinError("HTTP " + ex.getResponse().getStatus() + " error: Unable to retrieve proxy configuration!",
           server + ": " + Throwables.getRootCause(ex).getMessage());
       return null;
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);
       if (rootCause instanceof UnknownHostException) {
-        fetchConfigError("Unknown host: " + server + ". Please verify your DNS and network settings!", null);
+        checkinError("Unknown host: " + server + ". Please verify your DNS and network settings!", null);
         return null;
       }
       if (rootCause instanceof ConnectException ||
           rootCause instanceof SocketTimeoutException) {
-        fetchConfigError("Unable to connect to " + server + ": " + rootCause.getMessage(),
+        checkinError("Unable to connect to " + server + ": " + rootCause.getMessage(),
             "Please verify your network/firewall settings!");
         return null;
       }
-      fetchConfigError("Request processing error: Unable to retrieve proxy configuration!",
+      checkinError("Request processing error: Unable to retrieve proxy configuration!",
           server + ": " + rootCause);
       return null;
     } catch (Exception ex) {
-      fetchConfigError("Unable to retrieve proxy configuration from remote server!",
+      checkinError("Unable to retrieve proxy configuration from remote server!",
           server + ": " + Throwables.getRootCause(ex));
       return null;
     } finally {
