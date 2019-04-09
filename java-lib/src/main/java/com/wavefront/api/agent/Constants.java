@@ -28,6 +28,7 @@ public abstract class Constants {
    * Wavefront tracing format
    */
   public static final String PUSH_FORMAT_TRACING = "trace";
+  public static final String PUSH_FORMAT_TRACING_SPAN_LOGS = "spanLogs";
 
   /**
    * Work unit id for blocks of graphite-formatted data.

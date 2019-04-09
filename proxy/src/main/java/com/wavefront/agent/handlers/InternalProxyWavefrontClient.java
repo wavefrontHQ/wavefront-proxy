@@ -1,5 +1,7 @@
 package com.wavefront.agent.handlers;
 
+import com.google.common.collect.ImmutableList;
+
 import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.sdk.common.Pair;
@@ -20,6 +22,7 @@ import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.Utils.lazySupplier;
 
@@ -28,6 +31,7 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   private final Supplier<ReportableEntityHandler<ReportPoint>> pointHandlerSupplier;
   private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
   private final Supplier<ReportableEntityHandler<Span>> spanHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandlerSupplier;
 
   public InternalProxyWavefrontClient(ReportableEntityHandlerFactory handlerFactory) {
     this(handlerFactory, "internal_client");
@@ -42,6 +46,8 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)));
     this.spanHandlerSupplier = lazySupplier(() ->
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)));
+    this.spanLogsHandlerSupplier = lazySupplier(() ->
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)));
   }
 
   @Override
@@ -140,6 +146,14 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
         setAnnotations(annotations).
         build();
     spanHandlerSupplier.get().report(span);
+    if (spanLogs != null && spanLogs.size() > 0) {
+      SpanLogs sl = SpanLogs.newBuilder().
+          setTraceId(traceId.toString()).
+          setSpanId(spanId.toString()).
+          setLogs(ImmutableList.of()). // placeholder
+          build();
+      spanLogsHandlerSupplier.get().report(sl);
+    }
   }
 
   @Override

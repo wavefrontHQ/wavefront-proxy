@@ -47,6 +47,7 @@ import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.expect;
@@ -72,9 +73,11 @@ public class PushAgentTest {
       MockReportableEntityHandlerFactory.getMockHistogramHandler();
   private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
+  private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
+      MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private ReportableEntityHandlerFactory mockHandlerFactory =
       MockReportableEntityHandlerFactory.createMockHandlerFactory(mockPointHandler, mockSourceTagHandler,
-          mockHistogramHandler, mockTraceHandler);
+          mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler);
   private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
 
   private static int findAvailablePort(int startingPortNumber) {

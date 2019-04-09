@@ -18,6 +18,7 @@ import io.jaegertracing.thriftjava.Tag;
 import io.jaegertracing.thriftjava.TagType;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
@@ -27,6 +28,8 @@ import static org.easymock.EasyMock.verify;
 public class JaegerThriftCollectorHandlerTest {
   private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
+  private ReportableEntityHandler<SpanLogs> mockTraceLogsHandler =
+      MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private long startTime = System.currentTimeMillis();
 
   @Test
@@ -86,7 +89,7 @@ public class JaegerThriftCollectorHandlerTest {
     replay(mockTraceHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
-        null, new AtomicBoolean(false), null, new RateSampler(1.0D), false);
+        mockTraceLogsHandler, null, new AtomicBoolean(false), null, new RateSampler(1.0D), false);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");

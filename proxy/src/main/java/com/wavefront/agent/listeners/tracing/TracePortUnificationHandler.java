@@ -3,6 +3,8 @@ package com.wavefront.agent.listeners.tracing;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -18,11 +20,12 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandlerContext;
-import wavefront.report.Annotation;
 import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
@@ -39,8 +42,12 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
   private static final Logger logger = Logger.getLogger(
       TracePortUnificationHandler.class.getCanonicalName());
 
+  private static final ObjectMapper JSON_PARSER = new ObjectMapper();
+
   private final ReportableEntityHandler<Span> handler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   private final ReportableEntityDecoder<String, Span> decoder;
+  private final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder;
   private final ReportableEntityPreprocessor preprocessor;
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
@@ -49,31 +56,51 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
   public TracePortUnificationHandler(final String handle,
                                      final TokenAuthenticator tokenAuthenticator,
                                      final ReportableEntityDecoder<String, Span> traceDecoder,
+                                     final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
                                      @Nullable final ReportableEntityPreprocessor preprocessor,
                                      final ReportableEntityHandlerFactory handlerFactory,
                                      final Sampler sampler,
                                      final boolean alwaysSampleErrors) {
-    this(handle, tokenAuthenticator, traceDecoder, preprocessor,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)), sampler, alwaysSampleErrors);
+    this(handle, tokenAuthenticator, traceDecoder, spanLogsDecoder, preprocessor,
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
+        sampler, alwaysSampleErrors);
   }
 
   public TracePortUnificationHandler(final String handle,
                                      final TokenAuthenticator tokenAuthenticator,
                                      final ReportableEntityDecoder<String, Span> traceDecoder,
+                                     final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
                                      @Nullable final ReportableEntityPreprocessor preprocessor,
                                      final ReportableEntityHandler<Span> handler,
+                                     final ReportableEntityHandler<SpanLogs> spanLogsHandler,
                                      final Sampler sampler,
                                      final boolean alwaysSampleErrors) {
     super(tokenAuthenticator, handle, true, true);
     this.decoder = traceDecoder;
+    this.spanLogsDecoder = spanLogsDecoder;
     this.handler = handler;
+    this.spanLogsHandler = spanLogsHandler;
     this.preprocessor = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
   }
 
   @Override
-  protected void processLine(final ChannelHandlerContext ctx, String message) {
+  protected void processLine(final ChannelHandlerContext ctx, @Nonnull String message) {
+    if (message.startsWith("{") && message.endsWith("}")) { // span logs
+      try {
+        List<SpanLogs> output = Lists.newArrayListWithCapacity(1);
+        spanLogsDecoder.decode(JSON_PARSER.readTree(message), output, "dummy");
+        for (SpanLogs object : output) {
+          spanLogsHandler.report(object);
+        }
+      } catch (Exception e) {
+        spanLogsHandler.reject(message, parseError(message, ctx, e));
+      }
+      return;
+    }
+
     // transform the line if needed
     if (preprocessor != null) {
       message = preprocessor.forPointLine().transform(message);
@@ -93,19 +120,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
     try {
       decoder.decode(message, output, "dummy");
     } catch (Exception e) {
-      final Throwable rootCause = Throwables.getRootCause(e);
-      String errMsg = "WF-300 Cannot parse: \"" + message +
-          "\", reason: \"" + e.getMessage() + "\"";
-      if (rootCause != null && rootCause.getMessage() != null && rootCause != e) {
-        errMsg = errMsg + ", root cause: \"" + rootCause.getMessage() + "\"";
-      }
-      if (ctx != null) {
-        InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-        if (remoteAddress != null) {
-          errMsg += "; remote: " + remoteAddress.getHostString();
-        }
-      }
-      handler.reject(message, errMsg);
+      handler.reject(message, parseError(message, ctx, e));
       return;
     }
 
@@ -132,5 +147,27 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
         handler.report(object);
       }
     }
+  }
+
+  private static String parseError(String message, @Nullable ChannelHandlerContext ctx, @Nonnull Throwable e) {
+    final Throwable rootCause = Throwables.getRootCause(e);
+    StringBuilder errMsg = new StringBuilder("WF-300 Cannot parse: \"");
+    errMsg.append(message);
+    errMsg.append("\", reason: \"");
+    errMsg.append(e.getMessage());
+    errMsg.append("\"");
+    if (rootCause != null && rootCause.getMessage() != null && rootCause != e) {
+      errMsg.append(", root cause: \"");
+      errMsg.append(rootCause.getMessage());
+      errMsg.append("\"");
+    }
+    if (ctx != null) {
+      InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+      if (remoteAddress != null) {
+        errMsg.append("; remote: ");
+        errMsg.append(remoteAddress.getHostString());
+      }
+    }
+    return errMsg.toString();
   }
 }

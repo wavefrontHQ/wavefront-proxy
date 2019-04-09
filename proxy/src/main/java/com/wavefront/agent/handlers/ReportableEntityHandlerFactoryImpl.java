@@ -50,6 +50,9 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
         case TRACE:
           return new SpanHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads));
+        case TRACE_SPAN_LOGS:
+          return new SpanLogsHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
+              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads));
         default:
           throw new IllegalArgumentException("Unexpected entity type " + handlerKey.getEntityType().name() +
               " for " + handlerKey.getHandle());

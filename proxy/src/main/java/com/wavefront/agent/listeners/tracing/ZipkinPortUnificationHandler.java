@@ -1,6 +1,7 @@
 package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.RateLimiter;
 
@@ -39,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -47,6 +49,8 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
+import wavefront.report.SpanLog;
+import wavefront.report.SpanLogs;
 import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
@@ -73,6 +77,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
       ZipkinPortUnificationHandler.class.getCanonicalName());
   private final String handle;
   private final ReportableEntityHandler<Span> spanHandler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   @Nullable
   private final WavefrontSender wfSender;
   @Nullable
@@ -111,11 +116,13 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       boolean alwaysSampleErrors) {
     this(handle,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors);
   }
 
   public ZipkinPortUnificationHandler(final String handle,
                                       ReportableEntityHandler<Span> spanHandler,
+                                      ReportableEntityHandler<SpanLogs> spanLogsHandler,
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
                                       @Nullable ReportableEntityPreprocessor preprocessor,
@@ -125,6 +132,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
         handle, false, true);
     this.handle = handle;
     this.spanHandler = spanHandler;
+    this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
     this.preprocessor = preprocessor;
@@ -345,6 +353,20 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     if ((alwaysSampleErrors && isError) || sampler.sample(wavefrontSpan.getName(),
         UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(), wavefrontSpan.getDuration())) {
       spanHandler.report(wavefrontSpan);
+
+      if (zipkinSpan.annotations() != null) {
+        SpanLogs spanLogs = SpanLogs.newBuilder().
+            setTraceId(wavefrontSpan.getTraceId()).
+            setSpanId(wavefrontSpan.getSpanId()).
+            setLogs(zipkinSpan.annotations().stream().map(
+                x -> SpanLog.newBuilder().
+                    setTimestamp(x.timestamp()).
+                    setFields(ImmutableMap.of("annotation", x.value())).
+                    build()).
+                collect(Collectors.toList())).
+            build();
+        spanLogsHandler.report(spanLogs);
+      }
     }
     // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {
