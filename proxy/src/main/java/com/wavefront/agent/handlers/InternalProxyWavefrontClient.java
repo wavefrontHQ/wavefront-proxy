@@ -17,6 +17,8 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
+
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -133,27 +135,8 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   @Override
   public void sendSpan(String name, long startMillis, long durationMillis, String source, UUID traceId, UUID spanId,
                        List<UUID> parents, List<UUID> followsFrom, List<Pair<String, String>> tags,
-                       List<SpanLog> spanLogs) throws IOException {
-    final List<Annotation> annotations = tags.stream().map(x -> new Annotation(x._1, x._2)).collect(Collectors.toList());
-    final Span span = Span.newBuilder().
-        setCustomer("unknown").
-        setTraceId(traceId.toString()).
-        setSpanId(spanId.toString()).
-        setName(name).
-        setSource(source).
-        setStartMillis(startMillis).
-        setDuration(durationMillis).
-        setAnnotations(annotations).
-        build();
-    spanHandlerSupplier.get().report(span);
-    if (spanLogs != null && spanLogs.size() > 0) {
-      SpanLogs sl = SpanLogs.newBuilder().
-          setTraceId(traceId.toString()).
-          setSpanId(spanId.toString()).
-          setLogs(ImmutableList.of()). // placeholder
-          build();
-      spanLogsHandlerSupplier.get().report(sl);
-    }
+                       @Nullable List<SpanLog> spanLogs) throws IOException {
+    throw new UnsupportedOperationException("Not applicable");
   }
 
   @Override

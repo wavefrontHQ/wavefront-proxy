@@ -42,6 +42,7 @@ public class SpanLogsDecoder implements ReportableEntityDecoder<JsonNode, SpanLo
     Iterable<JsonNode> iterable = () -> msg.get("logs").elements();
     //noinspection unchecked
     SpanLogs spanLogs = SpanLogs.newBuilder().
+        setCustomer("default").
         setTraceId(msg.get("traceId") == null ? null : msg.get("traceId").textValue()).
         setSpanId(msg.get("spanId") == null ? null : msg.get("spanId").textValue()).
         setLogs(StreamSupport.stream(iterable.spliterator(), false).

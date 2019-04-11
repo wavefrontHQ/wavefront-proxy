@@ -1,6 +1,7 @@
 package com.wavefront.agent;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
@@ -47,6 +48,7 @@ import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.Span;
+import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
 import static org.easymock.EasyMock.anyObject;
@@ -302,7 +304,26 @@ public class PushAgentTest {
   @Test
   public void testTraceUnifiedPortHandlerPlaintext() throws Exception {
     reset(mockTraceHandler);
+    reset(mockTraceSpanLogsHandler);
     String traceId = UUID.randomUUID().toString();
+    long timestamp1 = startTime * 1000000 + 12345;
+    long timestamp2 = startTime * 1000000 + 23456;
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("default").
+        setTraceId(traceId).
+        setSpanId("testspanid").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(timestamp1).
+                setFields(ImmutableMap.of("key", "value", "key2", "value2")).
+                build(),
+            SpanLog.newBuilder().
+                setTimestamp(timestamp2).
+                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                build()
+            )).
+        build());
+    expectLastCall();
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
         .setDuration(1000)
         .setName("testSpanName")
@@ -313,16 +334,21 @@ public class PushAgentTest {
         .build());
     expectLastCall();
     replay(mockTraceHandler);
+    replay(mockTraceSpanLogsHandler);
 
     Socket socket = SocketFactory.getDefault().createSocket("localhost", tracePort);
     BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
     String payloadStr = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
-        "traceId=" + traceId + " parent=parent2 " + startTime + " " + (startTime + 1) + "\n";
+        "traceId=\"" + traceId + "\" parent=parent2 " + startTime + " " + (startTime + 1) + "\n" +
+        "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId + "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 +
+        ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n";
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
     TimeUnit.MILLISECONDS.sleep(500);
     verify(mockTraceHandler);
+    verify(mockTraceSpanLogsHandler);
   }
 
   @Test(timeout = 30000)

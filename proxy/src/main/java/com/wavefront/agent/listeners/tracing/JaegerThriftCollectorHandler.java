@@ -325,6 +325,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null) {
         SpanLogs spanLogs = SpanLogs.newBuilder().
+            setCustomer("default").
             setTraceId(wavefrontSpan.getTraceId()).
             setSpanId(wavefrontSpan.getSpanId()).
             setLogs(span.getLogs().stream().map(x -> {
