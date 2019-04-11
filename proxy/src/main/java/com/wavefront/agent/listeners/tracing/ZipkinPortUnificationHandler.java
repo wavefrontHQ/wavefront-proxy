@@ -359,6 +359,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
             setCustomer("default").
             setTraceId(wavefrontSpan.getTraceId()).
             setSpanId(wavefrontSpan.getSpanId()).
+            setSpanSecondaryId(zipkinSpan.kind() != null ? zipkinSpan.kind().toString().toLowerCase() : null).
             setLogs(zipkinSpan.annotations().stream().map(
                 x -> SpanLog.newBuilder().
                     setTimestamp(x.timestamp()).
