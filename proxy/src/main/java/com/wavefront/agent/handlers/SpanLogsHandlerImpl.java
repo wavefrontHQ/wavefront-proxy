@@ -111,8 +111,8 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
 
   private void printStats() {
     logger.info("[" + this.handle + "] Tracing span logs received rate: " + getReceivedOneMinuteRate() +
-        " sps (1 min), " + getReceivedFiveMinuteRate() + " sps (5 min), " +
-        this.receivedBurstRateCurrent + " sps (current).");
+        " logs/s (1 min), " + getReceivedFiveMinuteRate() + " logs/s (5 min), " +
+        this.receivedBurstRateCurrent + " logs/s (current).");
   }
 
   private void printTotal() {
