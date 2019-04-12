@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.SharedMetricsRegistry;
@@ -9,6 +10,7 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.avro.Schema;
 
 import java.util.Collection;
 import java.util.Random;
@@ -17,6 +19,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
 /**
@@ -31,6 +34,11 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
   private static final Logger validTracesLogger = Logger.getLogger("RawValidSpanLogs");
   private static final Random RANDOM = new Random();
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
+  static {
+    JSON_PARSER.addMixIn(SpanLogs.class, IgnoreSchemaProperty.class);
+    JSON_PARSER.addMixIn(SpanLog.class, IgnoreSchemaProperty.class);
+  }
+
   private static final Function<SpanLogs, String> SPAN_LOGS_SERIALIZER = value -> {
     try {
       return JSON_PARSER.writeValueAsString(value);
@@ -103,12 +111,18 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
 
   private void printStats() {
     logger.info("[" + this.handle + "] Tracing span logs received rate: " + getReceivedOneMinuteRate() +
-        " sps (1 min), " + getReceivedFiveMinuteRate() + " sps (5 min), " +
-        this.receivedBurstRateCurrent + " sps (current).");
+        " logs/s (1 min), " + getReceivedFiveMinuteRate() + " logs/s (5 min), " +
+        this.receivedBurstRateCurrent + " logs/s (current).");
   }
 
   private void printTotal() {
     logger.info("[" + this.handle + "] Total span logs processed since start: " + this.attemptedCounter.count() +
         "; blocked: " + this.blockedCounter.count());
+  }
+
+  abstract class IgnoreSchemaProperty
+  {
+    @JsonIgnore
+    abstract void getSchema();
   }
 }
