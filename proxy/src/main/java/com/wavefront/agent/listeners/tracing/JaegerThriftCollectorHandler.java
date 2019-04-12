@@ -24,7 +24,9 @@ import com.yammer.metrics.core.MetricName;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -45,6 +48,8 @@ import io.jaegertracing.thriftjava.Tag;
 import io.jaegertracing.thriftjava.TagType;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
+import wavefront.report.SpanLog;
+import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
@@ -79,6 +84,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
   private final String handle;
   private final ReportableEntityHandler<Span> spanHandler;
+  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   @Nullable
   private final WavefrontSender wfSender;
   @Nullable
@@ -107,11 +113,13 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       Sampler sampler,
                                       boolean alwaysSampleErrors) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors);
   }
 
   public JaegerThriftCollectorHandler(String handle,
                                       ReportableEntityHandler<Span> spanHandler,
+                                      ReportableEntityHandler<SpanLogs> spanLogsHandler,
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
                                       @Nullable ReportableEntityPreprocessor preprocessor,
@@ -119,6 +127,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       boolean alwaysSampleErrors) {
     this.handle = handle;
     this.spanHandler = spanHandler;
+    this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
     this.preprocessor = preprocessor;
@@ -175,7 +184,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
           sourceName = tag.getVStr();
           break;
         }
-        if (tag.getKey().equals("ip") && tag.getVType()== TagType.STRING) {
+        if (tag.getKey().equals("ip") && tag.getVType() == TagType.STRING) {
           sourceName = tag.getVStr();
         }
       }
@@ -314,6 +323,39 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     if ((alwaysSampleErrors && isError) || sampler.sample(wavefrontSpan.getName(),
         UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(), wavefrontSpan.getDuration())) {
       spanHandler.report(wavefrontSpan);
+      if (span.getLogs() != null) {
+        SpanLogs spanLogs = SpanLogs.newBuilder().
+            setCustomer("default").
+            setTraceId(wavefrontSpan.getTraceId()).
+            setSpanId(wavefrontSpan.getSpanId()).
+            setLogs(span.getLogs().stream().map(x -> {
+              Map<String, String> fields = new HashMap<>(x.fields.size());
+              x.fields.forEach(t -> {
+                switch (t.vType) {
+                  case STRING:
+                    fields.put(t.getKey(), t.getVStr());
+                    break;
+                  case BOOL:
+                    fields.put(t.getKey(), String.valueOf(t.isVBool()));
+                    break;
+                  case LONG:
+                    fields.put(t.getKey(), String.valueOf(t.getVLong()));
+                    break;
+                  case DOUBLE:
+                    fields.put(t.getKey(), String.valueOf(t.getVDouble()));
+                    break;
+                  case BINARY:
+                    // ignore
+                  default:
+                }
+              });
+              return SpanLog.newBuilder().
+                  setTimestamp(x.timestamp).
+                  setFields(fields).
+                  build();
+            }).collect(Collectors.toList())).build();
+        spanLogsHandler.report(spanLogs);
+      }
     }
     // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {

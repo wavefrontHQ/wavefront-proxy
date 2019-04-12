@@ -22,6 +22,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 import zipkin2.Endpoint;
 import zipkin2.codec.SpanBytesEncoder;
 
@@ -34,12 +35,14 @@ import static org.easymock.EasyMock.verify;
 public class ZipkinPortUnificationHandlerTest {
   private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
+  private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
+      MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private long startTime = System.currentTimeMillis();
 
   @Test
   public void testZipkinHandler() {
-    ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411", mockTraceHandler, null,
-        new AtomicBoolean(false), null, new RateSampler(1.0D), false);
+    ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411", mockTraceHandler,
+        mockTraceSpanLogsHandler, null, new AtomicBoolean(false), null, new RateSampler(1.0D), false);
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
     zipkin2.Span spanServer1 = zipkin2.Span.newBuilder().

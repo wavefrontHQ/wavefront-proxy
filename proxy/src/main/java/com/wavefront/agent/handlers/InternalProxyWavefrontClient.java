@@ -1,5 +1,7 @@
 package com.wavefront.agent.handlers;
 
+import com.google.common.collect.ImmutableList;
+
 import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.sdk.common.Pair;
@@ -15,11 +17,14 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
+
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.Utils.lazySupplier;
 
@@ -28,6 +33,7 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   private final Supplier<ReportableEntityHandler<ReportPoint>> pointHandlerSupplier;
   private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
   private final Supplier<ReportableEntityHandler<Span>> spanHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandlerSupplier;
 
   public InternalProxyWavefrontClient(ReportableEntityHandlerFactory handlerFactory) {
     this(handlerFactory, "internal_client");
@@ -42,6 +48,8 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)));
     this.spanHandlerSupplier = lazySupplier(() ->
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)));
+    this.spanLogsHandlerSupplier = lazySupplier(() ->
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)));
   }
 
   @Override
@@ -127,19 +135,8 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   @Override
   public void sendSpan(String name, long startMillis, long durationMillis, String source, UUID traceId, UUID spanId,
                        List<UUID> parents, List<UUID> followsFrom, List<Pair<String, String>> tags,
-                       List<SpanLog> spanLogs) throws IOException {
-    final List<Annotation> annotations = tags.stream().map(x -> new Annotation(x._1, x._2)).collect(Collectors.toList());
-    final Span span = Span.newBuilder().
-        setCustomer("unknown").
-        setTraceId(traceId.toString()).
-        setSpanId(spanId.toString()).
-        setName(name).
-        setSource(source).
-        setStartMillis(startMillis).
-        setDuration(durationMillis).
-        setAnnotations(annotations).
-        build();
-    spanHandlerSupplier.get().report(span);
+                       @Nullable List<SpanLog> spanLogs) throws IOException {
+    throw new UnsupportedOperationException("Not applicable");
   }
 
   @Override

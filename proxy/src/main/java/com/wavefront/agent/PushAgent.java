@@ -64,6 +64,7 @@ import com.wavefront.ingester.ReportPointDecoderWrapper;
 import com.wavefront.ingester.ReportSourceTagDecoder;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.ingester.SpanDecoder;
+import com.wavefront.ingester.SpanLogsDecoder;
 import com.wavefront.ingester.StreamIngester;
 import com.wavefront.ingester.TcpIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
@@ -565,7 +566,8 @@ public class PushAgent extends AbstractAgent {
 
 
     ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, tokenAuthenticator,
-        new SpanDecoder("unknown"), preprocessors.forPort(strPort), handlerFactory, sampler, traceAlwaysSampleErrors);
+        new SpanDecoder("unknown"), new SpanLogsDecoder(), preprocessors.forPort(strPort), handlerFactory, sampler,
+        traceAlwaysSampleErrors);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
         .withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);

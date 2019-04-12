@@ -48,6 +48,24 @@ protocol Reporting {
     array<Annotation> annotations = {};
   }
 
+  record SpanLog {
+    // timestamp of the span log entry in micros
+    long timestamp;
+    map<string> fields = {};
+  }
+
+  record SpanLogs {
+    string customer;
+    // uuid of the trace
+    string traceId;
+    // uuid of the span
+    string spanId;
+    // alternative span ID
+    union{null, string} spanSecondaryId = null;
+    // span log entries
+    array<SpanLog> logs;
+  }
+
 // Collection of spans with the same traceId.
   record Trace {
   // uuid of the trace

@@ -5,6 +5,7 @@ import org.easymock.EasyMock;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 /**
  * Mock factory for testing
@@ -29,11 +30,16 @@ public class MockReportableEntityHandlerFactory {
     return EasyMock.createMock(SpanHandlerImpl.class);
   }
 
+  public static SpanLogsHandlerImpl getMockTraceSpanLogsHandler() {
+    return EasyMock.createMock(SpanLogsHandlerImpl.class);
+  }
+
   public static ReportableEntityHandlerFactory createMockHandlerFactory(
       ReportableEntityHandler<ReportPoint> mockReportPointHandler,
       ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler,
       ReportableEntityHandler<ReportPoint> mockHistogramHandler,
-      ReportableEntityHandler<Span> mockTraceHandler) {
+      ReportableEntityHandler<Span> mockTraceHandler,
+      ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler) {
     return handlerKey -> {
       switch (handlerKey.getEntityType()) {
         case POINT:
@@ -44,6 +50,8 @@ public class MockReportableEntityHandlerFactory {
           return mockHistogramHandler;
         case TRACE:
           return mockTraceHandler;
+        case TRACE_SPAN_LOGS:
+          return mockTraceSpanLogsHandler;
         default:
           throw new IllegalArgumentException("Unknown entity type");
       }

@@ -9,7 +9,8 @@ public enum ReportableEntityType {
   POINT("points"),
   HISTOGRAM("points"),
   SOURCE_TAG("sourceTags"),
-  TRACE("spans");
+  TRACE("spans"),
+  TRACE_SPAN_LOGS("spanLogs");
 
   private final String name;
 

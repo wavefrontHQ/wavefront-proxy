@@ -16,6 +16,7 @@ import javax.validation.constraints.NotNull;
 
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_HISTOGRAM;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_TRACING;
+import static com.wavefront.api.agent.Constants.PUSH_FORMAT_TRACING_SPAN_LOGS;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_WAVEFRONT;
 
 /**
@@ -85,6 +86,11 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
               proxyAPI, proxyId, handlerKey.getHandle(), threadNo, globalRateLimiter, pushFlushInterval,
               pointsPerBatch, memoryBufferLimit);
           break;
+        case TRACE_SPAN_LOGS:
+          senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE_SPAN_LOGS.toString(),
+              PUSH_FORMAT_TRACING_SPAN_LOGS, proxyAPI, proxyId, handlerKey.getHandle(), threadNo, globalRateLimiter,
+              pushFlushInterval, pointsPerBatch, memoryBufferLimit);
+          break;
         default:
           throw new IllegalArgumentException("Unexpected entity type " + handlerKey.getEntityType().name() +
               " for " + handlerKey.getHandle());
@@ -101,5 +107,4 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       task.shutdown();
     }
   }
-
 }
