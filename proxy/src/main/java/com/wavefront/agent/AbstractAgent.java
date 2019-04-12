@@ -216,6 +216,14 @@ public abstract class AbstractAgent {
       " incoming HTTP requests on Wavefront/OpenTSDB/Graphite ports (Default: 16MB)")
   protected Integer pushListenerHttpBufferSize = 16 * 1024 * 1024;
 
+  @Parameter(names = {"--traceListenerMaxReceivedLength"}, description = "Maximum line length for received spans and" +
+      " span logs (Default: 1MB)")
+  protected Integer traceListenerMaxReceivedLength = 1 * 1024 * 1024;
+
+  @Parameter(names = {"--traceListenerHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
+      " incoming HTTP requests on tracing ports (Default: 16MB)")
+  protected Integer traceListenerHttpBufferSize = 16 * 1024 * 1024;
+
   @Parameter(names = {"--listenerIdleConnectionTimeout"}, description = "Close idle inbound connections after " +
       " specified time in seconds. Default: 300")
   protected int listenerIdleConnectionTimeout = 300;
@@ -890,6 +898,10 @@ public abstract class AbstractAgent {
           pushListenerMaxReceivedLength).intValue();
       pushListenerHttpBufferSize = config.getNumber("pushListenerHttpBufferSize",
           pushListenerHttpBufferSize).intValue();
+      traceListenerMaxReceivedLength = config.getNumber("traceListenerMaxReceivedLength",
+          traceListenerMaxReceivedLength).intValue();
+      traceListenerHttpBufferSize = config.getNumber("traceListenerHttpBufferSize",
+          traceListenerHttpBufferSize).intValue();
       listenerIdleConnectionTimeout = config.getNumber("listenerIdleConnectionTimeout",
           listenerIdleConnectionTimeout).intValue();
       memGuardFlushThreshold = config.getNumber("memGuardFlushThreshold", memGuardFlushThreshold).intValue();

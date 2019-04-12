@@ -490,8 +490,9 @@ public class PushAgent extends AbstractAgent {
     ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(strPort, tokenAuthenticator, openTSDBDecoder,
         handlerFactory, preprocessors.forPort(strPort), remoteHostAnnotator);
 
-    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
-            .withChildChannelOptions(childChannelOptions), "listener-plaintext-opentsdb-" + port);
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
+        pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
+        "listener-plaintext-opentsdb-" + port);
     logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
   }
 
@@ -512,8 +513,9 @@ public class PushAgent extends AbstractAgent {
         dataDogProcessSystemMetrics, dataDogProcessServiceChecks, httpClient, dataDogRequestRelayTarget,
         preprocessors.forPort(strPort));
 
-    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
-            .withChildChannelOptions(childChannelOptions), "listener-plaintext-datadog-" + port);
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
+        pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
+        "listener-plaintext-datadog-" + port);
     logger.info("listening on port: " + strPort + " for DataDog metrics");
   }
 
@@ -569,8 +571,9 @@ public class PushAgent extends AbstractAgent {
         new SpanDecoder("unknown"), new SpanLogsDecoder(), preprocessors.forPort(strPort), handlerFactory, sampler,
         traceAlwaysSampleErrors);
 
-    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port)
-        .withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, traceListenerMaxReceivedLength,
+        traceListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
+        "listener-plaintext-trace-" + port);
     logger.info("listening on port: " + strPort + " for trace data");
   }
 
@@ -614,8 +617,9 @@ public class PushAgent extends AbstractAgent {
     final int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, wfSender, traceDisabled,
         preprocessors.forPort(strPort), sampler, traceAlwaysSampleErrors);
-    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort), port).
-        withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, traceListenerMaxReceivedLength,
+        traceListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
+        "listener-zipkin-trace-" + port);
     logger.info("listening on port: " + strPort + " for trace data (Zipkin format)");
   }
 
@@ -638,8 +642,8 @@ public class PushAgent extends AbstractAgent {
         ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler = new WavefrontPortUnificationHandler(strPort,
         tokenAuthenticator, decoders, handlerFactory, hostAnnotator, preprocessors.forPort(strPort));
-    startAsManagedThread(
-        new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort), port).
+    startAsManagedThread(new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort,
+        pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).
             withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
   }
 
@@ -658,9 +662,9 @@ public class PushAgent extends AbstractAgent {
         ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
     ChannelHandler channelHandler = new RelayPortUnificationHandler(strPort, tokenAuthenticator, decoders,
         handlerFactory, preprocessors.forPort(strPort));
-    startAsManagedThread(
-        new TcpIngester(createInitializer(channelHandler, strPort), port).
-            withChildChannelOptions(childChannelOptions), "listener-relay-" + port);
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
+            pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).
+        withChildChannelOptions(childChannelOptions), "listener-relay-" + port);
   }
 
   protected void startHistogramListeners(Iterator<String> ports, Decoder<String> decoder, PointHandler pointHandler,
@@ -804,7 +808,8 @@ public class PushAgent extends AbstractAgent {
         "listener-plaintext-histogram-" + port);
   }
 
-  private ChannelInitializer createInitializer(ChannelHandler channelHandler, String strPort) {
+  private static ChannelInitializer createInitializer(ChannelHandler channelHandler, String strPort, int messageMaxLength,
+                                               int httpRequestBufferSize, int idleTimeout) {
     ChannelHandler idleStateEventHandler = new IdleStateEventHandler(
         Metrics.newCounter(new TaggedMetricName("listeners", "connections.idle.closed", "port", strPort)));
     ChannelHandler connectionTracker = new ConnectionTrackingHandler(
@@ -815,11 +820,10 @@ public class PushAgent extends AbstractAgent {
       public void initChannel(SocketChannel ch) {
         ChannelPipeline pipeline = ch.pipeline();
 
-        pipeline.addFirst("idlehandler", new IdleStateHandler(listenerIdleConnectionTimeout, 0, 0));
+        pipeline.addFirst("idlehandler", new IdleStateHandler(idleTimeout, 0, 0));
         pipeline.addLast("idlestateeventhandler", idleStateEventHandler);
         pipeline.addLast("connectiontracker", connectionTracker);
-        pipeline.addLast(new PlainTextOrHttpFrameDecoder(channelHandler, pushListenerMaxReceivedLength,
-            pushListenerHttpBufferSize));
+        pipeline.addLast(new PlainTextOrHttpFrameDecoder(channelHandler, messageMaxLength, httpRequestBufferSize));
       }
     };
   }
