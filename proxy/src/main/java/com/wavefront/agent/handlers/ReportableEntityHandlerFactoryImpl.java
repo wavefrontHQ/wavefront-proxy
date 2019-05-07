@@ -14,13 +14,13 @@ import java.util.logging.Logger;
 public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandlerFactory {
   private static final Logger logger = Logger.getLogger(ReportableEntityHandlerFactoryImpl.class.getCanonicalName());
 
-  private static final int SOURCE_TAGS_NUM_THREADS = 2;
+  static final int SOURCE_TAGS_NUM_THREADS = 2;
 
-  private Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
+  Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
 
-  private final SenderTaskFactory senderTaskFactory;
-  private final int blockedItemsPerBatch;
-  private final int defaultFlushThreads;
+  final SenderTaskFactory senderTaskFactory;
+  final int blockedItemsPerBatch;
+  final int defaultFlushThreads;
 
   /**
    * Create new instance.
