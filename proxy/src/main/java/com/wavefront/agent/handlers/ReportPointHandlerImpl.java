@@ -73,7 +73,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
 
   @Override
   @SuppressWarnings("unchecked")
-  void reportInternal(ReportPoint point) {
+  public void reportInternal(ReportPoint point) {
     validatePoint(point, handle, Validation.Level.NUMERIC_ONLY);
 
     String strPoint = serializer.apply(point);

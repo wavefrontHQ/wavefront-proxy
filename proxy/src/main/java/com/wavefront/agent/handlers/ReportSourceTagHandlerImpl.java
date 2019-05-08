@@ -40,7 +40,7 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
 
   @Override
   @SuppressWarnings("unchecked")
-  protected void reportInternal(ReportSourceTag sourceTag) {
+  public void reportInternal(ReportSourceTag sourceTag) {
     if (!annotationKeysAreValid(sourceTag)) {
       throw new IllegalArgumentException("WF-401: SourceTag annotation key has illegal characters.");
     }

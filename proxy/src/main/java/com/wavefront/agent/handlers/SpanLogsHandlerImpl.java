@@ -82,7 +82,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
 
   @Override
   @SuppressWarnings("unchecked")
-  protected void reportInternal(SpanLogs span) {
+  public void reportInternal(SpanLogs span) {
     String strSpanLogs = serializer.apply(span);
 
     refreshValidDataLoggerState();

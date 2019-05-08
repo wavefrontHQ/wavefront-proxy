@@ -33,7 +33,7 @@ import javax.validation.constraints.NotNull;
  *
  * @param <T> the type of input objects handled
  */
-abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHandler<T> {
+public abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHandler<T> {
   private static final Logger logger = Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
 
   @SuppressWarnings("unchecked")
@@ -72,7 +72,7 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
    * @param senderTasks          tasks actually handling data transfer to the Wavefront endpoint.
    */
   @SuppressWarnings("unchecked")
-  AbstractReportableEntityHandler(ReportableEntityType entityType,
+  public AbstractReportableEntityHandler(ReportableEntityType entityType,
                                   @NotNull String handle,
                                   final int blockedItemsPerBatch,
                                   Function<T, String> serializer,
@@ -190,7 +190,7 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
     }
   }
 
-  abstract void reportInternal(T item);
+  public abstract void reportInternal(T item);
 
   protected long getReceivedOneMinuteRate() {
     return receivedStats.subList(240, 300).stream().mapToLong(i -> i).sum() / 60;
