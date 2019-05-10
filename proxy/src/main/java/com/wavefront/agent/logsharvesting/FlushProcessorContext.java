@@ -1,6 +1,6 @@
 package com.wavefront.agent.logsharvesting;
 
-import com.wavefront.agent.PointHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.common.MetricConstants;
 
 import wavefront.report.Histogram;
@@ -13,10 +13,10 @@ import wavefront.report.TimeSeries;
 public class FlushProcessorContext {
   private final long timestamp;
   private TimeSeries timeSeries;
-  private PointHandler pointHandler;
+  private ReportableEntityHandler<ReportPoint> pointHandler;
   private String prefix;
 
-  FlushProcessorContext(TimeSeries timeSeries, String prefix, PointHandler pointHandler) {
+  FlushProcessorContext(TimeSeries timeSeries, String prefix, ReportableEntityHandler<ReportPoint> pointHandler) {
     this.timeSeries = TimeSeries.newBuilder(timeSeries).build();
     this.pointHandler = pointHandler;
     this.prefix = prefix;
@@ -45,7 +45,7 @@ public class FlushProcessorContext {
   }
 
   void report(ReportPoint reportPoint) {
-    pointHandler.reportPoint(reportPoint, reportPoint.toString());
+    pointHandler.report(reportPoint);
   }
 
   void report(double value) {

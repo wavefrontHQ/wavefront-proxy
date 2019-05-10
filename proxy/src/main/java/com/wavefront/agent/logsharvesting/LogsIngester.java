@@ -2,10 +2,10 @@ package com.wavefront.agent.logsharvesting;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Metric;
@@ -17,6 +17,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;
 
 /**
@@ -29,7 +30,7 @@ public class LogsIngester {
   protected static final Logger logger = Logger.getLogger(LogsIngester.class.getCanonicalName());
   private static final ReadProcessor readProcessor = new ReadProcessor();
   private final FlushProcessor flushProcessor;
-  private final PointHandler pointHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
   // A map from "true" to the currently loaded logs ingestion config.
   @VisibleForTesting
   final LogsIngestionConfigManager logsIngestionConfigManager;
@@ -46,7 +47,8 @@ public class LogsIngester {
    * @param currentMillis               supplier of the current time in millis
    * @throws ConfigurationException if the first config from logsIngestionConfigSupplier is null
    */
-  public LogsIngester(PointHandler pointHandler, Supplier<LogsIngestionConfig> logsIngestionConfigSupplier,
+  public LogsIngester(ReportableEntityHandler<ReportPoint> pointHandler,
+                      Supplier<LogsIngestionConfig> logsIngestionConfigSupplier,
                       String prefix, Supplier<Long> currentMillis) throws ConfigurationException {
     logsIngestionConfigManager = new LogsIngestionConfigManager(
         logsIngestionConfigSupplier,

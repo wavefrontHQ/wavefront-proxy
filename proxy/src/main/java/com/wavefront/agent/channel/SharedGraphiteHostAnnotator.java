@@ -2,22 +2,18 @@ package com.wavefront.agent.channel;
 
 import com.google.common.collect.Lists;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.wavefront.metrics.ExpectedAgentMetric;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
-
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+
+import static com.wavefront.agent.channel.CachingHostnameLookupResolver.getRemoteAddress;
 
 /**
  * Given a raw Graphite/Wavefront line, look for any host tag, and add it if implicit.
@@ -30,13 +26,14 @@ import io.netty.channel.ChannelHandlerContext;
  * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
-public class CachingGraphiteHostAnnotator {
-  private final LoadingCache<InetAddress, String> rdnsCache;
-  private final boolean disableRdnsLookup;
+public class SharedGraphiteHostAnnotator {
+
+  private final Function<InetAddress, String> hostnameResolver;
   private final List<String> sourceTags;
 
-  public CachingGraphiteHostAnnotator(@Nullable final List<String> customSourceTags, boolean disableRdnsLookup) {
-    this.disableRdnsLookup = disableRdnsLookup;
+  public SharedGraphiteHostAnnotator(@Nullable final List<String> customSourceTags,
+                                     @Nonnull Function<InetAddress, String> hostnameResolver) {
+    this.hostnameResolver = hostnameResolver;
     this.sourceTags = Lists.newArrayListWithExpectedSize(customSourceTags == null ? 4 : customSourceTags.size() + 4);
     this.sourceTags.add("source=");
     this.sourceTags.add("source\"=");
@@ -45,18 +42,6 @@ public class CachingGraphiteHostAnnotator {
     if (customSourceTags != null) {
       this.sourceTags.addAll(customSourceTags.stream().map(customTag -> customTag + "=").collect(Collectors.toList()));
     }
-
-    this.rdnsCache = disableRdnsLookup ? null : Caffeine.newBuilder()
-        .maximumSize(5000)
-        .refreshAfterWrite(5, TimeUnit.MINUTES)
-        .build(InetAddress::getHostName);
-
-    Metrics.newGauge(ExpectedAgentMetric.RDNS_CACHE_SIZE.metricName, new Gauge<Long>() {
-      @Override
-      public Long value() {
-        return disableRdnsLookup ? 0 : rdnsCache.estimatedSize();
-      }
-    });
   }
 
   public String apply(ChannelHandlerContext ctx, String msg) {
@@ -67,11 +52,6 @@ public class CachingGraphiteHostAnnotator {
         return msg;
       }
     }
-    return msg + " source=\"" + getRemoteHost(ctx) + "\"";
-  }
-
-  public String getRemoteHost(ChannelHandlerContext ctx) {
-    InetAddress remote = ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress();
-    return disableRdnsLookup ? remote.getHostAddress() : rdnsCache.get(remote);
+    return msg + " source=\"" + hostnameResolver.apply(getRemoteAddress(ctx)) + "\"";
   }
 }

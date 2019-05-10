@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wavefront.agent.auth.TokenAuthenticator;
-import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -17,11 +16,13 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.metrics.JsonMetricsParser;
 
+import java.net.InetAddress;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -32,6 +33,8 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 import wavefront.report.ReportPoint;
+
+import static com.wavefront.agent.channel.CachingHostnameLookupResolver.getRemoteAddress;
 
 /**
  * This class handles an incoming message of either String or FullHttpRequest type.  All other types are ignored. This
@@ -57,7 +60,7 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
   private final ReportableEntityPreprocessor preprocessor;
 
   @Nullable
-  private final CachingGraphiteHostAnnotator annotator;
+  private final Function<InetAddress, String> resolver;
 
 
   @SuppressWarnings("unchecked")
@@ -66,12 +69,12 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
                                         final ReportableEntityDecoder<String, ReportPoint> decoder,
                                         final ReportableEntityHandlerFactory handlerFactory,
                                         @Nullable final ReportableEntityPreprocessor preprocessor,
-                                        @Nullable final CachingGraphiteHostAnnotator annotator) {
+                                        @Nullable final Function<InetAddress, String> resolver) {
     super(tokenAuthenticator, handle, true, true);
     this.decoder = decoder;
     this.pointHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
     this.preprocessor = preprocessor;
-    this.annotator = annotator;
+    this.resolver = resolver;
   }
 
   @Override
@@ -226,7 +229,7 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
       } else if (wftags.containsKey("source")) {
         hostName = wftags.get("source");
       } else {
-        hostName = annotator == null ? "unknown" : annotator.getRemoteHost(ctx);
+        hostName = resolver == null ? "unknown" : resolver.apply(getRemoteAddress(ctx));
       }
       // remove source/host from the tags list
       Map<String, String> wftags2 = new HashMap<>();

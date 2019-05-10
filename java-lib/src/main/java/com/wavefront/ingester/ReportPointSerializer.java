@@ -44,7 +44,7 @@ public class ReportPointSerializer implements Function<ReportPoint, String> {
   }
 
   @VisibleForTesting
-  protected static String pointToString(ReportPoint point) {
+  public static String pointToString(ReportPoint point) {
     if (point.getValue() instanceof Double || point.getValue() instanceof Long || point.getValue() instanceof String) {
       StringBuilder sb = new StringBuilder(quote)
           .append(escapeQuotes(point.getMetric())).append(quote).append(" ")

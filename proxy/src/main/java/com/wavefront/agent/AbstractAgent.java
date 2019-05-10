@@ -523,6 +523,10 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--rawLogsMaxReceivedLength"}, description = "Maximum line length for received raw logs (Default: 4096)")
   protected Integer rawLogsMaxReceivedLength = 4096;
 
+  @Parameter(names = {"--rawLogsHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
+      " incoming HTTP requests with raw logs (Default: 16MB)")
+  protected Integer rawLogsHttpBufferSize = 16 * 1024 * 1024;
+
   @Parameter(names = {"--hostname"}, description = "Hostname for the proxy. Defaults to FQDN of machine.")
   protected String hostname;
 
@@ -1044,6 +1048,7 @@ public abstract class AbstractAgent {
       filebeatPort = config.getNumber("filebeatPort", filebeatPort).intValue();
       rawLogsPort = config.getNumber("rawLogsPort", rawLogsPort).intValue();
       rawLogsMaxReceivedLength = config.getNumber("rawLogsMaxReceivedLength", rawLogsMaxReceivedLength).intValue();
+      rawLogsHttpBufferSize = config.getNumber("rawLogsHttpBufferSize", rawLogsHttpBufferSize).intValue();
       logsIngestionConfigFile = config.getString("logsIngestionConfigFile", logsIngestionConfigFile);
 
       authMethod = TokenValidationMethod.fromString(config.getString("authMethod", authMethod.toString()));

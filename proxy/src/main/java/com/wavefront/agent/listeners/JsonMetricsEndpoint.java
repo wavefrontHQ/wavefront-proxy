@@ -9,6 +9,7 @@ import com.wavefront.agent.PointHandlerImpl;
 import com.wavefront.agent.PostPushDataTimedTask;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
+import com.wavefront.ingester.ReportPointSerializer;
 import com.wavefront.metrics.JsonMetricsParser;
 
 import org.eclipse.jetty.server.Request;
@@ -101,16 +102,16 @@ public class JsonMetricsEndpoint extends AbstractHandler {
       if (preprocessor != null) {
         if (!preprocessor.forReportPoint().filter(point)) {
           if (preprocessor.forReportPoint().getLastFilterResult() != null) {
-            blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+            blockedPointsLogger.warning(ReportPointSerializer.pointToString(point));
           } else {
-            blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+            blockedPointsLogger.info(ReportPointSerializer.pointToString(point));
           }
           handler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
           continue;
         }
         preprocessor.forReportPoint().transform(point);
       }
-      handler.reportPoint(point, "json: " + PointHandlerImpl.pointToString(point));
+      handler.reportPoint(point, "json: " + ReportPointSerializer.pointToString(point));
     }
     response.setContentType("text/html;charset=utf-8");
     response.setStatus(HttpServletResponse.SC_OK);

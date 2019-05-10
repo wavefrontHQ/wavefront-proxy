@@ -9,6 +9,7 @@ import com.wavefront.agent.PointHandlerImpl;
 import com.wavefront.agent.PostPushDataTimedTask;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.GraphiteDecoder;
+import com.wavefront.ingester.ReportPointSerializer;
 
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.AbstractHandler;
@@ -116,7 +117,7 @@ public class WriteHttpJsonMetricsEndpoint extends AbstractHandler {
           ReportPoint point = builder.build();
           if (preprocessor != null && preprocessor.forPointLine().hasTransformers()) {
             //
-            String pointLine = PointHandlerImpl.pointToString(point);
+            String pointLine = ReportPointSerializer.pointToString(point);
             pointLine = preprocessor.forPointLine().transform(pointLine);
             recoder.decodeReportPoints(pointLine, parsedPoints, "dummy");
           } else {
@@ -127,15 +128,15 @@ public class WriteHttpJsonMetricsEndpoint extends AbstractHandler {
               preprocessor.forReportPoint().transform(parsedPoint);
               if (!preprocessor.forReportPoint().filter(parsedPoint)) {
                 if (preprocessor.forReportPoint().getLastFilterResult() != null) {
-                  blockedPointsLogger.warning(PointHandlerImpl.pointToString(parsedPoint));
+                  blockedPointsLogger.warning(ReportPointSerializer.pointToString(parsedPoint));
                 } else {
-                  blockedPointsLogger.info(PointHandlerImpl.pointToString(parsedPoint));
+                  blockedPointsLogger.info(ReportPointSerializer.pointToString(parsedPoint));
                 }
                 handler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
                 continue;
               }
             }
-            handler.reportPoint(parsedPoint, "write_http json: " + PointHandlerImpl.pointToString(parsedPoint));
+            handler.reportPoint(parsedPoint, "write_http json: " + ReportPointSerializer.pointToString(parsedPoint));
           }
           index++;
         }
