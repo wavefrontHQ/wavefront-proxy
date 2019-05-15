@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AtomicDouble;
+import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.gson.Gson;
 
@@ -230,8 +231,8 @@ public abstract class AbstractAgent {
   protected int listenerIdleConnectionTimeout = 300;
 
   @Parameter(names = {"--memGuardFlushThreshold"}, description = "If heap usage exceeds this threshold (in percent), " +
-      "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 95")
-  protected int memGuardFlushThreshold = 95;
+      "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 99")
+  protected int memGuardFlushThreshold = 99;
 
   @Parameter(
       names = {"--histogramStateDirectory"},
@@ -700,7 +701,6 @@ public abstract class AbstractAgent {
   protected RecyclableRateLimiter pushRateLimiter = null;
   protected TokenAuthenticator tokenAuthenticator = TokenAuthenticatorBuilder.create().
       setTokenValidationMethod(TokenValidationMethod.NONE).build();
-  protected final MemoryPoolMXBean tenuredGenPool = getTenuredGenPool();
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
   protected AtomicBoolean hadSuccessfulCheckin = new AtomicBoolean(false);
@@ -1723,33 +1723,7 @@ public abstract class AbstractAgent {
     return "localhost";
   }
 
-  private MemoryPoolMXBean getTenuredGenPool() {
-    for (MemoryPoolMXBean pool : ManagementFactory.getMemoryPoolMXBeans()) {
-      if (pool.getType() == MemoryType.HEAP && pool.isUsageThresholdSupported()) {
-        return pool;
-      }
-    }
-    return null;
-  }
-
-  private void setupMemoryGuard(double threshold) {
-    if (tenuredGenPool == null) return;
-    tenuredGenPool.setUsageThreshold((long) (tenuredGenPool.getUsage().getMax() * threshold));
-
-    NotificationEmitter emitter = (NotificationEmitter) ManagementFactory.getMemoryMXBean();
-    emitter.addNotificationListener((notification, obj) -> {
-      if (notification.getType().equals(
-          MemoryNotificationInfo.MEMORY_THRESHOLD_EXCEEDED)) {
-        logger.warning("Heap usage threshold exceeded - draining buffers to disk!");
-        for (PostPushDataTimedTask task : managedTasks) {
-          if (task.getNumPointsToSend() > 0) {
-            task.drainBuffersToQueue();
-          }
-        }
-        logger.info("Draining buffers to disk: finished");
-      }
-    }, null, null);
-  }
+  abstract void setupMemoryGuard(double threshold);
 
   /**
    * Return a unique process identifier used to prevent collisions in ~proxy metrics.

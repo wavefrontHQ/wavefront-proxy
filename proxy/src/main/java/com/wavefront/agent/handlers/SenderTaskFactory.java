@@ -25,4 +25,9 @@ public interface SenderTaskFactory {
    * Shut down all tasks.
    */
   void shutdown();
+
+  /**
+   * Drain memory buffers to queue for all tasks.
+   */
+  void drainBuffersToQueue();
 }

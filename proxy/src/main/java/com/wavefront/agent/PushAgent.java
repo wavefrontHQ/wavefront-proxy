@@ -156,6 +156,20 @@ public class PushAgent extends AbstractAgent {
   }
 
   @Override
+  protected void setupMemoryGuard(double threshold) {
+    {
+      new ProxyMemoryGuard(() -> {
+        senderTaskFactory.drainBuffersToQueue();
+        for (PostPushDataTimedTask task : managedTasks) {
+          if (task.getNumPointsToSend() > 0 && !task.getFlushingToQueueFlag()) {
+            task.drainBuffersToQueue();
+          }
+        }
+      }, threshold);
+    }
+  }
+
+  @Override
   protected void startListeners() {
     if (soLingerTime >= 0) {
       childChannelOptions.put(ChannelOption.SO_LINGER, soLingerTime);
