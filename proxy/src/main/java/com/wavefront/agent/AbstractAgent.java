@@ -55,6 +55,7 @@ import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
 import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
+import org.jboss.resteasy.client.jaxrs.internal.LocalResteasyProviderFactory;
 import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPFilter;
 import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
 import org.jboss.resteasy.plugins.interceptors.encoding.GZIPEncodingInterceptor;
@@ -106,8 +107,6 @@ import javax.annotation.Nullable;
 import javax.management.NotificationEmitter;
 import javax.net.ssl.HttpsURLConnection;
 import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ForbiddenException;
-import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.ClientRequestFilter;
 
@@ -703,8 +702,10 @@ public abstract class AbstractAgent {
   protected final MemoryPoolMXBean tenuredGenPool = getTenuredGenPool();
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
-  protected AtomicBoolean hadSuccessfulCheckin = new AtomicBoolean(false);
-  protected boolean shuttingDown = false;
+  protected volatile boolean hadSuccessfulCheckin = false;
+  protected volatile boolean retryCheckin = false;
+  protected volatile boolean shuttingDown = false;
+  protected String serverEndpointUrl = null;
 
   /**
    * A unique process ID value (PID, when available, or a random hexadecimal string), assigned at proxy start-up,
@@ -1228,45 +1229,15 @@ public abstract class AbstractAgent {
 
       configureHttpProxy();
 
-      WavefrontAPI service = createAgentService();
-
-      // Poll or read the configuration file to use.
-      AgentConfiguration config;
-      if (configFile != null) {
-        logger.info("Loading configuration file from: " + configFile);
-        try {
-          config = GSON.fromJson(new FileReader(configFile),
-              AgentConfiguration.class);
-        } catch (FileNotFoundException e) {
-          throw new RuntimeException("Cannot read config file: " + configFile);
-        }
-        try {
-          config.validate(localAgent);
-        } catch (RuntimeException ex) {
-          logger.log(Level.SEVERE, "cannot parse config file", ex);
-          throw new RuntimeException("cannot parse config file", ex);
-        }
-        agentId = null;
-      } else {
-        updateAgentMetrics.run();
-        config = checkin();
-        logger.info("scheduling regular configuration polls");
-        agentConfigurationExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
-        agentConfigurationExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
-      }
-      // 6. Setup work units and targets based on the configuration.
-      if (config != null) {
-        logger.info("initial configuration is available, setting up proxy");
-        processConfiguration(config);
-      }
-
       // Setup queueing.
-      try {
-        setupQueueing(service);
-      } catch (IOException e) {
-        logger.log(Level.SEVERE, "Cannot setup local file for queueing due to IO error", e);
-        throw e;
-      }
+      WavefrontAPI service = createAgentService(server);
+      setupQueueing(service);
+
+      // Perform initial proxy check-in and schedule regular check-ins (once a minute)
+      setupCheckins();
+
+      // Start processing of the backlog queues
+      startQueueingService();
 
       // Start the listening endpoints
       startListeners();
@@ -1360,8 +1331,8 @@ public abstract class AbstractAgent {
   /**
    * Create RESTeasy proxies for remote calls via HTTP.
    */
-  protected WavefrontAPI createAgentService() {
-    ResteasyProviderFactory factory = ResteasyProviderFactory.getInstance();
+  protected WavefrontAPI createAgentService(String serverEndpointUrl) {
+    ResteasyProviderFactory factory = new LocalResteasyProviderFactory(ResteasyProviderFactory.getInstance());
     factory.registerProvider(JsonNodeWriter.class);
     if (!factory.getClasses().contains(ResteasyJackson2Provider.class)) {
       factory.registerProvider(ResteasyJackson2Provider.class);
@@ -1434,11 +1405,22 @@ public abstract class AbstractAgent {
           }
         }).
         build();
-    ResteasyWebTarget target = client.target(server);
+    ResteasyWebTarget target = client.target(serverEndpointUrl);
     return target.proxy(WavefrontAPI.class);
   }
 
-  private void setupQueueing(WavefrontAPI service) throws IOException {
+  protected void setupQueueing(WavefrontAPI service) {
+    try {
+      this.agentAPI = new QueuedAgentService(service, bufferFile, retryThreads, queuedAgentExecutor, purgeBuffer,
+          agentId, splitPushWhenRateLimited, pushRateLimiter, token);
+    } catch (IOException e) {
+      logger.log(Level.SEVERE, "Cannot setup local file for queueing due to IO error", e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  protected void startQueueingService() {
+    agentAPI.start();
     shutdownTasks.add(() -> {
       try {
         queuedAgentExecutor.shutdownNow();
@@ -1448,8 +1430,6 @@ public abstract class AbstractAgent {
         // ignore
       }
     });
-    agentAPI = new QueuedAgentService(service, bufferFile, retryThreads, queuedAgentExecutor, purgeBuffer,
-        agentId, splitPushWhenRateLimited, pushRateLimiter, token);
   }
 
   /**
@@ -1509,7 +1489,7 @@ public abstract class AbstractAgent {
   }
 
   private void checkinError(String errMsg, @Nullable String secondErrMsg) {
-    if (hadSuccessfulCheckin.get()) {
+    if (hadSuccessfulCheckin) {
       logger.severe(errMsg + (secondErrMsg == null ? "" : " " + secondErrMsg));
     } else {
       logger.severe(Strings.repeat("*", errMsg.length()));
@@ -1537,34 +1517,52 @@ public abstract class AbstractAgent {
       agentMetricsCaptureTsWorkingCopy = agentMetricsCaptureTs;
       agentMetrics = null;
     }
-    logger.info("Checking in: " + server);
+    logger.info("Checking in: " + ObjectUtils.firstNonNull(serverEndpointUrl, server));
     try {
       newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
           agentMetricsCaptureTsWorkingCopy, localAgent, agentMetricsWorkingCopy, pushAgent, ephemeral);
       agentMetricsWorkingCopy = null;
-      hadSuccessfulCheckin.set(true);
-    } catch (NotAuthorizedException ex) {
-      checkinError("HTTP 401 Unauthorized: Please verify that your server and token settings",
-          "are correct and that the token has Proxy Management permission!");
-      agentMetricsWorkingCopy = null;
-      return new AgentConfiguration(); // return empty configuration to prevent checking in every second
-    } catch (ForbiddenException ex) {
-      checkinError("HTTP 403 Forbidden: Please verify that your token has Proxy Management permission!", null);
-      agentMetricsWorkingCopy = null;
-      return new AgentConfiguration(); // return empty configuration to prevent checking in every second
+      hadSuccessfulCheckin = true;
     } catch (ClientErrorException ex) {
-      if (ex.getResponse().getStatus() == 407) {
-        checkinError("HTTP 407 Proxy Authentication Required: Please verify that proxyUser and proxyPassword",
-            "settings are correct and make sure your HTTP proxy is not rate limiting!");
-        return null;
+      agentMetricsWorkingCopy = null;
+      switch (ex.getResponse().getStatus()) {
+        case 401:
+          checkinError("HTTP 401 Unauthorized: Please verify that your server and token settings",
+              "are correct and that the token has Proxy Management permission!");
+          break;
+        case 403:
+          checkinError("HTTP 403 Forbidden: Please verify that your token has Proxy Management permission!", null);
+          break;
+        case 404:
+          checkinError("HTTP 404 Not Found: Please verify that your 'server' setting is correct: " + server, null);
+          if (!hadSuccessfulCheckin) {
+            System.exit(-5);
+          }
+          break;
+        case 405:
+          if (!agentAPI.isRunning() && !retryCheckin && !server.endsWith("/api/") && !server.endsWith("/api")) {
+            this.serverEndpointUrl = server.replaceAll("/$", "") + "/api/";
+            checkinError("Possible server endpoint misconfiguration detected, attempting to use " + serverEndpointUrl,
+                null);
+            this.agentAPI.setWrappedApi(createAgentService(this.serverEndpointUrl));
+            retryCheckin = true;
+            return null;
+          }
+          checkinError("HTTP 405: Misconfiguration detected, please verify that your server setting is correct",
+              "Server endpoint URLs normally end with '/api/'. Current setting: " + server);
+          if (!hadSuccessfulCheckin) {
+            System.exit(-5);
+          }
+          break;
+        case 407:
+          checkinError("HTTP 407 Proxy Authentication Required: Please verify that proxyUser and proxyPassword",
+              "settings are correct and make sure your HTTP proxy is not rate limiting!");
+          break;
+        default:
+          checkinError("HTTP " + ex.getResponse().getStatus() + " error: Unable to check in with Wavefront!",
+              server + ": " + Throwables.getRootCause(ex).getMessage());
       }
-      if (ex.getResponse().getStatus() == 404) {
-        checkinError("HTTP 404 Not Found: Please verify that your server setting is correct: " + server, null);
-        return null;
-      }
-      checkinError("HTTP " + ex.getResponse().getStatus() + " error: Unable to retrieve proxy configuration!",
-          server + ": " + Throwables.getRootCause(ex).getMessage());
-      return null;
+      return new AgentConfiguration(); // return empty configuration to prevent checking in every second
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);
       if (rootCause instanceof UnknownHostException) {
@@ -1637,6 +1635,43 @@ public abstract class AbstractAgent {
       agentAPI.agentConfigProcessed(agentId);
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
+    }
+  }
+
+  protected void setupCheckins() {
+    // Poll or read the configuration file to use.
+    AgentConfiguration config;
+    if (configFile != null) {
+      logger.info("Loading configuration file from: " + configFile);
+      try {
+        config = GSON.fromJson(new FileReader(configFile),
+            AgentConfiguration.class);
+      } catch (FileNotFoundException e) {
+        throw new RuntimeException("Cannot read config file: " + configFile);
+      }
+      try {
+        config.validate(localAgent);
+      } catch (RuntimeException ex) {
+        logger.log(Level.SEVERE, "cannot parse config file", ex);
+        throw new RuntimeException("cannot parse config file", ex);
+      }
+      agentId = null;
+    } else {
+      updateAgentMetrics.run();
+      config = checkin();
+      if (config == null && retryCheckin) {
+        // immediately retry check-ins if we need to re-attempt due to changing the server endpoint URL
+        updateAgentMetrics.run();
+        config = checkin();
+      }
+      logger.info("scheduling regular check-ins");
+      agentConfigurationExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
+      agentConfigurationExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
+    }
+    // 6. Setup work units and targets based on the configuration.
+    if (config != null) {
+      logger.info("initial configuration is available, setting up proxy");
+      processConfiguration(config);
     }
   }
 

@@ -67,6 +67,7 @@ public class QueuedAgentServiceTest {
             return toReturn;
           }
         }), true, newAgentId, false, (RecyclableRateLimiter) null, StringUtil.EMPTY_STRING);
+    queuedAgentService.start();
   }
   // post sourcetag metadata
 
