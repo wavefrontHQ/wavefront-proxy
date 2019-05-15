@@ -260,6 +260,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     if (!isRunning.getAndSet(true)) {
       taskRunnables.forEach(taskRunnable -> executorService.schedule(taskRunnable,
           (long) (Math.random() * taskRunnables.size()), TimeUnit.SECONDS));
+      sourceTagTaskRunnables.forEach(taskRunnable -> executorService.schedule(taskRunnable,
+          (long) (Math.random() * taskRunnables.size()), TimeUnit.SECONDS));
     }
   }
 
