@@ -1534,13 +1534,8 @@ public abstract class AbstractAgent {
           checkinError("HTTP 403 Forbidden: Please verify that your token has Proxy Management permission!", null);
           break;
         case 404:
-          checkinError("HTTP 404 Not Found: Please verify that your 'server' setting is correct: " + server, null);
-          if (!hadSuccessfulCheckin) {
-            System.exit(-5);
-          }
-          break;
         case 405:
-          if (!agentAPI.isRunning() && !retryCheckin && !server.endsWith("/api/") && !server.endsWith("/api")) {
+          if (!agentAPI.isRunning() && !retryCheckin && !server.replaceAll("/$", "").endsWith("/api")) {
             this.serverEndpointUrl = server.replaceAll("/$", "") + "/api/";
             checkinError("Possible server endpoint misconfiguration detected, attempting to use " + serverEndpointUrl,
                 null);
@@ -1548,9 +1543,13 @@ public abstract class AbstractAgent {
             retryCheckin = true;
             return null;
           }
-          checkinError("HTTP 405: Misconfiguration detected, please verify that your server setting is correct",
-              "Server endpoint URLs normally end with '/api/'. Current setting: " + server);
+          String secondaryMessage = server.replaceAll("/$", "").endsWith("/api") ?
+              "Current setting: " + server :
+              "Server endpoint URLs normally end with '/api/'. Current setting: " + server;
+          checkinError("HTTP " + ex.getResponse().getStatus() + ": Misconfiguration detected, please verify that " +
+                  "your server setting is correct", secondaryMessage);
           if (!hadSuccessfulCheckin) {
+            logger.warning("Aborting start-up");
             System.exit(-5);
           }
           break;
