@@ -27,7 +27,7 @@
 		<dependency>
 			<groupId>com.wavefront</groupId>
 			<artifactId>dropwizard-metrics</artifactId>
-			<version>4.29</version>
+			<version>4.31</version>
 		</dependency>
 	</dependencies>
 
