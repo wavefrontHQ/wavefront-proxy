@@ -228,10 +228,6 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     boolean shardTagPresent = false;
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
-        if (applicationTagPresent || tag.getKey().equals(APPLICATION_TAG_KEY)) {
-          applicationName = tag.getKey();
-          applicationTagPresent = true;
-        }
         if (IGNORE_TAGS.contains(tag.getKey())) {
           continue;
         }
@@ -241,6 +237,10 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
           annotations.add(annotation);
 
           switch (annotation.getKey()) {
+            case APPLICATION_TAG_KEY:
+              applicationTagPresent = true;
+              applicationName = annotation.getValue();
+              continue;
             case CLUSTER_TAG_KEY:
               clusterTagPresent =  true;
               cluster = annotation.getValue();
@@ -262,7 +262,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
     if (!applicationTagPresent) {
       // Original Jaeger span did not have application set, will default to 'Jaeger'
-      annotations.add(new Annotation(APPLICATION_TAG_KEY, DEFAULT_APPLICATION));
+      annotations.add(new Annotation(APPLICATION_TAG_KEY, applicationName));
     }
 
     if (!clusterTagPresent) {

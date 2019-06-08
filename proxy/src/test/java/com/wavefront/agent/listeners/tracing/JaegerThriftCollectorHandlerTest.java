@@ -62,7 +62,7 @@ public class JaegerThriftCollectorHandlerTest {
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
             new Annotation("component", "db"),
-            new Annotation("application", "Jaeger"),
+            new Annotation("application", "Custom-JaegerApp"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none")))
         .build());
@@ -97,6 +97,9 @@ public class JaegerThriftCollectorHandlerTest {
     Tag componentTag = new Tag("component", TagType.STRING);
     componentTag.setVStr("db");
 
+    Tag customApplicationTag = new Tag("application", TagType.STRING);
+    customApplicationTag.setVStr("Custom-JaegerApp");
+
     io.jaegertracing.thriftjava.Span span1 = new io.jaegertracing.thriftjava.Span(1234567890123L, 1234567890L,
         1234567L, 0L, "HTTP GET", 1, startTime * 1000, 1234 * 1000);
 
@@ -108,7 +111,7 @@ public class JaegerThriftCollectorHandlerTest {
         -7344605349865507945L, -97803834702328661L, "HTTP GET /", 1, startTime * 1000, 3456 * 1000);
 
     span1.setTags(ImmutableList.of(componentTag));
-    span2.setTags(ImmutableList.of(componentTag));
+    span2.setTags(ImmutableList.of(componentTag, customApplicationTag));
     span3.setTags(ImmutableList.of(componentTag));
 
     Batch testBatch = new Batch();

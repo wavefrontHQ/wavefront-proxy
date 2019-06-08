@@ -255,7 +255,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     boolean isError = false;
 
     // Set all other Span Tags.
-    Set<String> ignoreKeys = new HashSet<>(ImmutableSet.of(APPLICATION_TAG_KEY, SOURCE_KEY));
+    Set<String> ignoreKeys = new HashSet<>(ImmutableSet.of(SOURCE_KEY));
     if (zipkinSpan.tags() != null && zipkinSpan.tags().size() > 0) {
       for (Map.Entry<String, String> tag : zipkinSpan.tags().entrySet()) {
         if (!ignoreKeys.contains(tag.getKey().toLowerCase())) {
