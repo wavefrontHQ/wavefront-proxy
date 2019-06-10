@@ -74,6 +74,7 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("http.status_code", "200").
         putTag("component", "jersey-server").
         putTag("application", "Custom-ZipkinApp").
+        addAnnotation(startTime * 1000, "start processing").
         build();
 
     List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1, spanServer2);
@@ -138,6 +139,7 @@ public class ZipkinPortUnificationHandlerTest {
         setAnnotations(ImmutableList.of(
             new Annotation("parent", "00000000-0000-0000-2822-889fe47043bd"),
             new Annotation("span.kind", "server"),
+            new Annotation("_spanSecondaryId", "server"),
             new Annotation("service", "backend"),
             new Annotation("application", "Custom-ZipkinApp"),
             new Annotation("component", "jersey-server"),

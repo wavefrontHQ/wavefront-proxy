@@ -226,7 +226,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINEST)) {
       ZIPKIN_DATA_LOGGER.info("Inbound Zipkin span: " + zipkinSpan.toString());
     }
-    // Add application tags, span references , span kind and http uri, responses etc.
+    // Add application tags, span references, span kind and http uri, responses etc.
     List<Annotation> annotations = new ArrayList<>();
 
     // Set Span's References.
@@ -237,7 +237,11 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
 
     // Set Span Kind.
     if (zipkinSpan.kind() != null) {
-      annotations.add(new Annotation("span.kind", zipkinSpan.kind().toString().toLowerCase()));
+      String kind = zipkinSpan.kind().toString().toLowerCase();
+      annotations.add(new Annotation("span.kind", kind));
+      if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
+        annotations.add(new Annotation("_spanSecondaryId", kind));
+      }
     }
 
     // Set Span's service name.
@@ -354,7 +358,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
         UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(), wavefrontSpan.getDuration())) {
       spanHandler.report(wavefrontSpan);
 
-      if (zipkinSpan.annotations() != null) {
+      if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
         SpanLogs spanLogs = SpanLogs.newBuilder().
             setCustomer("default").
             setTraceId(wavefrontSpan.getTraceId()).
