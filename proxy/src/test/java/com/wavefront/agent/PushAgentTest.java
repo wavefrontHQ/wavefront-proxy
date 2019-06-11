@@ -22,6 +22,7 @@ import org.apache.http.entity.StringEntity;
 import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.BufferedOutputStream;
@@ -302,6 +303,7 @@ public class PushAgentTest {
   }
 
   @Test
+  @Ignore
   public void testTraceUnifiedPortHandlerPlaintext() throws Exception {
     reset(mockTraceHandler);
     reset(mockTraceSpanLogsHandler);

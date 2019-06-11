@@ -83,6 +83,8 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
   @Override
   @SuppressWarnings("unchecked")
   protected void reportInternal(SpanLogs span) {
+    // temporarily disable span log processing
+    /*
     String strSpanLogs = serializer.apply(span);
 
     refreshValidDataLoggerState();
@@ -94,6 +96,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
     }
     getTask().add(strSpanLogs);
     receivedCounter.inc();
+     */
   }
 
   private void refreshValidDataLoggerState() {
