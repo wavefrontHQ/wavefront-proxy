@@ -3,6 +3,7 @@ package com.wavefront.agent.handlers;
 import com.google.common.util.concurrent.RateLimiter;
 
 import com.wavefront.agent.SharedMetricsRegistry;
+import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -20,6 +21,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -52,6 +54,7 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   final RateLimiter blockedItemsLimiter;
   final Function<T, String> serializer;
   List<SenderTask<T>> senderTasks;
+  final Supplier<ValidationConfiguration> validationConfig;
 
   final ArrayList<Long> receivedStats = new ArrayList<>(Collections.nCopies(300, 0L));
   private final Histogram receivedBurstRateHistogram;
@@ -76,7 +79,8 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
                                   @NotNull String handle,
                                   final int blockedItemsPerBatch,
                                   Function<T, String> serializer,
-                                  @NotNull Collection<SenderTask> senderTasks) {
+                                  @NotNull Collection<SenderTask> senderTasks,
+                                  @Nullable Supplier<ValidationConfiguration> validationConfig) {
     String strEntityType = entityType.toString();
     this.blockedItemsLogger = Logger.getLogger("RawBlocked" + strEntityType.substring(0, 1).toUpperCase() +
         strEntityType.substring(1));
@@ -97,6 +101,7 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
     for (SenderTask task : senderTasks) {
       this.senderTasks.add((SenderTask<T>) task);
     }
+    this.validationConfig = validationConfig == null ? () -> null : validationConfig;
     this.receivedBurstRateHistogram = metricsRegistry.newHistogram(AbstractReportableEntityHandler.class,
         "received-" + strEntityType + ".burst-rate." + handle);
     Metrics.newGauge(new MetricName(strEntityType + "." + handle + ".received", "",

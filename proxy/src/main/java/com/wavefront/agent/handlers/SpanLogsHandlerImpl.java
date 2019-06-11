@@ -67,7 +67,8 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
   SpanLogsHandlerImpl(final String handle,
                       final int blockedItemsPerBatch,
                       final Collection<SenderTask> sendDataTasks) {
-    super(ReportableEntityType.TRACE_SPAN_LOGS, handle, blockedItemsPerBatch, SPAN_LOGS_SERIALIZER, sendDataTasks);
+    super(ReportableEntityType.TRACE_SPAN_LOGS, handle, blockedItemsPerBatch, SPAN_LOGS_SERIALIZER, sendDataTasks,
+        null);
 
     String logTracesSampleRateProperty = System.getProperty("wavefront.proxy.logspans.sample-rate");
     this.logSampleRate = NumberUtils.isNumber(logTracesSampleRateProperty) ?

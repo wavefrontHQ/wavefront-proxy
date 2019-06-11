@@ -14,6 +14,12 @@ import static java.util.concurrent.TimeUnit.SECONDS;
  * Created by: vasily@wavefront.com, with portions from Guava library source code
  */
 public class RecyclableRateLimiter extends RateLimiter {
+
+  /**
+   * This rate limit is considered "unlimited"
+   */
+  public static int UNLIMITED = 10_000_000;
+
   /**
    * The currently stored permits.
    */

@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
@@ -112,6 +113,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import wavefront.report.ReportPoint;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.util.concurrent.RecyclableRateLimiter.UNLIMITED;
 
 /**
  * Push-only Agent.
@@ -163,7 +165,8 @@ public class PushAgent extends AbstractAgent {
     remoteHostAnnotator = new CachingGraphiteHostAnnotator(customSourceTags, disableRdnsLookup);
     senderTaskFactory = new SenderTaskFactoryImpl(agentAPI, agentId, pushRateLimiter,
         pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
-    handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples, flushThreads);
+    handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples, flushThreads,
+        () -> validationConfiguration);
 
     if (pushListenerPorts != null) {
       Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts);
@@ -859,7 +862,7 @@ public class PushAgent extends AbstractAgent {
       } else {
         if (pushRateLimiter != null && pushRateLimiter.getRate() != pushRateLimit) {
           pushRateLimiter.setRate(pushRateLimit);
-          if (pushRateLimit >= 10_000_000) {
+          if (pushRateLimit >= UNLIMITED) {
             logger.warning("Proxy rate limit no longer enforced by remote");
           } else {
             logger.warning("Proxy rate limit restored to " + pushRateLimit);

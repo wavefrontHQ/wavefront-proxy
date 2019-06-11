@@ -31,6 +31,7 @@ import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.Constants;
+import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
@@ -111,6 +112,8 @@ import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.ClientRequestFilter;
 
+import static com.google.common.util.concurrent.RecyclableRateLimiter.UNLIMITED;
+
 /**
  * Agent that runs remotely on a server collecting metrics.
  *
@@ -189,7 +192,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
-  protected Integer pushRateLimit = 10_000_000;
+  protected Integer pushRateLimit = UNLIMITED;
 
   @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
       "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
@@ -697,6 +700,7 @@ public abstract class AbstractAgent {
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
+  protected ValidationConfiguration validationConfiguration = null;
   protected RecyclableRateLimiter pushRateLimiter = null;
   protected TokenAuthenticator tokenAuthenticator = TokenAuthenticatorBuilder.create().
       setTokenValidationMethod(TokenValidationMethod.NONE).build();
@@ -736,6 +740,9 @@ public abstract class AbstractAgent {
       if (config != null) {
         processConfiguration(config);
         doShutDown = config.getShutOffAgents();
+        if (config.getValidationConfiguration() != null) {
+          this.validationConfiguration = config.getValidationConfiguration();
+        }
       }
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Exception occurred during configuration update", e);

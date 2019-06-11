@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.data.Validation;
@@ -14,8 +15,11 @@ import org.apache.commons.lang.math.NumberUtils;
 import java.util.Collection;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
 
@@ -55,8 +59,10 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    */
   ReportPointHandlerImpl(final String handle,
                          final int blockedItemsPerBatch,
-                         final Collection<SenderTask> senderTasks) {
-    super(ReportableEntityType.POINT, handle, blockedItemsPerBatch, new ReportPointSerializer(), senderTasks);
+                         final Collection<SenderTask> senderTasks,
+                         @Nullable final Supplier<ValidationConfiguration> validationConfig) {
+    super(ReportableEntityType.POINT, handle, blockedItemsPerBatch, new ReportPointSerializer(), senderTasks,
+        validationConfig);
     String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
     this.logPointsFlag = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
     String logPointsSampleRateProperty = System.getProperty("wavefront.proxy.logpoints.sample-rate");
@@ -74,7 +80,11 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   @Override
   @SuppressWarnings("unchecked")
   void reportInternal(ReportPoint point) {
-    validatePoint(point, handle, Validation.Level.NUMERIC_ONLY);
+    if (validationConfig.get() == null) {
+      validatePoint(point, handle, Validation.Level.NUMERIC_ONLY);
+    } else {
+      validatePoint(point, validationConfig.get());
+    }
 
     String strPoint = serializer.apply(point);
 
