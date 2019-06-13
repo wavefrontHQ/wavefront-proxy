@@ -2,6 +2,7 @@ package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableList;
 
+import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
@@ -22,6 +23,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
+import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 import zipkin2.Endpoint;
 import zipkin2.codec.SpanBytesEncoder;
@@ -73,6 +75,8 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("http.url", "none+h2c://localhost:9000/api").
         putTag("http.status_code", "200").
         putTag("component", "jersey-server").
+        putTag("application", "Custom-ZipkinApp").
+        addAnnotation(startTime * 1000, "start processing").
         build();
 
     List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1, spanServer2);
@@ -81,7 +85,7 @@ public class ZipkinPortUnificationHandlerTest {
     for (SpanBytesEncoder encoder : SpanBytesEncoder.values()) {
       ByteBuf content = Unpooled.copiedBuffer(encoder.encodeList(zipkinSpanList));
       // take care of mocks.
-      doMockLifecycle(mockTraceHandler);
+      doMockLifecycle(mockTraceHandler, mockTraceSpanLogsHandler);
       ChannelHandlerContext mockCtx = createNiceMock(ChannelHandlerContext.class);
       doMockLifecycle(mockCtx);
       FullHttpRequest httpRequest = new DefaultFullHttpRequest(
@@ -102,9 +106,10 @@ public class ZipkinPortUnificationHandlerTest {
     EasyMock.replay(mockCtx);
   }
 
-  private void doMockLifecycle(ReportableEntityHandler<Span> mockTraceHandler) {
+  private void doMockLifecycle(ReportableEntityHandler<Span> mockTraceHandler,
+                               ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler) {
     // Reset mock
-    reset(mockTraceHandler);
+    reset(mockTraceHandler, mockTraceSpanLogsHandler);
 
     // Set Expectation
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
@@ -137,18 +142,33 @@ public class ZipkinPortUnificationHandlerTest {
         setAnnotations(ImmutableList.of(
             new Annotation("parent", "00000000-0000-0000-2822-889fe47043bd"),
             new Annotation("span.kind", "server"),
+            new Annotation("_spanSecondaryId", "server"),
             new Annotation("service", "backend"),
+            new Annotation("application", "Custom-ZipkinApp"),
             new Annotation("component", "jersey-server"),
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
             new Annotation("http.url", "none+h2c://localhost:9000/api"),
-            new Annotation("application", "Zipkin"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"))).
         build());
     expectLastCall();
 
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("default").
+        setTraceId("00000000-0000-0000-2822-889fe47043bd").
+        setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
+        setSpanSecondaryId("server").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(startTime * 1000).
+                setFields(ImmutableMap.of("annotation", "start processing")).
+                build()
+            )).
+        build());
+    expectLastCall();
+
     // Replay
-    replay(mockTraceHandler);
+    replay(mockTraceHandler, mockTraceSpanLogsHandler);
   }
 }

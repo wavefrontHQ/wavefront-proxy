@@ -1,18 +1,13 @@
 package com.wavefront.agent;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.github.benmanes.caffeine.cache.CacheLoader;
@@ -21,6 +16,7 @@ import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.squareup.tape.FileException;
 import com.squareup.tape.FileObjectQueue;
 import com.squareup.tape.ObjectQueue;
+import com.squareup.tape.TaskQueue;
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
@@ -66,6 +62,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -90,14 +87,17 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private static final Logger logger = Logger.getLogger(QueuedAgentService.class.getCanonicalName());
   private static final String SERVER_ERROR = "Server error";
 
-  private final Gson resubmissionTaskMarshaller;
-  private final WavefrontAPI wrapped;
+  private WavefrontAPI wrapped;
   private final List<ResubmissionTaskQueue> taskQueues;
+  private final List<ResubmissionTaskQueue> sourceTagTaskQueues;
+  private final List<Runnable> taskRunnables;
+  private final List<Runnable> sourceTagTaskRunnables;
   private static AtomicInteger splitBatchSize = new AtomicInteger(50000);
   private static AtomicDouble retryBackoffBaseSeconds = new AtomicDouble(2.0);
   private boolean lastKnownQueueSizeIsPositive = true;
   private boolean lastKnownSourceTagQueueSizeIsPositive = true;
-  private final ExecutorService executorService;
+  private AtomicBoolean isRunning = new AtomicBoolean(false);
+  private final ScheduledExecutorService executorService;
   private final String token;
 
   /**
@@ -105,7 +105,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
    *  all queues can be a non-trivial operation, hence the once-a-minute refresh.
    */
   private final LoadingCache<ResubmissionTaskQueue, AtomicInteger> queueSizes;
-  private final List<ResubmissionTaskQueue> sourceTagTaskQueues;
 
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
   private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
@@ -157,12 +156,13 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     } else {
       logger.info("No rate limit configured.");
     }
-    resubmissionTaskMarshaller = new GsonBuilder().
-        registerTypeHierarchyAdapter(ResubmissionTask.class, new ResubmissionTaskDeserializer()).create();
     this.wrapped = service;
-    this.taskQueues = Lists.newArrayListWithExpectedSize(retryThreads);
-    this.sourceTagTaskQueues = Lists.newArrayListWithExpectedSize(retryThreads);
-    String bufferFileSourceTag = bufferFile + "SourceTag";
+    this.taskQueues = QueuedAgentService.createResubmissionTasks(service, retryThreads, bufferFile, purge, agentId,
+        token);
+    this.sourceTagTaskQueues = QueuedAgentService.createResubmissionTasks(service, retryThreads,
+        bufferFile + "SourceTag", purge, agentId, token);
+    this.taskRunnables = Lists.newArrayListWithExpectedSize(taskQueues.size());
+    this.sourceTagTaskRunnables = Lists.newArrayListWithExpectedSize(sourceTagTaskQueues.size());
     this.executorService = executorService;
     this.token = token;
 
@@ -183,82 +183,20 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
                  }
                });
 
-    for (int i = 0; i < retryThreads; i++) {
-      final int threadId = i;
-      File buffer = new File(bufferFile + "." + i);
-      File bufferSourceTag = new File(bufferFileSourceTag + "." + i);
-      if (purge) {
-        if (buffer.delete()) {
-          logger.warning("Retry buffer has been purged: " + buffer.getAbsolutePath());
-        }
-        if (bufferSourceTag.delete()) {
-          logger.warning("SourceTag retry buffer has been purged: " + bufferSourceTag
-              .getAbsolutePath());
-        }
-      }
-
-      ObjectQueue<ResubmissionTask> queue = createTaskQueue(agentId, buffer);
-
-      // Having two proxy processes write to the same buffer file simultaneously causes buffer file corruption.
-      // To prevent concurrent access from another process, we try to obtain exclusive access to each buffer file
-      // trylock() is platform-specific so there is no iron-clad guarantee, but it works well in most cases
-      try {
-        FileChannel channel = new RandomAccessFile(buffer, "rw").getChannel();
-        Preconditions.checkNotNull(channel.tryLock()); // fail if tryLock() returns null (lock couldn't be acquired)
-      } catch (Exception e) {
-        logger.severe("WF-005: Error requesting exclusive access to the buffer file " + bufferFile + "." + i +
-            " - please make sure that no other processes access this file and restart the proxy");
-        System.exit(-1);
-      }
-
-      final ResubmissionTaskQueue taskQueue = new ResubmissionTaskQueue(queue,
-          task -> {
-            task.service = wrapped;
-            task.currentAgentId = agentId;
-            task.token = token;
-          }
-      );
-
-      Runnable taskRunnable = createRunnable(executorService, splitPushWhenRateLimited, threadId, taskQueue, pushRateLimiter);
-
-      executorService.schedule(taskRunnable, (long) (Math.random() * retryThreads), TimeUnit.SECONDS);
-      taskQueues.add(taskQueue);
-
-      ObjectQueue<ResubmissionTask> sourceTagTaskQueue = createTaskQueue(agentId,
-          bufferSourceTag);
-
-      // Having two proxy processes write to the same buffer file simultaneously causes buffer
-      // file corruption. To prevent concurrent access from another process, we try to obtain
-      // exclusive access to each buffer file trylock() is platform-specific so there is no
-      // iron-clad guarantee, but it works well in most cases
-      try {
-        FileChannel channel = new RandomAccessFile(bufferSourceTag, "rw").getChannel();
-        Preconditions.checkNotNull(channel.tryLock()); // fail if tryLock() returns null (lock
-        // couldn't be acquired)
-      } catch (Exception e) {
-        logger.severe("WF-005: Error requesting exclusive access to the buffer file " +
-            bufferFileSourceTag + "." + i +
-            " - please make sure that no other processes access this file and restart the proxy");
-        System.exit(-1);
-      }
-      final ResubmissionTaskQueue sourceTagQueue = new ResubmissionTaskQueue(sourceTagTaskQueue,
-            task -> {
-              task.service = wrapped;
-              task.currentAgentId = agentId;
-              task.token = token;
-            }
-          );
-      // create a new rate-limiter for the source tag retry queue, because the API calls are
-      // rate-limited on the server-side as well. We don't want the retry logic to keep hitting
-      // that rate-limit.
-      Runnable sourceTagTaskRunnable = createRunnable(executorService, splitPushWhenRateLimited,
-          threadId, sourceTagQueue, RecyclableRateLimiter.create(1, 1));
-      executorService.schedule(sourceTagTaskRunnable, (long) (Math.random() * retryThreads),
-          TimeUnit.SECONDS);
-      sourceTagTaskQueues.add(sourceTagQueue);
+    int threadId = 0;
+    for (ResubmissionTaskQueue taskQueue : taskQueues) {
+      taskRunnables.add(createRunnable(executorService, splitPushWhenRateLimited, threadId, taskQueue,
+          pushRateLimiter));
+      threadId++;
+    }
+    threadId = 0;
+    for (ResubmissionTaskQueue taskQueue : sourceTagTaskQueues) {
+      sourceTagTaskRunnables.add(createRunnable(executorService, splitPushWhenRateLimited, threadId, taskQueue,
+          pushRateLimiter));
+      threadId++;
     }
 
-    if (retryThreads > 0) {
+    if (taskQueues.size() > 0) {
       executorService.scheduleAtFixedRate(() -> {
         try {
           Supplier<Stream<Integer>> sizes = () -> taskQueues.stream()
@@ -288,23 +226,11 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
           }
 
           // do the same thing for sourceTagQueues
-          List<Integer> sourceTagQueueSizes = Lists.newArrayList(Lists.transform
-              (sourceTagTaskQueues, new Function<ObjectQueue<ResubmissionTask>, Integer>() {
-                @Override
-                public Integer apply(ObjectQueue<ResubmissionTask> input) {
-                  return input.size();
-                }
-              }));
-
-          if (Iterables.tryFind(sourceTagQueueSizes, new Predicate<Integer>() {
-            @Override
-            public boolean apply(Integer input) {
-              return input > 0;
-            }
-          }).isPresent()) {
+          Supplier<Stream<Integer>> sourceTagQueueSizes = () -> sourceTagTaskQueues.stream().map(TaskQueue::size);
+          if (sourceTagQueueSizes.get().anyMatch(i -> i > 0)) {
             lastKnownSourceTagQueueSizeIsPositive = true;
-            logger.warning("current source tag retry queue sizes: [" + Joiner.on("/").join
-                (sourceTagQueueSizes) + "]");
+            logger.warning("current source tag retry queue sizes: [" +
+                sourceTagQueueSizes.get().map(Object::toString).collect(Collectors.joining("/")) + "]");
           } else if (lastKnownSourceTagQueueSizeIsPositive) {
             lastKnownSourceTagQueueSizeIsPositive = false;
             logger.warning("source tag retry queue has been cleared");
@@ -328,6 +254,15 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         return getQueuedTasksCount();
       }
     });
+  }
+
+  public void start() {
+    if (!isRunning.getAndSet(true)) {
+      taskRunnables.forEach(taskRunnable -> executorService.schedule(taskRunnable,
+          (long) (Math.random() * taskRunnables.size()), TimeUnit.SECONDS));
+      sourceTagTaskRunnables.forEach(taskRunnable -> executorService.schedule(taskRunnable,
+          (long) (Math.random() * taskRunnables.size()), TimeUnit.SECONDS));
+    }
   }
 
   private Runnable createRunnable(final ScheduledExecutorService executorService,
@@ -451,7 +386,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     };
   }
 
-  private ObjectQueue<ResubmissionTask> createTaskQueue(final UUID agentId, File buffer) throws
+  public static ObjectQueue<ResubmissionTask> createTaskQueue(final UUID agentId, File buffer) throws
       IOException {
     return new FileObjectQueue<>(buffer,
         new FileObjectQueue.Converter<ResubmissionTask>() {
@@ -475,6 +410,52 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
             lz4BlockOutputStream.close();
           }
         });
+  }
+
+  public static List<ResubmissionTaskQueue> createResubmissionTasks(WavefrontAPI wrapped, int retryThreads,
+                                                                    String bufferFile, boolean purge, UUID agentId,
+                                                                    String token) throws IOException {
+    List<ResubmissionTaskQueue> output = Lists.newArrayListWithExpectedSize(retryThreads);
+    for (int i = 0; i < retryThreads; i++) {
+      File buffer = new File(bufferFile + "." + i);
+      if (purge) {
+        if (buffer.delete()) {
+          logger.warning("Retry buffer has been purged: " + buffer.getAbsolutePath());
+        }
+      }
+
+      ObjectQueue<ResubmissionTask> queue = createTaskQueue(agentId, buffer);
+
+      // Having two proxy processes write to the same buffer file simultaneously causes buffer file corruption.
+      // To prevent concurrent access from another process, we try to obtain exclusive access to each buffer file
+      // trylock() is platform-specific so there is no iron-clad guarantee, but it works well in most cases
+      try {
+        FileChannel channel = new RandomAccessFile(buffer, "rw").getChannel();
+        Preconditions.checkNotNull(channel.tryLock()); // fail if tryLock() returns null (lock couldn't be acquired)
+      } catch (Exception e) {
+        logger.severe("WF-005: Error requesting exclusive access to the buffer file " + bufferFile + "." + i +
+            " - please make sure that no other processes access this file and restart the proxy");
+        System.exit(-1);
+      }
+
+      final ResubmissionTaskQueue taskQueue = new ResubmissionTaskQueue(queue,
+          task -> {
+            task.service = wrapped;
+            task.currentAgentId = agentId;
+            task.token = token;
+          }
+      );
+      output.add(taskQueue);
+    }
+    return output;
+  }
+
+  public void setWrappedApi(WavefrontAPI api) {
+    this.wrapped = api;
+  }
+
+  public boolean isRunning() {
+    return this.isRunning.get();
   }
 
   public void shutdown() {
