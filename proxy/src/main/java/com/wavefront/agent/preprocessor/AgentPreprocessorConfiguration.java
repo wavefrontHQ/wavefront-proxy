@@ -80,7 +80,7 @@ public class AgentPreprocessorConfiguration {
             PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
                 Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName, "count", "port", strPort)),
                 Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName, "cpu_nanos", "port", strPort)),
-                Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName, "checked.count", "port", strPort)));
+                Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName, "checked-count", "port", strPort)));
 
             if (rule.get("scope") != null && rule.get("scope").equals("pointLine")) {
               switch (rule.get("action")) {

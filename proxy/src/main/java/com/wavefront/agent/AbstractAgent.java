@@ -210,8 +210,8 @@ public abstract class AbstractAgent {
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
 
   @Parameter(names = {"--pushListenerMaxReceivedLength"}, description = "Maximum line length for received points in" +
-      " plaintext format on Wavefront/OpenTSDB/Graphite ports (Default: 4096)")
-  protected Integer pushListenerMaxReceivedLength = 4096;
+      " plaintext format on Wavefront/OpenTSDB/Graphite ports. Default: 32768 (32KB)")
+  protected Integer pushListenerMaxReceivedLength = 32768;
 
   @Parameter(names = {"--pushListenerHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
       " incoming HTTP requests on Wavefront/OpenTSDB/Graphite ports (Default: 16MB)")
