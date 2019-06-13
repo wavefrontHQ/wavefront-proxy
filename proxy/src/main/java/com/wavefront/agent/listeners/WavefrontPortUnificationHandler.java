@@ -3,7 +3,7 @@ package com.wavefront.agent.listeners;
 import com.google.common.collect.Lists;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
-import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
+import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -37,7 +37,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
   private static final Logger logger = Logger.getLogger(WavefrontPortUnificationHandler.class.getCanonicalName());
 
   @Nullable
-  private final CachingGraphiteHostAnnotator annotator;
+  private final SharedGraphiteHostAnnotator annotator;
 
   @Nullable
   private final ReportableEntityPreprocessor preprocessor;
@@ -67,7 +67,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
                                          final TokenAuthenticator tokenAuthenticator,
                                          final Map<ReportableEntityType, ReportableEntityDecoder> decoders,
                                          final ReportableEntityHandlerFactory handlerFactory,
-                                         @Nullable final CachingGraphiteHostAnnotator annotator,
+                                         @Nullable final SharedGraphiteHostAnnotator annotator,
                                          @Nullable final ReportableEntityPreprocessor preprocessor) {
     super(tokenAuthenticator, handle, true, true);
     this.decoders = decoders;

@@ -9,9 +9,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.PointMatchers;
+import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
+import com.wavefront.agent.channel.CachingHostnameLookupResolver;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.common.MetricConstants;
 
 import org.easymock.Capture;
@@ -23,6 +27,7 @@ import org.logstash.beats.Message;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -54,8 +59,8 @@ public class LogsIngesterTest {
   private LogsIngestionConfig logsIngestionConfig;
   private LogsIngester logsIngesterUnderTest;
   private FilebeatIngester filebeatIngesterUnderTest;
-  private RawLogsIngester rawLogsIngesterUnderTest;
-  private PointHandler mockPointHandler;
+  private RawLogsIngesterPortUnificationHandler rawLogsIngesterUnderTest;
+  private ReportableEntityHandler<ReportPoint> mockPointHandler;
   private AtomicLong now = new AtomicLong(System.currentTimeMillis());  // 6:30PM california time Oct 13 2016
   private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
 
@@ -68,11 +73,12 @@ public class LogsIngesterTest {
     logsIngestionConfig = parseConfigFile(configPath);
     logsIngestionConfig.aggregationIntervalSeconds = 10000; // HACK: Never call flush automatically.
     logsIngestionConfig.verifyAndInit();
-    mockPointHandler = createMock(PointHandler.class);
+    mockPointHandler = createMock(ReportableEntityHandler.class);
     logsIngesterUnderTest = new LogsIngester(mockPointHandler, () -> logsIngestionConfig, null, now::get);
     logsIngesterUnderTest.start();
     filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, now::get);
-    rawLogsIngesterUnderTest = new RawLogsIngester(logsIngesterUnderTest, -1, now::get);
+    rawLogsIngesterUnderTest = new RawLogsIngesterPortUnificationHandler("12345", logsIngesterUnderTest,
+        x -> "testHost", TokenAuthenticatorBuilder.create().build(), null);
   }
 
   private void receiveFilebeatLog(String log) {
@@ -87,10 +93,10 @@ public class LogsIngesterTest {
     ChannelHandlerContext ctx = EasyMock.createMock(ChannelHandlerContext.class);
     Channel channel = EasyMock.createMock(Channel.class);
     EasyMock.expect(ctx.channel()).andReturn(channel);
-    // Hack: Returning a mock SocketAddress simply causes the fallback to be used in getHostOrDefault.
-    EasyMock.expect(channel.remoteAddress()).andReturn(EasyMock.createMock(SocketAddress.class));
+    InetSocketAddress addr = InetSocketAddress.createUnresolved("testHost", 1234);
+    EasyMock.expect(channel.remoteAddress()).andReturn(addr);
     EasyMock.replay(ctx, channel);
-    rawLogsIngesterUnderTest.ingestLog(ctx, log);
+    rawLogsIngesterUnderTest.processLine(ctx, log);
     EasyMock.verify(ctx, channel);
   }
 
@@ -128,7 +134,7 @@ public class LogsIngesterTest {
     Capture<ReportPoint> reportPointCapture = Capture.newInstance(CaptureType.ALL);
     reset(mockPointHandler);
     if (numPoints > 0) {
-      mockPointHandler.reportPoint(EasyMock.capture(reportPointCapture), EasyMock.notNull(String.class));
+      mockPointHandler.report(EasyMock.capture(reportPointCapture));
       expectLastCall().times(numPoints);
     }
     replay(mockPointHandler);

@@ -1,6 +1,6 @@
 package com.wavefront.agent.logsharvesting;
 
-import com.wavefront.agent.PointHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
@@ -11,6 +11,7 @@ import java.util.SortedMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;
 
 /**
@@ -20,11 +21,11 @@ public class MetricsReporter extends AbstractPollingReporter {
 
   protected static final Logger logger = Logger.getLogger(MetricsReporter.class.getCanonicalName());
   private final FlushProcessor flushProcessor;
-  private final PointHandler pointHandler;
+  private final ReportableEntityHandler<ReportPoint> pointHandler;
   private final String prefix;
 
   public MetricsReporter(MetricsRegistry metricsRegistry, FlushProcessor flushProcessor, String name,
-                         PointHandler pointHandler, String prefix) {
+                         ReportableEntityHandler<ReportPoint> pointHandler, String prefix) {
     super(metricsRegistry, name);
     this.flushProcessor = flushProcessor;
     this.pointHandler = pointHandler;

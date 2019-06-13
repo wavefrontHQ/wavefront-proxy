@@ -1,15 +1,15 @@
 package com.wavefront.agent.logsharvesting;
 
-import com.wavefront.agent.PointHandler;
-import com.wavefront.agent.PointHandlerImpl;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.ingester.ReportPointSerializer;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
@@ -39,21 +39,43 @@ public class InteractiveLogsTester {
     final AtomicBoolean reported = new AtomicBoolean(false);
 
     LogsIngester logsIngester = new LogsIngester(
-        new PointHandler() {
+        new ReportableEntityHandler<ReportPoint>() {
           @Override
-          public void reportPoint(ReportPoint point, @Nullable String debugLine) {
+          public void report(ReportPoint reportPoint) {
             reported.set(true);
-            System.out.println(PointHandlerImpl.pointToString(point));
+            System.out.println(ReportPointSerializer.pointToString(reportPoint));
           }
 
           @Override
-          public void reportPoints(List<ReportPoint> points) {
-            for (ReportPoint point : points) reportPoint(point, "");
+          public void report(ReportPoint reportPoint, @Nullable Object messageObject,
+                             Function<Object, String> messageSerializer) {
+            reported.set(true);
+            System.out.println(ReportPointSerializer.pointToString(reportPoint));
           }
 
           @Override
-          public void handleBlockedPoint(@Nullable String pointLine) {
-            System.out.println("Blocked point: " + pointLine);
+          public void block(ReportPoint reportPoint) {
+            System.out.println("Blocked: " + reportPoint);
+          }
+
+          @Override
+          public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
+            System.out.println("Blocked: " + reportPoint);
+          }
+
+          @Override
+          public void reject(ReportPoint reportPoint) {
+            System.out.println("Rejected: " + reportPoint);
+          }
+
+          @Override
+          public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
+            System.out.println("Rejected: " + reportPoint);
+          }
+
+          @Override
+          public void reject(String t, @Nullable String message) {
+            System.out.println("Rejected: " + t);
           }
         },
         logsIngestionConfigSupplier, prefix, System::currentTimeMillis);

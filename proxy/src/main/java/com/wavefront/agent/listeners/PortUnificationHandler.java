@@ -68,8 +68,10 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   /**
    * Create new instance.
    *
-   * @param tokenAuthenticator  tokenAuthenticator for incoming requests.
+   * @param tokenAuthenticator  {@link TokenAuthenticator} for incoming requests.
    * @param handle              handle/port number.
+   * @param plaintextEnabled    whether to accept incoming TCP streams
+   * @param httpEnabled         whether to accept incoming HTTP requests
    */
   public PortUnificationHandler(@Nonnull TokenAuthenticator tokenAuthenticator, @Nullable final String handle,
                                 boolean plaintextEnabled, boolean httpEnabled) {
@@ -283,7 +285,8 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   protected String formatErrorMessage(final String message,
                                       @Nullable final Throwable e,
                                       @Nullable final ChannelHandlerContext ctx) {
-    StringBuilder errMsg = new StringBuilder(message);
+    StringBuilder errMsg = new StringBuilder();
+    errMsg.append("[").append(handle).append("]").append(message);
     errMsg.append("; remote: ");
     errMsg.append(getRemoteName(ctx));
     if (e != null) {

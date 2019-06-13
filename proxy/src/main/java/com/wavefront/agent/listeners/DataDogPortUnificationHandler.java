@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.wavefront.agent.PointHandlerImpl;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -17,6 +16,7 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
+import com.wavefront.ingester.ReportPointSerializer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
@@ -492,9 +492,9 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
       preprocessor.forReportPoint().transform(point);
       if (!preprocessor.forReportPoint().filter(point)) {
         if (preprocessor.forReportPoint().getLastFilterResult() != null) {
-          blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+          blockedPointsLogger.warning(ReportPointSerializer.pointToString(point));
         } else {
-          blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+          blockedPointsLogger.info(ReportPointSerializer.pointToString(point));
         }
         pointHandler.reject(point, preprocessor.forReportPoint().getLastFilterResult());
         return;

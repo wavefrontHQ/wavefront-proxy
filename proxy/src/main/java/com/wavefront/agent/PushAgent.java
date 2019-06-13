@@ -11,13 +11,16 @@ import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.uber.tchannel.api.TChannel;
 import com.uber.tchannel.channels.Connection;
-import com.wavefront.agent.channel.CachingGraphiteHostAnnotator;
+import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
+import com.wavefront.agent.channel.CachingHostnameLookupResolver;
 import com.wavefront.agent.channel.ConnectionTrackingHandler;
 import com.wavefront.agent.channel.IdleStateEventHandler;
 import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.InternalProxyWavefrontClient;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
@@ -37,6 +40,7 @@ import com.wavefront.agent.listeners.ChannelByteArrayHandler;
 import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
 import com.wavefront.agent.listeners.JsonMetricsEndpoint;
 import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
+import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonMetricsEndpoint;
@@ -45,7 +49,6 @@ import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.ZipkinPortUnificationHandler;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
-import com.wavefront.agent.logsharvesting.RawLogsIngester;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
@@ -87,6 +90,7 @@ import org.logstash.beats.Server;
 import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
+import java.net.InetAddress;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -97,6 +101,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.logging.Level;
 
 import javax.annotation.Nullable;
@@ -127,7 +132,8 @@ public class PushAgent extends AbstractAgent {
   protected ScheduledExecutorService histogramFlushExecutor;
   protected final Counter bindErrors = Metrics.newCounter(ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
   private volatile ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
-  protected CachingGraphiteHostAnnotator remoteHostAnnotator;
+  protected SharedGraphiteHostAnnotator remoteHostAnnotator;
+  protected Function<InetAddress, String> hostnameResolver;
   protected SenderTaskFactory senderTaskFactory;
   protected ReportableEntityHandlerFactory handlerFactory;
 
@@ -174,7 +180,9 @@ public class PushAgent extends AbstractAgent {
     if (soLingerTime >= 0) {
       childChannelOptions.put(ChannelOption.SO_LINGER, soLingerTime);
     }
-    remoteHostAnnotator = new CachingGraphiteHostAnnotator(customSourceTags, disableRdnsLookup);
+    hostnameResolver = new CachingHostnameLookupResolver(disableRdnsLookup,
+        ExpectedAgentMetric.RDNS_CACHE_SIZE.metricName);
+    remoteHostAnnotator = new SharedGraphiteHostAnnotator(customSourceTags, hostnameResolver);
     senderTaskFactory = new SenderTaskFactoryImpl(agentAPI, agentId, pushRateLimiter,
         pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples, flushThreads);
@@ -360,9 +368,22 @@ public class PushAgent extends AbstractAgent {
     // Logs ingestion.
     if (loadLogsIngestionConfig() != null) {
       logger.info("Loading logs ingestion.");
-      PointHandler pointHandler = new PointHandlerImpl("logs-ingester", pushValidationLevel, pushBlockedSamples,
-          getFlushTasks("logs-ingester"));
-      startLogsIngestionListeners(filebeatPort, rawLogsPort, pointHandler);
+      ReportableEntityHandler pointHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT,
+          "logs-ingester"));
+      try {
+        final LogsIngester logsIngester = new LogsIngester(pointHandler, this::loadLogsIngestionConfig, prefix,
+            System::currentTimeMillis);
+        logsIngester.start();
+
+        if (filebeatPort > 0) {
+          startLogsIngestionListener(filebeatPort, logsIngester);
+        }
+        if (rawLogsPort > 0) {
+          startRawLogsIngestionListener(rawLogsPort, logsIngester);
+        }
+      } catch (ConfigurationException e) {
+        logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
+      }
     } else {
       logger.info("Not loading logs ingestion -- no config specified.");
     }
@@ -373,8 +394,7 @@ public class PushAgent extends AbstractAgent {
       logger.warning("Port " + strPort + " (jsonListener) is not compatible with HTTP authentication, ignoring");
       return;
     }
-    preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+    registerTimestampFilter(strPort);
 
     startAsManagedThread(() -> {
       activeListeners.inc();
@@ -404,8 +424,7 @@ public class PushAgent extends AbstractAgent {
       logger.warning("Port " + strPort + " (writeHttpJson) is not compatible with HTTP authentication, ignoring");
       return;
     }
-    preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+    registerTimestampFilter(strPort);
 
     startAsManagedThread(() -> {
       activeListeners.inc();
@@ -430,79 +449,16 @@ public class PushAgent extends AbstractAgent {
     }, "listener-plaintext-writehttpjson-" + strPort);
   }
 
-  protected void startLogsIngestionListeners(int portFilebeat, int portRawLogs, PointHandler pointHandler) {
-    if (tokenAuthenticator.authRequired()) {
-      logger.warning("Logs ingestion is not compatible with HTTP authentication, ignoring");
-      return;
-    }
-    try {
-      final LogsIngester logsIngester = new LogsIngester(pointHandler, this::loadLogsIngestionConfig, prefix,
-          System::currentTimeMillis);
-      logsIngester.start();
-
-      if (portFilebeat > 0) {
-        final Server filebeatServer = new Server(portFilebeat);
-        filebeatServer.setMessageListener(new FilebeatIngester(logsIngester, System::currentTimeMillis));
-        startAsManagedThread(() -> {
-          try {
-            activeListeners.inc();
-            filebeatServer.listen();
-          } catch (InterruptedException e) {
-            logger.log(Level.SEVERE, "Filebeat server interrupted.", e);
-          } catch (Exception e) {
-            // ChannelFuture throws undeclared checked exceptions, so we need to handle it
-            if (e instanceof BindException) {
-              bindErrors.inc();
-              logger.severe("Unable to start listener - port " + String.valueOf(portRawLogs) + " is already in use!");
-            } else {
-              logger.log(Level.SEVERE, "Filebeat exception", e);
-            }
-          } finally {
-            activeListeners.dec();
-          }
-        }, "listener-logs-filebeat-" + portFilebeat);
-      }
-
-      if (portRawLogs > 0) {
-        RawLogsIngester rawLogsIngester = new RawLogsIngester(logsIngester, portRawLogs, System::currentTimeMillis).
-            withChannelIdleTimeout(listenerIdleConnectionTimeout).
-            withMaxLength(rawLogsMaxReceivedLength);
-        startAsManagedThread(() -> {
-          try {
-            activeListeners.inc();
-            rawLogsIngester.listen();
-          } catch (InterruptedException e) {
-            logger.log(Level.SEVERE, "Raw logs server interrupted.", e);
-          } catch (Exception e) {
-            // ChannelFuture throws undeclared checked exceptions, so we need to handle it
-            if (e instanceof BindException) {
-              bindErrors.inc();
-              logger.severe("Unable to start listener - port " + String.valueOf(portRawLogs) + " is already in use!");
-            } else {
-              logger.log(Level.SEVERE, "RawLogs exception", e);
-            }
-          } finally {
-            activeListeners.dec();
-          }
-        }, "listener-logs-raw-" + portRawLogs);
-      }
-    } catch (ConfigurationException e) {
-      logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
-    }
-  }
-
   protected void startOpenTsdbListener(final String strPort, ReportableEntityHandlerFactory handlerFactory) {
-    if (prefix != null && !prefix.isEmpty()) {
-      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
-    }
-    preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
-    final int port = Integer.parseInt(strPort);
+    int port = Integer.parseInt(strPort);
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
+
     ReportableEntityDecoder<String, ReportPoint> openTSDBDecoder = new ReportPointDecoderWrapper(
         new OpenTSDBDecoder("unknown", customSourceTags));
 
     ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(strPort, tokenAuthenticator, openTSDBDecoder,
-        handlerFactory, preprocessors.forPort(strPort), remoteHostAnnotator);
+        handlerFactory, preprocessors.forPort(strPort), hostnameResolver);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
         pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
@@ -516,12 +472,9 @@ public class PushAgent extends AbstractAgent {
       logger.warning("Port: " + strPort + " (DataDog) is not compatible with HTTP authentication, ignoring");
       return;
     }
-    if (prefix != null && !prefix.isEmpty()) {
-      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
-    }
-    preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
-    final int port = Integer.parseInt(strPort);
+    int port = Integer.parseInt(strPort);
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
 
     ChannelHandler channelHandler = new DataDogPortUnificationHandler(strPort, handlerFactory,
         dataDogProcessSystemMetrics, dataDogProcessServiceChecks, httpClient, dataDogRequestRelayTarget,
@@ -538,12 +491,10 @@ public class PushAgent extends AbstractAgent {
       logger.warning("Port: " + strPort + " (pickle format) is not compatible with HTTP authentication, ignoring");
       return;
     }
-    if (prefix != null && !prefix.isEmpty()) {
-      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
-    }
-    preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     int port = Integer.parseInt(strPort);
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
+
     // Set up a custom handler
     ChannelHandler channelHandler = new ChannelByteArrayHandler(
         new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
@@ -573,13 +524,9 @@ public class PushAgent extends AbstractAgent {
 
   protected void startTraceListener(final String strPort, ReportableEntityHandlerFactory handlerFactory,
                                     Sampler sampler) {
-    if (prefix != null && !prefix.isEmpty()) {
-      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
-    }
-    preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
     final int port = Integer.parseInt(strPort);
-
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
 
     ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, tokenAuthenticator,
         new SpanDecoder("unknown"), new SpanLogsDecoder(), preprocessors.forPort(strPort), handlerFactory, sampler,
@@ -641,14 +588,11 @@ public class PushAgent extends AbstractAgent {
   protected void startGraphiteListener(
       String strPort,
       ReportableEntityHandlerFactory handlerFactory,
-      CachingGraphiteHostAnnotator hostAnnotator) {
+      SharedGraphiteHostAnnotator hostAnnotator) {
     final int port = Integer.parseInt(strPort);
 
-    if (prefix != null && !prefix.isEmpty()) {
-      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
-    }
-    preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
 
     Map<ReportableEntityType, ReportableEntityDecoder> decoders = ImmutableMap.of(
         ReportableEntityType.POINT, getDecoderInstance(),
@@ -665,11 +609,8 @@ public class PushAgent extends AbstractAgent {
   protected void startRelayListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
     final int port = Integer.parseInt(strPort);
 
-    if (prefix != null && !prefix.isEmpty()) {
-      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
-    }
-    preprocessors.forPort(strPort).forReportPoint()
-        .addFilter(new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
 
     Map<ReportableEntityType, ReportableEntityDecoder> decoders = ImmutableMap.of(
         ReportableEntityType.POINT, getDecoderInstance(),
@@ -679,6 +620,47 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
             pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).
         withChildChannelOptions(childChannelOptions), "listener-relay-" + port);
+  }
+
+  protected void startLogsIngestionListener(int port, LogsIngester logsIngester) {
+    if (tokenAuthenticator.authRequired()) {
+      logger.warning("Filebeat logs ingestion is not compatible with HTTP authentication, ignoring");
+      return;
+    }
+    final Server filebeatServer = new Server(port);
+    filebeatServer.setMessageListener(new FilebeatIngester(logsIngester, System::currentTimeMillis));
+    startAsManagedThread(() -> {
+      try {
+        activeListeners.inc();
+        filebeatServer.listen();
+      } catch (InterruptedException e) {
+        logger.log(Level.SEVERE, "Filebeat server interrupted.", e);
+      } catch (Exception e) {
+        // ChannelFuture throws undeclared checked exceptions, so we need to handle it
+        if (e instanceof BindException) {
+          bindErrors.inc();
+          logger.severe("Unable to start listener - port " + port + " is already in use!");
+        } else {
+          logger.log(Level.SEVERE, "Filebeat exception", e);
+        }
+      } finally {
+        activeListeners.dec();
+      }
+    }, "listener-logs-filebeat-" + port);
+    logger.info("listening on port: " + port + " for Filebeat logs");
+  }
+
+  @VisibleForTesting
+  protected void startRawLogsIngestionListener(int port, LogsIngester logsIngester) {
+    String strPort = String.valueOf(port);
+
+    ChannelHandler channelHandler = new RawLogsIngesterPortUnificationHandler(strPort, logsIngester, hostnameResolver,
+        tokenAuthenticator, preprocessors.forPort(strPort));
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, rawLogsMaxReceivedLength,
+        rawLogsHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
+        "listener-logs-raw-" + port);
+    logger.info("listening on port: " + strPort + " for raw logs");
   }
 
   protected void startHistogramListeners(Iterator<String> ports, Decoder<String> decoder, PointHandler pointHandler,
@@ -840,6 +822,17 @@ public class PushAgent extends AbstractAgent {
         pipeline.addLast(new PlainTextOrHttpFrameDecoder(channelHandler, messageMaxLength, httpRequestBufferSize));
       }
     };
+  }
+
+  private void registerTimestampFilter(String strPort) {
+    preprocessors.forPort(strPort).forReportPoint().addFilter(
+        new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
+  }
+
+  private void registerPrefixFilter(String strPort) {
+    if (prefix != null && !prefix.isEmpty()) {
+      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
+    }
   }
 
   /**
