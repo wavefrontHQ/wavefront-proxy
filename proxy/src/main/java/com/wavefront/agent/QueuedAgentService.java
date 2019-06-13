@@ -75,6 +75,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 
+import static com.google.common.util.concurrent.RecyclableRateLimiter.UNLIMITED;
+
 /**
  * A wrapper for any WavefrontAPI that queues up any result posting if the backend is not available.
  * Current data will always be submitted right away (thus prioritizing live data) while background
@@ -151,7 +153,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       logger.severe("You have no retry threads set up. Any points that get rejected will be lost.\n Change this by " +
           "setting retryThreads to a value > 0");
     }
-    if (pushRateLimiter != null && pushRateLimiter.getRate() < 10_000_000) {
+    if (pushRateLimiter != null && pushRateLimiter.getRate() < UNLIMITED) {
       logger.info("Point rate limited at the proxy at : " + String.valueOf(pushRateLimiter.getRate()));
     } else {
       logger.info("No rate limit configured.");

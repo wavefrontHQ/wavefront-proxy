@@ -1,6 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.SharedMetricsRegistry;
+import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.SpanSerializer;
 import com.yammer.metrics.Metrics;
@@ -12,10 +13,15 @@ import org.apache.commons.lang3.math.NumberUtils;
 import java.util.Collection;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+
 import wavefront.report.Span;
+
+import static com.wavefront.data.Validation.validateSpan;
 
 /**
  * Handler that processes incoming Span objects, validates them and hands them over to one of
@@ -46,8 +52,10 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
    */
   SpanHandlerImpl(final String handle,
                   final int blockedItemsPerBatch,
-                  final Collection<SenderTask> sendDataTasks) {
-    super(ReportableEntityType.TRACE, handle, blockedItemsPerBatch, new SpanSerializer(), sendDataTasks);
+                  final Collection<SenderTask> sendDataTasks,
+                  @Nullable final Supplier<ValidationConfiguration> validationConfig) {
+    super(ReportableEntityType.TRACE, handle, blockedItemsPerBatch, new SpanSerializer(), sendDataTasks,
+        validationConfig);
 
     String logTracesSampleRateProperty = System.getProperty("wavefront.proxy.logspans.sample-rate");
     this.logSampleRate = NumberUtils.isNumber(logTracesSampleRateProperty) ?
@@ -63,6 +71,8 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
   @Override
   @SuppressWarnings("unchecked")
   protected void reportInternal(Span span) {
+    validateSpan(span, validationConfig.get());
+
     String strSpan = serializer.apply(span);
 
     refreshValidDataLoggerState();

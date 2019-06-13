@@ -695,7 +695,7 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
         self.assertTrue(pushdata.empty())
 
         # check log file for blocked point
-        self.assert_blocked_point_in_log('WF-301:.*Host.*too long.*' +
+        self.assert_blocked_point_in_log('WF-407:.*Host.*too long.*' +
                                          hostname, False)
 
     def test_metric_name_too_long(self):
@@ -721,7 +721,7 @@ class TestOpenTSDBProtocol(TestAgentProxyBase):
         self.assertTrue(pushdata.empty())
 
         # check log file for blocked point
-        self.assert_blocked_point_in_log('WF-301: Metric name is too long.*' +
+        self.assert_blocked_point_in_log('WF-408: Metric name is too long.*' +
                                          metric_name, False)
 
     def test_metric_invalid_characters(self):

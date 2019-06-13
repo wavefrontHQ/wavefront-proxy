@@ -41,6 +41,7 @@ public class AgentConfiguration {
   private Boolean histogramDisabled;
   // If the value is true, then trace feature is disabled; feature enabled if the value is null or false
   private Boolean traceDisabled;
+  private ValidationConfiguration validationConfiguration;
 
   public Boolean getCollectorSetsRetryBackoff() {
     return collectorSetsRetryBackoff;
@@ -134,6 +135,14 @@ public class AgentConfiguration {
 
   public void setTraceDisabled(Boolean traceDisabled) {
     this.traceDisabled = traceDisabled;
+  }
+
+  public ValidationConfiguration getValidationConfiguration() {
+    return this.validationConfiguration;
+  }
+
+  public void setValidationConfiguration(ValidationConfiguration value) {
+    this.validationConfiguration = value;
   }
 
   public void validate(boolean local) {

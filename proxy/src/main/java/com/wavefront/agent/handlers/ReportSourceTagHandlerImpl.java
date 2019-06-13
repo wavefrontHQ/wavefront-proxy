@@ -30,7 +30,8 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
 
   public ReportSourceTagHandlerImpl(final String handle, final int blockedItemsPerBatch,
                                     final Collection<SenderTask> senderTasks) {
-    super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch, new ReportSourceTagSerializer(), senderTasks);
+    super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch, new ReportSourceTagSerializer(), senderTasks,
+        null);
     this.attemptedCounter = Metrics.newCounter(new MetricName("sourceTags." + handle, "", "sent"));
     this.queuedCounter = Metrics.newCounter(new MetricName("sourceTags." + handle, "", "queued"));
 
