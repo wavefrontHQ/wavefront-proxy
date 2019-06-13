@@ -107,4 +107,12 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       task.shutdown();
     }
   }
+
+  @Override
+  public void drainBuffersToQueue() {
+    for (SenderTask task : managedTasks) {
+      task.drainBuffersToQueue();
+    }
+  }
+
 }

@@ -133,7 +133,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
   }
 
   @Override
-  public void drainBuffersToQueue() {
+  public void drainBuffersToQueueInternal() {
     int lastBatchSize = Integer.MIN_VALUE;
     // roughly limit number of points to flush to the the current buffer size (+1 blockSize max)
     // if too many points arrive at the proxy while it's draining, they will be taken care of in the next run

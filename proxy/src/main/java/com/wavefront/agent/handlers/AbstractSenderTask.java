@@ -17,6 +17,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -50,8 +51,9 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   final Counter queuedCounter;
   final Counter blockedCounter;
   final Counter bufferFlushCounter;
+  final Counter bufferCompletedFlushCounter;
 
-  boolean isBuffering = false;
+  AtomicBoolean isBuffering = new AtomicBoolean(false);
   boolean isSending = false;
 
   /**
@@ -88,7 +90,8 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     this.blockedCounter = Metrics.newCounter(new MetricName(entityType + "." + handle, "", "blocked"));
     this.receivedCounter = Metrics.newCounter(new MetricName(entityType + "." + handle, "", "received"));
     this.bufferFlushCounter = Metrics.newCounter(new TaggedMetricName("buffer", "flush-count", "port", handle));
-
+    this.bufferCompletedFlushCounter = Metrics.newCounter(new TaggedMetricName("buffer", "completed-flush-count",
+        "port", handle));
   }
 
   /**
@@ -114,7 +117,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
 
 
   void enforceBufferLimits() {
-    if (datum.size() >= memoryBufferLimit.get() && drainBuffersRateLimiter.tryAcquire()) {
+    if (datum.size() >= memoryBufferLimit.get() && !isBuffering.get() && drainBuffersRateLimiter.tryAcquire()) {
       try {
         flushExecutor.submit(drainBuffersToQueueTask);
       } catch (RejectedExecutionException e) {
@@ -148,24 +151,30 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         // don't let anyone add any more to points while we're draining it.
         logger.warning("[" + handle + " thread " + threadId + "]: WF-3 Too many pending " + entityType +
             " (" + datum.size() + "), block size: " + itemsPerBatch.get() + ". flushing to retry queue");
-        try {
-          isBuffering = true;
-          drainBuffersToQueue();
-        } finally {
-          isBuffering = false;
-          bufferFlushCounter.inc();
-        }
+        drainBuffersToQueue();
         logger.info("[" + handle + " thread " + threadId + "]: flushing to retry queue complete. " +
             "Pending " + entityType + ": " + datum.size());
       }
     }
   };
 
-  public abstract void drainBuffersToQueue();
+  abstract void drainBuffersToQueueInternal();
+
+  public void drainBuffersToQueue() {
+    if (isBuffering.compareAndSet(false, true)) {
+      bufferFlushCounter.inc();
+      try {
+        drainBuffersToQueueInternal();
+      } finally {
+        isBuffering.set(false);
+        bufferCompletedFlushCounter.inc();
+      }
+    }
+  }
 
   @Override
   public long getTaskRelativeScore() {
-    return datum.size() + (isBuffering ? memoryBufferLimit.get() : (isSending ? itemsPerBatch.get() / 2 : 0));
+    return datum.size() + (isBuffering.get() ? memoryBufferLimit.get() : (isSending ? itemsPerBatch.get() / 2 : 0));
   }
 
 
