@@ -417,6 +417,22 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   public static List<ResubmissionTaskQueue> createResubmissionTasks(WavefrontAPI wrapped, int retryThreads,
                                                                     String bufferFile, boolean purge, UUID agentId,
                                                                     String token) throws IOException {
+    // Having two proxy processes write to the same buffer file simultaneously causes buffer file corruption.
+    // To prevent concurrent access from another process, we try to obtain exclusive access to a .lck file
+    // trylock() is platform-specific so there is no iron-clad guarantee, but it works well in most cases
+    try {
+      File lockFile = new File(bufferFile + ".lck");
+      if (lockFile.exists()) {
+        Preconditions.checkArgument(true, lockFile.delete());
+      }
+      FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
+      Preconditions.checkNotNull(channel.tryLock()); // fail if tryLock() returns null (lock couldn't be acquired)
+    } catch (Exception e) {
+      logger.severe("WF-005: Error requesting exclusive access to the buffer lock file " + bufferFile + ".lck" +
+          " - please make sure that no other processes access this file and restart the proxy");
+      System.exit(-1);
+    }
+
     List<ResubmissionTaskQueue> output = Lists.newArrayListWithExpectedSize(retryThreads);
     for (int i = 0; i < retryThreads; i++) {
       File buffer = new File(bufferFile + "." + i);
@@ -427,19 +443,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       }
 
       ObjectQueue<ResubmissionTask> queue = createTaskQueue(agentId, buffer);
-
-      // Having two proxy processes write to the same buffer file simultaneously causes buffer file corruption.
-      // To prevent concurrent access from another process, we try to obtain exclusive access to each buffer file
-      // trylock() is platform-specific so there is no iron-clad guarantee, but it works well in most cases
-      try {
-        FileChannel channel = new RandomAccessFile(buffer, "rw").getChannel();
-        Preconditions.checkNotNull(channel.tryLock()); // fail if tryLock() returns null (lock couldn't be acquired)
-      } catch (Exception e) {
-        logger.severe("WF-005: Error requesting exclusive access to the buffer file " + bufferFile + "." + i +
-            " - please make sure that no other processes access this file and restart the proxy");
-        System.exit(-1);
-      }
-
       final ResubmissionTaskQueue taskQueue = new ResubmissionTaskQueue(queue,
           task -> {
             task.service = wrapped;
