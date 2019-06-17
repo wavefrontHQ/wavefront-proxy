@@ -14,9 +14,13 @@ import com.wavefront.agent.channel.CachingHostnameLookupResolver;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.common.MetricConstants;
+import com.wavefront.data.ReportableEntityType;
+import com.wavefront.ingester.ReportPointSerializer;
 
 import org.easymock.Capture;
 import org.easymock.CaptureType;
@@ -29,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -41,7 +46,9 @@ import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.mock;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
@@ -49,8 +56,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.lessThan;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -60,8 +69,10 @@ public class LogsIngesterTest {
   private LogsIngester logsIngesterUnderTest;
   private FilebeatIngester filebeatIngesterUnderTest;
   private RawLogsIngesterPortUnificationHandler rawLogsIngesterUnderTest;
+  private ReportableEntityHandlerFactory mockFactory;
   private ReportableEntityHandler<ReportPoint> mockPointHandler;
-  private AtomicLong now = new AtomicLong(System.currentTimeMillis());  // 6:30PM california time Oct 13 2016
+  private ReportableEntityHandler<ReportPoint> mockHistogramHandler;
+  private AtomicLong now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
   private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
 
   private LogsIngestionConfig parseConfigFile(String configPath) throws IOException {
@@ -74,7 +85,14 @@ public class LogsIngesterTest {
     logsIngestionConfig.aggregationIntervalSeconds = 10000; // HACK: Never call flush automatically.
     logsIngestionConfig.verifyAndInit();
     mockPointHandler = createMock(ReportableEntityHandler.class);
-    logsIngesterUnderTest = new LogsIngester(mockPointHandler, () -> logsIngestionConfig, null, now::get);
+    mockHistogramHandler = createMock(ReportableEntityHandler.class);
+    mockFactory = createMock(ReportableEntityHandlerFactory.class);
+    expect(mockFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, "logs-ingester"))).
+        andReturn(mockPointHandler).anyTimes();
+    expect(mockFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, "logs-ingester-histograms"))).
+        andReturn(mockHistogramHandler).anyTimes();
+    replay(mockFactory);
+    logsIngesterUnderTest = new LogsIngester(mockFactory, () -> logsIngestionConfig, null, now::get);
     logsIngesterUnderTest.start();
     filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, now::get);
     rawLogsIngesterUnderTest = new RawLogsIngesterPortUnificationHandler("12345", logsIngesterUnderTest,
@@ -129,15 +147,21 @@ public class LogsIngesterTest {
     return getPoints(numPoints, 0, this::receiveLog, logLines);
   }
 
-  private List<ReportPoint> getPoints(int numPoints, int lagPerLogLine, Consumer<String> consumer, String... logLines)
+  private List<ReportPoint> getPoints(int numPoints, int lagPerLogLine, Consumer <String> consumer,
+                                      String... logLines) throws Exception {
+    return getPoints(mockPointHandler, numPoints, lagPerLogLine, consumer, logLines);
+  }
+
+  private List<ReportPoint> getPoints(ReportableEntityHandler<ReportPoint> handler, int numPoints, int lagPerLogLine,
+                                      Consumer <String> consumer, String... logLines)
       throws Exception {
     Capture<ReportPoint> reportPointCapture = Capture.newInstance(CaptureType.ALL);
-    reset(mockPointHandler);
+    reset(handler);
     if (numPoints > 0) {
-      mockPointHandler.report(EasyMock.capture(reportPointCapture));
+      handler.report(EasyMock.capture(reportPointCapture));
       expectLastCall().times(numPoints);
     }
-    replay(mockPointHandler);
+    replay(handler);
     for (String line : logLines) {
       consumer.accept(line);
       tick(lagPerLogLine);
@@ -147,7 +171,7 @@ public class LogsIngesterTest {
     tick(60000L);
 
     logsIngesterUnderTest.getMetricsReporter().run();
-    verify(mockPointHandler);
+    verify(handler);
     return reportPointCapture.getValues();
   }
 
@@ -155,7 +179,7 @@ public class LogsIngesterTest {
   public void testPrefixIsApplied() throws Exception {
     setup("test.yml");
     logsIngesterUnderTest = new LogsIngester(
-        mockPointHandler, () -> logsIngestionConfig, "myPrefix", now::get);
+        mockFactory, () -> logsIngestionConfig, "myPrefix", now::get);
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "myPrefix" +
@@ -357,8 +381,9 @@ public class LogsIngesterTest {
     for (int i = 1; i < 101; i++) {
       lines[i - 1] = "histo " + i;
     }
-    assertThat(
-        getPoints(11, lines),
+    List<ReportPoint> points = getPoints(9, 2000, this::receiveLog, lines);
+    tick(60000);
+    assertThat(points,
         containsInAnyOrder(ImmutableList.of(
             PointMatchers.almostMatches(100.0, "myHisto.count", ImmutableMap.of()),
             PointMatchers.almostMatches(1.0, "myHisto.min", ImmutableMap.of()),
@@ -368,9 +393,7 @@ public class LogsIngesterTest {
             PointMatchers.almostMatches(75.25, "myHisto.p75", ImmutableMap.of()),
             PointMatchers.almostMatches(95.05, "myHisto.p95", ImmutableMap.of()),
             PointMatchers.almostMatches(99.01, "myHisto.p99", ImmutableMap.of()),
-            PointMatchers.almostMatches(99.901, "myHisto.p999", ImmutableMap.of()),
-            PointMatchers.matches(Double.NaN, "myHisto.sum", ImmutableMap.of()),
-            PointMatchers.matches(Double.NaN, "myHisto.stddev", ImmutableMap.of())
+            PointMatchers.almostMatches(99.901, "myHisto.p999", ImmutableMap.of())
         ))
     );
   }
@@ -387,32 +410,57 @@ public class LogsIngesterTest {
   @Test
   public void testWavefrontHistogram() throws Exception {
     setup("histos.yml");
-    String[] lines = new String[100];
-    for (int i = 1; i < 101; i++) {
-      lines[i - 1] = "histo " + i;
+    List<String> logs = new ArrayList<>();
+    logs.add("histo 100");
+    logs.add("histo 100");
+    logs.add("histo 100");
+    logs.add("histo 1");
+    for (int i = 0; i < 1000; i++) {
+      logs.add("histo 75");
     }
-    ReportPoint reportPoint = getPoints(1, lines).get(0);
+    for (int i = 0; i < 100; i++) {
+      logs.add("histo 90");
+    }
+    for (int i = 0; i < 10; i++) {
+      logs.add("histo 99");
+    }
+    for (int i = 0; i < 10000; i++) {
+      logs.add("histo 50");
+    }
+
+    ReportPoint reportPoint = getPoints(mockHistogramHandler, 1, 0, this::receiveLog, logs.toArray(new String[0])).get(0);
     assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
     Histogram wavefrontHistogram = (Histogram) reportPoint.getValue();
-    assertThat(wavefrontHistogram.getBins(), hasSize(1));
-    assertThat(wavefrontHistogram.getBins(), contains(50.5));
-    assertThat(wavefrontHistogram.getCounts(), hasSize(1));
-    assertThat(wavefrontHistogram.getCounts(), contains(100));
+    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(11114));
+    assertThat(wavefrontHistogram.getBins().size(), greaterThan(300));
+    assertThat(wavefrontHistogram.getBins().size(), lessThan(600));
+    assertThat(wavefrontHistogram.getBins().get(0), equalTo(1.0));
+    assertThat(wavefrontHistogram.getBins().get(wavefrontHistogram.getBins().size() - 1), equalTo(100.0));
   }
 
   @Test
   public void testWavefrontHistogramMultipleCentroids() throws Exception {
     setup("histos.yml");
-    String[] lines = new String[60];
-    for (int i = 1; i < 61; i++) {
-      lines[i - 1] = "histo " + i;
+    String[] lines = new String[240];
+    for (int i = 0; i < 240; i++) {
+      lines[i] = "histo " + (i + 1);
     }
-    ReportPoint reportPoint = getPoints(1, 1000, this::receiveLog, lines).get(0);
+    List<ReportPoint> reportPoints = getPoints(mockHistogramHandler, 2, 500, this::receiveLog, lines);
+    ReportPoint reportPoint = reportPoints.get(0);
     assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
     Histogram wavefrontHistogram = (Histogram) reportPoint.getValue();
-    assertThat(wavefrontHistogram.getBins(), hasSize(2));
-    assertThat(wavefrontHistogram.getCounts(), hasSize(2));
-    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(60));
+    assertThat(wavefrontHistogram.getBins(), hasSize(120));
+    assertThat(wavefrontHistogram.getCounts(), hasSize(120));
+    assertThat(wavefrontHistogram.getBins().stream().reduce(Double::sum).get(), equalTo(7260.0));
+    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(120));
+    reportPoint = reportPoints.get(1);
+    assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
+    wavefrontHistogram = (Histogram) reportPoint.getValue();
+    assertThat(wavefrontHistogram.getBins(), hasSize(120));
+    assertThat(wavefrontHistogram.getCounts(), hasSize(120));
+    assertThat(wavefrontHistogram.getBins().stream().reduce(Double::sum).get(), equalTo(21660.0));
+    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(120));
+
   }
 
   @Test(expected = ConfigurationException.class)

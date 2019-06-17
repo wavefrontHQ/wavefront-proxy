@@ -3,6 +3,7 @@ package com.wavefront.agent.logsharvesting;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.ingester.ReportPointSerializer;
 
 import java.net.InetAddress;
@@ -38,47 +39,48 @@ public class InteractiveLogsTester {
   public boolean interactiveTest() throws ConfigurationException {
     final AtomicBoolean reported = new AtomicBoolean(false);
 
-    LogsIngester logsIngester = new LogsIngester(
-        new ReportableEntityHandler<ReportPoint>() {
-          @Override
-          public void report(ReportPoint reportPoint) {
-            reported.set(true);
-            System.out.println(ReportPointSerializer.pointToString(reportPoint));
-          }
+    ReportableEntityHandlerFactory factory = handlerKey -> new ReportableEntityHandler<ReportPoint>() {
+      @Override
+      public void report(ReportPoint reportPoint) {
+        reported.set(true);
+        System.out.println(ReportPointSerializer.pointToString(reportPoint));
+      }
 
-          @Override
-          public void report(ReportPoint reportPoint, @Nullable Object messageObject,
-                             Function<Object, String> messageSerializer) {
-            reported.set(true);
-            System.out.println(ReportPointSerializer.pointToString(reportPoint));
-          }
+      @Override
+      public void report(ReportPoint reportPoint, @Nullable Object messageObject,
+                         Function<Object, String> messageSerializer) {
+        reported.set(true);
+        System.out.println(ReportPointSerializer.pointToString(reportPoint));
+      }
 
-          @Override
-          public void block(ReportPoint reportPoint) {
-            System.out.println("Blocked: " + reportPoint);
-          }
+      @Override
+      public void block(ReportPoint reportPoint) {
+        System.out.println("Blocked: " + reportPoint);
+      }
 
-          @Override
-          public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
-            System.out.println("Blocked: " + reportPoint);
-          }
+      @Override
+      public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
+        System.out.println("Blocked: " + reportPoint);
+      }
 
-          @Override
-          public void reject(ReportPoint reportPoint) {
-            System.out.println("Rejected: " + reportPoint);
-          }
+      @Override
+      public void reject(ReportPoint reportPoint) {
+        System.out.println("Rejected: " + reportPoint);
+      }
 
-          @Override
-          public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
-            System.out.println("Rejected: " + reportPoint);
-          }
+      @Override
+      public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
+        System.out.println("Rejected: " + reportPoint);
+      }
 
-          @Override
-          public void reject(String t, @Nullable String message) {
-            System.out.println("Rejected: " + t);
-          }
-        },
-        logsIngestionConfigSupplier, prefix, System::currentTimeMillis);
+      @Override
+      public void reject(String t, @Nullable String message) {
+        System.out.println("Rejected: " + t);
+      }
+    };
+
+    LogsIngester logsIngester = new LogsIngester(factory, logsIngestionConfigSupplier, prefix,
+        System::currentTimeMillis);
 
     String line = stdin.nextLine();
     logsIngester.ingestLog(new LogsMessage() {

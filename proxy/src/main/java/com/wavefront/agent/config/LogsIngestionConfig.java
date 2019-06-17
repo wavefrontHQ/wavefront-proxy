@@ -98,7 +98,7 @@ public class LogsIngestionConfig extends Configuration {
    * counters and gauges are not.
    */
   @JsonProperty
-  public Integer aggregationIntervalSeconds = 5;
+  public Integer aggregationIntervalSeconds = 60;
   /**
    * Counters to ingest from incoming log data.
    */

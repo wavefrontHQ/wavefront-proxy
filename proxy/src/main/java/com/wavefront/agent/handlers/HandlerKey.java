@@ -41,4 +41,9 @@ public class HandlerKey {
     return true;
   }
 
+  @Override
+  public String toString() {
+    return "HandlerKey{entityType=" + this.entityType + ", handle=" + this.handle + "}";
+  }
+
 }

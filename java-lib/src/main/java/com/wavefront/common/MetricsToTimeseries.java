@@ -2,11 +2,13 @@ package com.wavefront.common;
 
 import com.google.common.collect.ImmutableMap;
 
+import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Metered;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Sampling;
 import com.yammer.metrics.core.Summarizable;
 import com.yammer.metrics.core.VirtualMachineMetrics;
+import com.yammer.metrics.core.WavefrontHistogram;
 import com.yammer.metrics.stats.Snapshot;
 
 import java.util.Map;
@@ -32,13 +34,15 @@ public abstract class MetricsToTimeseries {
    * @return summarizable stats
    */
   public static Map<String, Double> explodeSummarizable(Summarizable metric, boolean convertNanToZero) {
-    return ImmutableMap.<String, Double>builder()
+    ImmutableMap.Builder<String, Double> builder = ImmutableMap.<String, Double>builder()
         .put("min", sanitizeValue(metric.min(), convertNanToZero))
         .put("max", sanitizeValue(metric.max(), convertNanToZero))
-        .put("mean", sanitizeValue(metric.mean(), convertNanToZero))
-        .put("sum", metric.sum())
-        .put("stddev", metric.stdDev())
-        .build();
+        .put("mean", sanitizeValue(metric.mean(), convertNanToZero));
+    if (metric instanceof Histogram) {
+      builder.put("sum", sanitizeValue(metric.sum(), convertNanToZero));
+      builder.put("stddev", sanitizeValue(metric.stdDev(), convertNanToZero));
+    }
+    return builder.build();
   }
 
   public static Map<String, Double> explodeSampling(Sampling sampling) {

@@ -371,10 +371,8 @@ public class PushAgent extends AbstractAgent {
     // Logs ingestion.
     if (loadLogsIngestionConfig() != null) {
       logger.info("Loading logs ingestion.");
-      ReportableEntityHandler pointHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT,
-          "logs-ingester"));
       try {
-        final LogsIngester logsIngester = new LogsIngester(pointHandler, this::loadLogsIngestionConfig, prefix,
+        final LogsIngester logsIngester = new LogsIngester(handlerFactory, this::loadLogsIngestionConfig, prefix,
             System::currentTimeMillis);
         logsIngester.start();
 
