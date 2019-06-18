@@ -7,6 +7,7 @@ import com.yammer.metrics.core.Metered;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Sampling;
 import com.yammer.metrics.core.Summarizable;
+import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.VirtualMachineMetrics;
 import com.yammer.metrics.core.WavefrontHistogram;
 import com.yammer.metrics.stats.Snapshot;
@@ -38,7 +39,7 @@ public abstract class MetricsToTimeseries {
         .put("min", sanitizeValue(metric.min(), convertNanToZero))
         .put("max", sanitizeValue(metric.max(), convertNanToZero))
         .put("mean", sanitizeValue(metric.mean(), convertNanToZero));
-    if (metric instanceof Histogram) {
+    if (metric instanceof Histogram || metric instanceof Timer) {
       builder.put("sum", sanitizeValue(metric.sum(), convertNanToZero));
       builder.put("stddev", sanitizeValue(metric.stdDev(), convertNanToZero));
     }
