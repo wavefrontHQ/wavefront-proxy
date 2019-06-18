@@ -44,10 +44,10 @@ public class JaegerThriftCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
-            new Annotation("component", "db"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none")))
+            new Annotation("shard", "none"),
+            new Annotation("component", "db")))
         .build());
     expectLastCall();
 
@@ -61,10 +61,10 @@ public class JaegerThriftCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
-            new Annotation("component", "db"),
             new Annotation("application", "Custom-JaegerApp"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none")))
+            new Annotation("shard", "none"),
+            new Annotation("component", "db")))
         .build());
     expectLastCall();
 
@@ -78,10 +78,10 @@ public class JaegerThriftCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-fea4-87ee36e58cab"),
-            new Annotation("component", "db"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none")))
+            new Annotation("shard", "none"),
+            new Annotation("component", "none")))
         .build());
     expectLastCall();
 
@@ -89,7 +89,8 @@ public class JaegerThriftCollectorHandlerTest {
     replay(mockTraceHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
-        mockTraceLogsHandler, null, new AtomicBoolean(false), null, new RateSampler(1.0D), false);
+        mockTraceLogsHandler, null, new AtomicBoolean(false), null, new RateSampler(1.0D), false,
+        null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");
@@ -112,7 +113,6 @@ public class JaegerThriftCollectorHandlerTest {
 
     span1.setTags(ImmutableList.of(componentTag));
     span2.setTags(ImmutableList.of(componentTag, customApplicationTag));
-    span3.setTags(ImmutableList.of(componentTag));
 
     Batch testBatch = new Batch();
     testBatch.process = new Process();

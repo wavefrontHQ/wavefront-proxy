@@ -571,9 +571,15 @@ public abstract class AbstractAgent {
       "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
+  @Parameter(names = {"--applicationJaeger"}, description = "Application name for Jaeger. Defaults to Jaeger.")
+  protected String applicationJaeger;
+
   @Parameter(names = {"--traceZipkinListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for zipkin trace data over HTTP. Defaults to none.")
   protected String traceZipkinListenerPorts;
+
+  @Parameter(names = {"--applicationZipkin"}, description = "Application name for Zipkin. Defaults to Zipkin.")
+  protected String applicationZipkin;
 
   @Parameter(names = {"--traceSamplingRate"}, description = "Value between 0.0 and 1.0. " +
       "Defaults to 1.0 (allow all spans).")
@@ -1044,7 +1050,9 @@ public abstract class AbstractAgent {
       picklePorts = config.getString("picklePorts", picklePorts);
       traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
       traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
+      applicationJaeger = config.getString("applicationJaeger", applicationJaeger);
       traceZipkinListenerPorts = config.getString("traceZipkinListenerPorts", traceZipkinListenerPorts);
+      applicationZipkin = config.getString("applicationZipkin", applicationZipkin);
       traceSamplingRate = Double.parseDouble(config.getRawProperty("traceSamplingRate",
           String.valueOf(traceSamplingRate)).trim());
       traceSamplingDuration = config.getNumber("traceSamplingDuration", traceSamplingDuration).intValue();

@@ -148,10 +148,12 @@ buffer=/var/spool/wavefront-proxy/buffer
 #traceListenerPorts=30000
 ## Comma-separated list of ports on which to listen on for Jaeger Thrift formatted data. Defaults to none.
 #traceJaegerListenerPorts=30001
+#applicationJaeger=Jaeger
 ## Comma-separated list of ports on which to listen on for zipkin trace data over HTTP. Defaults to none.
 ## Recommended value is 9411, which is the port zipkin's server listens on and is the default
 configuration in Istio.
 #traceZipkinListenerPorts=9411
+#applicationZipkin=Zipkin
 
 ## The following settings are used to configure trace data sampling:
 ## The rate for traces to be sampled. Can be from 0.0 to 1.0. Defaults to 1.0
