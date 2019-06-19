@@ -9,7 +9,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AtomicDouble;
-import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.gson.Gson;
 
@@ -70,9 +69,6 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryNotificationInfo;
-import java.lang.management.MemoryPoolMXBean;
-import java.lang.management.MemoryType;
 import java.net.Authenticator;
 import java.net.ConnectException;
 import java.net.HttpURLConnection;
@@ -106,7 +102,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import javax.annotation.Nullable;
-import javax.management.NotificationEmitter;
 import javax.net.ssl.HttpsURLConnection;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
@@ -571,9 +566,15 @@ public abstract class AbstractAgent {
       "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
+  @Parameter(names = {"--traceJaegerApplicationName"}, description = "Application name for Jaeger. Defaults to Jaeger.")
+  protected String traceJaegerApplicationName;
+
   @Parameter(names = {"--traceZipkinListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for zipkin trace data over HTTP. Defaults to none.")
   protected String traceZipkinListenerPorts;
+
+  @Parameter(names = {"--traceZipkinApplicationName"}, description = "Application name for Zipkin. Defaults to Zipkin.")
+  protected String traceZipkinApplicationName;
 
   @Parameter(names = {"--traceSamplingRate"}, description = "Value between 0.0 and 1.0. " +
       "Defaults to 1.0 (allow all spans).")
@@ -1044,7 +1045,9 @@ public abstract class AbstractAgent {
       picklePorts = config.getString("picklePorts", picklePorts);
       traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
       traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
+      traceJaegerApplicationName = config.getString("traceJaegerApplicationName", traceJaegerApplicationName);
       traceZipkinListenerPorts = config.getString("traceZipkinListenerPorts", traceZipkinListenerPorts);
+      traceZipkinApplicationName = config.getString("traceZipkinApplicationName", traceZipkinApplicationName);
       traceSamplingRate = Double.parseDouble(config.getRawProperty("traceSamplingRate",
           String.valueOf(traceSamplingRate)).trim());
       traceSamplingDuration = config.getNumber("traceSamplingDuration", traceSamplingDuration).intValue();

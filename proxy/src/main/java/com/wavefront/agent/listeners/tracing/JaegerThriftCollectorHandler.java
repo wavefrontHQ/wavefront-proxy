@@ -21,6 +21,8 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import org.apache.commons.lang.StringUtils;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -78,7 +80,6 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type",
       "sampler.param");
   private final static String JAEGER_COMPONENT = "jaeger";
-  private final static String DEFAULT_APPLICATION = "Jaeger";
   private final static String DEFAULT_SOURCE = "jaeger";
   private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
 
@@ -93,6 +94,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final ReportableEntityPreprocessor preprocessor;
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
+  private final String proxyLevelApplicationName;
 
   // log every 5 seconds
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
@@ -111,10 +113,11 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       AtomicBoolean traceDisabled,
                                       ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
-                                      boolean alwaysSampleErrors) {
+                                      boolean alwaysSampleErrors,
+                                      @Nullable String traceJaegerApplicationName) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors);
+        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors, traceJaegerApplicationName);
   }
 
   public JaegerThriftCollectorHandler(String handle,
@@ -124,7 +127,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       AtomicBoolean traceDisabled,
                                       @Nullable ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
-                                      boolean alwaysSampleErrors) {
+                                      boolean alwaysSampleErrors,
+                                      @Nullable String traceJaegerApplicationName) {
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
@@ -133,6 +137,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     this.preprocessor = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
+    this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ?
+        "Jaeger" : traceJaegerApplicationName.trim();
     this.discardedTraces = Metrics.newCounter(
         new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(
@@ -178,11 +184,16 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private void processBatch(Batch batch) {
     String serviceName = batch.getProcess().getServiceName();
     String sourceName = null;
+    String applicationName = this.proxyLevelApplicationName;
     if (batch.getProcess().getTags() != null) {
       for (Tag tag : batch.getProcess().getTags()) {
+        if (tag.getKey().equals(APPLICATION_TAG_KEY) && tag.getVType() == TagType.STRING) {
+          applicationName = tag.getVStr();
+          continue;
+        }
         if (tag.getKey().equals("hostname") && tag.getVType() == TagType.STRING) {
           sourceName = tag.getVStr();
-          break;
+          continue;
         }
         if (tag.getKey().equals("ip") && tag.getVType() == TagType.STRING) {
           sourceName = tag.getVStr();
@@ -202,13 +213,14 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       return;
     }
     for (io.jaegertracing.thriftjava.Span span : batch.getSpans()) {
-      processSpan(span, serviceName, sourceName);
+      processSpan(span, serviceName, sourceName, applicationName);
     }
   }
 
   private void processSpan(io.jaegertracing.thriftjava.Span span,
                            String serviceName,
-                           String sourceName) {
+                           String sourceName,
+                           String applicationName) {
     List<Annotation> annotations = new ArrayList<>();
     // serviceName is mandatory in Jaeger
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
@@ -217,15 +229,11 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       annotations.add(new Annotation("parent", new UUID(0, parentSpanId).toString()));
     }
 
-    String applicationName = DEFAULT_APPLICATION;
     String cluster = NULL_TAG_VAL;
     String shard = NULL_TAG_VAL;
     String componentTagValue = NULL_TAG_VAL;
     boolean isError = false;
 
-    boolean applicationTagPresent = false;
-    boolean clusterTagPresent = false;
-    boolean shardTagPresent = false;
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
         if (IGNORE_TAGS.contains(tag.getKey())) {
@@ -234,46 +242,35 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
         Annotation annotation = tagToAnnotation(tag);
         if (annotation != null) {
-          annotations.add(annotation);
-
           switch (annotation.getKey()) {
             case APPLICATION_TAG_KEY:
-              applicationTagPresent = true;
               applicationName = annotation.getValue();
               continue;
             case CLUSTER_TAG_KEY:
-              clusterTagPresent =  true;
               cluster = annotation.getValue();
               continue;
             case SHARD_TAG_KEY:
-              shardTagPresent = true;
               shard = annotation.getValue();
               continue;
             case COMPONENT_TAG_KEY:
               componentTagValue = annotation.getValue();
-              continue;
+              break;
             case ERROR_SPAN_TAG_KEY:
               // only error=true is supported
               isError = annotation.getValue().equals(ERROR_SPAN_TAG_VAL);
+              break;
           }
+          annotations.add(annotation);
         }
       }
     }
 
-    if (!applicationTagPresent) {
-      // Original Jaeger span did not have application set, will default to 'Jaeger'
-      annotations.add(new Annotation(APPLICATION_TAG_KEY, applicationName));
-    }
+    // Add all wavefront indexed tags. These are set based on below hierarchy.
+    // Span Level > Process Level > Proxy Level > Default
+    annotations.add(new Annotation(APPLICATION_TAG_KEY, applicationName));
+    annotations.add(new Annotation(CLUSTER_TAG_KEY, cluster));
+    annotations.add(new Annotation(SHARD_TAG_KEY, shard));
 
-    if (!clusterTagPresent) {
-      // Original Jaeger span did not have cluster set, will default to 'none'
-      annotations.add(new Annotation(CLUSTER_TAG_KEY, cluster));
-    }
-
-    if (!shardTagPresent) {
-      // Original Jaeger span did not have shard set, will default to 'none'
-      annotations.add(new Annotation(SHARD_TAG_KEY, shard));
-    }
 
     if (span.getReferences() != null) {
       for (SpanRef reference : span.getReferences()) {

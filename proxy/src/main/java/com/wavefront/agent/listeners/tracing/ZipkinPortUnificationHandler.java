@@ -23,6 +23,8 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import org.apache.commons.lang.StringUtils;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -98,11 +100,11 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
       "/api/v2/spans/");
   private final static String ZIPKIN_VALID_HTTP_METHOD = "POST";
   private final static String ZIPKIN_COMPONENT = "zipkin";
-  private final static String DEFAULT_APPLICATION = "Zipkin";
   private final static String DEFAULT_SOURCE = "zipkin";
   private final static String DEFAULT_SERVICE = "defaultService";
   private final static String DEFAULT_SPAN_NAME = "defaultOperation";
   private final static String SPAN_TAG_ERROR = "error";
+  private final String proxyLevelApplicationName;
 
   private static final Logger ZIPKIN_DATA_LOGGER = Logger.getLogger("ZipkinDataLogger");
 
@@ -113,11 +115,12 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       AtomicBoolean traceDisabled,
                                       @Nullable ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
-                                      boolean alwaysSampleErrors) {
+                                      boolean alwaysSampleErrors,
+                                      @Nullable String traceZipkinApplicationName) {
     this(handle,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors);
+        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors, traceZipkinApplicationName);
   }
 
   public ZipkinPortUnificationHandler(final String handle,
@@ -127,7 +130,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       AtomicBoolean traceDisabled,
                                       @Nullable ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
-                                      boolean alwaysSampleErrors) {
+                                      boolean alwaysSampleErrors,
+                                      @Nullable String traceZipkinApplicationName) {
     super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(),
         handle, false, true);
     this.handle = handle;
@@ -138,6 +142,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.preprocessor = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
+    this.proxyLevelApplicationName = StringUtils.isBlank(traceZipkinApplicationName) ?
+        "Zipkin" : traceZipkinApplicationName.trim();
     this.discardedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "discarded"));
     this.processedBatches = Metrics.newCounter(new MetricName(
@@ -249,10 +255,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
         zipkinSpan.localServiceName();
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
 
-    String applicationName = DEFAULT_APPLICATION;
-    boolean applicationTagPresent = false;
-    boolean clusterTagPresent = false;
-    boolean shardTagPresent = false;
+    String applicationName = this.proxyLevelApplicationName;
     String cluster = NULL_TAG_VAL;
     String shard = NULL_TAG_VAL;
     String componentTagValue = NULL_TAG_VAL;
@@ -266,17 +269,14 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
           Annotation annotation = new Annotation(tag.getKey(), tag.getValue());
           switch (annotation.getKey()) {
             case APPLICATION_TAG_KEY:
-              applicationTagPresent = true;
               applicationName = annotation.getValue();
-              break;
+              continue;
             case CLUSTER_TAG_KEY:
-              clusterTagPresent = true;
               cluster = annotation.getValue();
-              break;
+              continue;
             case SHARD_TAG_KEY:
-              shardTagPresent = true;
               shard = annotation.getValue();
-              break;
+              continue;
             case COMPONENT_TAG_KEY:
               componentTagValue = annotation.getValue();
               break;
@@ -291,17 +291,11 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
       }
     }
 
-    if (!applicationTagPresent) {
-      annotations.add(new Annotation(APPLICATION_TAG_KEY, applicationName));
-    }
-
-    if (!clusterTagPresent) {
-      annotations.add(new Annotation(CLUSTER_TAG_KEY, cluster));
-    }
-
-    if (!shardTagPresent) {
-      annotations.add(new Annotation(SHARD_TAG_KEY, shard));
-    }
+    // Add all wavefront indexed tags. These are set based on below hierarchy.
+    // Span Level > Proxy Level > Default
+    annotations.add(new Annotation(APPLICATION_TAG_KEY, applicationName));
+    annotations.add(new Annotation(CLUSTER_TAG_KEY, cluster));
+    annotations.add(new Annotation(SHARD_TAG_KEY, shard));
 
     /** Add source of the span following the below:
      *    1. If "source" is provided by span tags , use it else

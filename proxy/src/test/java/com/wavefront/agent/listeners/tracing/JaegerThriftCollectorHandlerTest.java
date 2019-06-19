@@ -78,18 +78,17 @@ public class JaegerThriftCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-fea4-87ee36e58cab"),
-            new Annotation("component", "db"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none")))
         .build());
     expectLastCall();
 
-
     replay(mockTraceHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
-        mockTraceLogsHandler, null, new AtomicBoolean(false), null, new RateSampler(1.0D), false);
+        mockTraceLogsHandler, null, new AtomicBoolean(false), null, new RateSampler(1.0D), false,
+        null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");
@@ -112,7 +111,6 @@ public class JaegerThriftCollectorHandlerTest {
 
     span1.setTags(ImmutableList.of(componentTag));
     span2.setTags(ImmutableList.of(componentTag, customApplicationTag));
-    span3.setTags(ImmutableList.of(componentTag));
 
     Batch testBatch = new Batch();
     testBatch.process = new Process();
@@ -126,6 +124,127 @@ public class JaegerThriftCollectorHandlerTest {
     ThriftRequest<Collector.submitBatches_args> request = new ThriftRequest.Builder<Collector.submitBatches_args>(
         "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
     handler.handleImpl(request);
+
+    verify(mockTraceHandler);
+  }
+
+  @Test
+  public void testApplicationTagPriority() throws Exception {
+    reset(mockTraceHandler);
+
+    // Span to verify span level tags precedence
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(1234)
+        .setName("HTTP GET")
+        .setSource("10.0.0.1")
+        .setSpanId("00000000-0000-0000-0000-00000012d687")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("component", "db"),
+            new Annotation("application", "SpanLevelAppTag"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+
+    // Span to verify process level tags precedence
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(2345)
+        .setName("HTTP GET /")
+        .setSource("10.0.0.1")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
+            new Annotation("component", "db"),
+            new Annotation("application", "ProcessLevelAppTag"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+
+    // Span to verify Proxy level tags precedence
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(3456)
+        .setName("HTTP GET /")
+        .setSource("10.0.0.1")
+        .setSpanId("00000000-0000-0000-9a12-b85901d53397")
+        .setTraceId("00000000-0000-0000-fea4-87ee36e58cab")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("parent", "00000000-0000-0000-fea4-87ee36e58cab"),
+            new Annotation("application", "ProxyLevelAppTag"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler);
+
+    // Verify span level "application" tags precedence
+    JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
+        mockTraceLogsHandler, null, new AtomicBoolean(false), null, new RateSampler(1.0D), false,
+        "ProxyLevelAppTag");
+
+    Tag ipTag = new Tag("ip", TagType.STRING);
+    ipTag.setVStr("10.0.0.1");
+
+    Tag componentTag = new Tag("component", TagType.STRING);
+    componentTag.setVStr("db");
+
+    Tag spanLevelAppTag = new Tag("application", TagType.STRING);
+    spanLevelAppTag.setVStr("SpanLevelAppTag");
+
+    Tag processLevelAppTag = new Tag("application", TagType.STRING);
+    processLevelAppTag.setVStr("ProcessLevelAppTag");
+
+    io.jaegertracing.thriftjava.Span span1 = new io.jaegertracing.thriftjava.Span(1234567890123L, 1234567890L,
+        1234567L, 0L, "HTTP GET", 1, startTime * 1000, 1234 * 1000);
+
+    io.jaegertracing.thriftjava.Span span2 = new io.jaegertracing.thriftjava.Span(1234567890123L, 1234567890L,
+        2345678L, 1234567L, "HTTP GET /", 1, startTime * 1000, 2345 * 1000);
+
+    // check negative span IDs too
+    io.jaegertracing.thriftjava.Span span3 = new io.jaegertracing.thriftjava.Span(-97803834702328661L, 0L,
+        -7344605349865507945L, -97803834702328661L, "HTTP GET /", 1, startTime * 1000, 3456 * 1000);
+
+    // Span1 to verify span level tags precedence
+    span1.setTags(ImmutableList.of(componentTag, spanLevelAppTag));
+    span2.setTags(ImmutableList.of(componentTag));
+
+    Batch testBatch = new Batch();
+    testBatch.process = new Process();
+    testBatch.process.serviceName = "frontend";
+    // Span2 to verify process level tags precedence
+    testBatch.process.setTags(ImmutableList.of(ipTag, processLevelAppTag));
+
+    testBatch.setSpans(ImmutableList.of(span1, span2));
+
+    Collector.submitBatches_args batches = new Collector.submitBatches_args();
+    batches.addToBatches(testBatch);
+    ThriftRequest<Collector.submitBatches_args> request = new ThriftRequest.Builder<Collector.submitBatches_args>(
+        "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
+    handler.handleImpl(request);
+
+    // Span3 to verify process level tags precedence. So do not set any process level tag.
+    Batch testBatchForProxyLevel = new Batch();
+    testBatchForProxyLevel.process = new Process();
+    testBatchForProxyLevel.process.serviceName = "frontend";
+    testBatchForProxyLevel.process.setTags(ImmutableList.of(ipTag));
+
+    testBatchForProxyLevel.setSpans(ImmutableList.of(span3));
+
+    Collector.submitBatches_args batchesForProxyLevel = new Collector.submitBatches_args();
+    batchesForProxyLevel.addToBatches(testBatchForProxyLevel);
+    ThriftRequest<Collector.submitBatches_args> requestForProxyLevel = new ThriftRequest.
+        Builder<Collector.submitBatches_args>("jaeger-collector", "Collector::submitBatches").
+        setBody(batchesForProxyLevel).
+        build();
+    handler.handleImpl(requestForProxyLevel);
 
     verify(mockTraceHandler);
   }
