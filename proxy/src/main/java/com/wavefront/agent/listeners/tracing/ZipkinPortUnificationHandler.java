@@ -142,7 +142,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.preprocessor = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
-    this.proxyLevelApplicationName = StringUtils.isBlank(traceZipkinApplicationName) ? "Zipkin" : traceZipkinApplicationName.trim();
+    this.proxyLevelApplicationName = StringUtils.isBlank(traceZipkinApplicationName) ?
+        "Zipkin" : traceZipkinApplicationName.trim();
     this.discardedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "discarded"));
     this.processedBatches = Metrics.newCounter(new MetricName(

@@ -137,7 +137,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     this.preprocessor = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
-    this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ? "Jaeger" : traceJaegerApplicationName.trim();
+    this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ?
+        "Jaeger" : traceJaegerApplicationName.trim();
     this.discardedTraces = Metrics.newCounter(
         new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(
