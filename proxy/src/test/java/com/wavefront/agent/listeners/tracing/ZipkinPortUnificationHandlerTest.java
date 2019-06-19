@@ -127,8 +127,7 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("http.url", "none+h1c://localhost:8881/"),
             new Annotation("application", "ProxyLevelAppTag"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"),
-            new Annotation("component", "none"))).
+            new Annotation("shard", "none"))).
         build());
     expectLastCall();
 
@@ -144,13 +143,13 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("span.kind", "server"),
             new Annotation("_spanSecondaryId", "server"),
             new Annotation("service", "backend"),
+            new Annotation("component", "jersey-server"),
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
             new Annotation("http.url", "none+h2c://localhost:9000/api"),
             new Annotation("application", "SpanLevelAppTag"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"),
-            new Annotation("component", "jersey-server"))).
+            new Annotation("shard", "none"))).
         build());
     expectLastCall();
 

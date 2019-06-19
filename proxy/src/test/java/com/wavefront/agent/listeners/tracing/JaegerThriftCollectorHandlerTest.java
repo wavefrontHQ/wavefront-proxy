@@ -44,10 +44,10 @@ public class JaegerThriftCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
+            new Annotation("component", "db"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"),
-            new Annotation("component", "db")))
+            new Annotation("shard", "none")))
         .build());
     expectLastCall();
 
@@ -61,10 +61,10 @@ public class JaegerThriftCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
+            new Annotation("component", "db"),
             new Annotation("application", "Custom-JaegerApp"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"),
-            new Annotation("component", "db")))
+            new Annotation("shard", "none")))
         .build());
     expectLastCall();
 
@@ -80,8 +80,7 @@ public class JaegerThriftCollectorHandlerTest {
             new Annotation("parent", "00000000-0000-0000-fea4-87ee36e58cab"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"),
-            new Annotation("component", "none")))
+            new Annotation("shard", "none")))
         .build());
     expectLastCall();
 
@@ -143,10 +142,10 @@ public class JaegerThriftCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
+            new Annotation("component", "db"),
             new Annotation("application", "SpanLevelAppTag"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"),
-            new Annotation("component", "db")))
+            new Annotation("shard", "none")))
         .build());
     expectLastCall();
 
@@ -161,10 +160,10 @@ public class JaegerThriftCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
+            new Annotation("component", "db"),
             new Annotation("application", "ProcessLevelAppTag"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"),
-            new Annotation("component", "db")))
+            new Annotation("shard", "none")))
         .build());
     expectLastCall();
 
@@ -181,8 +180,7 @@ public class JaegerThriftCollectorHandlerTest {
             new Annotation("parent", "00000000-0000-0000-fea4-87ee36e58cab"),
             new Annotation("application", "ProxyLevelAppTag"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"),
-            new Annotation("component", "none")))
+            new Annotation("shard", "none")))
         .build());
     expectLastCall();
     replay(mockTraceHandler);
