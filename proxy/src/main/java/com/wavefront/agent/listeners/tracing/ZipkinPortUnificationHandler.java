@@ -104,7 +104,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final static String DEFAULT_SERVICE = "defaultService";
   private final static String DEFAULT_SPAN_NAME = "defaultOperation";
   private final static String SPAN_TAG_ERROR = "error";
-  private String proxyLevelApplicationName = "Zipkin";
+  private final String proxyLevelApplicationName;
 
   private static final Logger ZIPKIN_DATA_LOGGER = Logger.getLogger("ZipkinDataLogger");
 
@@ -116,11 +116,11 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       @Nullable ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
-                                      String applicationName) {
+                                      @Nullable String traceZipkinApplicationName) {
     this(handle,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors, applicationName);
+        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors, traceZipkinApplicationName);
   }
 
   public ZipkinPortUnificationHandler(final String handle,
@@ -131,7 +131,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       @Nullable ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
-                                      String applicationName) {
+                                      @Nullable String traceZipkinApplicationName) {
     super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(),
         handle, false, true);
     this.handle = handle;
@@ -142,9 +142,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.preprocessor = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
-    if (applicationName != null && !StringUtils.isBlank(applicationName.trim())) {
-      this.proxyLevelApplicationName = applicationName;
-    }
+    this.proxyLevelApplicationName = StringUtils.isBlank(traceZipkinApplicationName) ? "Zipkin" : traceZipkinApplicationName.trim();
     this.discardedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "discarded"));
     this.processedBatches = Metrics.newCounter(new MetricName(

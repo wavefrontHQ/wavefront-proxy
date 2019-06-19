@@ -230,11 +230,10 @@ public class JaegerThriftCollectorHandlerTest {
         "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
     handler.handleImpl(request);
 
-    // Span3 to verify process level tags precedence
+    // Span3 to verify process level tags precedence. So do not set any process level tag.
     Batch testBatchForProxyLevel = new Batch();
     testBatchForProxyLevel.process = new Process();
     testBatchForProxyLevel.process.serviceName = "frontend";
-    // Span2 to verify process level tags precedence
     testBatchForProxyLevel.process.setTags(ImmutableList.of(ipTag));
 
     testBatchForProxyLevel.setSpans(ImmutableList.of(span3));

@@ -94,7 +94,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final ReportableEntityPreprocessor preprocessor;
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
-  private String proxyLevelApplicationName = "Jaeger";
+  private final String proxyLevelApplicationName;
 
   // log every 5 seconds
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
@@ -114,10 +114,10 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
-                                      String applicationName) {
+                                      @Nullable String traceJaegerApplicationName) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors, applicationName);
+        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors, traceJaegerApplicationName);
   }
 
   public JaegerThriftCollectorHandler(String handle,
@@ -128,7 +128,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       @Nullable ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
-                                      String applicationName) {
+                                      @Nullable String traceJaegerApplicationName) {
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
@@ -137,9 +137,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     this.preprocessor = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
-    if (applicationName != null && !StringUtils.isBlank(applicationName.trim())) {
-      this.proxyLevelApplicationName = applicationName;
-    }
+    this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ? "Jaeger" : traceJaegerApplicationName.trim();
     this.discardedTraces = Metrics.newCounter(
         new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(
