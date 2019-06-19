@@ -280,7 +280,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
               continue;
             case COMPONENT_TAG_KEY:
               componentTagValue = annotation.getValue();
-              continue;
+              break;
             case ERROR_SPAN_TAG_KEY:
               isError = true;
               // Ignore the original error value
@@ -297,7 +297,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     annotations.add(new Annotation(APPLICATION_TAG_KEY, applicationName));
     annotations.add(new Annotation(CLUSTER_TAG_KEY, cluster));
     annotations.add(new Annotation(SHARD_TAG_KEY, shard));
-    annotations.add(new Annotation(COMPONENT_TAG_KEY, componentTagValue));
 
     /** Add source of the span following the below:
      *    1. If "source" is provided by span tags , use it else

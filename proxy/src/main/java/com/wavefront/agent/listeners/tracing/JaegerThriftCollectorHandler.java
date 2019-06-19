@@ -255,7 +255,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
               continue;
             case COMPONENT_TAG_KEY:
               componentTagValue = annotation.getValue();
-              continue;
+              break;
             case ERROR_SPAN_TAG_KEY:
               // only error=true is supported
               isError = annotation.getValue().equals(ERROR_SPAN_TAG_VAL);
@@ -271,7 +271,6 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     annotations.add(new Annotation(APPLICATION_TAG_KEY, applicationName));
     annotations.add(new Annotation(CLUSTER_TAG_KEY, cluster));
     annotations.add(new Annotation(SHARD_TAG_KEY, shard));
-    annotations.add(new Annotation(COMPONENT_TAG_KEY, componentTagValue));
 
 
     if (span.getReferences() != null) {
@@ -303,10 +302,10 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         .build();
 
     // Log Jaeger spans as well as Wavefront spans for debugging purposes.
-//    if (JAEGER_DATA_LOGGER.isLoggable(Level.FINEST)) {
+    if (JAEGER_DATA_LOGGER.isLoggable(Level.FINEST)) {
       JAEGER_DATA_LOGGER.info("Inbound Jaeger span: " + span.toString());
       JAEGER_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
-//    }
+    }
 
     if (preprocessor != null) {
       preprocessor.forSpan().transform(wavefrontSpan);

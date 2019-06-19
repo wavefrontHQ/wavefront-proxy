@@ -45,7 +45,7 @@ public class ZipkinPortUnificationHandlerTest {
   public void testZipkinHandler() {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         mockTraceHandler, mockTraceSpanLogsHandler, null, new AtomicBoolean(false),
-        null, new RateSampler(1.0D), false, null);
+        null, new RateSampler(1.0D), false, "ProxyLevelAppTag");
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
     zipkin2.Span spanServer1 = zipkin2.Span.newBuilder().
@@ -75,7 +75,7 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("http.url", "none+h2c://localhost:9000/api").
         putTag("http.status_code", "200").
         putTag("component", "jersey-server").
-        putTag("application", "Custom-ZipkinApp").
+        putTag("application", "SpanLevelAppTag").
         addAnnotation(startTime * 1000, "start processing").
         build();
 
@@ -125,7 +125,7 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
             new Annotation("http.url", "none+h1c://localhost:8881/"),
-            new Annotation("application", "Zipkin"),
+            new Annotation("application", "ProxyLevelAppTag"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
             new Annotation("component", "none"))).
@@ -147,7 +147,7 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
             new Annotation("http.url", "none+h2c://localhost:9000/api"),
-            new Annotation("application", "Custom-ZipkinApp"),
+            new Annotation("application", "SpanLevelAppTag"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
             new Annotation("component", "jersey-server"))).
