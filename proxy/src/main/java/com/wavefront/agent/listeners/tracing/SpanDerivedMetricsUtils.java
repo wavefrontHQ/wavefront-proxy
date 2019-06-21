@@ -75,10 +75,10 @@ public class SpanDerivedMetricsUtils {
       put(SOURCE_KEY, source);
     }};
 
-    for (String customTagKey : traceDerivedCustomTagKeys) {
+    if (traceDerivedCustomTagKeys.size() > 0) {
       spanAnnotations.forEach((annotation) -> {
-        if (annotation.getKey().equals(customTagKey)) {
-          pointTags.put(customTagKey, annotation.getValue());
+        if (traceDerivedCustomTagKeys.contains(annotation.getKey())) {
+          pointTags.put(annotation.getKey(), annotation.getValue());
         }
       });
     }
