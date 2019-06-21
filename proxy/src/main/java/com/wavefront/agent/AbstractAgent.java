@@ -82,6 +82,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -584,6 +585,10 @@ public abstract class AbstractAgent {
       "milliseconds. " + "Defaults to 0 (ignore duration based sampling).")
   protected Integer traceSamplingDuration = 0;
 
+  @Parameter(names = {"--traceDerivedCustomTagKeys"}, description = "Comma-separated " +
+      "list of custom tag keys for trace derived RED metrics.")
+  protected String traceDerivedCustomTagKeysProperty;
+
   @Parameter(names = {"--traceAlwaysSampleErrors"}, description = "Always sample spans with error tag (set to true) " +
       "ignoring other sampling configuration. Defaults to false" )
   protected boolean traceAlwaysSampleErrors = false;
@@ -701,6 +706,7 @@ public abstract class AbstractAgent {
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
+  protected final Set<String> traceDerivedCustomTagKeys = new HashSet<>();
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
@@ -1051,6 +1057,7 @@ public abstract class AbstractAgent {
       traceSamplingRate = Double.parseDouble(config.getRawProperty("traceSamplingRate",
           String.valueOf(traceSamplingRate)).trim());
       traceSamplingDuration = config.getNumber("traceSamplingDuration", traceSamplingDuration).intValue();
+      traceDerivedCustomTagKeysProperty = config.getString("traceDerivedCustomTagKeys", traceDerivedCustomTagKeysProperty);
       pushRelayListenerPorts = config.getString("pushRelayListenerPorts", pushRelayListenerPorts);
       bufferFile = config.getString("buffer", bufferFile);
       preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
@@ -1150,6 +1157,14 @@ public abstract class AbstractAgent {
       } else {
         logger.warning("Custom source tag: " + tag + " was repeated. Check the customSourceTags property in " +
             "wavefront.conf");
+      }
+    }
+
+    // Create set of trace derived RED metrics custom Tag keys.
+    if (!StringUtils.isBlank(traceDerivedCustomTagKeysProperty)) {
+      String[] derivedMetricTagKeys = traceDerivedCustomTagKeysProperty.split(",");
+      for (String tag : derivedMetricTagKeys) {
+        traceDerivedCustomTagKeys.add(tag.trim());
       }
     }
 

@@ -162,6 +162,9 @@ configuration in Istio.
 #traceSamplingRate=1.0
 ## The duration in milliseconds for the spans to be sampled. Spans above the given duration are reported. Defaults to 0.
 #traceSamplingDuration=0
+## A comma separated, list of additional custom tag keys to include along as metric tags for the
+## derived RED(Request, Error, Duration) metrics. Applicable to Jaeger and Zipkin integration only.
+#traceDerivedCustomTagKeys=tenant, env, location
 
 ## The following settings are used to configure histogram ingestion:
 ## Histograms can be ingested in wavefront scalar and distribution format. For scalar samples ports can be specified for

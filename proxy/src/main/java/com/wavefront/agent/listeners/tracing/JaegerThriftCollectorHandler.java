@@ -95,6 +95,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
   private final String proxyLevelApplicationName;
+  private final Set<String> traceDerivedCustomTagKeys;
 
   // log every 5 seconds
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
@@ -114,10 +115,12 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
-                                      @Nullable String traceJaegerApplicationName) {
+                                      @Nullable String traceJaegerApplicationName,
+                                      Set<String> traceDerivedCustomTagKeys) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors, traceJaegerApplicationName);
+        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors,
+        traceJaegerApplicationName, traceDerivedCustomTagKeys);
   }
 
   public JaegerThriftCollectorHandler(String handle,
@@ -128,7 +131,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       @Nullable ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
-                                      @Nullable String traceJaegerApplicationName) {
+                                      @Nullable String traceJaegerApplicationName,
+                                      Set<String> traceDerivedCustomTagKeys) {
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
@@ -139,6 +143,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     this.alwaysSampleErrors = alwaysSampleErrors;
     this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ?
         "Jaeger" : traceJaegerApplicationName.trim();
+    this.traceDerivedCustomTagKeys =  traceDerivedCustomTagKeys;
     this.discardedTraces = Metrics.newCounter(
         new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(
@@ -359,7 +364,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       // report converted metrics/histograms from the span
       discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
           span.getOperationName(), applicationName, serviceName, cluster, shard, sourceName,
-          componentTagValue, isError, span.getDuration()), true);
+          componentTagValue, isError, span.getDuration(), traceDerivedCustomTagKeys,
+          annotations), true);
     }
   }
 

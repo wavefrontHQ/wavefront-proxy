@@ -45,7 +45,8 @@ public class ZipkinPortUnificationHandlerTest {
   public void testZipkinHandler() {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         mockTraceHandler, mockTraceSpanLogsHandler, null, new AtomicBoolean(false),
-        null, new RateSampler(1.0D), false, "ProxyLevelAppTag");
+        null, new RateSampler(1.0D), false,
+        "ProxyLevelAppTag", null);
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
     zipkin2.Span spanServer1 = zipkin2.Span.newBuilder().

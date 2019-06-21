@@ -105,6 +105,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final static String DEFAULT_SPAN_NAME = "defaultOperation";
   private final static String SPAN_TAG_ERROR = "error";
   private final String proxyLevelApplicationName;
+  private final Set<String> traceDerivedCustomTagKeys;
 
   private static final Logger ZIPKIN_DATA_LOGGER = Logger.getLogger("ZipkinDataLogger");
 
@@ -116,11 +117,13 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       @Nullable ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
-                                      @Nullable String traceZipkinApplicationName) {
+                                      @Nullable String traceZipkinApplicationName,
+                                      Set<String> traceDerivedCustomTagKeys) {
     this(handle,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors, traceZipkinApplicationName);
+        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors,
+        traceZipkinApplicationName, traceDerivedCustomTagKeys);
   }
 
   public ZipkinPortUnificationHandler(final String handle,
@@ -131,7 +134,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       @Nullable ReportableEntityPreprocessor preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
-                                      @Nullable String traceZipkinApplicationName) {
+                                      @Nullable String traceZipkinApplicationName,
+                                      Set<String> traceDerivedCustomTagKeys) {
     super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(),
         handle, false, true);
     this.handle = handle;
@@ -144,6 +148,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.alwaysSampleErrors = alwaysSampleErrors;
     this.proxyLevelApplicationName = StringUtils.isBlank(traceZipkinApplicationName) ?
         "Zipkin" : traceZipkinApplicationName.trim();
+    this.traceDerivedCustomTagKeys =  traceDerivedCustomTagKeys;
     this.discardedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "discarded"));
     this.processedBatches = Metrics.newCounter(new MetricName(
@@ -373,7 +378,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
       // report converted metrics/histograms from the span
       discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
           spanName, applicationName, serviceName, cluster, shard, sourceName, componentTagValue,
-          isError, zipkinSpan.durationAsLong()), true);
+          isError, zipkinSpan.durationAsLong(), traceDerivedCustomTagKeys, annotations), true);
     }
   }
 
