@@ -8,8 +8,12 @@ import com.wavefront.sdk.common.WavefrontSender;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
+
+import wavefront.report.Annotation;
 
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
@@ -53,7 +57,8 @@ public class SpanDerivedMetricsUtils {
   static HeartbeatMetricKey reportWavefrontGeneratedData(
       WavefrontInternalReporter wfInternalReporter, String operationName, String application,
       String service, String cluster, String shard, String source, String componentTagValue,
-      boolean isError, long spanDurationMicros) {
+      boolean isError, long spanDurationMicros, Set<String> traceDerivedRedMetricsCustomTagKeys,
+      List<Annotation> spanAnnotations) {
     /*
      * 1) Can only propagate mandatory application/service and optional cluster/shard tags.
      * 2) Cannot convert ApplicationTags.customTags unfortunately as those are not well-known.
@@ -69,6 +74,14 @@ public class SpanDerivedMetricsUtils {
       put(COMPONENT_TAG_KEY, componentTagValue);
       put(SOURCE_KEY, source);
     }};
+
+    for (String customTagKey : traceDerivedRedMetricsCustomTagKeys) {
+      spanAnnotations.forEach((annotation) -> {
+        if (annotation.getKey().equalsIgnoreCase(customTagKey)) {
+          pointTags.put(customTagKey, annotation.getValue());
+        }
+      });
+    }
 
     // tracing.derived.<application>.<service>.<operation>.invocation.count
     wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
