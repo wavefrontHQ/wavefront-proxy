@@ -721,7 +721,6 @@ public abstract class AbstractAgent {
   protected volatile boolean retryCheckin = false;
   protected volatile boolean shuttingDown = false;
   protected String serverEndpointUrl = null;
-  private final Set<String> redMetricsCustomTagKeys = new HashSet<>();
 
   /**
    * A unique process ID value (PID, when available, or a random hexadecimal string), assigned at proxy start-up,
