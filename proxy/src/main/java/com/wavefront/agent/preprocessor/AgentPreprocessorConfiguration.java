@@ -66,6 +66,11 @@ public class AgentPreprocessorConfiguration {
     try {
       //noinspection unchecked
       Map<String, Object> rulesByPort = (Map<String, Object>) yaml.load(stream);
+      if (rulesByPort == null) {
+        logger.warning("Empty preprocessor rule file detected!");
+        logger.info("Total 0 rules loaded");
+        return;
+      }
       for (String strPort : rulesByPort.keySet()) {
         int validRules = 0;
         //noinspection unchecked
@@ -180,13 +185,13 @@ public class AgentPreprocessorConfiguration {
                   this.forPort(strPort).forSpan().addTransformer(
                       new SpanReplaceRegexTransformer(rule.get("scope"), rule.get("search"), rule.get("replace"),
                           rule.get("match"), Integer.parseInt(rule.getOrDefault("iterations", "1")),
-                          Boolean.parseBoolean(rule.getOrDefault("firstMatch", "false")), ruleMetrics));
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatchOnly", "false")), ruleMetrics));
                   break;
                 case "spanForceLowercase":
                   allowArguments(rule, "rule", "action", "scope", "match", "firstMatchOnly");
                   this.forPort(strPort).forSpan().addTransformer(
                       new SpanForceLowercaseTransformer(rule.get("scope"), rule.get("match"),
-                          Boolean.parseBoolean(rule.getOrDefault("firstMatch", "false")), ruleMetrics));
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatchOnly", "false")), ruleMetrics));
                   break;
                 case "spanAddAnnotation":
                   allowArguments(rule, "rule", "action", "key", "value");
@@ -202,7 +207,7 @@ public class AgentPreprocessorConfiguration {
                   allowArguments(rule, "rule", "action", "key", "match", "firstMatchOnly");
                   this.forPort(strPort).forSpan().addTransformer(
                       new SpanDropAnnotationTransformer(rule.get("key"), rule.get("match"),
-                          Boolean.parseBoolean(rule.getOrDefault("firstMatch", "false")), ruleMetrics));
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatchOnly", "false")), ruleMetrics));
                   break;
                 case "spanExtractAnnotation":
                   allowArguments(rule, "rule", "action", "key", "input", "search", "replace", "replaceInput", "match",
