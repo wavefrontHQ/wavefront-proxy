@@ -5,7 +5,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Metric;
@@ -17,7 +17,6 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;
 
 /**
@@ -30,24 +29,23 @@ public class LogsIngester {
   protected static final Logger logger = Logger.getLogger(LogsIngester.class.getCanonicalName());
   private static final ReadProcessor readProcessor = new ReadProcessor();
   private final FlushProcessor flushProcessor;
-  private final ReportableEntityHandler<ReportPoint> pointHandler;
   // A map from "true" to the currently loaded logs ingestion config.
   @VisibleForTesting
   final LogsIngestionConfigManager logsIngestionConfigManager;
-  private final Counter unparsed, parsed, sent;
+  private final Counter unparsed, parsed;
   private final Supplier<Long> currentMillis;
   private final MetricsReporter metricsReporter;
   private EvictingMetricsRegistry evictingMetricsRegistry;
 
   /**
-   * @param pointHandler                play parsed metrics
+   * @param handlerFactory              factory for point handlers and histogram handlers
    * @param logsIngestionConfigSupplier supplied configuration object for logs harvesting. May be reloaded. Must return
    *                                    "null" on any problems, as opposed to throwing
    * @param prefix                      all harvested metrics start with this prefix
    * @param currentMillis               supplier of the current time in millis
    * @throws ConfigurationException if the first config from logsIngestionConfigSupplier is null
    */
-  public LogsIngester(ReportableEntityHandler<ReportPoint> pointHandler,
+  public LogsIngester(ReportableEntityHandlerFactory handlerFactory,
                       Supplier<LogsIngestionConfig> logsIngestionConfigSupplier,
                       String prefix, Supplier<Long> currentMillis) throws ConfigurationException {
     logsIngestionConfigManager = new LogsIngestionConfigManager(
@@ -61,17 +59,13 @@ public class LogsIngester {
     // Logs harvesting metrics.
     this.unparsed = Metrics.newCounter(new MetricName("logsharvesting", "", "unparsed"));
     this.parsed = Metrics.newCounter(new MetricName("logsharvesting", "", "parsed"));
-    this.sent = Metrics.newCounter(new MetricName("logsharvesting", "", "sent"));
     this.currentMillis = currentMillis;
-    this.flushProcessor = new FlushProcessor(sent, currentMillis, logsIngestionConfig.useWavefrontHistograms,
+    this.flushProcessor = new FlushProcessor(currentMillis, logsIngestionConfig.useWavefrontHistograms,
         logsIngestionConfig.reportEmptyHistogramStats);
-
-    // Set up user specified metric harvesting.
-    this.pointHandler = pointHandler;
 
     // Continually flush user metrics to Wavefront.
     this.metricsReporter = new MetricsReporter(
-        evictingMetricsRegistry.metricsRegistry(), flushProcessor, "FilebeatMetricsReporter", pointHandler, prefix);
+        evictingMetricsRegistry.metricsRegistry(), flushProcessor, "FilebeatMetricsReporter", handlerFactory, prefix);
   }
 
   public void start() {

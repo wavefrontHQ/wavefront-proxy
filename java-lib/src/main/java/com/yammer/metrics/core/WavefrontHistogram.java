@@ -153,9 +153,9 @@ public class WavefrontHistogram extends Histogram implements Metric {
   @Override
   public double mean() {
     Collection<Centroid> centroids = snapshot().centroids();
-    return centroids.size() == 0 ?
-        Double.NaN :
-        centroids.stream().mapToDouble(c -> (c.count() * c.mean()) / centroids.size()).sum();
+    Centroid mean = centroids.stream().
+        reduce((x, y) -> new Centroid(x.mean() + (y.mean() * y.count()), x.count() + y.count())).orElse(null);
+    return mean == null || centroids.size() == 0 ? Double.NaN : mean.mean() / mean.count();
   }
 
   public double min() {
