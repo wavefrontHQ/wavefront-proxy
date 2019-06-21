@@ -164,7 +164,7 @@ configuration in Istio.
 #traceSamplingDuration=0
 ## A comma separated, list of additional custom tag keys to include along as metric tags for the
 ## derived RED(Request, Error, Duration) metrics. Applicable to Jaeger and Zipkin integration only.
-#traceDerivedRedMetricsCustomTagKeys=key1,key2
+#traceDerivedCustomTagKeys=tenant, env, location
 
 ## The following settings are used to configure histogram ingestion:
 ## Histograms can be ingested in wavefront scalar and distribution format. For scalar samples ports can be specified for

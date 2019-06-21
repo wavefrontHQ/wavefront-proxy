@@ -5,7 +5,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.squareup.tape.ObjectQueue;
 import com.tdunning.math.stats.AgentDigest;
@@ -560,7 +559,7 @@ public class PushAgent extends AbstractAgent {
             makeSubChannel("jaeger-collector", Connection.Direction.IN).
             register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort, handlerFactory,
                 wfSender, traceDisabled, preprocessors.forPort(strPort), sampler,
-                traceAlwaysSampleErrors, traceJaegerApplicationName, traceDerivedRedMetricsCustomTagKeys));
+                traceAlwaysSampleErrors, traceJaegerApplicationName, traceDerivedCustomTagKeys));
         server.listen().channel().closeFuture().sync();
         server.shutdown(false);
       } catch (InterruptedException e) {
@@ -582,7 +581,7 @@ public class PushAgent extends AbstractAgent {
     final int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, wfSender, traceDisabled,
         preprocessors.forPort(strPort), sampler, traceAlwaysSampleErrors,
-        traceZipkinApplicationName, traceDerivedRedMetricsCustomTagKeys);
+        traceZipkinApplicationName, traceDerivedCustomTagKeys);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, traceListenerMaxReceivedLength,
         traceListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
         "listener-zipkin-trace-" + port);

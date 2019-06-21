@@ -57,7 +57,7 @@ public class SpanDerivedMetricsUtils {
   static HeartbeatMetricKey reportWavefrontGeneratedData(
       WavefrontInternalReporter wfInternalReporter, String operationName, String application,
       String service, String cluster, String shard, String source, String componentTagValue,
-      boolean isError, long spanDurationMicros, Set<String> traceDerivedRedMetricsCustomTagKeys,
+      boolean isError, long spanDurationMicros, Set<String> traceDerivedCustomTagKeys,
       List<Annotation> spanAnnotations) {
     /*
      * 1) Can only propagate mandatory application/service and optional cluster/shard tags.
@@ -75,9 +75,9 @@ public class SpanDerivedMetricsUtils {
       put(SOURCE_KEY, source);
     }};
 
-    for (String customTagKey : traceDerivedRedMetricsCustomTagKeys) {
+    for (String customTagKey : traceDerivedCustomTagKeys) {
       spanAnnotations.forEach((annotation) -> {
-        if (annotation.getKey().equalsIgnoreCase(customTagKey)) {
+        if (annotation.getKey().equals(customTagKey)) {
           pointTags.put(customTagKey, annotation.getValue());
         }
       });

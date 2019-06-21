@@ -585,9 +585,9 @@ public abstract class AbstractAgent {
       "milliseconds. " + "Defaults to 0 (ignore duration based sampling).")
   protected Integer traceSamplingDuration = 0;
 
-  @Parameter(names = {"--traceDerivedRedMetricsCustomTagKeys"}, description = "Comma-separated " +
+  @Parameter(names = {"--traceDerivedCustomTagKeys"}, description = "Comma-separated " +
       "list of custom tag keys for trace derived RED metrics.")
-  protected String traceDerivedRedMetricsCustomTagKeysProperty;
+  protected String traceDerivedCustomTagKeysProperty;
 
   @Parameter(names = {"--traceAlwaysSampleErrors"}, description = "Always sample spans with error tag (set to true) " +
       "ignoring other sampling configuration. Defaults to false" )
@@ -706,7 +706,7 @@ public abstract class AbstractAgent {
   protected ResourceBundle props;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
-  protected final Set<String> traceDerivedRedMetricsCustomTagKeys = new HashSet<>();
+  protected final Set<String> traceDerivedCustomTagKeys = new HashSet<>();
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
@@ -1057,7 +1057,7 @@ public abstract class AbstractAgent {
       traceSamplingRate = Double.parseDouble(config.getRawProperty("traceSamplingRate",
           String.valueOf(traceSamplingRate)).trim());
       traceSamplingDuration = config.getNumber("traceSamplingDuration", traceSamplingDuration).intValue();
-      traceDerivedRedMetricsCustomTagKeysProperty = config.getString("traceDerivedRedMetricsCustomTagKeys", traceDerivedRedMetricsCustomTagKeysProperty);
+      traceDerivedCustomTagKeysProperty = config.getString("traceDerivedCustomTagKeys", traceDerivedCustomTagKeysProperty);
       pushRelayListenerPorts = config.getString("pushRelayListenerPorts", pushRelayListenerPorts);
       bufferFile = config.getString("buffer", bufferFile);
       preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
@@ -1161,10 +1161,10 @@ public abstract class AbstractAgent {
     }
 
     // Create set of trace derived RED metrics custom Tag keys.
-    if (!StringUtils.isBlank(traceDerivedRedMetricsCustomTagKeysProperty)) {
-      String[] derivedMetricTagKeys = traceDerivedRedMetricsCustomTagKeysProperty.split(",");
+    if (!StringUtils.isBlank(traceDerivedCustomTagKeysProperty)) {
+      String[] derivedMetricTagKeys = traceDerivedCustomTagKeysProperty.split(",");
       for (String tag : derivedMetricTagKeys) {
-        traceDerivedRedMetricsCustomTagKeys.add(tag.trim());
+        traceDerivedCustomTagKeys.add(tag.trim());
       }
     }
 
