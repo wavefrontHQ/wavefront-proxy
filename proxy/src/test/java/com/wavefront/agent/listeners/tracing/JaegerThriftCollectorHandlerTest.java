@@ -84,6 +84,7 @@ public class JaegerThriftCollectorHandlerTest {
         .build());
     expectLastCall();
 
+    // Test filtering empty tags
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
             .setDuration(3456)
             .setName("HTTP GET /test")

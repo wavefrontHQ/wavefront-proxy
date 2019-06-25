@@ -270,7 +270,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     Set<String> ignoreKeys = new HashSet<>(ImmutableSet.of(SOURCE_KEY));
     if (zipkinSpan.tags() != null && zipkinSpan.tags().size() > 0) {
       for (Map.Entry<String, String> tag : zipkinSpan.tags().entrySet()) {
-        if (!ignoreKeys.contains(tag.getKey().toLowerCase())) {
+        if (!ignoreKeys.contains(tag.getKey().toLowerCase()) && tag.getValue().length() > 0) {
           Annotation annotation = new Annotation(tag.getKey(), tag.getValue());
           switch (annotation.getKey()) {
             case APPLICATION_TAG_KEY:
