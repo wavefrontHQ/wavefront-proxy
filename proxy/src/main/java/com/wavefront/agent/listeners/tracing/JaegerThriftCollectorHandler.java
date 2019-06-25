@@ -241,7 +241,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
-        if (IGNORE_TAGS.contains(tag.getKey()) || (tag.vType == TagType.STRING && StringUtils.isBlank(tag.vStr))) {
+        if (IGNORE_TAGS.contains(tag.getKey()) || (tag.vType == TagType.STRING && StringUtils.isBlank(tag.getVStr()))) {
           continue;
         }
 
