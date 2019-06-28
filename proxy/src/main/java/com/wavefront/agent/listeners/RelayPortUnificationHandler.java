@@ -13,6 +13,7 @@ import org.apache.commons.lang.StringUtils;
 
 import java.net.URI;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -38,7 +39,7 @@ public class RelayPortUnificationHandler extends WavefrontPortUnificationHandler
                                      final TokenAuthenticator tokenAuthenticator,
                                      final Map<ReportableEntityType, ReportableEntityDecoder> decoders,
                                      final ReportableEntityHandlerFactory handlerFactory,
-                                     @Nullable final ReportableEntityPreprocessor preprocessor) {
+                                     @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(handle, tokenAuthenticator, decoders, handlerFactory, null, preprocessor);
   }
 

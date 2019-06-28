@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -74,7 +75,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
   private final String requestRelayTarget;
 
   @Nullable
-  private final ReportableEntityPreprocessor preprocessor;
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
 
   private final ObjectMapper jsonParser;
 
@@ -90,7 +91,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
                                        final boolean processServiceChecks,
                                        @Nullable final HttpClient requestRelayClient,
                                        @Nullable final String requestRelayTarget,
-                                       @Nullable final ReportableEntityPreprocessor preprocessor) {
+                                       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)), processSystemMetrics,
         processServiceChecks, requestRelayClient, requestRelayTarget, preprocessor);
   }
@@ -103,7 +104,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
                                           final boolean processServiceChecks,
                                           @Nullable final HttpClient requestRelayClient,
                                           @Nullable final String requestRelayTarget,
-                                          @Nullable final ReportableEntityPreprocessor preprocessor) {
+                                          @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(), handle,
         false, true);
     this.pointHandler = pointHandler;
@@ -111,7 +112,7 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
     this.processServiceChecks = processServiceChecks;
     this.requestRelayClient = requestRelayClient;
     this.requestRelayTarget = requestRelayTarget;
-    this.preprocessor = preprocessor;
+    this.preprocessorSupplier = preprocessor;
     this.jsonParser = new ObjectMapper();
     this.httpRequestSize = Metrics.newHistogram(new TaggedMetricName("listeners", "http-requests.payload-points",
         "port", handle));
@@ -488,15 +489,18 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
     if (pointCounter != null) {
       pointCounter.incrementAndGet();
     }
-    if (preprocessor != null) {
+    if (preprocessorSupplier != null) {
+      ReportableEntityPreprocessor preprocessor = preprocessorSupplier.get();
+      String[] messageHolder = new String[1];
       preprocessor.forReportPoint().transform(point);
-      if (!preprocessor.forReportPoint().filter(point)) {
-        if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+      if (!preprocessor.forReportPoint().filter(point, messageHolder)) {
+        if (messageHolder[0] != null) {
           blockedPointsLogger.warning(ReportPointSerializer.pointToString(point));
+          pointHandler.reject(point, messageHolder[0]);
         } else {
           blockedPointsLogger.info(ReportPointSerializer.pointToString(point));
+          pointHandler.block(point);
         }
-        pointHandler.reject(point, preprocessor.forReportPoint().getLastFilterResult());
         return;
       }
     }

@@ -15,7 +15,6 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
 import com.wavefront.common.Pair;
 import com.wavefront.data.ReportableEntityType;
-import com.wavefront.ingester.ReportPointSerializer;
 import com.wavefront.metrics.JsonMetricsParser;
 
 import java.io.IOException;
@@ -25,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -58,7 +58,7 @@ public class JsonMetricsPortUnificationHandler extends PortUnificationHandler {
   private final String defaultHost;
 
   @Nullable
-  private final ReportableEntityPreprocessor preprocessor;
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final ObjectMapper jsonParser;
 
   /**
@@ -72,29 +72,27 @@ public class JsonMetricsPortUnificationHandler extends PortUnificationHandler {
    * @param preprocessor    preprocessor.
    */
   @SuppressWarnings("unchecked")
-  public JsonMetricsPortUnificationHandler(final String handle,
-                                           final TokenAuthenticator authenticator,
-                                           final ReportableEntityHandlerFactory handlerFactory,
-                                           final String prefix,
-                                           final String defaultHost,
-                                           @Nullable final ReportableEntityPreprocessor preprocessor) {
-    this(handle, authenticator, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)),
-        prefix, defaultHost, preprocessor);
+  public JsonMetricsPortUnificationHandler(
+      final String handle, final TokenAuthenticator authenticator,
+      final ReportableEntityHandlerFactory handlerFactory,
+      final String prefix, final String defaultHost,
+      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
+    this(handle, authenticator, handlerFactory.getHandler(
+        HandlerKey.of(ReportableEntityType.POINT, handle)), prefix, defaultHost, preprocessor);
   }
 
 
   @VisibleForTesting
-  protected JsonMetricsPortUnificationHandler(final String handle,
-                                              final TokenAuthenticator authenticator,
-                                              final ReportableEntityHandler<ReportPoint> pointHandler,
-                                              final String prefix,
-                                              final String defaultHost,
-                                              @Nullable final ReportableEntityPreprocessor preprocessor) {
+  protected JsonMetricsPortUnificationHandler(
+      final String handle, final TokenAuthenticator authenticator,
+      final ReportableEntityHandler<ReportPoint> pointHandler,
+      final String prefix, final String defaultHost,
+      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(authenticator, handle, false, true);
     this.pointHandler = pointHandler;
     this.prefix = prefix;
     this.defaultHost = defaultHost;
-    this.preprocessor = preprocessor;
+    this.preprocessorSupplier = preprocessor;
     this.jsonParser = new ObjectMapper();
   }
 
@@ -111,7 +109,8 @@ public class JsonMetricsPortUnificationHandler extends PortUnificationHandler {
       String requestBody = incomingRequest.content().toString(CharsetUtil.UTF_8);
 
       Map<String, String> tags = Maps.newHashMap();
-      params.entrySet().stream().filter(x -> !STANDARD_PARAMS.contains(x.getKey()) && x.getValue().length() > 0).
+      params.entrySet().stream().
+          filter(x -> !STANDARD_PARAMS.contains(x.getKey()) && x.getValue().length() > 0).
           forEach(x -> tags.put(x.getKey(), x.getValue()));
       List<ReportPoint> points = new ArrayList<>();
       Long timestamp;
@@ -131,6 +130,9 @@ public class JsonMetricsPortUnificationHandler extends PortUnificationHandler {
 
       JsonNode metrics = jsonParser.readTree(requestBody);
 
+      ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
+          null : preprocessorSupplier.get();
+      String[] messageHolder = new String[1];
       JsonMetricsParser.report("dummy", prefix, metrics, points, host, timestamp);
       for (ReportPoint point : points) {
         if (point.getAnnotations() == null || point.getAnnotations().isEmpty()) {
@@ -141,16 +143,15 @@ public class JsonMetricsPortUnificationHandler extends PortUnificationHandler {
           point.setAnnotations(newAnnotations);
         }
         if (preprocessor != null) {
-          if (!preprocessor.forReportPoint().filter(point)) {
-            if (preprocessor.forReportPoint().getLastFilterResult() != null) {
-              blockedPointsLogger.warning(ReportPointSerializer.pointToString(point));
+          preprocessor.forReportPoint().transform(point);
+          if (!preprocessor.forReportPoint().filter(point, messageHolder)) {
+            if (messageHolder[0] != null) {
+              pointHandler.reject(point, messageHolder[0]);
             } else {
-              blockedPointsLogger.info(ReportPointSerializer.pointToString(point));
+              pointHandler.block(point);
             }
-            pointHandler.reject((ReportPoint) null, preprocessor.forReportPoint().getLastFilterResult());
             continue;
           }
-          preprocessor.forReportPoint().transform(point);
         }
         pointHandler.report(point);
       }

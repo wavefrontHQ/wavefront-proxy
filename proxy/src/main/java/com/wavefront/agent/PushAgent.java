@@ -290,7 +290,7 @@ public class PushAgent extends AbstractAgent {
             graphiteFieldsToRemove);
         Iterable<String> ports = Splitter.on(",").omitEmptyStrings().trimResults().split(graphitePorts);
         for (String strPort : ports) {
-          preprocessors.forPort(strPort).forPointLine().addTransformer(0, graphiteFormatter);
+          preprocessors.getSystemPreprocessor(strPort).forPointLine().addTransformer(0, graphiteFormatter);
           startGraphiteListener(strPort, handlerFactory, null);
           logger.info("listening on port: " + strPort + " for graphite metrics");
         }
@@ -392,8 +392,8 @@ public class PushAgent extends AbstractAgent {
     final int port = Integer.parseInt(strPort);
     registerTimestampFilter(strPort);
 
-    ChannelHandler channelHandler = new JsonMetricsPortUnificationHandler(strPort, tokenAuthenticator,
-        handlerFactory, prefix, hostname, preprocessors.forPort(strPort));
+    ChannelHandler channelHandler = new JsonMetricsPortUnificationHandler(strPort,
+        tokenAuthenticator, handlerFactory, prefix, hostname, preprocessors.get(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
         pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
@@ -407,7 +407,7 @@ public class PushAgent extends AbstractAgent {
     registerTimestampFilter(strPort);
 
     ChannelHandler channelHandler = new WriteHttpJsonPortUnificationHandler(strPort, tokenAuthenticator,
-        handlerFactory, hostname, preprocessors.forPort(strPort));
+        handlerFactory, hostname, preprocessors.get(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
         pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
@@ -424,7 +424,7 @@ public class PushAgent extends AbstractAgent {
         new OpenTSDBDecoder("unknown", customSourceTags));
 
     ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(strPort, tokenAuthenticator, openTSDBDecoder,
-        handlerFactory, preprocessors.forPort(strPort), hostnameResolver);
+        handlerFactory, preprocessors.get(strPort), hostnameResolver);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
         pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
@@ -444,7 +444,7 @@ public class PushAgent extends AbstractAgent {
 
     ChannelHandler channelHandler = new DataDogPortUnificationHandler(strPort, handlerFactory,
         dataDogProcessSystemMetrics, dataDogProcessServiceChecks, httpClient, dataDogRequestRelayTarget,
-        preprocessors.forPort(strPort));
+        preprocessors.get(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
         pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
@@ -464,7 +464,7 @@ public class PushAgent extends AbstractAgent {
     // Set up a custom handler
     ChannelHandler channelHandler = new ChannelByteArrayHandler(
         new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
-        pointHandler, preprocessors.forPort(strPort));
+        pointHandler, preprocessors.get(strPort));
 
     // create a class to use for StreamIngester to get a new FrameDecoder
     // for each request (not shareable since it's storing how many bytes
@@ -495,7 +495,7 @@ public class PushAgent extends AbstractAgent {
     registerTimestampFilter(strPort);
 
     ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, tokenAuthenticator,
-        new SpanDecoder("unknown"), new SpanLogsDecoder(), preprocessors.forPort(strPort), handlerFactory, sampler,
+        new SpanDecoder("unknown"), new SpanLogsDecoder(), preprocessors.get(strPort), handlerFactory, sampler,
         traceAlwaysSampleErrors);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, traceListenerMaxReceivedLength,
@@ -522,7 +522,7 @@ public class PushAgent extends AbstractAgent {
         server.
             makeSubChannel("jaeger-collector", Connection.Direction.IN).
             register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort, handlerFactory,
-                wfSender, traceDisabled, preprocessors.forPort(strPort), sampler,
+                wfSender, traceDisabled, preprocessors.get(strPort), sampler,
                 traceAlwaysSampleErrors, traceJaegerApplicationName, traceDerivedCustomTagKeys));
         server.listen().channel().closeFuture().sync();
         server.shutdown(false);
@@ -544,8 +544,8 @@ public class PushAgent extends AbstractAgent {
       Sampler sampler) {
     final int port = Integer.parseInt(strPort);
     ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, wfSender, traceDisabled,
-        preprocessors.forPort(strPort), sampler, traceAlwaysSampleErrors,
-        traceZipkinApplicationName, traceDerivedCustomTagKeys);
+        preprocessors.get(strPort), sampler, traceAlwaysSampleErrors, traceZipkinApplicationName,
+        traceDerivedCustomTagKeys);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, traceListenerMaxReceivedLength,
         traceListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
         "listener-zipkin-trace-" + port);
@@ -567,7 +567,7 @@ public class PushAgent extends AbstractAgent {
         ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
         ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler = new WavefrontPortUnificationHandler(strPort,
-        tokenAuthenticator, decoders, handlerFactory, hostAnnotator, preprocessors.forPort(strPort));
+        tokenAuthenticator, decoders, handlerFactory, hostAnnotator, preprocessors.get(strPort));
     startAsManagedThread(new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort,
         pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).
             withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
@@ -584,7 +584,7 @@ public class PushAgent extends AbstractAgent {
         ReportableEntityType.POINT, getDecoderInstance(),
         ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
     ChannelHandler channelHandler = new RelayPortUnificationHandler(strPort, tokenAuthenticator, decoders,
-        handlerFactory, preprocessors.forPort(strPort));
+        handlerFactory, preprocessors.get(strPort));
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
             pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).
         withChildChannelOptions(childChannelOptions), "listener-relay-" + port);
@@ -623,7 +623,7 @@ public class PushAgent extends AbstractAgent {
     String strPort = String.valueOf(port);
 
     ChannelHandler channelHandler = new RawLogsIngesterPortUnificationHandler(strPort, logsIngester, hostnameResolver,
-        tokenAuthenticator, preprocessors.forPort(strPort));
+        tokenAuthenticator, preprocessors.get(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, rawLogsMaxReceivedLength,
         rawLogsHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
@@ -772,8 +772,9 @@ public class PushAgent extends AbstractAgent {
         "listener-plaintext-histogram-" + port);
   }
 
-  private static ChannelInitializer createInitializer(ChannelHandler channelHandler, String strPort, int messageMaxLength,
-                                               int httpRequestBufferSize, int idleTimeout) {
+  private static ChannelInitializer createInitializer(ChannelHandler channelHandler, String strPort,
+                                                      int messageMaxLength, int httpRequestBufferSize,
+                                                      int idleTimeout) {
     ChannelHandler idleStateEventHandler = new IdleStateEventHandler(
         Metrics.newCounter(new TaggedMetricName("listeners", "connections.idle.closed", "port", strPort)));
     ChannelHandler connectionTracker = new ConnectionTrackingHandler(
@@ -793,13 +794,14 @@ public class PushAgent extends AbstractAgent {
   }
 
   private void registerTimestampFilter(String strPort) {
-    preprocessors.forPort(strPort).forReportPoint().addFilter(
+    preprocessors.getSystemPreprocessor(strPort).forReportPoint().addFilter(
         new ReportPointTimestampInRangeFilter(dataBackfillCutoffHours, dataPrefillCutoffHours));
   }
 
   private void registerPrefixFilter(String strPort) {
     if (prefix != null && !prefix.isEmpty()) {
-      preprocessors.forPort(strPort).forReportPoint().addTransformer(new ReportPointAddPrefixTransformer(prefix));
+      preprocessors.getSystemPreprocessor(strPort).forReportPoint().
+          addTransformer(new ReportPointAddPrefixTransformer(prefix));
     }
   }
 

@@ -121,17 +121,18 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     String pointLine = message.trim();
     if (pointLine.isEmpty()) return;
 
+    String[] messageHolder = new String[1];
     // transform the line if needed
     if (preprocessor != null) {
       pointLine = preprocessor.forPointLine().transform(pointLine);
       // apply white/black lists after formatting
-      if (!preprocessor.forPointLine().filter(pointLine)) {
-        if (preprocessor.forPointLine().getLastFilterResult() != null) {
+      if (!preprocessor.forPointLine().filter(pointLine, messageHolder)) {
+        if (messageHolder[0] != null) {
           blockedPointsLogger.warning(pointLine);
         } else {
           blockedPointsLogger.info(pointLine);
         }
-        pointHandler.handleBlockedPoint(preprocessor.forPointLine().getLastFilterResult());
+        pointHandler.handleBlockedPoint(messageHolder[0]);
         return;
       }
     }
@@ -162,13 +163,13 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
     if (preprocessor != null) {
       for (ReportPoint point : points) {
         preprocessor.forReportPoint().transform(point);
-        if (!preprocessor.forReportPoint().filter(point)) {
-          if (preprocessor.forReportPoint().getLastFilterResult() != null) {
+        if (!preprocessor.forReportPoint().filter(point, messageHolder)) {
+          if (messageHolder[0] != null) {
             blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
           } else {
             blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
           }
-          pointHandler.handleBlockedPoint(preprocessor.forReportPoint().getLastFilterResult());
+          pointHandler.handleBlockedPoint(messageHolder[0]);
           return;
         }
       }
