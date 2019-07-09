@@ -1,5 +1,7 @@
 package com.wavefront.agent.logsharvesting;
 
+import com.google.common.collect.ImmutableMap;
+
 import org.logstash.beats.Message;
 
 import java.time.Instant;
@@ -23,11 +25,11 @@ public class FilebeatMessage implements LogsMessage {
   private final String logLine;
   private Long timestampMillis = null;
 
+  @SuppressWarnings("unchecked")
   public FilebeatMessage(Message wrapped) throws MalformedMessageException {
     this.wrapped = wrapped;
     this.messageData = this.wrapped.getData();
-    if (!this.messageData.containsKey("beat")) throw new MalformedMessageException("No beat metadata.");
-    this.beatData = (Map) this.messageData.get("beat");
+    this.beatData = (Map) this.messageData.getOrDefault("beat", ImmutableMap.of());
     if (!this.messageData.containsKey("message")) throw new MalformedMessageException("No log line in message.");
     this.logLine = (String) this.messageData.get("message");
     if (getTimestampMillis() == null) throw new MalformedMessageException("No timestamp metadata.");
@@ -55,8 +57,22 @@ public class FilebeatMessage implements LogsMessage {
 
   @Override
   public String hostOrDefault(String fallbackHost) {
+    // < 7.0: return beat.hostname
     if (this.beatData.containsKey("hostname")) {
       return (String) this.beatData.get("hostname");
+    }
+    // 7.0+: return host.name or agent.hostname
+    if (this.messageData.containsKey("host")) {
+      Map hostData = (Map) this.messageData.get("host");
+      if (hostData.containsKey("name")) {
+        return (String) hostData.get("name");
+      }
+    }
+    if (this.messageData.containsKey("agent")) {
+      Map agentData = (Map) this.messageData.get("agent");
+      if (agentData.containsKey("hostname")) {
+        return (String) agentData.get("hostname");
+      }
     }
     return fallbackHost;
   }
