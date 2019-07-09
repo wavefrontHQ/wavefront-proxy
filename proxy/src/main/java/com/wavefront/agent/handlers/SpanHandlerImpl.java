@@ -28,7 +28,8 @@ import static com.wavefront.data.Validation.validateSpan;
  */
 public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
 
-  private static final Logger logger = Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(
+      AbstractReportableEntityHandler.class.getCanonicalName());
   private static final Logger validTracesLogger = Logger.getLogger("RawValidSpans");
   private static final Random RANDOM = new Random();
   private static SharedMetricsRegistry metricsRegistry = SharedMetricsRegistry.getInstance();
@@ -41,15 +42,16 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
    * Create new instance.
    *
    * @param handle               handle / port number.
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into the main log file.
+   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
+   *                             into the main log file.
    * @param sendDataTasks        sender tasks.
    */
   SpanHandlerImpl(final String handle,
                   final int blockedItemsPerBatch,
                   final Collection<SenderTask> sendDataTasks,
                   @Nullable final Supplier<ValidationConfiguration> validationConfig) {
-    super(ReportableEntityType.TRACE, handle, blockedItemsPerBatch, new SpanSerializer(), sendDataTasks,
-        validationConfig, "sps");
+    super(ReportableEntityType.TRACE, handle, blockedItemsPerBatch, new SpanSerializer(),
+        sendDataTasks, validationConfig, "sps", true);
 
     String logTracesSampleRateProperty = System.getProperty("wavefront.proxy.logspans.sample-rate");
     this.logSampleRate = NumberUtils.isNumber(logTracesSampleRateProperty) ?
@@ -65,13 +67,15 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
 
     refreshValidDataLoggerState();
 
-    if (logData && (logSampleRate >= 1.0d || (logSampleRate > 0.0d && RANDOM.nextDouble() < logSampleRate))) {
-      // we log valid trace data only if RawValidSpans log level is set to "ALL". This is done to prevent
-      // introducing overhead and accidentally logging raw data to the main log. Honor sample rate limit, if set.
+    if (logData && ((logSampleRate > 0.0d && RANDOM.nextDouble() < logSampleRate) ||
+        logSampleRate >= 1.0d)) {
+      // we log valid trace data only if RawValidSpans log level is set to "ALL". This is done
+      // to prevent introducing overhead and accidentally logging raw data to the main log.
+      // Honor sample rate limit, if set.
       validTracesLogger.info(strSpan);
     }
     getTask().add(strSpan);
-    receivedCounter.inc();
+    getReceivedCounter().inc();
   }
 
   private void refreshValidDataLoggerState() {

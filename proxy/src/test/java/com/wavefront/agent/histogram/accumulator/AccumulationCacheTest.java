@@ -34,7 +34,7 @@ public class AccumulationCacheTest {
 
   private ConcurrentMap<HistogramKey, AgentDigest> backingStore;
   private Cache<HistogramKey, AgentDigest> cache;
-  private Runnable resolveTask;
+  private AccumulationCache ac;
 
   private HistogramKey keyA = TestUtils.makeKey("keyA");
   private HistogramKey keyB = TestUtils.makeKey("keyB");
@@ -48,8 +48,7 @@ public class AccumulationCacheTest {
   public void setup() {
     backingStore = new ConcurrentHashMap<>();
     tickerTime = new AtomicLong(0L);
-    AccumulationCache ac = new AccumulationCache(backingStore, CAPACITY, tickerTime::get);
-    resolveTask = ac.getResolveTask();
+    ac = new AccumulationCache(backingStore, CAPACITY, tickerTime::get);
     cache = ac.getCache();
 
     digestA = new AgentDigest(COMPRESSION, 100L);
@@ -67,7 +66,7 @@ public class AccumulationCacheTest {
   @Test
   public void testResolveOnNewKey() throws ExecutionException {
     cache.put(keyA, digestA);
-    resolveTask.run();
+    ac.flush();
     assertThat(cache.getIfPresent(keyA)).isNull();
     assertThat(backingStore.get(keyA)).isEqualTo(digestA);
   }
@@ -78,7 +77,7 @@ public class AccumulationCacheTest {
     digestB.add(15D, 1);
     backingStore.put(keyA, digestB);
     cache.put(keyA, digestA);
-    resolveTask.run();
+    ac.flush();
     assertThat(cache.getIfPresent(keyA)).isNull();
     assertThat(backingStore.get(keyA).size()).isEqualTo(2L);
   }
@@ -111,7 +110,7 @@ public class AccumulationCacheTest {
 
     for (int i = 0; i < 1000; i++) {
       ac.put(TestUtils.makeKey("key-" + i), digestA);
-      ac.getResolveTask().run();
+      ac.flush();
       if (hasFailed.get()) {
         logger.info("Chronicle map overflow detected when adding object #" + i);
         break;

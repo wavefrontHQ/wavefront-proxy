@@ -26,7 +26,8 @@ import wavefront.report.SpanLogs;
  */
 public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLogs> {
 
-  private static final Logger logger = Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(
+      AbstractReportableEntityHandler.class.getCanonicalName());
   private static final Logger validTracesLogger = Logger.getLogger("RawValidSpanLogs");
   private static final Random RANDOM = new Random();
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
@@ -54,14 +55,15 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
    * Create new instance.
    *
    * @param handle               handle / port number.
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into the main log file.
+   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
+   *                             into the main log file.
    * @param sendDataTasks        sender tasks.
    */
   SpanLogsHandlerImpl(final String handle,
                       final int blockedItemsPerBatch,
                       final Collection<SenderTask> sendDataTasks) {
-    super(ReportableEntityType.TRACE_SPAN_LOGS, handle, blockedItemsPerBatch, SPAN_LOGS_SERIALIZER, sendDataTasks,
-        null, "logs/s");
+    super(ReportableEntityType.TRACE_SPAN_LOGS, handle, blockedItemsPerBatch, SPAN_LOGS_SERIALIZER,
+        sendDataTasks, null, "logs/s", true);
 
     String logTracesSampleRateProperty = System.getProperty("wavefront.proxy.logspans.sample-rate");
     this.logSampleRate = NumberUtils.isNumber(logTracesSampleRateProperty) ?
