@@ -109,6 +109,7 @@ public class PushAgentTest {
     proxy = new PushAgent();
     proxy.flushThreads = 2;
     proxy.retryThreads = 1;
+    proxy.dataBackfillCutoffHours = 100000000;
     proxy.pushListenerPorts = String.valueOf(port);
     proxy.traceListenerPorts = String.valueOf(tracePort);
     proxy.dataDogJsonPorts = String.valueOf(ddPort);
@@ -357,6 +358,7 @@ public class PushAgentTest {
   public void testDataDogUnifiedPortHandler() throws Exception {
     int ddPort2 = findAvailablePort(4988);
     PushAgent proxy2 = new PushAgent();
+    proxy2.dataBackfillCutoffHours = 100000000;
     proxy2.flushThreads = 2;
     proxy2.retryThreads = 1;
     proxy2.dataDogJsonPorts = String.valueOf(ddPort2);
