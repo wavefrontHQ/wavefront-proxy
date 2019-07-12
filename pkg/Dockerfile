@@ -9,8 +9,7 @@ RUN curl -L get.rvm.io | bash -s stable
 ENV PATH /usr/local/rvm/gems/ruby-2.0.0-p598/bin:/usr/local/rvm/gems/ruby-2.0.0-p598@global/bin:/usr/local/rvm/rubies/ruby-2.0.0-p598/bin:/usr/local/rvm/bin:$PATH
 ENV LC_ALL en_US.UTF-8
 RUN rvm install 2.0.0-p598
-RUN gem install fpm --version 1.10.0
-RUN gem install package_cloud --version 0.2.35
+RUN gem install childprocess:1.0.1 fpm:1.10.0 package_cloud:0.2.35
 
 # Wavefront software. This repo contains build scripts for the agent, to be run
 # inside this container.
