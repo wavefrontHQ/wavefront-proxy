@@ -3,7 +3,7 @@ package com.wavefront.agent.handlers;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
-import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
+import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -40,7 +40,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
 
   private final Timer batchSendTime;
 
-  private final ForceQueueEnabledAgentAPI proxyAPI;
+  private final ForceQueueEnabledProxyAPI proxyAPI;
   private final AtomicInteger pushFlushInterval;
   private final RecyclableRateLimiter rateLimiter;
   private final Counter permitsGranted;
@@ -59,7 +59,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
    * @param memoryBufferLimit max points in task's memory buffer before queueing.
    *
    */
-  ReportSourceTagSenderTask(ForceQueueEnabledAgentAPI proxyAPI, String handle, int threadId,
+  ReportSourceTagSenderTask(ForceQueueEnabledProxyAPI proxyAPI, String handle, int threadId,
                             AtomicInteger pushFlushInterval,
                             @Nullable RecyclableRateLimiter rateLimiter,
                             @Nullable AtomicInteger itemsPerBatch,
@@ -158,7 +158,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
   }
 
   @Nullable
-  protected static Response executeSourceTagAction(ForceQueueEnabledAgentAPI wavefrontAPI, ReportSourceTag sourceTag,
+  protected static Response executeSourceTagAction(ForceQueueEnabledProxyAPI wavefrontAPI, ReportSourceTag sourceTag,
                                                 boolean forceToQueue) {
     switch (sourceTag.getSourceTagLiteral()) {
       case "SourceDescription":

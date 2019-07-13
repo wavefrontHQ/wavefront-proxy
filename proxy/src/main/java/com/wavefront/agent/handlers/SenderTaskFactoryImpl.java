@@ -2,7 +2,7 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
-import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
+import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
 import com.wavefront.data.ReportableEntityType;
 
 import java.util.ArrayList;
@@ -29,7 +29,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
   private List<SenderTask> managedTasks = new ArrayList<>();
 
-  private final ForceQueueEnabledAgentAPI proxyAPI;
+  private final ForceQueueEnabledProxyAPI proxyAPI;
   private final UUID proxyId;
   private final RecyclableRateLimiter globalRateLimiter;
   private final AtomicInteger pushFlushInterval;
@@ -49,7 +49,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
    * @param itemsPerBatch     max points per flush.
    * @param memoryBufferLimit max points in task's memory buffer before queueing.
    */
-  public SenderTaskFactoryImpl(final ForceQueueEnabledAgentAPI proxyAPI,
+  public SenderTaskFactoryImpl(final ForceQueueEnabledProxyAPI proxyAPI,
                                final UUID proxyId,
                                final RecyclableRateLimiter globalRateLimiter,
                                final AtomicInteger pushFlushInterval,

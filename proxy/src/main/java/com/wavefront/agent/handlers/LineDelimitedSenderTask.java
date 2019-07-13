@@ -3,8 +3,7 @@ package com.wavefront.agent.handlers;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
-import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
-import com.wavefront.api.agent.Constants;
+import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -48,7 +47,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
 
   private final AtomicInteger pushFlushInterval;
 
-  private ForceQueueEnabledAgentAPI proxyAPI;
+  private ForceQueueEnabledProxyAPI proxyAPI;
   private UUID proxyId;
 
 
@@ -66,7 +65,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
    * @param itemsPerBatch     max points per flush.
    * @param memoryBufferLimit max points in task's memory buffer before queueing.
    */
-  LineDelimitedSenderTask(String entityType, String pushFormat, ForceQueueEnabledAgentAPI proxyAPI,
+  LineDelimitedSenderTask(String entityType, String pushFormat, ForceQueueEnabledProxyAPI proxyAPI,
                           UUID proxyId, String handle, int threadId,
                           final RecyclableRateLimiter pushRateLimiter,
                           final AtomicInteger pushFlushInterval,
@@ -106,10 +105,8 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
         TimerContext timerContext = this.batchSendTime.time();
         Response response = null;
         try {
-          response = proxyAPI.postPushData(
+          response = proxyAPI.proxyReport(
               proxyId,
-              Constants.GRAPHITE_BLOCK_WORK_UNIT,
-              System.currentTimeMillis(),
               pushFormat,
               LineDelimitedUtils.joinPushData(current));
           int itemsInList = current.size();
@@ -155,9 +152,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
       List<String> pushData = createBatch();
       int pushDataPointCount = pushData.size();
       if (pushDataPointCount > 0) {
-        proxyAPI.postPushData(proxyId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
-            System.currentTimeMillis(), pushFormat,
-            LineDelimitedUtils.joinPushData(pushData), true);
+        proxyAPI.proxyReport(proxyId, pushFormat, LineDelimitedUtils.joinPushData(pushData), true);
 
         // update the counters as if this was a failed call to the API
         this.attemptedCounter.inc(pushDataPointCount);

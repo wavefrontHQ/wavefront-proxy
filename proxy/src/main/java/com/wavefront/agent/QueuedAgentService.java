@@ -17,11 +17,11 @@ import com.squareup.tape.FileException;
 import com.squareup.tape.FileObjectQueue;
 import com.squareup.tape.ObjectQueue;
 import com.squareup.tape.TaskQueue;
-import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.agent.handlers.LineDelimitedUtils;
-import com.wavefront.api.WavefrontAPI;
+import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
+import com.wavefront.agent.api.WavefrontV2API;
 import com.wavefront.api.agent.AgentConfiguration;
-import com.wavefront.api.agent.ShellOutputDTO;
+import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
@@ -84,12 +84,12 @@ import static com.google.common.util.concurrent.RecyclableRateLimiter.UNLIMITED;
  *
  * @author Clement Pang (clement@wavefront.com)
  */
-public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
+public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
 
   private static final Logger logger = Logger.getLogger(QueuedAgentService.class.getCanonicalName());
   private static final String SERVER_ERROR = "Server error";
 
-  private WavefrontAPI wrapped;
+  private WavefrontV2API wrapped;
   private final List<ResubmissionTaskQueue> taskQueues;
   private final List<ResubmissionTaskQueue> sourceTagTaskQueues;
   private final List<Runnable> taskRunnables;
@@ -144,7 +144,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     return (long) (resultPostingSizes.mean() * resultPostingMeter.fifteenMinuteRate());
   }
 
-  public QueuedAgentService(WavefrontAPI service, String bufferFile, final int retryThreads,
+  public QueuedAgentService(WavefrontV2API service, String bufferFile, final int retryThreads,
                             final ScheduledExecutorService executorService, boolean purge,
                             final UUID agentId, final boolean splitPushWhenRateLimited,
                             @Nullable final RecyclableRateLimiter pushRateLimiter,
@@ -414,7 +414,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         });
   }
 
-  public static List<ResubmissionTaskQueue> createResubmissionTasks(WavefrontAPI wrapped, int retryThreads,
+  public static List<ResubmissionTaskQueue> createResubmissionTasks(WavefrontV2API wrapped, int retryThreads,
                                                                     String bufferFile, boolean purge, UUID agentId,
                                                                     String token) throws IOException {
     // Having two proxy processes write to the same buffer file simultaneously causes buffer file corruption.
@@ -455,7 +455,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     return output;
   }
 
-  public void setWrappedApi(WavefrontAPI api) {
+  public void setWrappedApi(WavefrontV2API api) {
     this.wrapped = api;
   }
 
@@ -531,41 +531,19 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public AgentConfiguration getConfig(UUID agentId, String hostname, Long currentMillis,
-                                      Long bytesLeftForbuffer, Long bytesPerMinuteForBuffer, Long currentQueueSize,
-                                      String token, String version) {
-    return wrapped.getConfig(agentId, hostname, currentMillis, bytesLeftForbuffer, bytesPerMinuteForBuffer,
-        currentQueueSize, token, version);
+  public AgentConfiguration proxyCheckin(UUID agentId, String hostname, String token, String version,
+                                         Long currentMillis, JsonNode agentMetrics, Boolean ephemeral) {
+    return wrapped.proxyCheckin(agentId, hostname, token, version, currentMillis, agentMetrics, ephemeral);
   }
 
   @Override
-  public AgentConfiguration checkin(UUID agentId, String hostname, String token, String version, Long currentMillis,
-                                    Boolean localAgent, JsonNode agentMetrics, Boolean pushAgent, Boolean ephemeral) {
-    return wrapped.checkin(agentId, hostname, token, version, currentMillis, localAgent, agentMetrics, pushAgent, ephemeral);
+  public Response proxyReport(final UUID agentId, final String format, final String pushData) {
+    return this.proxyReport(agentId, format, pushData, false);
   }
 
   @Override
-  public Response postWorkUnitResult(final UUID agentId, final UUID workUnitId, final UUID targetId,
-                                     final ShellOutputDTO shellOutputDTO) {
-    throw new UnsupportedOperationException("postWorkUnitResult is deprecated");
-  }
-
-  @Override
-  public Response postWorkUnitResult(UUID agentId, UUID workUnitId, UUID targetId, ShellOutputDTO shellOutputDTO,
-                                     boolean forceToQueue) {
-    throw new UnsupportedOperationException("postWorkUnitResult is deprecated");
-  }
-
-  @Override
-  public Response postPushData(final UUID agentId, final UUID workUnitId, final Long currentMillis,
-                               final String format, final String pushData) {
-    return this.postPushData(agentId, workUnitId, currentMillis, format, pushData, false);
-  }
-
-  @Override
-  public Response postPushData(UUID agentId, UUID workUnitId, Long currentMillis, String format, String pushData,
-                               boolean forceToQueue) {
-    PostPushDataResultTask task = new PostPushDataResultTask(agentId, workUnitId, currentMillis, format, pushData);
+  public Response proxyReport(UUID agentId, String format, String pushData, boolean forceToQueue) {
+    PostPushDataResultTask task = new PostPushDataResultTask(agentId, Clock.now(), format, pushData);
 
     if (forceToQueue) {
       // bypass the charade of posting to the wrapped agentAPI. Just go straight to the retry queue
@@ -574,20 +552,29 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     } else {
       try {
         resultPostingMeter.mark();
-        parsePostingResponse(wrapped.postPushData(agentId, workUnitId, currentMillis, format, pushData));
+        parsePostingResponse(wrapped.proxyReport(agentId, format, pushData));
 
         scheduleTaskForSizing(task);
       } catch (RuntimeException ex) {
         List<PostPushDataResultTask> splitTasks = handleTaskRetry(ex, task);
         for (PostPushDataResultTask splitTask : splitTasks) {
           // we need to ensure that we use the latest agent id.
-          postPushData(agentId, splitTask.getWorkUnitId(), splitTask.getCurrentMillis(),
-              splitTask.getFormat(), splitTask.getPushData());
+          proxyReport(agentId, splitTask.getFormat(), splitTask.getPushData());
         }
         return Response.status(Response.Status.NOT_ACCEPTABLE).build();
       }
       return Response.ok().build();
     }
+  }
+
+  @Override
+  public void proxyConfigProcessed(final UUID proxyId) {
+    wrapped.proxyConfigProcessed(proxyId);
+  }
+
+  @Override
+  public void proxyError(final UUID proxyId, String details) {
+    wrapped.proxyError(proxyId, details);
   }
 
   /**
@@ -684,28 +671,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public void agentError(UUID agentId, String details) {
-    wrapped.agentError(agentId, details);
-  }
-
-  @Override
-  public void agentConfigProcessed(UUID agentId) {
-    wrapped.agentConfigProcessed(agentId);
-  }
-
-  @Override
-  public void hostConnectionFailed(UUID agentId, UUID hostId, String details) {
-    throw new UnsupportedOperationException("Invalid operation");
-  }
-
-  @Override
-  public void hostConnectionEstablished(UUID agentId, UUID hostId) {
-    throw new UnsupportedOperationException("Invalid operation");
-  }
-
-  @Override
-  public void hostAuthenticated(UUID agentId, UUID hostId) {
-    throw new UnsupportedOperationException("Invalid operation");
+  public Response appendTag(String id, String token, String tagValue) {
+    return appendTag(id, tagValue, false);
   }
 
   @Override
@@ -806,8 +773,32 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   }
 
   @Override
-  public Response removeTag(String id, String tagValue, boolean forceToQueue) {
+  public Response appendTag(String id, String tagValue, boolean forceToQueue) {
+    PostSourceTagResultTask task = new PostSourceTagResultTask(id, tagValue, PostSourceTagResultTask.ActionType.add,
+        PostSourceTagResultTask.MessageType.tag, token);
 
+    if (forceToQueue) {
+      // bypass the charade of posting to the wrapped agentAPI. Just go straight to the retry queue
+      addSourceTagTaskToSmallestQueue(task);
+      return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+    } else {
+      // invoke server side API
+      try {
+        parsePostingResponse(wrapped.appendTag(id, token, tagValue));
+      } catch (RuntimeException ex) {
+        // If it is a server error then no need of retrying
+        if (!ex.getMessage().startsWith(SERVER_ERROR))
+          handleSourceTagTaskRetry(ex, task);
+        logger.warning("Unable to process the source tag request" + ExceptionUtils
+            .getFullStackTrace(ex));
+        return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+      }
+      return Response.ok().build();
+    }
+  }
+
+  @Override
+  public Response removeTag(String id, String tagValue, boolean forceToQueue) {
     PostSourceTagResultTask task = new PostSourceTagResultTask(id, tagValue,
         PostSourceTagResultTask.ActionType.delete, PostSourceTagResultTask.MessageType.tag, token);
 
@@ -837,7 +828,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     private final String description;
     private final int taskSize;
 
-    public enum ActionType {save, delete}
+    public enum ActionType {save, add, delete}
     public enum MessageType {tag, desc}
     private final ActionType actionType;
     private final MessageType messageType;
@@ -916,7 +907,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     private static final long serialVersionUID = 1973695079812309903L; // to ensure backwards compatibility
 
     private final UUID agentId;
-    private final UUID workUnitId;
     private final Long currentMillis;
     private final String format;
     private final String pushData;
@@ -924,9 +914,8 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
 
     private transient Histogram timeSpentInQueue;
 
-    public PostPushDataResultTask(UUID agentId, UUID workUnitId, Long currentMillis, String format, String pushData) {
+    public PostPushDataResultTask(UUID agentId, Long currentMillis, String format, String pushData) {
       this.agentId = agentId;
-      this.workUnitId = workUnitId;
       this.currentMillis = currentMillis;
       this.format = format;
       this.pushData = pushData;
@@ -940,8 +929,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         timeSpentInQueue = Metrics.newHistogram(new MetricName("buffer", "", "queue-time"));
       }
       timeSpentInQueue.update(System.currentTimeMillis() - currentMillis);
-      parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis, format,
-          pushData));
+      parsePostingResponse(service.proxyReport(currentAgentId, format, pushData));
     }
 
     @Override
@@ -954,15 +942,15 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
         int splitPoint = pushData.indexOf(LineDelimitedUtils.PUSH_DATA_DELIMETER,
             pushData.length() / 2);
         if (splitPoint > 0) {
-          splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
+          splitTasks.add(new PostPushDataResultTask(agentId, currentMillis, format,
               pushData.substring(0, splitPoint)));
-          splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
+          splitTasks.add(new PostPushDataResultTask(agentId, currentMillis, format,
               pushData.substring(splitPoint + 1)));
           return splitTasks;
         }
       }
       // 1 or 0
-      splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
+      splitTasks.add(new PostPushDataResultTask(agentId, currentMillis, format,
           pushData));
       return splitTasks;
     }
@@ -975,11 +963,6 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     @VisibleForTesting
     public UUID getAgentId() {
       return agentId;
-    }
-
-    @VisibleForTesting
-    public UUID getWorkUnitId() {
-      return workUnitId;
     }
 
     @VisibleForTesting
