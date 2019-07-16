@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -97,14 +98,6 @@ public class LogsIngesterTest {
     filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, now::get);
     rawLogsIngesterUnderTest = new RawLogsIngesterPortUnificationHandler("12345", logsIngesterUnderTest,
         x -> "testHost", TokenAuthenticatorBuilder.create().build(), null);
-  }
-
-  private void receiveFilebeatLog(String log) {
-    Map<String, Object> data = Maps.newHashMap();
-    data.put("message", log);
-    data.put("beat", Maps.newHashMap());
-    data.put("@timestamp", "2016-10-13T20:43:45.172Z");
-    filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
   }
 
   private void receiveRawLog(String log) {
@@ -187,12 +180,64 @@ public class LogsIngesterTest {
   }
 
   @Test
-  public void testFilebeatIngester() throws Exception {
+  public void testFilebeatIngesterDefaultHostname() throws Exception {
     setup("test.yml");
     assertThat(
-        getPoints(1, 0, this::receiveFilebeatLog, "plainCounter"),
-        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+        getPoints(1, 0, log -> {
+          Map<String, Object> data = Maps.newHashMap();
+          data.put("message", log);
+          data.put("beat", Maps.newHashMap());
+          data.put("@timestamp", "2016-10-13T20:43:45.172Z");
+          filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
+        }, "plainCounter"),
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter", "parsed-logs",
                 ImmutableMap.of())));
+  }
+
+  @Test
+  public void testFilebeatIngesterOverrideHostname() throws Exception {
+    setup("test.yml");
+    assertThat(
+        getPoints(1, 0, log -> {
+          Map<String, Object> data = Maps.newHashMap();
+          data.put("message", log);
+          data.put("beat", new HashMap<>(ImmutableMap.of("hostname", "overrideHostname")));
+          data.put("@timestamp", "2016-10-13T20:43:45.172Z");
+          filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
+        }, "plainCounter"),
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter", "overrideHostname",
+            ImmutableMap.of())));
+  }
+
+
+  @Test
+  public void testFilebeat7Ingester() throws Exception {
+    setup("test.yml");
+    assertThat(
+        getPoints(1, 0, log -> {
+          Map<String, Object> data = Maps.newHashMap();
+          data.put("message", log);
+          data.put("host", ImmutableMap.of("name", "filebeat7hostname"));
+          data.put("@timestamp", "2016-10-13T20:43:45.172Z");
+          filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
+        }, "plainCounter"),
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter", "filebeat7hostname",
+            ImmutableMap.of())));
+  }
+
+  @Test
+  public void testFilebeat7IngesterAlternativeHostname() throws Exception {
+    setup("test.yml");
+    assertThat(
+        getPoints(1, 0, log -> {
+          Map<String, Object> data = Maps.newHashMap();
+          data.put("message", log);
+          data.put("agent", ImmutableMap.of("hostname", "filebeat7althost"));
+          data.put("@timestamp", "2016-10-13T20:43:45.172Z");
+          filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
+        }, "plainCounter"),
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter", "filebeat7althost",
+            ImmutableMap.of())));
   }
 
   @Test
