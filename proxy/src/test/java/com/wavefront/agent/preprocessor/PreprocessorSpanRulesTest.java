@@ -19,6 +19,7 @@ import static org.junit.Assert.assertTrue;
 public class PreprocessorSpanRulesTest {
 
   private static final String FOO = "foo";
+  private static final String URL = "url";
   private static final String SOURCE_NAME = "sourceName";
   private static final String SPAN_NAME = "spanName";
   private final PreprocessorRuleMetrics metrics = new PreprocessorRuleMetrics(null, null, null);
@@ -368,7 +369,8 @@ public class PreprocessorSpanRulesTest {
   public void testSpanReplaceRegexRule() {
     String spanLine = "testSpanName source=spanSourceName spanId=4217104a-690d-4927-baff-d9aa779414c2 " +
         "traceId=d5355bf7-fc8d-48d1-b761-75b170f396e0 foo=bar1-1234567890 foo=bar2-2345678901 foo=bar2-3456789012 " +
-        "foo=bar boo=baz 1532012145123 1532012146234";
+        "foo=bar boo=baz url=\"https://localhost:50051/style/foo/make?id=5145\" " +
+        "1532012145123 1532012146234";
     SpanReplaceRegexTransformer rule;
     Span span;
 
@@ -410,6 +412,13 @@ public class PreprocessorSpanRulesTest {
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar@234567890", "bar2-2345678901", "bar2-3456789012", "bar"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
+            collect(Collectors.toList()));
+
+    rule = new SpanReplaceRegexTransformer(URL, "(https:\\/\\/.+\\/style\\/foo\\/make\\?id=)(.*)",
+        "$1REDACTED", null, null, true, metrics);
+    span = rule.apply(parseSpan(spanLine));
+    assertEquals(ImmutableList.of("https://localhost:50051/style/foo/make?id=REDACTED"),
+        span.getAnnotations().stream().filter(x -> x.getKey().equals(URL)).map(Annotation::getValue).
             collect(Collectors.toList()));
   }
 
