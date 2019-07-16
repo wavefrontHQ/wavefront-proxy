@@ -10,7 +10,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.ByteToMessageDecoder;
-import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.handler.codec.compression.ZlibCodecFactory;
 import io.netty.handler.codec.compression.ZlibWrapper;
 import io.netty.handler.codec.http.HttpContentDecompressor;
@@ -103,7 +102,7 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
           .addLast("handler", this.handler);
     } else {
       logger.fine("Using TCP plaintext protocol");
-      pipeline.addLast("line", new LineBasedFrameDecoder(maxLengthPlaintext));
+      pipeline.addLast("line", new IncompleteLineDetectingLineBasedFrameDecoder(maxLengthPlaintext));
       pipeline.addLast("decoder", STRING_DECODER);
       pipeline.addLast("encoder", STRING_ENCODER);
       pipeline.addLast("handler", this.handler);
