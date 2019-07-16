@@ -18,9 +18,7 @@ import com.wavefront.agent.channel.IdleStateEventHandler;
 import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
-import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.InternalProxyWavefrontClient;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
@@ -38,12 +36,12 @@ import com.wavefront.agent.histogram.tape.TapeDeck;
 import com.wavefront.agent.histogram.tape.TapeStringListConverter;
 import com.wavefront.agent.listeners.ChannelByteArrayHandler;
 import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
-import com.wavefront.agent.listeners.JsonMetricsEndpoint;
+import com.wavefront.agent.listeners.JsonMetricsPortUnificationHandler;
 import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
-import com.wavefront.agent.listeners.WriteHttpJsonMetricsEndpoint;
+import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.JaegerThriftCollectorHandler;
 import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.ZipkinPortUnificationHandler;
@@ -360,11 +358,12 @@ public class PushAgent extends AbstractAgent {
       }
     }
     if (jsonListenerPorts != null) {
-      Splitter.on(",").omitEmptyStrings().trimResults().split(jsonListenerPorts).forEach(this::startJsonListener);
+      Splitter.on(",").omitEmptyStrings().trimResults().split(jsonListenerPorts).
+          forEach(strPort -> startJsonListener(strPort, handlerFactory));
     }
     if (writeHttpJsonListenerPorts != null) {
       Splitter.on(",").omitEmptyStrings().trimResults().split(writeHttpJsonListenerPorts).
-          forEach(this::startWriteHttpJsonListener);
+          forEach(strPort -> startWriteHttpJsonListener(strPort, handlerFactory));
     }
 
     // Logs ingestion.
@@ -389,64 +388,31 @@ public class PushAgent extends AbstractAgent {
     }
   }
 
-  protected void startJsonListener(String strPort) {
-    if (tokenAuthenticator.authRequired()) {
-      logger.warning("Port " + strPort + " (jsonListener) is not compatible with HTTP authentication, ignoring");
-      return;
-    }
+  protected void startJsonListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    final int port = Integer.parseInt(strPort);
     registerTimestampFilter(strPort);
 
-    startAsManagedThread(() -> {
-      activeListeners.inc();
-      try {
-        org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(Integer.parseInt(strPort));
-        server.setHandler(new JsonMetricsEndpoint(strPort, hostname, prefix,
-            pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort)));
-        server.start();
-        server.join();
-      } catch (InterruptedException e) {
-        logger.warning("Http Json server interrupted.");
-      } catch (Exception e) {
-        if (e instanceof BindException) {
-          bindErrors.inc();
-          logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
-        } else {
-          logger.log(Level.SEVERE, "HttpJson exception", e);
-        }
-      } finally {
-        activeListeners.dec();
-      }
-    }, "listener-plaintext-json-" + strPort);
+    ChannelHandler channelHandler = new JsonMetricsPortUnificationHandler(strPort, tokenAuthenticator,
+        handlerFactory, prefix, hostname, preprocessors.forPort(strPort));
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
+        pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
+        "listener-plaintext-json-" + port);
+    logger.info("listening on port: " + strPort + " for JSON metrics data");
   }
 
-  protected void startWriteHttpJsonListener(String strPort) {
-    if (tokenAuthenticator.authRequired()) {
-      logger.warning("Port " + strPort + " (writeHttpJson) is not compatible with HTTP authentication, ignoring");
-      return;
-    }
+  protected void startWriteHttpJsonListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+    final int port = Integer.parseInt(strPort);
+    registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
 
-    startAsManagedThread(() -> {
-      activeListeners.inc();
-      try {
-        org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(Integer.parseInt(strPort));
-        server.setHandler(new WriteHttpJsonMetricsEndpoint(strPort, hostname, prefix,
-            pushValidationLevel, pushBlockedSamples, getFlushTasks(strPort), preprocessors.forPort(strPort)));
-        server.start();
-        server.join();
-      } catch (InterruptedException e) {
-        logger.warning("WriteHttpJson server interrupted.");
-      } catch (Exception e) {
-        if (e instanceof BindException) {
-          bindErrors.inc();
-          logger.severe("Unable to start listener - port " + String.valueOf(strPort) + " is already in use!");
-        } else {
-          logger.log(Level.SEVERE, "WriteHttpJson exception", e);
-        }
-      } finally {
-        activeListeners.dec();
-      }
-    }, "listener-plaintext-writehttpjson-" + strPort);
+    ChannelHandler channelHandler = new WriteHttpJsonPortUnificationHandler(strPort, tokenAuthenticator,
+        handlerFactory, hostname, preprocessors.forPort(strPort));
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, pushListenerMaxReceivedLength,
+        pushListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
+        "listener-plaintext-writehttpjson-" + port);
+    logger.info("listening on port: " + strPort + " for write_http data");
   }
 
   protected void startOpenTsdbListener(final String strPort, ReportableEntityHandlerFactory handlerFactory) {
