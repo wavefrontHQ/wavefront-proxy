@@ -21,7 +21,8 @@ import io.netty.handler.codec.LineBasedFrameDecoder;
  */
 public class IncompleteLineDetectingLineBasedFrameDecoder extends LineBasedFrameDecoder {
 
-  protected static final Logger logger = Logger.getLogger(IncompleteLineDetectingLineBasedFrameDecoder.class.getName());
+  protected static final Logger logger = Logger.getLogger(
+      IncompleteLineDetectingLineBasedFrameDecoder.class.getName());
 
   IncompleteLineDetectingLineBasedFrameDecoder(int maxLength) {
     super(maxLength, true, false);
@@ -33,8 +34,9 @@ public class IncompleteLineDetectingLineBasedFrameDecoder extends LineBasedFrame
     if (in.readableBytes() > 0) {
       String discardedData = in.readBytes(in.readableBytes()).toString(Charset.forName("UTF-8"));
       if (StringUtils.isNotBlank(discardedData)) {
-        logger.warning("Client " + PortUnificationHandler.getRemoteName(ctx) + " disconnected, leaving unterminated " +
-            "string. Input (" + in.readableBytes() + " bytes) discarded: \"" + discardedData + "\"");
+        logger.warning("Client " + PortUnificationHandler.getRemoteName(ctx) +
+            " disconnected, leaving unterminated string. Input (" + in.readableBytes() +
+            " bytes) discarded: \"" + discardedData + "\"");
       }
     }
   }
