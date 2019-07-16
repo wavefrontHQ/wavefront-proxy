@@ -76,7 +76,6 @@ public class PointMatchers {
     };
   }
 
-
   public static Matcher<ReportPoint> almostMatches(double value, String metricName, Map<String, String> tags) {
     return new BaseMatcher<ReportPoint>() {
 
