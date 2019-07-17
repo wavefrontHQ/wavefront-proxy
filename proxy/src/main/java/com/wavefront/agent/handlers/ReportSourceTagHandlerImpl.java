@@ -5,12 +5,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.data.Validation;
 import com.wavefront.ingester.ReportSourceTagSerializer;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.MetricName;
 
 import java.util.Collection;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import wavefront.report.ReportSourceTag;
@@ -25,18 +21,10 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
 
   private static final Logger logger = Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
 
-  private final Counter attemptedCounter;
-  private final Counter queuedCounter;
-
   public ReportSourceTagHandlerImpl(final String handle, final int blockedItemsPerBatch,
                                     final Collection<SenderTask> senderTasks) {
     super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch, new ReportSourceTagSerializer(), senderTasks,
-        null);
-    this.attemptedCounter = Metrics.newCounter(new MetricName("sourceTags." + handle, "", "sent"));
-    this.queuedCounter = Metrics.newCounter(new MetricName("sourceTags." + handle, "", "queued"));
-
-    statisticOutputExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
-    statisticOutputExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
+        null, null);
   }
 
   @Override
@@ -58,17 +46,6 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
       }
     }
     return true;
-  }
-
-  private void printStats() {
-    logger.info("[" + this.handle + "] sourceTags received rate: " + getReceivedOneMinuteRate() +
-        " pps (1 min), " + getReceivedFiveMinuteRate() + " pps (5 min), " +
-        this.receivedBurstRateCurrent + " pps (current).");
-  }
-
-  private void printTotal() {
-    logger.info("[" + this.handle + "] Total sourceTags processed since start: " + this.attemptedCounter.count() +
-        "; blocked: " + this.blockedCounter.count());
   }
 
   private SenderTask getTask(ReportSourceTag sourceTag) {

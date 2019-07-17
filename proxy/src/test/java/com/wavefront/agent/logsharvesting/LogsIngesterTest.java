@@ -7,10 +7,8 @@ import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.PointMatchers;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
-import com.wavefront.agent.channel.CachingHostnameLookupResolver;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
@@ -20,7 +18,6 @@ import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.common.MetricConstants;
 import com.wavefront.data.ReportableEntityType;
-import com.wavefront.ingester.ReportPointSerializer;
 
 import org.easymock.Capture;
 import org.easymock.CaptureType;
@@ -32,7 +29,6 @@ import org.logstash.beats.Message;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -90,7 +86,7 @@ public class LogsIngesterTest {
     mockFactory = createMock(ReportableEntityHandlerFactory.class);
     expect(mockFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, "logs-ingester"))).
         andReturn(mockPointHandler).anyTimes();
-    expect(mockFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, "logs-ingester-histograms"))).
+    expect(mockFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, "logs-ingester"))).
         andReturn(mockHistogramHandler).anyTimes();
     replay(mockFactory);
     logsIngesterUnderTest = new LogsIngester(mockFactory, () -> logsIngestionConfig, null, now::get);

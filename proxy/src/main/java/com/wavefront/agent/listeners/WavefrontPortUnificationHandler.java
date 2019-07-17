@@ -122,8 +122,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
       if (histogramHandler == null) {
         synchronized(this) {
           if (histogramHandler == null && handlerFactory != null && decoders != null) {
-            histogramHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM,
-                handle + "-histograms"));
+            histogramHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle));
             histogramDecoder = decoders.get(ReportableEntityType.HISTOGRAM);
           }
           if (histogramHandler == null || histogramDecoder == null) {
