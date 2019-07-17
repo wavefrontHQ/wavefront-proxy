@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
  *
  * Created by Vasily on 9/13/16.
  */
-public class PointLineBlacklistRegexFilter extends AnnotatedPredicate<String> {
+public class PointLineBlacklistRegexFilter implements AnnotatedPredicate<String> {
 
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
@@ -33,7 +33,7 @@ public class PointLineBlacklistRegexFilter extends AnnotatedPredicate<String> {
   }
 
   @Override
-  public boolean apply(String pointLine) {
+  public boolean test(String pointLine, @Nullable String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
     if (compiledPattern.matcher(pointLine).matches()) {
       ruleMetrics.incrementRuleAppliedCounter();

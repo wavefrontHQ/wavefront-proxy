@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import wavefront.report.Annotation;
 import wavefront.report.Span;
@@ -15,7 +16,7 @@ import wavefront.report.Span;
  *
  * @author vasily@wavefront.com
  */
-public class SpanBlacklistRegexFilter extends AnnotatedPredicate<Span> {
+public class SpanBlacklistRegexFilter implements AnnotatedPredicate<Span> {
 
   private final String scope;
   private final Pattern compiledPattern;
@@ -33,7 +34,7 @@ public class SpanBlacklistRegexFilter extends AnnotatedPredicate<Span> {
   }
 
   @Override
-  public boolean apply(@Nonnull Span span) {
+  public boolean test(@Nonnull Span span, @Nullable String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "spanName":

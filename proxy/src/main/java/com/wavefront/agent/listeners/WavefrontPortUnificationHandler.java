@@ -14,6 +14,7 @@ import com.wavefront.ingester.ReportableEntityDecoder;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -40,7 +41,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
   private final SharedGraphiteHostAnnotator annotator;
 
   @Nullable
-  private final ReportableEntityPreprocessor preprocessor;
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
 
   private final ReportableEntityHandlerFactory handlerFactory;
   private final Map<ReportableEntityType, ReportableEntityDecoder> decoders;
@@ -68,13 +69,13 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
                                          final Map<ReportableEntityType, ReportableEntityDecoder> decoders,
                                          final ReportableEntityHandlerFactory handlerFactory,
                                          @Nullable final SharedGraphiteHostAnnotator annotator,
-                                         @Nullable final ReportableEntityPreprocessor preprocessor) {
+                                         @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(tokenAuthenticator, handle, true, true);
     this.decoders = decoders;
     this.wavefrontDecoder = (ReportableEntityDecoder<String, ReportPoint>)(decoders.get(ReportableEntityType.POINT));
     this.handlerFactory = handlerFactory;
     this.annotator = annotator;
-    this.preprocessor = preprocessor;
+    this.preprocessorSupplier = preprocessor;
     this.wavefrontHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
   }
 
@@ -135,13 +136,16 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
       decoder = histogramDecoder;
     }
 
+    ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
+        null : preprocessorSupplier.get();
+    String[] messageHolder = new String[1];
     // transform the line if needed
     if (preprocessor != null) {
       message = preprocessor.forPointLine().transform(message);
 
       // apply white/black lists after formatting
-      if (!preprocessor.forPointLine().filter(message)) {
-        if (preprocessor.forPointLine().getLastFilterResult() != null) {
+      if (!preprocessor.forPointLine().filter(message, messageHolder)) {
+        if (messageHolder[0] != null) {
           handler.reject((ReportPoint) null, message);
         } else {
           handler.block(null, message);
@@ -161,9 +165,9 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
     for (ReportPoint object : output) {
       if (preprocessor != null) {
         preprocessor.forReportPoint().transform(object);
-        if (!preprocessor.forReportPoint().filter(object)) {
-          if (preprocessor.forReportPoint().getLastFilterResult() != null) {
-            handler.reject(object, preprocessor.forReportPoint().getLastFilterResult());
+        if (!preprocessor.forReportPoint().filter(object, messageHolder)) {
+          if (messageHolder[0] != null) {
+            handler.reject(object, messageHolder[0]);
           } else {
             handler.block(object);
           }

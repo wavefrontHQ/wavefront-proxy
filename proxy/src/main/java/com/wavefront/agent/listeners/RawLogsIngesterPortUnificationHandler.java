@@ -11,6 +11,7 @@ import org.apache.commons.lang.StringUtils;
 
 import java.net.InetAddress;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,7 +34,7 @@ public class RawLogsIngesterPortUnificationHandler extends PortUnificationHandle
 
   private final LogsIngester logsIngester;
   private final Function<InetAddress, String> hostnameResolver;
-  private final ReportableEntityPreprocessor preprocessor;
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
 
   /**
    * Create new instance.
@@ -48,11 +49,11 @@ public class RawLogsIngesterPortUnificationHandler extends PortUnificationHandle
                                                @Nonnull LogsIngester ingester,
                                                @Nonnull Function<InetAddress, String> hostnameResolver,
                                                @Nonnull TokenAuthenticator authenticator,
-                                               @Nullable ReportableEntityPreprocessor preprocessor) {
+                                               @Nullable Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(authenticator, handle, true, true);
     this.logsIngester = ingester;
     this.hostnameResolver = hostnameResolver;
-    this.preprocessor = preprocessor;
+    this.preprocessorSupplier = preprocessor;
   }
 
   @Override
@@ -71,10 +72,11 @@ public class RawLogsIngesterPortUnificationHandler extends PortUnificationHandle
   @Override
   public void processLine(final ChannelHandlerContext ctx, String message) {
     if (message.isEmpty()) return;
+    ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ? null : preprocessorSupplier.get();
     String processedMessage = preprocessor == null ?
         message :
         preprocessor.forPointLine().transform(message);
-    if (preprocessor != null && !preprocessor.forPointLine().filter(message)) return;
+    if (preprocessor != null && !preprocessor.forPointLine().filter(message, null)) return;
 
     logsIngester.ingestLog(new LogsMessage() {
       @Override

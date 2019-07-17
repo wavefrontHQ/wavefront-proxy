@@ -40,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -85,7 +86,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   @Nullable
   private final WavefrontInternalReporter wfInternalReporter;
   private final AtomicBoolean traceDisabled;
-  private final ReportableEntityPreprocessor preprocessor;
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
@@ -95,9 +96,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
-  private final static Set<String> ZIPKIN_VALID_PATHS = ImmutableSet.of(
-      "/api/v1/spans/",
-      "/api/v2/spans/");
+  private final static Set<String> ZIPKIN_VALID_PATHS = ImmutableSet.of("/api/v1/spans/", "/api/v2/spans/");
   private final static String ZIPKIN_VALID_HTTP_METHOD = "POST";
   private final static String ZIPKIN_COMPONENT = "zipkin";
   private final static String DEFAULT_SOURCE = "zipkin";
@@ -114,7 +113,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       ReportableEntityHandlerFactory handlerFactory,
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
-                                      @Nullable ReportableEntityPreprocessor preprocessor,
+                                      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
                                       @Nullable String traceZipkinApplicationName,
@@ -131,7 +130,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       ReportableEntityHandler<SpanLogs> spanLogsHandler,
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
-                                      @Nullable ReportableEntityPreprocessor preprocessor,
+                                      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
                                       @Nullable String traceZipkinApplicationName,
@@ -143,7 +142,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
-    this.preprocessor = preprocessor;
+    this.preprocessorSupplier = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
     this.proxyLevelApplicationName = StringUtils.isBlank(traceZipkinApplicationName) ?
@@ -342,17 +341,21 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     if (ZIPKIN_DATA_LOGGER.isLoggable(Level.FINEST)) {
       ZIPKIN_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
     }
-    if (preprocessor != null) {
+
+    if (preprocessorSupplier != null) {
+      ReportableEntityPreprocessor preprocessor = preprocessorSupplier.get();
+      String[] messageHolder = new String[1];
       preprocessor.forSpan().transform(wavefrontSpan);
-      if (!preprocessor.forSpan().filter((wavefrontSpan))) {
-        if (preprocessor.forSpan().getLastFilterResult() != null) {
-          spanHandler.reject(wavefrontSpan, preprocessor.forSpan().getLastFilterResult());
+      if (!preprocessor.forSpan().filter(wavefrontSpan, messageHolder)) {
+        if (messageHolder[0] != null) {
+          spanHandler.reject(wavefrontSpan, messageHolder[0]);
         } else {
           spanHandler.block(wavefrontSpan);
         }
         return;
       }
     }
+
     if ((alwaysSampleErrors && isError) || sampler.sample(wavefrontSpan.getName(),
         UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(), wavefrontSpan.getDuration())) {
       spanHandler.report(wavefrontSpan);

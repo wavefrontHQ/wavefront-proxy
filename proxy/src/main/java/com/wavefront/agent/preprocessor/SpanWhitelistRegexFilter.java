@@ -15,7 +15,7 @@ import wavefront.report.Span;
  *
  * @author vasily@wavefront.com
  */
-public class SpanWhitelistRegexFilter extends AnnotatedPredicate<Span> {
+public class SpanWhitelistRegexFilter implements AnnotatedPredicate<Span> {
 
   private final String scope;
   private final Pattern compiledPattern;
@@ -33,7 +33,7 @@ public class SpanWhitelistRegexFilter extends AnnotatedPredicate<Span> {
   }
 
   @Override
-  public boolean apply(@Nonnull Span span) {
+  public boolean test(@Nonnull Span span, String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "spanName":

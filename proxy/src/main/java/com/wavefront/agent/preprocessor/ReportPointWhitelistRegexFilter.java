@@ -17,7 +17,7 @@ import wavefront.report.ReportPoint;
  *
  * Created by Vasily on 9/13/16.
  */
-public class ReportPointWhitelistRegexFilter extends AnnotatedPredicate<ReportPoint> {
+public class ReportPointWhitelistRegexFilter implements AnnotatedPredicate<ReportPoint> {
 
   private final String scope;
   private final Pattern compiledPattern;
@@ -42,7 +42,7 @@ public class ReportPointWhitelistRegexFilter extends AnnotatedPredicate<ReportPo
   }
 
   @Override
-  public boolean apply(@Nonnull ReportPoint reportPoint) {
+  public boolean test(@Nonnull ReportPoint reportPoint, @Nullable String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":

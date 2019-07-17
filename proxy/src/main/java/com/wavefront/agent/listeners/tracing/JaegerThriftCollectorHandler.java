@@ -37,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -91,7 +92,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   @Nullable
   private final WavefrontInternalReporter wfInternalReporter;
   private final AtomicBoolean traceDisabled;
-  private final ReportableEntityPreprocessor preprocessor;
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
   private final String proxyLevelApplicationName;
@@ -112,7 +113,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       ReportableEntityHandlerFactory handlerFactory,
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
-                                      ReportableEntityPreprocessor preprocessor,
+                                      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
                                       @Nullable String traceJaegerApplicationName,
@@ -128,7 +129,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       ReportableEntityHandler<SpanLogs> spanLogsHandler,
                                       @Nullable WavefrontSender wfSender,
                                       AtomicBoolean traceDisabled,
-                                      @Nullable ReportableEntityPreprocessor preprocessor,
+                                      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
                                       @Nullable String traceJaegerApplicationName,
@@ -138,7 +139,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
-    this.preprocessor = preprocessor;
+    this.preprocessorSupplier = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
     this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ?
@@ -311,11 +312,13 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       JAEGER_DATA_LOGGER.info("Converted Wavefront span: " + wavefrontSpan.toString());
     }
 
-    if (preprocessor != null) {
+    if (preprocessorSupplier != null) {
+      ReportableEntityPreprocessor preprocessor = preprocessorSupplier.get();
+      String[] messageHolder = new String[1];
       preprocessor.forSpan().transform(wavefrontSpan);
-      if (!preprocessor.forSpan().filter((wavefrontSpan))) {
-        if (preprocessor.forSpan().getLastFilterResult() != null) {
-          spanHandler.reject(wavefrontSpan, preprocessor.forSpan().getLastFilterResult());
+      if (!preprocessor.forSpan().filter(wavefrontSpan, messageHolder)) {
+        if (messageHolder[0] != null) {
+          spanHandler.reject(wavefrontSpan, messageHolder[0]);
         } else {
           spanHandler.block(wavefrontSpan);
         }

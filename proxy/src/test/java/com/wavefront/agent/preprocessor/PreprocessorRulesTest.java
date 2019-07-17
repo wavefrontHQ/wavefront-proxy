@@ -8,6 +8,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -29,7 +30,7 @@ public class PreprocessorRulesTest {
   private static final String FOO = "foo";
   private static final String SOURCE_NAME = "sourceName";
   private static final String METRIC_NAME = "metricName";
-  private static AgentPreprocessorConfiguration config;
+  private static PreprocessorConfigManager config;
   private final static List<String> emptyCustomSourceTags = Collections.emptyList();
   private final GraphiteDecoder decoder = new GraphiteDecoder(emptyCustomSourceTags);
   private final PreprocessorRuleMetrics metrics = new PreprocessorRuleMetrics(null, null, null);
@@ -37,8 +38,7 @@ public class PreprocessorRulesTest {
   @BeforeClass
   public static void setup() throws IOException {
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
-    config = new AgentPreprocessorConfiguration();
-    config.loadFromStream(stream);
+    config = new PreprocessorConfigManager(null, stream, System::currentTimeMillis);
   }
 
   @Test
@@ -54,69 +54,69 @@ public class PreprocessorRulesTest {
     // not in range if over a year ago
     ReportPoint rp = new ReportPoint("some metric", System.currentTimeMillis() - millisPerYear, 10L, "host", "table",
         new HashMap<>());
-    Assert.assertFalse(pointInRange1year.apply(rp));
+    Assert.assertFalse(pointInRange1year.test(rp));
 
     rp.setTimestamp(System.currentTimeMillis() - millisPerYear - 1);
-    Assert.assertFalse(pointInRange1year.apply(rp));
+    Assert.assertFalse(pointInRange1year.test(rp));
 
     // in range if within a year ago
     rp.setTimestamp(System.currentTimeMillis() - (millisPerYear / 2));
-    Assert.assertTrue(pointInRange1year.apply(rp));
+    Assert.assertTrue(pointInRange1year.test(rp));
 
     // in range for right now
     rp.setTimestamp(System.currentTimeMillis());
-    Assert.assertTrue(pointInRange1year.apply(rp));
+    Assert.assertTrue(pointInRange1year.test(rp));
 
     // in range if within a day in the future
     rp.setTimestamp(System.currentTimeMillis() + millisPerDay - 1);
-    Assert.assertTrue(pointInRange1year.apply(rp));
+    Assert.assertTrue(pointInRange1year.test(rp));
 
     // out of range for over a day in the future
     rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 2));
-    Assert.assertFalse(pointInRange1year.apply(rp));
+    Assert.assertFalse(pointInRange1year.test(rp));
 
     // now test with 1 day limit
     AnnotatedPredicate<ReportPoint> pointInRange1day = new ReportPointTimestampInRangeFilter(24, 24);
 
     rp.setTimestamp(System.currentTimeMillis() - millisPerDay - 1);
-    Assert.assertFalse(pointInRange1day.apply(rp));
+    Assert.assertFalse(pointInRange1day.test(rp));
 
     // in range if within 1 day ago
     rp.setTimestamp(System.currentTimeMillis() - (millisPerDay / 2));
-    Assert.assertTrue(pointInRange1day.apply(rp));
+    Assert.assertTrue(pointInRange1day.test(rp));
 
     // in range for right now
     rp.setTimestamp(System.currentTimeMillis());
-    Assert.assertTrue(pointInRange1day.apply(rp));
+    Assert.assertTrue(pointInRange1day.test(rp));
 
     // assert for future range within 12 hours
     AnnotatedPredicate<ReportPoint> pointInRange12hours = new ReportPointTimestampInRangeFilter(12, 12);
 
     rp.setTimestamp(System.currentTimeMillis() + (millisPerHour * 10));
-    Assert.assertTrue(pointInRange12hours.apply(rp));
+    Assert.assertTrue(pointInRange12hours.test(rp));
 
     rp.setTimestamp(System.currentTimeMillis() - (millisPerHour * 10));
-    Assert.assertTrue(pointInRange12hours.apply(rp));
+    Assert.assertTrue(pointInRange12hours.test(rp));
 
     rp.setTimestamp(System.currentTimeMillis() + (millisPerHour * 20));
-    Assert.assertFalse(pointInRange12hours.apply(rp));
+    Assert.assertFalse(pointInRange12hours.test(rp));
 
     rp.setTimestamp(System.currentTimeMillis() - (millisPerHour * 20));
-    Assert.assertFalse(pointInRange12hours.apply(rp));
+    Assert.assertFalse(pointInRange12hours.test(rp));
 
     AnnotatedPredicate<ReportPoint> pointInRange10Days = new ReportPointTimestampInRangeFilter(240, 240);
 
     rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 9));
-    Assert.assertTrue(pointInRange10Days.apply(rp));
+    Assert.assertTrue(pointInRange10Days.test(rp));
 
     rp.setTimestamp(System.currentTimeMillis() - (millisPerDay * 9));
-    Assert.assertTrue(pointInRange10Days.apply(rp));
+    Assert.assertTrue(pointInRange10Days.test(rp));
 
     rp.setTimestamp(System.currentTimeMillis() + (millisPerDay * 20));
-    Assert.assertFalse(pointInRange10Days.apply(rp));
+    Assert.assertFalse(pointInRange10Days.test(rp));
 
     rp.setTimestamp(System.currentTimeMillis() - (millisPerDay * 20));
-    Assert.assertFalse(pointInRange10Days.apply(rp));
+    Assert.assertFalse(pointInRange10Days.test(rp));
 
   }
 
@@ -189,10 +189,10 @@ public class PreprocessorRulesTest {
 
     assertEquals(expectedPoint1, rule1.apply(testPoint1));
     assertEquals(expectedPoint2, rule2.apply(testPoint2));
-    assertTrue(rule3.apply(testPoint1));
-    assertFalse(rule3.apply(testPoint2));
-    assertFalse(rule4.apply(testPoint1));
-    assertTrue(rule4.apply(testPoint2));
+    assertTrue(rule3.test(testPoint1));
+    assertFalse(rule3.test(testPoint2));
+    assertFalse(rule4.test(testPoint1));
+    assertTrue(rule4.test(testPoint2));
     assertEquals(expectedPoint5, rule5.apply(testPoint1));
     assertEquals(testPoint1, rule6.apply(testPoint1));
     assertEquals(expectedPoint7, rule7.apply(testPoint3));
@@ -315,35 +315,35 @@ public class PreprocessorRulesTest {
     // test point line transformers
     String testPoint1 = "collectd.#cpu#.&load$avg^.1m 7 1459527231 source=source$hostname foo=bar boo=baz";
     String expectedPoint1 = "collectd._cpu_._load_avg^.1m 7 1459527231 source=source_hostname foo=bar boo=baz";
-    assertEquals(expectedPoint1, config.forPort("2878").forPointLine().transform(testPoint1));
+    assertEquals(expectedPoint1, config.get("2878").get().forPointLine().transform(testPoint1));
 
     // test filters
     String testPoint2 = "collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz";
-    assertTrue(config.forPort("2878").forPointLine().filter(testPoint2));
+    assertTrue(config.get("2878").get().forPointLine().filter(testPoint2));
 
     String testPoint3 = "collectd.cpu.loadavg.1m 7 1459527231 source=hostname bar=foo boo=baz";
-    assertFalse(config.forPort("2878").forPointLine().filter(testPoint3));
+    assertFalse(config.get("2878").get().forPointLine().filter(testPoint3));
   }
 
   @Test
   public void testAgentPreprocessorForReportPoint() {
     ReportPoint testPoint1 = parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz");
-    assertTrue(config.forPort("2878").forReportPoint().filter(testPoint1));
+    assertTrue(config.get("2878").get().forReportPoint().filter(testPoint1));
 
     ReportPoint testPoint2 = parsePointLine("foo.collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz");
-    assertFalse(config.forPort("2878").forReportPoint().filter(testPoint2));
+    assertFalse(config.get("2878").get().forReportPoint().filter(testPoint2));
 
     ReportPoint testPoint3 = parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=west123 boo=baz");
-    assertFalse(config.forPort("2878").forReportPoint().filter(testPoint3));
+    assertFalse(config.get("2878").get().forReportPoint().filter(testPoint3));
 
     ReportPoint testPoint4 = parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=bar123 foo=bar boo=baz");
-    assertFalse(config.forPort("2878").forReportPoint().filter(testPoint4));
+    assertFalse(config.get("2878").get().forReportPoint().filter(testPoint4));
 
     // in this test we are confirming that the rule sets for different ports are in fact different
     // on port 2878 we add "newtagkey=1", on port 4242 we don't
     ReportPoint testPoint1a = parsePointLine("collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz");
-    config.forPort("2878").forReportPoint().transform(testPoint1);
-    config.forPort("4242").forReportPoint().transform(testPoint1a);
+    config.get("2878").get().forReportPoint().transform(testPoint1);
+    config.get("4242").get().forReportPoint().transform(testPoint1a);
     String expectedPoint1 = "\"collectd.cpu.loadavg.1m\" 7.0 1459527231 " +
         "source=\"hostname\" \"baz\"=\"bar\" \"boo\"=\"baz\" \"newtagkey\"=\"1\"";
     String expectedPoint1a = "\"collectd.cpu.loadavg.1m\" 7.0 1459527231 " +
@@ -484,16 +484,16 @@ public class PreprocessorRulesTest {
   }
 
   private boolean applyAllFilters(String pointLine, String strPort) {
-    if (!config.forPort(strPort).forPointLine().filter(pointLine))
+    if (!config.get(strPort).get().forPointLine().filter(pointLine))
       return false;
     ReportPoint point = parsePointLine(pointLine);
-    return config.forPort(strPort).forReportPoint().filter(point);
+    return config.get(strPort).get().forReportPoint().filter(point);
   }
 
   private String applyAllTransformers(String pointLine, String strPort) {
-    String transformedPointLine = config.forPort(strPort).forPointLine().transform(pointLine);
+    String transformedPointLine = config.get(strPort).get().forPointLine().transform(pointLine);
     ReportPoint point = parsePointLine(transformedPointLine);
-    config.forPort(strPort).forReportPoint().transform(point);
+    config.get(strPort).get().forReportPoint().transform(point);
     return referencePointToStringImpl(point);
   }
 

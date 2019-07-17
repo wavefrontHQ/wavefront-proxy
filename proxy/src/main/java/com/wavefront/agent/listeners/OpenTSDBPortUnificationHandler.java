@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -57,7 +58,7 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
   private final ReportableEntityDecoder<String, ReportPoint> decoder;
 
   @Nullable
-  private final ReportableEntityPreprocessor preprocessor;
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
 
   @Nullable
   private final Function<InetAddress, String> resolver;
@@ -68,12 +69,12 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
                                         final TokenAuthenticator tokenAuthenticator,
                                         final ReportableEntityDecoder<String, ReportPoint> decoder,
                                         final ReportableEntityHandlerFactory handlerFactory,
-                                        @Nullable final ReportableEntityPreprocessor preprocessor,
+                                        @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
                                         @Nullable final Function<InetAddress, String> resolver) {
     super(tokenAuthenticator, handle, true, true);
     this.decoder = decoder;
     this.pointHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
-    this.preprocessor = preprocessor;
+    this.preprocessorSupplier = preprocessor;
     this.resolver = resolver;
   }
 
@@ -141,13 +142,15 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
         throw new Exception("Failed to write version response", f.cause());
       }
     } else {
+      ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ? null : preprocessorSupplier.get();
+      String[] messageHolder = new String[1];
       // transform the line if needed
       if (preprocessor != null) {
         message = preprocessor.forPointLine().transform(message);
 
         // apply white/black lists after formatting
-        if (!preprocessor.forPointLine().filter(message)) {
-          if (preprocessor.forPointLine().getLastFilterResult() != null) {
+        if (!preprocessor.forPointLine().filter(message, messageHolder)) {
+          if (messageHolder[0] != null) {
             pointHandler.reject((ReportPoint) null, message);
           } else {
             pointHandler.block(null, message);
@@ -167,9 +170,9 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
       for (ReportPoint object : output) {
         if (preprocessor != null) {
           preprocessor.forReportPoint().transform(object);
-          if (!preprocessor.forReportPoint().filter(object)) {
-            if (preprocessor.forReportPoint().getLastFilterResult() != null) {
-              pointHandler.reject(object, preprocessor.forReportPoint().getLastFilterResult());
+          if (!preprocessor.forReportPoint().filter(object, messageHolder)) {
+            if (messageHolder[0] != null) {
+              pointHandler.reject(object, messageHolder[0]);
             } else {
               pointHandler.block(object);
             }
@@ -273,11 +276,13 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
       builder.setHost(hostName);
       ReportPoint point = builder.build();
 
+      ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ? null : preprocessorSupplier.get();
+      String[] messageHolder = new String[1];
       if (preprocessor != null) {
         preprocessor.forReportPoint().transform(point);
-        if (!preprocessor.forReportPoint().filter(point)) {
-          if (preprocessor.forReportPoint().getLastFilterResult() != null) {
-            pointHandler.reject(point, preprocessor.forReportPoint().getLastFilterResult());
+        if (!preprocessor.forReportPoint().filter(point, messageHolder)) {
+          if (messageHolder[0] != null) {
+            pointHandler.reject(point, messageHolder[0]);
             return false;
           } else {
             pointHandler.block(point);

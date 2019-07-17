@@ -24,7 +24,7 @@ import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
-import com.wavefront.agent.preprocessor.AgentPreprocessorConfiguration;
+import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
@@ -64,7 +64,6 @@ import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -710,7 +709,7 @@ public abstract class AbstractAgent {
   protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
-  protected final AgentPreprocessorConfiguration preprocessors = new AgentPreprocessorConfiguration();
+  protected PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
   protected ValidationConfiguration validationConfiguration = null;
   protected RecyclableRateLimiter pushRateLimiter = null;
   protected TokenAuthenticator tokenAuthenticator = TokenAuthenticatorBuilder.create().
@@ -835,11 +834,11 @@ public abstract class AbstractAgent {
             Metrics.newCounter(new TaggedMetricName("validationRegex", "points-checked", "port", strPort))
         );
         if (blacklist != null) {
-          preprocessors.forPort(strPort).forPointLine().addFilter(
+          preprocessors.getSystemPreprocessor(strPort).forPointLine().addFilter(
               new PointLineBlacklistRegexFilter(blacklistRegex, ruleMetrics));
         }
         if (whitelist != null) {
-          preprocessors.forPort(strPort).forPointLine().addFilter(
+          preprocessors.getSystemPreprocessor(strPort).forPointLine().addFilter(
               new PointLineWhitelistRegexFilter(whitelist, ruleMetrics));
         }
       }
@@ -847,6 +846,16 @@ public abstract class AbstractAgent {
   }
 
   private void initPreprocessors() throws IOException {
+    try {
+      preprocessors = new PreprocessorConfigManager(preprocessorConfigFile);
+    } catch (FileNotFoundException ex) {
+      throw new RuntimeException("Unable to load preprocessor rules - file does not exist: " +
+          preprocessorConfigFile);
+    }
+    if (preprocessorConfigFile != null) {
+      logger.info("Preprocessor configuration loaded from " + preprocessorConfigFile);
+    }
+
     // convert blacklist/whitelist fields to filters for full backwards compatibility
     // blacklistRegex and whitelistRegex are applied to pushListenerPorts, graphitePorts and picklePorts
     String allPorts = StringUtils.join(new String[]{
@@ -859,12 +868,6 @@ public abstract class AbstractAgent {
 
     // opentsdbBlacklistRegex and opentsdbWhitelistRegex are applied to opentsdbPorts only
     addPreprocessorFilters(opentsdbPorts, opentsdbWhitelistRegex, opentsdbBlacklistRegex);
-
-    if (preprocessorConfigFile != null) {
-      FileInputStream stream = new FileInputStream(preprocessorConfigFile);
-      preprocessors.loadFromStream(stream);
-      logger.info("Preprocessor configuration loaded from " + preprocessorConfigFile);
-    }
   }
 
   // Returns null on any exception, and logs the exception.

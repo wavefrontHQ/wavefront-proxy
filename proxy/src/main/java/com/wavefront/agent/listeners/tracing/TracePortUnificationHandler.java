@@ -18,6 +18,7 @@ import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -48,7 +49,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
   private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
   private final ReportableEntityDecoder<String, Span> decoder;
   private final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder;
-  private final ReportableEntityPreprocessor preprocessor;
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
 
@@ -57,7 +58,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
                                      final TokenAuthenticator tokenAuthenticator,
                                      final ReportableEntityDecoder<String, Span> traceDecoder,
                                      final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
-                                     @Nullable final ReportableEntityPreprocessor preprocessor,
+                                     @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
                                      final ReportableEntityHandlerFactory handlerFactory,
                                      final Sampler sampler,
                                      final boolean alwaysSampleErrors) {
@@ -71,7 +72,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
                                      final TokenAuthenticator tokenAuthenticator,
                                      final ReportableEntityDecoder<String, Span> traceDecoder,
                                      final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
-                                     @Nullable final ReportableEntityPreprocessor preprocessor,
+                                     @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
                                      final ReportableEntityHandler<Span> handler,
                                      final ReportableEntityHandler<SpanLogs> spanLogsHandler,
                                      final Sampler sampler,
@@ -81,7 +82,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
     this.spanLogsDecoder = spanLogsDecoder;
     this.handler = handler;
     this.spanLogsHandler = spanLogsHandler;
-    this.preprocessor = preprocessor;
+    this.preprocessorSupplier = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
   }
@@ -101,14 +102,16 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
       return;
     }
 
+    ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ? null : preprocessorSupplier.get();
+    String[] messageHolder = new String[1];
+
     // transform the line if needed
     if (preprocessor != null) {
       message = preprocessor.forPointLine().transform(message);
 
-      // apply white/black lists after formatting
-      if (!preprocessor.forPointLine().filter(message)) {
-        if (preprocessor.forPointLine().getLastFilterResult() != null) {
-          handler.reject((Span) null, message);
+      if (!preprocessor.forPointLine().filter(message, messageHolder)) {
+        if (messageHolder[0] != null) {
+          handler.reject((Span) null, messageHolder[0]);
         } else {
           handler.block(null, message);
         }
@@ -127,9 +130,9 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
     for (Span object : output) {
       if (preprocessor != null) {
         preprocessor.forSpan().transform(object);
-        if (!preprocessor.forSpan().filter((object))) {
-          if (preprocessor.forSpan().getLastFilterResult() != null) {
-            handler.reject(object, preprocessor.forSpan().getLastFilterResult());
+        if (!preprocessor.forSpan().filter(object, messageHolder)) {
+          if (messageHolder[0] != null) {
+            handler.reject(object, messageHolder[0]);
           } else {
             handler.block(object);
           }

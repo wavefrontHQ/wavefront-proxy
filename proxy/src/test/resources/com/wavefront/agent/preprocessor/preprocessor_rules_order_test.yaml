@@ -1,0 +1,12 @@
+'2878':
+  - rule: test-replace-foobar
+    action: replaceRegex
+    scope: metricName
+    search: "foo"
+    replace: "bar"
+
+  - rule: test-replace-somethingelse
+    action: replaceRegex
+    scope: metricName
+    search: "something"
+    replace: "else"

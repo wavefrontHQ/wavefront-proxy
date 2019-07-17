@@ -18,6 +18,7 @@ import com.wavefront.ingester.ReportPointSerializer;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -38,7 +39,8 @@ import wavefront.report.ReportPoint;
  */
 @ChannelHandler.Sharable
 public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler {
-  private static final Logger logger = Logger.getLogger(WriteHttpJsonPortUnificationHandler.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(
+      WriteHttpJsonPortUnificationHandler.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   /**
@@ -48,7 +50,7 @@ public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler 
   private final String defaultHost;
 
   @Nullable
-  private final ReportableEntityPreprocessor preprocessor;
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final ObjectMapper jsonParser;
   /**
    *  Graphite decoder to re-parse modified points.
@@ -64,26 +66,23 @@ public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler 
    * @param preprocessor    preprocessor.
    */
   @SuppressWarnings("unchecked")
-  public WriteHttpJsonPortUnificationHandler(final String handle,
-                                             final TokenAuthenticator authenticator,
-                                             final ReportableEntityHandlerFactory handlerFactory,
-                                             final String defaultHost,
-                                             @Nullable final ReportableEntityPreprocessor preprocessor) {
-    this(handle, authenticator, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)),
-        defaultHost, preprocessor);
+  public WriteHttpJsonPortUnificationHandler(
+      final String handle, final TokenAuthenticator authenticator,
+      final ReportableEntityHandlerFactory handlerFactory, final String defaultHost,
+      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
+    this(handle, authenticator, handlerFactory.getHandler(
+        HandlerKey.of(ReportableEntityType.POINT, handle)), defaultHost, preprocessor);
   }
 
-
   @VisibleForTesting
-  protected WriteHttpJsonPortUnificationHandler(final String handle,
-                                                final TokenAuthenticator authenticator,
-                                                final ReportableEntityHandler<ReportPoint> pointHandler,
-                                                final String defaultHost,
-                                                @Nullable final ReportableEntityPreprocessor preprocessor) {
+  protected WriteHttpJsonPortUnificationHandler(
+      final String handle, final TokenAuthenticator authenticator,
+      final ReportableEntityHandler<ReportPoint> pointHandler, final String defaultHost,
+      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(authenticator, handle, false, true);
     this.pointHandler = pointHandler;
     this.defaultHost = defaultHost;
-    this.preprocessor = preprocessor;
+    this.preprocessorSupplier = preprocessor;
     this.jsonParser = new ObjectMapper();
 
   }
@@ -139,6 +138,9 @@ public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler 
   }
 
   private void reportMetrics(JsonNode metrics) {
+    ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
+        null : preprocessorSupplier.get();
+    String[] messageHolder = new String[1];
     for (final JsonNode metric : metrics) {
       JsonNode host = metric.get("host");
       String hostName;
@@ -177,7 +179,7 @@ public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler 
         }
         List<ReportPoint> parsedPoints = Lists.newArrayListWithExpectedSize(1);
         ReportPoint point = builder.build();
-        if (preprocessor != null && preprocessor.forPointLine().hasTransformers()) {
+        if (preprocessor != null && preprocessor.forPointLine().getTransformers().size() > 0) {
           //
           String pointLine = ReportPointSerializer.pointToString(point);
           pointLine = preprocessor.forPointLine().transform(pointLine);
@@ -187,14 +189,13 @@ public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler 
         }
         for (ReportPoint parsedPoint : parsedPoints) {
           if (preprocessor != null) {
-            preprocessor.forReportPoint().transform(parsedPoint);
-            if (!preprocessor.forReportPoint().filter(parsedPoint)) {
-              if (preprocessor.forReportPoint().getLastFilterResult() != null) {
-                blockedPointsLogger.warning(ReportPointSerializer.pointToString(parsedPoint));
+            preprocessor.forReportPoint().transform(point);
+            if (!preprocessor.forReportPoint().filter(point, messageHolder)) {
+              if (messageHolder[0] != null) {
+                pointHandler.reject(point, messageHolder[0]);
               } else {
-                blockedPointsLogger.info(ReportPointSerializer.pointToString(parsedPoint));
+                pointHandler.block(point);
               }
-              pointHandler.reject((ReportPoint) null, preprocessor.forReportPoint().getLastFilterResult());
               continue;
             }
           }
