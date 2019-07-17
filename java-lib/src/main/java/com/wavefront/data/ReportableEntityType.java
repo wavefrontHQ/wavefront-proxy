@@ -7,7 +7,7 @@ package com.wavefront.data;
  */
 public enum ReportableEntityType {
   POINT("points"),
-  HISTOGRAM("points"),
+  HISTOGRAM("histograms"),
   SOURCE_TAG("sourceTags"),
   TRACE("spans"),
   TRACE_SPAN_LOGS("spanLogs");
@@ -21,5 +21,9 @@ public enum ReportableEntityType {
   @Override
   public String toString() {
     return name;
+  }
+
+  public String toCapitalizedString() {
+    return name.substring(0, 1).toUpperCase() + name.substring(1);
   }
 }

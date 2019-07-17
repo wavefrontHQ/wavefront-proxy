@@ -5,12 +5,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.SharedMetricsRegistry;
 import com.wavefront.data.ReportableEntityType;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.avro.Schema;
 
 import java.util.Collection;
 import java.util.Random;
@@ -50,9 +46,6 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
 
   private static SharedMetricsRegistry metricsRegistry = SharedMetricsRegistry.getInstance();
 
-  private final Counter attemptedCounter;
-  private final Counter queuedCounter;
-
   private boolean logData = false;
   private final double logSampleRate;
   private volatile long logStateUpdatedMillis = 0L;
@@ -68,17 +61,11 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
                       final int blockedItemsPerBatch,
                       final Collection<SenderTask> sendDataTasks) {
     super(ReportableEntityType.TRACE_SPAN_LOGS, handle, blockedItemsPerBatch, SPAN_LOGS_SERIALIZER, sendDataTasks,
-        null);
+        null, "logs/s");
 
     String logTracesSampleRateProperty = System.getProperty("wavefront.proxy.logspans.sample-rate");
     this.logSampleRate = NumberUtils.isNumber(logTracesSampleRateProperty) ?
         Double.parseDouble(logTracesSampleRateProperty) : 1.0d;
-
-    this.attemptedCounter = Metrics.newCounter(new MetricName("spanLogs." + handle, "", "sent"));
-    this.queuedCounter = Metrics.newCounter(new MetricName("spanLogs." + handle, "", "queued"));
-
-    this.statisticOutputExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
-    this.statisticOutputExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
   }
 
   @Override
@@ -111,17 +98,6 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
       }
       logStateUpdatedMillis = System.currentTimeMillis();
     }
-  }
-
-  private void printStats() {
-    logger.info("[" + this.handle + "] Tracing span logs received rate: " + getReceivedOneMinuteRate() +
-        " logs/s (1 min), " + getReceivedFiveMinuteRate() + " logs/s (5 min), " +
-        this.receivedBurstRateCurrent + " logs/s (current).");
-  }
-
-  private void printTotal() {
-    logger.info("[" + this.handle + "] Total span logs processed since start: " + this.attemptedCounter.count() +
-        "; blocked: " + this.blockedCounter.count());
   }
 
   abstract class IgnoreSchemaProperty

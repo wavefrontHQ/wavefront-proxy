@@ -50,9 +50,11 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
     return handlers.computeIfAbsent(handlerKey, k -> {
       switch (handlerKey.getEntityType()) {
         case POINT:
+          return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
+              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads), validationConfig, false);
         case HISTOGRAM:
           return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads), validationConfig);
+              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads), validationConfig, true);
         case SOURCE_TAG:
           return new ReportSourceTagHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, SOURCE_TAGS_NUM_THREADS));

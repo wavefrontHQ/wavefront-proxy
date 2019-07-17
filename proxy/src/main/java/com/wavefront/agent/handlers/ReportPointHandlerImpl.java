@@ -6,7 +6,6 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.data.Validation;
 import com.wavefront.ingester.ReportPointSerializer;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 
@@ -37,8 +36,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   private static final Logger validPointsLogger = Logger.getLogger("RawValidPoints");
   private static final Random RANDOM = new Random();
 
-  private final Counter attemptedCounter;
-  private final Counter queuedCounter;
   private final Histogram receivedPointLag;
 
   private boolean logData = false;
@@ -51,18 +48,22 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   private final boolean logPointsFlag;
 
   /**
-   * Create new instance.
+   * Creates a new instance that handles either histograms or points.
    *
    * @param handle               handle/port number
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into the main log file.
    * @param senderTasks          sender tasks
+   * @param validationConfig     Supplier for the validation configuration.
+   * @param isHistogramHandler   Whether this handler processes histograms (handles regular points if false).
    */
   ReportPointHandlerImpl(final String handle,
                          final int blockedItemsPerBatch,
                          final Collection<SenderTask> senderTasks,
-                         @Nullable final Supplier<ValidationConfiguration> validationConfig) {
-    super(ReportableEntityType.POINT, handle, blockedItemsPerBatch, new ReportPointSerializer(), senderTasks,
-        validationConfig);
+                         @Nullable final Supplier<ValidationConfiguration> validationConfig,
+                         final boolean isHistogramHandler) {
+    super(isHistogramHandler ? ReportableEntityType.HISTOGRAM : ReportableEntityType.POINT, handle,
+        blockedItemsPerBatch, new ReportPointSerializer(), senderTasks, validationConfig,
+        isHistogramHandler ? "dps" : "pps");
     String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
     this.logPointsFlag = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
     String logPointsSampleRateProperty = System.getProperty("wavefront.proxy.logpoints.sample-rate");
@@ -70,11 +71,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
         Double.parseDouble(logPointsSampleRateProperty) : 1.0d;
 
     this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle + ".received", "", "lag"));
-    this.attemptedCounter = Metrics.newCounter(new MetricName("points." + handle, "", "sent"));
-    this.queuedCounter = Metrics.newCounter(new MetricName("points." + handle, "", "queued"));
-
-    this.statisticOutputExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
-    this.statisticOutputExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
   }
 
   @Override
@@ -107,22 +103,11 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       // refresh validPointsLogger level once a second
       if (logData != validPointsLogger.isLoggable(Level.FINEST)) {
         logData = !logData;
-        logger.info("Valid points logging is now " + (logData ?
-            "enabled with " + (logSampleRate * 100) + "% sampling":
+        logger.info("Valid " + entityType.toString() + " logging is now " + (logData ?
+            "enabled with " + (logSampleRate * 100) + "% sampling" :
             "disabled"));
       }
       logStateUpdatedMillis = System.currentTimeMillis();
     }
-  }
-
-  private void printStats() {
-    logger.info("[" + this.handle + "] Points received rate: " + this.getReceivedOneMinuteRate() +
-        " pps (1 min), " + getReceivedFiveMinuteRate() + " pps (5 min), " +
-        this.receivedBurstRateCurrent + " pps (current).");
-  }
-
-  private void printTotal() {
-    logger.info("[" + this.handle + "] Total points processed since start: " + this.attemptedCounter.count() +
-        "; blocked: " + this.blockedCounter.count());
   }
 }

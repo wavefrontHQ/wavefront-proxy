@@ -47,14 +47,19 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   ScheduledExecutorService statisticOutputExecutor = Executors.newSingleThreadScheduledExecutor();
   private final Logger blockedItemsLogger;
 
-  String handle;
-  Counter receivedCounter;
-  Counter blockedCounter;
-  Counter rejectedCounter;
+  final ReportableEntityType entityType;
+  final String handle;
+  final Counter receivedCounter;
+  final Counter attemptedCounter;
+  final Counter queuedCounter;
+  final Counter blockedCounter;
+  final Counter rejectedCounter;
+
   final RateLimiter blockedItemsLimiter;
   final Function<T, String> serializer;
-  List<SenderTask<T>> senderTasks;
+  final List<SenderTask<T>> senderTasks;
   final Supplier<ValidationConfiguration> validationConfig;
+  final String rateUnit;
 
   final ArrayList<Long> receivedStats = new ArrayList<>(Collections.nCopies(300, 0L));
   private final Histogram receivedBurstRateHistogram;
@@ -73,6 +78,8 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into the main log file.
    * @param serializer           helper function to convert objects to string. Used when writing blocked points to logs.
    * @param senderTasks          tasks actually handling data transfer to the Wavefront endpoint.
+   * @param validationConfig     supplier for the validation configuration.
+   * @param rateUnit             optional display name for unit of measure. Default: rps
    */
   @SuppressWarnings("unchecked")
   AbstractReportableEntityHandler(ReportableEntityType entityType,
@@ -80,12 +87,15 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
                                   final int blockedItemsPerBatch,
                                   Function<T, String> serializer,
                                   @NotNull Collection<SenderTask> senderTasks,
-                                  @Nullable Supplier<ValidationConfiguration> validationConfig) {
+                                  @Nullable Supplier<ValidationConfiguration> validationConfig,
+                                  @Nullable String rateUnit) {
     String strEntityType = entityType.toString();
-    this.blockedItemsLogger = Logger.getLogger("RawBlocked" + strEntityType.substring(0, 1).toUpperCase() +
-        strEntityType.substring(1));
+    this.entityType = entityType;
+    this.blockedItemsLogger = Logger.getLogger("RawBlocked" + entityType.toCapitalizedString());
     this.handle = handle;
     this.receivedCounter = Metrics.newCounter(new MetricName(strEntityType + "." + handle, "", "received"));
+    this.attemptedCounter = Metrics.newCounter(new MetricName(strEntityType + "." + handle, "", "sent"));
+    this.queuedCounter = Metrics.newCounter(new MetricName(strEntityType + "." + handle, "", "queued"));
     this.blockedCounter = Metrics.newCounter(new MetricName(strEntityType + "." + handle, "", "blocked"));
     this.rejectedCounter = Metrics.newCounter(new MetricName(strEntityType + "." + handle, "", "rejected"));
     this.blockedItemsLimiter = blockedItemsPerBatch == 0 ? null : RateLimiter.create(blockedItemsPerBatch / 10d);
@@ -102,6 +112,7 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
       this.senderTasks.add((SenderTask<T>) task);
     }
     this.validationConfig = validationConfig == null ? () -> null : validationConfig;
+    this.rateUnit = rateUnit == null ? "rps" : rateUnit;
     this.receivedBurstRateHistogram = metricsRegistry.newHistogram(AbstractReportableEntityHandler.class,
         "received-" + strEntityType + ".burst-rate." + handle);
     Metrics.newGauge(new MetricName(strEntityType + "." + handle + ".received", "",
@@ -124,6 +135,8 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
       receivedStats.remove(0);
       receivedStats.add(this.receivedBurstRateCurrent);
     }, 1, 1, TimeUnit.SECONDS);
+    this.statisticOutputExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
+    this.statisticOutputExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
   }
 
   @Override
@@ -221,5 +234,16 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
       nextTaskId = (int)(roundRobinCounter.getAndIncrement() % senderTasks.size());
     }
     return senderTasks.get(nextTaskId);
+  }
+
+  protected void printStats() {
+    logger.info("[" + this.handle + "] " + entityType.toCapitalizedString() + " received rate: " +
+        this.getReceivedOneMinuteRate() + " " + rateUnit + " (1 min), " + getReceivedFiveMinuteRate() +
+        " " + rateUnit + " (5 min), " + this.receivedBurstRateCurrent + " " + rateUnit + " (current).");
+  }
+
+  protected void printTotal() {
+    logger.info("[" + this.handle + "] Total " + entityType.toString() + " processed since start: " +
+        this.attemptedCounter.count() + "; blocked: " + this.blockedCounter.count());
   }
 }
