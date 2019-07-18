@@ -36,12 +36,46 @@ public class AgentConfiguration {
   private Long collectorRateLimit;
   private Boolean shutOffAgents = false;
   private Boolean showTrialExpired = false;
-  // If the value is true, then histogram feature is disabled.
-  // If the value is null or false, then histograms are not disabled i.e. enabled (default behavior)
+
+  /**
+   * If the value is true, then histogram feature is disabled; feature enabled if null or false
+   */
   private Boolean histogramDisabled;
-  // If the value is true, then trace feature is disabled; feature enabled if the value is null or false
+
+  /**
+   * If the value is true, then trace feature is disabled; feature enabled if null or false
+   */
   private Boolean traceDisabled;
+
+  /**
+   * If the value is true, then span logs are disabled; feature enabled if null or false.
+   */
+  private Boolean spanLogsDisabled;
+
+  /**
+   * Server-side configuration for various limits to be enforced at the proxy.
+   */
   private ValidationConfiguration validationConfiguration;
+
+  /**
+   * Global PPS limit.
+   */
+  private Long globalCollectorRateLimit;
+
+  /**
+   * Global histogram DPS limit.
+   */
+  private Long globalHistogramRateLimit;
+
+  /**
+   * Global tracing span SPS limit.
+   */
+  private Long globalSpanRateLimit;
+
+  /**
+   * Global span logs logs/s limit.
+   */
+  private Long globalSpanLogsRateLimit;
 
   public Boolean getCollectorSetsRetryBackoff() {
     return collectorSetsRetryBackoff;
@@ -143,6 +177,46 @@ public class AgentConfiguration {
 
   public void setValidationConfiguration(ValidationConfiguration value) {
     this.validationConfiguration = value;
+  }
+
+  public Boolean getSpanLogsDisabled() {
+    return spanLogsDisabled;
+  }
+
+  public void setSpanLogsDisabled(Boolean spanLogsDisabled) {
+    this.spanLogsDisabled = spanLogsDisabled;
+  }
+
+  public Long getGlobalCollectorRateLimit() {
+    return globalCollectorRateLimit;
+  }
+
+  public void setGlobalCollectorRateLimit(Long globalCollectorRateLimit) {
+    this.globalCollectorRateLimit = globalCollectorRateLimit;
+  }
+
+  public Long getGlobalHistogramRateLimit() {
+    return globalHistogramRateLimit;
+  }
+
+  public void setGlobalHistogramRateLimit(Long globalHistogramRateLimit) {
+    this.globalHistogramRateLimit = globalHistogramRateLimit;
+  }
+
+  public Long getGlobalSpanRateLimit() {
+    return globalSpanRateLimit;
+  }
+
+  public void setGlobalSpanRateLimit(Long globalSpanRateLimit) {
+    this.globalSpanRateLimit = globalSpanRateLimit;
+  }
+
+  public Long getGlobalSpanLogsRateLimit() {
+    return globalSpanLogsRateLimit;
+  }
+
+  public void setGlobalSpanLogsRateLimit(Long globalSpanLogsRateLimit) {
+    this.globalSpanLogsRateLimit = globalSpanLogsRateLimit;
   }
 
   public void validate(boolean local) {

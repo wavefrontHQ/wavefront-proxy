@@ -44,7 +44,7 @@ public class ZipkinPortUnificationHandlerTest {
   @Test
   public void testZipkinHandler() {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
-        mockTraceHandler, mockTraceSpanLogsHandler, null, new AtomicBoolean(false),
+        mockTraceHandler, mockTraceSpanLogsHandler, null, () -> false, () -> false,
         null, new RateSampler(1.0D), false,
         "ProxyLevelAppTag", null);
 
