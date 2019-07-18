@@ -24,7 +24,7 @@ ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 # Download wavefront proxy (latest release). Merely extract the debian, don't want to try running startup scripts.
 RUN echo "deb https://packagecloud.io/wavefront/proxy/ubuntu/ bionic main" > /etc/apt/sources.list.d/wavefront_proxy.list
 RUN echo "deb-src https://packagecloud.io/wavefront/proxy/ubuntu/ bionic main" >> /etc/apt/sources.list.d/wavefront_proxy.list
-RUN curl -L "https://packagecloud.io/wavefront/proxy/gpgkey" 2> /dev/null | apt-key add - &>/dev/null
+RUN curl -L "https://packagecloud.io/wavefront/proxy/gpgkey" | apt-key add -
 RUN apt-get -y update
 
 RUN apt-get -d install wavefront-proxy
