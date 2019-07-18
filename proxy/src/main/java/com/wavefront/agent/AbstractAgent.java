@@ -735,6 +735,7 @@ public abstract class AbstractAgent {
   // loaded from the server by invoking agentAPI.checkin
   protected final AtomicBoolean histogramDisabled = new AtomicBoolean(false);
   protected final AtomicBoolean traceDisabled = new AtomicBoolean(false);
+  protected final AtomicBoolean spanLogsDisabled = new AtomicBoolean(false);
 
   /**
    * Executors for support tasks.

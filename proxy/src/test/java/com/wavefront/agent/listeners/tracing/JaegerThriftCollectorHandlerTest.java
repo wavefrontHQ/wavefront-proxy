@@ -103,7 +103,7 @@ public class JaegerThriftCollectorHandlerTest {
     replay(mockTraceHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
-        mockTraceLogsHandler, null, new AtomicBoolean(false), null, new RateSampler(1.0D), false,
+        mockTraceLogsHandler, null, () -> false, () -> false, null, new RateSampler(1.0D), false,
         null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
@@ -210,7 +210,7 @@ public class JaegerThriftCollectorHandlerTest {
 
     // Verify span level "application" tags precedence
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
-        mockTraceLogsHandler, null, new AtomicBoolean(false), null, new RateSampler(1.0D), false,
+        mockTraceLogsHandler, null, () -> false, () -> false, null, new RateSampler(1.0D), false,
         "ProxyLevelAppTag", null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);

@@ -39,7 +39,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -85,7 +84,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final WavefrontSender wfSender;
   @Nullable
   private final WavefrontInternalReporter wfInternalReporter;
-  private final AtomicBoolean traceDisabled;
+  private final Supplier<Boolean> traceDisabled;
+  private final Supplier<Boolean> spanLogsDisabled;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
@@ -112,7 +112,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   public ZipkinPortUnificationHandler(String handle,
                                       ReportableEntityHandlerFactory handlerFactory,
                                       @Nullable WavefrontSender wfSender,
-                                      AtomicBoolean traceDisabled,
+                                      Supplier<Boolean> traceDisabled,
+                                      Supplier<Boolean> spanLogsDisabled,
                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
@@ -121,7 +122,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this(handle,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, preprocessor, sampler, alwaysSampleErrors,
+        wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler, alwaysSampleErrors,
         traceZipkinApplicationName, traceDerivedCustomTagKeys);
   }
 
@@ -129,7 +130,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       ReportableEntityHandler<Span> spanHandler,
                                       ReportableEntityHandler<SpanLogs> spanLogsHandler,
                                       @Nullable WavefrontSender wfSender,
-                                      AtomicBoolean traceDisabled,
+                                      Supplier<Boolean> traceDisabled,
+                                      Supplier<Boolean> spanLogsDisabled,
                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
                                       Sampler sampler,
                                       boolean alwaysSampleErrors,
@@ -142,6 +144,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
     this.traceDisabled = traceDisabled;
+    this.spanLogsDisabled = spanLogsDisabled;
     this.preprocessorSupplier = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
@@ -361,19 +364,27 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
       spanHandler.report(wavefrontSpan);
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
-        SpanLogs spanLogs = SpanLogs.newBuilder().
-            setCustomer("default").
-            setTraceId(wavefrontSpan.getTraceId()).
-            setSpanId(wavefrontSpan.getSpanId()).
-            setSpanSecondaryId(zipkinSpan.kind() != null ? zipkinSpan.kind().toString().toLowerCase() : null).
-            setLogs(zipkinSpan.annotations().stream().map(
-                x -> SpanLog.newBuilder().
-                    setTimestamp(x.timestamp()).
-                    setFields(ImmutableMap.of("annotation", x.value())).
-                    build()).
-                collect(Collectors.toList())).
-            build();
-        spanLogsHandler.report(spanLogs);
+        if (spanLogsDisabled.get()) {
+          if (warningLoggerRateLimiter.tryAcquire()) {
+            logger.info("Span logs discarded because the feature is not " +
+                "enabled on the server!");
+          }
+        } else {
+          SpanLogs spanLogs = SpanLogs.newBuilder().
+              setCustomer("default").
+              setTraceId(wavefrontSpan.getTraceId()).
+              setSpanId(wavefrontSpan.getSpanId()).
+              setSpanSecondaryId(zipkinSpan.kind() != null ?
+                  zipkinSpan.kind().toString().toLowerCase() : null).
+              setLogs(zipkinSpan.annotations().stream().map(
+                  x -> SpanLog.newBuilder().
+                      setTimestamp(x.timestamp()).
+                      setFields(ImmutableMap.of("annotation", x.value())).
+                      build()).
+                  collect(Collectors.toList())).
+              build();
+          spanLogsHandler.report(spanLogs);
+        }
       }
     }
     // report stats irrespective of span sampling.

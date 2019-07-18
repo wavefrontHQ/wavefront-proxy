@@ -496,7 +496,7 @@ public class PushAgent extends AbstractAgent {
 
     ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, tokenAuthenticator,
         new SpanDecoder("unknown"), new SpanLogsDecoder(), preprocessors.get(strPort), handlerFactory, sampler,
-        traceAlwaysSampleErrors);
+        traceAlwaysSampleErrors, traceDisabled::get, spanLogsDisabled::get);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, traceListenerMaxReceivedLength,
         traceListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
@@ -521,9 +521,10 @@ public class PushAgent extends AbstractAgent {
             build();
         server.
             makeSubChannel("jaeger-collector", Connection.Direction.IN).
-            register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort, handlerFactory,
-                wfSender, traceDisabled, preprocessors.get(strPort), sampler,
-                traceAlwaysSampleErrors, traceJaegerApplicationName, traceDerivedCustomTagKeys));
+            register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort,
+                handlerFactory, wfSender, traceDisabled::get, spanLogsDisabled::get,
+                preprocessors.get(strPort), sampler, traceAlwaysSampleErrors,
+                traceJaegerApplicationName, traceDerivedCustomTagKeys));
         server.listen().channel().closeFuture().sync();
         server.shutdown(false);
       } catch (InterruptedException e) {
@@ -543,9 +544,9 @@ public class PushAgent extends AbstractAgent {
       @Nullable WavefrontSender wfSender,
       Sampler sampler) {
     final int port = Integer.parseInt(strPort);
-    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory, wfSender, traceDisabled,
-        preprocessors.get(strPort), sampler, traceAlwaysSampleErrors, traceZipkinApplicationName,
-        traceDerivedCustomTagKeys);
+    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory,
+        wfSender, traceDisabled::get, spanLogsDisabled::get, preprocessors.get(strPort), sampler,
+        traceAlwaysSampleErrors, traceZipkinApplicationName, traceDerivedCustomTagKeys);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort, traceListenerMaxReceivedLength,
         traceListenerHttpBufferSize, listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
         "listener-zipkin-trace-" + port);
@@ -859,6 +860,7 @@ public class PushAgent extends AbstractAgent {
 
       histogramDisabled.set(BooleanUtils.toBoolean(config.getHistogramDisabled()));
       traceDisabled.set(BooleanUtils.toBoolean(config.getTraceDisabled()));
+      spanLogsDisabled.set(BooleanUtils.toBoolean(config.getSpanLogsDisabled()));
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
     }

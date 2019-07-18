@@ -2,6 +2,7 @@ package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.RateLimiter;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +15,9 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -52,6 +56,11 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
+  private final Supplier<Boolean> traceDisabled;
+  private final Supplier<Boolean> spanLogsDisabled;
+  private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
+
+  private final Counter discardedSpans;
 
   @SuppressWarnings("unchecked")
   public TracePortUnificationHandler(final String handle,
@@ -61,11 +70,13 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
                                      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
                                      final ReportableEntityHandlerFactory handlerFactory,
                                      final Sampler sampler,
-                                     final boolean alwaysSampleErrors) {
+                                     final boolean alwaysSampleErrors,
+                                     final Supplier<Boolean> traceDisabled,
+                                     final Supplier<Boolean> spanLogsDisabled) {
     this(handle, tokenAuthenticator, traceDecoder, spanLogsDecoder, preprocessor,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        sampler, alwaysSampleErrors);
+        sampler, alwaysSampleErrors, traceDisabled, spanLogsDisabled);
   }
 
   public TracePortUnificationHandler(final String handle,
@@ -76,7 +87,9 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
                                      final ReportableEntityHandler<Span> handler,
                                      final ReportableEntityHandler<SpanLogs> spanLogsHandler,
                                      final Sampler sampler,
-                                     final boolean alwaysSampleErrors) {
+                                     final boolean alwaysSampleErrors,
+                                     final Supplier<Boolean> traceDisabled,
+                                     final Supplier<Boolean> spanLogsDisabled) {
     super(tokenAuthenticator, handle, true, true);
     this.decoder = traceDecoder;
     this.spanLogsDecoder = spanLogsDecoder;
@@ -85,11 +98,29 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
     this.preprocessorSupplier = preprocessor;
     this.sampler = sampler;
     this.alwaysSampleErrors = alwaysSampleErrors;
+    this.traceDisabled = traceDisabled;
+    this.spanLogsDisabled = spanLogsDisabled;
+    this.discardedSpans = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
   }
 
   @Override
   protected void processLine(final ChannelHandlerContext ctx, @Nonnull String message) {
+    if (traceDisabled.get()) {
+      if (warningLoggerRateLimiter.tryAcquire()) {
+        logger.warning("Ingested spans discarded because tracing feature is not enabled on the " +
+            "server");
+      }
+      discardedSpans.inc();
+      return;
+    }
     if (message.startsWith("{") && message.endsWith("}")) { // span logs
+      if (spanLogsDisabled.get()) {
+        if (warningLoggerRateLimiter.tryAcquire()) {
+          logger.warning("Ingested span logs discarded because the feature is not enabled on the " +
+              "server");
+        }
+        return;
+      }
       try {
         List<SpanLogs> output = Lists.newArrayListWithCapacity(1);
         spanLogsDecoder.decode(JSON_PARSER.readTree(message), output, "dummy");
