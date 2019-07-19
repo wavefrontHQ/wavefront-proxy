@@ -93,6 +93,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
+  private final Counter discardedSpansBySampler;
   private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
@@ -157,6 +158,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
         "spans." + handle + ".batches", "", "processed"));
     this.failedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "failed"));
+    this.discardedSpansBySampler = Metrics.newCounter(new MetricName(
+        "spans." + handle , "", "sampler.discarded"));
     this.discoveredHeartbeatMetrics =  new ConcurrentHashMap<>();
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("zipkin-heart-beater"));
@@ -359,8 +362,16 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
       }
     }
 
-    if ((alwaysSampleErrors && isError) || sampler.sample(wavefrontSpan.getName(),
-        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(), wavefrontSpan.getDuration())) {
+    boolean isReportSpan = false;
+    if ((alwaysSampleErrors && isError)) {
+      isReportSpan = true;
+    } else if(sampler.sample(wavefrontSpan.getName(),
+        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
+        wavefrontSpan.getDuration())) {
+      discardedSpansBySampler.inc();
+      isReportSpan = true;
+    }
+    if(isReportSpan) {
       spanHandler.report(wavefrontSpan);
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
