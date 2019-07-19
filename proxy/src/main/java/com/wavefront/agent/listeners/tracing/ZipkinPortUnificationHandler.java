@@ -363,15 +363,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     }
 
     boolean isReportSpan = false;
-    if ((alwaysSampleErrors && isError)) {
-      isReportSpan = true;
-    } else if(sampler.sample(wavefrontSpan.getName(),
-        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
-        wavefrontSpan.getDuration())) {
-      discardedSpansBySampler.inc();
-      isReportSpan = true;
-    }
-    if(isReportSpan) {
+    if ((alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
@@ -405,6 +397,16 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
           spanName, applicationName, serviceName, cluster, shard, sourceName, componentTagValue,
           isError, zipkinSpan.durationAsLong(), traceDerivedCustomTagKeys, annotations), true);
     }
+  }
+
+  private boolean sample(Span wavefrontSpan) {
+    if(sampler.sample(wavefrontSpan.getName(),
+        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
+        wavefrontSpan.getDuration())) {
+      return true;
+    }
+    discardedSpansBySampler.inc();
+    return false;
   }
 
   @Override

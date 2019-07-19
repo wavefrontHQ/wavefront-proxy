@@ -331,17 +331,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         return;
       }
     }
-    boolean isReportSpan = false;
-    if (alwaysSampleErrors && isError) {
-      isReportSpan = true;
-    } else if (sampler.sample(wavefrontSpan.getName(),
-        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
-        wavefrontSpan.getDuration())) {
-      discardedSpansBySampler.inc();
-      isReportSpan = true;
-    }
-
-    if (isReportSpan) {
+    if ((alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null) {
         if (spanLogsDisabled.get()) {
@@ -392,6 +382,16 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
           componentTagValue, isError, span.getDuration(), traceDerivedCustomTagKeys,
           annotations), true);
     }
+  }
+
+  private boolean sample(Span wavefrontSpan) {
+    if(sampler.sample(wavefrontSpan.getName(),
+        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
+        wavefrontSpan.getDuration())) {
+      return true;
+    }
+    discardedSpansBySampler.inc();
+    return false;
   }
 
   @Nullable

@@ -180,15 +180,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
         sampleError = object.getAnnotations().stream().anyMatch(
             t -> t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
       }
-      if (sampleError) {
-        isReportSpan = true;
-      } else if (sampler.sample(object.getName(),
-          UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
-        discardedSpansBySampler.inc();
-        isReportSpan = true;
-      }
-
-      if (isReportSpan) {
+      if (sampleError || sample(object)) {
         handler.report(object);
       }
     }
@@ -214,5 +206,14 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
       }
     }
     return errMsg.toString();
+  }
+
+  private boolean sample(Span object) {
+    if (sampler.sample(object.getName(),
+        UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
+      return true;
+    }
+    discardedSpansBySampler.inc();
+    return false;
   }
 }
