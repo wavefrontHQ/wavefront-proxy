@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>4.39-SNAPSHOT</version>
+  <version>4.39</version>
   <modules>
     <module>java-lib</module>
     <module>proxy</module>
@@ -33,7 +33,7 @@
     <connection>scm:git:git@github.com:wavefronthq/java.git</connection>
     <developerConnection>scm:git:git@github.com:wavefronthq/java.git</developerConnection>
     <url>git@github.com:wavefronthq/java.git</url>
-    <tag>wavefront-3.0</tag>
+    <tag>wavefront-4.39</tag>
   </scm>
 
   <distributionManagement>
@@ -56,7 +56,7 @@
     <log4j.version>2.11.1</log4j.version>
     <jackson.version>2.9.9</jackson.version>
     <netty.version>4.1.36.Final</netty.version>
-    <public.project.version>4.39-SNAPSHOT</public.project.version>
+    <public.project.version>4.39</public.project.version>
   </properties>
 
   <build>
