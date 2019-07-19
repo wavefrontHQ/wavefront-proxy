@@ -94,7 +94,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
-  @VisibleForTesting
   private final Counter discardedSpansBySampler;
   private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
