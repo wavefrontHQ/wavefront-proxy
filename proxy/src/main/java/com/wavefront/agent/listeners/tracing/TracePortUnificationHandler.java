@@ -103,7 +103,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
     this.spanLogsDisabled = spanLogsDisabled;
     this.discardedSpans = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
     this.discardedSpansBySampler = Metrics.newCounter(new MetricName("spans." + handle, "",
-        "discarded"));
+        "sampler.discarded"));
   }
 
   @Override
@@ -174,7 +174,6 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
         }
       }
       boolean sampleError = false;
-      boolean isReportSpan = false;
       if (alwaysSampleErrors) {
         // check whether error span tag exists.
         sampleError = object.getAnnotations().stream().anyMatch(
