@@ -385,7 +385,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   }
 
   private boolean sample(Span wavefrontSpan) {
-    if(sampler.sample(wavefrontSpan.getName(),
+    if (sampler != null && sampler.sample(wavefrontSpan.getName(),
         UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
         wavefrontSpan.getDuration())) {
       return true;

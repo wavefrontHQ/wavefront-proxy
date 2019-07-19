@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -93,6 +94,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
+  @VisibleForTesting
   private final Counter discardedSpansBySampler;
   private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
@@ -400,7 +402,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   }
 
   private boolean sample(Span wavefrontSpan) {
-    if(sampler.sample(wavefrontSpan.getName(),
+    if (sampler != null && sampler.sample(wavefrontSpan.getName(),
         UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
         wavefrontSpan.getDuration())) {
       return true;
