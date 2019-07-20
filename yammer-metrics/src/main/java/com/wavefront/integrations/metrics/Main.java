@@ -43,16 +43,23 @@ public class Main {
         "wavefrontYammerMetrics", "localhost", port, histoPort, System::currentTimeMillis);
     wavefrontYammerMetricsReporter.start(5, TimeUnit.SECONDS);
 
+    // Set up periodic reporting to the Http endpoint
     WavefrontYammerHttpMetricsReporter httpMetricsReporter;
+    WavefrontYammerHttpMetricsReporter.Builder builder = new WavefrontYammerHttpMetricsReporter.Builder().
+        withName("wavefrontYammerHttpMetrics").
+        withHost("http://localhost").
+        withPorts(port, histoPort).
+        withMetricsRegistry(httpMetricsRegistry).
+        withTimeSupplier(System::currentTimeMillis);
+
     if (secondaryPort != -1 && secondaryHistoPort != -1) {
-      httpMetricsReporter = new WavefrontYammerHttpMetricsReporter(httpMetricsRegistry,
-          "wavefrontYammerHttpMetrics", "http://localhost", port, histoPort,
-          "http://localhost", secondaryPort, secondaryHistoPort, System::currentTimeMillis);
-    } else {
-      httpMetricsReporter = new WavefrontYammerHttpMetricsReporter(httpMetricsRegistry,
-          "wavefrontYammerHttpMetrics", "http://localhost", port, histoPort, System::currentTimeMillis);
+      builder.withSecondaryHostname("http://localhost");
+      builder.withSecondaryPorts(secondaryPort, secondaryHistoPort);
     }
+
+    httpMetricsReporter = builder.build();
     httpMetricsReporter.start(5, TimeUnit.SECONDS);
+
     // Populate test metrics.
     Counter counter = metricsRegistry.newCounter(new TaggedMetricName("group", "mycounter", "tag1", "value1"));
     Histogram histogram = metricsRegistry.newHistogram(new TaggedMetricName("group2", "myhisto"), false);

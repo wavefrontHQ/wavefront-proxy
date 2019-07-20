@@ -1,14 +1,15 @@
 package com.wavefront.integrations.metrics;
 
+import com.yammer.metrics.core.MetricsRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.common.MetricsToTimeseries;
 import com.wavefront.common.Pair;
 import com.wavefront.metrics.MetricTranslator;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.reporting.AbstractReporter;
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.nio.reactor.IOReactorException;
 
-import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -39,121 +40,136 @@ public class WavefrontYammerHttpMetricsReporter extends AbstractReporter impleme
    */
   private AtomicInteger metricsGeneratedLastPass = new AtomicInteger();
 
-  public WavefrontYammerHttpMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname,
-                                            int port,
-                                            int wavefrontHistogramPort,
-                                            Supplier<Long> timeSupplier) throws IOReactorException {
-    this(metricsRegistry, name, hostname, port, wavefrontHistogramPort, timeSupplier, false,
-        null, false, false);
+  public static class Builder {
+    private MetricsRegistry metricsRegistry;
+    private String name;
+
+    private int maxConnectionsPerRoute = 2;
+
+    // Primary
+    private String hostname;
+    private int metricsPort;
+    private int histogramPort;
+
+    // Secondary
+    private String secondaryHostname;
+    private int secondaryMetricsPort;
+    private int secondaryHistogramPort;
+
+    private Supplier<Long> timeSupplier;
+    private boolean prependGroupName = false;
+    private MetricTranslator metricTranslator = null;
+    private boolean includeJvmMetrics = false;
+    private boolean sendZeroCounters = false;
+    private boolean sendEmptyHistograms = false;
+    private boolean clear = false;
+    private int metricsQueueSize = 50_000;
+    private int metricsBatchSize = 10_000;
+    private int histogramQueueSize = 5_000;
+    private int histogramBatchSize = 1_000;
+
+    public Builder withMetricsRegistry(MetricsRegistry metricsRegistry) {
+      this.metricsRegistry = metricsRegistry;
+      return this;
+    }
+
+    public Builder withHost(String hostname) {
+      this.hostname = hostname;
+      return this;
+    }
+
+    public Builder withPorts(int metricsPort, int histogramPort) {
+      this.metricsPort = metricsPort;
+      this.histogramPort = histogramPort;
+      return this;
+    }
+
+    public Builder withSecondaryHostname(String hostname) {
+      this.secondaryHostname = hostname;
+      return this;
+    }
+
+    public Builder withSecondaryPorts(int metricsPort, int histogramPort) {
+      this.secondaryMetricsPort = metricsPort;
+      this.secondaryHistogramPort = histogramPort;
+      return this;
+    }
+
+    public Builder withMetricsQueueOptions(int batchSize, int queueSize) {
+      this.metricsBatchSize = batchSize;
+      this.metricsQueueSize = queueSize;
+      return this;
+    }
+
+    public Builder withHistogramQueueOptions(int batchSize, int queueSize) {
+      this.histogramBatchSize = batchSize;
+      this.histogramQueueSize = queueSize;
+      return this;
+    }
+
+    public Builder withMaxConnectionsPerRoute(int maxConnectionsPerRoute) {
+      this.maxConnectionsPerRoute = maxConnectionsPerRoute;
+      return this;
+    }
+
+    public Builder withTimeSupplier(Supplier<Long> timeSupplier) {
+      this.timeSupplier = timeSupplier;
+      return this;
+    }
+
+    public Builder withPrependedGroupNames(boolean prependGroupName) {
+      this.prependGroupName = prependGroupName;
+      return this;
+    }
+
+    public Builder clearHistogramsAndTimers(boolean clear) {
+      this.clear = clear;
+      return this;
+    }
+
+    public Builder sendZeroCounters(boolean send) {
+      this.sendZeroCounters = send;
+      return this;
+    }
+
+    public Builder sendEmptyHistograms(boolean send) {
+      this.sendEmptyHistograms = send;
+      return this;
+    }
+
+    public Builder withName(String name) {
+      this.name = name;
+      return this;
+    }
+
+    public WavefrontYammerHttpMetricsReporter build() throws IOReactorException {
+      if (StringUtils.isBlank(this.hostname)) {
+        throw new IllegalArgumentException("Hostname may not be blank.");
+      }
+      return new WavefrontYammerHttpMetricsReporter(this);
+    }
+
   }
 
-  public WavefrontYammerHttpMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname,
-                                            int port,
-                                            int wavefrontHistogramPort,
-                                            String secondaryHostname,
-                                            int secondaryPort,
-                                            int secondaryWavefrontHistogramPort,
-                                            Supplier<Long> timeSupplier) throws IOReactorException {
-    this(metricsRegistry, name, hostname, port, wavefrontHistogramPort, secondaryHostname, secondaryPort,
-        secondaryWavefrontHistogramPort, 2, timeSupplier, false, null,
-        false, false, true, true);
-  }
+  private WavefrontYammerHttpMetricsReporter(Builder builder) throws IOReactorException {
+    super(builder.metricsRegistry);
+    this.executor = builder.metricsRegistry.newScheduledThreadPool(1, builder.name);
+    this.metricTranslator = builder.metricTranslator;
+    this.includeJvmMetrics = builder.includeJvmMetrics;
 
-  public WavefrontYammerHttpMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname,
-                                            int port,
-                                            int wavefrontHistogramPort,
-                                            Supplier<Long> timeSupplier,
-                                            boolean prependGroupName,
-                                            @Nullable MetricTranslator metricTranslator,
-                                            boolean includeJvmMetrics,
-                                            boolean clearMetrics) throws IOReactorException {
-    this(metricsRegistry, name, hostname, port, wavefrontHistogramPort, 2, timeSupplier, prependGroupName,
-        metricTranslator, includeJvmMetrics, clearMetrics, true, true);
-  }
-
-  /**
-   * Reporter of a Yammer metrics registry to Wavefront.
-   *
-   * @param metricsRegistry        The registry to scan-and-report.
-   * @param name                   A human readable name for this reporter.
-   * @param hostname               The remote host where the wavefront proxy resides.
-   * @param port                   Listening port on Wavefront proxy of graphite-like telemetry data.
-   * @param wavefrontHistogramPort Listening port for Wavefront histogram data.
-   * @param maxConnections         The maximum number of pooled connections per route to support
-   * @param timeSupplier           Get current timestamp, stubbed for testing.
-   * @param prependGroupName       If true, outgoing telemetry is of the form "group.name" rather than "name".
-   * @param metricTranslator       If present, applied to each MetricName/Metric pair before flushing to Wavefront. This
-   *                               is useful for adding point tags. Warning: this is called once per metric per scan, so
-   *                               it should probably be performant. May be null.
-   * @param clearMetrics           If true, clear histograms and timers per flush.
-   * @param sendZeroCounters       Whether counters with a value of zero is sent across.
-   * @param sendEmptyHistograms    Whether empty histograms are sent across the wire.
-   * @param includeJvmMetrics      Whether JVM metrics are automatically included.
-   * @throws IOReactorException When we can't remotely connect to Wavefront.
-   */
-  public WavefrontYammerHttpMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname,
-                                            int port,
-                                            int wavefrontHistogramPort,
-                                            int maxConnections,
-                                            Supplier<Long> timeSupplier,
-                                            boolean prependGroupName,
-                                            @Nullable MetricTranslator metricTranslator,
-                                            boolean includeJvmMetrics,
-                                            boolean clearMetrics,
-                                            boolean sendZeroCounters,
-                                            boolean sendEmptyHistograms) throws IOReactorException {
-    super(metricsRegistry);
-    this.executor = metricsRegistry.newScheduledThreadPool(1, name);
-    this.metricTranslator = metricTranslator;
-    this.includeJvmMetrics = includeJvmMetrics;
-
-    this.httpMetricsProcessor = new HttpMetricsProcessor(hostname, port, wavefrontHistogramPort, maxConnections,
-        timeSupplier, prependGroupName, clearMetrics, sendZeroCounters, sendEmptyHistograms);
-    this.gaugeMap = new ConcurrentHashMap<>();
-  }
-
-  /**
-   * Reporter of a Yammer metrics registry to Wavefront.
-   *
-   * @param metricsRegistry        The registry to scan-and-report.
-   * @param name                   A human readable name for this reporter.
-   * @param hostname               The remote host where the wavefront proxy resides.
-   * @param port                   Listening port on Wavefront proxy of graphite-like telemetry data.
-   * @param wavefrontHistogramPort Listening port for Wavefront histogram data.
-   * @param maxConnections         The maximum number of pooled connections per route to support
-   * @param timeSupplier           Get current timestamp, stubbed for testing.
-   * @param prependGroupName       If true, outgoing telemetry is of the form "group.name" rather than "name".
-   * @param metricTranslator       If present, applied to each MetricName/Metric pair before flushing to Wavefront. This
-   *                               is useful for adding point tags. Warning: this is called once per metric per scan, so
-   *                               it should probably be performant. May be null.
-   * @param clearMetrics           If true, clear histograms and timers per flush.
-   * @param sendZeroCounters       Whether counters with a value of zero is sent across.
-   * @param sendEmptyHistograms    Whether empty histograms are sent across the wire.
-   * @param includeJvmMetrics      Whether JVM metrics are automatically included.
-   * @throws IOReactorException When we can't remotely connect to Wavefront.
-   */
-  public WavefrontYammerHttpMetricsReporter(MetricsRegistry metricsRegistry, String name, String hostname,
-                                            int port,
-                                            int wavefrontHistogramPort,
-                                            String secondaryHostname,
-                                            int secondaryPort,
-                                            int secondaryWavefrontHistogramPort,
-                                            int maxConnections,
-                                            Supplier<Long> timeSupplier,
-                                            boolean prependGroupName,
-                                            @Nullable MetricTranslator metricTranslator,
-                                            boolean includeJvmMetrics,
-                                            boolean clearMetrics,
-                                            boolean sendZeroCounters,
-                                            boolean sendEmptyHistograms) throws IOReactorException {
-    super(metricsRegistry);
-    this.executor = metricsRegistry.newScheduledThreadPool(1, name);
-    this.metricTranslator = metricTranslator;
-    this.includeJvmMetrics = includeJvmMetrics;
-
-    this.httpMetricsProcessor = new HttpMetricsProcessor(hostname, port, wavefrontHistogramPort, secondaryHostname,
-        secondaryPort, secondaryWavefrontHistogramPort,maxConnections, timeSupplier, prependGroupName, clearMetrics,
-        sendZeroCounters, sendEmptyHistograms);
+    this.httpMetricsProcessor = new HttpMetricsProcessor.Builder().
+        withHost(builder.hostname).
+        withPorts(builder.metricsPort, builder.histogramPort).
+        withSecondaryHostname(builder.secondaryHostname).
+        withSecondaryPorts(builder.secondaryMetricsPort, builder.secondaryHistogramPort).
+        withMetricsQueueOptions(builder.metricsBatchSize, builder.metricsQueueSize).
+        withHistogramQueueOptions(builder.histogramBatchSize, builder.histogramQueueSize).
+        withMaxConnectionsPerRoute(builder.maxConnectionsPerRoute).
+        withTimeSupplier(builder.timeSupplier).
+        withPrependedGroupNames(builder.prependGroupName).
+        clearHistogramsAndTimers(builder.clear).
+        sendZeroCounters(builder.sendZeroCounters).
+        sendEmptyHistograms(builder.sendEmptyHistograms).build();
     this.gaugeMap = new ConcurrentHashMap<>();
   }
 
