@@ -16,13 +16,13 @@ import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.nio.reactor.IOReactorException;
 
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -74,7 +74,6 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
     private int metricsBatchSize = 10_000;
     private int histogramQueueSize = 5_000;
     private int histogramBatchSize = 1_000;
-    private long flushInterval = 1_000;
 
     private boolean prependGroupName = false;
     private boolean clear = false;
@@ -367,6 +366,6 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
 
   @Override
   void flush() {
-
+    // Nothing to flush in an Http client.
   }
 }

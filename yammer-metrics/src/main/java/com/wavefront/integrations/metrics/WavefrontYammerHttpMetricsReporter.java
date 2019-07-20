@@ -10,6 +10,7 @@ import com.yammer.metrics.reporting.AbstractReporter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.nio.reactor.IOReactorException;
 
+import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;

@@ -37,6 +37,7 @@ abstract class WavefrontMetricsProcessor implements MetricProcessor<Void> {
    * @param name       The MetricName to write
    * @param nameSuffix The metric suffix to send
    * @param value      The value of the metric to send
+   * @throws Exception If the histogram fails to write to the MetricsProcess it will throw an exception.
    */
   abstract void writeMetric(MetricName name, @Nullable String nameSuffix, double value) throws Exception;
 
@@ -44,6 +45,7 @@ abstract class WavefrontMetricsProcessor implements MetricProcessor<Void> {
    * @param name      The MetricName to write
    * @param histogram the Histogram data to write
    * @param context   Unused
+   * @throws Exception If the histogram fails to write to the MetricsProcess it will throw an exception.
    */
   abstract void writeHistogram(MetricName name, WavefrontHistogram histogram, Void context) throws Exception;
 
