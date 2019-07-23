@@ -7,6 +7,7 @@ import com.wavefront.metrics.MetricTranslator;
 import com.yammer.metrics.core.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.*;
+import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
@@ -74,12 +75,11 @@ public class WavefrontYammerHttpMetricsReporterTest {
             if (httpRequest instanceof BasicHttpEntityEnclosingRequest) {
               HttpEntity entity = ((BasicHttpEntityEnclosingRequest) httpRequest).getEntity();
               InputStream fromMetrics = entity.getContent();
-              GZIPInputStream gzip = new GZIPInputStream(fromMetrics);
 
               int c = 0;
               while (c != -1) {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                while ((c = gzip.read()) != '\n' && c != -1) {
+                while ((c = fromMetrics.read()) != '\n' && c != -1) {
                   outputStream.write(c);
                 }
                 String metric = new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
@@ -116,12 +116,11 @@ public class WavefrontYammerHttpMetricsReporterTest {
             if (httpRequest instanceof BasicHttpEntityEnclosingRequest) {
               HttpEntity entity = ((BasicHttpEntityEnclosingRequest) httpRequest).getEntity();
               InputStream fromMetrics = new BufferedInputStream(entity.getContent());
-              GZIPInputStream gzip = new GZIPInputStream(fromMetrics);
 
               int c = 0;
               while (c != -1) {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                while ((c = gzip.read()) != '\n' && c != -1) {
+                while ((c = fromMetrics.read()) != '\n' && c != -1) {
                   outputStream.write(c);
                 }
                 String histogram = new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
