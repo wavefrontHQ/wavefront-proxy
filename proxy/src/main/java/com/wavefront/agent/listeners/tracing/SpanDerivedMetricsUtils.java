@@ -42,16 +42,19 @@ public class SpanDerivedMetricsUtils {
   /**
    * Report generated metrics and histograms from the wavefront tracing span.
    *
-   * @param operationName          span operation name
-   * @param application            name of the application
-   * @param service                name of the service
-   * @param cluster                name of the cluster
-   * @param shard                  name of the shard
-   * @param source                 reporting source
-   * @param componentTagValue      component tag value
-   * @param isError                indicates if the span is erroneous
-   * @param spanDurationMicros     Original span duration (both Zipkin and Jaeger support micros
-   *                               duration).
+   * @param operationName               span operation name.
+   * @param application                 name of the application.
+   * @param service                     name of the service.
+   * @param cluster                     name of the cluster.
+   * @param shard                       name of the shard.
+   * @param source                      reporting source.
+   * @param componentTagValue           component tag value.
+   * @param isError                     indicates if the span is erroneous.
+   * @param spanDurationMicros          Original span duration (both Zipkin and Jaeger support
+   *                                    micros duration).
+   * @param traceDerivedCustomTagKeys   custom tags added to derived RED metrics.
+   * @param spanAnnotations             span tags.
+   *
    * @return HeartbeatMetricKey so that it is added to discovered keys.
    */
   static HeartbeatMetricKey reportWavefrontGeneratedData(
@@ -75,10 +78,16 @@ public class SpanDerivedMetricsUtils {
       put(SOURCE_KEY, source);
     }};
 
+    /*
+     * Use a separate customTagsMap and keep it separate from individual point tags, since
+     * we do not propagate the original span component.
+     */
+    Map<String, String> customTags = new HashMap<>();
     if (traceDerivedCustomTagKeys.size() > 0) {
       spanAnnotations.forEach((annotation) -> {
         if (traceDerivedCustomTagKeys.contains(annotation.getKey())) {
           pointTags.put(annotation.getKey(), annotation.getValue());
+          customTags.put(annotation.getKey(), annotation.getValue());
         }
       });
     }
@@ -102,7 +111,7 @@ public class SpanDerivedMetricsUtils {
     wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
         operationName + TOTAL_TIME_SUFFIX), pointTags)).
         inc(spanDurationMicros / 1000);
-    return new HeartbeatMetricKey(application, service, cluster, shard, source);
+    return new HeartbeatMetricKey(application, service, cluster, shard, source, customTags);
   }
 
   private static String sanitize(String s) {
@@ -139,6 +148,7 @@ public class SpanDerivedMetricsUtils {
         put(CLUSTER_TAG_KEY, key.getCluster());
         put(SHARD_TAG_KEY, key.getShard());
         put(COMPONENT_TAG_KEY, component);
+        putAll(key.getCustomTags());
       }});
       // remove from discovered list so that it is only reported on subsequent discovery
       discoveredHeartbeatMetrics.remove(key);
