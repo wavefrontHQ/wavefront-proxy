@@ -7,7 +7,6 @@ import com.wavefront.metrics.MetricTranslator;
 import com.yammer.metrics.core.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.*;
-import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
@@ -30,7 +29,6 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.zip.GZIPInputStream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
