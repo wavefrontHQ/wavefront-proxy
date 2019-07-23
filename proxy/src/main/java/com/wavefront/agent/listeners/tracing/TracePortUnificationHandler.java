@@ -208,7 +208,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
   }
 
   private boolean sample(Span object) {
-    if (sampler != null && sampler.sample(object.getName(),
+    if (sampler.sample(object.getName(),
         UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
       return true;
     }

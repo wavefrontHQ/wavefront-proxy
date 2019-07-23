@@ -400,7 +400,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   }
 
   private boolean sample(Span wavefrontSpan) {
-    if (sampler != null && sampler.sample(wavefrontSpan.getName(),
+    if (sampler.sample(wavefrontSpan.getName(),
         UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
         wavefrontSpan.getDuration())) {
       return true;
