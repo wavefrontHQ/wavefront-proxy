@@ -23,8 +23,9 @@ public class HeartbeatMetricKey {
   @Nonnull
   private final Map<String, String> customTags;
 
-  public HeartbeatMetricKey(String application, String service, String cluster, String shard,
-                            String source, Map<String, String> customTags) {
+  HeartbeatMetricKey(@Nonnull String application, @Nonnull String service,
+                            @Nonnull String cluster, @Nonnull String shard,
+                            @Nonnull String source, @Nonnull Map<String, String> customTags) {
     this.application = application;
     this.service = service;
     this.cluster = cluster;
@@ -33,27 +34,33 @@ public class HeartbeatMetricKey {
     this.customTags = customTags;
   }
 
-  public String getApplication() {
+  @Nonnull
+  String getApplication() {
     return application;
   }
 
-  public String getService() {
+  @Nonnull
+  String getService() {
     return service;
   }
 
-  public String getCluster() {
+  @Nonnull
+  String getCluster() {
     return cluster;
   }
 
-  public String getShard() {
+  @Nonnull
+  String getShard() {
     return shard;
   }
 
-  public String getSource() {
+  @Nonnull
+  String getSource() {
     return source;
   }
 
-  public Map<String, String> getCustomTags() {
+  @Nonnull
+  Map<String, String> getCustomTags() {
     return customTags;
   }
 
