@@ -6,11 +6,11 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
-import org.apache.http.HttpResponseInterceptor;
-import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.entity.EntityBuilder;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
@@ -246,30 +246,6 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
     }
   }
 
-  HttpEntity generateGZIPCompressEntity(String payload) {
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    GZIPOutputStream gzip = null;
-    try {
-      gzip = new GZIPOutputStream(outputStream);
-      gzip.write(payload.getBytes());
-    } catch (IOException ex) {
-      log.log(Level.SEVERE, "Unable to gzip payload. Batch will not be sent.", ex);
-      return null;
-    }
-
-    try {
-      gzip.close();
-    } catch (IOException ex) {
-      log.log(Level.SEVERE, "Unable to gzip payload. Batch will not be sent.", ex);
-      return null;
-    }
-
-    ByteArrayEntity entity = new ByteArrayEntity(outputStream.toByteArray());
-    entity.setContentType("application/text");
-    entity.setContentEncoding("gzip");
-    return entity;
-  }
-
   void post(final String name, HttpHost destination, final List<String> points, final LinkedBlockingQueue<String> returnEnvelope,
             final AtomicInteger inflightRequests) {
     HttpPost metricPost = new HttpPost(destination.toHostString());
@@ -277,34 +253,11 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
     for (String point : points)
       sb.append(point).append("\n");
 
-    HttpEntity body;
-    if (gzip) {
-      body = generateGZIPCompressEntity(sb.toString());
-      if (body == null) {
-        log.log(Level.SEVERE, name + "GZIP Failure detected. Adding points back to the queue.");
-        inflightRequests.decrementAndGet();
-        for (String point : points) {
-          if (!returnEnvelope.offer(point))
-            log.log(Level.SEVERE, name + " Unable to add points back to buffer after failure, buffer is full");
-        }
-        return;
-      }
-      metricPost.setHeader("Accept-Encoding", "gzip, defalte");
-    } else {
-      try {
-        body = new StringEntity(sb.toString());
-      } catch (UnsupportedEncodingException ex) {
-        log.log(Level.SEVERE, name + "Malformed points detected. Adding points back to the queue.", ex);
-        inflightRequests.decrementAndGet();
-        for (String point : points) {
-          if (!returnEnvelope.offer(point))
-            log.log(Level.SEVERE, name + " Unable to add points back to buffer after failure, buffer is full");
-        }
-        return;
-      }
-    }
-
-    metricPost.setEntity(body);
+    EntityBuilder entityBuilder = EntityBuilder.create().
+        setText(sb.toString()).
+        setContentType(ContentType.TEXT_PLAIN);
+    if (gzip) entityBuilder.gzipCompress();
+    metricPost.setEntity(entityBuilder.build());
 
     this.asyncClient.execute(metricPost, new FutureCallback<HttpResponse>() {
       @Override
