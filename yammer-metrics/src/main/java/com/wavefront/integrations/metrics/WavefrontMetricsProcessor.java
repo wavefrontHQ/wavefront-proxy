@@ -95,6 +95,29 @@ abstract class WavefrontMetricsProcessor implements MetricProcessor<Void> {
     return histogramLines;
   }
 
+  /**
+   * @param name       The name of the histogram.
+   * @param histogram  The histogram data.
+   * @return           A single string entity containing all of the wavefront histogram data.
+   */
+  String toBatchedWavefrontHistogramLines(MetricName name, WavefrontHistogram histogram) {
+    List<WavefrontHistogram.MinuteBin> bins = histogram.bins(clear);
+
+    if (bins.isEmpty()) return "";
+
+    String tags = tagsForMetricName(name);
+
+    StringBuilder sb = new StringBuilder();
+    for (WavefrontHistogram.MinuteBin minuteBin : bins) {
+      sb.append("!M ").append(minuteBin.getMinMillis() / 1000);
+      for (Centroid c : minuteBin.getDist().centroids()) {
+        sb.append(" #").append(c.count()).append(" ").append(c.mean());
+      }
+      sb.append(" \"").append(getName(name)).append("\"").append(tags).append("\n");
+    }
+    return sb.toString();
+  }
+
   private void writeMetered(MetricName name, Metered metered) throws Exception {
     for (Map.Entry<String, Double> entry : MetricsToTimeseries.explodeMetered(metered).entrySet()) {
       writeMetric(name, entry.getKey(), entry.getValue());
