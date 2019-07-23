@@ -24,8 +24,8 @@ public class HeartbeatMetricKey {
   private final Map<String, String> customTags;
 
   HeartbeatMetricKey(@Nonnull String application, @Nonnull String service,
-                            @Nonnull String cluster, @Nonnull String shard,
-                            @Nonnull String source, @Nonnull Map<String, String> customTags) {
+                     @Nonnull String cluster, @Nonnull String shard,
+                     @Nonnull String source, @Nonnull Map<String, String> customTags) {
     this.application = application;
     this.service = service;
     this.cluster = cluster;
