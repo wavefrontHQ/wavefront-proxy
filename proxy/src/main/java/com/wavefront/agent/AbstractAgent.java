@@ -1062,6 +1062,7 @@ public abstract class AbstractAgent {
           String.valueOf(traceSamplingRate)).trim());
       traceSamplingDuration = config.getNumber("traceSamplingDuration", traceSamplingDuration).intValue();
       traceDerivedCustomTagKeysProperty = config.getString("traceDerivedCustomTagKeys", traceDerivedCustomTagKeysProperty);
+      traceAlwaysSampleErrors = config.getBoolean("traceAlwaysSampleErrors", traceAlwaysSampleErrors);
       pushRelayListenerPorts = config.getString("pushRelayListenerPorts", pushRelayListenerPorts);
       bufferFile = config.getString("buffer", bufferFile);
       preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
