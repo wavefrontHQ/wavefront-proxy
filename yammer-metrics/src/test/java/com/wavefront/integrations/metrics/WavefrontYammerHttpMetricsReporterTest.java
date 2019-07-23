@@ -79,17 +79,12 @@ public class WavefrontYammerHttpMetricsReporterTest {
               int c = 0;
               while (c != -1) {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
                 while ((c = gzip.read()) != '\n' && c != -1) {
                   outputStream.write(c);
                 }
-
                 String metric = new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
-
-
                 if (StringUtils.isEmpty(metric))
                   continue;
-
                 inputMetrics.offer(metric);
               }
             }
@@ -126,15 +121,12 @@ public class WavefrontYammerHttpMetricsReporterTest {
               int c = 0;
               while (c != -1) {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
                 while ((c = gzip.read()) != '\n' && c != -1) {
                   outputStream.write(c);
                 }
-
                 String histogram = new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
                 if (StringUtils.isEmpty(histogram))
                   continue;
-
                 inputHistograms.offer(histogram);
               }
             }
