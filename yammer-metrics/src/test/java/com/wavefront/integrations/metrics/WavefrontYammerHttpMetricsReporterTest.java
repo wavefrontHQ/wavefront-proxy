@@ -490,7 +490,7 @@ public class WavefrontYammerHttpMetricsReporterTest {
     List<String> found = Lists.newArrayList();
     String polled;
     try {
-      while ((polled = pollable.poll(500, TimeUnit.MILLISECONDS)) != null) {
+      while ((polled = pollable.poll(100, TimeUnit.MILLISECONDS)) != null) {
         found.add(polled);
       }
     } catch (InterruptedException ex) {
