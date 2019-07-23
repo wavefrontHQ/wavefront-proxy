@@ -6,8 +6,11 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
+import org.apache.http.HttpResponseInterceptor;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.concurrent.FutureCallback;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
@@ -16,6 +19,7 @@ import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.nio.reactor.IOReactorException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -26,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Yammer MetricProcessor that sends metrics via an HttpClient. Provides support for sending to a secondary/backup
@@ -38,6 +43,7 @@ import java.util.logging.Logger;
 public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
 
   private final Logger log = Logger.getLogger(HttpMetricsProcessor.class.getCanonicalName());
+  private final String name;
   private final Supplier<Long> timeSupplier;
   private final CloseableHttpAsyncClient asyncClient;
   private final HttpHost metricHost;
@@ -53,21 +59,13 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
   private final LinkedBlockingQueue<String> metricBuffer;
   private final LinkedBlockingQueue<String> histogramBuffer;
 
-  // Qeueus are only used when the secondary endpoint fails and we need to buffer just those points
+  // Queues are only used when the secondary endpoint fails and we need to buffer just those points
   private final LinkedBlockingQueue<String> secondaryMetricBuffer;
   private final LinkedBlockingQueue<String> secondaryHistogramBuffer;
 
   private final ScheduledExecutorService executor;
-  private long lastFlush = 0L;
-  private long lastHistoFlush = 0L;
-  private final long flushInterval = 1000L;
-  private final long histoFlushInterval = 1000L;
 
-  // Secondary
-  private long secondaryLastFlush = 0L;
-  private long secondaryLastHistoFlush = 0L;
-  private final long secondaryFlushInterval = 1000L;
-  private final long secondaryHistoFlushInterval = 1000L;
+  private final boolean gzip;
 
   public static class Builder {
     private int metricsQueueSize = 50_000;
@@ -90,6 +88,7 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
     private int maxConnectionsPerRoute = 10;
     private Supplier<Long> timeSupplier = System::currentTimeMillis;
     private String name;
+    private boolean gzip = true;
 
     public Builder withHost(String hostname) {
       this.hostname = hostname;
@@ -160,6 +159,11 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
       return this;
     }
 
+    public Builder withGZIPCompression(boolean gzip) {
+      this.gzip = gzip;
+      return this;
+    }
+
     public HttpMetricsProcessor build() throws IOReactorException {
       if (this.metricsBatchSize > this.metricsQueueSize || this.histogramBatchSize > this.histogramQueueSize)
         throw new IllegalArgumentException("Batch size cannot be larger than queue sizes");
@@ -169,67 +173,104 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
   }
 
   HttpMetricsProcessor(Builder builder) throws IOReactorException {
-      super(builder.prependGroupName, builder.clear, builder.sendZeroCounters, builder.sendEmptyHistograms);
+    super(builder.prependGroupName, builder.clear, builder.sendZeroCounters, builder.sendEmptyHistograms);
 
-      this.metricBatchSize = builder.metricsBatchSize;
-      this.histogramBatchSize = builder.histogramBatchSize;
+    this.name = builder.name;
+    this.metricBatchSize = builder.metricsBatchSize;
+    this.histogramBatchSize = builder.histogramBatchSize;
+    this.gzip = builder.gzip;
 
-      this.metricBuffer = new LinkedBlockingQueue<>(builder.metricsQueueSize);
-      this.histogramBuffer = new LinkedBlockingQueue<>(builder.histogramQueueSize);
+    this.metricBuffer = new LinkedBlockingQueue<>(builder.metricsQueueSize);
+    this.histogramBuffer = new LinkedBlockingQueue<>(builder.histogramQueueSize);
 
-      this.timeSupplier = builder.timeSupplier;
+    this.timeSupplier = builder.timeSupplier;
 
-      int maxInflightRequests = builder.maxConnectionsPerRoute;
-      this.maxConnectionsPerRoute = builder.maxConnectionsPerRoute;
+    int maxInflightRequests = builder.maxConnectionsPerRoute;
+    this.maxConnectionsPerRoute = builder.maxConnectionsPerRoute;
 
-      // Proxy supports histos on the same port as telemetry so we can reuse the same route
-      this.metricHost = new HttpHost(builder.hostname, builder.metricsPort);
-      this.inflightRequestsPerRoute.put(metricHost.toHostString(), new AtomicInteger());
-      if (builder.metricsPort == builder.histogramPort) {
-        this.histogramHost = this.metricHost;
-        this.inflightRequestsPerRoute.put(this.metricHost.toHostString(), new AtomicInteger());
+    // Proxy supports histos on the same port as telemetry so we can reuse the same route
+    this.metricHost = new HttpHost(builder.hostname, builder.metricsPort);
+    this.inflightRequestsPerRoute.put(metricHost.toHostString(), new AtomicInteger());
+    if (builder.metricsPort == builder.histogramPort) {
+      this.histogramHost = this.metricHost;
+      this.inflightRequestsPerRoute.put(this.metricHost.toHostString(), new AtomicInteger());
+    } else {
+      this.histogramHost = new HttpHost(builder.hostname, builder.histogramPort);
+      this.inflightRequestsPerRoute.put(this.histogramHost.toHostString(), new AtomicInteger());
+      maxInflightRequests += builder.maxConnectionsPerRoute;
+    }
+
+    // Secondary / backup endpoint
+    if (StringUtils.isNotBlank(builder.secondaryHostname)) {
+      this.secondaryMetricBuffer = new LinkedBlockingQueue<>(builder.metricsQueueSize);
+      this.secondaryHistogramBuffer = new LinkedBlockingQueue<>(builder.histogramQueueSize);
+      this.secondaryMetricHost = new HttpHost(builder.secondaryHostname, builder.secondaryMetricsPort);
+      this.inflightRequestsPerRoute.put(this.secondaryMetricHost.toHostString(), new AtomicInteger());
+      maxInflightRequests += builder.maxConnectionsPerRoute;
+
+      if (builder.secondaryMetricsPort == builder.secondaryHistogramPort) {
+        this.secondaryHistogramHost = this.secondaryMetricHost;
       } else {
-        this.histogramHost = new HttpHost(builder.hostname, builder.histogramPort);
-        this.inflightRequestsPerRoute.put(this.histogramHost.toHostString(), new AtomicInteger());
+        this.secondaryHistogramHost = new HttpHost(builder.secondaryHostname, builder.secondaryHistogramPort);
+        this.inflightRequestsPerRoute.put(this.secondaryHistogramHost.toHostString(), new AtomicInteger());
         maxInflightRequests += builder.maxConnectionsPerRoute;
       }
+    } else {
+      this.secondaryMetricHost = null;
+      this.secondaryMetricBuffer = null;
+      this.secondaryHistogramHost = null;
+      this.secondaryHistogramBuffer = null;
+    }
 
-      // Secondary / backup endpoint
-      if (StringUtils.isNotBlank(builder.secondaryHostname)) {
-        this.secondaryMetricBuffer = new LinkedBlockingQueue<>(builder.metricsQueueSize);
-        this.secondaryHistogramBuffer = new LinkedBlockingQueue<>(builder.histogramQueueSize);
-        this.secondaryMetricHost = new HttpHost(builder.secondaryHostname, builder.secondaryMetricsPort);
-        this.inflightRequestsPerRoute.put(this.secondaryMetricHost.toHostString(), new AtomicInteger());
-        maxInflightRequests += builder.maxConnectionsPerRoute;
-
-        if (builder.secondaryMetricsPort == builder.secondaryHistogramPort) {
-          this.secondaryHistogramHost = this.secondaryMetricHost;
-        } else {
-          this.secondaryHistogramHost = new HttpHost(builder.secondaryHostname, builder.secondaryHistogramPort);
-          this.inflightRequestsPerRoute.put(this.secondaryHistogramHost.toHostString(), new AtomicInteger());
-          maxInflightRequests += builder.maxConnectionsPerRoute;
-        }
-      } else {
-        this.secondaryMetricHost = null;
-        this.secondaryMetricBuffer = null;
-        this.secondaryHistogramHost = null;
-        this.secondaryHistogramBuffer = null;
-      }
-
-      ConnectingIOReactor ioReactor = new DefaultConnectingIOReactor();
-      PoolingNHttpClientConnectionManager connectionManager = new PoolingNHttpClientConnectionManager(ioReactor);
-      // maxInflightRequests == total number of routes * maxConnectionsPerRoute
+    ConnectingIOReactor ioReactor = new DefaultConnectingIOReactor();
+    PoolingNHttpClientConnectionManager connectionManager = new PoolingNHttpClientConnectionManager(ioReactor);
+    // maxInflightRequests == total number of routes * maxConnectionsPerRoute
     connectionManager.setMaxTotal(maxInflightRequests);
     connectionManager.setDefaultMaxPerRoute(builder.maxConnectionsPerRoute);
     this.asyncClient = HttpAsyncClients.custom().
-        setConnectionManager(connectionManager).build();
+        setConnectionManager(connectionManager).
+        build();
     this.asyncClient.start();
 
-    this.executor = new ScheduledThreadPoolExecutor(1);
-    this.executor.schedule(this::postLine, 0L, TimeUnit.MILLISECONDS);
+    int threadPoolWorkers = 2;
+    if (secondaryMetricHost != null)
+      threadPoolWorkers = 4;
+
+    this.executor = new ScheduledThreadPoolExecutor(threadPoolWorkers);
+
+    this.executor.scheduleWithFixedDelay(this::postMetric, 0L, 50L, TimeUnit.MILLISECONDS);
+    this.executor.scheduleWithFixedDelay(this::postHistogram, 0L, 50L, TimeUnit.MILLISECONDS);
+    if (secondaryMetricHost != null) {
+      this.executor.scheduleWithFixedDelay(this::postSecondaryMetric, 0L, 50L, TimeUnit.MILLISECONDS);
+      this.executor.scheduleWithFixedDelay(this::postSecondaryHistogram, 0L, 50L, TimeUnit.MILLISECONDS);
+    }
   }
 
-  void post(HttpHost destination, final List<String> points, final LinkedBlockingQueue<String> returnEnvelope,
+  HttpEntity generateGZIPCompressEntity(String payload) {
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    GZIPOutputStream gzip = null;
+    try {
+      gzip = new GZIPOutputStream(outputStream);
+      gzip.write(payload.getBytes());
+    } catch (IOException ex) {
+      log.log(Level.SEVERE, "Unable to gzip payload. Batch will not be sent.", ex);
+      return null;
+    }
+
+    try {
+      gzip.close();
+    } catch (IOException ex) {
+      log.log(Level.SEVERE, "Unable to gzip payload. Batch will not be sent.", ex);
+      return null;
+    }
+
+    ByteArrayEntity entity = new ByteArrayEntity(outputStream.toByteArray());
+    entity.setContentType("application/text");
+    entity.setContentEncoding("gzip");
+    return entity;
+  }
+
+  void post(final String name, HttpHost destination, final List<String> points, final LinkedBlockingQueue<String> returnEnvelope,
             final AtomicInteger inflightRequests) {
     HttpPost metricPost = new HttpPost(destination.toHostString());
     StringBuilder sb = new StringBuilder();
@@ -237,18 +278,33 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
       sb.append(point).append("\n");
 
     HttpEntity body;
-    try {
-      body = new StringEntity(sb.toString());
-      metricPost.setEntity(body);
-    } catch (UnsupportedEncodingException ex) {
-      log.log(Level.SEVERE, "Malformed points and unable to send. Adding back to the queue.", ex);
-      inflightRequests.decrementAndGet();
-      for (String point : points) {
-        if (!returnEnvelope.offer(point))
-          log.log(Level.SEVERE, "Unable to add points back to buffer after failure, buffer is full");
+    if (gzip) {
+      body = generateGZIPCompressEntity(sb.toString());
+      if (body == null) {
+        log.log(Level.SEVERE, name + "GZIP Failure detected. Adding points back to the queue.");
+        inflightRequests.decrementAndGet();
+        for (String point : points) {
+          if (!returnEnvelope.offer(point))
+            log.log(Level.SEVERE, name + " Unable to add points back to buffer after failure, buffer is full");
+        }
+        return;
       }
-      return;
+      metricPost.setHeader("Accept-Encoding", "gzip, defalte");
+    } else {
+      try {
+        body = new StringEntity(sb.toString());
+      } catch (UnsupportedEncodingException ex) {
+        log.log(Level.SEVERE, name + "Malformed points detected. Adding points back to the queue.", ex);
+        inflightRequests.decrementAndGet();
+        for (String point : points) {
+          if (!returnEnvelope.offer(point))
+            log.log(Level.SEVERE, name + " Unable to add points back to buffer after failure, buffer is full");
+        }
+        return;
+      }
     }
+
+    metricPost.setEntity(body);
 
     this.asyncClient.execute(metricPost, new FutureCallback<HttpResponse>() {
       @Override
@@ -258,79 +314,83 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
 
       @Override
       public void failed(Exception ex) {
-        log.log(Level.WARNING, "Failed to write to the endpoint. Adding points back into the buffer", ex);
+        log.log(Level.WARNING, name + " Failed to write to the endpoint. Adding points back into the buffer", ex);
         inflightRequests.decrementAndGet();
         for (String point : points) {
           if (!returnEnvelope.offer(point))
-            log.log(Level.SEVERE, "Unable to add points back to buffer after failure, buffer is full");
+            log.log(Level.SEVERE, name + " Unable to add points back to buffer after failure, buffer is full");
         }
       }
 
       @Override
       public void cancelled() {
-        log.log(Level.WARNING, "POST was cancelled. Adding points back into the buffer");
+        log.log(Level.WARNING, name + " POST was cancelled. Adding points back into the buffer");
         inflightRequests.decrementAndGet();
         for (String point : points) {
           if (!returnEnvelope.offer(point))
-            log.log(Level.SEVERE, "Unable to add points back to buffer after failure, buffer is full");
+            log.log(Level.SEVERE, name + " Unable to add points back to buffer after failure, buffer is full");
         }
       }
     });
   }
 
-  private void postLine() {
-    lastFlush = System.currentTimeMillis();
-    lastHistoFlush = lastFlush;
-    secondaryLastFlush = lastFlush;
-    secondaryLastHistoFlush = lastFlush;
+  public void shutdown() {
+    executor.shutdown();
+    try {
+      asyncClient.close();
+    } catch (IOException ex) {
+      log.log(Level.WARNING, "Failure in closing the async client", ex);
+    }
+  }
 
-    while (true) {
-      // Metrics
-      final AtomicInteger inflightMetricsRequests = this.inflightRequestsPerRoute.get(this.metricHost.toHostString());
-      if (System.currentTimeMillis() - lastFlush >= flushInterval || this.metricBuffer.size() > 0 && ((inflightMetricsRequests.get() < this.maxConnectionsPerRoute) ||
-          this.metricBuffer.size() > this.metricBatchSize)) {
-        inflightMetricsRequests.getAndIncrement();
-        List<String> points = new ArrayList<>();
-        int taken = this.metricBuffer.drainTo(points, this.metricBatchSize);
-        post(metricHost, points, metricBuffer, inflightMetricsRequests);
-        lastFlush = System.currentTimeMillis();
-      }
+  public void shutdown(Long timeout, TimeUnit unit) throws InterruptedException {
+    executor.shutdown();
+    executor.awaitTermination(timeout, unit);
+    try {
+      asyncClient.close();
+    } catch (IOException ex) {
+      log.log(Level.WARNING, "Failure in closing the async client", ex);
+    }
+  }
 
-      final AtomicInteger inflightHistoRequests = this.inflightRequestsPerRoute.get(this.histogramHost.toHostString());
-      if (System.currentTimeMillis() - lastHistoFlush >= histoFlushInterval && this.histogramBuffer.size() > 0 && ((inflightHistoRequests.get() < this.maxConnectionsPerRoute) ||
-          this.histogramBuffer.size() > this.histogramBatchSize)) {
-        inflightHistoRequests.getAndIncrement();
-        List<String> histograms = new ArrayList<>();
-        int taken = this.histogramBuffer.drainTo(histograms, this.histogramBatchSize);
-        post(histogramHost, histograms, histogramBuffer, inflightHistoRequests);
-        lastHistoFlush = System.currentTimeMillis();
-      }
-
-      if (this.secondaryMetricHost != null) {
-        final AtomicInteger inflightSecondaryMetricRequests = this.inflightRequestsPerRoute.get(this.secondaryMetricHost.toHostString());
-        if (System.currentTimeMillis() - secondaryLastFlush >= secondaryFlushInterval || this.secondaryMetricBuffer.size() > 0 && ((inflightSecondaryMetricRequests.get() < this.maxConnectionsPerRoute) ||
-            this.secondaryMetricBuffer.size() > this.metricBatchSize)) {
-          inflightSecondaryMetricRequests.incrementAndGet();
+  private void watch(LinkedBlockingQueue<String> buffer, int batchSize, AtomicInteger inflightRequests, HttpHost route) {
+    Thread.currentThread().setName(name + "-postMetric");
+    try {
+      String peeked;
+      String name = "[" + route.toHostString() + "] ";
+      while ((peeked = buffer.poll(1, TimeUnit.SECONDS)) != null) {
+        if (inflightRequests.get() < this.maxConnectionsPerRoute ||
+            buffer.size() > batchSize) {
+          inflightRequests.incrementAndGet();
           List<String> points = new ArrayList<>();
-          int taken = this.secondaryMetricBuffer.drainTo(points, this.metricBatchSize);
-          post(secondaryMetricHost, points, secondaryMetricBuffer, inflightSecondaryMetricRequests);
-          secondaryLastFlush = System.currentTimeMillis();
-        }
-        final AtomicInteger inflightSecondaryHistoRequests = this.inflightRequestsPerRoute.get(this.secondaryHistogramHost.toHostString());
-        if (System.currentTimeMillis() - secondaryLastHistoFlush >= secondaryHistoFlushInterval || this.secondaryHistogramBuffer.size() > 0 && ((inflightSecondaryHistoRequests.get() < this.maxConnectionsPerRoute) ||
-            this.secondaryMetricBuffer.size() > this.metricBatchSize)) {
-          inflightSecondaryHistoRequests.incrementAndGet();
-          List<String> histograms = new ArrayList<>();
-          int taken = this.secondaryHistogramBuffer.drainTo(histograms, this.histogramBatchSize);
-          post(secondaryHistogramHost, histograms, secondaryHistogramBuffer, inflightSecondaryHistoRequests);
-          secondaryLastHistoFlush = System.currentTimeMillis();
+          points.add(peeked);
+          int taken = buffer.drainTo(points, batchSize);
+          post(name, route, points, buffer, inflightRequests);
         }
       }
-      try {
-        Thread.sleep(200);
-      } catch (InterruptedException ex) {
+    } catch (InterruptedException ex) {
+      throw new RuntimeException("Interrupted, shutting down..", ex);
+    }
+  }
 
-      }
+  private void postMetric() {
+    final AtomicInteger inflightRequests = inflightRequestsPerRoute.get(metricHost.toHostString());
+    watch(metricBuffer, metricBatchSize, inflightRequests, metricHost);
+  }
+  private void postHistogram() {
+    final AtomicInteger inflightRequests = inflightRequestsPerRoute.get(histogramHost.toHostString());
+    watch(histogramBuffer, histogramBatchSize, inflightRequests, histogramHost);
+  }
+  private void postSecondaryMetric() {
+    if (secondaryMetricHost != null) {
+      final AtomicInteger inflightRequests = inflightRequestsPerRoute.get(secondaryMetricHost.toHostString());
+      watch(secondaryMetricBuffer, metricBatchSize, inflightRequests, secondaryMetricHost);
+    }
+  }
+  private void postSecondaryHistogram() {
+    if (secondaryMetricHost != null) {
+      final AtomicInteger inflightRequests = inflightRequestsPerRoute.get(secondaryHistogramHost.toHostString());
+      watch(secondaryHistogramBuffer, histogramBatchSize, inflightRequests, secondaryHistogramHost);
     }
   }
 
@@ -342,26 +402,23 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
       log.log(Level.SEVERE, "Metric buffer is full, points are being dropped.");
     }
 
-    if (this.secondaryMetricBuffer != null && !this.secondaryMetricBuffer.offer(line)) {
-      log.log(Level.SEVERE, "Secondary Metric buffer is full, points are being dropped.");
+    if (this.secondaryMetricBuffer != null) {
+       if (!this.secondaryMetricBuffer.offer(line))
+        log.log(Level.SEVERE, "Secondary Metric buffer is full, points are being dropped.");
     }
   }
 
   @Override
   void writeHistogram(MetricName name, WavefrontHistogram histogram, Void context) {
-    List<String> histogramLines = toWavefrontHistogramLines(name, histogram);
+    String wavefrontHistogramLines = toBatchedWavefrontHistogramLines(name, histogram);
 
-    StringBuilder payload = new StringBuilder();
-    for (String histogramLine : histogramLines) {
-      payload.append(histogramLine);
-    }
-
-    if (!this.histogramBuffer.offer(payload.toString())) {
+    if (!this.histogramBuffer.offer(wavefrontHistogramLines)) {
       log.log(Level.SEVERE, "Histogram buffer is full, distributions are being dropped.");
     }
 
-    if (this.secondaryHistogramBuffer != null && !this.secondaryHistogramBuffer.offer(payload.toString())) {
-      log.log(Level.SEVERE, "Secondary Histogram buffer is full, distributions are being dropped.");
+    if (this.secondaryHistogramBuffer != null) {
+      if (!this.secondaryHistogramBuffer.offer(wavefrontHistogramLines))
+        log.log(Level.SEVERE, "Secondary Histogram buffer is full, distributions are being dropped.");
     }
   }
 

@@ -33,7 +33,7 @@ public class WavefrontYammerHttpMetricsReporter extends AbstractReporter impleme
   private final boolean includeJvmMetrics;
   private final ConcurrentHashMap<String, Double> gaugeMap;
   private final MetricTranslator metricTranslator;
-  private final WavefrontMetricsProcessor httpMetricsProcessor;
+  private final HttpMetricsProcessor httpMetricsProcessor;
 
   /**
    * How many metrics were emitted in the last call to run()
@@ -67,6 +67,7 @@ public class WavefrontYammerHttpMetricsReporter extends AbstractReporter impleme
     private int metricsBatchSize = 10_000;
     private int histogramQueueSize = 5_000;
     private int histogramBatchSize = 1_000;
+    private boolean gzip = true;
 
     public Builder withMetricsRegistry(MetricsRegistry metricsRegistry) {
       this.metricsRegistry = metricsRegistry;
@@ -142,9 +143,30 @@ public class WavefrontYammerHttpMetricsReporter extends AbstractReporter impleme
       return this;
     }
 
+    public Builder includeJvmMetrics(boolean include) {
+      this.includeJvmMetrics = include;
+      return this;
+    }
+
+    public Builder withMetricTranslator(MetricTranslator metricTranslator) {
+      this.metricTranslator = metricTranslator;
+      return this;
+    }
+
+    public Builder withGZIPCompression(boolean gzip) {
+      this.gzip = gzip;
+      return this;
+    }
+
     public WavefrontYammerHttpMetricsReporter build() throws IOReactorException {
+      if (StringUtils.isBlank(this.name)) {
+        throw new IllegalArgumentException("Reporter must have a human readable name.");
+      }
       if (StringUtils.isBlank(this.hostname)) {
         throw new IllegalArgumentException("Hostname may not be blank.");
+      }
+      if (timeSupplier == null) {
+        throw new IllegalArgumentException("Time Supplier must be specified.");
       }
       return new WavefrontYammerHttpMetricsReporter(this);
     }
@@ -158,6 +180,7 @@ public class WavefrontYammerHttpMetricsReporter extends AbstractReporter impleme
     this.includeJvmMetrics = builder.includeJvmMetrics;
 
     this.httpMetricsProcessor = new HttpMetricsProcessor.Builder().
+        withName(builder.name).
         withHost(builder.hostname).
         withPorts(builder.metricsPort, builder.histogramPort).
         withSecondaryHostname(builder.secondaryHostname).
@@ -169,7 +192,9 @@ public class WavefrontYammerHttpMetricsReporter extends AbstractReporter impleme
         withPrependedGroupNames(builder.prependGroupName).
         clearHistogramsAndTimers(builder.clear).
         sendZeroCounters(builder.sendZeroCounters).
-        sendEmptyHistograms(builder.sendEmptyHistograms).build();
+        sendEmptyHistograms(builder.sendEmptyHistograms).
+        withGZIPCompression(builder.gzip).
+        build();
     this.gaugeMap = new ConcurrentHashMap<>();
   }
 
@@ -245,13 +270,16 @@ public class WavefrontYammerHttpMetricsReporter extends AbstractReporter impleme
    * @throws InterruptedException if interrupted while waiting
    */
   public void shutdown(long timeout, TimeUnit unit) throws InterruptedException {
+    httpMetricsProcessor.shutdown(timeout,unit);
     executor.shutdown();
     executor.awaitTermination(timeout, unit);
+    super.shutdown();
   }
 
   @Override
   public void shutdown() {
     executor.shutdown();
+    this.httpMetricsProcessor.shutdown();
     super.shutdown();
   }
 
