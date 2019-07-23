@@ -1,5 +1,7 @@
 package com.wavefront.agent.listeners.tracing;
 
+import java.util.Map;
+
 import javax.annotation.Nonnull;
 
 /**
@@ -15,17 +17,20 @@ public class HeartbeatMetricKey {
   @Nonnull
   private final String cluster;
   @Nonnull
-  private String shard;
+  private final String shard;
   @Nonnull
-  private String source;
+  private final String source;
+  @Nonnull
+  private final Map<String, String> customTags;
 
   public HeartbeatMetricKey(String application, String service, String cluster, String shard,
-                            String source) {
+                            String source, Map<String, String> customTags) {
     this.application = application;
     this.service = service;
     this.cluster = cluster;
     this.shard = shard;
     this.source = source;
+    this.customTags = customTags;
   }
 
   public String getApplication() {
@@ -48,6 +53,10 @@ public class HeartbeatMetricKey {
     return source;
   }
 
+  public Map<String, String> getCustomTags() {
+    return customTags;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -60,12 +69,13 @@ public class HeartbeatMetricKey {
 
     HeartbeatMetricKey other = (HeartbeatMetricKey) o;
     return application.equals(other.application) && service.equals(other.service) &&
-        cluster.equals(other.cluster) && shard.equals(other.shard) && source.equals(other.source);
+        cluster.equals(other.cluster) && shard.equals(other.shard) &&
+        source.equals(other.source) && customTags.equals(other.customTags);
   }
 
   @Override
   public int hashCode() {
     return application.hashCode() + 31 * service.hashCode() + 31 * cluster.hashCode() +
-        31 * shard.hashCode() + 31 * source.hashCode();
+        31 * shard.hashCode() + 31 * source.hashCode() + 31 * customTags.hashCode();
   }
 }
