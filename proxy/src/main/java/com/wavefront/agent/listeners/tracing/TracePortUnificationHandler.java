@@ -61,6 +61,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
 
   private final Counter discardedSpans;
+  private final Counter discardedSpansBySampler;
 
   @SuppressWarnings("unchecked")
   public TracePortUnificationHandler(final String handle,
@@ -101,6 +102,8 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
     this.traceDisabled = traceDisabled;
     this.spanLogsDisabled = spanLogsDisabled;
     this.discardedSpans = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+    this.discardedSpansBySampler = Metrics.newCounter(new MetricName("spans." + handle, "",
+        "sampler.discarded"));
   }
 
   @Override
@@ -176,8 +179,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
         sampleError = object.getAnnotations().stream().anyMatch(
             t -> t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
       }
-      if (sampleError || sampler.sample(object.getName(),
-          UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
+      if (sampleError || sample(object)) {
         handler.report(object);
       }
     }
@@ -203,5 +205,14 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
       }
     }
     return errMsg.toString();
+  }
+
+  private boolean sample(Span object) {
+    if (sampler.sample(object.getName(),
+        UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
+      return true;
+    }
+    discardedSpansBySampler.inc();
+    return false;
   }
 }

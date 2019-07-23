@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -93,6 +94,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
+  private final Counter discardedSpansBySampler;
   private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
@@ -157,6 +159,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
         "spans." + handle + ".batches", "", "processed"));
     this.failedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "failed"));
+    this.discardedSpansBySampler = Metrics.newCounter(new MetricName(
+        "spans." + handle , "", "sampler.discarded"));
     this.discoveredHeartbeatMetrics =  new ConcurrentHashMap<>();
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("zipkin-heart-beater"));
@@ -359,8 +363,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
       }
     }
 
-    if ((alwaysSampleErrors && isError) || sampler.sample(wavefrontSpan.getName(),
-        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(), wavefrontSpan.getDuration())) {
+    if ((alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
@@ -394,6 +397,16 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
           spanName, applicationName, serviceName, cluster, shard, sourceName, componentTagValue,
           isError, zipkinSpan.durationAsLong(), traceDerivedCustomTagKeys, annotations), true);
     }
+  }
+
+  private boolean sample(Span wavefrontSpan) {
+    if (sampler.sample(wavefrontSpan.getName(),
+        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
+        wavefrontSpan.getDuration())) {
+      return true;
+    }
+    discardedSpansBySampler.inc();
+    return false;
   }
 
   @Override

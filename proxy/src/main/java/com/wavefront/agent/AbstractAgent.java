@@ -589,8 +589,8 @@ public abstract class AbstractAgent {
   protected String traceDerivedCustomTagKeysProperty;
 
   @Parameter(names = {"--traceAlwaysSampleErrors"}, description = "Always sample spans with error tag (set to true) " +
-      "ignoring other sampling configuration. Defaults to false" )
-  protected boolean traceAlwaysSampleErrors = false;
+      "ignoring other sampling configuration. Defaults to true." )
+  protected boolean traceAlwaysSampleErrors = true;
 
   @Parameter(names = {"--pushRelayListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for proxy chaining data. For internal use. Defaults to none.")

@@ -105,6 +105,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
+  private final Counter discardedSpansBySampler;
   private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
@@ -156,6 +157,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         new MetricName("spans." + handle + ".batches", "", "processed"));
     this.failedBatches = Metrics.newCounter(
         new MetricName("spans." + handle + ".batches", "", "failed"));
+    this.discardedSpansBySampler = Metrics.newCounter(
+        new MetricName("spans." + handle, "", "sampler.discarded"));
     this.discoveredHeartbeatMetrics =  new ConcurrentHashMap<>();
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("jaeger-heart-beater"));
@@ -328,8 +331,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         return;
       }
     }
-    if ((alwaysSampleErrors && isError) || sampler.sample(wavefrontSpan.getName(),
-        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(), wavefrontSpan.getDuration())) {
+    if ((alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null) {
         if (spanLogsDisabled.get()) {
@@ -380,6 +382,16 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
           componentTagValue, isError, span.getDuration(), traceDerivedCustomTagKeys,
           annotations), true);
     }
+  }
+
+  private boolean sample(Span wavefrontSpan) {
+    if (sampler.sample(wavefrontSpan.getName(),
+        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
+        wavefrontSpan.getDuration())) {
+      return true;
+    }
+    discardedSpansBySampler.inc();
+    return false;
   }
 
   @Nullable
