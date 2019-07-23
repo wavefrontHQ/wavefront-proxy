@@ -3,26 +3,34 @@ package com.wavefront.integrations.metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.WavefrontHistogram;
 import org.apache.commons.lang.StringUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
+import org.apache.http.*;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.EntityBuilder;
+import org.apache.http.client.entity.GzipCompressingEntity;
+import org.apache.http.client.entity.GzipDecompressingEntity;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpRequestWrapper;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
 import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
+import org.apache.http.message.BasicHeader;
+import org.apache.http.message.BasicHttpEntityEnclosingRequest;
+import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.nio.reactor.IOReactorException;
+import org.apache.http.protocol.HttpContext;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -226,9 +234,23 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
     // maxInflightRequests == total number of routes * maxConnectionsPerRoute
     connectionManager.setMaxTotal(maxInflightRequests);
     connectionManager.setDefaultMaxPerRoute(builder.maxConnectionsPerRoute);
-    this.asyncClient = HttpAsyncClients.custom().
-        setConnectionManager(connectionManager).
-        build();
+
+    HttpAsyncClientBuilder asyncClientBuilder = HttpAsyncClients.custom().
+        setConnectionManager(connectionManager);
+
+    if (gzip) {
+      RequestConfig requestConfig = RequestConfig.custom().
+          setContentCompressionEnabled(gzip)
+          .build();
+      asyncClientBuilder.setDefaultRequestConfig(requestConfig);
+      asyncClientBuilder.setDefaultHeaders(Collections.singleton(new BasicHeader("Accept-Encoding", "gzip")));
+      asyncClientBuilder.addInterceptorFirst((HttpRequestInterceptor) (request, context) -> {
+        HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
+        ((HttpEntityEnclosingRequest) request).setEntity(new GzipCompressingEntity(entity));
+      });
+    }
+
+    this.asyncClient = asyncClientBuilder.build();
     this.asyncClient.start();
 
     int threadPoolWorkers = 2;
@@ -247,15 +269,15 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
 
   void post(final String name, HttpHost destination, final List<String> points, final LinkedBlockingQueue<String> returnEnvelope,
             final AtomicInteger inflightRequests) {
+
     HttpPost metricPost = new HttpPost(destination.toHostString());
     StringBuilder sb = new StringBuilder();
     for (String point : points)
       sb.append(point).append("\n");
 
     EntityBuilder entityBuilder = EntityBuilder.create().
-        setText(sb.toString()).
-        setContentType(ContentType.TEXT_PLAIN);
-    if (gzip) entityBuilder.gzipCompress();
+        setContentType(ContentType.TEXT_PLAIN).
+        setText(sb.toString());
     metricPost.setEntity(entityBuilder.build());
 
     this.asyncClient.execute(metricPost, new FutureCallback<HttpResponse>() {
@@ -263,7 +285,6 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
       public void completed(HttpResponse result) {
         inflightRequests.decrementAndGet();
       }
-
       @Override
       public void failed(Exception ex) {
         log.log(Level.WARNING, name + " Failed to write to the endpoint. Adding points back into the buffer", ex);
