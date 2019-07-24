@@ -2,13 +2,16 @@ package com.wavefront.integrations.metrics;
 
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.WavefrontHistogram;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.*;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.EntityBuilder;
 import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.concurrent.FutureCallback;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
@@ -18,7 +21,9 @@ import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.nio.reactor.IOReactorException;
+import org.apache.http.protocol.HTTP;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Yammer MetricProcessor that sends metrics via an HttpClient. Provides support for sending to a secondary/backup
@@ -50,6 +56,7 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
   private final HttpHost secondaryHistogramHost;
 
   private final Map<String, AtomicInteger> inflightRequestsPerRoute = new ConcurrentHashMap<>();
+  private final Map<String, LinkedBlockingQueue<FutureCallback<HttpResponse>>> inflightCompletablesPerRoute = new ConcurrentHashMap<>();
   private final int maxConnectionsPerRoute;
   private final int metricBatchSize;
   private final int histogramBatchSize;
@@ -172,51 +179,57 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
   HttpMetricsProcessor(Builder builder) throws IOReactorException {
     super(builder.prependGroupName, builder.clear, builder.sendZeroCounters, builder.sendEmptyHistograms);
 
-    this.name = builder.name;
-    this.metricBatchSize = builder.metricsBatchSize;
-    this.histogramBatchSize = builder.histogramBatchSize;
-    this.gzip = builder.gzip;
+    name = builder.name;
+    metricBatchSize = builder.metricsBatchSize;
+    histogramBatchSize = builder.histogramBatchSize;
+    gzip = builder.gzip;
 
-    this.metricBuffer = new LinkedBlockingQueue<>(builder.metricsQueueSize);
-    this.histogramBuffer = new LinkedBlockingQueue<>(builder.histogramQueueSize);
+    metricBuffer = new LinkedBlockingQueue<>(builder.metricsQueueSize);
+    histogramBuffer = new LinkedBlockingQueue<>(builder.histogramQueueSize);
 
-    this.timeSupplier = builder.timeSupplier;
+    timeSupplier = builder.timeSupplier;
 
     int maxInflightRequests = builder.maxConnectionsPerRoute;
-    this.maxConnectionsPerRoute = builder.maxConnectionsPerRoute;
+    maxConnectionsPerRoute = builder.maxConnectionsPerRoute;
 
     // Proxy supports histos on the same port as telemetry so we can reuse the same route
-    this.metricHost = new HttpHost(builder.hostname, builder.metricsPort);
-    this.inflightRequestsPerRoute.put(metricHost.toHostString(), new AtomicInteger());
+    metricHost = new HttpHost(builder.hostname, builder.metricsPort);
+    inflightRequestsPerRoute.put(metricHost.toHostString(), new AtomicInteger());
+    inflightCompletablesPerRoute.put(metricHost.toHostString(), new LinkedBlockingQueue<>(maxConnectionsPerRoute));
+
     if (builder.metricsPort == builder.histogramPort) {
-      this.histogramHost = this.metricHost;
-      this.inflightRequestsPerRoute.put(this.metricHost.toHostString(), new AtomicInteger());
+      histogramHost = metricHost;
+      inflightRequestsPerRoute.put(metricHost.toHostString(), new AtomicInteger());
     } else {
-      this.histogramHost = new HttpHost(builder.hostname, builder.histogramPort);
-      this.inflightRequestsPerRoute.put(this.histogramHost.toHostString(), new AtomicInteger());
+      histogramHost = new HttpHost(builder.hostname, builder.histogramPort);
+      inflightRequestsPerRoute.put(histogramHost.toHostString(), new AtomicInteger());
       maxInflightRequests += builder.maxConnectionsPerRoute;
     }
+    inflightCompletablesPerRoute.put(histogramHost.toHostString(), new LinkedBlockingQueue<>(maxConnectionsPerRoute));
 
     // Secondary / backup endpoint
     if (StringUtils.isNotBlank(builder.secondaryHostname)) {
-      this.secondaryMetricBuffer = new LinkedBlockingQueue<>(builder.metricsQueueSize);
-      this.secondaryHistogramBuffer = new LinkedBlockingQueue<>(builder.histogramQueueSize);
-      this.secondaryMetricHost = new HttpHost(builder.secondaryHostname, builder.secondaryMetricsPort);
-      this.inflightRequestsPerRoute.put(this.secondaryMetricHost.toHostString(), new AtomicInteger());
+      secondaryMetricBuffer = new LinkedBlockingQueue<>(builder.metricsQueueSize);
+      secondaryHistogramBuffer = new LinkedBlockingQueue<>(builder.histogramQueueSize);
+
+      secondaryMetricHost = new HttpHost(builder.secondaryHostname, builder.secondaryMetricsPort);
+      inflightRequestsPerRoute.put(secondaryMetricHost.toHostString(), new AtomicInteger());
       maxInflightRequests += builder.maxConnectionsPerRoute;
 
       if (builder.secondaryMetricsPort == builder.secondaryHistogramPort) {
-        this.secondaryHistogramHost = this.secondaryMetricHost;
+        secondaryHistogramHost = secondaryMetricHost;
       } else {
-        this.secondaryHistogramHost = new HttpHost(builder.secondaryHostname, builder.secondaryHistogramPort);
-        this.inflightRequestsPerRoute.put(this.secondaryHistogramHost.toHostString(), new AtomicInteger());
+        secondaryHistogramHost = new HttpHost(builder.secondaryHostname, builder.secondaryHistogramPort);
+        inflightRequestsPerRoute.put(secondaryHistogramHost.toHostString(), new AtomicInteger());
         maxInflightRequests += builder.maxConnectionsPerRoute;
       }
+      inflightCompletablesPerRoute.put(secondaryMetricHost.toHostString(), new LinkedBlockingQueue<>(maxConnectionsPerRoute));
+      inflightCompletablesPerRoute.put(secondaryHistogramHost.toHostString(), new LinkedBlockingQueue<>(maxConnectionsPerRoute));
     } else {
-      this.secondaryMetricHost = null;
-      this.secondaryMetricBuffer = null;
-      this.secondaryHistogramHost = null;
-      this.secondaryHistogramBuffer = null;
+      secondaryMetricHost = null;
+      secondaryMetricBuffer = null;
+      secondaryHistogramHost = null;
+      secondaryHistogramBuffer = null;
     }
 
     ConnectingIOReactor ioReactor = new DefaultConnectingIOReactor();
@@ -228,52 +241,76 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
     HttpAsyncClientBuilder asyncClientBuilder = HttpAsyncClients.custom().
         setConnectionManager(connectionManager);
 
-    if (gzip) {
-      RequestConfig requestConfig = RequestConfig.custom().
-          setContentCompressionEnabled(gzip)
-          .build();
-      asyncClientBuilder.setDefaultRequestConfig(requestConfig);
-      asyncClientBuilder.setDefaultHeaders(Collections.singleton(new BasicHeader("Accept-Encoding", "gzip")));
-      asyncClientBuilder.addInterceptorFirst((HttpRequestInterceptor) (request, context) -> {
-        HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
-        ((HttpEntityEnclosingRequest) request).setEntity(new GzipCompressingEntity(entity));
-      });
-    }
+//    if (gzip) {
+//      RequestConfig requestConfig = RequestConfig.custom().
+//          setContentCompressionEnabled(true)
+//          .build();
+//      asyncClientBuilder.setDefaultRequestConfig(requestConfig);
+//      asyncClientBuilder.setDefaultHeaders(Collections.singleton(new BasicHeader("Accept-Encoding", "gzip")));
+//      asyncClientBuilder.addInterceptorFirst((HttpRequestInterceptor) (request, context) -> {
+//        HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
+//        GzipCompressingEntity zippedEntity = new GzipCompressingEntity(entity);
+//        request.removeHeaders(HTTP.CONTENT_ENCODING);
+//        request.addHeader(zippedEntity.getContentEncoding());
+//        ((HttpEntityEnclosingRequest) request).setEntity(zippedEntity);
+//      });
+//    }
 
-    this.asyncClient = asyncClientBuilder.build();
-    this.asyncClient.start();
+    asyncClient = asyncClientBuilder.build();
+    asyncClient.start();
 
     int threadPoolWorkers = 2;
     if (secondaryMetricHost != null)
       threadPoolWorkers = 4;
 
-    this.executor = new ScheduledThreadPoolExecutor(threadPoolWorkers);
+    executor = new ScheduledThreadPoolExecutor(threadPoolWorkers);
 
-    this.executor.scheduleWithFixedDelay(this::postMetric, 0L, 50L, TimeUnit.MILLISECONDS);
-    this.executor.scheduleWithFixedDelay(this::postHistogram, 0L, 50L, TimeUnit.MILLISECONDS);
+    executor.scheduleWithFixedDelay(this::postMetric, 0L, 50L, TimeUnit.MILLISECONDS);
+    executor.scheduleWithFixedDelay(this::postHistogram, 0L, 50L, TimeUnit.MILLISECONDS);
     if (secondaryMetricHost != null) {
-      this.executor.scheduleWithFixedDelay(this::postSecondaryMetric, 0L, 50L, TimeUnit.MILLISECONDS);
-      this.executor.scheduleWithFixedDelay(this::postSecondaryHistogram, 0L, 50L, TimeUnit.MILLISECONDS);
+      executor.scheduleWithFixedDelay(this::postSecondaryMetric, 0L, 50L, TimeUnit.MILLISECONDS);
+      executor.scheduleWithFixedDelay(this::postSecondaryHistogram, 0L, 50L, TimeUnit.MILLISECONDS);
     }
   }
 
   void post(final String name, HttpHost destination, final List<String> points, final LinkedBlockingQueue<String> returnEnvelope,
             final AtomicInteger inflightRequests) {
 
-    HttpPost metricPost = new HttpPost(destination.toHostString());
+    HttpPost post = new HttpPost(destination.toString());
     StringBuilder sb = new StringBuilder();
     for (String point : points)
-      sb.append(point).append("\n");
+      sb.append(point);
 
     EntityBuilder entityBuilder = EntityBuilder.create().
-        setContentType(ContentType.TEXT_PLAIN).
-        setText(sb.toString());
-    metricPost.setEntity(entityBuilder.build());
+        setContentType(ContentType.TEXT_PLAIN);
+    if (gzip) {
+      try {
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        GZIPOutputStream gzip = new GZIPOutputStream(stream);
+        gzip.write(sb.toString().getBytes());
+        gzip.finish();
+        entityBuilder.setBinary(stream.toByteArray());
+        entityBuilder.chunked();
+        entityBuilder.setContentEncoding("gzip");
+      } catch (IOException ex) {
+        log.log(Level.SEVERE, "Unable compress points, returning to the buffer", ex);
+        for (String point : points) {
+          if (!returnEnvelope.offer(point))
+            log.log(Level.SEVERE, name + " Unable to add points back to buffer after failure, buffer is full");
+        }
+      }
+    } else {
+      entityBuilder.setText(sb.toString());
+    }
+    post.setEntity(entityBuilder.build());
 
-    this.asyncClient.execute(metricPost, new FutureCallback<HttpResponse>() {
+    final LinkedBlockingQueue<FutureCallback<HttpResponse>> processingQueue =
+        inflightCompletablesPerRoute.get(destination.toHostString());
+    final FutureCallback<HttpResponse> completable = new FutureCallback<HttpResponse>() {
       @Override
       public void completed(HttpResponse result) {
         inflightRequests.decrementAndGet();
+        processingQueue.poll();
       }
       @Override
       public void failed(Exception ex) {
@@ -283,6 +320,7 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
           if (!returnEnvelope.offer(point))
             log.log(Level.SEVERE, name + " Unable to add points back to buffer after failure, buffer is full");
         }
+        processingQueue.poll();
       }
 
       @Override
@@ -293,8 +331,14 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
           if (!returnEnvelope.offer(point))
             log.log(Level.SEVERE, name + " Unable to add points back to buffer after failure, buffer is full");
         }
+        processingQueue.poll();
       }
-    });
+    };
+
+    // wait until a thread completes before issuing the next batch immediately
+    processingQueue.offer(completable);
+    inflightRequests.incrementAndGet();
+    this.asyncClient.execute(post, completable);
   }
 
   public void shutdown() {
@@ -316,20 +360,17 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
     }
   }
 
-  private void watch(LinkedBlockingQueue<String> buffer, int batchSize, AtomicInteger inflightRequests, HttpHost route) {
-    Thread.currentThread().setName(name + "-postMetric");
+  private void watch(LinkedBlockingQueue<String> buffer, int batchSize, AtomicInteger inflightRequests, HttpHost route,
+                     String threadIdentifier) {
+    Thread.currentThread().setName(name + "-" + threadIdentifier);
     try {
       String peeked;
-      String name = "[" + route.toHostString() + "] ";
+      String friendlyRoute = "[" + route.toHostString() + "] ";
       while ((peeked = buffer.poll(1, TimeUnit.SECONDS)) != null) {
-        if (inflightRequests.get() < this.maxConnectionsPerRoute ||
-            buffer.size() > batchSize) {
-          inflightRequests.incrementAndGet();
-          List<String> points = new ArrayList<>();
-          points.add(peeked);
-          int taken = buffer.drainTo(points, batchSize);
-          post(name, route, points, buffer, inflightRequests);
-        }
+        List<String> points = new ArrayList<>();
+        points.add(peeked);
+        int taken = buffer.drainTo(points, batchSize);
+        post(friendlyRoute, route, points, buffer, inflightRequests);
       }
     } catch (InterruptedException ex) {
       throw new RuntimeException("Interrupted, shutting down..", ex);
@@ -338,23 +379,19 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
 
   private void postMetric() {
     final AtomicInteger inflightRequests = inflightRequestsPerRoute.get(metricHost.toHostString());
-    watch(metricBuffer, metricBatchSize, inflightRequests, metricHost);
+    watch(metricBuffer, metricBatchSize, inflightRequests, metricHost, "postMetric");
   }
   private void postHistogram() {
     final AtomicInteger inflightRequests = inflightRequestsPerRoute.get(histogramHost.toHostString());
-    watch(histogramBuffer, histogramBatchSize, inflightRequests, histogramHost);
+    watch(histogramBuffer, histogramBatchSize, inflightRequests, histogramHost, "postHistogram");
   }
   private void postSecondaryMetric() {
-    if (secondaryMetricHost != null) {
-      final AtomicInteger inflightRequests = inflightRequestsPerRoute.get(secondaryMetricHost.toHostString());
-      watch(secondaryMetricBuffer, metricBatchSize, inflightRequests, secondaryMetricHost);
-    }
+    final AtomicInteger inflightRequests = inflightRequestsPerRoute.get(secondaryMetricHost.toHostString());
+    watch(secondaryMetricBuffer, metricBatchSize, inflightRequests, secondaryMetricHost, "postSecondaryMetric");
   }
   private void postSecondaryHistogram() {
-    if (secondaryMetricHost != null) {
-      final AtomicInteger inflightRequests = inflightRequestsPerRoute.get(secondaryHistogramHost.toHostString());
-      watch(secondaryHistogramBuffer, histogramBatchSize, inflightRequests, secondaryHistogramHost);
-    }
+    final AtomicInteger inflightRequests = inflightRequestsPerRoute.get(secondaryHistogramHost.toHostString());
+    watch(secondaryHistogramBuffer, histogramBatchSize, inflightRequests, secondaryHistogramHost, "postSecondaryHistogram");
   }
 
   @Override
