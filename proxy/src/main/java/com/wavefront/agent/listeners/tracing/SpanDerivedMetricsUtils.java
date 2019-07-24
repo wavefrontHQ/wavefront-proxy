@@ -38,6 +38,8 @@ public class SpanDerivedMetricsUtils {
   private final static String OPERATION_NAME_TAG = "operationName";
   public final static String ERROR_SPAN_TAG_KEY = "error";
   public final static String ERROR_SPAN_TAG_VAL = "true";
+  public final static String DEBUG_SPAN_TAG_KEY = "debug";
+  public final static String DEBUG_SPAN_TAG_VAL = "true";
 
   /**
    * Report generated metrics and histograms from the wavefront tracing span.

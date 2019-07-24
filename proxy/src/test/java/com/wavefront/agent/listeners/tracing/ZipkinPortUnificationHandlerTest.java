@@ -1,8 +1,8 @@
 package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableList;
-
 import com.google.common.collect.ImmutableMap;
+
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
@@ -12,7 +12,6 @@ import org.easymock.EasyMock;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -341,6 +340,7 @@ public class ZipkinPortUnificationHandlerTest {
             setAnnotations(ImmutableList.of(
             new Annotation("span.kind", "server"),
             new Annotation("service", "frontend"),
+            new Annotation("debug", "true"),
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
             new Annotation("http.url", "none+h1c://localhost:8881/"),
@@ -389,7 +389,7 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("http.method", "GET").
         putTag("http.url", "none+h1c://localhost:8881/").
         putTag("http.status_code", "200").
-        putTag("sample", "true").
+        putTag("debug", "true").
         build();
 
     List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1, spanServer2, spanServer3);

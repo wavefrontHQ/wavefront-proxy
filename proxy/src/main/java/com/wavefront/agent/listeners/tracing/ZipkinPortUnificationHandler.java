@@ -1,6 +1,5 @@
 package com.wavefront.agent.listeners.tracing;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -12,8 +11,8 @@ import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.listeners.PortUnificationHandler;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
@@ -57,6 +56,8 @@ import wavefront.report.SpanLogs;
 import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
@@ -271,7 +272,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     String shard = NULL_TAG_VAL;
     String componentTagValue = NULL_TAG_VAL;
     boolean isError = false;
-    boolean isSample = false;
+    boolean isDebugSpanTag = false;
 
     // Set all other Span Tags.
     Set<String> ignoreKeys = new HashSet<>(ImmutableSet.of(SOURCE_KEY));
@@ -297,10 +298,12 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
               // Ignore the original error value
               annotation.setValue(ERROR_SPAN_TAG_VAL);
               break;
-            // TODO : Include "sample" in wavefront-sdk-java constants.
-            case "sample":
-              isSample = true;
-              continue;
+            // TODO : Consume SAMPLE_SPAN_TAG_KEY in wavefront-sdk-java constants.
+            case DEBUG_SPAN_TAG_KEY:
+              isDebugSpanTag = true;
+              // Ignore the original debug value
+              annotation.setValue(DEBUG_SPAN_TAG_VAL);
+              break;
           }
           annotations.add(annotation);
         }
@@ -369,7 +372,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     }
 
     boolean isDebug = zipkinSpan.debug() != null ? zipkinSpan.debug() : false;
-    if (isSample || isDebug || (alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
+    if (isDebugSpanTag || isDebug || (alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
