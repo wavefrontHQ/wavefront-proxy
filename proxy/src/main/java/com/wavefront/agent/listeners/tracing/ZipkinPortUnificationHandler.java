@@ -363,7 +363,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
       }
     }
 
-    if ((alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
+    boolean isDebug = zipkinSpan.debug() != null ? zipkinSpan.debug() : false;
+    if (isDebug || (alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
