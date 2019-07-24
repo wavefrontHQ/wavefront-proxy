@@ -271,6 +271,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     String shard = NULL_TAG_VAL;
     String componentTagValue = NULL_TAG_VAL;
     boolean isError = false;
+    boolean isSample = false;
 
     // Set all other Span Tags.
     Set<String> ignoreKeys = new HashSet<>(ImmutableSet.of(SOURCE_KEY));
@@ -296,6 +297,10 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
               // Ignore the original error value
               annotation.setValue(ERROR_SPAN_TAG_VAL);
               break;
+            // TODO : Include "sample" in wavefront-sdk-java constants.
+            case "sample":
+              isSample = true;
+              continue;
           }
           annotations.add(annotation);
         }
@@ -364,7 +369,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     }
 
     boolean isDebug = zipkinSpan.debug() != null ? zipkinSpan.debug() : false;
-    if (isDebug || (alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
+    if (isSample || isDebug || (alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {

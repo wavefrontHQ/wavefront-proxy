@@ -331,6 +331,24 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("shard", "none"))).
             build());
     expectLastCall();
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+        setDuration(7).
+        setName("getservice").
+        setSource("10.0.0.1").
+        setSpanId("00000000-0000-0000-4822-889fe47043bd").
+        setTraceId("00000000-0000-0000-4822-889fe47043bd").
+        // Note: Order of annotations list matters for this unit test.
+            setAnnotations(ImmutableList.of(
+            new Annotation("span.kind", "server"),
+            new Annotation("service", "frontend"),
+            new Annotation("http.method", "GET"),
+            new Annotation("http.status_code", "200"),
+            new Annotation("http.url", "none+h1c://localhost:8881/"),
+            new Annotation("application", "Zipkin"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none"))).
+            build());
+    expectLastCall();
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
     zipkin2.Span spanServer1 = zipkin2.Span.newBuilder().
@@ -360,7 +378,21 @@ public class ZipkinPortUnificationHandlerTest {
         debug(true).
         build();
 
-    List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1, spanServer2);
+    zipkin2.Span spanServer3 = zipkin2.Span.newBuilder().
+        traceId("4822889fe47043bd").
+        id("4822889fe47043bd").
+        kind(zipkin2.Span.Kind.SERVER).
+        name("getservice").
+        timestamp(startTime * 1000).
+        duration(7 * 1000).
+        localEndpoint(localEndpoint1).
+        putTag("http.method", "GET").
+        putTag("http.url", "none+h1c://localhost:8881/").
+        putTag("http.status_code", "200").
+        putTag("sample", "true").
+        build();
+
+    List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1, spanServer2, spanServer3);
 
     SpanBytesEncoder encoder = SpanBytesEncoder.values()[1];
     ByteBuf content = Unpooled.copiedBuffer(encoder.encodeList(zipkinSpanList));
