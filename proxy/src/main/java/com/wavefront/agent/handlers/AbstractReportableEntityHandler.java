@@ -110,8 +110,10 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
       }
     };
     this.senderTasks = new ArrayList<>();
-    for (SenderTask task : senderTasks) {
-      this.senderTasks.add((SenderTask<T>) task);
+    if (senderTasks != null) {
+      for (SenderTask task : senderTasks) {
+        this.senderTasks.add((SenderTask<T>) task);
+      }
     }
     this.validationConfig = validationConfig == null ? () -> null : validationConfig;
     this.rateUnit = rateUnit == null ? "rps" : rateUnit;
@@ -144,8 +146,10 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
       receivedStats.add(this.receivedBurstRateCurrent);
     }, 1, 1, TimeUnit.SECONDS);
 
-    this.statsExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
-    this.statsExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
+    if (setupMetrics) {
+      this.statsExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
+      this.statsExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
+    }
   }
 
   @Override

@@ -21,6 +21,7 @@ import wavefront.report.ReportPoint;
 
 import static com.wavefront.agent.Utils.lazySupplier;
 import static com.wavefront.agent.histogram.Utils.Granularity.fromMillis;
+import static com.wavefront.agent.histogram.Utils.Granularity.granularityToString;
 import static com.wavefront.data.Validation.validatePoint;
 
 /**
@@ -43,6 +44,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
   private final Supplier<Counter> pointCounter;
   private final Supplier<Counter> pointRejectedCounter;
   private final Supplier<Counter> histogramCounter;
+  private final Supplier<Counter> histogramRejectedCounter;
   private final Supplier<com.yammer.metrics.core.Histogram> histogramBinCount;
   private final Supplier<com.yammer.metrics.core.Histogram> histogramSampleCount;
 
@@ -75,14 +77,15 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
     this.ttlMillis = ttlMillis;
     this.granularity = granularity;
     this.compression = compression;
-    String metricNamespace = "histogram.accumulator." +
-        Utils.Granularity.granularityToString(granularity);
+    String metricNamespace = "histogram.accumulator." + granularityToString(granularity);
     pointCounter = lazySupplier(() ->
         Metrics.newCounter(new MetricName(metricNamespace, "", "sample_added")));
     pointRejectedCounter = lazySupplier(() ->
         Metrics.newCounter(new MetricName(metricNamespace, "", "sample_rejected")));
     histogramCounter = lazySupplier(() ->
         Metrics.newCounter(new MetricName(metricNamespace, "", "histogram_added")));
+    histogramRejectedCounter = lazySupplier(() ->
+        Metrics.newCounter(new MetricName(metricNamespace, "", "histogram_rejected")));
     histogramBinCount = lazySupplier(() ->
         Metrics.newHistogram(new MetricName(metricNamespace, "", "histogram_bins")));
     histogramSampleCount = lazySupplier(() ->
@@ -118,13 +121,21 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       digests.put(histogramKey, value, compression, ttlMillis);
     } else if (point.getValue() instanceof Histogram) {
       Histogram value = (Histogram) point.getValue();
-      Utils.Granularity granularity = fromMillis(value.getDuration());
+      Utils.Granularity pointGranularity = fromMillis(value.getDuration());
+      if (granularity != null && pointGranularity.getInMillis() > granularity.getInMillis()) {
+        reject(point, "Attempting to send coarser granularity (" +
+            granularityToString(pointGranularity) + ") distribution to a finer granularity (" +
+            granularityToString(granularity) + ") port");
+        histogramRejectedCounter.get().inc();
+        return;
+      }
 
       histogramBinCount.get().update(value.getCounts().size());
       histogramSampleCount.get().update(value.getCounts().stream().mapToLong(x -> x).sum());
 
       // Key
-      Utils.HistogramKey histogramKey = Utils.makeKey(point, granularity);
+      Utils.HistogramKey histogramKey = Utils.makeKey(point,
+          granularity == null ? pointGranularity : granularity);
       histogramCounter.get().inc();
 
       // atomic update
