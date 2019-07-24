@@ -6,7 +6,10 @@ import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.MetricTranslator;
 import com.yammer.metrics.core.*;
 import org.apache.commons.lang.StringUtils;
-import org.apache.http.*;
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpException;
+import org.apache.http.HttpRequest;
 import org.apache.http.impl.nio.bootstrap.HttpServer;
 import org.apache.http.impl.nio.bootstrap.ServerBootstrap;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
@@ -18,11 +21,15 @@ import org.apache.http.nio.protocol.HttpAsyncRequestHandler;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.protocol.HttpContext;
 import org.hamcrest.text.MatchesPattern;
+import org.jboss.resteasy.annotations.GZIP;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -36,14 +43,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
 
-/**
- * @author Mike McMahon (mike@wavefront.com)
- */
-public class WavefrontYammerHttpMetricsReporterTest {
+public class WavefrontYammerHttpMetricsReporterSecondaryTest {
 
   private MetricsRegistry metricsRegistry;
   private WavefrontYammerHttpMetricsReporter wavefrontYammerHttpMetricsReporter;
-  private HttpServer metricsServer, histogramsServer;
+  private HttpServer metricsServer, histogramsServer, nullServer;
   private LinkedBlockingQueue<String> inputMetrics, inputHistograms;
   private Long stubbedTime = 1485224035000L;
 
@@ -160,6 +164,29 @@ public class WavefrontYammerHttpMetricsReporterTest {
         create();
     histogramsServer.start();
 
+    IOReactorConfig nullIOReactor = IOReactorConfig.custom().
+        setIoThreadCount(5).
+        build();
+    nullServer = ServerBootstrap.bootstrap().
+        setIOReactorConfig(nullIOReactor).
+        setLocalAddress(InetAddress.getLocalHost()).
+        setListenerPort(0).
+        setServerInfo("Test/1.1").
+        registerHandler("*", new HttpAsyncRequestHandler<HttpRequest>() {
+          @Override
+          public HttpAsyncRequestConsumer<HttpRequest> processRequest(HttpRequest httpRequest, HttpContext httpContext) throws HttpException, IOException {
+            return new BasicAsyncRequestConsumer();
+          }
+
+          @Override
+          public void handle(HttpRequest httpRequest, HttpAsyncExchange httpAsyncExchange, HttpContext httpContext) throws HttpException, IOException {
+            // Swallow and send an okay response
+            httpAsyncExchange.submitResponse();
+          }
+        }).
+        create();
+    nullServer.start();
+
     try {
       // Allow time for the Async HTTP Servers to bind
       Thread.sleep(50);
@@ -171,7 +198,11 @@ public class WavefrontYammerHttpMetricsReporterTest {
         withName("test-http").
         withMetricsRegistry(metricsRegistry).
         withHost(InetAddress.getLocalHost().getHostAddress()).
+        withSecondaryHostname(InetAddress.getLocalHost().getHostAddress()).
         withPorts(
+            ((InetSocketAddress) nullServer.getEndpoint().getAddress()).getPort(),
+            ((InetSocketAddress) nullServer.getEndpoint().getAddress()).getPort()).
+        withSecondaryPorts(
             ((InetSocketAddress) metricsServer.getEndpoint().getAddress()).getPort(),
             ((InetSocketAddress) histogramsServer.getEndpoint().getAddress()).getPort()).
         withTimeSupplier(() -> stubbedTime).
@@ -180,6 +211,7 @@ public class WavefrontYammerHttpMetricsReporterTest {
         clearHistogramsAndTimers(clear).
         includeJvmMetrics(includeJvmMetrics).
         withMaxConnectionsPerRoute(10).
+        withGZIPCompression(true).
         build();
   }
 
@@ -191,8 +223,9 @@ public class WavefrontYammerHttpMetricsReporterTest {
   @After
   public void tearDown() throws IOException, InterruptedException{
     this.wavefrontYammerHttpMetricsReporter.shutdown(1, TimeUnit.MILLISECONDS);
-    this.metricsServer.shutdown(1, TimeUnit.MILLISECONDS);
-    this.histogramsServer.shutdown(1, TimeUnit.MILLISECONDS);
+    this.metricsServer.shutdown(50, TimeUnit.MILLISECONDS);
+    this.histogramsServer.shutdown(50, TimeUnit.MILLISECONDS);
+    this.nullServer.shutdown(50, TimeUnit.MILLISECONDS);
     inputMetrics.clear();
     inputHistograms.clear();
   }
@@ -359,7 +392,7 @@ public class WavefrontYammerHttpMetricsReporterTest {
     ));
   }
 
-  @Test(timeout = 2000)
+  @Test(timeout = 5000)
   public void testPlainGauge() throws Exception {
     Gauge gauge = metricsRegistry.newGauge(
         WavefrontYammerMetricsReporterTest.class, "mygauge", new Gauge<Double>() {
@@ -513,7 +546,7 @@ public class WavefrontYammerHttpMetricsReporterTest {
     List<String> found = Lists.newArrayList();
     String polled;
     try {
-      while ((polled = pollable.poll(125, TimeUnit.MILLISECONDS)) != null) {
+      while ((polled = pollable.poll(150, TimeUnit.MILLISECONDS)) != null) {
         found.add(polled);
       }
     } catch (InterruptedException ex) {
