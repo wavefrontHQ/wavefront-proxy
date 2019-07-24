@@ -57,7 +57,6 @@ import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
@@ -298,11 +297,9 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
               // Ignore the original error value
               annotation.setValue(ERROR_SPAN_TAG_VAL);
               break;
-            // TODO : Consume SAMPLE_SPAN_TAG_KEY in wavefront-sdk-java constants.
+            // TODO : Consume DEBUG_SPAN_TAG_KEY in wavefront-sdk-java constants.
             case DEBUG_SPAN_TAG_KEY:
               isDebugSpanTag = true;
-              // Ignore the original debug value
-              annotation.setValue(DEBUG_SPAN_TAG_VAL);
               break;
           }
           annotations.add(annotation);

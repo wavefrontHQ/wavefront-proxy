@@ -340,7 +340,7 @@ public class ZipkinPortUnificationHandlerTest {
             setAnnotations(ImmutableList.of(
             new Annotation("span.kind", "server"),
             new Annotation("service", "frontend"),
-            new Annotation("debug", "true"),
+            new Annotation("debug", "debug-id-1"),
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
             new Annotation("http.url", "none+h1c://localhost:8881/"),
@@ -389,7 +389,7 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("http.method", "GET").
         putTag("http.url", "none+h1c://localhost:8881/").
         putTag("http.status_code", "200").
-        putTag("debug", "true").
+        putTag("debug", "debug-id-1").
         build();
 
     List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1, spanServer2, spanServer3);
