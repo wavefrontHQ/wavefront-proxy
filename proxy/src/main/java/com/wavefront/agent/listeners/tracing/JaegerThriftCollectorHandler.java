@@ -289,7 +289,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
               } catch (ParseException e) {
                 if (JAEGER_DATA_LOGGER.isLoggable(Level.FINE)) {
                   JAEGER_DATA_LOGGER.info("Invalid value :: " + annotation.getValue() +
-                          " for : "+ FORCE_SAMPLED_KEY);
+                          " for span tag key : "+ FORCE_SAMPLED_KEY);
                 }
               }
               break;
