@@ -35,6 +35,7 @@ import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
 
 public class ZipkinPortUnificationHandlerTest {
+  private final static String DEFAULT_SOURCE = "zipkin";
   private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
@@ -133,7 +134,7 @@ public class ZipkinPortUnificationHandlerTest {
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
         setDuration(1234).
         setName("getservice").
-        setSource("10.0.0.1").
+        setSource(DEFAULT_SOURCE).
         setSpanId("00000000-0000-0000-2822-889fe47043bd").
         setTraceId("00000000-0000-0000-2822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
@@ -145,14 +146,15 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("http.url", "none+h1c://localhost:8881/"),
             new Annotation("application", "ProxyLevelAppTag"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"))).
+            new Annotation("shard", "none"),
+            new Annotation("ipv4", "10.0.0.1"))).
         build());
     expectLastCall();
 
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
         setDuration(2234).
         setName("getbackendservice").
-        setSource("10.0.0.1").
+        setSource(DEFAULT_SOURCE).
         setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
         setTraceId("00000000-0000-0000-2822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
@@ -167,14 +169,15 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("http.url", "none+h2c://localhost:9000/api"),
             new Annotation("application", "SpanLevelAppTag"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"))).
+            new Annotation("shard", "none"),
+            new Annotation("ipv4", "10.0.0.1"))).
         build());
     expectLastCall();
 
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
             setDuration(2234).
             setName("getbackendservice2").
-            setSource("10.0.0.1").
+            setSource(DEFAULT_SOURCE).
             setTraceId("00000000-0000-0000-2822-889fe47043bd").
             setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
             // Note: Order of annotations list matters for this unit test.
@@ -188,7 +191,8 @@ public class ZipkinPortUnificationHandlerTest {
                     new Annotation("http.url", "none+h2c://localhost:9000/api"),
                     new Annotation("application", "SpanLevelAppTag"),
                     new Annotation("cluster", "none"),
-                    new Annotation("shard", "none"))).
+                    new Annotation("shard", "none"),
+                    new Annotation("ipv4", "10.0.0.1"))).
                     build());
     expectLastCall();
 
@@ -270,7 +274,7 @@ public class ZipkinPortUnificationHandlerTest {
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
         setDuration(9).
         setName("getservice").
-        setSource("10.0.0.1").
+        setSource(DEFAULT_SOURCE).
         setSpanId("00000000-0000-0000-3822-889fe47043bd").
         setTraceId("00000000-0000-0000-3822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
@@ -282,7 +286,8 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("http.url", "none+h1c://localhost:8881/"),
             new Annotation("application", "Zipkin"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"))).
+            new Annotation("shard", "none"),
+            new Annotation("ipv4", "10.0.0.1"))).
             build());
     expectLastCall();
     replay(mockTraceHandler, mockTraceSpanLogsHandler);
@@ -315,7 +320,7 @@ public class ZipkinPortUnificationHandlerTest {
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
         setDuration(9).
         setName("getservice").
-        setSource("10.0.0.1").
+        setSource(DEFAULT_SOURCE).
         setSpanId("00000000-0000-0000-3822-889fe47043bd").
         setTraceId("00000000-0000-0000-3822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
@@ -327,13 +332,14 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("http.url", "none+h1c://localhost:8881/"),
             new Annotation("application", "Zipkin"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"))).
+            new Annotation("shard", "none"),
+            new Annotation("ipv4", "10.0.0.1"))).
             build());
     expectLastCall();
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
         setDuration(7).
         setName("getservice").
-        setSource("10.0.0.1").
+        setSource(DEFAULT_SOURCE).
         setSpanId("00000000-0000-0000-4822-889fe47043bd").
         setTraceId("00000000-0000-0000-4822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
@@ -346,7 +352,8 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("http.url", "none+h1c://localhost:8881/"),
             new Annotation("application", "Zipkin"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none"))).
+            new Annotation("shard", "none"),
+            new Annotation("ipv4", "10.0.0.1"))).
             build());
     expectLastCall();
 
@@ -393,6 +400,73 @@ public class ZipkinPortUnificationHandlerTest {
         build();
 
     List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1, spanServer2, spanServer3);
+
+    SpanBytesEncoder encoder = SpanBytesEncoder.values()[1];
+    ByteBuf content = Unpooled.copiedBuffer(encoder.encodeList(zipkinSpanList));
+
+    replay(mockTraceHandler, mockTraceSpanLogsHandler);
+
+    ChannelHandlerContext mockCtx = createNiceMock(ChannelHandlerContext.class);
+    doMockLifecycle(mockCtx);
+    FullHttpRequest httpRequest = new DefaultFullHttpRequest(
+        HttpVersion.HTTP_1_1,
+        HttpMethod.POST,
+        "http://localhost:9411/api/v1/spans",
+        content,
+        true
+    );
+    handler.handleHttpMessage(mockCtx, httpRequest);
+    verify(mockTraceHandler);
+  }
+
+  @Test
+  public void testZipkinCustomSource() {
+    ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
+        mockTraceHandler, mockTraceSpanLogsHandler, null, () -> false, () -> false,
+        null, new RateSampler(1.0D), false,
+        null, null);
+
+    // take care of mocks.
+    // Reset mock
+    reset(mockTraceHandler, mockTraceSpanLogsHandler);
+
+    // Set Expectation
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+        setDuration(9).
+        setName("getservice").
+        setSource("customZipkinSource").
+        setSpanId("00000000-0000-0000-2822-889fe47043bd").
+        setTraceId("00000000-0000-0000-2822-889fe47043bd").
+        // Note: Order of annotations list matters for this unit test.
+            setAnnotations(ImmutableList.of(
+            new Annotation("span.kind", "server"),
+            new Annotation("service", "frontend"),
+            new Annotation("http.method", "GET"),
+            new Annotation("http.status_code", "200"),
+            new Annotation("http.url", "none+h1c://localhost:8881/"),
+            new Annotation("application", "Zipkin"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none"),
+            new Annotation("ipv4", "10.0.0.1"))).
+            build());
+    expectLastCall();
+
+    Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
+    zipkin2.Span spanServer1 = zipkin2.Span.newBuilder().
+        traceId("2822889fe47043bd").
+        id("2822889fe47043bd").
+        kind(zipkin2.Span.Kind.SERVER).
+        name("getservice").
+        timestamp(startTime * 1000).
+        duration(9 * 1000).
+        localEndpoint(localEndpoint1).
+        putTag("http.method", "GET").
+        putTag("http.url", "none+h1c://localhost:8881/").
+        putTag("http.status_code", "200").
+        putTag("source", "customZipkinSource").
+        build();
+
+    List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1);
 
     SpanBytesEncoder encoder = SpanBytesEncoder.values()[1];
     ByteBuf content = Unpooled.copiedBuffer(encoder.encodeList(zipkinSpanList));

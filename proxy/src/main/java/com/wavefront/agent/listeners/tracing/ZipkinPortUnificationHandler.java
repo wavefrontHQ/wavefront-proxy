@@ -313,17 +313,19 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     annotations.add(new Annotation(CLUSTER_TAG_KEY, cluster));
     annotations.add(new Annotation(SHARD_TAG_KEY, shard));
 
+    // Add additional annotations.
+    if (zipkinSpan.localEndpoint() != null && zipkinSpan.localEndpoint().ipv4() != null) {
+      annotations.add(new Annotation("ipv4", zipkinSpan.localEndpoint().ipv4()));
+    }
+
     /** Add source of the span following the below:
      *    1. If "source" is provided by span tags , use it else
-     *    2. Set "source" to local service endpoint's ipv4 address, else
-     *    3. Default "source" to "zipkin".
+     *    2. Default "source" to "zipkin".
      */
     String sourceName = DEFAULT_SOURCE;
     if (zipkinSpan.tags() != null && zipkinSpan.tags().size() > 0) {
       if (zipkinSpan.tags().get(SOURCE_KEY) != null) {
         sourceName = zipkinSpan.tags().get(SOURCE_KEY);
-      } else if (zipkinSpan.localEndpoint() != null && zipkinSpan.localEndpoint().ipv4() != null) {
-        sourceName = zipkinSpan.localEndpoint().ipv4();
       }
     }
     // Set spanName.
