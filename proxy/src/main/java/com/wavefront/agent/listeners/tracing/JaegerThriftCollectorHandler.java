@@ -25,6 +25,8 @@ import org.apache.commons.lang.StringUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +55,7 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
+import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
@@ -81,6 +84,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       "sampler.param");
   private final static String JAEGER_COMPONENT = "jaeger";
   private final static String DEFAULT_SOURCE = "jaeger";
+  public final static String FORCE_SAMPLED_KEY = "sampling.priority";
   private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
 
   private final String handle;
@@ -245,6 +249,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     String shard = NULL_TAG_VAL;
     String componentTagValue = NULL_TAG_VAL;
     boolean isError = false;
+    boolean isDebugSpanTag = false;
+    boolean isForceSampled = false;
 
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
@@ -270,6 +276,22 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
             case ERROR_SPAN_TAG_KEY:
               // only error=true is supported
               isError = annotation.getValue().equals(ERROR_SPAN_TAG_VAL);
+              break;
+            //TODO : Import DEBUG_SPAN_TAG_KEY from wavefront-sdk-java constants.
+            case DEBUG_SPAN_TAG_KEY:
+              isDebugSpanTag = true;
+              break;
+            case FORCE_SAMPLED_KEY:
+              try {
+                if (NumberFormat.getInstance().parse(annotation.getValue()).doubleValue() > 0) {
+                  isForceSampled = true;
+                }
+              } catch (ParseException e) {
+                if (JAEGER_DATA_LOGGER.isLoggable(Level.FINE)) {
+                  JAEGER_DATA_LOGGER.info("Invalid value :: " + annotation.getValue() +
+                          " for : "+ FORCE_SAMPLED_KEY);
+                }
+              }
               break;
           }
           annotations.add(annotation);
@@ -331,7 +353,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         return;
       }
     }
-    if ((alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
+    if (isForceSampled || isDebugSpanTag || (alwaysSampleErrors && isError) ||
+        sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null) {
         if (spanLogsDisabled.get()) {
