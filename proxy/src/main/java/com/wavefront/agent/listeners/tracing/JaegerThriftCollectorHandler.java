@@ -67,6 +67,7 @@ import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 
 /**
  * Handler that processes trace data in Jaeger Thrift compact format and
@@ -201,18 +202,34 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     String serviceName = batch.getProcess().getServiceName();
     String sourceName = null;
     String applicationName = this.proxyLevelApplicationName;
+    List<Annotation> processAnnotations = new ArrayList<>();
+    boolean isSourceProcessTagPresent = false;
     if (batch.getProcess().getTags() != null) {
       for (Tag tag : batch.getProcess().getTags()) {
         if (tag.getKey().equals(APPLICATION_TAG_KEY) && tag.getVType() == TagType.STRING) {
           applicationName = tag.getVStr();
           continue;
         }
+
+        // source tag precedence :
+        // "source" in span tag > "source" in process tag > "hostname" in process tag > DEFAULT
         if (tag.getKey().equals("hostname") && tag.getVType() == TagType.STRING) {
-          sourceName = tag.getVStr();
+          if (!isSourceProcessTagPresent) {
+            sourceName = tag.getVStr();
+          }
           continue;
         }
-        if (tag.getKey().equals("ip") && tag.getVType() == TagType.STRING) {
+
+        if (tag.getKey().equals(SOURCE_KEY) && tag.getVType() == TagType.STRING) {
           sourceName = tag.getVStr();
+          isSourceProcessTagPresent = true;
+          continue;
+        }
+
+        //TODO: Propagate other Jaeger process tags as span tags
+        if (tag.getKey().equals("ip")) {
+          Annotation annotation = tagToAnnotation(tag);
+          processAnnotations.add(annotation);
         }
       }
       if (sourceName == null) {
@@ -229,15 +246,17 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       return;
     }
     for (io.jaegertracing.thriftjava.Span span : batch.getSpans()) {
-      processSpan(span, serviceName, sourceName, applicationName);
+      processSpan(span, serviceName, sourceName, applicationName, processAnnotations);
     }
   }
 
   private void processSpan(io.jaegertracing.thriftjava.Span span,
                            String serviceName,
                            String sourceName,
-                           String applicationName) {
+                           String applicationName,
+                           List<Annotation> processAnnotations) {
     List<Annotation> annotations = new ArrayList<>();
+    annotations.addAll(processAnnotations);
     // serviceName is mandatory in Jaeger
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
     long parentSpanId = span.getParentSpanId();
@@ -269,6 +288,10 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
               continue;
             case SHARD_TAG_KEY:
               shard = annotation.getValue();
+              continue;
+            // Do not add source to annotation span tag list.
+            case SOURCE_KEY:
+              sourceName = annotation.getValue();
               continue;
             case COMPONENT_TAG_KEY:
               componentTagValue = annotation.getValue();
