@@ -200,7 +200,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
   private void processBatch(Batch batch) {
     String serviceName = batch.getProcess().getServiceName();
-    String sourceName = null;
+    String sourceName = DEFAULT_SOURCE;
     String applicationName = this.proxyLevelApplicationName;
     List<Annotation> processAnnotations = new ArrayList<>();
     boolean isSourceProcessTagPresent = false;
@@ -231,9 +231,6 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
           Annotation annotation = tagToAnnotation(tag);
           processAnnotations.add(annotation);
         }
-      }
-      if (sourceName == null) {
-        sourceName = DEFAULT_SOURCE;
       }
     }
     if (traceDisabled.get()) {
