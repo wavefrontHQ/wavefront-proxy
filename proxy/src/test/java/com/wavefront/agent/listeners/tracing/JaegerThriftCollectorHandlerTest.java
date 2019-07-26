@@ -323,4 +323,80 @@ public class JaegerThriftCollectorHandlerTest {
 
     verify(mockTraceHandler);
   }
+
+  @Test
+  public void testJaegerDebugOverride() throws Exception {
+    reset(mockTraceHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9)
+        .setName("HTTP GET /")
+        .setSource("10.0.0.1")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
+            new Annotation("debug", "true1"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(4)
+        .setName("HTTP GET")
+        .setSource("10.0.0.1")
+        .setSpanId("00000000-0000-0000-0000-00000012d687")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("sampling.priority", "0.3"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+
+    replay(mockTraceHandler);
+
+    JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
+        mockTraceLogsHandler, null, () -> false, () -> false, null, new DurationSampler(10), false,
+        null, null);
+
+    Tag ipTag = new Tag("ip", TagType.STRING);
+    ipTag.setVStr("10.0.0.1");
+
+    Tag debugTag = new Tag("debug", TagType.STRING);
+    debugTag.setVStr("true1");
+
+    io.jaegertracing.thriftjava.Span span1 = new io.jaegertracing.thriftjava.Span(1234567890123L,
+        1234567890L, 2345678L, 1234567L, "HTTP GET /", 1, startTime * 1000, 9 * 1000);
+    span1.setTags(ImmutableList.of(debugTag));
+
+
+    Tag samplePriorityTag = new Tag("sampling.priority", TagType.DOUBLE);
+    samplePriorityTag.setVDouble(0.3);
+    io.jaegertracing.thriftjava.Span span2 = new io.jaegertracing.thriftjava.Span(1234567890123L,
+        1234567890L, 1234567L, 0L, "HTTP GET", 1, startTime * 1000, 4 * 1000);
+    span2.setTags(ImmutableList.of(samplePriorityTag));
+
+    Batch testBatch = new Batch();
+    testBatch.process = new Process();
+    testBatch.process.serviceName = "frontend";
+    testBatch.process.setTags(ImmutableList.of(ipTag));
+
+    testBatch.setSpans(ImmutableList.of(span1, span2));
+
+    Collector.submitBatches_args batches = new Collector.submitBatches_args();
+    batches.addToBatches(testBatch);
+    ThriftRequest<Collector.submitBatches_args> request = new ThriftRequest.Builder<Collector.submitBatches_args>(
+        "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
+    handler.handleImpl(request);
+
+    verify(mockTraceHandler);
+  }
 }

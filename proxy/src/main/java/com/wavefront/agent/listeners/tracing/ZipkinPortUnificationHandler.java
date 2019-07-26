@@ -297,7 +297,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
               // Ignore the original error value
               annotation.setValue(ERROR_SPAN_TAG_VAL);
               break;
-            // TODO : Consume DEBUG_SPAN_TAG_KEY in wavefront-sdk-java constants.
+            // TODO : Import DEBUG_SPAN_TAG_KEY from wavefront-sdk-java constants.
             case DEBUG_SPAN_TAG_KEY:
               isDebugSpanTag = true;
               break;
