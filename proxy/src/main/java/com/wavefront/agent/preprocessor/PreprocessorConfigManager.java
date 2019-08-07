@@ -310,18 +310,21 @@ public class PreprocessorConfigManager {
                           ruleMetrics));
                   break;
                 case "spanAddAnnotation":
+                case "spanAddTag":
                   allowArguments(rule, "rule", "action", "key", "value");
                   portMap.get(strPort).forSpan().addTransformer(
                       new SpanAddAnnotationTransformer(rule.get("key"), rule.get("value"),
                           ruleMetrics));
                   break;
                 case "spanAddAnnotationIfNotExists":
+                case "spanAddTagIfNotExists":
                   allowArguments(rule, "rule", "action", "key", "value");
                   portMap.get(strPort).forSpan().addTransformer(
                       new SpanAddAnnotationIfNotExistsTransformer(rule.get("key"),
                           rule.get("value"), ruleMetrics));
                   break;
                 case "spanDropAnnotation":
+                case "spanDropTag":
                   allowArguments(rule, "rule", "action", "key", "match", "firstMatchOnly");
                   portMap.get(strPort).forSpan().addTransformer(
                       new SpanDropAnnotationTransformer(rule.get("key"), rule.get("match"),
@@ -329,6 +332,7 @@ public class PreprocessorConfigManager {
                           ruleMetrics));
                   break;
                 case "spanExtractAnnotation":
+                case "spanExtractTag":
                   allowArguments(rule, "rule", "action", "key", "input", "search", "replace",
                       "replaceInput", "match", "firstMatchOnly");
                   portMap.get(strPort).forSpan().addTransformer(
@@ -338,6 +342,7 @@ public class PreprocessorConfigManager {
                               rule.getOrDefault("firstMatchOnly", "false")), ruleMetrics));
                   break;
                 case "spanExtractAnnotationIfNotExists":
+                case "spanExtractTagIfNotExists":
                   allowArguments(rule, "rule", "action", "key", "input", "search", "replace",
                       "replaceInput", "match", "firstMatchOnly");
                   portMap.get(strPort).forSpan().addTransformer(
