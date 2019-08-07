@@ -262,7 +262,7 @@
     - rule          : test-extracttagifnotexists-spanAnnotation
       action        : spanExtractAnnotationIfNotExists
       key           : fromSource  # should not work because such tag already exists!
-      input        : testExtractTag
+      input         : testExtractTag
       search        : "^.*$"
       replace       : "Oi! This should never happen!"
 
