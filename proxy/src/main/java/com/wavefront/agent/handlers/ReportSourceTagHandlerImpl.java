@@ -19,12 +19,13 @@ import wavefront.report.ReportSourceTag;
  */
 public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<ReportSourceTag> {
 
-  private static final Logger logger = Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(
+      AbstractReportableEntityHandler.class.getCanonicalName());
 
   public ReportSourceTagHandlerImpl(final String handle, final int blockedItemsPerBatch,
                                     final Collection<SenderTask> senderTasks) {
-    super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch, new ReportSourceTagSerializer(), senderTasks,
-        null, null);
+    super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch,
+        new ReportSourceTagSerializer(), senderTasks, null, null, true);
   }
 
   @Override

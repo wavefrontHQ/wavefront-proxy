@@ -17,7 +17,8 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandlerFactory {
-  private static final Logger logger = Logger.getLogger(ReportableEntityHandlerFactoryImpl.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(
+      ReportableEntityHandlerFactoryImpl.class.getCanonicalName());
 
   private static final int SOURCE_TAGS_NUM_THREADS = 2;
 
@@ -31,46 +32,53 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   /**
    * Create new instance.
    *
-   * @param senderTaskFactory    SenderTaskFactory instance used to create SenderTasks for new handlers
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into the main log file.
+   * @param senderTaskFactory    SenderTaskFactory instance used to create SenderTasks
+   *                             for new handlers.
+   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
+   *                             into the main log file.
    * @param defaultFlushThreads  control fanout for SenderTasks.
-   * @param validationConfig     Supplier for the ValidationConfiguration
+   * @param validationConfig     Supplier for the ValidationConfiguration.
    */
-  public ReportableEntityHandlerFactoryImpl(final SenderTaskFactory senderTaskFactory,
-                                            final int blockedItemsPerBatch,
-                                            final int defaultFlushThreads,
-                                            @Nullable final Supplier<ValidationConfiguration> validationConfig) {
+  public ReportableEntityHandlerFactoryImpl(
+      final SenderTaskFactory senderTaskFactory, final int blockedItemsPerBatch,
+      final int defaultFlushThreads,
+      @Nullable final Supplier<ValidationConfiguration> validationConfig) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.defaultFlushThreads = defaultFlushThreads;
     this.validationConfig = validationConfig;
   }
 
+  @Override
   public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
-    return handlers.computeIfAbsent(handlerKey, k -> {
+    return  handlers.computeIfAbsent(handlerKey, k -> {
       switch (handlerKey.getEntityType()) {
         case POINT:
           return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads), validationConfig, false);
+              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
+              validationConfig, false, true);
         case HISTOGRAM:
           return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads), validationConfig, true);
+              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
+              validationConfig, true, true);
         case SOURCE_TAG:
           return new ReportSourceTagHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, SOURCE_TAGS_NUM_THREADS));
         case TRACE:
           return new SpanHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads), validationConfig);
+              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
+              validationConfig);
         case TRACE_SPAN_LOGS:
           return new SpanLogsHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads));
         default:
-          throw new IllegalArgumentException("Unexpected entity type " + handlerKey.getEntityType().name() +
-              " for " + handlerKey.getHandle());
+          throw new IllegalArgumentException("Unexpected entity type " +
+              handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());
       }
     });
   }
 
+  @Override
   public void shutdown() {
     //
   }

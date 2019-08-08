@@ -36,7 +36,7 @@ import static com.wavefront.agent.histogram.Utils.HistogramKey;
  *
  * @author Tim Schmidt (tim@wavefront.com).
  */
-public class AccumulationCache {
+public class AccumulationCache implements Accumulator {
   private final static Logger logger = Logger.getLogger(AccumulationCache.class.getCanonicalName());
 
   private final Counter binCreatedCounter = Metrics.newCounter(
@@ -264,6 +264,7 @@ public class AccumulationCache {
    * @param remappingFunction the function to compute a value
    * @return                  the new value associated with the specified key, or null if none
    */
+  @Override
   public AgentDigest compute(HistogramKey key, BiFunction<? super HistogramKey,? super AgentDigest,
       ? extends AgentDigest> remappingFunction) {
     return backingStore.compute(key, remappingFunction);
@@ -274,6 +275,7 @@ public class AccumulationCache {
    *
    * @return number of items
    */
+  @Override
   public long size() {
     return backingStore.size();
   }
@@ -297,12 +299,10 @@ public class AccumulationCache {
   }
 
   /**
-   * Task to merge the contents of this cache with the corresponding backing store.
-   *
-   * @return the task
+   * Merge the contents of this cache with the corresponding backing store.
    */
-  public Runnable getResolveTask() {
-    return cache::invalidateAll;
+  public void flush() {
+    cache.invalidateAll();
   }
 
   public class AccumulationCacheMonitor implements Runnable {

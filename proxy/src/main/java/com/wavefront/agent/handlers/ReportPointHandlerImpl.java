@@ -8,6 +8,7 @@ import com.wavefront.ingester.ReportPointSerializer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.MetricsRegistry;
 
 import org.apache.commons.lang.math.NumberUtils;
 
@@ -32,13 +33,14 @@ import static com.wavefront.data.Validation.validatePoint;
  */
 class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint> {
 
-  private static final Logger logger = Logger.getLogger(AbstractReportableEntityHandler.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(
+      AbstractReportableEntityHandler.class.getCanonicalName());
   private static final Logger validPointsLogger = Logger.getLogger("RawValidPoints");
   private static final Random RANDOM = new Random();
 
-  private final Histogram receivedPointLag;
+  final Histogram receivedPointLag;
 
-  private boolean logData = false;
+  boolean logData = false;
   private final double logSampleRate;
   private volatile long logStateUpdatedMillis = 0L;
 
@@ -51,26 +53,33 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    * Creates a new instance that handles either histograms or points.
    *
    * @param handle               handle/port number
-   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into the main log file.
+   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
+   *                             into the main log file.
    * @param senderTasks          sender tasks
    * @param validationConfig     Supplier for the validation configuration.
-   * @param isHistogramHandler   Whether this handler processes histograms (handles regular points if false).
+   * @param isHistogramHandler   Whether this handler processes histograms (handles regular points
+   *                             if false).
+   * @param setupMetrics         Whether we should report counter metrics.
    */
   ReportPointHandlerImpl(final String handle,
                          final int blockedItemsPerBatch,
                          final Collection<SenderTask> senderTasks,
                          @Nullable final Supplier<ValidationConfiguration> validationConfig,
-                         final boolean isHistogramHandler) {
+                         final boolean isHistogramHandler,
+                         final boolean setupMetrics) {
     super(isHistogramHandler ? ReportableEntityType.HISTOGRAM : ReportableEntityType.POINT, handle,
         blockedItemsPerBatch, new ReportPointSerializer(), senderTasks, validationConfig,
-        isHistogramHandler ? "dps" : "pps");
+        isHistogramHandler ? "dps" : "pps", setupMetrics);
     String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
     this.logPointsFlag = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
-    String logPointsSampleRateProperty = System.getProperty("wavefront.proxy.logpoints.sample-rate");
+    String logPointsSampleRateProperty =
+        System.getProperty("wavefront.proxy.logpoints.sample-rate");
     this.logSampleRate = NumberUtils.isNumber(logPointsSampleRateProperty) ?
         Double.parseDouble(logPointsSampleRateProperty) : 1.0d;
 
-    this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle + ".received", "", "lag"));
+    MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : new MetricsRegistry();
+    this.receivedPointLag = registry.newHistogram(new MetricName("points." + handle + ".received",
+        "", "lag"), false);
   }
 
   @Override
@@ -88,17 +97,18 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
 
     if ((logData || logPointsFlag) &&
         (logSampleRate >= 1.0d || (logSampleRate > 0.0d && RANDOM.nextDouble() < logSampleRate))) {
-      // we log valid points only if system property wavefront.proxy.logpoints is true or RawValidPoints log level is
-      // set to "ALL". this is done to prevent introducing overhead and accidentally logging points to the main log
+      // we log valid points only if system property wavefront.proxy.logpoints is true
+      // or RawValidPoints log level is set to "ALL". this is done to prevent introducing
+      // overhead and accidentally logging points to the main log.
       // Additionally, honor sample rate limit, if set.
       validPointsLogger.info(strPoint);
     }
     getTask().add(strPoint);
-    receivedCounter.inc();
+    getReceivedCounter().inc();
     receivedPointLag.update(Clock.now() - point.getTimestamp());
   }
 
-  private void refreshValidPointsLoggerState() {
+  void refreshValidPointsLoggerState() {
     if (logStateUpdatedMillis + TimeUnit.SECONDS.toMillis(1) < System.currentTimeMillis()) {
       // refresh validPointsLogger level once a second
       if (logData != validPointsLogger.isLoggable(Level.FINEST)) {

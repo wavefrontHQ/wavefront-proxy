@@ -2,8 +2,8 @@ package com.wavefront.agent.histogram;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import com.wavefront.agent.PointHandler;
-import com.wavefront.agent.histogram.accumulator.AccumulationCache;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.histogram.accumulator.Accumulator;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Histogram;
@@ -26,7 +26,8 @@ import static java.lang.System.nanoTime;
  * @author Tim Schmidt (tim@wavefront.com).
  */
 public class PointHandlerDispatcher implements Runnable {
-  private final static Logger logger = Logger.getLogger(PointHandlerDispatcher.class.getCanonicalName());
+  private final static Logger logger = Logger.getLogger(
+      PointHandlerDispatcher.class.getCanonicalName());
 
   private final Counter dispatchCounter;
   private final Counter dispatchErrorCounter;
@@ -34,30 +35,37 @@ public class PointHandlerDispatcher implements Runnable {
   private final Histogram dispatchProcessTime;
   private final Histogram dispatchLagMillis;
 
-  private final AccumulationCache digests;
-  private final PointHandler output;
+  private final Accumulator digests;
+  private final ReportableEntityHandler<ReportPoint> output;
   private final TimeProvider clock;
   private final Integer dispatchLimit;
 
-  public PointHandlerDispatcher(AccumulationCache digests, PointHandler output,
-                                @Nullable Integer dispatchLimit, @Nullable Utils.Granularity granularity) {
+  public PointHandlerDispatcher(Accumulator digests,
+                                ReportableEntityHandler<ReportPoint> output,
+                                @Nullable Integer dispatchLimit,
+                                @Nullable Utils.Granularity granularity) {
     this(digests, output, System::currentTimeMillis, dispatchLimit, granularity);
   }
 
   @VisibleForTesting
-  PointHandlerDispatcher(AccumulationCache digests, PointHandler output, TimeProvider clock,
-                         @Nullable Integer dispatchLimit, @Nullable Utils.Granularity granularity) {
+  PointHandlerDispatcher(Accumulator digests,
+                         ReportableEntityHandler<ReportPoint> output,
+                         TimeProvider clock,
+                         @Nullable Integer dispatchLimit,
+                         @Nullable Utils.Granularity granularity) {
     this.digests = digests;
     this.output = output;
     this.clock = clock;
     this.dispatchLimit = dispatchLimit;
 
-    String metricNamespace = "histogram.accumulator." + Utils.Granularity.granularityToString(granularity);
-    this.dispatchCounter = Metrics.newCounter(new MetricName(metricNamespace, "", "dispatched"));
-    this.dispatchErrorCounter = Metrics.newCounter(new MetricName(metricNamespace, "", "dispatch_errors"));
-    this.accumulatorSize = Metrics.newHistogram(new MetricName(metricNamespace, "", "size"));
-    this.dispatchProcessTime = Metrics.newHistogram(new MetricName(metricNamespace, "", "dispatch_process_nanos"));
-    this.dispatchLagMillis = Metrics.newHistogram(new MetricName(metricNamespace, "", "dispatch_lag_millis"));
+    String prefix = "histogram.accumulator." + Utils.Granularity.granularityToString(granularity);
+    this.dispatchCounter = Metrics.newCounter(new MetricName(prefix, "", "dispatched"));
+    this.dispatchErrorCounter = Metrics.newCounter(new MetricName(prefix, "", "dispatch_errors"));
+    this.accumulatorSize = Metrics.newHistogram(new MetricName(prefix, "", "size"));
+    this.dispatchProcessTime = Metrics.newHistogram(new MetricName(prefix, "",
+        "dispatch_process_nanos"));
+    this.dispatchLagMillis = Metrics.newHistogram(new MetricName(prefix, "",
+        "dispatch_lag_millis"));
   }
 
   @Override
@@ -76,7 +84,7 @@ public class PointHandlerDispatcher implements Runnable {
           }
           try {
             ReportPoint out = Utils.pointFromKeyAndDigest(k, v);
-            output.reportPoint(out, null);
+            output.report(out);
             dispatchCounter.inc();
           } catch (Exception e) {
             dispatchErrorCounter.inc();
