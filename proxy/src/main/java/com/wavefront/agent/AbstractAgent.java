@@ -84,6 +84,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.Timer;
@@ -128,8 +129,11 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--help"}, help = true)
   private boolean help = false;
 
+  @Parameter(names = {"--version"}, description = "Print version and exit.", order = 0)
+  private boolean version = false;
+
   @Parameter(names = {"-f", "--file"}, description =
-      "Proxy configuration file", order = 0)
+      "Proxy configuration file", order = 1)
   private String pushConfigFile = null;
 
   @Parameter(names = {"-c", "--config"}, description =
@@ -141,7 +145,7 @@ public abstract class AbstractAgent {
   protected String prefix = null;
 
   @Parameter(names = {"-t", "--token"}, description =
-      "Token to auto-register proxy with an account", order = 2)
+      "Token to auto-register proxy with an account", order = 3)
   protected String token = null;
 
   @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
@@ -155,21 +159,21 @@ public abstract class AbstractAgent {
       "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY); NUMERIC_ONLY is default")
   protected String pushValidationLevel = "NUMERIC_ONLY";
 
-  @Parameter(names = {"-h", "--host"}, description = "Server URL", order = 1)
+  @Parameter(names = {"-h", "--host"}, description = "Server URL", order = 2)
   protected String server = "http://localhost:8080/api/";
 
   @Parameter(names = {"--buffer"}, description = "File to use for buffering failed transmissions to Wavefront servers" +
-      ". Defaults to buffer.", order = 6)
+      ". Defaults to buffer.", order = 7)
   private String bufferFile = "buffer";
 
   @Parameter(names = {"--retryThreads"}, description = "Number of threads retrying failed transmissions. Defaults to " +
       "the number of processors (min. 4). Buffer files are maxed out at 2G each so increasing the number of retry " +
-      "threads effectively governs the maximum amount of space the proxy will use to buffer points locally", order = 5)
+      "threads effectively governs the maximum amount of space the proxy will use to buffer points locally", order = 6)
   protected Integer retryThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
       "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
-      "small to the server and wasting connections. This setting is per listening port.", order = 4)
+      "small to the server and wasting connections. This setting is per listening port.", order = 5)
   protected Integer flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(names = {"--purgeBuffer"}, description = "Whether to purge the retry buffer on start-up. Defaults to " +
@@ -204,7 +208,7 @@ public abstract class AbstractAgent {
   protected Integer pushBlockedSamples = 0;
 
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
-      "2878.", order = 3)
+      "2878.", order = 4)
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
 
   @Parameter(names = {"--pushListenerMaxReceivedLength"}, description = "Maximum line length for received points in" +
@@ -717,7 +721,7 @@ public abstract class AbstractAgent {
   protected static final Set<String> PARAMETERS_TO_HIDE = ImmutableSet.of("-t", "--token", "--proxyPassword");
 
   protected QueuedAgentService agentAPI;
-  protected ResourceBundle props;
+  protected ResourceBundle props = null;
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
   protected final Set<String> traceDerivedCustomTagKeys = new HashSet<>();
@@ -1202,20 +1206,38 @@ public abstract class AbstractAgent {
     }
   }
 
+  private String getBuildVersion() {
+    try {
+      if (props == null) {
+        props = ResourceBundle.getBundle("build");
+      }
+      return props.getString("build.version");
+    } catch (MissingResourceException ex) {
+      return "unknown";
+    }
+  }
   private void parseArguments(String[] args) {
-    logger.info("Arguments: " + IntStream.range(0, args.length).
-        mapToObj(i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i]).
-        collect(Collectors.joining(", ")));
+    // read build information and print version.
+    String versionStr = "Wavefront Proxy version " + getBuildVersion();
     JCommander jCommander = JCommander.newBuilder().
         programName(this.getClass().getCanonicalName()).
         addObject(this).
         allowParameterOverwriting(true).
         build();
     jCommander.parse(args);
+    if (version) {
+      System.out.println(versionStr);
+      System.exit(0);
+    }
     if (help) {
+      System.out.println(versionStr);
       jCommander.usage();
       System.exit(0);
     }
+    logger.info(versionStr);
+    logger.info("Arguments: " + IntStream.range(0, args.length).
+        mapToObj(i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i]).
+        collect(Collectors.joining(", ")));
     if (unparsed_params != null) {
       logger.info("Unparsed arguments: " + Joiner.on(", ").join(unparsed_params));
     }
@@ -1228,9 +1250,6 @@ public abstract class AbstractAgent {
    */
   public void start(String[] args) throws IOException {
     try {
-      // read build information and print version.
-      props = ResourceBundle.getBundle("build");
-      logger.info("Starting proxy version " + props.getString("build.version"));
 
       /* ------------------------------------------------------------------------------------
        * Configuration Setup.

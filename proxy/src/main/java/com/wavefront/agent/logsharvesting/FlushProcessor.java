@@ -32,7 +32,7 @@ import wavefront.report.HistogramType;
  *
  * @author Mori Bellamy (mori@wavefront.com)
  */
-class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
+public class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
 
   private final Counter sentCounter = Metrics.newCounter(new MetricName("logsharvesting", "", "sent"));
   private final Counter histogramCounter = Metrics.newCounter(new MetricName("logsharvesting", "", "histograms-sent"));
@@ -66,6 +66,7 @@ class FlushProcessor implements MetricProcessor<FlushProcessorContext> {
     // handle delta counter
     if (counter instanceof DeltaCounter) {
       count = DeltaCounter.processDeltaCounter((DeltaCounter) counter);
+      if (count == 0) return; // do not report 0-value delta counters
     } else {
       count = counter.count();
     }
