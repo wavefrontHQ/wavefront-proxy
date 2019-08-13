@@ -27,6 +27,13 @@ counters:
       - "az-%{az}"
       - "value"
       - "aa%{q}bb"
+  - pattern: "operation %{WORD:op} on host %{WORD:hostname} took %{NUMBER:value} seconds"
+    metricName: "Host.%{op}.totalSeconds"
+    hostName: "%{hostname}.acme.corp"
+    tagKeys:
+      - "static"
+    tagValues:
+      - "value"
   - pattern: "%{COMBINEDAPACHELOG}"
     metricName: "apacheBytes"
     valueLabel: "bytes"

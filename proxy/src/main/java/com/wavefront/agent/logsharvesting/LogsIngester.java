@@ -53,8 +53,8 @@ public class LogsIngester {
         removedMetricMatcher -> evictingMetricsRegistry.evict(removedMetricMatcher));
     LogsIngestionConfig logsIngestionConfig = logsIngestionConfigManager.getConfig();
 
-    this.evictingMetricsRegistry = new EvictingMetricsRegistry(
-        logsIngestionConfig.expiryMillis, true, currentMillis);
+    this.evictingMetricsRegistry = new EvictingMetricsRegistry(logsIngestionConfig.expiryMillis,
+        true, logsIngestionConfig.useDeltaCounters, currentMillis);
 
     // Logs harvesting metrics.
     this.unparsed = Metrics.newCounter(new MetricName("logsharvesting", "", "unparsed"));

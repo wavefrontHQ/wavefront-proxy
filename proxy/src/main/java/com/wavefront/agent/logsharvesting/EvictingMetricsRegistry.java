@@ -36,12 +36,15 @@ public class EvictingMetricsRegistry {
   private final Cache<MetricName, Metric> metricCache;
   private final LoadingCache<MetricMatcher, Set<MetricName>> metricNamesForMetricMatchers;
   private final boolean wavefrontHistograms;
+  private final boolean useDeltaCounters;
   private final Supplier<Long> nowMillis;
 
-  EvictingMetricsRegistry(long expiryMillis, boolean wavefrontHistograms, Supplier<Long> nowMillis) {
+  EvictingMetricsRegistry(long expiryMillis, boolean wavefrontHistograms, boolean useDeltaCounters,
+                          Supplier<Long> nowMillis) {
     this.metricsRegistry = new MetricsRegistry();
     this.nowMillis = nowMillis;
     this.wavefrontHistograms = wavefrontHistograms;
+    this.useDeltaCounters = useDeltaCounters;
     this.metricCache = Caffeine.<MetricName, Metric>newBuilder()
         .expireAfterAccess(expiryMillis, TimeUnit.MILLISECONDS)
         .<MetricName, Metric>removalListener((metricName, metric, reason) -> {
@@ -56,12 +59,17 @@ public class EvictingMetricsRegistry {
   }
 
   public Counter getCounter(MetricName metricName, MetricMatcher metricMatcher) {
-    // use delta counters instead of regular counters. It helps with load balancers present in
-    // front of proxy (PUB-125)
-    MetricName newMetricName = DeltaCounter.getDeltaCounterMetricName(metricName);
-    metricNamesForMetricMatchers.get(metricMatcher).add(newMetricName);
-    return (Counter) metricCache.get(newMetricName, key -> DeltaCounter.get(metricsRegistry,
-            newMetricName));
+    if (useDeltaCounters) {
+      // use delta counters instead of regular counters. It helps with load balancers present in
+      // front of proxy (PUB-125)
+      MetricName newMetricName = DeltaCounter.getDeltaCounterMetricName(metricName);
+      metricNamesForMetricMatchers.get(metricMatcher).add(newMetricName);
+      return (Counter) metricCache.get(newMetricName, key -> DeltaCounter.get(metricsRegistry,
+          newMetricName));
+    } else {
+      metricNamesForMetricMatchers.get(metricMatcher).add(metricName);
+      return (Counter) metricCache.get(metricName, metricsRegistry::newCounter);
+    }
   }
 
   public Gauge getGauge(MetricName metricName, MetricMatcher metricMatcher) {
@@ -89,5 +97,4 @@ public class EvictingMetricsRegistry {
   public MetricsRegistry metricsRegistry() {
     return metricsRegistry;
   }
-
 }
