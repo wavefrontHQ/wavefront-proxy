@@ -1710,21 +1710,22 @@ public abstract class AbstractAgent {
   }
 
   private static void safeLogInfo(String msg) {
-    try {
-      logger.info(msg);
-    } catch (Throwable t) {
-      // ignore logging errors
-    }
   }
 
   public void shutdown() {
     if (!shuttingDown.compareAndSet(false, true)) return;
     try {
-      safeLogInfo("Shutting down: Stopping listeners...");
+      try {
+        logger.info("Shutting down the proxy...");
+      } catch (Throwable t) {
+        // ignore logging errors
+      }
+
+      System.out.println("Shutting down: Stopping listeners...");
 
       stopListeners();
 
-      safeLogInfo("Shutting down: Stopping schedulers...");
+      System.out.println("Shutting down: Stopping schedulers...");
 
       managedExecutors.forEach(ExecutorService::shutdownNow);
         // wait for up to request timeout
@@ -1736,11 +1737,11 @@ public abstract class AbstractAgent {
         }
       });
 
-      safeLogInfo("Shutting down: Running finalizing tasks...");
+      System.out.println("Shutting down: Running finalizing tasks...");
 
       shutdownTasks.forEach(Runnable::run);
 
-      safeLogInfo("Shutdown complete");
+      System.out.println("Shutdown complete.");
     } catch (Throwable t) {
       try {
         logger.log(Level.SEVERE, "Error during shutdown: ", t);

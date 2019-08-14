@@ -90,7 +90,6 @@ public class TcpIngester extends Ingester {
       // Wait until the server socket is closed.
       f.channel().closeFuture().sync();
     } catch (final InterruptedException e) {
-      logger.log(Level.WARNING, "Interrupted");
       parentGroup.shutdownGracefully();
       childGroup.shutdownGracefully();
       logger.info("Listener on port " + listeningPort + " shut down");

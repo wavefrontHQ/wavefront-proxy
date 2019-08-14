@@ -420,9 +420,10 @@ public class PushAgent extends AbstractAgent {
         preprocessors.get(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(ImmutableList.of(
-        new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false),
-        new ByteArrayDecoder(), channelHandler), strPort, listenerIdleConnectionTimeout), port).
-        withChildChannelOptions(childChannelOptions), "listener-binary-pickle-" + strPort);
+        () -> new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false),
+        () -> new ByteArrayDecoder(), () -> channelHandler), strPort,
+        listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
+        "listener-binary-pickle-" + strPort);
     logger.info("listening on port: " + strPort + " for Graphite/pickle protocol metrics");
   }
 
@@ -678,12 +679,12 @@ public class PushAgent extends AbstractAgent {
   private static ChannelInitializer createInitializer(ChannelHandler channelHandler,
                                                       String port, int messageMaxLength,
                                                       int httpRequestBufferSize, int idleTimeout) {
-    return createInitializer(ImmutableList.of(new PlainTextOrHttpFrameDecoder(channelHandler,
+    return createInitializer(ImmutableList.of(() -> new PlainTextOrHttpFrameDecoder(channelHandler,
         messageMaxLength, httpRequestBufferSize)), port, idleTimeout);
   }
 
-  private static ChannelInitializer createInitializer(Iterable<ChannelHandler> channelHandlers,
-                                                      String port, int idleTimeout) {
+  private static ChannelInitializer createInitializer(
+      Iterable<Supplier<ChannelHandler>> channelHandlerSuppliers, String port, int idleTimeout) {
     ChannelHandler idleStateEventHandler = new IdleStateEventHandler(Metrics.newCounter(
         new TaggedMetricName("listeners", "connections.idle.closed", "port", port)));
     ChannelHandler connectionTracker = new ConnectionTrackingHandler(
@@ -699,7 +700,7 @@ public class PushAgent extends AbstractAgent {
         pipeline.addFirst("idlehandler", new IdleStateHandler(idleTimeout, 0, 0));
         pipeline.addLast("idlestateeventhandler", idleStateEventHandler);
         pipeline.addLast("connectiontracker", connectionTracker);
-        channelHandlers.forEach(pipeline::addLast);
+        channelHandlerSuppliers.forEach(x -> pipeline.addLast(x.get()));
       }
     };
   }
@@ -794,13 +795,13 @@ public class PushAgent extends AbstractAgent {
 
   @Override
   public void stopListeners() {
-    for (Thread thread : managedThreads) {
-      thread.interrupt();
+    managedThreads.forEach(Thread::interrupt);
+    managedThreads.forEach(thread -> {
       try {
         thread.join(TimeUnit.SECONDS.toMillis(10));
       } catch (InterruptedException e) {
         // ignore
       }
-    }
+    });
   }
 }
