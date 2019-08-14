@@ -7,6 +7,7 @@ import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 
 import org.apache.commons.lang.StringUtils;
@@ -18,6 +19,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,8 +48,9 @@ import static com.wavefront.agent.Utils.lazySupplier;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 /**
- * This class handles an incoming message of either String or FullHttpRequest type.  All other types are ignored. This
- * will likely be passed to the PlainTextOrHttpFrameDecoder as the handler for messages.
+ * This class handles an incoming message of either String or FullHttpRequest type.
+ * All other types are ignored. This will likely be passed to the PlainTextOrHttpFrameDecoder
+ * as the handler for messages.
  *
  * @author vasily@wavefront.com
  */
@@ -59,6 +62,8 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   protected final Supplier<Histogram> httpRequestHandleDuration;
   protected final Supplier<Counter> requestsDiscarded;
   protected final Supplier<Counter> pointsDiscarded;
+  protected final Supplier<Gauge> httpRequestsInFlightGauge;
+  protected final AtomicLong httpRequestsInFlight = new AtomicLong();
 
   protected final String handle;
   protected final TokenAuthenticator tokenAuthenticator;
@@ -73,19 +78,28 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
    * @param plaintextEnabled    whether to accept incoming TCP streams
    * @param httpEnabled         whether to accept incoming HTTP requests
    */
-  public PortUnificationHandler(@Nonnull TokenAuthenticator tokenAuthenticator, @Nullable final String handle,
+  public PortUnificationHandler(@Nonnull TokenAuthenticator tokenAuthenticator,
+                                @Nullable final String handle,
                                 boolean plaintextEnabled, boolean httpEnabled) {
     this.tokenAuthenticator = tokenAuthenticator;
     this.handle = firstNonNull(handle, "unknown");
     this.plaintextEnabled = plaintextEnabled;
     this.httpEnabled = httpEnabled;
 
-    this.httpRequestHandleDuration = lazySupplier(() -> Metrics.newHistogram(new TaggedMetricName("listeners",
-        "http-requests.duration-nanos", "port", this.handle)));
-    this.requestsDiscarded = lazySupplier(() -> Metrics.newCounter(new TaggedMetricName("listeners",
-        "http-requests.discarded", "port", this.handle)));
-    this.pointsDiscarded = lazySupplier(() -> Metrics.newCounter(new TaggedMetricName("listeners",
-        "items-discarded", "port", this.handle)));
+    this.httpRequestHandleDuration = lazySupplier(() -> Metrics.newHistogram(
+        new TaggedMetricName("listeners", "http-requests.duration-nanos", "port", this.handle)));
+    this.requestsDiscarded = lazySupplier(() -> Metrics.newCounter(
+        new TaggedMetricName("listeners", "http-requests.discarded", "port", this.handle)));
+    this.pointsDiscarded = lazySupplier(() -> Metrics.newCounter(
+        new TaggedMetricName("listeners", "items-discarded", "port", this.handle)));
+    this.httpRequestsInFlightGauge = lazySupplier(() -> Metrics.newGauge(
+        new TaggedMetricName("listeners", "http-requests.active", "port", this.handle),
+        new Gauge<Long>() {
+          @Override
+          public Long value() {
+            return httpRequestsInFlight.get();
+          }
+        }));
   }
 
   /**
@@ -100,7 +114,7 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
       for (String line : StringUtils.split(request.content().toString(CharsetUtil.UTF_8), '\n')) {
         processLine(ctx, line.trim());
       }
-      status = HttpResponseStatus.NO_CONTENT;
+      status = HttpResponseStatus.ACCEPTED;
     } catch (Exception e) {
       status = HttpResponseStatus.BAD_REQUEST;
       writeExceptionText(e, output);
@@ -118,7 +132,8 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
     if (message == null) {
       throw new IllegalArgumentException("Message cannot be null");
     }
-    if (!plaintextEnabled || tokenAuthenticator.authRequired()) { // plaintext is disabled with auth enabled
+    if (!plaintextEnabled || tokenAuthenticator.authRequired()) {
+      // plaintext is disabled with auth enabled
       pointsDiscarded.get().inc();
       logger.warning("Input discarded: plaintext protocol is not supported on port " + handle +
           (tokenAuthenticator.authRequired() ? " (authentication enabled)" : ""));
@@ -137,12 +152,14 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
     if (cause instanceof TooLongFrameException) {
-      logWarning("Received line is too long, consider increasing pushListenerMaxReceivedLength", cause, ctx);
+      logWarning("Received line is too long, consider increasing pushListenerMaxReceivedLength",
+          cause, ctx);
       return;
     }
     if (cause instanceof DecompressionException) {
       logWarning("Decompression error", cause, ctx);
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Decompression error: " + cause.getMessage());
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST,
+          "Decompression error: " + cause.getMessage());
       return;
     }
     if (cause instanceof IOException && cause.getMessage().contains("Connection reset by peer")) {
@@ -158,9 +175,9 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
     if (requestUri == null) return null;
     String token = firstNonNull(request.headers().getAsString("X-AUTH-TOKEN"),
         request.headers().getAsString("Authorization"), "").replaceAll("^Bearer ", "").trim();
-    Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(requestUri, CharsetUtil.UTF_8).stream().
-        filter(x -> x.getName().equals("t") || x.getName().equals("token") || x.getName().equals("api_key")).
-        findFirst();
+    Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(requestUri, CharsetUtil.UTF_8).
+        stream().filter(x -> x.getName().equals("t") || x.getName().equals("token") ||
+        x.getName().equals("api_key")).findFirst();
     if (tokenParam.isPresent()) {
       token = tokenParam.get().getValue();
     }
@@ -192,8 +209,14 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
           }
           FullHttpRequest request = (FullHttpRequest) message;
           if (authorized(ctx, request)) {
+            httpRequestsInFlightGauge.get();
+            httpRequestsInFlight.incrementAndGet();
             long startTime = System.nanoTime();
-            handleHttpMessage(ctx, request);
+            try {
+              handleHttpMessage(ctx, request);
+            } finally {
+              httpRequestsInFlight.decrementAndGet();
+            }
             httpRequestHandleDuration.get().update(System.nanoTime() - startTime);
           }
         } else {
@@ -234,16 +257,16 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
                                    final Object contents, boolean keepAlive) {
     final FullHttpResponse response;
     if (contents instanceof JsonNode) {
-      response = new DefaultFullHttpResponse(
-          HttpVersion.HTTP_1_1, status, Unpooled.copiedBuffer(contents.toString(), CharsetUtil.UTF_8));
+      response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status,
+          Unpooled.copiedBuffer(contents.toString(), CharsetUtil.UTF_8));
       response.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
     } else if (contents instanceof CharSequence) {
-      response = new DefaultFullHttpResponse(
-          HttpVersion.HTTP_1_1, status, Unpooled.copiedBuffer((CharSequence) contents, CharsetUtil.UTF_8));
+      response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status,
+          Unpooled.copiedBuffer((CharSequence) contents, CharsetUtil.UTF_8));
       response.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.TEXT_PLAIN);
     } else {
-      throw new IllegalArgumentException("Unexpected response content type, JsonNode or CharSequence expected: " +
-          contents.getClass().getName());
+      throw new IllegalArgumentException("Unexpected response content type, JsonNode or " +
+          "CharSequence expected: " + contents.getClass().getName());
     }
 
     // Decide whether to close the connection or not.
@@ -274,7 +297,7 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   }
 
   /**
-   * Create a detailed error message from an exception.
+   * Create a detailed error message from an exception, including current handle (port).
    *
    * @param message   the error message
    * @param e         the exception (optional) that caused the error
@@ -282,13 +305,14 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
    *
    * @return formatted error message
    */
-  protected String formatErrorMessage(final String message,
+  protected static String formatErrorMessage(final String message,
                                       @Nullable final Throwable e,
                                       @Nullable final ChannelHandlerContext ctx) {
-    StringBuilder errMsg = new StringBuilder();
-    errMsg.append("[").append(handle).append("]").append(message);
-    errMsg.append("; remote: ");
-    errMsg.append(getRemoteName(ctx));
+    StringBuilder errMsg = new StringBuilder(message);
+    if (ctx != null) {
+      errMsg.append("; remote: ");
+      errMsg.append(getRemoteName(ctx));
+    }
     if (e != null) {
       errMsg.append("; ");
       writeExceptionText(e, errMsg);
@@ -302,7 +326,7 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
    * @param e   Exceptions thrown
    * @param msg StringBuilder to write message to
    */
-  protected void writeExceptionText(@Nonnull final Throwable e, @Nonnull StringBuilder msg) {
+  protected static void writeExceptionText(@Nonnull final Throwable e, @Nonnull StringBuilder msg) {
     final Throwable rootCause = Throwables.getRootCause(e);
     msg.append("reason: \"");
     msg.append(e.getMessage());
@@ -328,4 +352,3 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
     return "";
   }
 }
-

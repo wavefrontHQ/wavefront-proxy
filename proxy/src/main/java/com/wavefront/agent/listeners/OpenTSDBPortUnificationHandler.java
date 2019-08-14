@@ -1,7 +1,5 @@
 package com.wavefront.agent.listeners;
 
-import com.google.common.collect.Lists;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -19,7 +17,6 @@ import com.wavefront.metrics.JsonMetricsParser;
 import java.net.InetAddress;
 import java.net.URI;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.function.Function;
@@ -142,45 +139,8 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
         throw new Exception("Failed to write version response", f.cause());
       }
     } else {
-      ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ? null : preprocessorSupplier.get();
-      String[] messageHolder = new String[1];
-      // transform the line if needed
-      if (preprocessor != null) {
-        message = preprocessor.forPointLine().transform(message);
-
-        // apply white/black lists after formatting
-        if (!preprocessor.forPointLine().filter(message, messageHolder)) {
-          if (messageHolder[0] != null) {
-            pointHandler.reject((ReportPoint) null, message);
-          } else {
-            pointHandler.block(null, message);
-          }
-          return;
-        }
-      }
-
-      List<ReportPoint> output = Lists.newArrayListWithCapacity(1);
-      try {
-        decoder.decode(message, output, "dummy");
-      } catch (Exception e) {
-        pointHandler.reject(message, formatErrorMessage("WF-300 Cannot parse: \"" + message + "\"", e, ctx));
-        return;
-      }
-
-      for (ReportPoint object : output) {
-        if (preprocessor != null) {
-          preprocessor.forReportPoint().transform(object);
-          if (!preprocessor.forReportPoint().filter(object, messageHolder)) {
-            if (messageHolder[0] != null) {
-              pointHandler.reject(object, messageHolder[0]);
-            } else {
-              pointHandler.block(object);
-            }
-            return;
-          }
-        }
-        pointHandler.report(object);
-      }
+      WavefrontPortUnificationHandler.preprocessAndHandlePoint(message, decoder, pointHandler,
+          preprocessorSupplier, ctx);
     }
   }
 
