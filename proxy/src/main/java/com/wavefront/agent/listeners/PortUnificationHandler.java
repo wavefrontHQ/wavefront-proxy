@@ -10,7 +10,6 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
@@ -45,6 +44,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.CharsetUtil;
 
 import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.agent.handlers.LineDelimitedUtils.splitPushData;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 /**
@@ -111,7 +111,7 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
 
     HttpResponseStatus status;
     try {
-      for (String line : StringUtils.split(request.content().toString(CharsetUtil.UTF_8), '\n')) {
+      for (String line : splitPushData(request.content().toString(CharsetUtil.UTF_8))) {
         processLine(ctx, line.trim());
       }
       status = HttpResponseStatus.ACCEPTED;

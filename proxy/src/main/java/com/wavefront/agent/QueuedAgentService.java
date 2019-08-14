@@ -18,11 +18,11 @@ import com.squareup.tape.FileObjectQueue;
 import com.squareup.tape.ObjectQueue;
 import com.squareup.tape.TaskQueue;
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
+import com.wavefront.agent.handlers.LineDelimitedUtils;
 import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ShellOutputDTO;
 import com.wavefront.common.NamedThreadFactory;
-import com.wavefront.ingester.StringLineIngester;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -94,7 +94,7 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
   private final List<ResubmissionTaskQueue> sourceTagTaskQueues;
   private final List<Runnable> taskRunnables;
   private final List<Runnable> sourceTagTaskRunnables;
-  private static AtomicInteger splitBatchSize = new AtomicInteger(50000);
+  private static AtomicInteger minSplitBatchSize = new AtomicInteger(100);
   private static AtomicDouble retryBackoffBaseSeconds = new AtomicDouble(2.0);
   private boolean lastKnownQueueSizeIsPositive = true;
   private boolean lastKnownSourceTagQueueSizeIsPositive = true;
@@ -471,8 +471,13 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
     retryBackoffBaseSeconds = newSecs;
   }
 
+  @Deprecated
   public static void setSplitBatchSize(AtomicInteger newSize) {
-    splitBatchSize = newSize;
+  }
+
+  @VisibleForTesting
+  static void setMinSplitBatchSize(int newSize) {
+    minSplitBatchSize.set(newSize);
   }
 
   public long getQueuedTasksCount() {
@@ -925,42 +930,40 @@ public class QueuedAgentService implements ForceQueueEnabledAgentAPI {
       this.currentMillis = currentMillis;
       this.format = format;
       this.pushData = pushData;
-      this.taskSize = StringLineIngester.pushDataSize(pushData);
+      this.taskSize = LineDelimitedUtils.pushDataSize(pushData);
     }
 
     @Override
     public void execute(Object callback) {
-      parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis, format, pushData));
+      // timestamps on PostPushDataResultTask are local system clock, not drift-corrected clock
       if (timeSpentInQueue == null) {
         timeSpentInQueue = Metrics.newHistogram(new MetricName("buffer", "", "queue-time"));
       }
-      // timestamps on PostPushDataResultTask are local system clock, not drift-corrected clock
       timeSpentInQueue.update(System.currentTimeMillis() - currentMillis);
+      parsePostingResponse(service.postPushData(currentAgentId, workUnitId, currentMillis, format,
+          pushData));
     }
 
     @Override
     public List<PostPushDataResultTask> splitTask() {
       // pull the pushdata back apart to split and put back together
-      List<PostPushDataResultTask> splitTasks = Lists.newArrayList();
+      List<PostPushDataResultTask> splitTasks = Lists.newArrayListWithExpectedSize(2);
 
-      List<Integer> dataIndex = StringLineIngester.indexPushData(pushData);
-
-      int numDatum = dataIndex.size() / 2;
-      if (numDatum > 1) {
-        // in this case, at least split the strings in 2 batches.  batch size must be less
-        // than splitBatchSize
-        int stride = Math.min(splitBatchSize.get(), (int) Math.ceil((float) numDatum / 2.0));
-        int endingIndex = 0;
-        for (int startingIndex = 0; endingIndex < numDatum - 1; startingIndex += stride) {
-          endingIndex = Math.min(numDatum, startingIndex + stride) - 1;
+      if (taskSize > minSplitBatchSize.get()) {
+        // in this case, split the payload in 2 batches approximately in the middle.
+        int splitPoint = pushData.indexOf(LineDelimitedUtils.PUSH_DATA_DELIMETER,
+            pushData.length() / 2);
+        if (splitPoint > 0) {
           splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
-              pushData.substring(dataIndex.get(startingIndex * 2), dataIndex.get(endingIndex * 2 + 1))));
+              pushData.substring(0, splitPoint)));
+          splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
+              pushData.substring(splitPoint + 1)));
+          return splitTasks;
         }
-      } else {
-        // 1 or 0
-        splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format, pushData));
       }
-
+      // 1 or 0
+      splitTasks.add(new PostPushDataResultTask(agentId, workUnitId, currentMillis, format,
+          pushData));
       return splitTasks;
     }
 

@@ -26,6 +26,7 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
  *
  * @author Tim Schmidt (tim@wavefront.com).
  */
+@Deprecated
 public class UdpIngester extends Ingester {
   private static final Logger logger =
       Logger.getLogger(UdpIngester.class.getCanonicalName());

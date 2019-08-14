@@ -52,12 +52,12 @@
 # rules for port 2878
 '2878':
 
-  # replace bad characters ("&", "$", "!") with underscores in the entire point line string
+  # replace bad characters ("&", "$", "*") with underscores in the entire point line string
   ################################################################
   - rule    : example-replace-badchars
     action  : replaceRegex
     scope   : pointLine
-    search  : "[&\\$!]"
+    search  : "[&\\$\\*]"
     replace : "_"
 
   ## extract Graphite 1.1+ tags from the metric name, i.e. convert
@@ -233,7 +233,7 @@
   ## truncate 'db.statement' annotation value at 240 characters,
   ## replace last 3 characters with '...'.
   ################################################################
-  - rule          : limit-db-statement
+  - rule          : example-limit-db-statement
     action        : spanLimitLength
     scope         : "db.statement"
     actionSubtype : truncateWithEllipsis

@@ -11,6 +11,7 @@ import wavefront.report.ReportPoint;
  *
  * @author Clement Pang (clement@wavefront.com).
  */
+@Deprecated
 public interface PointHandler {
   /**
    * Send a point for reporting.

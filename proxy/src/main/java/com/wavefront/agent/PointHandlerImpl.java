@@ -28,6 +28,7 @@ import static com.wavefront.data.Validation.validatePoint;
  * Adds all graphite strings to a working list, and batches them up on a set schedule (100ms) to be sent (through the
  * daemon's logic) up to the collector on the server side.
  */
+@Deprecated
 public class PointHandlerImpl implements PointHandler {
 
   private static final Logger logger = Logger.getLogger(PointHandlerImpl.class.getCanonicalName());

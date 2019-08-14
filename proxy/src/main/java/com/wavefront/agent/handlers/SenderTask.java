@@ -1,5 +1,8 @@
 package com.wavefront.agent.handlers;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+
 /**
  * Batch and ship valid items to Wavefront servers
  *
@@ -42,6 +45,8 @@ public interface SenderTask<T> {
 
   /**
    * Shut down the scheduler for this task (prevent future scheduled runs).
+   *
+   * @return executor service that is shutting down.
    */
-  void shutdown();
+  ExecutorService shutdown();
 }

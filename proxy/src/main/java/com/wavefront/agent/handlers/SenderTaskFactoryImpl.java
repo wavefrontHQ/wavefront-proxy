@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
@@ -35,7 +36,8 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   private final AtomicInteger pointsPerBatch;
   private final AtomicInteger memoryBufferLimit;
 
-  private static final RecyclableRateLimiter sourceTagRateLimiter = RecyclableRateLimiter.create(5, 10);
+  private static final RecyclableRateLimiter sourceTagRateLimiter =
+      RecyclableRateLimiter.create(5, 10);
 
   /**
    * Create new instance.
@@ -68,32 +70,32 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       SenderTask senderTask;
       switch (handlerKey.getEntityType()) {
         case POINT:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.POINT.toString(), PUSH_FORMAT_WAVEFRONT,
-              proxyAPI, proxyId, handlerKey.getHandle(), threadNo, globalRateLimiter, pushFlushInterval,
-              pointsPerBatch, memoryBufferLimit);
+          senderTask = new LineDelimitedSenderTask(ReportableEntityType.POINT.toString(),
+              PUSH_FORMAT_WAVEFRONT, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
+              globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
           break;
         case HISTOGRAM:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.HISTOGRAM.toString(), PUSH_FORMAT_HISTOGRAM,
-              proxyAPI, proxyId, handlerKey.getHandle(), threadNo, globalRateLimiter, pushFlushInterval,
-              pointsPerBatch, memoryBufferLimit);
+          senderTask = new LineDelimitedSenderTask(ReportableEntityType.HISTOGRAM.toString(),
+              PUSH_FORMAT_HISTOGRAM, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
+              globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
           break;
         case SOURCE_TAG:
-          senderTask = new ReportSourceTagSenderTask(proxyAPI, handlerKey.getHandle(), threadNo, pushFlushInterval,
-              sourceTagRateLimiter, pointsPerBatch, memoryBufferLimit);
+          senderTask = new ReportSourceTagSenderTask(proxyAPI, handlerKey.getHandle(),
+              threadNo, pushFlushInterval, sourceTagRateLimiter, pointsPerBatch, memoryBufferLimit);
           break;
         case TRACE:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE.toString(), PUSH_FORMAT_TRACING,
-              proxyAPI, proxyId, handlerKey.getHandle(), threadNo, globalRateLimiter, pushFlushInterval,
-              pointsPerBatch, memoryBufferLimit);
+          senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE.toString(),
+              PUSH_FORMAT_TRACING, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
+              globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
           break;
         case TRACE_SPAN_LOGS:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE_SPAN_LOGS.toString(),
-              PUSH_FORMAT_TRACING_SPAN_LOGS, proxyAPI, proxyId, handlerKey.getHandle(), threadNo, globalRateLimiter,
-              pushFlushInterval, pointsPerBatch, memoryBufferLimit);
+              PUSH_FORMAT_TRACING_SPAN_LOGS, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
+              globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
           break;
         default:
-          throw new IllegalArgumentException("Unexpected entity type " + handlerKey.getEntityType().name() +
-              " for " + handlerKey.getHandle());
+          throw new IllegalArgumentException("Unexpected entity type " +
+              handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());
       }
       toReturn.add(senderTask);
       managedTasks.add(senderTask);
@@ -103,9 +105,13 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
   @Override
   public void shutdown() {
-    for (SenderTask task : managedTasks) {
-      task.shutdown();
-    }
+    managedTasks.stream().map(SenderTask::shutdown).forEach(x -> {
+      try {
+        x.awaitTermination(1000, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        // ignore
+      }
+    });
   }
 
   @Override
@@ -114,5 +120,4 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       task.drainBuffersToQueue();
     }
   }
-
 }

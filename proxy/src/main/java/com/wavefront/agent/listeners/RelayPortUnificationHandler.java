@@ -23,7 +23,6 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
@@ -46,6 +45,7 @@ import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
+import static com.wavefront.agent.handlers.LineDelimitedUtils.splitPushData;
 import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.preprocessAndHandlePoint;
 
 /**
@@ -177,7 +177,7 @@ public class RelayPortUnificationHandler extends PortUnificationHandler {
         filter(x -> x.getName().equals("format") || x.getName().equals("f")).
         map(NameValuePair::getValue).findFirst().orElse(Constants.PUSH_FORMAT_WAVEFRONT);
 
-    String[] lines = StringUtils.split(request.content().toString(CharsetUtil.UTF_8), '\n');
+    String[] lines = splitPushData(request.content().toString(CharsetUtil.UTF_8));
     HttpResponseStatus status;
 
     switch (format) {

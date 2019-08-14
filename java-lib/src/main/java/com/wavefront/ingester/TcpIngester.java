@@ -37,6 +37,7 @@ public class TcpIngester extends Ingester {
   private Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
   private Counter bindErrors = Metrics.newCounter(ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
 
+  @Deprecated
   public TcpIngester(List<Function<Channel, ChannelHandler>> decoders,
                      ChannelHandler commandHandler, int port) {
     super(decoders, commandHandler, port);
@@ -92,12 +93,13 @@ public class TcpIngester extends Ingester {
       logger.log(Level.WARNING, "Interrupted");
       parentGroup.shutdownGracefully();
       childGroup.shutdownGracefully();
-      logger.info("Listener on port " + String.valueOf(listeningPort) + " shut down");
+      logger.info("Listener on port " + listeningPort + " shut down");
     } catch (Exception e) {
       // ChannelFuture throws undeclared checked exceptions, so we need to handle it
+      //noinspection ConstantConditions
       if (e instanceof BindException) {
         bindErrors.inc();
-        logger.severe("Unable to start listener - port " + String.valueOf(listeningPort) + " is already in use!");
+        logger.severe("Unable to start listener - port " + listeningPort + " is already in use!");
       } else {
         logger.log(Level.SEVERE, "TcpIngester exception: ", e);
       }
