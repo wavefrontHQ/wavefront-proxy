@@ -96,6 +96,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -137,7 +138,9 @@ public class PushAgent extends AbstractAgent {
       ReportableEntityType.POINT, getDecoderInstance(),
       ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
       ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(
-          new HistogramDecoder("unknown")));
+          new HistogramDecoder("unknown")),
+      ReportableEntityType.TRACE, new SpanDecoder("unknown"),
+      ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder());
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -318,7 +321,7 @@ public class PushAgent extends AbstractAgent {
         startTraceJaegerListener(strPort, handlerFactory,
             new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler));
     portIterator(pushRelayListenerPorts).forEachRemaining(strPort ->
-        startRelayListener(strPort, handlerFactory));
+        startRelayListener(strPort, handlerFactory, remoteHostAnnotator));
     portIterator(traceZipkinListenerPorts).forEachRemaining(strPort ->
         startTraceZipkinListener(strPort, handlerFactory,
             new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler));
@@ -542,18 +545,20 @@ public class PushAgent extends AbstractAgent {
   }
 
   @VisibleForTesting
-  protected void startRelayListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
+  protected void startRelayListener(String strPort,
+                                    ReportableEntityHandlerFactory handlerFactory,
+                                    SharedGraphiteHostAnnotator hostAnnotator) {
     final int port = Integer.parseInt(strPort);
 
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
 
-    Map<ReportableEntityType, ReportableEntityDecoder> decoders = ImmutableMap.of(
-        ReportableEntityType.POINT, getDecoderInstance(),
-        ReportableEntityType.HISTOGRAM,
-        new ReportPointDecoderWrapper(new HistogramDecoder("unknown")));
+    Map<ReportableEntityType, ReportableEntityDecoder> decoders = DECODERS.entrySet().stream().
+        filter(x -> !x.getKey().equals(ReportableEntityType.SOURCE_TAG)).
+        collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     ChannelHandler channelHandler = new RelayPortUnificationHandler(strPort, tokenAuthenticator,
-        decoders, handlerFactory, preprocessors.get(strPort));
+        decoders, handlerFactory, preprocessors.get(strPort), hostAnnotator, histogramDisabled::get,
+        traceDisabled::get, spanLogsDisabled::get);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
         pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
         port).withChildChannelOptions(childChannelOptions), "listener-relay-" + port);
