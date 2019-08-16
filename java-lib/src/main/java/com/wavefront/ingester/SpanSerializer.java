@@ -22,7 +22,7 @@ public class SpanSerializer implements Function<Span, String> {
   private static String quote = "\"";
   private static String escapedQuote = "\\\"";
 
-  private static String escapeQuotes(String raw) {
+  public static String escapeQuotes(String raw) {
     return StringUtils.replace(raw, quote, escapedQuote);
   }
 

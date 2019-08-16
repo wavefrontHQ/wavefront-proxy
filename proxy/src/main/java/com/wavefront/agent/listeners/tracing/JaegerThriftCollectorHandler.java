@@ -61,6 +61,7 @@ import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERRO
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
+import static com.wavefront.ingester.SpanSerializer.escapeQuotes;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
@@ -68,7 +69,6 @@ import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
-import static com.wavefront.sdk.common.Utils.sanitizeValue;
 
 /**
  * Handler that processes trace data in Jaeger Thrift compact format and
@@ -346,7 +346,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     }
     Span wavefrontSpan = Span.newBuilder()
         .setCustomer("dummy")
-        .setName(sanitizeValue(span.getOperationName()))
+        .setName(escapeQuotes(span.getOperationName().trim()))
         .setSource(sourceName)
         .setSpanId(new UUID(0, span.getSpanId()).toString())
         .setTraceId(new UUID(span.getTraceIdHigh(), span.getTraceIdLow()).toString())

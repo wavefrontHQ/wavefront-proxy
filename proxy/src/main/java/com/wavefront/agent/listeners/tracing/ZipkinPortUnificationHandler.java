@@ -61,6 +61,7 @@ import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERRO
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
+import static com.wavefront.ingester.SpanSerializer.escapeQuotes;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
@@ -68,7 +69,6 @@ import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
-import static com.wavefront.sdk.common.Utils.sanitizeValue;
 
 /**
  * Handler that processes Zipkin trace data over HTTP and converts them to Wavefront format.
@@ -331,7 +331,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     }
     // Set spanName.
     String spanName = zipkinSpan.name() == null ? DEFAULT_SPAN_NAME :
-        sanitizeValue(zipkinSpan.name());
+        escapeQuotes(zipkinSpan.name().trim());
 
     String spanId = Utils.convertToUuidString(zipkinSpan.id());
     String traceId = Utils.convertToUuidString(zipkinSpan.traceId());

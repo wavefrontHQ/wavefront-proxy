@@ -25,7 +25,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>wavefront-sdk-java</artifactId>
-      <version>1.10</version>
+      <version>1.1</version>
     </dependency>
     <dependency>
       <groupId>com.wavefront</groupId>
