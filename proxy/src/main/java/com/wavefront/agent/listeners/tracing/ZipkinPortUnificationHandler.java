@@ -68,6 +68,7 @@ import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
+import static com.wavefront.sdk.common.Utils.sanitizeValue;
 
 /**
  * Handler that processes Zipkin trace data over HTTP and converts them to Wavefront format.
@@ -329,7 +330,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
       }
     }
     // Set spanName.
-    String spanName = zipkinSpan.name() == null ? DEFAULT_SPAN_NAME : zipkinSpan.name();
+    String spanName = zipkinSpan.name() == null ? DEFAULT_SPAN_NAME :
+        sanitizeValue(zipkinSpan.name());
 
     String spanId = Utils.convertToUuidString(zipkinSpan.id());
     String traceId = Utils.convertToUuidString(zipkinSpan.traceId());

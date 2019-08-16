@@ -68,6 +68,7 @@ import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
+import static com.wavefront.sdk.common.Utils.sanitizeValue;
 
 /**
  * Handler that processes trace data in Jaeger Thrift compact format and
@@ -345,7 +346,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     }
     Span wavefrontSpan = Span.newBuilder()
         .setCustomer("dummy")
-        .setName(span.getOperationName())
+        .setName(sanitizeValue(span.getOperationName()))
         .setSource(sourceName)
         .setSpanId(new UUID(0, span.getSpanId()).toString())
         .setTraceId(new UUID(span.getTraceIdHigh(), span.getTraceIdLow()).toString())
