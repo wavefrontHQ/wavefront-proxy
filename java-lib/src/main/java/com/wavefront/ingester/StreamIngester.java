@@ -32,6 +32,7 @@ import io.netty.handler.codec.bytes.ByteArrayDecoder;
  * Ingester thread that sets up decoders and a command handler to listen for metrics on a port.
  * @author Mike McLaughlin (mike@wavefront.com)
  */
+@Deprecated
 public class StreamIngester implements Runnable {
 
   protected static final Logger logger = Logger.getLogger(StreamIngester.class.getName());

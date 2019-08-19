@@ -5,8 +5,8 @@ import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.squareup.tape.TaskInjector;
 import com.wavefront.agent.QueuedAgentService.PostPushDataResultTask;
+import com.wavefront.agent.handlers.LineDelimitedUtils;
 import com.wavefront.api.WavefrontAPI;
-import com.wavefront.ingester.StringLineIngester;
 
 import net.jcip.annotations.NotThreadSafe;
 
@@ -26,7 +26,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.ws.rs.core.Response;
@@ -45,7 +44,6 @@ public class QueuedAgentServiceTest {
   private QueuedAgentService queuedAgentService;
   private WavefrontAPI mockAgentAPI;
   private UUID newAgentId;
-  private AtomicInteger splitBatchSize = new AtomicInteger(50000);
 
   @Before
   public void testSetup() throws IOException {
@@ -53,8 +51,7 @@ public class QueuedAgentServiceTest {
     newAgentId = UUID.randomUUID();
 
     int retryThreads = 1;
-    QueuedAgentService.setSplitBatchSize(splitBatchSize);
-
+    QueuedAgentService.setMinSplitBatchSize(2);
     queuedAgentService = new QueuedAgentService(mockAgentAPI, "unitTestBuffer", retryThreads,
         Executors.newScheduledThreadPool(retryThreads + 1, new ThreadFactory() {
 
@@ -262,7 +259,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).
         andReturn(Response.ok().build()).once();
@@ -286,7 +283,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).
         andReturn(Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
@@ -315,7 +312,8 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str1);
     pretendPushDataList.add(str2);
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    QueuedAgentService.setMinSplitBatchSize(1);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).
         andReturn(Response.status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
@@ -351,7 +349,8 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str1);
     pretendPushDataList.add(str2);
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
+    QueuedAgentService.setMinSplitBatchSize(1);
 
     EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).andReturn(Response
         .status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
@@ -395,7 +394,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
@@ -430,7 +429,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
@@ -472,7 +471,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
@@ -515,7 +514,7 @@ public class QueuedAgentServiceTest {
     List<String> pretendPushDataList = new ArrayList<String>();
     pretendPushDataList.add(str1);
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
@@ -529,7 +528,7 @@ public class QueuedAgentServiceTest {
     assertEquals(1, splitTasks.size());
 
     String firstSplitDataString = splitTasks.get(0).getPushData();
-    List<String> firstSplitData = StringLineIngester.unjoinPushData(firstSplitDataString);
+    List<String> firstSplitData = unjoinPushData(firstSplitDataString);
 
     assertEquals(1, firstSplitData.size());
   }
@@ -554,7 +553,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str3);
     pretendPushDataList.add(str4);
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     PostPushDataResultTask task = new PostPushDataResultTask(
         agentId,
@@ -568,11 +567,11 @@ public class QueuedAgentServiceTest {
     assertEquals(2, splitTasks.size());
 
     String firstSplitDataString = splitTasks.get(0).getPushData();
-    List<String> firstSplitData = StringLineIngester.unjoinPushData(firstSplitDataString);
+    List<String> firstSplitData = unjoinPushData(firstSplitDataString);
     assertEquals(2, firstSplitData.size());
 
     String secondSplitDataString = splitTasks.get(1).getPushData();
-    List<String> secondSplitData = StringLineIngester.unjoinPushData(secondSplitDataString);
+    List<String> secondSplitData = unjoinPushData(secondSplitDataString);
     assertEquals(2, secondSplitData.size());
 
     // and all the data is the same...
@@ -585,9 +584,9 @@ public class QueuedAgentServiceTest {
     }
 
     // first list should have the first 2 strings
-    assertEquals(StringLineIngester.joinPushData(Arrays.asList(str1, str2)), firstSplitDataString);
+    assertEquals(LineDelimitedUtils.joinPushData(Arrays.asList(str1, str2)), firstSplitDataString);
     // second list should have the last 2
-    assertEquals(StringLineIngester.joinPushData(Arrays.asList(str3, str4)), secondSplitDataString);
+    assertEquals(LineDelimitedUtils.joinPushData(Arrays.asList(str3, str4)), secondSplitDataString);
 
   }
 
@@ -616,7 +615,7 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str4);
     pretendPushDataList.add(str5);
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     PostPushDataResultTask task = new PostPushDataResultTask(
         agentId,
@@ -630,60 +629,18 @@ public class QueuedAgentServiceTest {
     assertEquals(2, splitTasks.size());
 
     String firstSplitDataString = splitTasks.get(0).getPushData();
-    List<String> firstSplitData = StringLineIngester.unjoinPushData(firstSplitDataString);
+    List<String> firstSplitData = unjoinPushData(firstSplitDataString);
 
     assertEquals(3, firstSplitData.size());
 
     String secondSplitDataString = splitTasks.get(1).getPushData();
-    List<String> secondSplitData = StringLineIngester.unjoinPushData(secondSplitDataString);
+    List<String> secondSplitData = unjoinPushData(secondSplitDataString);
 
     assertEquals(2, secondSplitData.size());
   }
 
   @Test
-  public void postPushDataResultTaskSplitsIntoManyTask() {
-    for (int targetBatchSize = 1; targetBatchSize <= 10; targetBatchSize++) {
-      splitBatchSize.set(targetBatchSize);
-
-      UUID agentId = UUID.randomUUID();
-      UUID workUnitId = UUID.randomUUID();
-
-      long now = System.currentTimeMillis();
-
-      String format = "unitTestFormat";
-
-      for (int numTestStrings = 1; numTestStrings <= 51; numTestStrings += 1) {
-        List<String> pretendPushDataList = new ArrayList<String>();
-        for (int i = 0; i < numTestStrings; i++) {
-          pretendPushDataList.add(RandomStringUtils.randomAlphabetic(6));
-        }
-
-        String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
-
-        PostPushDataResultTask task = new PostPushDataResultTask(
-            agentId,
-            workUnitId,
-            now,
-            format,
-            pretendPushData
-        );
-
-        List<PostPushDataResultTask> splitTasks = task.splitTask();
-        Set<String> splitData = Sets.newHashSet();
-        for (PostPushDataResultTask taskN : splitTasks) {
-          List<String> dataStrings = StringLineIngester.unjoinPushData(taskN.getPushData());
-          splitData.addAll(dataStrings);
-          assertTrue(dataStrings.size() <= targetBatchSize + 1);
-        }
-        assertEquals(Sets.newHashSet(pretendPushDataList), splitData);
-      }
-    }
-  }
-
-  @Test
   public void splitIntoTwoTest() {
-    splitBatchSize.set(10000000);
-
     UUID agentId = UUID.randomUUID();
     UUID workUnitId = UUID.randomUUID();
 
@@ -697,7 +654,8 @@ public class QueuedAgentServiceTest {
         pretendPushDataList.add(RandomStringUtils.randomAlphabetic(6));
       }
 
-      String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+      QueuedAgentService.setMinSplitBatchSize(1);
+      String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
       PostPushDataResultTask task = new PostPushDataResultTask(
           agentId,
@@ -711,11 +669,15 @@ public class QueuedAgentServiceTest {
       assertEquals(2, splitTasks.size());
       Set<String> splitData = Sets.newHashSet();
       for (PostPushDataResultTask taskN : splitTasks) {
-        List<String> dataStrings = StringLineIngester.unjoinPushData(taskN.getPushData());
+        List<String> dataStrings = unjoinPushData(taskN.getPushData());
         splitData.addAll(dataStrings);
         assertTrue(dataStrings.size() <= numTestStrings / 2 + 1);
       }
       assertEquals(Sets.newHashSet(pretendPushDataList), splitData);
     }
+  }
+
+  private static List<String> unjoinPushData(String pushData) {
+    return Arrays.asList(StringUtils.split(pushData, "\n"));
   }
 }

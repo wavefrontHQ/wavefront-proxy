@@ -19,7 +19,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -81,30 +80,32 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     this.itemsPerBatch = itemsPerBatch == null ? new AtomicInteger(40000) : itemsPerBatch;
     this.memoryBufferLimit = memoryBufferLimit == null ? new AtomicInteger(32 * 40000) : memoryBufferLimit;
     this.scheduler = Executors.newScheduledThreadPool(1,
-        new NamedThreadFactory("submitter-" + entityType + "-" + handle + "-" + String.valueOf(threadId)));
-    this.flushExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.MINUTES, new SynchronousQueue<>(),
-        new NamedThreadFactory("flush-" + entityType + "-" + handle + "-" + String.valueOf(threadId)));
+        new NamedThreadFactory("submitter-" + entityType + "-" + handle + "-" + threadId));
+    this.flushExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.MINUTES,
+        new SynchronousQueue<>(), new NamedThreadFactory("flush-" + entityType + "-" + handle +
+        "-" + threadId));
 
-    this.attemptedCounter = Metrics.newCounter(new MetricName(entityType + "." + handle, "", "sent"));
-    this.queuedCounter = Metrics.newCounter(new MetricName(entityType + "." + handle, "", "queued"));
-    this.blockedCounter = Metrics.newCounter(new MetricName(entityType + "." + handle, "", "blocked"));
-    this.receivedCounter = Metrics.newCounter(new MetricName(entityType + "." + handle, "", "received"));
-    this.bufferFlushCounter = Metrics.newCounter(new TaggedMetricName("buffer", "flush-count", "port", handle));
-    this.bufferCompletedFlushCounter = Metrics.newCounter(new TaggedMetricName("buffer", "completed-flush-count",
-        "port", handle));
+    this.attemptedCounter = Metrics.newCounter(
+        new MetricName(entityType + "." + handle, "", "sent"));
+    this.queuedCounter = Metrics.newCounter(
+        new MetricName(entityType + "." + handle, "", "queued"));
+    this.blockedCounter = Metrics.newCounter(
+        new MetricName(entityType + "." + handle, "", "blocked"));
+    this.receivedCounter = Metrics.newCounter(
+        new MetricName(entityType + "." + handle, "", "received"));
+    this.bufferFlushCounter = Metrics.newCounter(
+        new TaggedMetricName("buffer", "flush-count", "port", handle));
+    this.bufferCompletedFlushCounter = Metrics.newCounter(
+        new TaggedMetricName("buffer", "completed-flush-count", "port", handle));
   }
 
   /**
    * Shut down the scheduler for this task (prevent future scheduled runs)
    */
   @Override
-  public void shutdown() {
-    try {
-      scheduler.shutdownNow();
-      scheduler.awaitTermination(1000L, TimeUnit.MILLISECONDS);
-    } catch (Throwable t) {
-      logger.log(Level.SEVERE, "Error during shutdown", t);
-    }
+  public ExecutorService shutdown() {
+    scheduler.shutdownNow();
+    return scheduler;
   }
 
   @Override
@@ -114,7 +115,6 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     }
     this.enforceBufferLimits();
   }
-
 
   void enforceBufferLimits() {
     if (datum.size() >= memoryBufferLimit.get() && !isBuffering.get() && drainBuffersRateLimiter.tryAcquire()) {
@@ -174,8 +174,8 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
 
   @Override
   public long getTaskRelativeScore() {
-    return datum.size() + (isBuffering.get() ? memoryBufferLimit.get() : (isSending ? itemsPerBatch.get() / 2 : 0));
+    return datum.size() + (isBuffering.get() ?
+        memoryBufferLimit.get() :
+        (isSending ? itemsPerBatch.get() / 2 : 0));
   }
-
-
 }

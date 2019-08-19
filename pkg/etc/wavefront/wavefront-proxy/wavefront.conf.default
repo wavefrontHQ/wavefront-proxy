@@ -35,12 +35,12 @@ pushListenerPorts=2878
 #jsonListenerPorts=3878
 ## Comma separated list of ports to listen on for HTTP collectd write_http data
 #writeHttpJsonListenerPorts=4878
-## Comma separated list of ports to listen on for Graphite pickle formatted data (from carbon-relay)
-#picklePorts=5878
 
-## Which ports should listen for collectd/graphite-formatted data?
+## Comma separated list of ports to listen on for collectd/Graphite formatted data (plaintext protocol)
 ## If you uncomment graphitePorts, make sure to uncomment and set 'graphiteFormat' and 'graphiteDelimiters' as well.
 #graphitePorts=2003
+## Comma separated list of ports to listen on for Graphite formatted data (pickle protocol, usually from carbon-relay)
+#picklePorts=2004
 ## Which fields (1-based) should we extract and concatenate (with dots) as the hostname?
 #graphiteFormat=2
 ## Which characters should be replaced by dots in the hostname, after extraction?

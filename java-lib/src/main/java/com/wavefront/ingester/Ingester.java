@@ -59,6 +59,7 @@ public abstract class Ingester implements Runnable {
   @Nullable
   protected Map<ChannelOption<?>, ?> childChannelOptions;
 
+  @Deprecated
   public Ingester(@Nullable List<Function<Channel, ChannelHandler>> decoders,
                   ChannelHandler commandHandler, int port) {
     this.listeningPort = port;
@@ -66,6 +67,7 @@ public abstract class Ingester implements Runnable {
     initMetrics(port);
   }
 
+  @Deprecated
   public Ingester(ChannelHandler commandHandler, int port) {
     this.listeningPort = port;
     this.createInitializer(null, commandHandler);

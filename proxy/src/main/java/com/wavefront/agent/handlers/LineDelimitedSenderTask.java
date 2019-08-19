@@ -5,7 +5,6 @@ import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.api.agent.Constants;
-import com.wavefront.ingester.StringLineIngester;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -112,7 +111,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
               Constants.GRAPHITE_BLOCK_WORK_UNIT,
               System.currentTimeMillis(),
               pushFormat,
-              StringLineIngester.joinPushData(current));
+              LineDelimitedUtils.joinPushData(current));
           int itemsInList = current.size();
           this.attemptedCounter.inc(itemsInList);
           if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
@@ -158,7 +157,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
       if (pushDataPointCount > 0) {
         proxyAPI.postPushData(proxyId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
             System.currentTimeMillis(), pushFormat,
-            StringLineIngester.joinPushData(pushData), true);
+            LineDelimitedUtils.joinPushData(pushData), true);
 
         // update the counters as if this was a failed call to the API
         this.attemptedCounter.inc(pushDataPointCount);

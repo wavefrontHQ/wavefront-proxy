@@ -24,13 +24,12 @@ import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
-import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
+import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
-import com.wavefront.api.agent.Constants;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
@@ -725,7 +724,6 @@ public abstract class AbstractAgent {
   protected final AtomicLong bufferSpaceLeft = new AtomicLong();
   protected List<String> customSourceTags = new ArrayList<>();
   protected final Set<String> traceDerivedCustomTagKeys = new HashSet<>();
-  protected final List<PostPushDataTimedTask> managedTasks = new ArrayList<>();
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
@@ -737,7 +735,7 @@ public abstract class AbstractAgent {
   protected long agentMetricsCaptureTs;
   protected volatile boolean hadSuccessfulCheckin = false;
   protected volatile boolean retryCheckin = false;
-  protected volatile boolean shuttingDown = false;
+  protected AtomicBoolean shuttingDown = new AtomicBoolean(false);
   protected String serverEndpointUrl = null;
 
   /**
@@ -1152,10 +1150,6 @@ public abstract class AbstractAgent {
 
     pushMemoryBufferLimit.set(Math.max(pushMemoryBufferLimit.get(), pushFlushMaxPoints.get()));
 
-    PostPushDataTimedTask.setPointsPerBatch(pushFlushMaxPoints);
-    PostPushDataTimedTask.setMemoryBufferLimit(pushMemoryBufferLimit);
-    QueuedAgentService.setSplitBatchSize(pushFlushMaxPoints);
-
     retryBackoffBaseSeconds.set(Math.max(
         Math.min(retryBackoffBaseSeconds.get(), MAX_RETRY_BACKOFF_BASE_SECONDS),
         1.0));
@@ -1201,7 +1195,6 @@ public abstract class AbstractAgent {
     }
     if (level != null) {
       Logger.getLogger("agent").setLevel(level);
-      Logger.getLogger(PostPushDataTimedTask.class.getCanonicalName()).setLevel(level);
       Logger.getLogger(QueuedAgentService.class.getCanonicalName()).setLevel(level);
     }
   }
@@ -1564,7 +1557,6 @@ public abstract class AbstractAgent {
    *
    * @return Fetched configuration. {@code null} if the configuration is invalid.
    */
-  @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
   private AgentConfiguration checkin() {
     AgentConfiguration newConfig = null;
     JsonNode agentMetricsWorkingCopy;
@@ -1665,23 +1657,6 @@ public abstract class AbstractAgent {
     return newConfig;
   }
 
-  protected PostPushDataTimedTask[] getFlushTasks(String handle) {
-    return getFlushTasks(Constants.PUSH_FORMAT_GRAPHITE_V2, handle);
-  }
-
-  protected PostPushDataTimedTask[] getFlushTasks(String pushFormat, String handle) {
-    PostPushDataTimedTask[] toReturn = new PostPushDataTimedTask[flushThreads];
-    logger.info("Using " + flushThreads + " flush threads to send batched " + pushFormat +
-        " data to Wavefront for data received on port: " + handle);
-    for (int i = 0; i < flushThreads; i++) {
-      final PostPushDataTimedTask postPushDataTimedTask =
-          new PostPushDataTimedTask(pushFormat, agentAPI, agentId, handle, i, pushRateLimiter, pushFlushInterval.get());
-      toReturn[i] = postPushDataTimedTask;
-      managedTasks.add(postPushDataTimedTask);
-    }
-    return toReturn;
-  }
-
   /**
    * Actual agents can do additional configuration.
    *
@@ -1733,46 +1708,38 @@ public abstract class AbstractAgent {
   }
 
   private static void safeLogInfo(String msg) {
-    try {
-      logger.info(msg);
-    } catch (Throwable t) {
-      // ignore logging errors
-    }
   }
 
   public void shutdown() {
-    if (shuttingDown) {
-      return; // we need it only once
-    }
-    shuttingDown = true;
+    if (!shuttingDown.compareAndSet(false, true)) return;
     try {
-      safeLogInfo("Shutting down: Stopping listeners...");
+      try {
+        logger.info("Shutting down the proxy...");
+      } catch (Throwable t) {
+        // ignore logging errors
+      }
+
+      System.out.println("Shutting down: Stopping listeners...");
 
       stopListeners();
 
-      safeLogInfo("Shutting down: Stopping schedulers...");
+      System.out.println("Shutting down: Stopping schedulers...");
 
-      for (ExecutorService executor : managedExecutors) {
-        executor.shutdownNow();
+      managedExecutors.forEach(ExecutorService::shutdownNow);
         // wait for up to request timeout
-        executor.awaitTermination(httpRequestTimeout, TimeUnit.MILLISECONDS);
-      }
-
-      managedTasks.forEach(PostPushDataTimedTask::shutdown);
-
-      safeLogInfo("Shutting down: Flushing pending points...");
-
-      for (PostPushDataTimedTask task : managedTasks) {
-        while (task.getNumPointsToSend() > 0) {
-          task.drainBuffersToQueue();
+      managedExecutors.forEach(x -> {
+        try {
+          x.awaitTermination(httpRequestTimeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+          // ignore
         }
-      }
+      });
 
-      safeLogInfo("Shutting down: Running finalizing tasks...");
+      System.out.println("Shutting down: Running finalizing tasks...");
 
       shutdownTasks.forEach(Runnable::run);
 
-      safeLogInfo("Shutdown complete");
+      System.out.println("Shutdown complete.");
     } catch (Throwable t) {
       try {
         logger.log(Level.SEVERE, "Error during shutdown: ", t);

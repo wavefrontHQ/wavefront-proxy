@@ -21,20 +21,17 @@ import wavefront.report.ReportPoint;
  * https://docs.python.org/2/library/pickle.html
  * @author Mike McLaughlin (mike@wavefront.com)
  */
-public class PickleProtocolDecoder implements Decoder<byte[]> {
+public class PickleProtocolDecoder implements ReportableEntityDecoder<byte[], ReportPoint> {
 
-  protected static final Logger logger = Logger.getLogger(PickleProtocolDecoder.class.getCanonicalName());
+  protected static final Logger logger = Logger.getLogger(
+      PickleProtocolDecoder.class.getCanonicalName());
 
   private final int port;
   private final String defaultHostName;
   private final List<String> customSourceTags;
   private final MetricMangler metricMangler;
-  private final ThreadLocal<Unpickler> unpicklerThreadLocal = new ThreadLocal<Unpickler>() {
-    @Override
-    protected Unpickler initialValue() {
-      return new Unpickler();
-    }
-  };
+  private final ThreadLocal<Unpickler> unpicklerThreadLocal = ThreadLocal.withInitial(
+      Unpickler::new);
 
   /**
    * Constructor.
@@ -54,7 +51,7 @@ public class PickleProtocolDecoder implements Decoder<byte[]> {
   }
 
   @Override
-  public void decodeReportPoints(byte[] msg, List<ReportPoint> out, String customerId) {
+  public void decode(byte[] msg, List<ReportPoint> out, String customerId) {
     InputStream is = new ByteArrayInputStream(msg);
     Object dataRaw;
     try {
@@ -135,7 +132,7 @@ public class PickleProtocolDecoder implements Decoder<byte[]> {
   }
 
   @Override
-  public void decodeReportPoints(byte[] msg, List<ReportPoint> out) {
-    decodeReportPoints(msg, out, "dummy");
+  public void decode(byte[] msg, List<ReportPoint> out) {
+    decode(msg, out, "dummy");
   }
 }

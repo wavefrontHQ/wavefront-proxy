@@ -4,9 +4,9 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
+import com.wavefront.agent.handlers.LineDelimitedUtils;
 import com.wavefront.api.agent.Constants;
 import com.wavefront.common.NamedThreadFactory;
-import com.wavefront.ingester.StringLineIngester;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -32,6 +32,7 @@ import javax.ws.rs.core.Response;
 /**
  * @author Andrew Kao (andrew@wavefront.com)
  */
+@Deprecated
 public class PostPushDataTimedTask implements Runnable {
 
   private static final Logger logger = Logger.getLogger(PostPushDataTimedTask.class.getCanonicalName());
@@ -211,7 +212,7 @@ public class PostPushDataTimedTask implements Runnable {
               Constants.GRAPHITE_BLOCK_WORK_UNIT,
               System.currentTimeMillis(),
               pushFormat,
-              StringLineIngester.joinPushData(current));
+              LineDelimitedUtils.joinPushData(current));
           int pointsInList = current.size();
           this.pointsAttempted.inc(pointsInList);
           if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
@@ -297,7 +298,7 @@ public class PostPushDataTimedTask implements Runnable {
         if (pushDataPointCount > 0) {
           agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
               System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
-              StringLineIngester.joinPushData(pushData), true);
+              LineDelimitedUtils.joinPushData(pushData), true);
 
           // update the counters as if this was a failed call to the API
           this.pointsAttempted.inc(pushDataPointCount);

@@ -4,9 +4,9 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
 import com.wavefront.agent.PointHandler;
-import com.wavefront.agent.PointHandlerImpl;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.Decoder;
+import com.wavefront.ingester.ReportPointSerializer;
 
 import org.apache.commons.lang.math.NumberUtils;
 
@@ -165,9 +165,9 @@ public class ChannelStringHandler extends SimpleChannelInboundHandler<String> {
         preprocessor.forReportPoint().transform(point);
         if (!preprocessor.forReportPoint().filter(point, messageHolder)) {
           if (messageHolder[0] != null) {
-            blockedPointsLogger.warning(PointHandlerImpl.pointToString(point));
+            blockedPointsLogger.warning(ReportPointSerializer.pointToString(point));
           } else {
-            blockedPointsLogger.info(PointHandlerImpl.pointToString(point));
+            blockedPointsLogger.info(ReportPointSerializer.pointToString(point));
           }
           pointHandler.handleBlockedPoint(messageHolder[0]);
           return;
