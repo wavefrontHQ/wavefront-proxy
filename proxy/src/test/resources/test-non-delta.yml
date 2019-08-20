@@ -1,0 +1,7 @@
+useDeltaCounters: false
+
+counters:
+  - pattern: "counterWithValue %{NUMBER:value}%{GREEDYDATA:extra}"
+    metricName: "counterWithValue"
+  - pattern: "plainCounter"
+    metricName: "plainCounter"

@@ -312,7 +312,7 @@ public class PushAgent extends AbstractAgent {
       logger.info("Loading logs ingestion.");
       try {
         final LogsIngester logsIngester = new LogsIngester(handlerFactory,
-            this::loadLogsIngestionConfig, prefix, System::currentTimeMillis);
+            this::loadLogsIngestionConfig, prefix);
         logsIngester.start();
 
         if (filebeatPort > 0) {

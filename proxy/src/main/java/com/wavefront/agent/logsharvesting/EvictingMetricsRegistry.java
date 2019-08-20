@@ -3,8 +3,11 @@ package com.wavefront.agent.logsharvesting;
 import com.google.common.collect.Sets;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.CacheWriter;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.RemovalCause;
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.wavefront.agent.config.MetricMatcher;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.DeltaCounter;
@@ -19,6 +22,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Wrapper for a Yammer {@link com.yammer.metrics.core.MetricsRegistry}, but has extra features
@@ -39,21 +45,31 @@ public class EvictingMetricsRegistry {
   private final boolean useDeltaCounters;
   private final Supplier<Long> nowMillis;
 
-  EvictingMetricsRegistry(long expiryMillis, boolean wavefrontHistograms, boolean useDeltaCounters,
-                          Supplier<Long> nowMillis) {
-    this.metricsRegistry = new MetricsRegistry();
+  EvictingMetricsRegistry(MetricsRegistry metricRegistry, long expiryMillis,
+                          boolean wavefrontHistograms, boolean useDeltaCounters,
+                          Supplier<Long> nowMillis, Ticker ticker) {
+    this.metricsRegistry = metricRegistry;
     this.nowMillis = nowMillis;
     this.wavefrontHistograms = wavefrontHistograms;
     this.useDeltaCounters = useDeltaCounters;
-    this.metricCache = Caffeine.<MetricName, Metric>newBuilder()
+    this.metricCache = Caffeine.newBuilder()
         .expireAfterAccess(expiryMillis, TimeUnit.MILLISECONDS)
-        .<MetricName, Metric>removalListener((metricName, metric, reason) -> {
-          if (metricName == null || metric == null) {
-            logger.severe("Application error, pulled null key or value from metricCache.");
-            return;
+        .ticker(ticker)
+        .writer(new CacheWriter<MetricName, Metric>() {
+          @Override
+          public void write(@Nonnull MetricName key, @Nonnull Metric value) {
           }
-          metricsRegistry.removeMetric(metricName);
-        }).build();
+
+          @Override
+          public void delete(@Nonnull MetricName key, @Nullable Metric value,
+                             @Nonnull RemovalCause cause) {
+            if (cause == RemovalCause.EXPIRED &&
+                metricsRegistry.allMetrics().get(key) == value) {
+              metricsRegistry.removeMetric(key);
+            }
+          }
+        })
+        .build();
     this.metricNamesForMetricMatchers = Caffeine.<MetricMatcher, Set<MetricName>>newBuilder()
         .build((metricMatcher) -> Sets.newHashSet());
   }
@@ -92,9 +108,5 @@ public class EvictingMetricsRegistry {
       metricCache.invalidate(toRemove);
     }
     metricNamesForMetricMatchers.invalidate(evicted);
-  }
-
-  public MetricsRegistry metricsRegistry() {
-    return metricsRegistry;
   }
 }

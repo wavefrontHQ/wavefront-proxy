@@ -70,6 +70,7 @@ public class LogsIngesterTest {
   private ReportableEntityHandler<ReportPoint> mockPointHandler;
   private ReportableEntityHandler<ReportPoint> mockHistogramHandler;
   private AtomicLong now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
+  private AtomicLong nanos = new AtomicLong(System.nanoTime());
   private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
 
   private LogsIngestionConfig parseConfigFile(String configPath) throws IOException {
@@ -89,7 +90,8 @@ public class LogsIngesterTest {
     expect(mockFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, "logs-ingester"))).
         andReturn(mockHistogramHandler).anyTimes();
     replay(mockFactory);
-    logsIngesterUnderTest = new LogsIngester(mockFactory, () -> logsIngestionConfig, null, now::get);
+    logsIngesterUnderTest = new LogsIngester(mockFactory, () -> logsIngestionConfig, null,
+        now::get, nanos::get);
     logsIngesterUnderTest.start();
     filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, now::get);
     rawLogsIngesterUnderTest = new RawLogsIngesterPortUnificationHandler("12345", logsIngesterUnderTest,
@@ -168,7 +170,7 @@ public class LogsIngesterTest {
   public void testPrefixIsApplied() throws Exception {
     setup(parseConfigFile("test.yml"));
     logsIngesterUnderTest = new LogsIngester(
-        mockFactory, () -> logsIngestionConfig, "myPrefix", now::get);
+        mockFactory, () -> logsIngestionConfig, "myPrefix", now::get, nanos::get);
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "myPrefix" +
@@ -287,6 +289,41 @@ public class LogsIngesterTest {
     assertThat(
         getPoints(0, "plainCounter"),
         emptyIterable());
+  }
+
+  @Test
+  public void testEvictedDeltaMetricReportingAgain() throws Exception {
+    setup(parseConfigFile("test.yml"));
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter", "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX + "plainCounter",
+            ImmutableMap.of())));
+    nanos.addAndGet(1_800_000L * 1000L * 1000L);
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(3L, MetricConstants.DELTA_PREFIX + "plainCounter",
+            ImmutableMap.of())));
+    nanos.addAndGet(3_601_000L * 1000L * 1000L);
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(2L, MetricConstants.DELTA_PREFIX + "plainCounter",
+            ImmutableMap.of())));
+  }
+
+  @Test
+  public void testEvictedMetricReportingAgain() throws Exception {
+    setup(parseConfigFile("test-non-delta.yml"));
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter", "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(4L, "plainCounter", ImmutableMap.of())));
+    nanos.addAndGet(1_800_000L * 1000L * 1000L);
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(7L, "plainCounter", ImmutableMap.of())));
+    nanos.addAndGet(3_601_000L * 1000L * 1000L);
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(2L, "plainCounter", ImmutableMap.of())));
   }
 
   @Test
