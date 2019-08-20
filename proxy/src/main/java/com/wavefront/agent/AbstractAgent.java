@@ -16,6 +16,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
@@ -896,10 +897,12 @@ public abstract class AbstractAgent {
       }
       ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
       return objectMapper.readValue(new File(logsIngestionConfigFile), LogsIngestionConfig.class);
+    } catch (UnrecognizedPropertyException e) {
+      logger.severe("Unable to load logs ingestion config: " + e.getMessage());
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Could not load logs ingestion config", e);
-      return null;
     }
+    return null;
   }
 
   private void loadListenerConfigurationFile() throws IOException {
