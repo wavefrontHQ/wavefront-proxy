@@ -2,6 +2,7 @@ package com.wavefront.agent.logsharvesting;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
@@ -10,6 +11,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.MetricsRegistry;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -38,34 +40,57 @@ public class LogsIngester {
   private EvictingMetricsRegistry evictingMetricsRegistry;
 
   /**
+   * Create an instance using system clock.
+   *
    * @param handlerFactory              factory for point handlers and histogram handlers
-   * @param logsIngestionConfigSupplier supplied configuration object for logs harvesting. May be reloaded. Must return
-   *                                    "null" on any problems, as opposed to throwing
+   * @param logsIngestionConfigSupplier supplied configuration object for logs harvesting.
+   *                                    May be reloaded. Must return "null" on any problems,
+   *                                    as opposed to throwing.
    * @param prefix                      all harvested metrics start with this prefix
-   * @param currentMillis               supplier of the current time in millis
-   * @throws ConfigurationException if the first config from logsIngestionConfigSupplier is null
-   */
+  */
   public LogsIngester(ReportableEntityHandlerFactory handlerFactory,
                       Supplier<LogsIngestionConfig> logsIngestionConfigSupplier,
-                      String prefix, Supplier<Long> currentMillis) throws ConfigurationException {
+                      String prefix) throws ConfigurationException {
+    this(handlerFactory, logsIngestionConfigSupplier, prefix, System::currentTimeMillis,
+        Ticker.systemTicker());
+  }
+
+  /**
+   * Create an instance using provided clock and nano.
+   *
+   * @param handlerFactory              factory for point handlers and histogram handlers
+   * @param logsIngestionConfigSupplier supplied configuration object for logs harvesting.
+   *                                    May be reloaded. Must return "null" on any problems,
+   *                                    as opposed to throwing.
+   * @param prefix                      all harvested metrics start with this prefix
+   * @param currentMillis               supplier of the current time in millis
+   * @param ticker                      nanosecond-precision clock for Caffeine cache.
+   * @throws ConfigurationException if the first config from logsIngestionConfigSupplier is null
+   */
+  @VisibleForTesting
+  LogsIngester(ReportableEntityHandlerFactory handlerFactory,
+               Supplier<LogsIngestionConfig> logsIngestionConfigSupplier, String prefix,
+               Supplier<Long> currentMillis, Ticker ticker) throws ConfigurationException {
     logsIngestionConfigManager = new LogsIngestionConfigManager(
         logsIngestionConfigSupplier,
         removedMetricMatcher -> evictingMetricsRegistry.evict(removedMetricMatcher));
     LogsIngestionConfig logsIngestionConfig = logsIngestionConfigManager.getConfig();
 
-    this.evictingMetricsRegistry = new EvictingMetricsRegistry(logsIngestionConfig.expiryMillis,
-        true, logsIngestionConfig.useDeltaCounters, currentMillis);
+    MetricsRegistry metricsRegistry = new MetricsRegistry();
+    this.evictingMetricsRegistry = new EvictingMetricsRegistry(metricsRegistry,
+        logsIngestionConfig.expiryMillis, true, logsIngestionConfig.useDeltaCounters,
+        currentMillis, ticker);
 
     // Logs harvesting metrics.
     this.unparsed = Metrics.newCounter(new MetricName("logsharvesting", "", "unparsed"));
     this.parsed = Metrics.newCounter(new MetricName("logsharvesting", "", "parsed"));
     this.currentMillis = currentMillis;
-    this.flushProcessor = new FlushProcessor(currentMillis, logsIngestionConfig.useWavefrontHistograms,
-        logsIngestionConfig.reportEmptyHistogramStats);
+    this.flushProcessor = new FlushProcessor(currentMillis,
+        logsIngestionConfig.useWavefrontHistograms, logsIngestionConfig.reportEmptyHistogramStats);
 
     // Continually flush user metrics to Wavefront.
-    this.metricsReporter = new MetricsReporter(
-        evictingMetricsRegistry.metricsRegistry(), flushProcessor, "FilebeatMetricsReporter", handlerFactory, prefix);
+    this.metricsReporter = new MetricsReporter(metricsRegistry, flushProcessor,
+        "FilebeatMetricsReporter", handlerFactory, prefix);
   }
 
   public void start() {

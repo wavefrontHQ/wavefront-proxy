@@ -79,8 +79,7 @@ public class InteractiveLogsTester {
       }
     };
 
-    LogsIngester logsIngester = new LogsIngester(factory, logsIngestionConfigSupplier, prefix,
-        System::currentTimeMillis);
+    LogsIngester logsIngester = new LogsIngester(factory, logsIngestionConfigSupplier, prefix);
 
     String line = stdin.nextLine();
     logsIngester.ingestLog(new LogsMessage() {
