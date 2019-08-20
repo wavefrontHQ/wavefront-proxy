@@ -50,8 +50,7 @@ public class LogsIngester {
   */
   public LogsIngester(ReportableEntityHandlerFactory handlerFactory,
                       Supplier<LogsIngestionConfig> logsIngestionConfigSupplier,
-                      String prefix)
-    throws ConfigurationException {
+                      String prefix) throws ConfigurationException {
     this(handlerFactory, logsIngestionConfigSupplier, prefix, System::currentTimeMillis,
         Ticker.systemTicker());
   }
