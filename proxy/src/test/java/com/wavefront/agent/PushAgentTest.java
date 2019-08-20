@@ -312,7 +312,7 @@ public class PushAgentTest {
     long timestamp1 = startTime * 1000000 + 12345;
     long timestamp2 = startTime * 1000000 + 23456;
     mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
-        setCustomer("default").
+        setCustomer("dummy").
         setTraceId(traceId).
         setSpanId("testspanid").
         setLogs(ImmutableList.of(
