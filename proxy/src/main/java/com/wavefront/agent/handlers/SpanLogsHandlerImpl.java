@@ -45,8 +45,6 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
     }
   };
 
-  private static SharedMetricsRegistry metricsRegistry = SharedMetricsRegistry.getInstance();
-
   private boolean logData = false;
   private final double logSampleRate;
   private volatile long logStateUpdatedMillis = 0L;
@@ -73,20 +71,19 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
   @Override
   @SuppressWarnings("unchecked")
   protected void reportInternal(SpanLogs span) {
-    // temporarily disable span log processing
-    /*
     String strSpanLogs = serializer.apply(span);
 
     refreshValidDataLoggerState();
 
-    if (logData && (logSampleRate >= 1.0d || (logSampleRate > 0.0d && RANDOM.nextDouble() < logSampleRate))) {
-      // we log valid trace data only if RawValidSpans log level is set to "ALL". This is done to prevent
-      // introducing overhead and accidentally logging raw data to the main log. Honor sample rate limit, if set.
+    if (logData && (logSampleRate >= 1.0d || (logSampleRate > 0.0d &&
+        RANDOM.nextDouble() < logSampleRate))) {
+      // we log valid trace data only if RawValidSpans log level is set to "ALL".
+      // This is done to prevent introducing overhead and accidentally logging raw data
+      // to the main log. Honor sample rate limit, if set.
       validTracesLogger.info(strSpanLogs);
     }
     getTask().add(strSpanLogs);
-    receivedCounter.inc();
-     */
+    getReceivedCounter().inc();
   }
 
   private void refreshValidDataLoggerState() {
