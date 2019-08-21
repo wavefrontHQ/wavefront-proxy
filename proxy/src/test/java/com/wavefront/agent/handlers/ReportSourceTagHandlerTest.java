@@ -2,7 +2,7 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.collect.ImmutableList;
 
-import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
+import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
 import com.wavefront.data.ReportableEntityType;
 
 import org.easymock.EasyMock;
@@ -29,12 +29,12 @@ public class ReportSourceTagHandlerTest {
 
   private ReportSourceTagHandlerImpl sourceTagHandler;
   private SenderTaskFactory senderTaskFactory;
-  private ForceQueueEnabledAgentAPI mockAgentAPI;
+  private ForceQueueEnabledProxyAPI mockAgentAPI;
   private UUID newAgentId;
 
   @Before
   public void setup() {
-    mockAgentAPI = EasyMock.createMock(ForceQueueEnabledAgentAPI.class);
+    mockAgentAPI = EasyMock.createMock(ForceQueueEnabledProxyAPI.class);
     newAgentId = UUID.randomUUID();
     senderTaskFactory = new SenderTaskFactoryImpl(mockAgentAPI, newAgentId, null, new AtomicInteger(100),
         new AtomicInteger(10), new AtomicInteger(1000));

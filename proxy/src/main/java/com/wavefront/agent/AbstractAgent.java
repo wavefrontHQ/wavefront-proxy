@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.wavefront.agent.api.WavefrontV2API;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.auth.TokenValidationMethod;
@@ -29,7 +30,6 @@ import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
 import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
-import com.wavefront.api.WavefrontAPI;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
@@ -1284,7 +1284,7 @@ public abstract class AbstractAgent {
       configureHttpProxy();
 
       // Setup queueing.
-      WavefrontAPI service = createAgentService(server);
+      WavefrontV2API service = createAgentService(server);
       setupQueueing(service);
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
@@ -1385,7 +1385,7 @@ public abstract class AbstractAgent {
   /**
    * Create RESTeasy proxies for remote calls via HTTP.
    */
-  protected WavefrontAPI createAgentService(String serverEndpointUrl) {
+  protected WavefrontV2API createAgentService(String serverEndpointUrl) {
     ResteasyProviderFactory factory = new LocalResteasyProviderFactory(ResteasyProviderFactory.getInstance());
     factory.registerProvider(JsonNodeWriter.class);
     if (!factory.getClasses().contains(ResteasyJackson2Provider.class)) {
@@ -1460,10 +1460,10 @@ public abstract class AbstractAgent {
         }).
         build();
     ResteasyWebTarget target = client.target(serverEndpointUrl);
-    return target.proxy(WavefrontAPI.class);
+    return target.proxy(WavefrontV2API.class);
   }
 
-  protected void setupQueueing(WavefrontAPI service) {
+  protected void setupQueueing(WavefrontV2API service) {
     try {
       this.agentAPI = new QueuedAgentService(service, bufferFile, retryThreads, queuedAgentExecutor, purgeBuffer,
           agentId, splitPushWhenRateLimited, pushRateLimiter, token);
@@ -1572,8 +1572,8 @@ public abstract class AbstractAgent {
     }
     logger.info("Checking in: " + ObjectUtils.firstNonNull(serverEndpointUrl, server));
     try {
-      newConfig = agentAPI.checkin(agentId, hostname, token, props.getString("build.version"),
-          agentMetricsCaptureTsWorkingCopy, localAgent, agentMetricsWorkingCopy, pushAgent, ephemeral);
+      newConfig = agentAPI.proxyCheckin(agentId, hostname, token, props.getString("build.version"),
+          agentMetricsCaptureTsWorkingCopy, agentMetricsWorkingCopy, ephemeral);
       agentMetricsWorkingCopy = null;
       hadSuccessfulCheckin = true;
     } catch (ClientErrorException ex) {
@@ -1651,7 +1651,7 @@ public abstract class AbstractAgent {
     } catch (Exception ex) {
       logger.log(Level.WARNING, "configuration file read from server is invalid", ex);
       try {
-        agentAPI.agentError(agentId, "Configuration file is invalid: " + ex.toString());
+        agentAPI.proxyError(agentId, "Configuration file is invalid: " + ex.toString());
       } catch (Exception e) {
         logger.log(Level.WARNING, "cannot report error to collector", e);
       }
@@ -1667,7 +1667,7 @@ public abstract class AbstractAgent {
    */
   protected void processConfiguration(AgentConfiguration config) {
     try {
-      agentAPI.agentConfigProcessed(agentId);
+      agentAPI.proxyConfigProcessed(agentId);
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
     }

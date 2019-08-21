@@ -6,12 +6,10 @@ import com.wavefront.api.agent.ShellOutputDTO;
 
 import org.jboss.resteasy.annotations.GZIP;
 
-import java.util.List;
 import java.util.UUID;
 
 import javax.validation.Valid;
 import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -151,28 +149,4 @@ public interface WavefrontAPI {
   void hostAuthenticated(@PathParam("agentId") UUID agentId,
                          @PathParam("hostId") UUID hostId);
 
-  @DELETE
-  @Path("v2/source/{id}/tag/{tagValue}")
-  @Produces(MediaType.APPLICATION_JSON)
-  Response removeTag(@PathParam("id") String id, @QueryParam("t") String token,
-                     @PathParam("tagValue") String tagValue);
-
-  @DELETE
-  @Path("v2/source/{id}/description")
-  @Produces(MediaType.APPLICATION_JSON)
-  Response removeDescription(@PathParam("id") String id, @QueryParam("t") String token);
-
-  @POST
-  @Path("v2/source/{id}/tag")
-  @Consumes(MediaType.APPLICATION_JSON)
-  @Produces(MediaType.APPLICATION_JSON)
-  Response setTags(@PathParam ("id") String id, @QueryParam("t") String token,
-                   List<String> tagValuesToSet);
-
-  @POST
-  @Path("v2/source/{id}/description")
-  @Consumes(MediaType.APPLICATION_JSON)
-  @Produces(MediaType.APPLICATION_JSON)
-  Response setDescription(@PathParam("id") String id, @QueryParam("t") String token,
-                          String description);
 }

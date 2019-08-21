@@ -109,6 +109,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
+
 import wavefront.report.ReportPoint;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -731,7 +732,7 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void processConfiguration(AgentConfiguration config) {
     try {
-      agentAPI.agentConfigProcessed(agentId);
+      agentAPI.proxyConfigProcessed(agentId);
       Long pointsPerBatch = config.getPointsPerBatch();
       if (BooleanUtils.isTrue(config.getCollectorSetsPointsPerBatch())) {
         if (pointsPerBatch != null) {

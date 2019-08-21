@@ -3,8 +3,8 @@ package com.wavefront.agent;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
-import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
 import com.wavefront.agent.handlers.LineDelimitedUtils;
+import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
 import com.wavefront.api.agent.Constants;
 import com.wavefront.common.NamedThreadFactory;
 import com.yammer.metrics.Metrics;
@@ -91,7 +91,7 @@ public class PostPushDataTimedTask implements Runnable {
   private static AtomicInteger memoryBufferLimit = new AtomicInteger(50000 * 32);
   private boolean isFlushingToQueue = false;
 
-  private ForceQueueEnabledAgentAPI agentAPI;
+  private ForceQueueEnabledProxyAPI agentAPI;
 
   static void setPointsPerBatch(AtomicInteger newSize) {
     pointsPerBatch = newSize;
@@ -156,13 +156,13 @@ public class PostPushDataTimedTask implements Runnable {
   }
 
   @Deprecated
-  public PostPushDataTimedTask(String pushFormat, ForceQueueEnabledAgentAPI agentAPI, String logLevel,
+  public PostPushDataTimedTask(String pushFormat, ForceQueueEnabledProxyAPI agentAPI, String logLevel,
                                UUID daemonId, String handle, int threadId, RecyclableRateLimiter pushRateLimiter,
                                long pushFlushInterval) {
     this(pushFormat, agentAPI, daemonId, handle, threadId, pushRateLimiter, pushFlushInterval);
   }
 
-  public PostPushDataTimedTask(String pushFormat, ForceQueueEnabledAgentAPI agentAPI,
+  public PostPushDataTimedTask(String pushFormat, ForceQueueEnabledProxyAPI agentAPI,
                                UUID daemonId, String handle, int threadId, RecyclableRateLimiter pushRateLimiter,
                                long pushFlushInterval) {
     this.pushFormat = pushFormat;
@@ -207,11 +207,7 @@ public class PostPushDataTimedTask implements Runnable {
         TimerContext timerContext = this.batchSendTime.time();
         Response response = null;
         try {
-          response = agentAPI.postPushData(
-              daemonId,
-              Constants.GRAPHITE_BLOCK_WORK_UNIT,
-              System.currentTimeMillis(),
-              pushFormat,
+          response = agentAPI.proxyReport(daemonId, pushFormat,
               LineDelimitedUtils.joinPushData(current));
           int pointsInList = current.size();
           this.pointsAttempted.inc(pointsInList);
@@ -296,8 +292,7 @@ public class PostPushDataTimedTask implements Runnable {
         List<String> pushData = createAgentPostBatch();
         int pushDataPointCount = pushData.size();
         if (pushDataPointCount > 0) {
-          agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
-              System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
+          agentAPI.proxyReport(daemonId, Constants.PUSH_FORMAT_GRAPHITE_V2,
               LineDelimitedUtils.joinPushData(pushData), true);
 
           // update the counters as if this was a failed call to the API
