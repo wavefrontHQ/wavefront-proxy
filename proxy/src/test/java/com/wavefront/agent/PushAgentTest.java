@@ -304,7 +304,6 @@ public class PushAgentTest {
   }
 
   @Test
-  @Ignore
   public void testTraceUnifiedPortHandlerPlaintext() throws Exception {
     reset(mockTraceHandler);
     reset(mockTraceSpanLogsHandler);
