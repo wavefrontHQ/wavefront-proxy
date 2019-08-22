@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wavefront.agent.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -96,6 +97,7 @@ public class RelayPortUnificationHandler extends PortUnificationHandler {
    *
    * @param handle               handle/port number.
    * @param tokenAuthenticator   tokenAuthenticator for incoming requests.
+   * @param healthCheckManager   shared health check endpoint handler.
    * @param decoders             decoders.
    * @param handlerFactory       factory for ReportableEntityHandler objects.
    * @param preprocessorSupplier preprocessor supplier.
@@ -106,13 +108,14 @@ public class RelayPortUnificationHandler extends PortUnificationHandler {
   @SuppressWarnings("unchecked")
   public RelayPortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
+      final HealthCheckManager healthCheckManager,
       final Map<ReportableEntityType, ReportableEntityDecoder> decoders,
       final ReportableEntityHandlerFactory handlerFactory,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       @Nullable final SharedGraphiteHostAnnotator annotator,
       final Supplier<Boolean> histogramDisabled, final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {
-    super(tokenAuthenticator, handle, false, true);
+    super(tokenAuthenticator, healthCheckManager, handle, false, true);
     //super(handle, tokenAuthenticator, decoders, handlerFactory, null, preprocessor);
     this.decoders = decoders;
     this.wavefrontDecoder = decoders.get(ReportableEntityType.POINT);
@@ -147,7 +150,6 @@ public class RelayPortUnificationHandler extends PortUnificationHandler {
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest request) {
     StringBuilder output = new StringBuilder();
-
     URI uri = parseUri(ctx, request);
     if (uri == null) return;
     String path = uri.getPath();

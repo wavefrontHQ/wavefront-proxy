@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -60,26 +61,29 @@ public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler 
   /**
    * Create a new instance.
    *
-   * @param handle          handle/port number.
-   * @param handlerFactory  factory for ReportableEntityHandler objects.
-   * @param defaultHost     default host name to use, if none specified.
-   * @param preprocessor    preprocessor.
+   * @param handle             handle/port number.
+   * @param healthCheckManager shared health check endpoint handler.
+   * @param handlerFactory     factory for ReportableEntityHandler objects.
+   * @param defaultHost        default host name to use, if none specified.
+   * @param preprocessor       preprocessor.
    */
   @SuppressWarnings("unchecked")
   public WriteHttpJsonPortUnificationHandler(
       final String handle, final TokenAuthenticator authenticator,
+      final HealthCheckManager healthCheckManager,
       final ReportableEntityHandlerFactory handlerFactory, final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    this(handle, authenticator, handlerFactory.getHandler(
+    this(handle, authenticator, healthCheckManager, handlerFactory.getHandler(
         HandlerKey.of(ReportableEntityType.POINT, handle)), defaultHost, preprocessor);
   }
 
   @VisibleForTesting
   protected WriteHttpJsonPortUnificationHandler(
       final String handle, final TokenAuthenticator authenticator,
+      final HealthCheckManager healthCheckManager,
       final ReportableEntityHandler<ReportPoint> pointHandler, final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(authenticator, handle, false, true);
+    super(authenticator, healthCheckManager, handle, false, true);
     this.pointHandler = pointHandler;
     this.defaultHost = defaultHost;
     this.preprocessorSupplier = preprocessor;
@@ -91,7 +95,6 @@ public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler 
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest incomingRequest) {
     StringBuilder output = new StringBuilder();
-
     URI uri = parseUri(ctx, incomingRequest);
     if (uri == null) return;
 

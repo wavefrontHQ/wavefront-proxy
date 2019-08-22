@@ -9,6 +9,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.auth.TokenValidationMethod;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -85,28 +86,26 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
       build();
 
   @SuppressWarnings("unchecked")
-  public DataDogPortUnificationHandler(final String handle,
-                                       final ReportableEntityHandlerFactory handlerFactory,
-                                       final boolean processSystemMetrics,
-                                       final boolean processServiceChecks,
-                                       @Nullable final HttpClient requestRelayClient,
-                                       @Nullable final String requestRelayTarget,
-                                       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)), processSystemMetrics,
-        processServiceChecks, requestRelayClient, requestRelayTarget, preprocessor);
+  public DataDogPortUnificationHandler(
+      final String handle, final HealthCheckManager healthCheckManager,
+      final ReportableEntityHandlerFactory handlerFactory, final boolean processSystemMetrics,
+      final boolean processServiceChecks, @Nullable final HttpClient requestRelayClient,
+      @Nullable final String requestRelayTarget,
+      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
+    this(handle, healthCheckManager, handlerFactory.getHandler(HandlerKey.of(
+        ReportableEntityType.POINT, handle)), processSystemMetrics, processServiceChecks,
+        requestRelayClient, requestRelayTarget, preprocessor);
   }
 
-
   @VisibleForTesting
-  protected DataDogPortUnificationHandler(final String handle,
-                                          final ReportableEntityHandler<ReportPoint> pointHandler,
-                                          final boolean processSystemMetrics,
-                                          final boolean processServiceChecks,
-                                          @Nullable final HttpClient requestRelayClient,
-                                          @Nullable final String requestRelayTarget,
-                                          @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(), handle,
-        false, true);
+  protected DataDogPortUnificationHandler(
+      final String handle, final HealthCheckManager healthCheckManager,
+      final ReportableEntityHandler<ReportPoint> pointHandler, final boolean processSystemMetrics,
+      final boolean processServiceChecks, @Nullable final HttpClient requestRelayClient,
+      @Nullable final String requestRelayTarget,
+      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
+    super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).
+            build(), healthCheckManager, handle, false, true);
     this.pointHandler = pointHandler;
     this.processSystemMetrics = processSystemMetrics;
     this.processServiceChecks = processServiceChecks;
@@ -114,8 +113,8 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
     this.requestRelayTarget = requestRelayTarget;
     this.preprocessorSupplier = preprocessor;
     this.jsonParser = new ObjectMapper();
-    this.httpRequestSize = Metrics.newHistogram(new TaggedMetricName("listeners", "http-requests.payload-points",
-        "port", handle));
+    this.httpRequestSize = Metrics.newHistogram(new TaggedMetricName("listeners",
+        "http-requests.payload-points", "port", handle));
 
     Metrics.newGauge(new TaggedMetricName("listeners", "tags-cache-size",
         "port", handle), new Gauge<Long>() {
@@ -124,7 +123,6 @@ public class DataDogPortUnificationHandler extends PortUnificationHandler {
         return tagsCache.estimatedSize();
       }
     });
-
   }
 
   @Override

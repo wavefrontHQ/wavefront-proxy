@@ -7,6 +7,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -65,14 +66,15 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
   @SuppressWarnings("unchecked")
   public TracePortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
+      final HealthCheckManager healthCheckManager,
       final ReportableEntityDecoder<String, Span> traceDecoder,
       final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
       final ReportableEntityHandlerFactory handlerFactory, final Sampler sampler,
       final boolean alwaysSampleErrors, final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {
-    this(handle, tokenAuthenticator, traceDecoder, spanLogsDecoder, preprocessor,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
+    this(handle, tokenAuthenticator, healthCheckManager, traceDecoder, spanLogsDecoder,
+        preprocessor, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         sampler, alwaysSampleErrors, traceDisabled, spanLogsDisabled);
   }
@@ -80,6 +82,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
   @VisibleForTesting
   public TracePortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
+      final HealthCheckManager healthCheckManager,
       final ReportableEntityDecoder<String, Span> traceDecoder,
       final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
@@ -87,7 +90,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
       final ReportableEntityHandler<SpanLogs> spanLogsHandler, final Sampler sampler,
       final boolean alwaysSampleErrors, final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {
-    super(tokenAuthenticator, handle, true, true);
+    super(tokenAuthenticator, healthCheckManager, handle, true, true);
     this.decoder = traceDecoder;
     this.spanLogsDecoder = spanLogsDecoder;
     this.handler = handler;

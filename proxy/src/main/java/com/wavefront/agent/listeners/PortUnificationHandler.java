@@ -4,12 +4,15 @@ import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.NoopHealthCheckManager;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 
+import org.apache.commons.lang.math.NumberUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
@@ -38,6 +41,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
@@ -67,6 +71,7 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
 
   protected final String handle;
   protected final TokenAuthenticator tokenAuthenticator;
+  protected final HealthCheckManager healthCheck;
   protected final boolean plaintextEnabled;
   protected final boolean httpEnabled;
 
@@ -74,15 +79,23 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
    * Create new instance.
    *
    * @param tokenAuthenticator  {@link TokenAuthenticator} for incoming requests.
+   * @param healthCheckManager  shared health check endpoint handler.
    * @param handle              handle/port number.
    * @param plaintextEnabled    whether to accept incoming TCP streams
    * @param httpEnabled         whether to accept incoming HTTP requests
    */
   public PortUnificationHandler(@Nonnull TokenAuthenticator tokenAuthenticator,
+                                @Nullable final HealthCheckManager healthCheckManager,
                                 @Nullable final String handle,
                                 boolean plaintextEnabled, boolean httpEnabled) {
     this.tokenAuthenticator = tokenAuthenticator;
+    this.healthCheck = healthCheckManager == null ?
+        new NoopHealthCheckManager() : healthCheckManager;
     this.handle = firstNonNull(handle, "unknown");
+    String portNumber = this.handle.replaceAll("^\\d", "");
+    if (NumberUtils.isNumber(portNumber)) {
+      healthCheck.setHealthy(Integer.parseInt(portNumber));
+    }
     this.plaintextEnabled = plaintextEnabled;
     this.httpEnabled = httpEnabled;
 
@@ -108,7 +121,6 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest request) {
     StringBuilder output = new StringBuilder();
-
     HttpResponseStatus status;
     try {
       for (String line : splitPushData(request.content().toString(CharsetUtil.UTF_8))) {
@@ -202,12 +214,20 @@ public abstract class PortUnificationHandler extends SimpleChannelInboundHandler
         if (message instanceof String) {
           handlePlainTextMessage(ctx, (String) message);
         } else if (message instanceof FullHttpRequest) {
+          FullHttpRequest request = (FullHttpRequest) message;
+          HttpResponse healthCheckResponse = healthCheck.getHealthCheckResponse(ctx, request);
+          if (healthCheckResponse != null) {
+            ctx.write(healthCheckResponse);
+            if (!HttpUtil.isKeepAlive(request)) {
+              ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+            }
+            return;
+          }
           if (!httpEnabled) {
             requestsDiscarded.get().inc();
             logger.warning("Inbound HTTP request discarded: HTTP disabled on port " + handle);
             return;
           }
-          FullHttpRequest request = (FullHttpRequest) message;
           if (authorized(ctx, request)) {
             httpRequestsInFlightGauge.get();
             httpRequestsInFlight.incrementAndGet();
