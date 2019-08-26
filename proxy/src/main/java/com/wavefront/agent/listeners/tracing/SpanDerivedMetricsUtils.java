@@ -104,9 +104,17 @@ public class SpanDerivedMetricsUtils {
     }
 
     // tracing.derived.<application>.<service>.<operation>.duration.micros.m
-    wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(application + "." + service + "." +
-        operationName + DURATION_SUFFIX), pointTags)).
-        update(spanDurationMicros);
+    if (isError) {
+      Map<String, String> errorPointTags = new HashMap<>(pointTags);
+      errorPointTags.put("error", "true");
+      wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(application + "." + service + "." +
+          operationName + DURATION_SUFFIX), errorPointTags)).
+          update(spanDurationMicros);
+    } else {
+      wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(application + "." + service + "." +
+          operationName + DURATION_SUFFIX), pointTags)).
+          update(spanDurationMicros);
+    }
 
     // tracing.derived.<application>.<service>.<operation>.total_time.millis.count
     wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
