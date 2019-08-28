@@ -36,9 +36,9 @@ public class WavefrontYammerMetricsReporter extends AbstractReporter implements 
 
   private static final Clock clock = Clock.defaultClock();
   private static final VirtualMachineMetrics vm = SafeVirtualMachineMetrics.getInstance();
-  private final ScheduledExecutorService executor;
 
   private final boolean includeJvmMetrics;
+  private final ScheduledExecutorService executor;
   private final ConcurrentHashMap<String, Double> gaugeMap;
   private final SocketMetricsProcessor socketMetricProcessor;
   private final MetricTranslator metricTranslator;
