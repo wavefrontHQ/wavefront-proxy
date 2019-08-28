@@ -2,31 +2,24 @@ package com.wavefront.integrations.metrics;
 
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.WavefrontHistogram;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.lang.StringUtils;
-import org.apache.http.*;
-import org.apache.http.client.config.RequestConfig;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
 import org.apache.http.client.entity.EntityBuilder;
-import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.concurrent.FutureCallback;
-import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
 import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
-import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.nio.reactor.IOReactorException;
-import org.apache.http.protocol.HTTP;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -241,21 +234,6 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
 
     HttpAsyncClientBuilder asyncClientBuilder = HttpAsyncClients.custom().
         setConnectionManager(connectionManager);
-
-//    if (gzip) {
-//      RequestConfig requestConfig = RequestConfig.custom().
-//          setContentCompressionEnabled(true)
-//          .build();
-//      asyncClientBuilder.setDefaultRequestConfig(requestConfig);
-//      asyncClientBuilder.setDefaultHeaders(Collections.singleton(new BasicHeader("Accept-Encoding", "gzip")));
-//      asyncClientBuilder.addInterceptorFirst((HttpRequestInterceptor) (request, context) -> {
-//        HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
-//        GzipCompressingEntity zippedEntity = new GzipCompressingEntity(entity);
-//        request.removeHeaders(HTTP.CONTENT_ENCODING);
-//        request.addHeader(zippedEntity.getContentEncoding());
-//        ((HttpEntityEnclosingRequest) request).setEntity(zippedEntity);
-//      });
-//    }
 
     asyncClient = asyncClientBuilder.build();
     asyncClient.start();
