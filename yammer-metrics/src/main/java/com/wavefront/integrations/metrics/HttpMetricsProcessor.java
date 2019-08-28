@@ -70,8 +70,6 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
     private int metricsBatchSize = 10_000;
     private int histogramQueueSize = 5_000;
     private int histogramBatchSize = 1_000;
-    private long flushInterval = 1_000;
-
     private boolean prependGroupName = false;
     private boolean clear = false;
     private boolean sendZeroCounters = true;
@@ -402,6 +400,5 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
 
   @Override
   void flush() {
-
   }
 }
