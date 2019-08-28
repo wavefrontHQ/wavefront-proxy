@@ -20,6 +20,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
+ * Uses HTTP instead of Sockets to connect and send metrics to a wavefront proxy
+ * 
  * @author Mike McMahon (mike@wavefront.com)
  */
 public class WavefrontYammerHttpMetricsReporter extends AbstractReporter implements Runnable {
