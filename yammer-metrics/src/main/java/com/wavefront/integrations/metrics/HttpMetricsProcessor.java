@@ -193,7 +193,6 @@ public class HttpMetricsProcessor extends WavefrontMetricsProcessor {
 
     if (builder.metricsPort == builder.histogramPort) {
       histogramHost = metricHost;
-      inflightRequestsPerRoute.put(metricHost.toHostString(), new AtomicInteger());
     } else {
       histogramHost = new HttpHost(builder.hostname, builder.histogramPort);
       inflightRequestsPerRoute.put(histogramHost.toHostString(), new AtomicInteger());
