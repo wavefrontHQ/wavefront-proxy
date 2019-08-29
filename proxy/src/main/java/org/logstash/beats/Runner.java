@@ -1,12 +1,14 @@
 package org.logstash.beats;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.logstash.netty.SslSimpleBuilder;
 
 
 public class Runner {
     private static final int DEFAULT_PORT = 5044;
-    private final static Logger logger = Logger.getLogger(Runner.class);
+
+    private final static Logger logger = LogManager.getLogger(Runner.class);
 
 
 
@@ -16,9 +18,9 @@ public class Runner {
         // Check for leaks.
         // ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
 
-        Server server = new Server(DEFAULT_PORT);
+        Server server = new Server("0.0.0.0", DEFAULT_PORT, 15, Runtime.getRuntime().availableProcessors());
 
-            if(args.length > 0 && args[0].equals("ssl")) {
+        if(args.length > 0 && args[0].equals("ssl")) {
             logger.debug("Using SSL");
 
             String sslCertificate = "/Users/ph/es/certificates/certificate.crt";
@@ -29,9 +31,9 @@ public class Runner {
 
 
             SslSimpleBuilder sslBuilder = new SslSimpleBuilder(sslCertificate, sslKey, null)
-                    .setProtocols(new String[] { "TLSv1.2" })
-                    .setCertificateAuthorities(certificateAuthorities)
-                    .setHandshakeTimeoutMilliseconds(10000);
+                .setProtocols(new String[] { "TLSv1.2" })
+                .setCertificateAuthorities(certificateAuthorities)
+                .setHandshakeTimeoutMilliseconds(10000);
 
             server.enableSSL(sslBuilder);
         }
