@@ -8,6 +8,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.wavefront.agent.Utils;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.auth.TokenValidationMethod;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -112,6 +113,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
 
   @SuppressWarnings("unchecked")
   public ZipkinPortUnificationHandler(String handle,
+                                      final HealthCheckManager healthCheckManager,
                                       ReportableEntityHandlerFactory handlerFactory,
                                       @Nullable WavefrontSender wfSender,
                                       Supplier<Boolean> traceDisabled,
@@ -121,7 +123,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       boolean alwaysSampleErrors,
                                       @Nullable String traceZipkinApplicationName,
                                       Set<String> traceDerivedCustomTagKeys) {
-    this(handle,
+    this(handle, healthCheckManager,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler, alwaysSampleErrors,
@@ -129,6 +131,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   }
 
   public ZipkinPortUnificationHandler(final String handle,
+                                      final HealthCheckManager healthCheckManager,
                                       ReportableEntityHandler<Span> spanHandler,
                                       ReportableEntityHandler<SpanLogs> spanLogsHandler,
                                       @Nullable WavefrontSender wfSender,
@@ -139,8 +142,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
                                       boolean alwaysSampleErrors,
                                       @Nullable String traceZipkinApplicationName,
                                       Set<String> traceDerivedCustomTagKeys) {
-    super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).build(),
-        handle, false, true);
+    super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).
+            build(), healthCheckManager, handle, false, true);
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;

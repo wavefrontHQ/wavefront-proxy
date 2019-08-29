@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.wavefront.agent.PointMatchers;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
+import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
@@ -94,8 +95,9 @@ public class LogsIngesterTest {
         now::get, nanos::get);
     logsIngesterUnderTest.start();
     filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, now::get);
-    rawLogsIngesterUnderTest = new RawLogsIngesterPortUnificationHandler("12345", logsIngesterUnderTest,
-        x -> "testHost", TokenAuthenticatorBuilder.create().build(), null);
+    rawLogsIngesterUnderTest = new RawLogsIngesterPortUnificationHandler("12345",
+        logsIngesterUnderTest, x -> "testHost", TokenAuthenticatorBuilder.create().build(),
+        new NoopHealthCheckManager(), null);
   }
 
   private void receiveRawLog(String log) {

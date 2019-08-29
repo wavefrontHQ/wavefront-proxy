@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 
 import com.wavefront.agent.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -57,6 +58,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
    *
    * @param handle              handle/port number.
    * @param tokenAuthenticator  tokenAuthenticator for incoming requests.
+   * @param healthCheckManager  shared health check endpoint handler.
    * @param decoders            decoders.
    * @param handlerFactory      factory for ReportableEntityHandler objects.
    * @param annotator           hostAnnotator that makes sure all points have a source= tag.
@@ -65,11 +67,12 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
   @SuppressWarnings("unchecked")
   public WavefrontPortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
+      final HealthCheckManager healthCheckManager,
       final Map<ReportableEntityType, ReportableEntityDecoder> decoders,
       final ReportableEntityHandlerFactory handlerFactory,
       @Nullable final SharedGraphiteHostAnnotator annotator,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(tokenAuthenticator, handle, true, true);
+    super(tokenAuthenticator, healthCheckManager, handle, true, true);
     this.wavefrontDecoder = decoders.get(ReportableEntityType.POINT);
     this.annotator = annotator;
     this.preprocessorSupplier = preprocessor;

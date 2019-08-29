@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -60,15 +61,15 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
   @Nullable
   private final Function<InetAddress, String> resolver;
 
-
   @SuppressWarnings("unchecked")
-  public OpenTSDBPortUnificationHandler(final String handle,
-                                        final TokenAuthenticator tokenAuthenticator,
-                                        final ReportableEntityDecoder<String, ReportPoint> decoder,
-                                        final ReportableEntityHandlerFactory handlerFactory,
-                                        @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
-                                        @Nullable final Function<InetAddress, String> resolver) {
-    super(tokenAuthenticator, handle, true, true);
+  public OpenTSDBPortUnificationHandler(
+      final String handle, final TokenAuthenticator tokenAuthenticator,
+      final HealthCheckManager healthCheckManager,
+      final ReportableEntityDecoder<String, ReportPoint> decoder,
+      final ReportableEntityHandlerFactory handlerFactory,
+      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
+      @Nullable final Function<InetAddress, String> resolver) {
+    super(tokenAuthenticator, healthCheckManager, handle, true, true);
     this.decoder = decoder;
     this.pointHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
     this.preprocessorSupplier = preprocessor;
@@ -79,7 +80,6 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest request) {
     StringBuilder output = new StringBuilder();
-
     URI uri = parseUri(ctx, request);
     if (uri == null) return;
 

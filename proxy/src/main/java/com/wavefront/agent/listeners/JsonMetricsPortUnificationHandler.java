@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -64,31 +65,33 @@ public class JsonMetricsPortUnificationHandler extends PortUnificationHandler {
   /**
    * Create a new instance.
    *
-   * @param handle          handle/port number.
-   * @param authenticator   token authenticator.
-   * @param handlerFactory  factory for ReportableEntityHandler objects.
-   * @param prefix          metric prefix.
-   * @param defaultHost     default host name to use, if none specified.
-   * @param preprocessor    preprocessor.
+   * @param handle             handle/port number.
+   * @param authenticator      token authenticator.
+   * @param healthCheckManager shared health check endpoint handler.
+   * @param handlerFactory     factory for ReportableEntityHandler objects.
+   * @param prefix             metric prefix.
+   * @param defaultHost        default host name to use, if none specified.
+   * @param preprocessor       preprocessor.
    */
   @SuppressWarnings("unchecked")
   public JsonMetricsPortUnificationHandler(
       final String handle, final TokenAuthenticator authenticator,
+      final HealthCheckManager healthCheckManager,
       final ReportableEntityHandlerFactory handlerFactory,
       final String prefix, final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    this(handle, authenticator, handlerFactory.getHandler(
+    this(handle, authenticator, healthCheckManager, handlerFactory.getHandler(
         HandlerKey.of(ReportableEntityType.POINT, handle)), prefix, defaultHost, preprocessor);
   }
-
 
   @VisibleForTesting
   protected JsonMetricsPortUnificationHandler(
       final String handle, final TokenAuthenticator authenticator,
+      final HealthCheckManager healthCheckManager,
       final ReportableEntityHandler<ReportPoint> pointHandler,
       final String prefix, final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(authenticator, handle, false, true);
+    super(authenticator, healthCheckManager, handle, false, true);
     this.pointHandler = pointHandler;
     this.prefix = prefix;
     this.defaultHost = defaultHost;

@@ -12,6 +12,8 @@ import com.uber.tchannel.api.TChannel;
 import com.uber.tchannel.channels.Connection;
 import com.wavefront.agent.channel.CachingHostnameLookupResolver;
 import com.wavefront.agent.channel.ConnectionTrackingHandler;
+import com.wavefront.agent.channel.HealthCheckManager;
+import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.channel.IdleStateEventHandler;
 import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
@@ -32,8 +34,10 @@ import com.wavefront.agent.histogram.Utils.HistogramKey;
 import com.wavefront.agent.histogram.Utils.HistogramKeyMarshaller;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.Accumulator;
+import com.wavefront.agent.listeners.AdminPortUnificationHandler;
 import com.wavefront.agent.listeners.ChannelByteArrayHandler;
 import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
+import com.wavefront.agent.listeners.HttpHealthCheckEndpointHandler;
 import com.wavefront.agent.listeners.JsonMetricsPortUnificationHandler;
 import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
@@ -134,6 +138,7 @@ public class PushAgent extends AbstractAgent {
   protected Function<InetAddress, String> hostnameResolver;
   protected SenderTaskFactory senderTaskFactory;
   protected ReportableEntityHandlerFactory handlerFactory;
+  protected HealthCheckManager healthCheckManager;
   protected Supplier<Map<ReportableEntityType, ReportableEntityDecoder>> decoderSupplier =
       lazySupplier(() -> ImmutableMap.of(
       ReportableEntityType.POINT, new ReportPointDecoderWrapper(new GraphiteDecoder("unknown",
@@ -175,9 +180,19 @@ public class PushAgent extends AbstractAgent {
         pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples,
         flushThreads, () -> validationConfiguration);
+    healthCheckManager = new HealthCheckManagerImpl(httpHealthCheckPath,
+        httpHealthCheckResponseContentType, httpHealthCheckPassStatusCode,
+        httpHealthCheckPassResponseBody, httpHealthCheckFailStatusCode,
+        httpHealthCheckFailResponseBody);
 
     shutdownTasks.add(() -> senderTaskFactory.shutdown());
     shutdownTasks.add(() -> senderTaskFactory.drainBuffersToQueue());
+
+    if (adminApiListenerPort > 0) {
+      startAdminListener(adminApiListenerPort);
+    }
+    portIterator(httpHealthCheckPorts).forEachRemaining(strPort ->
+        startHealthCheckListener(Integer.parseInt(strPort)));
 
     portIterator(pushListenerPorts).forEachRemaining(strPort -> {
       startGraphiteListener(strPort, handlerFactory, remoteHostAnnotator);
@@ -333,9 +348,11 @@ public class PushAgent extends AbstractAgent {
   protected void startJsonListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
     final int port = Integer.parseInt(strPort);
     registerTimestampFilter(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler = new JsonMetricsPortUnificationHandler(strPort,
-        tokenAuthenticator, handlerFactory, prefix, hostname, preprocessors.get(strPort));
+        tokenAuthenticator, healthCheckManager, handlerFactory, prefix, hostname,
+        preprocessors.get(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
         pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
@@ -348,9 +365,11 @@ public class PushAgent extends AbstractAgent {
     final int port = Integer.parseInt(strPort);
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler = new WriteHttpJsonPortUnificationHandler(strPort,
-        tokenAuthenticator, handlerFactory, hostname, preprocessors.get(strPort));
+        tokenAuthenticator, healthCheckManager, handlerFactory, hostname,
+        preprocessors.get(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
         pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
@@ -364,12 +383,14 @@ public class PushAgent extends AbstractAgent {
     int port = Integer.parseInt(strPort);
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
     ReportableEntityDecoder<String, ReportPoint> openTSDBDecoder = new ReportPointDecoderWrapper(
         new OpenTSDBDecoder("unknown", customSourceTags));
 
     ChannelHandler channelHandler = new OpenTSDBPortUnificationHandler(strPort, tokenAuthenticator,
-        openTSDBDecoder, handlerFactory, preprocessors.get(strPort), hostnameResolver);
+        healthCheckManager, openTSDBDecoder, handlerFactory, preprocessors.get(strPort),
+        hostnameResolver);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
         pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
@@ -389,9 +410,10 @@ public class PushAgent extends AbstractAgent {
     int port = Integer.parseInt(strPort);
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
-    ChannelHandler channelHandler = new DataDogPortUnificationHandler(strPort, handlerFactory,
-        dataDogProcessSystemMetrics, dataDogProcessServiceChecks, httpClient,
+    ChannelHandler channelHandler = new DataDogPortUnificationHandler(strPort, healthCheckManager,
+        handlerFactory, dataDogProcessSystemMetrics, dataDogProcessServiceChecks, httpClient,
         dataDogRequestRelayTarget, preprocessors.get(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
@@ -434,11 +456,12 @@ public class PushAgent extends AbstractAgent {
     final int port = Integer.parseInt(strPort);
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler = new TracePortUnificationHandler(strPort, tokenAuthenticator,
-        new SpanDecoder("unknown"), new SpanLogsDecoder(), preprocessors.get(strPort),
-            handlerFactory, sampler, traceAlwaysSampleErrors, traceDisabled::get,
-            spanLogsDisabled::get);
+        healthCheckManager, new SpanDecoder("unknown"), new SpanLogsDecoder(),
+        preprocessors.get(strPort), handlerFactory, sampler, traceAlwaysSampleErrors,
+        traceDisabled::get, spanLogsDisabled::get);
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
         traceListenerMaxReceivedLength, traceListenerHttpBufferSize, listenerIdleConnectionTimeout),
@@ -484,9 +507,11 @@ public class PushAgent extends AbstractAgent {
                                           @Nullable WavefrontSender wfSender,
                                           Sampler sampler) {
     final int port = Integer.parseInt(strPort);
-    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, handlerFactory,
-        wfSender, traceDisabled::get, spanLogsDisabled::get, preprocessors.get(strPort), sampler,
-        traceAlwaysSampleErrors, traceZipkinApplicationName, traceDerivedCustomTagKeys);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
+    ChannelHandler channelHandler = new ZipkinPortUnificationHandler(strPort, healthCheckManager,
+        handlerFactory, wfSender, traceDisabled::get, spanLogsDisabled::get,
+        preprocessors.get(strPort), sampler, traceAlwaysSampleErrors, traceZipkinApplicationName,
+        traceDerivedCustomTagKeys);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
         traceListenerMaxReceivedLength, traceListenerHttpBufferSize, listenerIdleConnectionTimeout),
             port).withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
@@ -498,13 +523,13 @@ public class PushAgent extends AbstractAgent {
                                        ReportableEntityHandlerFactory handlerFactory,
                                        SharedGraphiteHostAnnotator hostAnnotator) {
     final int port = Integer.parseInt(strPort);
-
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
-        new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, decoderSupplier.get(),
-            handlerFactory, hostAnnotator, preprocessors.get(strPort));
+        new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
+            decoderSupplier.get(), handlerFactory, hostAnnotator, preprocessors.get(strPort));
     startAsManagedThread(new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort,
         pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
         port).withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
@@ -515,16 +540,16 @@ public class PushAgent extends AbstractAgent {
                                     ReportableEntityHandlerFactory handlerFactory,
                                     SharedGraphiteHostAnnotator hostAnnotator) {
     final int port = Integer.parseInt(strPort);
-
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
     Map<ReportableEntityType, ReportableEntityDecoder> filteredDecoders = decoderSupplier.get().
         entrySet().stream().filter(x -> !x.getKey().equals(ReportableEntityType.SOURCE_TAG)).
         collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     ChannelHandler channelHandler = new RelayPortUnificationHandler(strPort, tokenAuthenticator,
-        filteredDecoders, handlerFactory, preprocessors.get(strPort), hostAnnotator,
-        histogramDisabled::get, traceDisabled::get, spanLogsDisabled::get);
+        healthCheckManager, filteredDecoders, handlerFactory, preprocessors.get(strPort),
+        hostAnnotator, histogramDisabled::get, traceDisabled::get, spanLogsDisabled::get);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
         pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
         port).withChildChannelOptions(childChannelOptions), "listener-relay-" + port);
@@ -563,15 +588,40 @@ public class PushAgent extends AbstractAgent {
   @VisibleForTesting
   protected void startRawLogsIngestionListener(int port, LogsIngester logsIngester) {
     String strPort = String.valueOf(port);
-
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
     ChannelHandler channelHandler = new RawLogsIngesterPortUnificationHandler(strPort, logsIngester,
-        hostnameResolver, tokenAuthenticator, preprocessors.get(strPort));
+        hostnameResolver, tokenAuthenticator, healthCheckManager, preprocessors.get(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
         rawLogsMaxReceivedLength, rawLogsHttpBufferSize, listenerIdleConnectionTimeout), port).
             withChildChannelOptions(childChannelOptions), "listener-logs-raw-" + port);
     logger.info("listening on port: " + strPort + " for raw logs");
   }
+
+  @VisibleForTesting
+  protected void startAdminListener(int port) {
+    ChannelHandler channelHandler = new AdminPortUnificationHandler(tokenAuthenticator,
+        healthCheckManager, String.valueOf(port), adminApiRemoteIpWhitelistRegex);
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, String.valueOf(port),
+        pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
+            port).withChildChannelOptions(childChannelOptions),
+        "listener-http-admin-" + port);
+    logger.info("Admin port: " + port);
+  }
+
+  @VisibleForTesting
+  protected void startHealthCheckListener(int port) {
+    healthCheckManager.enableHealthcheck(port);
+    ChannelHandler channelHandler = new HttpHealthCheckEndpointHandler(healthCheckManager, port);
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, String.valueOf(port),
+        pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
+            port).withChildChannelOptions(childChannelOptions),
+        "listener-http-healthcheck-" + port);
+    logger.info("Health check port enabled: " + port);
+  }
+
 
   protected void startHistogramListeners(Iterator<String> ports,
                                          ReportableEntityHandler<ReportPoint> pointHandler,
@@ -663,10 +713,12 @@ public class PushAgent extends AbstractAgent {
     ports.forEachRemaining(port -> {
       registerPrefixFilter(port);
       registerTimestampFilter(port);
+      if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(Integer.parseInt(port));
 
       WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
-          new WavefrontPortUnificationHandler(port, tokenAuthenticator, decoderSupplier.get(),
-              histogramHandlerFactory, hostAnnotator, preprocessors.get(port));
+          new WavefrontPortUnificationHandler(port, tokenAuthenticator, healthCheckManager,
+              decoderSupplier.get(), histogramHandlerFactory, hostAnnotator,
+              preprocessors.get(port));
       startAsManagedThread(new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
           histogramMaxReceivedLength, histogramHttpBufferSize, listenerIdleConnectionTimeout),
           Integer.parseInt(port)).withChildChannelOptions(childChannelOptions),

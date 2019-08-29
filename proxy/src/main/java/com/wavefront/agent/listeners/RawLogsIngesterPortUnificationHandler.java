@@ -3,6 +3,7 @@ package com.wavefront.agent.listeners;
 import com.google.common.annotations.VisibleForTesting;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.logsharvesting.LogsMessage;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
@@ -51,14 +52,16 @@ public class RawLogsIngesterPortUnificationHandler extends PortUnificationHandle
    * @param hostnameResolver    rDNS lookup for remote clients ({@link InetAddress} to
    *                            {@link String} resolver)
    * @param authenticator       {@link TokenAuthenticator} for incoming requests.
+   * @param healthCheckManager  shared health check endpoint handler.
    * @param preprocessor        preprocessor.
    */
   public RawLogsIngesterPortUnificationHandler(
       String handle, @Nonnull LogsIngester ingester,
       @Nonnull Function<InetAddress, String> hostnameResolver,
       @Nonnull TokenAuthenticator authenticator,
+      @Nonnull HealthCheckManager healthCheckManager,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(authenticator, handle, true, true);
+    super(authenticator, healthCheckManager, handle, true, true);
     this.logsIngester = ingester;
     this.hostnameResolver = hostnameResolver;
     this.preprocessorSupplier = preprocessor;

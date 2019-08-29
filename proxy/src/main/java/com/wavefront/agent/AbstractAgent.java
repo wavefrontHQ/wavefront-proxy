@@ -712,6 +712,48 @@ public abstract class AbstractAgent {
       "HTTP requests. Required when authMethod = STATIC_TOKEN.")
   protected String authStaticToken = null;
 
+  @Parameter(names = {"--adminApiListenerPort"}, description = "Enables admin port to control " +
+      "healthcheck status per port. Default: none")
+  protected Integer adminApiListenerPort = 0;
+
+  @Parameter(names = {"--adminApiRemoteIpWhitelistRegex"}, description = "Remote IPs must match " +
+      "this regex to access admin API")
+  protected String adminApiRemoteIpWhitelistRegex = null;
+
+  @Parameter(names = {"--httpHealthCheckPorts"}, description = "Comma-delimited list of ports " +
+      "to function as standalone healthchecks. May be used independently of " +
+      "--httpHealthCheckAllPorts parameter. Default: none")
+  protected String httpHealthCheckPorts = null;
+
+  @Parameter(names = {"--httpHealthCheckAllPorts"}, description = "When true, all listeners that " +
+      "support HTTP protocol also respond to healthcheck requests. May be used independently of " +
+      "--httpHealthCheckPorts parameter. Default: false")
+  protected boolean httpHealthCheckAllPorts = false;
+
+  @Parameter(names = {"--httpHealthCheckPath"}, description = "Healthcheck's path, for example, " +
+      "'/health'. Default: '/'")
+  protected String httpHealthCheckPath = "/";
+
+  @Parameter(names = {"--httpHealthCheckResponseContentType"}, description = "Optional " +
+      "Content-Type to use in healthcheck response, for example, 'application/json'. Default: none")
+  protected String httpHealthCheckResponseContentType = null;
+
+  @Parameter(names = {"--httpHealthCheckPassStatusCode"}, description = "HTTP status code for " +
+      "'pass' health checks. Default: 200")
+  protected int httpHealthCheckPassStatusCode = 200;
+
+  @Parameter(names = {"--httpHealthCheckPassResponseBody"}, description = "Optional response " +
+      "body to return with 'pass' health checks. Default: none")
+  protected String httpHealthCheckPassResponseBody = null;
+
+  @Parameter(names = {"--httpHealthCheckFailStatusCode"}, description = "HTTP status code for " +
+      "'fail' health checks. Default: 503")
+  protected int httpHealthCheckFailStatusCode = 503;
+
+  @Parameter(names = {"--httpHealthCheckFailResponseBody"}, description = "Optional response " +
+      "body to return with 'fail' health checks. Default: none")
+  protected String httpHealthCheckFailResponseBody = null;
+
   @Parameter(description = "")
   protected List<String> unparsed_params;
 
@@ -1095,6 +1137,24 @@ public abstract class AbstractAgent {
           intValue();
       authResponseMaxTtl = config.getNumber("authResponseMaxTtl", authResponseMaxTtl).intValue();
       authStaticToken = config.getString("authStaticToken", authStaticToken);
+
+      adminApiListenerPort = config.getNumber("adminApiListenerPort", adminApiListenerPort).
+          intValue();
+      adminApiRemoteIpWhitelistRegex = config.getString("adminApiRemoteIpWhitelistRegex",
+          adminApiRemoteIpWhitelistRegex);
+      httpHealthCheckPorts = config.getString("httpHealthCheckPorts", httpHealthCheckPorts);
+      httpHealthCheckAllPorts = config.getBoolean("httpHealthCheckAllPorts", false);
+      httpHealthCheckPath = config.getString("httpHealthCheckPath", httpHealthCheckPath);
+      httpHealthCheckResponseContentType = config.getString("httpHealthCheckResponseContentType",
+          httpHealthCheckResponseContentType);
+      httpHealthCheckPassStatusCode = config.getNumber("httpHealthCheckPassStatusCode",
+          httpHealthCheckPassStatusCode).intValue();
+      httpHealthCheckPassResponseBody = config.getString("httpHealthCheckPassResponseBody",
+          httpHealthCheckPassResponseBody);
+      httpHealthCheckFailStatusCode = config.getNumber("httpHealthCheckFailStatusCode",
+          httpHealthCheckFailStatusCode).intValue();
+      httpHealthCheckFailResponseBody = config.getString("httpHealthCheckFailResponseBody",
+          httpHealthCheckFailResponseBody);
 
       // track mutable settings
       pushFlushIntervalInitialValue = Integer.parseInt(config.getRawProperty("pushFlushInterval",
