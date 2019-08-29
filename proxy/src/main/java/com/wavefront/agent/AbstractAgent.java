@@ -124,7 +124,7 @@ public abstract class AbstractAgent {
   private static final int GRAPHITE_LISTENING_PORT = 2878;
 
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
-  private static final int MAX_SPLIT_BATCH_SIZE = 50000; // same value as default pushFlushMaxPoints
+  private static final int MAX_SPLIT_BATCH_SIZE = 40000; // same value as default pushFlushMaxPoints
 
   @Parameter(names = {"--help"}, help = true)
   private boolean help = false;
@@ -204,8 +204,8 @@ public abstract class AbstractAgent {
   protected AtomicInteger pushMemoryBufferLimit = new AtomicInteger(16 * pushFlushMaxPoints.get());
 
   @Parameter(names = {"--pushBlockedSamples"}, description = "Max number of blocked samples to print to log. Defaults" +
-      " to 0.")
-  protected Integer pushBlockedSamples = 0;
+      " to 5.")
+  protected Integer pushBlockedSamples = 5;
 
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
       "2878.", order = 4)
@@ -235,258 +235,223 @@ public abstract class AbstractAgent {
       "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 99")
   protected int memGuardFlushThreshold = 99;
 
-  @Parameter(
-      names = {"--histogramStateDirectory"},
+  @Parameter(names = {"--histogramStateDirectory"},
       description = "Directory for persistent proxy state, must be writable.")
-  protected String histogramStateDirectory = "/var/tmp";
+  protected String histogramStateDirectory = "/var/spool/wavefront-proxy";
 
-  @Parameter(
-      names = {"--histogramAccumulatorResolveInterval"},
-      description = "Interval to write-back accumulation changes from memory cache to disk in millis (only " +
-          "applicable when memory cache is enabled")
-  protected Long histogramAccumulatorResolveInterval = 100L;
+  @Parameter(names = {"--histogramAccumulatorResolveInterval"},
+      description = "Interval to write-back accumulation changes from memory cache to disk in " +
+          "millis (only applicable when memory cache is enabled")
+  protected Long histogramAccumulatorResolveInterval = 5000L;
 
-  @Parameter(
-      names = {"--histogramAccumulatorFlushInterval"},
-      description = "Interval to check for histograms to send to Wavefront in millis (Default: 1000)")
-  protected Long histogramAccumulatorFlushInterval = 1000L;
+  @Parameter(names = {"--histogramAccumulatorFlushInterval"},
+      description = "Interval to check for histograms to send to Wavefront in millis. " +
+          "(Default: 10000)")
+  protected Long histogramAccumulatorFlushInterval = 10000L;
 
-  @Parameter(
-      names = {"--histogramAccumulatorFlushMaxBatchSize"},
-      description = "Max number of histograms to send to Wavefront in one flush (Default: no limit)")
+  @Parameter(names = {"--histogramAccumulatorFlushMaxBatchSize"},
+      description = "Max number of histograms to send to Wavefront in one flush " +
+          "(Default: no limit)")
   protected Integer histogramAccumulatorFlushMaxBatchSize = -1;
 
-  @Parameter(
-      names = {"--histogramReceiveBufferFlushInterval"}, hidden = true,
+  @Parameter(names = {"--histogramReceiveBufferFlushInterval"}, hidden = true,
       description = "(DEPRECATED) Interval to send received points to the processing queue in " +
           "millis (Default: 100)")
   @Deprecated
   protected Integer histogramReceiveBufferFlushInterval = 100;
 
-  @Parameter(
-      names = {"--histogramProcessingQueueScanInterval"}, hidden = true,
+  @Parameter(names = {"--histogramProcessingQueueScanInterval"}, hidden = true,
       description = "Processing queue scan interval in millis (Default: 20)")
   @Deprecated
   protected Integer histogramProcessingQueueScanInterval = 20;
 
-  @Parameter(
-      names = {"--histogramMaxReceivedLength"},
+  @Parameter(names = {"--histogramMaxReceivedLength"},
       description = "Maximum line length for received histogram data (Default: 65536)")
   protected Integer histogramMaxReceivedLength = 64 * 1024;
 
-  @Parameter(
-      names = {"--histogramHttpBufferSize"},
-      description = "Maximum line length for received histogram data (Default: 16MB)")
+  @Parameter(names = {"--histogramHttpBufferSize"},
+      description = "Maximum allowed request size (in bytes) for incoming HTTP requests on " +
+          "histogram ports (Default: 16MB)")
   protected Integer histogramHttpBufferSize = 16 * 1024 * 1024;
 
-  @Parameter(
-      names = {"--histogramMinuteListenerPorts"},
+  @Parameter(names = {"--histogramMinuteListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
   protected String histogramMinuteListenerPorts = "";
 
-  @Parameter(
-      names = {"--histogramMinuteAccumulators"}, hidden = true,
+  @Parameter(names = {"--histogramMinuteAccumulators"}, hidden = true,
       description = "(DEPRECATED) Number of accumulators per minute port")
   @Deprecated
   protected Integer histogramMinuteAccumulators = Runtime.getRuntime().availableProcessors();
 
-  @Parameter(
-      names = {"--histogramMinuteFlushSecs"},
-      description = "Number of seconds to keep a minute granularity accumulator open for new samples.")
+  @Parameter(names = {"--histogramMinuteFlushSecs"},
+      description = "Number of seconds to keep a minute granularity accumulator open for " +
+          "new samples.")
   protected Integer histogramMinuteFlushSecs = 70;
 
-  @Parameter(
-      names = {"--histogramMinuteCompression"},
+  @Parameter(names = {"--histogramMinuteCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  protected Short histogramMinuteCompression = 100;
+  protected Short histogramMinuteCompression = 32;
 
-  @Parameter(
-      names = {"--histogramMinuteAvgKeyBytes"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
-          "source and tags concatenation.")
+  @Parameter(names = {"--histogramMinuteAvgKeyBytes"},
+      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
+          "corresponds to a metric, source and tags concatenation.")
   protected Integer histogramMinuteAvgKeyBytes = 150;
 
-  @Parameter(
-      names = {"--histogramMinuteAvgDigestBytes"},
+  @Parameter(names = {"--histogramMinuteAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
   protected Integer histogramMinuteAvgDigestBytes = 500;
 
-  @Parameter(
-      names = {"--histogramMinuteAccumulatorSize"},
-      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins")
+  @Parameter(names = {"--histogramMinuteAccumulatorSize"},
+      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
+          "reporting bins")
   protected Long histogramMinuteAccumulatorSize = 100000L;
 
-  @Parameter(
-      names = {"--histogramMinuteMemoryCache"},
-      description = "Enabling memory cache reduces I/O load with fewer time series and higher frequency data " +
-          "(more than 1 point per second per time series). Default: false")
+  @Parameter(names = {"--histogramMinuteMemoryCache"},
+      description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
+          "frequency data (more than 1 point per second per time series). Default: false")
   protected boolean histogramMinuteMemoryCache = false;
 
-  @Parameter(
-      names = {"--histogramHourListenerPorts"},
+  @Parameter(names = {"--histogramHourListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
   protected String histogramHourListenerPorts = "";
 
-  @Parameter(
-      names = {"--histogramHourAccumulators"}, hidden = true,
+  @Parameter(names = {"--histogramHourAccumulators"}, hidden = true,
       description = "(DEPRECATED) Number of accumulators per hour port")
   @Deprecated
   protected Integer histogramHourAccumulators = Runtime.getRuntime().availableProcessors();
 
-  @Parameter(
-      names = {"--histogramHourFlushSecs"},
-      description = "Number of seconds to keep an hour granularity accumulator open for new samples.")
+  @Parameter(names = {"--histogramHourFlushSecs"},
+      description = "Number of seconds to keep an hour granularity accumulator open for " +
+          "new samples.")
   protected Integer histogramHourFlushSecs = 4200;
 
-  @Parameter(
-      names = {"--histogramHourCompression"},
+  @Parameter(names = {"--histogramHourCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  protected Short histogramHourCompression = 100;
+  protected Short histogramHourCompression = 32;
 
-  @Parameter(
-      names = {"--histogramHourAvgKeyBytes"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
-          "source and tags concatenation.")
+  @Parameter(names = {"--histogramHourAvgKeyBytes"},
+      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
+          " corresponds to a metric, source and tags concatenation.")
   protected Integer histogramHourAvgKeyBytes = 150;
 
-  @Parameter(
-      names = {"--histogramHourAvgDigestBytes"},
+  @Parameter(names = {"--histogramHourAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
   protected Integer histogramHourAvgDigestBytes = 500;
 
-  @Parameter(
-      names = {"--histogramHourAccumulatorSize"},
-      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins")
+  @Parameter(names = {"--histogramHourAccumulatorSize"},
+      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
+          "reporting bins")
   protected Long histogramHourAccumulatorSize = 100000L;
 
-  @Parameter(
-      names = {"--histogramHourMemoryCache"},
-      description = "Enabling memory cache reduces I/O load with fewer time series and higher frequency data " +
-          "(more than 1 point per second per time series). Default: false")
+  @Parameter(names = {"--histogramHourMemoryCache"},
+      description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
+          "frequency data (more than 1 point per second per time series). Default: false")
   protected boolean histogramHourMemoryCache = false;
 
-  @Parameter(
-      names = {"--histogramDayListenerPorts"},
+  @Parameter(names = {"--histogramDayListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
   protected String histogramDayListenerPorts = "";
 
-  @Parameter(
-      names = {"--histogramDayAccumulators"}, hidden = true,
+  @Parameter(names = {"--histogramDayAccumulators"}, hidden = true,
       description = "(DEPRECATED) Number of accumulators per day port")
   @Deprecated
   protected Integer histogramDayAccumulators = Runtime.getRuntime().availableProcessors();
 
-  @Parameter(
-      names = {"--histogramDayFlushSecs"},
+  @Parameter(names = {"--histogramDayFlushSecs"},
       description = "Number of seconds to keep a day granularity accumulator open for new samples.")
   protected Integer histogramDayFlushSecs = 18000;
 
-  @Parameter(
-      names = {"--histogramDayCompression"},
+  @Parameter(names = {"--histogramDayCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  protected Short histogramDayCompression = 100;
+  protected Short histogramDayCompression = 32;
 
-  @Parameter(
-      names = {"--histogramDayAvgKeyBytes"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
-          "source and tags concatenation.")
+  @Parameter(names = {"--histogramDayAvgKeyBytes"},
+      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
+          "corresponds to a metric, source and tags concatenation.")
   protected Integer histogramDayAvgKeyBytes = 150;
 
-  @Parameter(
-      names = {"--histogramDayAvgHistogramDigestBytes"},
+  @Parameter(names = {"--histogramDayAvgHistogramDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
   protected Integer histogramDayAvgDigestBytes = 500;
 
-  @Parameter(
-      names = {"--histogramDayAccumulatorSize"},
-      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins")
+  @Parameter(names = {"--histogramDayAccumulatorSize"},
+      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
+          "reporting bins")
   protected Long histogramDayAccumulatorSize = 100000L;
 
-  @Parameter(
-      names = {"--histogramDayMemoryCache"},
-      description = "Enabling memory cache reduces I/O load with fewer time series and higher frequency data " +
-          "(more than 1 point per second per time series). Default: false")
+  @Parameter(names = {"--histogramDayMemoryCache"},
+      description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
+          "frequency data (more than 1 point per second per time series). Default: false")
   protected boolean histogramDayMemoryCache = false;
 
-  @Parameter(
-      names = {"--histogramDistListenerPorts"},
+  @Parameter(names = {"--histogramDistListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
   protected String histogramDistListenerPorts = "";
 
-  @Parameter(
-      names = {"--histogramDistAccumulators"}, hidden = true,
+  @Parameter(names = {"--histogramDistAccumulators"}, hidden = true,
       description = "(DEPRECATED) Number of accumulators per distribution port")
   @Deprecated
   protected Integer histogramDistAccumulators = Runtime.getRuntime().availableProcessors();
 
-  @Parameter(
-      names = {"--histogramDistFlushSecs"},
+  @Parameter(names = {"--histogramDistFlushSecs"},
       description = "Number of seconds to keep a new distribution bin open for new samples.")
   protected Integer histogramDistFlushSecs = 70;
 
-  @Parameter(
-      names = {"--histogramDistCompression"},
+  @Parameter(names = {"--histogramDistCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  protected Short histogramDistCompression = 100;
+  protected Short histogramDistCompression = 32;
 
-  @Parameter(
-      names = {"--histogramDistAvgKeyBytes"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally corresponds to a metric, " +
-          "source and tags concatenation.")
+  @Parameter(names = {"--histogramDistAvgKeyBytes"},
+      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
+          "corresponds to a metric, source and tags concatenation.")
   protected Integer histogramDistAvgKeyBytes = 150;
 
-  @Parameter(
-      names = {"--histogramDistAvgDigestBytes"},
+  @Parameter(names = {"--histogramDistAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
   protected Integer histogramDistAvgDigestBytes = 500;
 
-  @Parameter(
-      names = {"--histogramDistAccumulatorSize"},
-      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins")
+  @Parameter(names = {"--histogramDistAccumulatorSize"},
+      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
+          "reporting bins")
   protected Long histogramDistAccumulatorSize = 100000L;
 
-  @Parameter(
-      names = {"--histogramDistMemoryCache"},
-      description = "Enabling memory cache reduces I/O load with fewer time series and higher frequency data " +
-          "(more than 1 point per second per time series). Default: false")
+  @Parameter(names = {"--histogramDistMemoryCache"},
+      description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
+          "frequency data (more than 1 point per second per time series). Default: false")
   protected boolean histogramDistMemoryCache = false;
 
-  @Parameter(
-      names = {"--histogramAccumulatorSize"}, hidden = true,
+  @Parameter(names = {"--histogramAccumulatorSize"}, hidden = true,
       description = "(DEPRECATED FOR histogramMinuteAccumulatorSize/histogramHourAccumulatorSize/" +
           "histogramDayAccumulatorSize/histogramDistAccumulatorSize)")
   protected Long histogramAccumulatorSize = null;
 
-  @Parameter(
-      names = {"--avgHistogramKeyBytes"}, hidden = true,
+  @Parameter(names = {"--avgHistogramKeyBytes"}, hidden = true,
       description = "(DEPRECATED FOR histogramMinuteAvgKeyBytes/histogramHourAvgKeyBytes/" +
           "histogramDayAvgHistogramKeyBytes/histogramDistAvgKeyBytes)")
   protected Integer avgHistogramKeyBytes = null;
 
-  @Parameter(
-      names = {"--avgHistogramDigestBytes"}, hidden = true,
+  @Parameter(names = {"--avgHistogramDigestBytes"}, hidden = true,
       description = "(DEPRECATED FOR histogramMinuteAvgDigestBytes/histogramHourAvgDigestBytes/" +
           "histogramDayAvgHistogramDigestBytes/histogramDistAvgDigestBytes)")
   protected Integer avgHistogramDigestBytes = null;
 
-  @Parameter(
-      names = {"--persistMessages"}, hidden = true,
-      description = "(DEPRECATED) Whether histogram samples or distributions should be persisted to disk")
+  @Parameter(names = {"--persistMessages"}, hidden = true,
+      description = "(DEPRECATED) Whether histogram samples or distributions should be persisted " +
+          "to disk")
   @Deprecated
   protected boolean persistMessages = true;
 
   @Parameter(names = {"--persistMessagesCompression"}, hidden = true,
-      description = "(DEPRECATED) Enable LZ4 compression for histogram samples persisted to disk. (Default: true)")
+      description = "(DEPRECATED) Enable LZ4 compression for histogram samples persisted to " +
+          "disk. (Default: true)")
   @Deprecated
   protected boolean persistMessagesCompression = true;
 
-  @Parameter(
-      names = {"--persistAccumulator"},
+  @Parameter(names = {"--persistAccumulator"},
       description = "Whether the accumulator should persist to disk")
   protected boolean persistAccumulator = true;
 
-  @Parameter(
-      names = {"--histogramCompression"}, hidden = true,
+  @Parameter(names = {"--histogramCompression"}, hidden = true,
       description = "(DEPRECATED FOR histogramMinuteCompression/histogramHourCompression/" +
           "histogramDayCompression/histogramDistCompression)")
   @Deprecated
@@ -531,6 +496,7 @@ public abstract class AbstractAgent {
       "of ports to listen on for json metrics from collectd write_http json format data. Binds, by default, to none.")
   protected String writeHttpJsonListenerPorts = "";
 
+  // logs ingestion
   @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
   protected Integer filebeatPort = 0;
 
@@ -543,6 +509,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--rawLogsHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
       " incoming HTTP requests with raw logs (Default: 16MB)")
   protected Integer rawLogsHttpBufferSize = 16 * 1024 * 1024;
+
+  @Parameter(names = {"--logsIngestionConfigFile"}, description = "Location of logs ingestions config yaml file.")
+  protected String logsIngestionConfigFile = "/etc/wavefront/wavefront-proxy/logsingestion.yaml";
 
   @Parameter(names = {"--hostname"}, description = "Hostname for the proxy. Defaults to FQDN of machine.")
   protected String hostname;
@@ -629,12 +598,15 @@ public abstract class AbstractAgent {
   protected String agentMetricsPointTags = null;
 
   @Parameter(names = {"--ephemeral"}, description = "If true, this proxy is removed from Wavefront after 24 hours of inactivity.")
-  protected boolean ephemeral = false;
+  protected boolean ephemeral = true;
 
   @Parameter(names = {"--disableRdnsLookup"}, description = "When receiving Wavefront-formatted data without source/host specified, use remote IP address as source instead of trying to resolve the DNS name. Default false.")
   protected boolean disableRdnsLookup = false;
 
-  @Parameter(names = {"--javaNetConnection"}, description = "If true, use JRE's own http client when making connections instead of Apache HTTP Client")
+  @Parameter(names = {"--javaNetConnection"}, hidden = true,
+      description = "(DEPRECATED) If true, use JRE's own http client when making connections " +
+          "instead of Apache HTTP Client")
+  @Deprecated
   protected boolean javaNetConnection = false;
 
   @Parameter(names = {"--gzipCompression"}, description = "If true, enables gzip compression for traffic sent to Wavefront (Default: true)")
@@ -670,7 +642,7 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--httpMaxConnPerRoute"}, description = "Max connections per route to keep open (default: 100)")
   protected Integer httpMaxConnPerRoute = 100;
 
-  @Parameter(names = {"--httpAutoRetries"}, description = "Number of times to retry http requests before queueing, set to 0 to disable (default: 1)")
+  @Parameter(names = {"--httpAutoRetries"}, description = "Number of times to retry http requests before queueing, set to 0 to disable (default: 3)")
   protected Integer httpAutoRetries = 3;
 
   @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
@@ -681,9 +653,6 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--dataPrefillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for pre-dated points. Default is 24 (1 day)")
   protected Integer dataPrefillCutoffHours = 24;
-
-  @Parameter(names = {"--logsIngestionConfigFile"}, description = "Location of logs ingestions config yaml file.")
-  protected String logsIngestionConfigFile = null;
 
   @Parameter(names = {"--authMethod"}, converter = TokenValidationMethod.TokenValidationMethodConverter.class,
       description = "Authenticate all incoming HTTP requests and disables TCP streams when set to a value " +

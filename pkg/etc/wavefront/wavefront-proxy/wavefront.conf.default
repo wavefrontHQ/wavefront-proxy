@@ -3,66 +3,139 @@
 #
 #   Typically in /etc/wavefront/wavefront-proxy/wavefront.conf
 #
-##############################################################################
-# The server should be either the primary Wavefront cloud server, or your custom VPC address.
-#   This will be provided to you by Wavefront.
-#
+########################################################################################################################
+# Wavefront API endpoint URL. Usually the same as the URL of your Wavefront instance, with an `api`
+# suffix -- or Wavefront provides the URL.
 server=https://try.wavefront.com/api/
 
 # The hostname will be used to identify the internal proxy statistics around point rates, JVM info, etc.
-#  We strongly recommend setting this to a name that is unique among your entire infrastructure,
-#   possibly including the datacenter information, etc. This hostname does not need to correspond to
-#   any actual hostname or DNS entry; it's merely a string that we pass with the internal stats.
-#
+# We strongly recommend setting this to a name that is unique among your entire infrastructure, to make this
+# proxy easy to identify. This hostname does not need to correspond to any actual hostname or DNS entry; it's merely
+# a string that we pass with the internal stats and ~proxy.* metrics.
 #hostname=my.proxy.host.com
 
-# The Token is any valid API Token for your account, which can be generated from the gear icon
-#   at the top right of the Wavefront site, under 'Settings'. Paste that hexadecimal token
-#   after the '=' below, and the proxy will automatically generate a machine-specific UUID and
-#   self-register.
-#
-#token=XXX
+# The Token is any valid API token for an account that has *Proxy Management* permissions. To get to the token:
+# 1. Click the gear icon at the top right in the Wavefront UI.
+# 2. Click your account name (usually your email)
+# 3. Click *API access*.
+#token=
 
-## Set to true when running proxy inside containers or when the proxy is frequently restarted on a new infrastructure.
-## When true, terminated proxies will be automatically removed from the UI after 24 hours of inactivity.
-#ephemeral=false
-
-# Comma separated list of ports to listen on for Wavefront formatted data
+####################################################### INPUTS #########################################################
+# Comma-separated list of ports to listen on for Wavefront formatted data (Default: 2878)
 pushListenerPorts=2878
-## Comma separated list of ports to listen on for OpenTSDB formatted data
-#opentsdbPorts=4242
-## Comma separated list of ports to listen on for HTTP JSON formatted data
-#jsonListenerPorts=3878
-## Comma separated list of ports to listen on for HTTP collectd write_http data
-#writeHttpJsonListenerPorts=4878
+## Maximum line length for received points in plaintext format on Wavefront/OpenTSDB/Graphite ports. Default: 32KB
+#pushListenerMaxReceivedLength=32768
+## Maximum request size (in bytes) for incoming HTTP requests on Wavefront/OpenTSDB/Graphite ports. Default: 16MB
+#pushListenerHttpBufferSize=16777216
 
-## Comma separated list of ports to listen on for collectd/Graphite formatted data (plaintext protocol)
-## If you uncomment graphitePorts, make sure to uncomment and set 'graphiteFormat' and 'graphiteDelimiters' as well.
+## Graphite input settings.
+## If you enable either `graphitePorts` or `picklePorts`, make sure to uncomment and set `graphiteFormat` as well.
+## Comma-separated list of ports to listen on for collectd/Graphite formatted data (Default: none)
 #graphitePorts=2003
-## Comma separated list of ports to listen on for Graphite formatted data (pickle protocol, usually from carbon-relay)
+## Comma-separated list of ports to listen on for Graphite pickle formatted data (from carbon-relay) (Default: none)
 #picklePorts=2004
 ## Which fields (1-based) should we extract and concatenate (with dots) as the hostname?
 #graphiteFormat=2
-## Which characters should be replaced by dots in the hostname, after extraction?
+## Which characters should be replaced by dots in the hostname, after extraction? (Default: _)
 #graphiteDelimiters=_
+## Comma-separated list of fields (metric segments) to remove (1-based). This is an optional setting. (Default: none)
+#graphiteFieldsToRemove=3,4,5
 
+## DDI/Relay endpoint: in environments where no direct outbound connections to Wavefront servers are possible, you can
+## use another Wavefront proxy that has outbound access to act as a relay and forward all the data received on that
+## endpoint (from direct data ingestion clients and/or other proxies) to Wavefront servers.
+## This setting is a comma-separated list of ports. (Default: none)
+#pushRelayListenerPorts=2978
+
+## Comma-separated list of ports to listen on for OpenTSDB formatted data (Default: none)
+#opentsdbPorts=4242
+
+## Comma-separated list of ports to listen on for HTTP JSON formatted data (Default: none)
+#jsonListenerPorts=3878
+
+## Comma-separated list of ports to listen on for HTTP collectd write_http data (Default: none)
+#writeHttpJsonListenerPorts=4878
+
+################################################# DATA PREPROCESSING ###################################################
+## Path to the optional config file with preprocessor rules (advanced regEx replacements and whitelist/blacklists)
+#preprocessorConfigFile=/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml
+
+# When using the Wavefront or TSDB data formats, the proxy will automatically look for a tag named
+# source= or host= (preferring source=) and treat that as the source/host within Wavefront.
+# customSourceTags is a comma-separated, ordered list of additional tag keys to use if neither
+# source= or host= is present
+customSourceTags=fqdn, hostname
+
+## The prefix should either be left undefined, or can be any  prefix you want
+## prepended to all data points coming through this proxy (such as `production`).
+#prefix=production
+
+## Regex pattern (Java) that input lines must match to be accepted. Use preprocessor rules for finer control.
+#whitelistRegex=^(production|stage).*
+## Regex pattern (Java) that input lines must NOT match to be accepted. Use preprocessor rules for finer control.
+#blacklistRegex=^(qa|development|test).*
+
+## This setting defines the cut-off point for what is considered a valid timestamp for back-dated points.
+## Default (and recommended) value is 8760 (1 year), so all the data points from more than 1 year ago will be rejected.
+#dataBackfillCutoffHours=8760
+## This setting defines the cut-off point for what is considered a valid timestamp for pre-dated points.
+## Default (and recommended) value is 24 (1 day), so all the data points from more than 1 day in future will be rejected.
+#dataPrefillCutoffHours=24
+
+################################################## ADVANCED SETTINGS ###################################################
 ## Number of threads that flush data to the server. If not defined in wavefront.conf it defaults to the
 ## number of processors (min 4). Setting this value too large will result in sending batches that are
 ## too small to the server and wasting connections. This setting is per listening port.
 #flushThreads=4
-
 ## Max points per flush. Typically 40000.
 #pushFlushMaxPoints=40000
-
 ## Milliseconds between flushes to the Wavefront servers. Typically 1000.
 #pushFlushInterval=1000
 
-## Limit pps rate at the proxy. Default: do not throttle
+## Limit outbound pps rate at the proxy. Default: do not throttle
 #pushRateLimit=20000
-
 ## Max number of burst seconds to allow when rate limiting to smooth out uneven traffic.
 ## Set to 1 when doing data backfills. Default: 10
 #pushRateLimitMaxBurstSeconds=10
+
+## Number of threads retrying failed transmissions. Defaults to the number of processors (min. 4)
+## Buffer files are maxed out at 2G each so increasing the number of retry threads effectively governs
+## the maximum amount of space the proxy will use to buffer points locally
+#retryThreads=4
+## Location of buffer.* files for saving failed transmissions for retry. Default: /var/spool/wavefront-proxy/buffer
+#buffer=/var/spool/wavefront-proxy/buffer
+## For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0
+#retryBackoffBaseSeconds=2.0
+## Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.
+#splitPushWhenRateLimited=false
+
+## The following settings are used to connect to Wavefront servers through a HTTP proxy:
+#proxyHost=localhost
+#proxyPort=8080
+## Optional: if http proxy requires authentication
+#proxyUser=proxy_user
+#proxyPassword=proxy_password
+## HTTP proxies may implement a security policy to only allow traffic with particular User-Agent header values.
+## When set, overrides User-Agent in request headers for outbound HTTP requests.
+#httpUserAgent=WavefrontProxy
+
+## HTTP client settings
+## Control whether metrics traffic from the proxy to the Wavefront endpoint is gzip-compressed. Default: true
+#gzipCompression=true
+## Connect timeout (in milliseconds). Default: 5000 (5s)
+#httpConnectTimeout=5000
+## Request timeout (in milliseconds). Default: 10000 (10s)
+#httpRequestTimeout=10000
+## Max number of total connections to keep open (Default: 200)
+#httpMaxConnTotal=100
+## Max connections per route to keep open (Default: 100)
+#httpMaxConnPerRoute=100
+
+## Close idle inbound connections after specified time in seconds. Default: 300 (5 minutes)
+#listenerIdleConnectionTimeout=300
+
+## The following setting enables SO_LINGER on listening ports with the specified linger time in seconds (Default: off)
+#soLingerTime=0
 
 ## Max number of points that can stay in memory buffers before spooling to disk. Defaults to 16 * pushFlushMaxPoints,
 ## minimum allowed size: pushFlushMaxPoints. Setting this value lower than default reduces memory usage but will force
@@ -72,90 +145,62 @@ pushListenerPorts=2878
 ## If there are blocked points, how many lines to print to the log every 10 flushes. Typically 5.
 #pushBlockedSamples=5
 
-# The push log level determines how much information will be printed to the log.
-#   Options: NONE, SUMMARY, DETAILED. Typically SUMMARY.
-pushLogLevel=SUMMARY
+## Settings for incoming HTTP request authentication. Authentication is done by a token, proxy is looking for
+## tokens in the querystring ("token=" and "api_key=" parameters) and in request headers ("X-AUTH-TOKEN: ",
+## "Authorization: Bearer", "Authorization: " headers). TCP streams are disabled when authentication is turned on.
+## Allowed authentication methods: NONE, STATIC_TOKEN, HTTP_GET, OAUTH2. Default: NONE
+## - NONE: All requests are considered valid
+## - STATIC_TOKEN: Compare incoming token with the value of authStaticToken setting.
+## - OAUTH2: Validate all tokens against a RFC7662-compliant token introspection endpoint.
+## - HTTP_GET: Validate all tokens against a specific URL. Use {{token}} placeholder in the URL to pass the token
+##             in question to the endpoint. Use of https is strongly recommended for security reasons. The endpoint
+##             must return any 2xx status for valid tokens, any other response code is considered a fail.
+#authMethod=NONE
+## URL for the token introspection endpoint used to validate tokens for incoming HTTP requests.
+## Required when authMethod is OAUTH2 or HTTP_GET
+#authTokenIntrospectionServiceUrl=https://auth.acme.corp/api/token/{{token}}/validate
+## Optional credentials for use with the token introspection endpoint if it requires authentication.
+#authTokenIntrospectionAuthorizationHeader=Authorization: Bearer <token>
+## Cache TTL (in seconds) for token validation results (re-authenticate when expired). Default: 600 seconds
+#authResponseRefreshInterval=600
+## Maximum allowed cache TTL (in seconds) for token validation results when token introspection service is
+## unavailable. Default: 86400 seconds (1 day)
+#authResponseMaxTtl=86400
+## Static token that is considered valid for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.
+#authStaticToken=token1234abcd
 
-## The validation level keeps certain data from being sent to Wavefront.
-##   We strongly recommend keeping this at NUMERIC_ONLY
-##   Options: NUMERIC_ONLY, NO_VALIDATION.
-#pushValidationLevel=NUMERIC_ONLY
+############################################# LOGS TO METRICS SETTINGS #################################################
+## Port on which to listen for FileBeat data (Lumberjack protocol). Default: none
+#filebeatPort=5044
+## Port on which to listen for raw logs data (TCP and HTTP). Default: none
+#rawLogsPort=5045
+## Maximum line length for received raw logs (Default: 4096)
+#rawLogsMaxReceivedLength=4096
+## Maximum allowed request size (in bytes) for incoming HTTP requests with raw logs (Default: 16MB)
+#rawLogsHttpBufferSize=16777216
+## Location of the `logsingestion.yaml` configuration file
+#logsIngestionConfigFile=/etc/wavefront/wavefront-proxy/logsingestion.yaml
 
-# When using the Wavefront or TSDB data formats the Proxy will automatically look for a tag named
-# source= or host= (preferring source=) and treat that as the source/host within Wavefront.
-# customSourceTags is a comma separated, ordered list of additional tag keys to use if neither
-# source= or host= is present
-customSourceTags=fqdn, hostname
-
-## The prefix should either be left undefined, or can be any  prefix you want
-## prepended to all data points coming through this proxy (such as 'prod').
-#prefix=production
-
-## ID file for the proxy. Not used if ephemeral=true
-idFile=/etc/wavefront/wavefront-proxy/.wavefront_id
-
-## Default location of buffer.* files for saving failed transmission for retry.
-buffer=/var/spool/wavefront-proxy/buffer
-
-## Number of threads retrying failed transmissions. Defaults to the number of processors (min. 4)
-## Buffer files are maxed out at 2G each so increasing the number of retry threads effectively governs
-## the maximum amount of space the proxy will use to buffer points locally
-#retryThreads=4
-
-## Regex pattern (java.util.regex) that input lines must match to be accepted.
-## Input lines are checked against the pattern before the prefix is prepended.
-#whitelistRegex=^(production|stage).*
-
-## Regex pattern (java.util.regex) that input lines must NOT match to be accepted.
-## Input lines are checked against the pattern before the prefix is prepended.
-#blacklistRegex=^(qa|development|test).*
-
-## Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.
-#splitPushWhenRateLimited=false
-
-## For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0
-#retryBackoffBaseSeconds=2.0
-
-## Control whether metrics traffic from the proxy to the Wavefront endpoint is gzip-compressed. Default: true
-#gzipCompression=false
-
-## The following settings are used to connect to Wavefront servers through a HTTP proxy:
-#proxyHost=localhost
-#proxyPort=8080
-## Optional: if http proxy requires authentication
-#proxyUser=proxy_user
-#proxyPassword=proxy_password
-#
-## The following setting enables SO_LINGER with the specified linger time in seconds (SO_LINGER disabled by default)
-#soLingerTime=0
-## HTTP connect timeout (in milliseconds). Default: 5s (5000)
-#httpConnectTimeout=5000
-## HTTP request timeout (in milliseconds). Default: 10s (10000)
-#httpRequestTimeout=10000
-
-## Path to the optional config file with preprocessor rules (advanced regEx replacements and whitelist/blacklists)
-#preprocessorConfigFile=/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml
-
-## This setting defines the cut-off point for what is considered a valid timestamp for back-dated points.
-## Default (and recommended) value is 8760 (1 year), so all the data points from more than 1 year ago will be rejected.
-#dataBackfillCutoffHours=8760
-## This setting defines the cut-off point for what is considered a valid timestamp for pre-dated points.
-## Default (and recommended) value is 24 (1 day), so all the data points from more than 1 day in future will be rejected.
-#dataPrefillCutoffHours=24
-
-## The following settings are used to configure distributed tracing span ingestion:
+########################################### DISTRIBUTED TRACING SETTINGS ###############################################
 ## Comma-separated list of ports to listen on for Wavefront trace data. Defaults to none.
 #traceListenerPorts=30000
+## Maximum line length for received spans and span logs (Default: 1MB)
+#traceListenerMaxReceivedLength=1048576
+## Maximum allowed request size (in bytes) for incoming HTTP requests on tracing ports (Default: 16MB)
+#traceListenerHttpBufferSize=16777216
+
 ## Comma-separated list of ports on which to listen on for Jaeger Thrift formatted data. Defaults to none.
-#traceJaegerListenerPorts=30001
+#traceJaegerListenerPorts=14267
 ## Custom application name for traces received on Jaeger's traceJaegerListenerPorts.
 #traceJaegerApplicationName=Jaeger
-## Comma-separated list of ports on which to listen on for zipkin trace data over HTTP. Defaults to none.
-## Recommended value is 9411, which is the port Zipkin's server listens on and is the default
-configuration in Istio.
+## Comma-separated list of ports on which to listen on for Zipkin trace data over HTTP. Defaults to none.
+## Recommended value is 9411, which is the port Zipkin's server listens on and is the default configuration in Istio.
 #traceZipkinListenerPorts=9411
 ## Custom application name for traces received on Zipkin's traceZipkinListenerPorts.
 #traceZipkinApplicationName=Zipkin
+## Comma-separated list of additional custom tag keys to include along as metric tags for the derived
+## RED (Request, Error, Duration) metrics. Applicable to Jaeger and Zipkin integration only.
+#traceDerivedCustomTagKeys=tenant, env, location
 
 ## The following settings are used to configure trace data sampling:
 ## The rate for traces to be sampled. Can be from 0.0 to 1.0. Defaults to 1.0
@@ -164,29 +209,39 @@ configuration in Istio.
 #traceSamplingDuration=0
 ## Always sample spans with an error tag (set to true) ignoring other sampling configuration. Defaults to true.
 #traceAlwaysSampleErrors=false
-## A comma separated, list of additional custom tag keys to include along as metric tags for the
-## derived RED(Request, Error, Duration) metrics. Applicable to Jaeger and Zipkin integration only.
-#traceDerivedCustomTagKeys=tenant, env, location
 
-## The following settings are used to configure histogram ingestion:
-## Histograms can be ingested in wavefront scalar and distribution format. For scalar samples ports can be specified for
-## minute, hour and day granularity. Granularity for the distribution format is encoded inline.
-## Before using any of these settings, reach out to Wavefront Support to ensure your account is enabled for native Histogram
-## support and to optimize the settings for your specific use case.
+########################################## HISTOGRAM ACCUMULATION SETTINGS #############################################
+## Histograms can be ingested in Wavefront scalar and distribution format. For scalar samples ports can be specified for
+## minute, hour and day granularity. Granularity for the distribution format is encoded inline. Before using any of
+## these settings, reach out to Wavefront Support to ensure your account is enabled for native Histogram support and
+## to optimize the settings for your specific use case.
+
+## Accumulation parameters
+## Directory for persisting proxy state, must be writable.
+#histogramStateDirectory=/var/spool/wavefront-proxy
+## Interval to write back accumulation changes to disk in milliseconds (only applicable when memory cache is enabled).
+#histogramAccumulatorResolveInterval=5000
+## Interval to check for histograms ready to be sent to Wavefront, in milliseconds.
+#histogramAccumulatorFlushInterval=10000
+## Max number of histograms to send to Wavefront in one flush (Default: no limit)
+#histogramAccumulatorFlushMaxBatchSize=4000
+## Whether to persist accumulation state. WARNING any unflushed histograms will be lost on proxy shutdown if disabled.
+#persistAccumulator=true
+## Maximum line length for received histogram data (Default: 65536)
+#histogramMaxReceivedLength=65536
+## Maximum allowed request size (in bytes) for incoming HTTP requests on histogram ports (Default: 16MB)
+#histogramHttpBufferSize=16777216
 
 ## Wavefront format, minute aggregation:
 ## Comma-separated list of ports to listen on.
 #histogramMinuteListenerPorts=40001
-## Number of accumulators per minute port
-#histogramMinuteAccumulators=2
 ## Time-to-live in seconds for a minute granularity accumulation on the proxy (before the intermediary is shipped to WF).
 #histogramMinuteFlushSecs=70
-## Bounds the number of centroids per histogram. Must be in [20;1000], default: 100
-#histogramMinuteCompression=20
-## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
-#histogramMinuteAvgKeyBytes=150
-## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins. Setting this value too
-## high will may cause excessive disk space usage, setting this value too low may cause severe performance issues.
+## Bounds the number of centroids per histogram. Must be between 20 and 1000, default: 32
+#histogramMinuteCompression=32
+## Expected upper bound of concurrent accumulations. Should be approximately the number of timeseries * 2 (use a higher
+## multiplier if out-of-order points more than 1 minute apart are expected). Setting this value too high will cause
+## excessive disk space usage, setting this value too low may cause severe performance issues.
 #histogramMinuteAccumulatorSize=1000
 ## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
 ## second per time series). Default: false
@@ -195,16 +250,13 @@ configuration in Istio.
 ## Wavefront format, hour aggregation:
 ## Comma-separated list of ports to listen on.
 #histogramHourListenerPorts=40002
-## Number of accumulators per hour port
-#histogramHourAccumulators=2
 ## Time-to-live in seconds for an hour granularity accumulation on the proxy (before the intermediary is shipped to WF).
 #histogramHourFlushSecs=4200
-## Bounds the number of centroids per histogram. Must be in [20;1000], default: 100
-#histogramHourCompression=100
-## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
-#histogramHourAvgKeyBytes=150
-## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins. Setting this value too
-## high will may cause excessive disk space usage, setting this value too low may cause severe performance issues.
+## Bounds the number of centroids per histogram. Must be between 20 and 1000, default: 32
+#histogramHourCompression=32
+## Expected upper bound of concurrent accumulations. Should be approximately the number of timeseries * 2 (use a higher
+## multiplier if out-of-order points more than 1 hour apart are expected). Setting this value too high will cause
+## excessive disk space usage, setting this value too low may cause severe performance issues.
 #histogramHourAccumulatorSize=100000
 ## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
 ## second per time series). Default: false
@@ -213,16 +265,13 @@ configuration in Istio.
 ## Wavefront format, day aggregation:
 ## Comma-separated list of ports to listen on.
 #histogramDayListenerPorts=40003
-## Number of accumulators per day port
-#histogramDayAccumulators=2
 ## Time-to-live in seconds for a day granularity accumulation on the proxy (before the intermediary is shipped to WF).
 #histogramDayFlushSecs=18000
-## Bounds the number of centroids per histogram. Must be in [20;1000], default: 100
-#histogramDayCompression=200
-## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
-#histogramDayAvgKeyBytes=150
-## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins. Setting this value too
-## high will may cause excessive disk space usage, setting this value too low may cause severe performance issues.
+## Bounds the number of centroids per histogram. Must be between 20 and 1000, default: 32
+#histogramDayCompression=32
+## Expected upper bound of concurrent accumulations. Should be approximately the number of timeseries * 2 (use a higher
+## multiplier if out-of-order points more than 1 day apart are expected). Setting this value too high will cause
+## excessive disk space usage, setting this value too low may cause severe performance issues.
 #histogramDayAccumulatorSize=100000
 ## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
 ## second per time series). Default: false
@@ -231,36 +280,14 @@ configuration in Istio.
 ## Distribution format:
 ## Comma-separated list of ports to listen on.
 #histogramDistListenerPorts=40000
-## Number of accumulators per day port
-#histogramDistAccumulators=2
 ## Time-to-live in seconds for a distribution accumulation on the proxy (before the intermediary is shipped to WF).
 #histogramDistFlushSecs=70
-## Bounds the number of centroids per histogram. Must be in [20;1000], default: 100
-#histogramDistCompression=200
-## Average number of bytes in a [UTF-8] encoded histogram key. ~metric, source and tags concatenation.
-#histogramDistAvgKeyBytes=150
-## Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel reporting bins. Setting this value too
-## high will may cause excessive disk space usage, setting this value too low may cause severe performance issues.
+## Bounds the number of centroids per histogram. Must be between 20 and 1000, default: 32
+#histogramDistCompression=32
+## Expected upper bound of concurrent accumulations. Should be approximately the number of timeseries * 2 (use a higher
+## multiplier if out-of-order points more than 1 bin apart are expected). Setting this value too high will cause
+## excessive disk space usage, setting this value too low may cause severe performance issues.
 #histogramDistAccumulatorSize=100000
 ## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
 ## second per time series). Default: false
 #histogramDistMemoryCache=false
-
-## Accumulation parameters
-## Directory for persistent proxy state, must be writable.
-histogramStateDirectory=/var/spool/wavefront-proxy
-## Interval to write-back accumulation changes to disk in millis (only applicable when memory cache is enabled)
-#histogramAccumulatorResolveInterval=500
-## Interval to check for histograms ready to be sent to Wavefront, in millis
-#histogramAccumulatorFlushInterval=1000
-## Max number of histograms to send to Wavefront in one flush (Default: no limit)
-#histogramAccumulatorFlushMaxBatchSize=4000
-## Interval to send received points to the processing queue in millis (Default: 100)
-#histogramReceiveBufferFlushInterval=100
-## Processing queue scan interval in millis (Default: 20)
-#histogramProcessingQueueScanInterval=20
-## Whether to persist received histogram messages to disk. WARNING only disable this, if loss of unprocessed sample data
-## on proxy shutdown is acceptable.
-#persistMessages=true
-## Whether to persist accumulation state. WARNING any unflushed histograms will be lost on proxy shutdown if disabled
-#persistAccumulator=true

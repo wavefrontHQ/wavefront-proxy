@@ -324,8 +324,8 @@ public class PushAgent extends AbstractAgent {
         startWriteHttpJsonListener(strPort, handlerFactory));
 
     // Logs ingestion.
-    if (loadLogsIngestionConfig() != null) {
-      logger.info("Loading logs ingestion.");
+    if ((filebeatPort > 0 || rawLogsPort > 0) && loadLogsIngestionConfig() != null) {
+      logger.info("Initializing logs ingestion");
       try {
         final LogsIngester logsIngester = new LogsIngester(handlerFactory,
             this::loadLogsIngestionConfig, prefix);
@@ -340,8 +340,6 @@ public class PushAgent extends AbstractAgent {
       } catch (ConfigurationException e) {
         logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
       }
-    } else {
-      logger.info("Not loading logs ingestion -- no config specified.");
     }
   }
 
