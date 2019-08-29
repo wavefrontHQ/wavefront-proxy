@@ -56,6 +56,10 @@ public class Preprocessor<T> {
    * @return true if all predicates returned "true"
    */
   public boolean filter(@Nonnull T item, @Nullable String[] messageHolder) {
+    if (messageHolder != null) {
+      // empty the container to prevent previous call's results from leaking into the current one
+      messageHolder[0] = null;
+    }
     for (final AnnotatedPredicate<T> predicate : filters) {
       if (!predicate.test(item, messageHolder)) {
         return false;
