@@ -20,7 +20,7 @@ import javax.ws.rs.core.Response;
  *
  * @author vasily@wavefront.com
  */
-@Path("/v2/")
+@Path("/")
 public interface ProxyV2API {
 
   /**
@@ -36,7 +36,7 @@ public interface ProxyV2API {
    * @return Proxy configuration.
    */
   @POST
-  @Path("proxy/checkin")
+  @Path("v2/wfproxy/checkin")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   AgentConfiguration proxyCheckin(@HeaderParam("X-WF-PROXY-ID") final UUID proxyId,
@@ -56,7 +56,7 @@ public interface ProxyV2API {
    */
   @POST
   @Consumes(MediaType.TEXT_PLAIN)
-  @Path("proxy/report")
+  @Path("v2/wfproxy/report")
   Response proxyReport(@HeaderParam("X-WF-PROXY-ID") final UUID proxyId,
                        @QueryParam("format") final String format,
                        final String pushData);
@@ -67,7 +67,7 @@ public interface ProxyV2API {
    * @param proxyId ID of the proxy.
    */
   @POST
-  @Path("proxy/config/processed")
+  @Path("v2/wfproxy/config/processed")
   void proxyConfigProcessed(@HeaderParam("X-WF-PROXY-ID") final UUID proxyId);
 
   /**
@@ -77,7 +77,7 @@ public interface ProxyV2API {
    * @param details Details of the error.
    */
   @POST
-  @Path("proxy/error")
+  @Path("v2/wfproxy/error")
   void proxyError(@HeaderParam("X-WF-PROXY-ID") final UUID proxyId,
                   @FormParam("details") String details);
 }
