@@ -1483,7 +1483,8 @@ public abstract class AbstractAgent {
         register(gzipCompression ? GZIPEncodingInterceptor.class : DisableGZIPEncodingInterceptor.class).
         register(AcceptEncodingGZIPFilter.class).
         register((ClientRequestFilter) context -> {
-          if (context.getUri().getPath().contains("/pushdata/")) {
+          if (context.getUri().getPath().contains("/pushdata/") ||
+              context.getUri().getPath().contains("/report")) {
             context.getHeaders().add("Authorization", "Bearer " + token);
           }
         }).
