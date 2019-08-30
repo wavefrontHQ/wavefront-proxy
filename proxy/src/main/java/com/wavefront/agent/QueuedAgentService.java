@@ -531,9 +531,9 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
   }
 
   @Override
-  public AgentConfiguration proxyCheckin(UUID agentId, String hostname, String token, String version,
+  public AgentConfiguration proxyCheckin(UUID agentId, String token, String hostname, String version,
                                          Long currentMillis, JsonNode agentMetrics, Boolean ephemeral) {
-    return wrapped.proxyCheckin(agentId, hostname, token, version, currentMillis, agentMetrics, ephemeral);
+    return wrapped.proxyCheckin(agentId, token, hostname, version, currentMillis, agentMetrics, ephemeral);
   }
 
   @Override
