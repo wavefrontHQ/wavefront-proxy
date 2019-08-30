@@ -1601,8 +1601,9 @@ public abstract class AbstractAgent {
     }
     logger.info("Checking in: " + ObjectUtils.firstNonNull(serverEndpointUrl, server));
     try {
-      newConfig = agentAPI.proxyCheckin(agentId, hostname, token, props.getString("build.version"),
-          agentMetricsCaptureTsWorkingCopy, agentMetricsWorkingCopy, ephemeral);
+      newConfig = agentAPI.proxyCheckin(agentId, "Bearer " + token, hostname,
+          props.getString("build.version"), agentMetricsCaptureTsWorkingCopy,
+          agentMetricsWorkingCopy, ephemeral);
       agentMetricsWorkingCopy = null;
       hadSuccessfulCheckin = true;
     } catch (ClientErrorException ex) {
