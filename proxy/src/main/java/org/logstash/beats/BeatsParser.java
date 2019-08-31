@@ -1,10 +1,13 @@
 package org.logstash.beats;
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufOutputStream;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.ByteToMessageDecoder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import org.apache.log4j.Logger;
 
 import java.nio.charset.Charset;
 import java.util.HashMap;
@@ -13,18 +16,11 @@ import java.util.Map;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterOutputStream;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufOutputStream;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.ByteToMessageDecoder;
-
 
 public class BeatsParser extends ByteToMessageDecoder {
-    private static final int CHUNK_SIZE = 1024;
-    public final static ObjectMapper MAPPER = new ObjectMapper().registerModule(new AfterburnerModule());
-    private final static Logger logger = Logger.getLogger(BeatsParser.class);
+    private final static Logger logger = LogManager.getLogger(BeatsParser.class);
 
-    private Batch batch = new Batch();
+    private Batch batch;
 
     private enum States {
         READ_HEADER(1),
@@ -56,18 +52,18 @@ public class BeatsParser extends ByteToMessageDecoder {
 
         switch (currentState) {
             case READ_HEADER: {
-                logger.debug("Running: READ_HEADER");
+                logger.trace("Running: READ_HEADER");
 
                 byte currentVersion = in.readByte();
-
-                if(Protocol.isVersion2(currentVersion)) {
-                    logger.debug("Frame version 2 detected");
-                    batch.setProtocol(Protocol.VERSION_2);
-                } else {
-                    logger.debug("Frame version 1 detected");
-                    batch.setProtocol(Protocol.VERSION_1);
+                if (batch == null) {
+                    if (Protocol.isVersion2(currentVersion)) {
+                        batch = new V2Batch();
+                        logger.trace("Frame version 2 detected");
+                    } else {
+                        logger.trace("Frame version 1 detected");
+                        batch = new V1Batch();
+                    }
                 }
-
                 transition(States.READ_FRAME_TYPE);
                 break;
             }
@@ -99,8 +95,7 @@ public class BeatsParser extends ByteToMessageDecoder {
                 break;
             }
             case READ_WINDOW_SIZE: {
-                logger.debug("Running: READ_WINDOW_SIZE");
-
+                logger.trace("Running: READ_WINDOW_SIZE");
                 batch.setBatchSize((int) in.readUnsignedInt());
 
                 // This is unlikely to happen but I have no way to known when a frame is
@@ -118,7 +113,7 @@ public class BeatsParser extends ByteToMessageDecoder {
             }
             case READ_DATA_FIELDS: {
                 // Lumberjack version 1 protocol, which use the Key:Value format.
-                logger.debug("Running: READ_DATA_FIELDS");
+                logger.trace("Running: READ_DATA_FIELDS");
                 sequence = (int) in.readUnsignedInt();
                 int fieldsCount = (int) in.readUnsignedInt();
                 int count = 0;
@@ -144,21 +139,19 @@ public class BeatsParser extends ByteToMessageDecoder {
 
                     count++;
                 }
-
                 Message message = new Message(sequence, dataMap);
-                batch.addMessage(message);
+                ((V1Batch)batch).addMessage(message);
 
-                if(batch.complete()) {
+                if (batch.isComplete()){
                     out.add(batch);
                     batchComplete();
                 }
-
                 transition(States.READ_HEADER);
 
                 break;
             }
             case READ_JSON_HEADER: {
-                logger.debug("Running: READ_JSON_HEADER");
+                logger.trace("Running: READ_JSON_HEADER");
 
                 sequence = (int) in.readUnsignedInt();
                 int jsonPayloadSize = (int) in.readUnsignedInt();
@@ -171,21 +164,21 @@ public class BeatsParser extends ByteToMessageDecoder {
                 break;
             }
             case READ_COMPRESSED_FRAME_HEADER: {
-                logger.debug("Running: READ_COMPRESSED_FRAME_HEADER");
+                logger.trace("Running: READ_COMPRESSED_FRAME_HEADER");
 
                 transition(States.READ_COMPRESSED_FRAME, in.readInt());
                 break;
             }
 
             case READ_COMPRESSED_FRAME: {
-                logger.debug("Running: READ_COMPRESSED_FRAME");
+                logger.trace("Running: READ_COMPRESSED_FRAME");
                 // Use the compressed size as the safe start for the buffer.
                 ByteBuf buffer = ctx.alloc().buffer(requiredBytes);
                 try (
-                        ByteBufOutputStream buffOutput = new ByteBufOutputStream(buffer);
-                        InflaterOutputStream inflater = new InflaterOutputStream(buffOutput, new Inflater());
+                    ByteBufOutputStream buffOutput = new ByteBufOutputStream(buffer);
+                    InflaterOutputStream inflater = new InflaterOutputStream(buffOutput, new Inflater())
                 ) {
-                    ByteBuf bytesRead = in.readBytes(inflater, requiredBytes);
+                    in.readBytes(inflater, requiredBytes);
                     transition(States.READ_HEADER);
                     try {
                         while (buffer.readableBytes() > 0) {
@@ -199,17 +192,12 @@ public class BeatsParser extends ByteToMessageDecoder {
                 break;
             }
             case READ_JSON: {
-                logger.debug("Running: READ_JSON");
-
-                byte[] bytes = new byte[requiredBytes];
-                in.readBytes(bytes);
-                Message message = new Message(sequence, (Map) MAPPER.readValue(bytes, Object.class));
-
-                batch.addMessage(message);
-
-                if(batch.size() == batch.getBatchSize()) {
-                    logger.debug("Sending batch size: " + this.batch.size() + ", windowSize: " + batch.getBatchSize() +  " , seq: " + sequence);
-
+                logger.trace("Running: READ_JSON");
+                ((V2Batch)batch).addMessage(sequence, in, requiredBytes);
+                if(batch.isComplete()) {
+                    if(logger.isTraceEnabled()) {
+                        logger.trace("Sending batch size: " + this.batch.size() + ", windowSize: " + batch.getBatchSize() + " , seq: " + sequence);
+                    }
                     out.add(batch);
                     batchComplete();
                 }
@@ -229,7 +217,9 @@ public class BeatsParser extends ByteToMessageDecoder {
     }
 
     private void transition(States nextState, int requiredBytes) {
-        logger.debug("Transition, from: " + currentState + ", to: " +  nextState + ", requiring " + requiredBytes + " bytes");
+        if(logger.isTraceEnabled()) {
+            logger.trace("Transition, from: " + currentState + ", to: " + nextState + ", requiring " + requiredBytes + " bytes");
+        }
         this.currentState = nextState;
         this.requiredBytes = requiredBytes;
     }
@@ -237,7 +227,7 @@ public class BeatsParser extends ByteToMessageDecoder {
     private void batchComplete() {
         requiredBytes = 0;
         sequence = 0;
-        batch = new Batch();
+        batch = null;
     }
 
     public class InvalidFrameProtocolException extends Exception {

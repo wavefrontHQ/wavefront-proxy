@@ -1,19 +1,16 @@
 package org.logstash.beats;
 
-import org.apache.log4j.Logger;
-
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.timeout.IdleState;
-import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.util.AttributeKey;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-@ChannelHandler.Sharable
+import java.net.InetSocketAddress;
+import javax.net.ssl.SSLHandshakeException;
+
 public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
-    private final static Logger logger = Logger.getLogger(BeatsHandler.class);
-    private final AtomicBoolean processing = new AtomicBoolean(false);
+    private final static Logger logger = LogManager.getLogger(BeatsHandler.class);
     private final IMessageListener messageListener;
     private ChannelHandlerContext context;
 
@@ -23,60 +20,88 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
     }
 
     @Override
-    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+    public void channelActive(final ChannelHandlerContext ctx) throws Exception {
         context = ctx;
+        if (logger.isTraceEnabled()){
+            logger.trace(format("Channel Active"));
+        }
+        super.channelActive(ctx);
         messageListener.onNewConnection(ctx);
     }
 
     @Override
-    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        super.channelInactive(ctx);
+        if (logger.isTraceEnabled()){
+            logger.trace(format("Channel Inactive"));
+        }
         messageListener.onConnectionClose(ctx);
     }
 
+
     @Override
     public void channelRead0(ChannelHandlerContext ctx, Batch batch) throws Exception {
-        logger.debug("Received a new payload");
-
-        processing.compareAndSet(false, true);
-
-        for(Message message : batch.getMessages()) {
-            logger.debug("Sending a new message for the listener, sequence: " + message.getSequence());
-            messageListener.onNewMessage(ctx, message);
-
-            if(needAck(message)) {
-                ack(ctx, message);
-            }
+        if(logger.isDebugEnabled()) {
+            logger.debug(format("Received a new payload"));
         }
-        ctx.flush();
-        processing.compareAndSet(true, false);
+        try {
+            for (Message message : batch) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug(format("Sending a new message for the listener, sequence: " + message.getSequence()));
+                }
+                messageListener.onNewMessage(ctx, message);
 
-    }
-
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        messageListener.onException(ctx, cause);
-        logger.error("Exception: " + cause.getMessage());
-        ctx.close();
-    }
-
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object event) {
-        if(event instanceof IdleStateEvent) {
-            IdleStateEvent e = (IdleStateEvent) event;
-
-            if(e.state() == IdleState.WRITER_IDLE) {
-                sendKeepAlive();
-            } else if(e.state() == IdleState.READER_IDLE) {
-                clientTimeout();
+                if (needAck(message)) {
+                    ack(ctx, message);
+                }
             }
+        }finally{
+            //this channel is done processing this payload, instruct the connection handler to stop sending TCP keep alive
+            ctx.channel().attr(ConnectionHandler.CHANNEL_SEND_KEEP_ALIVE).get().set(false);
+            if (logger.isDebugEnabled()) {
+                logger.debug("{}: batches pending: {}", ctx.channel().id().asShortText(),ctx.channel().attr(ConnectionHandler.CHANNEL_SEND_KEEP_ALIVE).get().get());
+            }
+            batch.release();
+            ctx.flush();
+        }
+    }
+
+    /*
+     * Do not propagate the SSL handshake exception down to the ruby layer handle it locally instead and close the connection
+     * if the channel is still active. Calling `onException` will flush the content of the codec's buffer, this call
+     * may block the thread in the event loop until completion, this should only affect LS 5 because it still supports
+     * the multiline codec, v6 drop support for buffering codec in the beats input.
+     *
+     * For v5, I cannot drop the content of the buffer because this will create data loss because multiline content can
+     * overlap Filebeat transmission; we were recommending multiline at the source in v5 and in v6 we enforce it.
+     */
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        try {
+            if (!(cause instanceof SSLHandshakeException)) {
+                messageListener.onException(ctx, cause);
+            }
+            String causeMessage = cause.getMessage() == null ? cause.getClass().toString() : cause.getMessage();
+
+            if (logger.isDebugEnabled()){
+                logger.debug(format("Handling exception: " + causeMessage), cause);
+            }
+            logger.info(format("Handling exception: " + causeMessage));
+        } finally{
+            super.exceptionCaught(ctx, cause);
+            ctx.flush();
+            ctx.close();
         }
     }
 
     private boolean needAck(Message message) {
-        return message.getSequence() == message.getBatch().getBatchSize();
+        return message.getSequence() == message.getBatch().getHighestSequence();
     }
 
     private void ack(ChannelHandlerContext ctx, Message message) {
+        if (logger.isTraceEnabled()){
+            logger.trace(format("Acking message number " + message.getSequence()));
+        }
         writeAck(ctx, message.getBatch().getProtocol(), message.getSequence());
     }
 
@@ -84,16 +109,28 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
         ctx.write(new Ack(protocol, sequence));
     }
 
-    private void clientTimeout() {
-        logger.debug("Client Timeout");
-        this.context.close();
-    }
+    /*
+     * There is no easy way in Netty to support MDC directly,
+     * we will use similar logic than Netty's LoggingHandler
+     */
+    private String format(String message) {
+        InetSocketAddress local = (InetSocketAddress) context.channel().localAddress();
+        InetSocketAddress remote = (InetSocketAddress) context.channel().remoteAddress();
 
-    private void sendKeepAlive() {
-        // If we are actually blocked on processing
-        // we can send a keep alive.
-        if(processing.get()) {
-            writeAck(context, Protocol.VERSION_2, 0);
+        String localhost;
+        if(local != null) {
+            localhost = local.getAddress().getHostAddress() + ":" + local.getPort();
+        } else{
+            localhost = "undefined";
         }
+
+        String remotehost;
+        if(remote != null) {
+            remotehost = remote.getAddress().getHostAddress() + ":" + remote.getPort();
+        } else{
+            remotehost = "undefined";
+        }
+
+        return "[local: " + localhost + ", remote: " + remotehost + "] " + message;
     }
 }
