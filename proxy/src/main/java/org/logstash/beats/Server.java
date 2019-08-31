@@ -1,56 +1,40 @@
 package org.logstash.beats;
 
-import org.apache.log4j.Logger;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
+import io.netty.util.concurrent.EventExecutorGroup;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.logstash.netty.SslSimpleBuilder;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
-import java.util.concurrent.TimeUnit;
-
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.logging.LoggingHandler;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.timeout.IdleStateHandler;
-import io.netty.util.concurrent.DefaultEventExecutorGroup;
-import io.netty.util.concurrent.EventExecutorGroup;
-import io.netty.util.concurrent.Future;
-
-
 
 public class Server {
-    private final static Logger logger = Logger.getLogger(Server.class);
-
-    static final long SHUTDOWN_TIMEOUT_SECONDS = 10;
-    private static final int DEFAULT_CLIENT_TIMEOUT_SECONDS = 15;
-
+    private final static Logger logger = LogManager.getLogger(Server.class);
 
     private final int port;
-    private final NioEventLoopGroup bossGroup;
-    private final NioEventLoopGroup workGroup;
+    private final String host;
+    private final int beatsHeandlerThreadCount;
+    private NioEventLoopGroup workGroup;
     private IMessageListener messageListener = new MessageListener();
     private SslSimpleBuilder sslBuilder;
+    private BeatsInitializer beatsInitializer;
 
     private final int clientInactivityTimeoutSeconds;
 
-    public Server(int p) {
-        this(p, DEFAULT_CLIENT_TIMEOUT_SECONDS);
-    }
-
-    public Server(int p, int timeout) {
+    public Server(String host, int p, int timeout, int threadCount) {
+        this.host = host;
         port = p;
         clientInactivityTimeoutSeconds = timeout;
-        bossGroup = new NioEventLoopGroup(10);
-        //bossGroup.setIoRatio(10);
-        workGroup = new NioEventLoopGroup(50);
-        //workGroup.setIoRatio(10);
+        beatsHeandlerThreadCount = threadCount;
     }
 
     public void enableSSL(SslSimpleBuilder builder) {
@@ -58,37 +42,52 @@ public class Server {
     }
 
     public Server listen() throws InterruptedException {
-        BeatsInitializer beatsInitializer = null;
-
+        if (workGroup != null) {
+            try {
+                logger.debug("Shutting down existing worker group before starting");
+                workGroup.shutdownGracefully().sync();
+            } catch (Exception e) {
+                logger.error("Could not shut down worker group before starting", e);
+            }
+        }
+        workGroup = new NioEventLoopGroup();
         try {
-            logger.info("Starting server on port: " +  this.port);
+            logger.info("Starting server on port: {}", this.port);
 
-            beatsInitializer = new BeatsInitializer(isSslEnable(), messageListener, clientInactivityTimeoutSeconds);
+            beatsInitializer = new BeatsInitializer(isSslEnable(), messageListener, clientInactivityTimeoutSeconds, beatsHeandlerThreadCount);
 
             ServerBootstrap server = new ServerBootstrap();
-            server.group(bossGroup, workGroup)
-                    .channel(NioServerSocketChannel.class)
-                    .childHandler(beatsInitializer);
+            server.group(workGroup)
+                .channel(NioServerSocketChannel.class)
+                .childOption(ChannelOption.SO_LINGER, 0) // Since the protocol doesn't support yet a remote close from the server and we don't want to have 'unclosed' socket lying around we have to use `SO_LINGER` to force the close of the socket.
+                .childHandler(beatsInitializer);
 
-            Channel channel = server.bind(port).sync().channel();
+            Channel channel = server.bind(host, port).sync().channel();
             channel.closeFuture().sync();
         } finally {
-            beatsInitializer.shutdownEventExecutor();
-
-            bossGroup.shutdownGracefully(0, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            workGroup.shutdownGracefully(0, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            shutdown();
         }
 
         return this;
     }
 
-    public void stop() throws InterruptedException {
+    public void stop() {
         logger.debug("Server shutting down");
-
-        Future<?> bossWait = bossGroup.shutdownGracefully(0, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        Future<?> workWait = workGroup.shutdownGracefully(0, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        
+        shutdown();
         logger.debug("Server stopped");
+    }
+
+    private void shutdown(){
+        try {
+            if (workGroup != null) {
+                workGroup.shutdownGracefully().sync();
+            }
+            if (beatsInitializer != null) {
+                beatsInitializer.shutdownEventExecutor();
+            }
+        } catch (InterruptedException e){
+            throw new IllegalStateException(e);
+        }
     }
 
     public void setMessageListener(IMessageListener listener) {
@@ -100,61 +99,62 @@ public class Server {
     }
 
     private class BeatsInitializer extends ChannelInitializer<SocketChannel> {
-        private final String LOGGER_HANDLER = "logger";
         private final String SSL_HANDLER = "ssl-handler";
-        private final String KEEP_ALIVE_HANDLER = "keep-alive-handler";
-        private final String BEATS_PARSER = "beats-parser";
-        private final String BEATS_HANDLER = "beats-handler";
+        private final String IDLESTATE_HANDLER = "idlestate-handler";
+        private final String CONNECTION_HANDLER = "connection-handler";
         private final String BEATS_ACKER = "beats-acker";
+
 
         private final int DEFAULT_IDLESTATEHANDLER_THREAD = 4;
         private final int IDLESTATE_WRITER_IDLE_TIME_SECONDS = 5;
-        private final int IDLESTATE_ALL_IDLE_TIME_SECONDS = 0;
 
         private final EventExecutorGroup idleExecutorGroup;
-        private final BeatsHandler beatsHandler;
-        private final IMessageListener message;
-        private int clientInactivityTimeoutSeconds;
-        private final LoggingHandler loggingHandler = new LoggingHandler();
+        private final EventExecutorGroup beatsHandlerExecutorGroup;
+        private final IMessageListener localMessageListener;
+        private final int localClientInactivityTimeoutSeconds;
+        private final boolean localEnableSSL;
 
-
-        private boolean enableSSL = false;
-
-        public BeatsInitializer(Boolean secure, IMessageListener messageListener, int clientInactivityTimeoutSeconds) {
-            enableSSL = secure;
-            this.message = messageListener;
-            beatsHandler = new BeatsHandler(this.message);
-            this.clientInactivityTimeoutSeconds = clientInactivityTimeoutSeconds;
+        BeatsInitializer(Boolean enableSSL, IMessageListener messageListener, int clientInactivityTimeoutSeconds, int beatsHandlerThread) {
+            // Keeps a local copy of Server settings, so they can't be modified once it starts listening
+            this.localEnableSSL = enableSSL;
+            this.localMessageListener = messageListener;
+            this.localClientInactivityTimeoutSeconds = clientInactivityTimeoutSeconds;
             idleExecutorGroup = new DefaultEventExecutorGroup(DEFAULT_IDLESTATEHANDLER_THREAD);
+            beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(beatsHandlerThread);
+
         }
 
         public void initChannel(SocketChannel socket) throws IOException, NoSuchAlgorithmException, CertificateException {
             ChannelPipeline pipeline = socket.pipeline();
 
-            pipeline.addLast(LOGGER_HANDLER, loggingHandler);
-
-            if(enableSSL) {
+            if (localEnableSSL) {
                 SslHandler sslHandler = sslBuilder.build(socket.alloc());
                 pipeline.addLast(SSL_HANDLER, sslHandler);
             }
-
-            // We have set a specific executor for the idle check, because the `beatsHandler` can be
-            // blocked on the queue, this the idleStateHandler manage the `KeepAlive` signal.
-            pipeline.addLast(idleExecutorGroup, KEEP_ALIVE_HANDLER, new IdleStateHandler(clientInactivityTimeoutSeconds, IDLESTATE_WRITER_IDLE_TIME_SECONDS , IDLESTATE_ALL_IDLE_TIME_SECONDS));
-
-            pipeline.addLast(BEATS_PARSER, new BeatsParser());
+            pipeline.addLast(idleExecutorGroup, IDLESTATE_HANDLER,
+                new IdleStateHandler(localClientInactivityTimeoutSeconds, IDLESTATE_WRITER_IDLE_TIME_SECONDS, localClientInactivityTimeoutSeconds));
             pipeline.addLast(BEATS_ACKER, new AckEncoder());
-            pipeline.addLast(BEATS_HANDLER, beatsHandler);
-
+            pipeline.addLast(CONNECTION_HANDLER, new ConnectionHandler());
+            pipeline.addLast(beatsHandlerExecutorGroup, new BeatsParser(), new BeatsHandler(localMessageListener));
         }
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-            this.message.onChannelInitializeException(ctx, cause);
+            logger.warn("Exception caught in channel initializer", cause);
+            try {
+                localMessageListener.onChannelInitializeException(ctx, cause);
+            } finally {
+                super.exceptionCaught(ctx, cause);
+            }
         }
 
         public void shutdownEventExecutor() {
-            idleExecutorGroup.shutdownGracefully(0, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            try {
+                idleExecutorGroup.shutdownGracefully().sync();
+                beatsHandlerExecutorGroup.shutdownGracefully().sync();
+            } catch (InterruptedException e) {
+                throw new IllegalStateException(e);
+            }
         }
     }
 }

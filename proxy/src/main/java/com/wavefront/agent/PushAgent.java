@@ -534,7 +534,8 @@ public class PushAgent extends AbstractAgent {
       logger.warning("Filebeat log ingestion is not compatible with HTTP authentication, ignoring");
       return;
     }
-    final Server filebeatServer = new Server(port);
+    final Server filebeatServer = new Server("0.0.0.0", port, listenerIdleConnectionTimeout,
+        Runtime.getRuntime().availableProcessors());
     filebeatServer.setMessageListener(new FilebeatIngester(logsIngester,
         System::currentTimeMillis));
     startAsManagedThread(() -> {
