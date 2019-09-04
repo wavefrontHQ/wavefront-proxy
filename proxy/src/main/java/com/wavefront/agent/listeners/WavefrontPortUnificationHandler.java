@@ -71,13 +71,15 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
       final Map<ReportableEntityType, ReportableEntityDecoder> decoders,
       final ReportableEntityHandlerFactory handlerFactory,
       @Nullable final SharedGraphiteHostAnnotator annotator,
-      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
+      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
+      final boolean isDelta) {
     super(tokenAuthenticator, healthCheckManager, handle, true, true);
     this.wavefrontDecoder = decoders.get(ReportableEntityType.POINT);
     this.annotator = annotator;
     this.preprocessorSupplier = preprocessor;
-    this.wavefrontHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT,
-        handle));
+    this.wavefrontHandler = isDelta ?
+            handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.DELTA_COUNTER, handle)) :
+            handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
     this.histogramDecoder = decoders.get(ReportableEntityType.HISTOGRAM);
     this.sourceTagDecoder = decoders.get(ReportableEntityType.SOURCE_TAG);
     this.histogramHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(

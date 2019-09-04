@@ -1,6 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.api.agent.ValidationConfiguration;
+import com.wavefront.data.ReportableEntityType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +29,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final int blockedItemsPerBatch;
   private final int defaultFlushThreads;
   private final Supplier<ValidationConfiguration> validationConfig;
+  private final long reportInterval;
 
   /**
    * Create new instance.
@@ -42,11 +44,13 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   public ReportableEntityHandlerFactoryImpl(
       final SenderTaskFactory senderTaskFactory, final int blockedItemsPerBatch,
       final int defaultFlushThreads,
-      @Nullable final Supplier<ValidationConfiguration> validationConfig) {
+      @Nullable final Supplier<ValidationConfiguration> validationConfig,
+      final long reportInterval) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.defaultFlushThreads = defaultFlushThreads;
     this.validationConfig = validationConfig;
+    this.reportInterval = reportInterval;
   }
 
   @Override
@@ -57,6 +61,11 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
           return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
               validationConfig, false, true);
+        case DELTA_COUNTER:
+          return new DeltaCounterHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
+                  senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
+                  validationConfig, ReportableEntityType.DELTA_COUNTER, true,
+                  reportInterval);
         case HISTOGRAM:
           return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),

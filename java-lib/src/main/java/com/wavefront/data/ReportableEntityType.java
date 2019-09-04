@@ -7,6 +7,7 @@ package com.wavefront.data;
  */
 public enum ReportableEntityType {
   POINT("points"),
+  DELTA_COUNTER("delta counter"),
   HISTOGRAM("histograms"),
   SOURCE_TAG("sourceTags"),
   TRACE("spans"),
