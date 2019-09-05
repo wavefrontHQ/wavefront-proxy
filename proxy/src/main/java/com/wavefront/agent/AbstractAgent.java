@@ -727,12 +727,12 @@ public abstract class AbstractAgent {
   protected List<String> unparsed_params;
 
   @Parameter(names = {"--reporterDelayMillis"}, description = "Delay time for delta counter reporter." +
-          "Defaults to 60000")
-  protected  long reportInterval = 3000;
+          "Defaults to 3")
+  protected long reportIntervalSeconds = 3;
 
   @Parameter(names = {"--deltaCountersListenerPorts"}, description = "Comma-separated list of ports to listen on. " +
           "Defaults to 50000")
-  protected  String deltaCountersListenerPorts = "";
+  protected String deltaCountersListenerPorts = "";
 
   public ReportableConfig config;
 
@@ -974,7 +974,7 @@ public abstract class AbstractAgent {
       persistAccumulator = config.getBoolean("persistAccumulator", persistAccumulator);
 
       deltaCountersListenerPorts = config.getString("deltaCountersListenerPorts", deltaCountersListenerPorts);
-      reportInterval = config.getNumber("reportInterval", reportInterval).longValue();
+      reportIntervalSeconds = config.getNumber("reportInterval", reportIntervalSeconds).longValue();
 
       // Histogram: deprecated settings - fall back for backwards compatibility
       if (config.isDefined("avgHistogramKeyBytes")) {

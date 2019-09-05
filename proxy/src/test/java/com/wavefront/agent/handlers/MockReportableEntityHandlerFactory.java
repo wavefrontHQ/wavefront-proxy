@@ -40,9 +40,9 @@ public class MockReportableEntityHandlerFactory {
   }
 
   public static DeltaCounterHandlerImpl getMockDeltaCounterHandler(String handle, Collection<SenderTask> senderTasks,
-         Supplier<ValidationConfiguration> validationConfig, long reportInterval) throws InterruptedException {
+         Supplier<ValidationConfiguration> validationConfig, long reportIntervalSeconds) throws InterruptedException {
     return new DeltaCounterHandlerImpl(handle, 5, senderTasks, validationConfig,
-            ReportableEntityType.DELTA_COUNTER, true, reportInterval);
+            ReportableEntityType.DELTA_COUNTER, true, reportIntervalSeconds);
   }
 
   public static ReportableEntityHandlerFactory createMockHandlerFactory(

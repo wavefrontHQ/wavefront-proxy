@@ -1,12 +1,8 @@
 package com.wavefront.agent.handlers;
-
-import com.beust.jcommander.Parameter;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.RemovalListener;
-import com.github.benmanes.caffeine.cache.Ticker;
 import com.google.common.util.concurrent.AtomicDouble;
-import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.HostMetricTagsPair;
@@ -18,32 +14,27 @@ import com.yammer.metrics.core.DeltaCounter;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
-
 import org.apache.commons.lang.math.NumberUtils;
-
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import com.yammer.metrics.core.Counter;
 import javax.annotation.Nullable;
-
 import wavefront.report.ReportPoint;
-
 import static com.wavefront.data.Validation.validatePoint;
 import static com.wavefront.sdk.common.Utils.metricToLineData;
+import com.yammer.metrics.core.Gauge;
 
 /**
- * Handler that processes incoming ReportPoint objects, validates them and hands them over to one of
+ * Handler that processes incoming DeltaCounter objects, validates them and hands them over to one of
  * the {@link SenderTask} threads.
  *
- * @author vasily@wavefront.com
+ * @author djia@vwware.com
  */
 public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<ReportPoint> {
 
@@ -53,6 +44,11 @@ public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<Rep
     private static final Random RANDOM = new Random();
 
     final Histogram receivedPointLag;
+    private final Counter receivedCounter;
+    private final Counter reportedCounter;
+    private final Counter rejectedCounter;
+    private long estimatedSize;
+
 
     boolean logData = false;
     private final double logSampleRate;
@@ -82,7 +78,7 @@ public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<Rep
                             @Nullable final Supplier<ValidationConfiguration> validationConfig,
                             final ReportableEntityType reportableEntityType,
                             final boolean setupMetrics,
-                            long reportInterval) {
+                            long reportIntervalSeconds) {
         super(reportableEntityType, handle, blockedItemsPerBatch, new ReportPointSerializer(),
             senderTasks, validationConfig, "pps", setupMetrics);
 
@@ -104,7 +100,20 @@ public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<Rep
             "", "lag"), false);
 
         deltaCounterReporter.scheduleWithFixedDelay(
-            this::reportCache, reportInterval, reportInterval, TimeUnit.MILLISECONDS);
+            this::reportCache, reportIntervalSeconds, reportIntervalSeconds, TimeUnit.SECONDS);
+
+        String metricPrefix = entityType.toString() + "." + handle;
+        this.receivedCounter = registry.newCounter(new MetricName(metricPrefix, "", "received"));
+        this.reportedCounter = registry.newCounter(new MetricName(metricPrefix, "", "sent"));
+        this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
+        estimatedSize = this.metricCache.estimatedSize();
+        Metrics.newGauge(new MetricName("cache", "", "estimated-size"),
+                new Gauge<Long>() {
+                    @Override
+                    public Long value() {
+                        return estimatedSize;
+                    }
+                });
     }
 
     private void reportCache() {
@@ -112,6 +121,7 @@ public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<Rep
     }
 
     private void reportDeltaCounter(HostMetricTagsPair hostMetricTagsPair, AtomicDouble value) {
+        this.reportedCounter.inc();
         if (value == null || hostMetricTagsPair == null) {return;}
         double reportedValue = value.getAndSet(0);
         if(reportedValue == 0) return;
@@ -151,8 +161,10 @@ public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<Rep
                 point.getMetric(), point.getAnnotations());
             metricCache.get(hostMetricTagsPair,
                 key -> new AtomicDouble(0)).getAndAdd(pvalue);
+            this.receivedCounter.inc();
         } else {
             reject(point, "Port is not configured to accept non-delta counter data!");
+            this.rejectedCounter.inc();
         }
 
     }

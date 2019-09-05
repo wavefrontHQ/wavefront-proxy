@@ -141,14 +141,14 @@ public class PushAgent extends AbstractAgent {
   protected ReportableEntityHandlerFactory handlerFactory;
   protected HealthCheckManager healthCheckManager;
   protected Supplier<Map<ReportableEntityType, ReportableEntityDecoder>> decoderSupplier =
-      lazySupplier(() -> ImmutableMap.of(
-      ReportableEntityType.POINT, new ReportPointDecoderWrapper(new GraphiteDecoder("unknown",
-          customSourceTags)),
-      ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
-      ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(
-          new HistogramDecoder("unknown")),
-      ReportableEntityType.TRACE, new SpanDecoder("unknown"),
-      ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder()));
+          lazySupplier(() -> ImmutableMap.of(
+                  ReportableEntityType.POINT, new ReportPointDecoderWrapper(new GraphiteDecoder("unknown",
+                          customSourceTags)),
+                  ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
+                  ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(
+                          new HistogramDecoder("unknown")),
+                  ReportableEntityType.TRACE, new SpanDecoder("unknown"),
+                  ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder()));
 
   protected final Map<ReportableEntityType, ReportableEntityDecoder> DECODERS = ImmutableMap.of(
           ReportableEntityType.POINT, getDecoderInstance(),
@@ -197,7 +197,7 @@ public class PushAgent extends AbstractAgent {
     senderTaskFactory = new SenderTaskFactoryImpl(agentAPI, agentId, pushRateLimiter,
         pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples,
-        flushThreads, () -> validationConfiguration, reportInterval);
+        flushThreads, () -> validationConfiguration, reportIntervalSeconds);
     healthCheckManager = new HealthCheckManagerImpl(httpHealthCheckPath,
         httpHealthCheckResponseContentType, httpHealthCheckPassStatusCode,
         httpHealthCheckPassResponseBody, httpHealthCheckFailStatusCode,

@@ -126,7 +126,7 @@ public class PushAgentTest {
     proxy.dataDogJsonPorts = String.valueOf(ddPort);
     proxy.dataDogProcessSystemMetrics = false;
     proxy.dataDogProcessServiceChecks = true;
-    proxy.reportInterval = 3000;
+    proxy.reportIntervalSeconds = 3;
     proxy.startGraphiteListener(proxy.pushListenerPorts, mockHandlerFactory, null, false);
     proxy.startGraphiteListener(proxy.deltaCountersListenerPorts, mockHandlerFactory, null, true);
     proxy.startTraceListener(proxy.traceListenerPorts, mockHandlerFactory, new RateSampler(1.0D));
