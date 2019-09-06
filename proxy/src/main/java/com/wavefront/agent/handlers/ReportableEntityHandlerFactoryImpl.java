@@ -29,7 +29,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final int blockedItemsPerBatch;
   private final int defaultFlushThreads;
   private final Supplier<ValidationConfiguration> validationConfig;
-  private final long reportIntervalSeconds;
 
   /**
    * Create new instance.
@@ -44,13 +43,11 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   public ReportableEntityHandlerFactoryImpl(
       final SenderTaskFactory senderTaskFactory, final int blockedItemsPerBatch,
       final int defaultFlushThreads,
-      @Nullable final Supplier<ValidationConfiguration> validationConfig,
-      final long reportIntervalSeconds) {
+      @Nullable final Supplier<ValidationConfiguration> validationConfig) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.defaultFlushThreads = defaultFlushThreads;
     this.validationConfig = validationConfig;
-    this.reportIntervalSeconds = reportIntervalSeconds;
   }
 
   @Override
@@ -61,11 +58,6 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
           return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
               validationConfig, false, true);
-        case DELTA_COUNTER:
-          return new DeltaCounterHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-                  senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
-                  validationConfig, ReportableEntityType.DELTA_COUNTER, true,
-                  reportIntervalSeconds);
         case HISTOGRAM:
           return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),

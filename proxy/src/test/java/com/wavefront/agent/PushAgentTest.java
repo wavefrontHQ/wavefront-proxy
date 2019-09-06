@@ -4,8 +4,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 
-import com.wavefront.agent.handlers.*;
-import com.wavefront.api.agent.ValidationConfiguration;
+import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.handlers.SenderTask;
+import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
 import junit.framework.AssertionFailedError;
@@ -35,7 +39,6 @@ import java.net.Socket;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
@@ -80,12 +83,25 @@ public class PushAgentTest {
           MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private SenderTask mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
   private Collection<SenderTask> mockSenderTasks = new ArrayList<>(Arrays.asList(mockSenderTask));
-  private DeltaCounterHandlerImpl mockDeltaCounterHandler =
-          MockReportableEntityHandlerFactory.getMockDeltaCounterHandler(String.valueOf(deltaPort), mockSenderTasks,
-                  null, 5000);
+  private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
+    @Override
+    public Collection<SenderTask> createSenderTasks(HandlerKey handlerKey, int numThreads) {
+      return mockSenderTasks;
+    }
+
+    @Override
+    public void shutdown() {
+    }
+
+    @Override
+    public void drainBuffersToQueue() {
+    }
+  };
+
   private ReportableEntityHandlerFactory mockHandlerFactory =
-          MockReportableEntityHandlerFactory.createMockHandlerFactory(mockPointHandler, mockDeltaCounterHandler,
-                  mockSourceTagHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler);
+          MockReportableEntityHandlerFactory.createMockHandlerFactory(mockPointHandler,
+              mockSourceTagHandler, mockHistogramHandler, mockTraceHandler,
+              mockTraceSpanLogsHandler);
   private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
 
   public PushAgentTest() throws InterruptedException {
@@ -107,7 +123,7 @@ public class PushAgentTest {
       portNum++;
     }
     throw new RuntimeException("Unable to find an available port in the [" + startingPortNumber + ";" +
-            (startingPortNumber + 1000) + ") range");
+        (startingPortNumber + 1000) + ") range");
   }
 
   @Before
@@ -121,15 +137,17 @@ public class PushAgentTest {
     proxy.retryThreads = 1;
     proxy.dataBackfillCutoffHours = 100000000;
     proxy.pushListenerPorts = String.valueOf(port);
-    proxy.deltaCountersListenerPorts = String.valueOf(deltaPort);
+    proxy.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
     proxy.traceListenerPorts = String.valueOf(tracePort);
     proxy.dataDogJsonPorts = String.valueOf(ddPort);
     proxy.dataDogProcessSystemMetrics = false;
     proxy.dataDogProcessServiceChecks = true;
-    proxy.reportIntervalSeconds = 3;
-    proxy.startGraphiteListener(proxy.pushListenerPorts, mockHandlerFactory, null, false);
-    proxy.startGraphiteListener(proxy.deltaCountersListenerPorts, mockHandlerFactory, null, true);
-    proxy.startTraceListener(proxy.traceListenerPorts, mockHandlerFactory, new RateSampler(1.0D));
+    proxy.deltaCountersAggregationIntervalSeconds = 3;
+    proxy.startGraphiteListener(proxy.pushListenerPorts, mockHandlerFactory, null);
+    proxy.startDeltaCounterListener(proxy.deltaCountersAggregationListenerPorts, null,
+        mockSenderTaskFactory);
+    proxy.startTraceListener(proxy.traceListenerPorts, mockHandlerFactory,
+        new RateSampler(1.0D));
     proxy.startDataDogListener(proxy.dataDogJsonPorts, mockHandlerFactory, mockHttpClient);
     TimeUnit.MILLISECONDS.sleep(500);
   }
@@ -543,11 +561,12 @@ public class PushAgentTest {
     String[] reportPoints = {"1.0", "2.0", "3.0"};
     int pointInd = 0;
     for (String s : capturedArgument.getValues()) {
-      Assert.assertTrue(s.startsWith("\"∆test.mixed" + Integer.toString(pointInd+1) + "\" " + reportPoints[pointInd]));
+      System.out.println(s);
+      Assert.assertTrue(s.startsWith("\"∆test.mixed" + Integer.toString(pointInd+1) + "\" " +
+          reportPoints[pointInd]));
       pointInd += 1;
     }
   }
-
 
   @Test
   public void testDeltaCounterHandlerDataStream() throws Exception {

@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.api.agent.ValidationConfiguration;
-import com.wavefront.data.ReportableEntityType;
 import org.easymock.EasyMock;
 
 import wavefront.report.ReportPoint;
@@ -39,15 +38,8 @@ public class MockReportableEntityHandlerFactory {
     return EasyMock.createMock(SpanLogsHandlerImpl.class);
   }
 
-  public static DeltaCounterHandlerImpl getMockDeltaCounterHandler(String handle, Collection<SenderTask> senderTasks,
-         Supplier<ValidationConfiguration> validationConfig, long reportIntervalSeconds) throws InterruptedException {
-    return new DeltaCounterHandlerImpl(handle, 5, senderTasks, validationConfig,
-            ReportableEntityType.DELTA_COUNTER, true, reportIntervalSeconds);
-  }
-
   public static ReportableEntityHandlerFactory createMockHandlerFactory(
       ReportableEntityHandler<ReportPoint> mockReportPointHandler,
-      ReportableEntityHandler<ReportPoint> mockDeltaCounterHandler,
       ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler,
       ReportableEntityHandler<ReportPoint> mockHistogramHandler,
       ReportableEntityHandler<Span> mockTraceHandler,
@@ -56,8 +48,6 @@ public class MockReportableEntityHandlerFactory {
       switch (handlerKey.getEntityType()) {
         case POINT:
           return mockReportPointHandler;
-        case DELTA_COUNTER:
-          return mockDeltaCounterHandler;
         case SOURCE_TAG:
           return mockSourceTagHandler;
         case HISTOGRAM:

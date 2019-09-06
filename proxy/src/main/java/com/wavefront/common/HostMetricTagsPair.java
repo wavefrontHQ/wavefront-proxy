@@ -6,15 +6,14 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
-
 /**
  * Tuple class to store combination of { host, metric, tags } Two or more tuples with the
- * same value of { customer, host, metric and tags } are considered equal and will have the same
+ * same value of { host, metric and tags } are considered equal and will have the same
  * hashcode.
  *
  * @author Jia Deng (djia@vmware.com).
  */
-public class HostMetricTagsPair  {
+public class HostMetricTagsPair {
     public final String metric;
     public final String host;
     @Nullable
@@ -23,7 +22,7 @@ public class HostMetricTagsPair  {
     public HostMetricTagsPair(String host, String metric, @Nullable Map<String, String> tags) {
         Preconditions.checkNotNull(host, "HostMetricTagsPair.host cannot be null");
         Preconditions.checkNotNull(metric, "HostMetricTagsPair.metric cannot be null");
-        this.metric = metric.trim().toLowerCase();
+        this.metric = metric.trim();
         this.host = host.trim().toLowerCase();
         this.tags = tags;
     }
@@ -48,7 +47,6 @@ public class HostMetricTagsPair  {
 
         HostMetricTagsPair that = (HostMetricTagsPair) o;
 
-        if (!metric.equals(that.metric)) return false;
         if (!metric.equals(that.metric)) return false;
         return tags != null ? tags.equals(that.tags) : that.tags == null;
     }

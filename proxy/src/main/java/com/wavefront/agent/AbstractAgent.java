@@ -726,15 +726,15 @@ public abstract class AbstractAgent {
   @Parameter(description = "")
   protected List<String> unparsed_params;
 
-  @Parameter(names = {"--reporterDelayMillis"}, description = "Delay time for delta counter reporter." +
-          "Defaults to 3")
-  protected long reportIntervalSeconds = 3;
+  @Parameter(names = {"--deltaCountersAggregationIntervalSeconds"},
+      description = "Delay time for delta counter reporter." + "Defaults to 3")
+  protected long deltaCountersAggregationIntervalSeconds = 3;
 
-  @Parameter(names = {"--deltaCountersListenerPorts"}, description = "Comma-separated list of ports to listen on. " +
-          "Defaults to 50000")
-  protected String deltaCountersListenerPorts = "";
-
-  public ReportableConfig config;
+  @Parameter(names = {"--deltaCountersAggregationListenerPorts"},
+      description = "Comma-separated list of ports to listen on Wavefront-formatted delta " +
+          "counters. Helps reduce outbound point rate by pre-aggregating delta counters at proxy." +
+          "Defaults: none")
+  protected String deltaCountersAggregationListenerPorts = "";
 
   /**
    * A set of commandline parameters to hide when echoing command line arguments
@@ -973,8 +973,12 @@ public abstract class AbstractAgent {
           histogramHttpBufferSize).intValue();
       persistAccumulator = config.getBoolean("persistAccumulator", persistAccumulator);
 
-      deltaCountersListenerPorts = config.getString("deltaCountersListenerPorts", deltaCountersListenerPorts);
-      reportIntervalSeconds = config.getNumber("reportInterval", reportIntervalSeconds).longValue();
+      deltaCountersAggregationListenerPorts =
+          config.getString("deltaCountersAggregationListenerPorts",
+              deltaCountersAggregationListenerPorts);
+      deltaCountersAggregationIntervalSeconds =
+          config.getNumber("deltaCountersAggregationIntervalSeconds",
+              deltaCountersAggregationIntervalSeconds).longValue();
 
       // Histogram: deprecated settings - fall back for backwards compatibility
       if (config.isDefined("avgHistogramKeyBytes")) {
@@ -1162,8 +1166,8 @@ public abstract class AbstractAgent {
           or less, heap size less than 4GB) to prevent OOM. this is a conservative estimate, budgeting 200 characters
           (400 bytes) per per point line. Also, it shouldn't be less than 1 batch size (pushFlushMaxPoints).
          */
-      int listeningPorts = Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts)) +
-              Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().split(deltaCountersListenerPorts));
+      int listeningPorts = Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().
+          split(pushListenerPorts));
       long calculatedMemoryBufferLimit = Math.max(Math.min(16 * pushFlushMaxPoints.get(),
           Runtime.getRuntime().maxMemory() / (listeningPorts > 0 ? listeningPorts : 1) / 4 / flushThreads / 400),
           pushFlushMaxPoints.get());

@@ -19,6 +19,7 @@ import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
+import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.HistogramAccumulationHandlerImpl;
 import com.wavefront.agent.handlers.InternalProxyWavefrontClient;
@@ -134,27 +135,20 @@ public class PushAgent extends AbstractAgent {
   protected ScheduledExecutorService histogramFlushExecutor;
   protected final Counter bindErrors = Metrics.newCounter(
       ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
-  private volatile ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
   protected SharedGraphiteHostAnnotator remoteHostAnnotator;
   protected Function<InetAddress, String> hostnameResolver;
   protected SenderTaskFactory senderTaskFactory;
   protected ReportableEntityHandlerFactory handlerFactory;
   protected HealthCheckManager healthCheckManager;
   protected Supplier<Map<ReportableEntityType, ReportableEntityDecoder>> decoderSupplier =
-          lazySupplier(() -> ImmutableMap.of(
-                  ReportableEntityType.POINT, new ReportPointDecoderWrapper(new GraphiteDecoder("unknown",
-                          customSourceTags)),
-                  ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
-                  ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(
-                          new HistogramDecoder("unknown")),
-                  ReportableEntityType.TRACE, new SpanDecoder("unknown"),
-                  ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder()));
-
-  protected final Map<ReportableEntityType, ReportableEntityDecoder> DECODERS = ImmutableMap.of(
-          ReportableEntityType.POINT, getDecoderInstance(),
-          ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
-          ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(
-                  new HistogramDecoder("unknown")));
+      lazySupplier(() -> ImmutableMap.of(
+      ReportableEntityType.POINT, new ReportPointDecoderWrapper(new GraphiteDecoder("unknown",
+          customSourceTags)),
+      ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
+      ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(
+          new HistogramDecoder("unknown")),
+      ReportableEntityType.TRACE, new SpanDecoder("unknown"),
+      ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder()));
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -168,17 +162,6 @@ public class PushAgent extends AbstractAgent {
   @Deprecated
   protected PushAgent(boolean reportAsPushAgent) {
     super(false, reportAsPushAgent);
-  }
-
-  @VisibleForTesting
-  protected ReportableEntityDecoder<String, ReportPoint> getDecoderInstance() {
-    synchronized(PushAgent.class) {
-      if (wavefrontDecoder == null) {
-        wavefrontDecoder = new ReportPointDecoderWrapper(new GraphiteDecoder("unknown",
-                customSourceTags));
-      }
-      return wavefrontDecoder;
-    }
   }
 
   @Override
@@ -197,7 +180,7 @@ public class PushAgent extends AbstractAgent {
     senderTaskFactory = new SenderTaskFactoryImpl(agentAPI, agentId, pushRateLimiter,
         pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples,
-        flushThreads, () -> validationConfiguration, reportIntervalSeconds);
+        flushThreads, () -> validationConfiguration);
     healthCheckManager = new HealthCheckManagerImpl(httpHealthCheckPath,
         httpHealthCheckResponseContentType, httpHealthCheckPassStatusCode,
         httpHealthCheckPassResponseBody, httpHealthCheckFailStatusCode,
@@ -213,12 +196,12 @@ public class PushAgent extends AbstractAgent {
         startHealthCheckListener(Integer.parseInt(strPort)));
 
     portIterator(pushListenerPorts).forEachRemaining(strPort -> {
-      startGraphiteListener(strPort, handlerFactory, remoteHostAnnotator, false);
+      startGraphiteListener(strPort, handlerFactory, remoteHostAnnotator);
       logger.info("listening on port: " + strPort + " for Wavefront metrics");
     });
 
-    portIterator(deltaCountersListenerPorts).forEachRemaining(strPort -> {
-      startGraphiteListener(strPort, handlerFactory, remoteHostAnnotator, true);
+    portIterator(deltaCountersAggregationListenerPorts).forEachRemaining(strPort -> {
+      startDeltaCounterListener(strPort, remoteHostAnnotator, senderTaskFactory);
       logger.info("listening on port: " + strPort + " for Wavefront delta counter metrics");
     });
 
@@ -298,7 +281,8 @@ public class PushAgent extends AbstractAgent {
         portIterator(graphitePorts).forEachRemaining(strPort -> {
           preprocessors.getSystemPreprocessor(strPort).forPointLine().
               addTransformer(0, graphiteFormatter);
-          startGraphiteListener(strPort, handlerFactory, null, false);
+          startGraphiteListener(strPort, handlerFactory, null);
+          startDeltaCounterListener(strPort, null, senderTaskFactory);
           logger.info("listening on port: " + strPort + " for graphite metrics");
         });
         portIterator(picklePorts).forEachRemaining(strPort ->
@@ -542,19 +526,51 @@ public class PushAgent extends AbstractAgent {
   @VisibleForTesting
   protected void startGraphiteListener(String strPort,
                                        ReportableEntityHandlerFactory handlerFactory,
-                                       SharedGraphiteHostAnnotator hostAnnotator, boolean isDelta) {
+                                       SharedGraphiteHostAnnotator hostAnnotator) {
     final int port = Integer.parseInt(strPort);
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
     if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
-            new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager, DECODERS,
-                    handlerFactory, hostAnnotator, preprocessors.get(strPort), isDelta);
+        new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
+            decoderSupplier.get(), handlerFactory, hostAnnotator, preprocessors.get(strPort));
 
     startAsManagedThread(new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort,
         pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
         port).withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
+  }
+
+  @VisibleForTesting
+  protected void startDeltaCounterListener(String strPort, SharedGraphiteHostAnnotator hostAnnotator,
+                                           SenderTaskFactory senderTaskFactory) {
+    final int port = Integer.parseInt(strPort);
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
+
+    new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples,
+        flushThreads, () -> validationConfiguration);
+
+    ReportableEntityHandlerFactory deltaCounterHandlerFactory = new ReportableEntityHandlerFactory() {
+      private Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
+      @Override
+      public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
+        return handlers.computeIfAbsent(handlerKey, k -> new DeltaCounterAccumulationHandlerImpl(
+            handlerKey.getHandle(), pushBlockedSamples,
+            senderTaskFactory.createSenderTasks(handlerKey, flushThreads),
+            () -> validationConfiguration, deltaCountersAggregationIntervalSeconds));
+      }
+    };
+
+    WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
+        new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
+            decoderSupplier.get(), deltaCounterHandlerFactory, hostAnnotator,
+            preprocessors.get(strPort));
+
+    startAsManagedThread(new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort,
+        pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
+        port).withChildChannelOptions(childChannelOptions), "listener-deltaCounter-" + port);
   }
 
   @VisibleForTesting
@@ -741,7 +757,7 @@ public class PushAgent extends AbstractAgent {
       WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
           new WavefrontPortUnificationHandler(port, tokenAuthenticator, healthCheckManager,
               decoderSupplier.get(), histogramHandlerFactory, hostAnnotator,
-              preprocessors.get(port), false);
+              preprocessors.get(port));
       startAsManagedThread(new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
           histogramMaxReceivedLength, histogramHttpBufferSize, listenerIdleConnectionTimeout),
           Integer.parseInt(port)).withChildChannelOptions(childChannelOptions),

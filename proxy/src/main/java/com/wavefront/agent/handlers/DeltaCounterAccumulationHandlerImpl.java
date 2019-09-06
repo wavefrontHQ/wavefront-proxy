@@ -1,4 +1,5 @@
 package com.wavefront.agent.handlers;
+
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.RemovalListener;
@@ -34,22 +35,16 @@ import com.yammer.metrics.core.Gauge;
  * Handler that processes incoming DeltaCounter objects, validates them and hands them over to one of
  * the {@link SenderTask} threads.
  *
- * @author djia@vwware.com
+ * @author djia@vmware.com
  */
-public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<ReportPoint> {
+public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntityHandler<ReportPoint> {
 
     private static final Logger logger = Logger.getLogger(
         AbstractReportableEntityHandler.class.getCanonicalName());
     private static final Logger validPointsLogger = Logger.getLogger("RawValidPoints");
     private static final Random RANDOM = new Random();
-
     final Histogram receivedPointLag;
-    private final Counter receivedCounter;
     private final Counter reportedCounter;
-    private final Counter rejectedCounter;
-    private long estimatedSize;
-
-
     boolean logData = false;
     private final double logSampleRate;
     private volatile long logStateUpdatedMillis = 0L;
@@ -68,52 +63,47 @@ public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<Rep
      * @param handle               handle/port number
      * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
      *                             the main log file.
-     * @param senderTasks          sender tasks
      * @param validationConfig     Supplier for the validation configuration. if false).
-     * @param setupMetrics         Whether we should report counter metrics.
      */
-    DeltaCounterHandlerImpl(final String handle,
-                            final int blockedItemsPerBatch,
-                            final Collection<SenderTask> senderTasks,
-                            @Nullable final Supplier<ValidationConfiguration> validationConfig,
-                            final ReportableEntityType reportableEntityType,
-                            final boolean setupMetrics,
-                            long reportIntervalSeconds) {
-        super(reportableEntityType, handle, blockedItemsPerBatch, new ReportPointSerializer(),
-            senderTasks, validationConfig, "pps", setupMetrics);
+    public DeltaCounterAccumulationHandlerImpl(final String handle,
+                                               final int blockedItemsPerBatch,
+                                               final Collection<SenderTask> senderTasks,
+                                               @Nullable final Supplier<ValidationConfiguration> validationConfig,
+                                               long deltaCountersAggregationIntervalSeconds) {
+        super(ReportableEntityType.DELTA_COUNTER, handle, blockedItemsPerBatch,
+            new ReportPointSerializer(), senderTasks, validationConfig, "pps", true);
 
-        this.metricCache = Caffeine.newBuilder()
-                .expireAfterWrite(15, TimeUnit.MINUTES).
-                        removalListener((RemovalListener<HostMetricTagsPair, AtomicDouble>)(metric, value, reason) ->
-                                this.reportDeltaCounter(metric, value)).build();
-
+        this.metricCache = Caffeine.newBuilder().
+            expireAfterWrite(15, TimeUnit.MINUTES).
+            removalListener((RemovalListener<HostMetricTagsPair, AtomicDouble>)
+                (metric, value, reason) -> this.reportDeltaCounter(metric, value)).build();
 
         String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
-        this.logPointsFlag = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
+        this.logPointsFlag =
+            logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
         String logPointsSampleRateProperty =
             System.getProperty("wavefront.proxy.logpoints.sample-rate");
         this.logSampleRate = NumberUtils.isNumber(logPointsSampleRateProperty) ?
             Double.parseDouble(logPointsSampleRateProperty) : 1.0d;
 
-        MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : new MetricsRegistry();
-        this.receivedPointLag = registry.newHistogram(new MetricName("points." + handle + ".received",
-            "", "lag"), false);
+        MetricsRegistry registry = Metrics.defaultRegistry();
+        this.receivedPointLag = registry.newHistogram(new MetricName("points." + handle +
+            ".received", "", "lag"), false);
 
-        deltaCounterReporter.scheduleWithFixedDelay(
-            this::reportCache, reportIntervalSeconds, reportIntervalSeconds, TimeUnit.SECONDS);
+        deltaCounterReporter.scheduleWithFixedDelay(this::reportCache,
+            deltaCountersAggregationIntervalSeconds, deltaCountersAggregationIntervalSeconds,
+            TimeUnit.SECONDS);
 
         String metricPrefix = entityType.toString() + "." + handle;
-        this.receivedCounter = registry.newCounter(new MetricName(metricPrefix, "", "received"));
-        this.reportedCounter = registry.newCounter(new MetricName(metricPrefix, "", "sent"));
-        this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
-        estimatedSize = this.metricCache.estimatedSize();
-        Metrics.newGauge(new MetricName("cache", "", "estimated-size"),
-                new Gauge<Long>() {
-                    @Override
-                    public Long value() {
-                        return estimatedSize;
-                    }
-                });
+        this.reportedCounter = registry.newCounter(new MetricName(metricPrefix, "",
+            "sent"));
+        Metrics.newGauge(new MetricName(metricPrefix, "",
+            "accumulator.size"), new Gauge<Long>() {
+            @Override
+            public Long value() {
+                return metricCache.estimatedSize();
+            }
+        });
     }
 
     private void reportCache() {
@@ -124,7 +114,7 @@ public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<Rep
         this.reportedCounter.inc();
         if (value == null || hostMetricTagsPair == null) {return;}
         double reportedValue = value.getAndSet(0);
-        if(reportedValue == 0) return;
+        if (reportedValue == 0) return;
         String strPoint = metricToLineData(hostMetricTagsPair.metric, reportedValue,
             System.currentTimeMillis(), hostMetricTagsPair.getHost(),
             hostMetricTagsPair.getTags(), "wavefront-proxy");
@@ -140,33 +130,27 @@ public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<Rep
             validatePoint(point, validationConfig.get());
         }
         if (DeltaCounter.isDelta(point.getMetric())) {
-            String strPoint = serializer.apply(point);
-
             refreshValidPointsLoggerState();
-
             if ((logData || logPointsFlag) &&
                 (logSampleRate >= 1.0d || (logSampleRate > 0.0d && RANDOM.nextDouble() < logSampleRate))) {
                 // we log valid points only if system property wavefront.proxy.logpoints is true
                 // or RawValidPoints log level is set to "ALL". this is done to prevent introducing
                 // overhead and accidentally logging points to the main log.
                 // Additionally, honor sample rate limit, if set.
+                String strPoint = serializer.apply(point);
                 validPointsLogger.info(strPoint);
             }
-
             getReceivedCounter().inc();
-
             double pvalue = Double.parseDouble(String.valueOf(point.getValue()));
             receivedPointLag.update(Clock.now() - point.getTimestamp());
             HostMetricTagsPair hostMetricTagsPair = new HostMetricTagsPair(point.getHost(),
                 point.getMetric(), point.getAnnotations());
             metricCache.get(hostMetricTagsPair,
                 key -> new AtomicDouble(0)).getAndAdd(pvalue);
-            this.receivedCounter.inc();
+            getReceivedCounter().inc();
         } else {
             reject(point, "Port is not configured to accept non-delta counter data!");
-            this.rejectedCounter.inc();
         }
-
     }
 
     void refreshValidPointsLoggerState() {
@@ -181,5 +165,4 @@ public class DeltaCounterHandlerImpl extends AbstractReportableEntityHandler<Rep
             logStateUpdatedMillis = System.currentTimeMillis();
         }
     }
-
 }
