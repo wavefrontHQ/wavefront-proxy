@@ -111,10 +111,6 @@ public class PushAgentTest {
           mockTraceSpanLogsHandler);
   private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
 
-  public PushAgentTest() throws InterruptedException {
-  }
-
-
   private static int findAvailablePort(int startingPortNumber) {
     int portNum = startingPortNumber;
     ServerSocket socket;
@@ -608,4 +604,3 @@ public class PushAgentTest {
     }
   }
 }
-

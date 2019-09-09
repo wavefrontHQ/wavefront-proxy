@@ -7,7 +7,6 @@ import wavefront.report.ReportSourceTag;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-
 /**
  * Mock factory for testing
  *
