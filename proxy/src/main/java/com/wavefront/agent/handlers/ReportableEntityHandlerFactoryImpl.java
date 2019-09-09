@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.api.agent.ValidationConfiguration;
-import com.wavefront.data.ReportableEntityType;
 
 import java.util.HashMap;
 import java.util.Map;
