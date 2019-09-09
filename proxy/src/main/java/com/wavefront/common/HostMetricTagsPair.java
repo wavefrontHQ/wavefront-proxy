@@ -47,7 +47,7 @@ public class HostMetricTagsPair {
 
         HostMetricTagsPair that = (HostMetricTagsPair) o;
 
-        if (!metric.equals(that.metric)) return false;
+        if (!metric.equals(that.metric) || !host.equals(that.host)) return false;
         return tags != null ? tags.equals(that.tags) : that.tags == null;
     }
 

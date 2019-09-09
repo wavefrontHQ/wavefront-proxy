@@ -1,6 +1,5 @@
 package com.wavefront.agent.handlers;
 
-import com.wavefront.api.agent.ValidationConfiguration;
 import org.easymock.EasyMock;
 
 import wavefront.report.ReportPoint;
@@ -8,8 +7,6 @@ import wavefront.report.ReportSourceTag;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-import java.util.Collection;
-import java.util.function.Supplier;
 
 /**
  * Mock factory for testing
