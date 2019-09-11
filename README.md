@@ -1,4 +1,4 @@
-# Wavefront Java Top-Level Project [![Build Status](https://travis-ci.org/wavefrontHQ/java.svg?branch=master)](https://travis-ci.org/wavefrontHQ/java)
+# Wavefront Java Top-Level Project [![Build Status](https://travis-ci.org/wavefrontHQ/wavefront-proxy.svg?branch=master)](https://travis-ci.org/wavefrontHQ/wavefront-proxy)
 
 [Wavefront](https://docs.wavefront.com/) is a high-performance streaming analytics platform for monitoring and optimizing your environment and applications.
 
