@@ -282,7 +282,6 @@ public class PushAgent extends AbstractAgent {
           preprocessors.getSystemPreprocessor(strPort).forPointLine().
               addTransformer(0, graphiteFormatter);
           startGraphiteListener(strPort, handlerFactory, null);
-          startDeltaCounterListener(strPort, null, senderTaskFactory);
           logger.info("listening on port: " + strPort + " for graphite metrics");
         });
         portIterator(picklePorts).forEachRemaining(strPort ->
@@ -548,9 +547,6 @@ public class PushAgent extends AbstractAgent {
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
     if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
-
-    new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples,
-        flushThreads, () -> validationConfiguration);
 
     ReportableEntityHandlerFactory deltaCounterHandlerFactory = new ReportableEntityHandlerFactory() {
       private Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();

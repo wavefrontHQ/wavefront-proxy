@@ -32,8 +32,9 @@ import static com.wavefront.sdk.common.Utils.metricToLineData;
 import com.yammer.metrics.core.Gauge;
 
 /**
- * Handler that processes incoming DeltaCounter objects, validates them and hands them over to one of
- * the {@link SenderTask} threads.
+ * Handler that processes incoming DeltaCounter objects, aggregates them and hands it over to one
+ * of the {@link SenderTask} threads according to deltaCountersAggregationIntervalSeconds or
+ * before cache expires.
  *
  * @author djia@vmware.com
  */
@@ -141,7 +142,7 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
                 validPointsLogger.info(strPoint);
             }
             getReceivedCounter().inc();
-            double pvalue = Double.parseDouble(String.valueOf(point.getValue()));
+            double pvalue = (double) point.getValue();
             receivedPointLag.update(Clock.now() - point.getTimestamp());
             HostMetricTagsPair hostMetricTagsPair = new HostMetricTagsPair(point.getHost(),
                 point.getMetric(), point.getAnnotations());
