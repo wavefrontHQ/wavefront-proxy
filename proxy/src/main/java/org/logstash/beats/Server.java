@@ -113,12 +113,14 @@ public class Server {
         private final IMessageListener localMessageListener;
         private final int localClientInactivityTimeoutSeconds;
         private final boolean localEnableSSL;
+        private final BeatsHandler beatsHandler;
 
         BeatsInitializer(Boolean enableSSL, IMessageListener messageListener, int clientInactivityTimeoutSeconds, int beatsHandlerThread) {
             // Keeps a local copy of Server settings, so they can't be modified once it starts listening
             this.localEnableSSL = enableSSL;
             this.localMessageListener = messageListener;
             this.localClientInactivityTimeoutSeconds = clientInactivityTimeoutSeconds;
+            this.beatsHandler = new BeatsHandler(localMessageListener);
             idleExecutorGroup = new DefaultEventExecutorGroup(DEFAULT_IDLESTATEHANDLER_THREAD);
             beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(beatsHandlerThread);
 
@@ -135,7 +137,7 @@ public class Server {
                 new IdleStateHandler(localClientInactivityTimeoutSeconds, IDLESTATE_WRITER_IDLE_TIME_SECONDS, localClientInactivityTimeoutSeconds));
             pipeline.addLast(BEATS_ACKER, new AckEncoder());
             pipeline.addLast(CONNECTION_HANDLER, new ConnectionHandler());
-            pipeline.addLast(beatsHandlerExecutorGroup, new BeatsParser(), new BeatsHandler(localMessageListener));
+            pipeline.addLast(beatsHandlerExecutorGroup, new BeatsParser(), beatsHandler);
         }
 
         @Override
