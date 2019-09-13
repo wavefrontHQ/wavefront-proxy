@@ -603,9 +603,8 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--disableRdnsLookup"}, description = "When receiving Wavefront-formatted data without source/host specified, use remote IP address as source instead of trying to resolve the DNS name. Default false.")
   protected boolean disableRdnsLookup = false;
 
-  @Parameter(names = {"--javaNetConnection"}, hidden = true,
-      description = "(DEPRECATED) If true, use JRE's own http client when making connections " +
-          "instead of Apache HTTP Client")
+  @Parameter(names = {"--javaNetConnection"}, hidden = true, description = "(DEPRECATED) If true," +
+      " use JRE's own http client when making connections instead of Apache HTTP Client")
   @Deprecated
   protected boolean javaNetConnection = false;
 
@@ -1067,7 +1066,6 @@ public abstract class AbstractAgent {
       httpMaxConnTotal = Math.min(200, config.getNumber("httpMaxConnTotal", httpMaxConnTotal).intValue());
       httpMaxConnPerRoute = Math.min(100, config.getNumber("httpMaxConnPerRoute", httpMaxConnPerRoute).intValue());
       httpAutoRetries = config.getNumber("httpAutoRetries", httpAutoRetries).intValue();
-      javaNetConnection = config.getBoolean("javaNetConnection", javaNetConnection);
       gzipCompression = config.getBoolean("gzipCompression", gzipCompression);
       soLingerTime = config.getNumber("soLingerTime", soLingerTime).intValue();
       splitPushWhenRateLimited = config.getBoolean("splitPushWhenRateLimited", splitPushWhenRateLimited);
@@ -1424,58 +1422,38 @@ public abstract class AbstractAgent {
       httpUserAgent = "Wavefront-Proxy/" + props.getString("build.version");
     }
     ClientHttpEngine httpEngine;
-    if (javaNetConnection) {
-      httpEngine = new JavaNetConnectionEngine() {
-        @Override
-        protected HttpURLConnection createConnection(ClientInvocation request) throws IOException {
-          HttpURLConnection connection = (HttpURLConnection) request.getUri().toURL().openConnection();
-          connection.setRequestProperty("User-Agent", httpUserAgent);
-          connection.setRequestMethod(request.getMethod());
-          connection.setConnectTimeout(httpConnectTimeout); // 5s
-          connection.setReadTimeout(httpRequestTimeout); // 60s
-          if (connection instanceof HttpsURLConnection) {
-            HttpsURLConnection secureConnection = (HttpsURLConnection) connection;
-            secureConnection.setSSLSocketFactory(new SSLSocketFactoryImpl(
-                HttpsURLConnection.getDefaultSSLSocketFactory(),
-                httpRequestTimeout));
+    HttpClient httpClient = HttpClientBuilder.create().
+        useSystemProperties().
+        setUserAgent(httpUserAgent).
+        setMaxConnTotal(httpMaxConnTotal).
+        setMaxConnPerRoute(httpMaxConnPerRoute).
+        setConnectionTimeToLive(1, TimeUnit.MINUTES).
+        setDefaultSocketConfig(
+            SocketConfig.custom().
+                setSoTimeout(httpRequestTimeout).build()).
+        setSSLSocketFactory(new SSLConnectionSocketFactoryImpl(
+            SSLConnectionSocketFactory.getSystemSocketFactory(),
+            httpRequestTimeout)).
+        setRetryHandler(new DefaultHttpRequestRetryHandler(httpAutoRetries, true) {
+          @Override
+          protected boolean handleAsIdempotent(HttpRequest request) {
+            // by default, retry all http calls (submissions are idempotent).
+            return true;
           }
-          return connection;
-        }
-      };
-    } else {
-      HttpClient httpClient = HttpClientBuilder.create().
-          useSystemProperties().
-          setUserAgent(httpUserAgent).
-          setMaxConnTotal(httpMaxConnTotal).
-          setMaxConnPerRoute(httpMaxConnPerRoute).
-          setConnectionTimeToLive(1, TimeUnit.MINUTES).
-          setDefaultSocketConfig(
-              SocketConfig.custom().
-                  setSoTimeout(httpRequestTimeout).build()).
-          setSSLSocketFactory(new SSLConnectionSocketFactoryImpl(
-              SSLConnectionSocketFactory.getSystemSocketFactory(),
-              httpRequestTimeout)).
-          setRetryHandler(new DefaultHttpRequestRetryHandler(httpAutoRetries, true) {
-            @Override
-            protected boolean handleAsIdempotent(HttpRequest request) {
-              // by default, retry all http calls (submissions are idempotent).
-              return true;
-            }
-          }).
-          setDefaultRequestConfig(
-              RequestConfig.custom().
-                  setContentCompressionEnabled(true).
-                  setRedirectsEnabled(true).
-                  setConnectTimeout(httpConnectTimeout).
-                  setConnectionRequestTimeout(httpConnectTimeout).
-                  setSocketTimeout(httpRequestTimeout).build()).
-          build();
-      final ApacheHttpClient4Engine apacheHttpClient4Engine = new ApacheHttpClient4Engine(httpClient, true);
-      // avoid using disk at all
-      apacheHttpClient4Engine.setFileUploadInMemoryThresholdLimit(100);
-      apacheHttpClient4Engine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
-      httpEngine = apacheHttpClient4Engine;
-    }
+        }).
+        setDefaultRequestConfig(
+            RequestConfig.custom().
+                setContentCompressionEnabled(true).
+                setRedirectsEnabled(true).
+                setConnectTimeout(httpConnectTimeout).
+                setConnectionRequestTimeout(httpConnectTimeout).
+                setSocketTimeout(httpRequestTimeout).build()).
+        build();
+    final ApacheHttpClient4Engine apacheHttpClient4Engine = new ApacheHttpClient4Engine(httpClient, true);
+    // avoid using disk at all
+    apacheHttpClient4Engine.setFileUploadInMemoryThresholdLimit(100);
+    apacheHttpClient4Engine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
+    httpEngine = apacheHttpClient4Engine;
     ResteasyClient client = new ResteasyClientBuilder().
         httpEngine(httpEngine).
         providerFactory(factory).
