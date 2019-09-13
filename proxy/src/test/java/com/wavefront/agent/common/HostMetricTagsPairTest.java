@@ -3,8 +3,9 @@ package com.wavefront.agent.common;
 import com.wavefront.common.HostMetricTagsPair;
 
 import org.junit.Assert;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Assertions;
+import org.junit.Test;
+import org.junit.Rule;
+import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,18 +15,23 @@ import java.util.Map;
  */
 public class HostMetricTagsPairTest {
 
-  @Test
-  public void testGetHost() {
-    HostMetricTagsPair hostMetricTagsPair = new HostMetricTagsPair("host", "metric",
-        null);
-    Assert.assertEquals(hostMetricTagsPair.getHost(), "host");
-  }
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testEmptyHost() {
-    Assertions.assertThrows(NullPointerException.class, () -> {
-      new HostMetricTagsPair(null, "metric", null);
-    });
+    thrown.expect(NullPointerException.class);
+    Map<String, String> tags = new HashMap<>();
+    tags.put("key", "value");
+    new HostMetricTagsPair(null, "metric", tags);
+  }
+
+  @Test
+  public void testEmptyMetric() {
+    Map<String, String> tags = new HashMap<>();
+    tags.put("key", "value");
+    thrown.expect(NullPointerException.class);
+    new HostMetricTagsPair("host", null, tags);
   }
 
   @Test
@@ -36,10 +42,10 @@ public class HostMetricTagsPairTest {
   }
 
   @Test
-  public void testEmptyMetric() {
-    Assertions.assertThrows(NullPointerException.class, () -> {
-      new HostMetricTagsPair("host", null, null);
-    });
+  public void testGetHost() {
+    HostMetricTagsPair hostMetricTagsPair = new HostMetricTagsPair("host", "metric",
+        null);
+    Assert.assertEquals(hostMetricTagsPair.getHost(), "host");
   }
 
   @Test
@@ -56,6 +62,7 @@ public class HostMetricTagsPairTest {
     tags1.put("key1", "value1");
     HostMetricTagsPair hostMetricTagsPair1 = new HostMetricTagsPair("host1", "metric1",
         tags1);
+
     //equals itself
     Assert.assertTrue(hostMetricTagsPair1.equals(hostMetricTagsPair1));
 
@@ -64,24 +71,24 @@ public class HostMetricTagsPairTest {
         tags1);
     Assert.assertTrue(hostMetricTagsPair1.equals(hostMetricTagsPair2));
 
-    //different host with hostMetricTagsPair1
+    //compare different host with hostMetricTagsPair1
     HostMetricTagsPair hostMetricTagsPair3 = new HostMetricTagsPair("host2", "metric1",
         tags1);
     Assert.assertFalse(hostMetricTagsPair1.equals(hostMetricTagsPair3));
 
-    //different metric with hostMetricTagsPair1
+    //compare different metric with hostMetricTagsPair1
     HostMetricTagsPair hostMetricTagsPair4 = new HostMetricTagsPair("host1", "metric2",
         tags1);
     Assert.assertFalse(hostMetricTagsPair1.equals(hostMetricTagsPair4));
 
-    //different tags with hostMetricTagsPair1
+    //compare different tags with hostMetricTagsPair1
     Map<String, String> tags2 = new HashMap<>();
     tags2.put("key2", "value2");
     HostMetricTagsPair hostMetricTagsPair5 = new HostMetricTagsPair("host1", "metric1",
         tags2);
     Assert.assertFalse(hostMetricTagsPair1.equals(hostMetricTagsPair5));
 
-    //empty tags with hostMetricTagsPair1
+    //compare empty tags with hostMetricTagsPair1
     HostMetricTagsPair hostMetricTagsPair6 = new HostMetricTagsPair("host1", "metric1",
         null);
     Assert.assertFalse(hostMetricTagsPair1.equals(hostMetricTagsPair6));
