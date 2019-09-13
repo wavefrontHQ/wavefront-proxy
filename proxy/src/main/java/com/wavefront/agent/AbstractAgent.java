@@ -727,7 +727,7 @@ public abstract class AbstractAgent {
   protected List<String> unparsed_params;
 
   @Parameter(names = {"--deltaCountersAggregationIntervalSeconds"},
-      description = "Delay time for delta counter reporter. Defaults to 30")
+      description = "Delay time for delta counter reporter. Defaults to 30 seconds.")
   protected long deltaCountersAggregationIntervalSeconds = 30;
 
   @Parameter(names = {"--deltaCountersAggregationListenerPorts"},

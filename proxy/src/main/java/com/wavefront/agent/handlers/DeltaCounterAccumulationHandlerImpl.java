@@ -14,7 +14,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.DeltaCounter;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricsRegistry;
+
 import org.apache.commons.lang.math.NumberUtils;
 import java.util.Collection;
 import java.util.Random;
@@ -41,7 +41,7 @@ import com.yammer.metrics.core.Gauge;
 public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntityHandler<ReportPoint> {
 
     private static final Logger logger = Logger.getLogger(
-        AbstractReportableEntityHandler.class.getCanonicalName());
+        DeltaCounterAccumulationHandlerImpl.class.getCanonicalName());
     private static final Logger validPointsLogger = Logger.getLogger("RawValidPoints");
     private static final Random RANDOM = new Random();
     final Histogram receivedPointLag;
@@ -49,7 +49,7 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
     boolean logData = false;
     private final double logSampleRate;
     private volatile long logStateUpdatedMillis = 0L;
-    private final Cache<HostMetricTagsPair, AtomicDouble> metricCache;
+    private final Cache<HostMetricTagsPair, AtomicDouble> aggregatedDeltas;
     private final ScheduledExecutorService deltaCounterReporter =
         Executors.newSingleThreadScheduledExecutor();
 
@@ -61,7 +61,7 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
     /**
      * Creates a new instance that handles either histograms or points.
      *
-     * @param handle               handle/port number
+     * @param handle               handle/port number.
      * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
      *                             the main log file.
      * @param validationConfig     Supplier for the validation configuration. if false).
@@ -74,10 +74,10 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
         super(ReportableEntityType.DELTA_COUNTER, handle, blockedItemsPerBatch,
             new ReportPointSerializer(), senderTasks, validationConfig, "pps", true);
 
-        this.metricCache = Caffeine.newBuilder().
-            expireAfterWrite(15, TimeUnit.MINUTES).
+        this.aggregatedDeltas = Caffeine.newBuilder().
+            expireAfterAccess(5 * deltaCountersAggregationIntervalSeconds, TimeUnit.SECONDS).
             removalListener((RemovalListener<HostMetricTagsPair, AtomicDouble>)
-                (metric, value, reason) -> this.reportDeltaCounter(metric, value)).build();
+                (metric, value, reason) -> this.reportAggregatedDeltaValue(metric, value)).build();
 
         String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
         this.logPointsFlag =
@@ -87,8 +87,8 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
         this.logSampleRate = NumberUtils.isNumber(logPointsSampleRateProperty) ?
             Double.parseDouble(logPointsSampleRateProperty) : 1.0d;
 
-        MetricsRegistry registry = Metrics.defaultRegistry();
-        this.receivedPointLag = registry.newHistogram(new MetricName("points." + handle +
+//        MetricsRegistry registry = Metrics.defaultRegistry();
+        this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle +
             ".received", "", "lag"), false);
 
         deltaCounterReporter.scheduleWithFixedDelay(this::reportCache,
@@ -96,28 +96,29 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
             TimeUnit.SECONDS);
 
         String metricPrefix = entityType.toString() + "." + handle;
-        this.reportedCounter = registry.newCounter(new MetricName(metricPrefix, "",
+        this.reportedCounter = Metrics.newCounter(new MetricName(metricPrefix, "",
             "sent"));
         Metrics.newGauge(new MetricName(metricPrefix, "",
             "accumulator.size"), new Gauge<Long>() {
             @Override
             public Long value() {
-                return metricCache.estimatedSize();
+                return aggregatedDeltas.estimatedSize();
             }
         });
     }
 
     private void reportCache() {
-        this.metricCache.asMap().forEach(this::reportDeltaCounter);
+        this.aggregatedDeltas.asMap().forEach(this::reportAggregatedDeltaValue);
     }
 
-    private void reportDeltaCounter(HostMetricTagsPair hostMetricTagsPair, AtomicDouble value) {
+    private void reportAggregatedDeltaValue(@Nullable HostMetricTagsPair hostMetricTagsPair,
+                                            @Nullable  AtomicDouble value) {
         this.reportedCounter.inc();
         if (value == null || hostMetricTagsPair == null) {return;}
         double reportedValue = value.getAndSet(0);
         if (reportedValue == 0) return;
         String strPoint = metricToLineData(hostMetricTagsPair.metric, reportedValue,
-            System.currentTimeMillis(), hostMetricTagsPair.getHost(),
+            Clock.now(), hostMetricTagsPair.getHost(),
             hostMetricTagsPair.getTags(), "wavefront-proxy");
         getTask().add(strPoint);
     }
@@ -142,12 +143,12 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
                 validPointsLogger.info(strPoint);
             }
             getReceivedCounter().inc();
-            double pvalue = (double) point.getValue();
+            double deltaValue = (double) point.getValue();
             receivedPointLag.update(Clock.now() - point.getTimestamp());
             HostMetricTagsPair hostMetricTagsPair = new HostMetricTagsPair(point.getHost(),
                 point.getMetric(), point.getAnnotations());
-            metricCache.get(hostMetricTagsPair,
-                key -> new AtomicDouble(0)).getAndAdd(pvalue);
+            aggregatedDeltas.get(hostMetricTagsPair,
+                key -> new AtomicDouble(0)).getAndAdd(deltaValue);
             getReceivedCounter().inc();
         } else {
             reject(point, "Port is not configured to accept non-delta counter data!");

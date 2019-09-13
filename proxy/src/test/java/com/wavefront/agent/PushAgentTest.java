@@ -561,7 +561,7 @@ public class PushAgentTest {
     TimeUnit.MILLISECONDS.sleep(10000);
     socket.close();
     verify(mockSenderTask);
-    String[] reportPoints = {"1.0", "2.0", "3.0"};
+    String[] reportPoints = { "1.0", "2.0", "3.0" };
     int pointInd = 0;
     for (String s : capturedArgument.getValues()) {
       System.out.println(s);
@@ -596,7 +596,7 @@ public class PushAgentTest {
 
     socket.close();
     verify(mockSenderTask);
-    String[] reportPoints = {"2.0", "3.0"};
+    String[] reportPoints = { "2.0", "3.0" };
     int pointInd = 0;
     for (String s : capturedArgument.getValues()) {
       Assert.assertTrue(s.startsWith("\"∆test.mixed\" " + reportPoints[pointInd]));
