@@ -87,7 +87,6 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
         this.logSampleRate = NumberUtils.isNumber(logPointsSampleRateProperty) ?
             Double.parseDouble(logPointsSampleRateProperty) : 1.0d;
 
-//        MetricsRegistry registry = Metrics.defaultRegistry();
         this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle +
             ".received", "", "lag"), false);
 
