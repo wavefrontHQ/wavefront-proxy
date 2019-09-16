@@ -19,6 +19,7 @@ import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
+import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.HistogramAccumulationHandlerImpl;
 import com.wavefront.agent.handlers.InternalProxyWavefrontClient;
@@ -197,6 +198,11 @@ public class PushAgent extends AbstractAgent {
     portIterator(pushListenerPorts).forEachRemaining(strPort -> {
       startGraphiteListener(strPort, handlerFactory, remoteHostAnnotator);
       logger.info("listening on port: " + strPort + " for Wavefront metrics");
+    });
+
+    portIterator(deltaCountersAggregationListenerPorts).forEachRemaining(strPort -> {
+      startDeltaCounterListener(strPort, remoteHostAnnotator, senderTaskFactory);
+      logger.info("listening on port: " + strPort + " for Wavefront delta counter metrics");
     });
 
     {
@@ -528,9 +534,39 @@ public class PushAgent extends AbstractAgent {
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
         new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
             decoderSupplier.get(), handlerFactory, hostAnnotator, preprocessors.get(strPort));
+
     startAsManagedThread(new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort,
         pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
         port).withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
+  }
+
+  @VisibleForTesting
+  protected void startDeltaCounterListener(String strPort, SharedGraphiteHostAnnotator hostAnnotator,
+                                           SenderTaskFactory senderTaskFactory) {
+    final int port = Integer.parseInt(strPort);
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
+
+    ReportableEntityHandlerFactory deltaCounterHandlerFactory = new ReportableEntityHandlerFactory() {
+      private Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
+      @Override
+      public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
+        return handlers.computeIfAbsent(handlerKey, k -> new DeltaCounterAccumulationHandlerImpl(
+            handlerKey.getHandle(), pushBlockedSamples,
+            senderTaskFactory.createSenderTasks(handlerKey, flushThreads),
+            () -> validationConfiguration, deltaCountersAggregationIntervalSeconds));
+      }
+    };
+
+    WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
+        new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
+            decoderSupplier.get(), deltaCounterHandlerFactory, hostAnnotator,
+            preprocessors.get(strPort));
+
+    startAsManagedThread(new TcpIngester(createInitializer(wavefrontPortUnificationHandler, strPort,
+        pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
+        port).withChildChannelOptions(childChannelOptions), "listener-deltaCounter-" + port);
   }
 
   @VisibleForTesting

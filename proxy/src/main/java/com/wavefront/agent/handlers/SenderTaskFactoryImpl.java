@@ -74,6 +74,11 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
               PUSH_FORMAT_WAVEFRONT, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
               globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
           break;
+        case DELTA_COUNTER:
+          senderTask = new LineDelimitedSenderTask(ReportableEntityType.DELTA_COUNTER.toString(),
+              PUSH_FORMAT_WAVEFRONT, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
+              globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
+          break;
         case HISTOGRAM:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.HISTOGRAM.toString(),
               PUSH_FORMAT_HISTOGRAM, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,

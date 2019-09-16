@@ -726,6 +726,16 @@ public abstract class AbstractAgent {
   @Parameter(description = "")
   protected List<String> unparsed_params;
 
+  @Parameter(names = {"--deltaCountersAggregationIntervalSeconds"},
+      description = "Delay time for delta counter reporter. Defaults to 30 seconds.")
+  protected long deltaCountersAggregationIntervalSeconds = 30;
+
+  @Parameter(names = {"--deltaCountersAggregationListenerPorts"},
+      description = "Comma-separated list of ports to listen on Wavefront-formatted delta " +
+          "counters. Helps reduce outbound point rate by pre-aggregating delta counters at proxy." +
+          " Defaults: none")
+  protected String deltaCountersAggregationListenerPorts = "";
+
   /**
    * A set of commandline parameters to hide when echoing command line arguments
    */
@@ -963,6 +973,13 @@ public abstract class AbstractAgent {
           histogramHttpBufferSize).intValue();
       persistAccumulator = config.getBoolean("persistAccumulator", persistAccumulator);
 
+      deltaCountersAggregationListenerPorts =
+          config.getString("deltaCountersAggregationListenerPorts",
+              deltaCountersAggregationListenerPorts);
+      deltaCountersAggregationIntervalSeconds =
+          config.getNumber("deltaCountersAggregationIntervalSeconds",
+              deltaCountersAggregationIntervalSeconds).longValue();
+
       // Histogram: deprecated settings - fall back for backwards compatibility
       if (config.isDefined("avgHistogramKeyBytes")) {
         histogramMinuteAvgKeyBytes = histogramHourAvgKeyBytes = histogramDayAvgKeyBytes =
@@ -1149,7 +1166,8 @@ public abstract class AbstractAgent {
           or less, heap size less than 4GB) to prevent OOM. this is a conservative estimate, budgeting 200 characters
           (400 bytes) per per point line. Also, it shouldn't be less than 1 batch size (pushFlushMaxPoints).
          */
-      int listeningPorts = Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().split(pushListenerPorts));
+      int listeningPorts = Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().
+          split(pushListenerPorts));
       long calculatedMemoryBufferLimit = Math.max(Math.min(16 * pushFlushMaxPoints.get(),
           Runtime.getRuntime().maxMemory() / (listeningPorts > 0 ? listeningPorts : 1) / 4 / flushThreads / 400),
           pushFlushMaxPoints.get());

@@ -76,8 +76,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
     this.wavefrontDecoder = decoders.get(ReportableEntityType.POINT);
     this.annotator = annotator;
     this.preprocessorSupplier = preprocessor;
-    this.wavefrontHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT,
-        handle));
+    this.wavefrontHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
     this.histogramDecoder = decoders.get(ReportableEntityType.HISTOGRAM);
     this.sourceTagDecoder = decoders.get(ReportableEntityType.SOURCE_TAG);
     this.histogramHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
