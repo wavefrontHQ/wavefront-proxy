@@ -4,11 +4,9 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>5.0-RC1-SNAPSHOT</version>
+  <version>5.0-SNAPSHOT</version>
   <modules>
-    <module>java-lib</module>
     <module>proxy</module>
-    <module>yammer-metrics</module>
   </modules>
   <packaging>pom</packaging>
 
@@ -33,7 +31,7 @@
     <connection>scm:git:git@github.com:wavefronthq/java.git</connection>
     <developerConnection>scm:git:git@github.com:wavefronthq/java.git</developerConnection>
     <url>git@github.com:wavefronthq/java.git</url>
-    <tag>release-4.x</tag>
+    <tag>release-5.x</tag>
   </scm>
 
   <distributionManagement>
@@ -57,7 +55,7 @@
     <jackson.version>2.9.9</jackson.version>
     <jackson-databind.version>2.9.9.3</jackson-databind.version>
     <netty.version>4.1.41.Final</netty.version>
-    <public.project.version>5.0-RC1-SNAPSHOT</public.project.version>
+    <java-lib.version>2019-09.1</java-lib.version>
   </properties>
 
   <build>
@@ -96,12 +94,7 @@
       <dependency>
         <groupId>com.wavefront</groupId>
         <artifactId>java-lib</artifactId>
-        <version>${public.project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.wavefront</groupId>
-        <artifactId>proxy</artifactId>
-        <version>${public.project.version}</version>
+        <version>${java-lib.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>
