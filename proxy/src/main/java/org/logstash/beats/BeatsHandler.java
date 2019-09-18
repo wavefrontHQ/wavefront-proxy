@@ -1,19 +1,35 @@
 package org.logstash.beats;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.wavefront.agent.Utils;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
+
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.util.AttributeKey;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
 import javax.net.ssl.SSLHandshakeException;
 
+@ChannelHandler.Sharable
 public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
     private final static Logger logger = LogManager.getLogger(BeatsHandler.class);
     private final IMessageListener messageListener;
-    private ChannelHandlerContext context;
-
+    private final Supplier<Counter> duplicateBatchesIgnored = Utils.lazySupplier(() ->
+        Metrics.newCounter(new MetricName("logsharvesting", "", "filebeat-duplicate-batches")));
+    private final Cache<String, BatchIdentity> batchDedupeCache = Caffeine.newBuilder().
+        expireAfterAccess(1, TimeUnit.HOURS).
+        build();
 
     public BeatsHandler(IMessageListener listener) {
         messageListener = listener;
@@ -21,9 +37,8 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
 
     @Override
     public void channelActive(final ChannelHandlerContext ctx) throws Exception {
-        context = ctx;
         if (logger.isTraceEnabled()){
-            logger.trace(format("Channel Active"));
+            logger.trace(format(ctx, "Channel Active"));
         }
         super.channelActive(ctx);
         messageListener.onNewConnection(ctx);
@@ -33,7 +48,7 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
         if (logger.isTraceEnabled()){
-            logger.trace(format("Channel Inactive"));
+            logger.trace(format(ctx, "Channel Inactive"));
         }
         messageListener.onConnectionClose(ctx);
     }
@@ -42,18 +57,43 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
     @Override
     public void channelRead0(ChannelHandlerContext ctx, Batch batch) throws Exception {
         if(logger.isDebugEnabled()) {
-            logger.debug(format("Received a new payload"));
+            logger.debug(format(ctx, "Received a new payload"));
         }
         try {
+            boolean isFirstMessage = true;
+            String key;
+            BatchIdentity value;
             for (Message message : batch) {
-                if (logger.isDebugEnabled()) {
-                    logger.debug(format("Sending a new message for the listener, sequence: " + message.getSequence()));
+              if (isFirstMessage) {
+                // check whether we've processed that batch already
+                isFirstMessage = false;
+                key = BatchIdentity.keyFrom(message);
+                value = BatchIdentity.valueFrom(message);
+                if (key != null && value != null) {
+                  BatchIdentity cached = batchDedupeCache.getIfPresent(key);
+                  if (value.equals(cached)) {
+                    duplicateBatchesIgnored.get().inc();
+                    if (logger.isDebugEnabled()) {
+                      logger.debug(format(ctx, "Duplicate filebeat batch received, ignoring"));
+                    }
+                    // ack the entire batch and stop processing the rest of it
+                    writeAck(ctx, message.getBatch().getProtocol(),
+                        message.getBatch().getHighestSequence());
+                    break;
+                  } else {
+                    batchDedupeCache.put(key, value);
+                  }
                 }
-                messageListener.onNewMessage(ctx, message);
+              }
+              if (logger.isDebugEnabled()) {
+                logger.debug(format(ctx, "Sending a new message for the listener, sequence: " +
+                    message.getSequence()));
+              }
+              messageListener.onNewMessage(ctx, message);
 
-                if (needAck(message)) {
-                    ack(ctx, message);
-                }
+              if (needAck(message)) {
+                ack(ctx, message);
+              }
             }
         }finally{
             //this channel is done processing this payload, instruct the connection handler to stop sending TCP keep alive
@@ -84,9 +124,9 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
             String causeMessage = cause.getMessage() == null ? cause.getClass().toString() : cause.getMessage();
 
             if (logger.isDebugEnabled()){
-                logger.debug(format("Handling exception: " + causeMessage), cause);
+                logger.debug(format(ctx, "Handling exception: " + causeMessage), cause);
             }
-            logger.info(format("Handling exception: " + causeMessage));
+            logger.info(format(ctx, "Handling exception: " + causeMessage));
         } finally{
             super.exceptionCaught(ctx, cause);
             ctx.flush();
@@ -100,22 +140,28 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
 
     private void ack(ChannelHandlerContext ctx, Message message) {
         if (logger.isTraceEnabled()){
-            logger.trace(format("Acking message number " + message.getSequence()));
+            logger.trace(format(ctx, "Acking message number " + message.getSequence()));
         }
         writeAck(ctx, message.getBatch().getProtocol(), message.getSequence());
+        writeAck(ctx, message.getBatch().getProtocol(), 0); // send blank ack
     }
 
     private void writeAck(ChannelHandlerContext ctx, byte protocol, int sequence) {
-        ctx.write(new Ack(protocol, sequence));
+        ctx.writeAndFlush(new Ack(protocol, sequence)).
+            addListener((ChannelFutureListener) channelFuture -> {
+                if (channelFuture.isSuccess() && logger.isTraceEnabled() && sequence > 0) {
+                    logger.trace(format(ctx, "Ack complete for message number " + sequence));
+                }
+            });
     }
 
     /*
      * There is no easy way in Netty to support MDC directly,
      * we will use similar logic than Netty's LoggingHandler
      */
-    private String format(String message) {
-        InetSocketAddress local = (InetSocketAddress) context.channel().localAddress();
-        InetSocketAddress remote = (InetSocketAddress) context.channel().remoteAddress();
+    private String format(ChannelHandlerContext ctx, String message) {
+        InetSocketAddress local = (InetSocketAddress) ctx.channel().localAddress();
+        InetSocketAddress remote = (InetSocketAddress) ctx.channel().remoteAddress();
 
         String localhost;
         if(local != null) {

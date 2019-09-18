@@ -51,7 +51,7 @@
     <truth.version>0.29</truth.version>
 
     <java.version>1.8</java.version>
-    <log4j.version>2.11.1</log4j.version>
+    <log4j.version>2.12.1</log4j.version>
     <jackson.version>2.9.9</jackson.version>
     <jackson-databind.version>2.9.9.3</jackson-databind.version>
     <netty.version>4.1.41.Final</netty.version>
