@@ -330,21 +330,25 @@ public class PushAgent extends AbstractAgent {
         startWriteHttpJsonListener(strPort, handlerFactory));
 
     // Logs ingestion.
-    if ((filebeatPort > 0 || rawLogsPort > 0) && loadLogsIngestionConfig() != null) {
-      logger.info("Initializing logs ingestion");
-      try {
-        final LogsIngester logsIngester = new LogsIngester(handlerFactory,
-            this::loadLogsIngestionConfig, prefix);
-        logsIngester.start();
+    if (filebeatPort > 0 || rawLogsPort > 0) {
+      if (loadLogsIngestionConfig() != null) {
+        logger.info("Initializing logs ingestion");
+        try {
+          final LogsIngester logsIngester = new LogsIngester(handlerFactory,
+              this::loadLogsIngestionConfig, prefix);
+          logsIngester.start();
 
-        if (filebeatPort > 0) {
-          startLogsIngestionListener(filebeatPort, logsIngester);
+          if (filebeatPort > 0) {
+            startLogsIngestionListener(filebeatPort, logsIngester);
+          }
+          if (rawLogsPort > 0) {
+            startRawLogsIngestionListener(rawLogsPort, logsIngester);
+          }
+        } catch (ConfigurationException e) {
+          logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
         }
-        if (rawLogsPort > 0) {
-          startRawLogsIngestionListener(rawLogsPort, logsIngester);
-        }
-      } catch (ConfigurationException e) {
-        logger.log(Level.SEVERE, "Cannot start logsIngestion", e);
+      } else {
+        logger.warning("Cannot start logsIngestion: invalid configuration or no config specified");
       }
     }
   }

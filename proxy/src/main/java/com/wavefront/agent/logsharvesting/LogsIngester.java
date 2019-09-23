@@ -13,6 +13,8 @@ import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 
+import java.util.Timer;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
@@ -94,9 +96,15 @@ public class LogsIngester {
   }
 
   public void start() {
-    this.metricsReporter.start(
-        this.logsIngestionConfigManager.getConfig().aggregationIntervalSeconds,
-        TimeUnit.SECONDS);
+    long interval = this.logsIngestionConfigManager.getConfig().aggregationIntervalSeconds;
+    this.metricsReporter.start(interval, TimeUnit.SECONDS);
+    // check for expired cached items and trigger evictions every 2x aggregationIntervalSeconds
+    // but no more than once a minute. This is a workaround for the issue that surfaces mostly
+    // during testing, when there are no matching log messages at all for more than expiryMillis,
+    // which means there is no cache access and no time-based evictions are performed.
+    Executors.newSingleThreadScheduledExecutor().
+        scheduleWithFixedDelay(evictingMetricsRegistry::cleanUp, interval * 3 / 2,
+            Math.max(60, interval * 2), TimeUnit.SECONDS);
   }
 
   public void flush() {

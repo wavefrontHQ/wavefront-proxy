@@ -1303,7 +1303,6 @@ public abstract class AbstractAgent {
       loadListenerConfigurationFile();
       postProcessConfig();
       initPreprocessors();
-      loadLogsIngestionConfig();
       configureTokenAuthenticator();
 
       managedExecutors.add(agentConfigurationExecutor);

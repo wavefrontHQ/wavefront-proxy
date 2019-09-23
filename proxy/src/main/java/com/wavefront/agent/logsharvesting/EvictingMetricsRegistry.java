@@ -20,6 +20,7 @@ import com.yammer.metrics.core.WavefrontHistogram;
 
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
@@ -63,7 +64,7 @@ public class EvictingMetricsRegistry {
           @Override
           public void delete(@Nonnull MetricName key, @Nullable Metric value,
                              @Nonnull RemovalCause cause) {
-            if (cause == RemovalCause.EXPIRED &&
+            if ((cause == RemovalCause.EXPIRED || cause == RemovalCause.EXPLICIT) &&
                 metricsRegistry.allMetrics().get(key) == value) {
               metricsRegistry.removeMetric(key);
             }
@@ -79,28 +80,22 @@ public class EvictingMetricsRegistry {
       // use delta counters instead of regular counters. It helps with load balancers present in
       // front of proxy (PUB-125)
       MetricName newMetricName = DeltaCounter.getDeltaCounterMetricName(metricName);
-      metricNamesForMetricMatchers.get(metricMatcher).add(newMetricName);
-      return (Counter) metricCache.get(newMetricName, key -> DeltaCounter.get(metricsRegistry,
-          newMetricName));
+      return put(newMetricName, metricMatcher,
+          key -> DeltaCounter.get(metricsRegistry, newMetricName));
     } else {
-      metricNamesForMetricMatchers.get(metricMatcher).add(metricName);
-      return (Counter) metricCache.get(metricName, metricsRegistry::newCounter);
+      return put(metricName, metricMatcher, metricsRegistry::newCounter);
     }
   }
 
   public Gauge getGauge(MetricName metricName, MetricMatcher metricMatcher) {
-    metricNamesForMetricMatchers.get(metricMatcher).add(metricName);
-    return (Gauge) metricCache.get(
-        metricName, (key) -> metricsRegistry.newGauge(key, new ChangeableGauge<Double>()));
+    return put(metricName, metricMatcher,
+        key -> metricsRegistry.newGauge(key, new ChangeableGauge<Double>()));
   }
 
   public Histogram getHistogram(MetricName metricName, MetricMatcher metricMatcher) {
-    metricNamesForMetricMatchers.get(metricMatcher).add(metricName);
-    return (Histogram) metricCache.get(
-        metricName,
-        (key) -> wavefrontHistograms
-            ? WavefrontHistogram.get(metricsRegistry, key, this.nowMillis)
-            : metricsRegistry.newHistogram(metricName, false));
+    return put(metricName, metricMatcher, key -> wavefrontHistograms ?
+        WavefrontHistogram.get(metricsRegistry, key, this.nowMillis) :
+        metricsRegistry.newHistogram(metricName, false));
   }
 
   public synchronized void evict(MetricMatcher evicted) {
@@ -108,5 +103,25 @@ public class EvictingMetricsRegistry {
       metricCache.invalidate(toRemove);
     }
     metricNamesForMetricMatchers.invalidate(evicted);
+  }
+
+  public void cleanUp() {
+    metricCache.cleanUp();
+  }
+
+  @SuppressWarnings("unchecked")
+  private <M extends Metric> M put(MetricName metricName, MetricMatcher metricMatcher,
+                                   Function<MetricName, M> getter) {
+    @Nullable
+    Metric cached = metricCache.getIfPresent(metricName);
+    metricNamesForMetricMatchers.get(metricMatcher).add(metricName);
+    if (cached != null && cached == metricsRegistry.allMetrics().get(metricName)) {
+      return (M) cached;
+    }
+    return (M) metricCache.asMap().compute(metricName, (name, existing) -> {
+      @Nullable
+      Metric expected = metricsRegistry.allMetrics().get(name);
+      return expected == null ? getter.apply(name) : expected;
+    });
   }
 }
