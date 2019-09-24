@@ -441,18 +441,13 @@ public class ValidationTest {
       assertTrue(iae.getMessage().contains("WF-432"));
     }
 
-    // span annotation value too long: WF-433
+    // accept long span annotation value
     span = getValidSpan();
     span.getAnnotations().add(new Annotation("k", "v23456789012345"));
     Validation.validateSpan(span, config);
     span = getValidSpan();
     span.getAnnotations().add(new Annotation("k", "v234567890123456"));
-    try {
-      Validation.validateSpan(span, config);
-      fail();
-    } catch (IllegalArgumentException iae) {
-      assertTrue(iae.getMessage().contains("WF-433"));
-    }
+    Validation.validateSpan(span, config);
   }
 
   @Test
