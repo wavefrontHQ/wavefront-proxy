@@ -20,7 +20,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private static final Logger logger = Logger.getLogger(
       ReportableEntityHandlerFactoryImpl.class.getCanonicalName());
 
-  private static final int SOURCE_TAGS_NUM_THREADS = 2;
+  private static final int API_NUM_THREADS = 2;
 
   protected final Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
 
@@ -63,7 +63,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
               validationConfig, true, true);
         case SOURCE_TAG:
           return new ReportSourceTagHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, SOURCE_TAGS_NUM_THREADS));
+              senderTaskFactory.createSenderTasks(handlerKey, API_NUM_THREADS));
         case TRACE:
           return new SpanHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
@@ -71,6 +71,9 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
         case TRACE_SPAN_LOGS:
           return new SpanLogsHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads));
+        case EVENT:
+          return new EventHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
+              senderTaskFactory.createSenderTasks(handlerKey, API_NUM_THREADS));
         default:
           throw new IllegalArgumentException("Unexpected entity type " +
               handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());

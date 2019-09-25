@@ -1441,7 +1441,8 @@ public abstract class AbstractAgent {
         register(AcceptEncodingGZIPFilter.class).
         register((ClientRequestFilter) context -> {
           if (context.getUri().getPath().contains("/pushdata/") ||
-              context.getUri().getPath().contains("/report")) {
+              context.getUri().getPath().contains("/report") ||
+              context.getUri().getPath().contains("/event")) {
             context.getHeaders().add("Authorization", "Bearer " + token);
           }
         }).

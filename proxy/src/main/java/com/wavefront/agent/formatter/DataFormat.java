@@ -1,5 +1,6 @@
 package com.wavefront.agent.formatter;
 
+import com.wavefront.ingester.EventDecoder;
 import com.wavefront.ingester.ReportSourceTagDecoder;
 
 /**
@@ -8,7 +9,7 @@ import com.wavefront.ingester.ReportSourceTagDecoder;
  * @author vasily@wavefront.com
  */
 public enum DataFormat {
-  GENERIC, HISTOGRAM, SOURCE_TAG, JSON_STRING;
+  GENERIC, HISTOGRAM, SOURCE_TAG, EVENT, JSON_STRING;
 
   public static DataFormat autodetect(final String input) {
     if (input.length() < 2) return GENERIC;
@@ -18,6 +19,10 @@ public enum DataFormat {
         if (input.startsWith(ReportSourceTagDecoder.SOURCE_TAG) ||
             input.startsWith(ReportSourceTagDecoder.SOURCE_DESCRIPTION)) {
           return SOURCE_TAG;
+        }
+        if (input.startsWith(EventDecoder.EVENT) ||
+            input.startsWith(EventDecoder.ONGOING_EVENT)) {
+          return EVENT;
         }
         break;
       case '{':

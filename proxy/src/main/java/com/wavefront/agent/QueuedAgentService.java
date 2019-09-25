@@ -3,6 +3,7 @@ package com.wavefront.agent;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.RateLimiter;
@@ -23,6 +24,7 @@ import com.wavefront.agent.api.WavefrontV2API;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
+import com.wavefront.dto.EventDTO;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -749,6 +751,25 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
   }
 
   @Override
+  public Response createEvent(EventDTO event, boolean forceToQueue) {
+    PostEventResultTask task = new PostEventResultTask(event);
+
+    if (forceToQueue) {
+      addTaskToSmallestQueue(task);
+      return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+    } else {
+      try {
+        parsePostingResponse(wrapped.createEvent(event));
+      } catch (RuntimeException ex) {
+        logger.warning("Unable to create event " + ExceptionUtils.getFullStackTrace(ex));
+        addTaskToSmallestQueue(task);
+        return Response.status(Response.Status.NOT_ACCEPTABLE).build();
+      }
+      return Response.ok().build();
+    }
+  }
+
+  @Override
   public Response setDescription(String id, String desc, boolean forceToQueue) {
     PostSourceTagResultTask task = new PostSourceTagResultTask(id, desc,
         PostSourceTagResultTask.ActionType.save, PostSourceTagResultTask.MessageType.desc, token);
@@ -820,6 +841,41 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
         return Response.status(Response.Status.NOT_ACCEPTABLE).build();
       }
       return Response.ok().build();
+    }
+  }
+
+  @Override
+  public Response createEvent(EventDTO eventDTO) {
+    return createEvent(eventDTO, false);
+  }
+
+  public static class PostEventResultTask extends ResubmissionTask<PostEventResultTask> {
+    private final EventDTO eventDTO;
+
+    public PostEventResultTask(EventDTO eventDTO) {
+      this.eventDTO = eventDTO;
+    }
+
+    @Override
+    public List<PostEventResultTask> splitTask() {
+      // currently this is a no-op
+      return ImmutableList.of(this);
+    }
+
+    @Override
+    public int size() {
+      return 1;
+    }
+
+    @Override
+    public void execute(Object callback) {
+      Response response;
+      try {
+        response = service.createEvent(eventDTO);
+      } catch (Exception ex) {
+        throw new RuntimeException(SERVER_ERROR + ": " + Throwables.getRootCause(ex));
+      }
+      parsePostingResponse(response);
     }
   }
 
