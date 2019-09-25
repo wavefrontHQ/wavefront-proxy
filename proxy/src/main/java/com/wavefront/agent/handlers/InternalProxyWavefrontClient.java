@@ -1,7 +1,5 @@
 package com.wavefront.agent.handlers;
 
-import com.google.common.collect.ImmutableList;
-
 import com.wavefront.common.Clock;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.sdk.common.Pair;
@@ -19,7 +17,6 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;

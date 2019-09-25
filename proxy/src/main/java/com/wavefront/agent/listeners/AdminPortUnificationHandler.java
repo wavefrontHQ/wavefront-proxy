@@ -1,6 +1,7 @@
 package com.wavefront.agent.listeners;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 
 import org.apache.commons.lang.StringUtils;
@@ -15,10 +16,13 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
+
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 
 /**
  * Admin API for managing proxy-wide healthchecks. Access can be restricted by a client's
@@ -32,7 +36,8 @@ import io.netty.handler.codec.http.HttpResponseStatus;
  *
  * @author vasily@wavefront.com
  */
-public class AdminPortUnificationHandler extends PortUnificationHandler {
+@ChannelHandler.Sharable
+public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger = Logger.getLogger(
       AdminPortUnificationHandler.class.getCanonicalName());
 
@@ -51,10 +56,11 @@ public class AdminPortUnificationHandler extends PortUnificationHandler {
                                      @Nullable HealthCheckManager healthCheckManager,
                                      @Nullable String handle,
                                      @Nullable String remoteIpWhitelistRegex) {
-    super(tokenAuthenticator, healthCheckManager, handle, false, true);
+    super(tokenAuthenticator, healthCheckManager, handle);
     this.remoteIpWhitelistRegex = remoteIpWhitelistRegex;
   }
 
+  @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest request) {
     StringBuilder output = new StringBuilder();
@@ -67,7 +73,7 @@ public class AdminPortUnificationHandler extends PortUnificationHandler {
       writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, output, request);
       return;
     }
-    URI uri = parseUri(ctx, request);
+    URI uri = ChannelUtils.parseUri(ctx, request);
     if (uri == null) return;
     HttpResponseStatus status;
     Matcher path = PATH.matcher(uri.getPath());
@@ -130,10 +136,5 @@ public class AdminPortUnificationHandler extends PortUnificationHandler {
       status = HttpResponseStatus.NOT_FOUND;
     }
     writeHttpResponse(ctx, status, output, request);
-  }
-
-  @Override
-  protected void processLine(ChannelHandlerContext ctx, String message) {
-    throw new UnsupportedOperationException();
   }
 }

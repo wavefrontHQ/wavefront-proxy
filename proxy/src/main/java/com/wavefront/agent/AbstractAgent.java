@@ -55,7 +55,6 @@ import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
-import org.jboss.resteasy.client.jaxrs.internal.ClientInvocation;
 import org.jboss.resteasy.client.jaxrs.internal.LocalResteasyProviderFactory;
 import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPFilter;
 import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
@@ -70,7 +69,6 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.Authenticator;
 import java.net.ConnectException;
-import java.net.HttpURLConnection;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -103,7 +101,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.HttpsURLConnection;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.ClientRequestFilter;
@@ -150,10 +147,6 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
   private boolean testLogs = false;
-
-  @Parameter(names = {"-l", "--loglevel", "--pushLogLevel"}, hidden = true, description =
-      "(DEPRECATED) Log level for push data (NONE/SUMMARY/DETAILED); SUMMARY is default")
-  protected String pushLogLevel = "SUMMARY";
 
   @Parameter(names = {"-v", "--validationlevel", "--pushValidationLevel"}, description =
       "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY); NUMERIC_ONLY is default")
@@ -750,8 +743,7 @@ public abstract class AbstractAgent {
   protected PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
   protected ValidationConfiguration validationConfiguration = null;
   protected RecyclableRateLimiter pushRateLimiter = null;
-  protected TokenAuthenticator tokenAuthenticator = TokenAuthenticatorBuilder.create().
-      setTokenValidationMethod(TokenValidationMethod.NONE).build();
+  protected TokenAuthenticator tokenAuthenticator = TokenAuthenticatorBuilder.create().build();
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
   protected volatile boolean hadSuccessfulCheckin = false;
@@ -935,7 +927,6 @@ public abstract class AbstractAgent {
         config = new ReportableConfig(); // dummy config
       }
       prefix = Strings.emptyToNull(config.getString("prefix", prefix));
-      pushLogLevel = config.getString("pushLogLevel", pushLogLevel);
       pushValidationLevel = config.getString("pushValidationLevel", pushValidationLevel);
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim(); // don't track
       server = config.getRawProperty("server", server).trim(); // don't track
@@ -1226,24 +1217,6 @@ public abstract class AbstractAgent {
     if (StringUtils.isBlank(hostname.trim())) {
       logger.severe("hostname cannot be blank! Please correct your configuration settings.");
       System.exit(1);
-    }
-
-    // for backwards compatibility - if pushLogLevel is defined in the config file, change log level programmatically
-    Level level = null;
-    switch (pushLogLevel) {
-      case "NONE":
-        level = Level.WARNING;
-        break;
-      case "SUMMARY":
-        level = Level.INFO;
-        break;
-      case "DETAILED":
-        level = Level.FINE;
-        break;
-    }
-    if (level != null) {
-      Logger.getLogger("agent").setLevel(level);
-      Logger.getLogger(QueuedAgentService.class.getCanonicalName()).setLevel(level);
     }
   }
 

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -39,6 +40,8 @@ import io.netty.util.CharsetUtil;
 
 import wavefront.report.ReportPoint;
 
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+
 /**
  * Agent-side JSON metrics endpoint.
  *
@@ -46,7 +49,7 @@ import wavefront.report.ReportPoint;
  * @author vasily@wavefront.com.
  */
 @ChannelHandler.Sharable
-public class JsonMetricsPortUnificationHandler extends PortUnificationHandler {
+public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger = Logger.getLogger(JsonMetricsPortUnificationHandler.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
   private static final Set<String> STANDARD_PARAMS = ImmutableSet.of("h", "p", "d", "t");
@@ -91,7 +94,7 @@ public class JsonMetricsPortUnificationHandler extends PortUnificationHandler {
       final ReportableEntityHandler<ReportPoint> pointHandler,
       final String prefix, final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(authenticator, healthCheckManager, handle, false, true);
+    super(authenticator, healthCheckManager, handle);
     this.pointHandler = pointHandler;
     this.prefix = prefix;
     this.defaultHost = defaultHost;
@@ -104,7 +107,7 @@ public class JsonMetricsPortUnificationHandler extends PortUnificationHandler {
                                    final FullHttpRequest incomingRequest) {
     StringBuilder output = new StringBuilder();
     try {
-      URI uri = parseUri(ctx, incomingRequest);
+      URI uri = ChannelUtils.parseUri(ctx, incomingRequest);
       Map<String, String> params = Arrays.stream(uri.getRawQuery().split("&")).
           map(x -> new Pair<>(x.split("=")[0].trim().toLowerCase(), x.split("=")[1])).
           collect(Collectors.toMap(k -> k._1, v -> v._2));
@@ -163,19 +166,5 @@ public class JsonMetricsPortUnificationHandler extends PortUnificationHandler {
       logWarning("WF-300: Error processing incoming JSON request", e, ctx);
       writeHttpResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, output, incomingRequest);
     }
-  }
-
-  /**
-   * Handles an incoming plain text (string) message. Handles :
-   */
-  @Override
-  protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        final String message) throws Exception {
-    logWarning("WF-300: Plaintext protocol is not supported for JsonMetrics", null, ctx);
-  }
-
-  @Override
-  protected void processLine(final ChannelHandlerContext ctx, final String message) {
-    throw new UnsupportedOperationException("Invalid context for processLine");
   }
 }

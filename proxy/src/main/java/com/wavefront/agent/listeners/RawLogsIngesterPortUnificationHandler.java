@@ -33,7 +33,7 @@ import static com.wavefront.agent.channel.CachingHostnameLookupResolver.getRemot
  *
  * @author vasily@wavefront.com
  */
-public class RawLogsIngesterPortUnificationHandler extends PortUnificationHandler {
+public class RawLogsIngesterPortUnificationHandler extends AbstractLineDelimitedHandler {
   private static final Logger logger = Logger.getLogger(
       RawLogsIngesterPortUnificationHandler.class.getCanonicalName());
 
@@ -61,7 +61,7 @@ public class RawLogsIngesterPortUnificationHandler extends PortUnificationHandle
       @Nonnull TokenAuthenticator authenticator,
       @Nonnull HealthCheckManager healthCheckManager,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(authenticator, healthCheckManager, handle, true, true);
+    super(authenticator, healthCheckManager, handle);
     this.logsIngester = ingester;
     this.hostnameResolver = hostnameResolver;
     this.preprocessorSupplier = preprocessor;

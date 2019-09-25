@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -32,6 +33,9 @@ import io.netty.util.CharsetUtil;
 
 import wavefront.report.ReportPoint;
 
+import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+
 /**
  * This class handles incoming messages in write_http format.
  *
@@ -39,7 +43,7 @@ import wavefront.report.ReportPoint;
  * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
-public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler {
+public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger = Logger.getLogger(
       WriteHttpJsonPortUnificationHandler.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
@@ -83,19 +87,18 @@ public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler 
       final HealthCheckManager healthCheckManager,
       final ReportableEntityHandler<ReportPoint> pointHandler, final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(authenticator, healthCheckManager, handle, false, true);
+    super(authenticator, healthCheckManager, handle);
     this.pointHandler = pointHandler;
     this.defaultHost = defaultHost;
     this.preprocessorSupplier = preprocessor;
     this.jsonParser = new ObjectMapper();
-
   }
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest incomingRequest) {
     StringBuilder output = new StringBuilder();
-    URI uri = parseUri(ctx, incomingRequest);
+    URI uri = ChannelUtils.parseUri(ctx, incomingRequest);
     if (uri == null) return;
 
     HttpResponseStatus status = HttpResponseStatus.OK;
@@ -117,27 +120,6 @@ public class WriteHttpJsonPortUnificationHandler extends PortUnificationHandler 
       logWarning("WF-300: Failed to handle incoming write_http request", e, ctx);
       writeHttpResponse(ctx, status, output, incomingRequest);
     }
-  }
-
-  /**
-   * Handles an incoming plain text (string) message. Handles :
-   */
-  @Override
-  protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        final String message) throws Exception {
-    if (message == null) {
-      throw new IllegalArgumentException("Message cannot be null");
-    }
-    try {
-      reportMetrics(jsonParser.readTree(message));
-    } catch (Exception e) {
-      logWarning("WF-300: Unable to parse JSON on plaintext port", e, ctx);
-    }
-  }
-
-  @Override
-  protected void processLine(final ChannelHandlerContext ctx, final String message) {
-    throw new UnsupportedOperationException("Invalid context for processLine");
   }
 
   private void reportMetrics(JsonNode metrics) {

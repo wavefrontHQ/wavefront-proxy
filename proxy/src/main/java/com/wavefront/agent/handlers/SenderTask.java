@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Batch and ship valid items to Wavefront servers
