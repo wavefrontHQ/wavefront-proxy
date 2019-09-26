@@ -280,7 +280,7 @@
         <configuration>
           <forkCount>4</forkCount>
           <reuseForks>false</reuseForks>
-          <argLine>-Xmx4G</argLine>
+          <argLine>-Xmx4G -Duser.country=US</argLine>
           <rerunFailingTestsCount>3</rerunFailingTestsCount>
           <systemProperties>
             <property>
