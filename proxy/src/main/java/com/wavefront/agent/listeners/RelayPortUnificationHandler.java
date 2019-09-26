@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wavefront.agent.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.formatter.DataFormat;
@@ -46,6 +47,9 @@ import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
+import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
+import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.handlers.LineDelimitedUtils.splitPushData;
 import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.preprocessAndHandlePoint;
 
@@ -60,7 +64,7 @@ import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.prep
  * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
-public class RelayPortUnificationHandler extends PortUnificationHandler {
+public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger = Logger.getLogger(
       RelayPortUnificationHandler.class.getCanonicalName());
   private static final String ERROR_HISTO_DISABLED = "Ingested point discarded because histogram " +
@@ -115,8 +119,7 @@ public class RelayPortUnificationHandler extends PortUnificationHandler {
       @Nullable final SharedGraphiteHostAnnotator annotator,
       final Supplier<Boolean> histogramDisabled, final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {
-    super(tokenAuthenticator, healthCheckManager, handle, false, true);
-    //super(handle, tokenAuthenticator, decoders, handlerFactory, null, preprocessor);
+    super(tokenAuthenticator, healthCheckManager, handle);
     this.decoders = decoders;
     this.wavefrontDecoder = decoders.get(ReportableEntityType.POINT);
     this.wavefrontHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT,
@@ -142,15 +145,10 @@ public class RelayPortUnificationHandler extends PortUnificationHandler {
   }
 
   @Override
-  protected void processLine(final ChannelHandlerContext ctx, String message) {
-    throw new UnsupportedOperationException(); // this should never be called
-  }
-
-  @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest request) {
     StringBuilder output = new StringBuilder();
-    URI uri = parseUri(ctx, request);
+    URI uri = ChannelUtils.parseUri(ctx, request);
     if (uri == null) return;
     String path = uri.getPath();
     final boolean isDirectIngestion = path.startsWith("/report");

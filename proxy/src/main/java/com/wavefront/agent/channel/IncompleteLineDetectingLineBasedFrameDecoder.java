@@ -1,10 +1,7 @@
 package com.wavefront.agent.channel;
 
-import com.wavefront.agent.listeners.PortUnificationHandler;
-
 import org.apache.commons.lang3.StringUtils;
 
-import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.logging.Logger;
@@ -35,7 +32,7 @@ public class IncompleteLineDetectingLineBasedFrameDecoder extends LineBasedFrame
     if (readableBytes > 0) {
       String discardedData = in.readBytes(readableBytes).toString(Charset.forName("UTF-8"));
       if (StringUtils.isNotBlank(discardedData)) {
-        logger.warning("Client " + PortUnificationHandler.getRemoteName(ctx) +
+        logger.warning("Client " + ChannelUtils.getRemoteName(ctx) +
             " disconnected, leaving unterminated string. Input (" + readableBytes +
             " bytes) discarded: \"" + discardedData + "\"");
       }

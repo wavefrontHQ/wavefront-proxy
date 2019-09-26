@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -7,12 +8,12 @@ import com.google.common.util.concurrent.RateLimiter;
 
 import com.wavefront.agent.Utils;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
-import com.wavefront.agent.auth.TokenValidationMethod;
+import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.listeners.PortUnificationHandler;
+import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
@@ -47,6 +48,7 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -57,6 +59,8 @@ import wavefront.report.SpanLogs;
 import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
+import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
@@ -75,7 +79,8 @@ import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
  *
  * @author Anil Kodali (akodali@vmware.com)
  */
-public class ZipkinPortUnificationHandler extends PortUnificationHandler
+@ChannelHandler.Sharable
+public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {
   private static final Logger logger = Logger.getLogger(
       ZipkinPortUnificationHandler.class.getCanonicalName());
@@ -130,20 +135,20 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
         traceZipkinApplicationName, traceDerivedCustomTagKeys);
   }
 
-  public ZipkinPortUnificationHandler(final String handle,
-                                      final HealthCheckManager healthCheckManager,
-                                      ReportableEntityHandler<Span> spanHandler,
-                                      ReportableEntityHandler<SpanLogs> spanLogsHandler,
-                                      @Nullable WavefrontSender wfSender,
-                                      Supplier<Boolean> traceDisabled,
-                                      Supplier<Boolean> spanLogsDisabled,
-                                      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                                      Sampler sampler,
-                                      boolean alwaysSampleErrors,
-                                      @Nullable String traceZipkinApplicationName,
-                                      Set<String> traceDerivedCustomTagKeys) {
-    super(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.NONE).
-            build(), healthCheckManager, handle, false, true);
+  @VisibleForTesting
+  ZipkinPortUnificationHandler(final String handle,
+                               final HealthCheckManager healthCheckManager,
+                               ReportableEntityHandler<Span> spanHandler,
+                               ReportableEntityHandler<SpanLogs> spanLogsHandler,
+                               @Nullable WavefrontSender wfSender,
+                               Supplier<Boolean> traceDisabled,
+                               Supplier<Boolean> spanLogsDisabled,
+                               @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
+                               Sampler sampler,
+                               boolean alwaysSampleErrors,
+                               @Nullable String traceZipkinApplicationName,
+                               Set<String> traceDerivedCustomTagKeys) {
+    super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, handle);
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
@@ -155,7 +160,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.alwaysSampleErrors = alwaysSampleErrors;
     this.proxyLevelApplicationName = StringUtils.isBlank(traceZipkinApplicationName) ?
         "Zipkin" : traceZipkinApplicationName.trim();
-    this.traceDerivedCustomTagKeys =  traceDerivedCustomTagKeys;
+    this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
     this.discardedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "discarded"));
     this.processedBatches = Metrics.newCounter(new MetricName(
@@ -163,8 +168,8 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     this.failedBatches = Metrics.newCounter(new MetricName(
         "spans." + handle + ".batches", "", "failed"));
     this.discardedSpansBySampler = Metrics.newCounter(new MetricName(
-        "spans." + handle , "", "sampler.discarded"));
-    this.discoveredHeartbeatMetrics =  new ConcurrentHashMap<>();
+        "spans." + handle, "", "sampler.discarded"));
+    this.discoveredHeartbeatMetrics = new ConcurrentHashMap<>();
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("zipkin-heart-beater"));
     scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
@@ -183,7 +188,7 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest incomingRequest) {
-    URI uri = parseUri(ctx, incomingRequest);
+    URI uri = ChannelUtils.parseUri(ctx, incomingRequest);
     if (uri == null) return;
 
     String path = uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
@@ -418,11 +423,6 @@ public class ZipkinPortUnificationHandler extends PortUnificationHandler
     }
     discardedSpansBySampler.inc();
     return false;
-  }
-
-  @Override
-  protected void processLine(final ChannelHandlerContext ctx, final String message) {
-    throw new UnsupportedOperationException("Invalid context for processLine");
   }
 
   @Override

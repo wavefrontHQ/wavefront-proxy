@@ -11,7 +11,7 @@ import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.listeners.PortUnificationHandler;
+import com.wavefront.agent.listeners.AbstractLineDelimitedHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
@@ -28,10 +28,12 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
+import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 
@@ -43,7 +45,8 @@ import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERRO
  *
  * @author vasily@wavefront.com
  */
-public class TracePortUnificationHandler extends PortUnificationHandler {
+@ChannelHandler.Sharable
+public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private static final Logger logger = Logger.getLogger(
       TracePortUnificationHandler.class.getCanonicalName());
 
@@ -90,7 +93,7 @@ public class TracePortUnificationHandler extends PortUnificationHandler {
       final ReportableEntityHandler<SpanLogs> spanLogsHandler, final Sampler sampler,
       final boolean alwaysSampleErrors, final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {
-    super(tokenAuthenticator, healthCheckManager, handle, true, true);
+    super(tokenAuthenticator, healthCheckManager, handle);
     this.decoder = traceDecoder;
     this.spanLogsDecoder = spanLogsDecoder;
     this.handler = handler;

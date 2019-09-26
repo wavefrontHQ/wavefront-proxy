@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wavefront.agent.auth.TokenAuthenticator;
+import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
-import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
@@ -34,19 +34,21 @@ import io.netty.util.CharsetUtil;
 import wavefront.report.ReportPoint;
 
 import static com.wavefront.agent.channel.CachingHostnameLookupResolver.getRemoteAddress;
+import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 
 /**
- * This class handles an incoming message of either String or FullHttpRequest type.  All other types are ignored. This
- * will likely be passed to the PlainTextOrHttpFrameDecoder as the handler for messages.
+ * This class handles both OpenTSDB JSON and OpenTSDB plaintext protocol.
  *
  * @author Mike McLaughlin (mike@wavefront.com)
  */
-public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
+public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandler {
   private static final Logger logger = Logger.getLogger(
       OpenTSDBPortUnificationHandler.class.getCanonicalName());
 
   /**
-   * The point handler that takes report metrics one data point at a time and handles batching and retries, etc
+   * The point handler that takes report metrics one data point at a time and handles batching
+   * and retries, etc
    */
   private final ReportableEntityHandler<ReportPoint> pointHandler;
 
@@ -69,9 +71,9 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
       final ReportableEntityHandlerFactory handlerFactory,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
       @Nullable final Function<InetAddress, String> resolver) {
-    super(tokenAuthenticator, healthCheckManager, handle, true, true);
+    super(tokenAuthenticator, healthCheckManager, handle);
     this.decoder = decoder;
-    this.pointHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
+    this.pointHandler = handlerFactory.getHandler(ReportableEntityType.POINT, handle);
     this.preprocessorSupplier = preprocessor;
     this.resolver = resolver;
   }
@@ -80,7 +82,7 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest request) {
     StringBuilder output = new StringBuilder();
-    URI uri = parseUri(ctx, request);
+    URI uri = ChannelUtils.parseUri(ctx, request);
     if (uri == null) return;
 
     switch (uri.getPath()) {
@@ -88,16 +90,18 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
         final ObjectMapper jsonTree = new ObjectMapper();
         HttpResponseStatus status;
         // from the docs:
-        // The put endpoint will respond with a 204 HTTP status code and no content if all data points
-        // were stored successfully. If one or more data points had an error, the API will return a 400.
+        // The put endpoint will respond with a 204 HTTP status code and no content
+        // if all data points were stored successfully. If one or more data points
+        // had an error, the API will return a 400.
         try {
-          if (reportMetrics(jsonTree.readTree(request.content().toString(CharsetUtil.UTF_8)), ctx)) {
+          JsonNode metrics = jsonTree.readTree(request.content().toString(CharsetUtil.UTF_8));
+          if (reportMetrics(metrics, ctx)) {
             status = HttpResponseStatus.NO_CONTENT;
           } else {
             // TODO: improve error message
             // http://opentsdb.net/docs/build/html/api_http/put.html#response
-            // User should understand that successful points are processed and the reason for BAD_REQUEST
-            // is due to at least one failure point.
+            // User should understand that successful points are processed and the reason
+            // for BAD_REQUEST is due to at least one failure point.
             status = HttpResponseStatus.BAD_REQUEST;
             output.append("At least one data point had error.");
           }
@@ -129,10 +133,6 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
     if (message == null) {
       throw new IllegalArgumentException("Message cannot be null");
     }
-    if (tokenAuthenticator.authRequired()) { // plaintext is disabled with auth enabled
-      pointHandler.reject(message, "Plaintext protocol disabled when authentication is enabled, ignoring");
-      return;
-    }
     if (message.startsWith("version")) {
       ChannelFuture f = ctx.writeAndFlush("Wavefront OpenTSDB Endpoint\n");
       if (!f.isSuccess()) {
@@ -144,14 +144,9 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
     }
   }
 
-  @Override
-  protected void processLine(final ChannelHandlerContext ctx, final String message) {
-    throw new UnsupportedOperationException("Invalid context for processLine");
-  }
-
   /**
-   * Parse the metrics JSON and report the metrics found.  There are 2 formats supported: - array of points - single
-   * point
+   * Parse the metrics JSON and report the metrics found.
+   * 2 formats are supported: array of points and a single point.
    *
    * @param metrics an array of objects or a single object representing a metric
    * @param ctx     channel handler context (to retrieve remote address)
@@ -236,7 +231,8 @@ public class OpenTSDBPortUnificationHandler extends PortUnificationHandler {
       builder.setHost(hostName);
       ReportPoint point = builder.build();
 
-      ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ? null : preprocessorSupplier.get();
+      ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
+          null : preprocessorSupplier.get();
       String[] messageHolder = new String[1];
       if (preprocessor != null) {
         preprocessor.forReportPoint().transform(point);

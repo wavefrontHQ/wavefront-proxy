@@ -26,6 +26,8 @@ import io.netty.channel.ChannelHandlerContext;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
 
+import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
+
 /**
  * Process incoming Wavefront-formatted data. Also allows sourceTag formatted data and
  * histogram-formatted data pass-through with lazy-initialized handlers.
@@ -36,7 +38,7 @@ import wavefront.report.ReportSourceTag;
  * @author vasily@wavefront.com
  */
 @ChannelHandler.Sharable
-public class WavefrontPortUnificationHandler extends PortUnificationHandler {
+public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandler {
   private static final Logger logger = Logger.getLogger(
       WavefrontPortUnificationHandler.class.getCanonicalName());
 
@@ -72,7 +74,7 @@ public class WavefrontPortUnificationHandler extends PortUnificationHandler {
       final ReportableEntityHandlerFactory handlerFactory,
       @Nullable final SharedGraphiteHostAnnotator annotator,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    super(tokenAuthenticator, healthCheckManager, handle, true, true);
+    super(tokenAuthenticator, healthCheckManager, handle);
     this.wavefrontDecoder = decoders.get(ReportableEntityType.POINT);
     this.annotator = annotator;
     this.preprocessorSupplier = preprocessor;
