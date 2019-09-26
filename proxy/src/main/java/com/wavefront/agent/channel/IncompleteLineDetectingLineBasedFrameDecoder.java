@@ -31,11 +31,12 @@ public class IncompleteLineDetectingLineBasedFrameDecoder extends LineBasedFrame
   @Override
   protected void decodeLast(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
     super.decodeLast(ctx, in, out);
-    if (in.readableBytes() > 0) {
-      String discardedData = in.readBytes(in.readableBytes()).toString(Charset.forName("UTF-8"));
+    int readableBytes = in.readableBytes();
+    if (readableBytes > 0) {
+      String discardedData = in.readBytes(readableBytes).toString(Charset.forName("UTF-8"));
       if (StringUtils.isNotBlank(discardedData)) {
         logger.warning("Client " + PortUnificationHandler.getRemoteName(ctx) +
-            " disconnected, leaving unterminated string. Input (" + in.readableBytes() +
+            " disconnected, leaving unterminated string. Input (" + readableBytes +
             " bytes) discarded: \"" + discardedData + "\"");
       }
     }
