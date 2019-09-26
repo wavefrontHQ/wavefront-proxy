@@ -42,6 +42,9 @@
   </distributionManagement>
 
   <properties>
+    <!-- jdk 11 can be used for building -->
+    <jdk.version>11</jdk.version>
+    
     <!-- Force encoding to UTF-8 (bug in OS X)-->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
