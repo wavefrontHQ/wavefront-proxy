@@ -298,9 +298,6 @@ public class PostPushDataTimedTask implements Runnable {
           // update the counters as if this was a failed call to the API
           this.pointsAttempted.inc(pushDataPointCount);
           this.pointsQueued.inc(pushDataPointCount);
-          if (pushRateLimiter != null) {
-            this.permitsDenied.inc(pushDataPointCount);
-          }
           numApiCalls++;
           pointsToFlush -= pushDataPointCount;
 

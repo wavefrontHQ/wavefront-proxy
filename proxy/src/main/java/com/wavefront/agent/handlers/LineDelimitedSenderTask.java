@@ -157,9 +157,6 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
         // update the counters as if this was a failed call to the API
         this.attemptedCounter.inc(pushDataPointCount);
         this.queuedCounter.inc(pushDataPointCount);
-        if (pushRateLimiter != null) {
-          this.permitsDenied.inc(pushDataPointCount);
-        }
         toFlush -= pushDataPointCount;
 
         // stop draining buffers if the batch is smaller than the previous one

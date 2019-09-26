@@ -289,7 +289,6 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
             if (pushRateLimiter != null && pushRateLimiter.getAvailablePermits() < pushRateLimiter.getRate()) {
               // if there's less than 1 second worth of accumulated credits, don't process the backlog queue
               rateLimiting = true;
-              permitsDenied.inc(taskSize);
               break;
             }
 
