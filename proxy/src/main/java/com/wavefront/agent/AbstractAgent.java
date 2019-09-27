@@ -10,6 +10,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
+import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import com.google.gson.Gson;
 
 import com.beust.jcommander.JCommander;
@@ -105,8 +106,6 @@ import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.ClientRequestFilter;
 
-import static com.google.common.util.concurrent.RecyclableRateLimiter.UNLIMITED;
-
 /**
  * Agent that runs remotely on a server collecting metrics.
  *
@@ -122,6 +121,7 @@ public abstract class AbstractAgent {
 
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int MAX_SPLIT_BATCH_SIZE = 40000; // same value as default pushFlushMaxPoints
+  static final int NO_RATE_LIMIT = 10_000_000;
 
   @Parameter(names = {"--help"}, help = true)
   private boolean help = false;
@@ -184,7 +184,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
-  protected Integer pushRateLimit = UNLIMITED;
+  protected Integer pushRateLimit = NO_RATE_LIMIT;
 
   @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
       "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
@@ -1184,7 +1184,8 @@ public abstract class AbstractAgent {
     }
 
     if (pushRateLimit > 0) {
-      pushRateLimiter = RecyclableRateLimiter.create(pushRateLimit, pushRateLimitMaxBurstSeconds);
+      pushRateLimiter = RecyclableRateLimiterImpl.create(pushRateLimit,
+          pushRateLimitMaxBurstSeconds);
     }
 
     pushMemoryBufferLimit.set(Math.max(pushMemoryBufferLimit.get(), pushFlushMaxPoints.get()));

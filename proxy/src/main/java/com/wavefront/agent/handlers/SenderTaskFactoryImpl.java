@@ -2,6 +2,7 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
+import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
 import com.wavefront.data.ReportableEntityType;
 
@@ -37,7 +38,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   private final AtomicInteger memoryBufferLimit;
 
   private static final RecyclableRateLimiter sourceTagRateLimiter =
-      RecyclableRateLimiter.create(5, 10);
+      RecyclableRateLimiterImpl.create(5, 10);
 
   /**
    * Create new instance.

@@ -118,7 +118,6 @@ import io.netty.handler.timeout.IdleStateHandler;
 import wavefront.report.ReportPoint;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.util.concurrent.RecyclableRateLimiter.UNLIMITED;
 import static com.wavefront.agent.Utils.lazySupplier;
 
 /**
@@ -847,7 +846,7 @@ public class PushAgent extends AbstractAgent {
       } else {
         if (pushRateLimiter != null && pushRateLimiter.getRate() != pushRateLimit) {
           pushRateLimiter.setRate(pushRateLimit);
-          if (pushRateLimit >= UNLIMITED) {
+          if (pushRateLimit >= NO_RATE_LIMIT) {
             logger.warning("Proxy rate limit no longer enforced by remote");
           } else {
             logger.warning("Proxy rate limit restored to " + pushRateLimit);
