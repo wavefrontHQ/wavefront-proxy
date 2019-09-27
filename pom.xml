@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>6.0-RC1-SNAPSHOT</version>
+  <version>5.0-RC1-SNAPSHOT</version>
   <modules>
     <module>proxy</module>
   </modules>
@@ -302,7 +302,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
-            <version>2.9.1</version>
+            <version>3.1.0</version>
             <executions>
               <execution>
                 <id>attach-javadocs</id>
@@ -310,7 +310,8 @@
                   <goal>jar</goal>
                 </goals>
                 <configuration>
-                  <additionalparam>-Xdoclint:none</additionalparam>
+                  <doclint>none</doclint>
+                  <source>${java.version}</source>
                 </configuration>
               </execution>
             </executions>
