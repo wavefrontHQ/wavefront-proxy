@@ -396,7 +396,11 @@
             </goals>
             <configuration>
               <source>
-                project.properties["hostname"] = InetAddress.getLocalHost().getHostName()
+                try {
+                  project.properties["hostname"] = InetAddress.getLocalHost().getHostName();
+                } catch (java.net.UnknownHostException ignore) {
+                  project.properties["hostname"] = "localhost";
+                }
               </source>
             </configuration>
           </execution>
