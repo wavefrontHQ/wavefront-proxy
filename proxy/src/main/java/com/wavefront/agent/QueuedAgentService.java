@@ -882,10 +882,20 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
       try {
         switch (messageType) {
           case tag:
-            if (actionType == ActionType.delete)
-              response = service.removeTag(id, token, tagValues[0]);
-            else
-              response = service.setTags(id, token, Arrays.asList(tagValues));
+            switch (actionType) {
+              case add:
+                response = service.appendTag(id, token, tagValues[0]);
+                break;
+              case delete:
+                response = service.removeTag(id, token, tagValues[0]);
+                break;
+              case save:
+                response = service.setTags(id, token, Arrays.asList(tagValues));
+                break;
+              default:
+                logger.warning("Invalid action type.");
+                response = Response.serverError().build();
+            }
             break;
           case desc:
             if (actionType == ActionType.delete)

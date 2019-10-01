@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
+import com.wavefront.ingester.ReportSourceTagIngesterFormatter;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -22,6 +23,10 @@ import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 
 import wavefront.report.ReportSourceTag;
+
+import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_ADD;
+import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_DELETE;
+import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_SAVE;
 
 /**
  * This class is responsible for accumulating the source tag changes and post it in a batch. This
@@ -158,26 +163,31 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
   }
 
   @Nullable
-  protected static Response executeSourceTagAction(ForceQueueEnabledProxyAPI wavefrontAPI, ReportSourceTag sourceTag,
-                                                boolean forceToQueue) {
+  static Response executeSourceTagAction(ForceQueueEnabledProxyAPI wavefrontAPI,
+                                                   ReportSourceTag sourceTag,
+                                                   boolean forceToQueue) {
     switch (sourceTag.getSourceTagLiteral()) {
       case "SourceDescription":
         if (sourceTag.getAction().equals("delete")) {
           return wavefrontAPI.removeDescription(sourceTag.getSource(), forceToQueue);
         } else {
-          return wavefrontAPI.setDescription(sourceTag.getSource(), sourceTag.getDescription(), forceToQueue);
+          return wavefrontAPI.setDescription(sourceTag.getSource(), sourceTag.getDescription(),
+              forceToQueue);
         }
       case "SourceTag":
-        if (sourceTag.getAction().equals("delete")) {
-          // call the api, if we receive a 406 message then we add them to the queue
-          // TODO: right now it only deletes the first tag (because that server-side api
-          // only handles one tag at a time. Once the server-side api is updated we
-          // should update this code to remove multiple tags at a time.
-          return wavefrontAPI.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0), forceToQueue);
-
-        } else { //
-          // call the api, if we receive a 406 message then we add them to the queue
-          return wavefrontAPI.setTags(sourceTag.getSource(), sourceTag.getAnnotations(), forceToQueue);
+        switch (sourceTag.getAction()) {
+          case ACTION_ADD:
+            return wavefrontAPI.appendTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0),
+                forceToQueue);
+          case ACTION_DELETE:
+            return wavefrontAPI.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0),
+                forceToQueue);
+          case ACTION_SAVE:
+            return wavefrontAPI.setTags(sourceTag.getSource(), sourceTag.getAnnotations(),
+                forceToQueue);
+          default:
+            logger.warning("Unexpected action: " + sourceTag.getAction() + ", input: " + sourceTag);
+            return null;
         }
       default:
         logger.warning("None of the literals matched. Expected SourceTag or " +
