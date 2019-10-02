@@ -30,6 +30,8 @@ import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
  */
 public class SpanDerivedMetricsUtils {
 
+  private final static Pattern WHITESPACE = Pattern.compile("[\\s]+");
+
   public final static String TRACING_DERIVED_PREFIX = "tracing.derived";
   private final static String INVOCATION_SUFFIX = ".invocation";
   private final static String ERROR_SUFFIX = ".error";
@@ -124,7 +126,6 @@ public class SpanDerivedMetricsUtils {
   }
 
   private static String sanitize(String s) {
-    Pattern WHITESPACE = Pattern.compile("[\\s]+");
     final String whitespaceSanitized = WHITESPACE.matcher(s).replaceAll("-");
     if (s.contains("\"") || s.contains("'")) {
       // for single quotes, once we are double-quoted, single quotes can exist happily inside it.
