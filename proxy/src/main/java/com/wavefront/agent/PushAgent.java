@@ -319,10 +319,8 @@ public class PushAgent extends AbstractAgent {
         startTraceListener(strPort, handlerFactory, compositeSampler));
     portIterator(traceJaegerListenerPorts).forEachRemaining(strPort -> {
       PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-          Metrics.newCounter(new TaggedMetricName("spanSanitization", "count", "port", strPort)),
-          Metrics.newCounter(new TaggedMetricName("spanSanitization", "cpu_nanos", "port", strPort)),
-          Metrics.newCounter(new TaggedMetricName("spanSanitization", "checked-count", "port",
-              strPort))
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
       );
       preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
           new SpanSanitizeTransformer(ruleMetrics));
@@ -333,10 +331,8 @@ public class PushAgent extends AbstractAgent {
         startRelayListener(strPort, handlerFactory, remoteHostAnnotator));
     portIterator(traceZipkinListenerPorts).forEachRemaining(strPort -> {
       PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-          Metrics.newCounter(new TaggedMetricName("spanSanitization", "count", "port", strPort)),
-          Metrics.newCounter(new TaggedMetricName("spanSanitization", "cpu_nanos", "port", strPort)),
-          Metrics.newCounter(new TaggedMetricName("spanSanitization", "checked-count", "port",
-              strPort))
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
       );
       preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
           new SpanSanitizeTransformer(ruleMetrics));
