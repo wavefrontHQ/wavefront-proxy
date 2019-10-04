@@ -63,12 +63,8 @@ public class SpanSanitizeTransformer implements Function<Span, Span> {
       boolean isLegal = true;
       if (!(44 <= cur && cur <= 57) && !(65 <= cur && cur <= 90) && !(97 <= cur && cur <= 122) &&
           cur != 95) {
-        if (!((i == 0 && cur == 0x2206) || (i == 0 && cur == 0x0394) || (i == 0 && cur == 126))) {
-          // first character can also be \u2206 (∆ - INCREMENT) or \u0394 (Δ - GREEK CAPITAL LETTER DELTA)
-          // or ~ tilda character for internal metrics
-          isLegal = false;
-          ruleApplied = true;
-        }
+        isLegal = false;
+        ruleApplied = true;
       }
       sb.append(isLegal ? cur : '-');
     }
