@@ -351,11 +351,14 @@ public class PreprocessorConfigManager {
                           rule.get("replaceInput"), rule.get("match"), Boolean.parseBoolean(
                               rule.getOrDefault("firstMatchOnly", "false")), ruleMetrics));
                   break;
+                case "spanRenameAnnotation":
                 case "spanRenameTag":
-                  allowArguments(rule, "rule", "action", "key", "newkey", "match");
+                  allowArguments(rule, "rule", "action", "key", "newkey", "match", "firstMatchOnly");
                   portMap.get(strPort).forSpan().addTransformer(
-                      new SpanRenameTagTransformer(
-                          rule.get("key"), rule.get("newkey"), rule.get("match"), ruleMetrics));
+                      new SpanRenameAnnotationTransformer(
+                          rule.get("key"), rule.get("newkey"), rule.get("match"),
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatchOnly", "false")),
+                          ruleMetrics));
                   break;
                 case "spanLimitLength":
                   allowArguments(rule, "rule", "action", "scope", "actionSubtype", "maxLength",
