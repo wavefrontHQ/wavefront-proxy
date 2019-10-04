@@ -7,7 +7,9 @@ import com.wavefront.ingester.SpanDecoder;
 
 import org.junit.Test;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import wavefront.report.Annotation;
@@ -314,6 +316,35 @@ public class PreprocessorSpanRulesTest {
     assertEquals(ImmutableList.of("bar1-1234567890", "bar2-2345678901", "bar2-3456789012", "bar"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
+  }
+
+  @Test
+  public void testSpanRenameTagRule() {
+    String spanLine = "testSpanName source=spanSourceName spanId=4217104a-690d-4927-baff-d9aa779414c2 " +
+        "traceId=d5355bf7-fc8d-48d1-b761-75b170f396e0 foo=bar1-1234567890 foo=bar2-2345678901 foo=bar2-3456789012 " +
+        "foo=bar boo=baz 1532012145123 1532012146234";
+    SpanRenameTagTransformer rule;
+    Span span;
+
+    // rename all annotations with key = "foo"
+    rule = new SpanRenameTagTransformer(FOO, "foo1", null, metrics);
+    span = rule.apply(parseSpan(spanLine));
+    assertEquals(ImmutableList.of("foo1", "foo1", "foo1", "foo1", "boo"), span.getAnnotations().
+        stream().map(Annotation::getKey).collect(Collectors.toList()));
+
+    // rename all annotations with key = "foo" and value matching bar2.*
+    rule = new SpanRenameTagTransformer(FOO, "foo1", "bar2.*", metrics);
+    span = rule.apply(parseSpan(spanLine));
+    assertEquals(ImmutableList.of(FOO, "foo1", "foo1", FOO, "boo"), span.getAnnotations().stream().
+        map(Annotation::getKey).
+        collect(Collectors.toList()));
+
+    // try to rename a annotation whose value doesn't match the regex - shouldn't change
+    rule = new SpanRenameTagTransformer(FOO, "foo1", "bar9.*", metrics);
+    span = rule.apply(parseSpan(spanLine));
+    assertEquals(ImmutableList.of(FOO, FOO, FOO, FOO, "boo"), span.getAnnotations().stream().
+        map(Annotation::getKey).
+        collect(Collectors.toList()));
   }
 
   @Test
