@@ -279,3 +279,9 @@
       key           : myDevice
       newkey        : device
       match         : "^\\d*$"
+
+    - rule          : test-spanrenameannotation
+      action        : spanRenameAnnotation
+      key           : myDevice
+      newkey        : device
+      match         : "^\\d*$"
