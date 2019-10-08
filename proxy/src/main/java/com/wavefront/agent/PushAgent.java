@@ -50,8 +50,10 @@ import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.ZipkinPortUnificationHandler;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
+import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
+import com.wavefront.agent.preprocessor.SpanSanitizeTransformer;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.NamedThreadFactory;
@@ -315,14 +317,28 @@ public class PushAgent extends AbstractAgent {
 
     portIterator(traceListenerPorts).forEachRemaining(strPort ->
         startTraceListener(strPort, handlerFactory, compositeSampler));
-    portIterator(traceJaegerListenerPorts).forEachRemaining(strPort ->
-        startTraceJaegerListener(strPort, handlerFactory,
-            new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler));
+    portIterator(traceJaegerListenerPorts).forEachRemaining(strPort -> {
+      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
+      );
+      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+          new SpanSanitizeTransformer(ruleMetrics));
+      startTraceJaegerListener(strPort, handlerFactory,
+          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
+    });
     portIterator(pushRelayListenerPorts).forEachRemaining(strPort ->
         startRelayListener(strPort, handlerFactory, remoteHostAnnotator));
-    portIterator(traceZipkinListenerPorts).forEachRemaining(strPort ->
-        startTraceZipkinListener(strPort, handlerFactory,
-            new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler));
+    portIterator(traceZipkinListenerPorts).forEachRemaining(strPort -> {
+      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
+      );
+      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+          new SpanSanitizeTransformer(ruleMetrics));
+      startTraceZipkinListener(strPort, handlerFactory,
+          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
+    });
     portIterator(jsonListenerPorts).forEachRemaining(strPort ->
         startJsonListener(strPort, handlerFactory));
     portIterator(writeHttpJsonListenerPorts).forEachRemaining(strPort ->
