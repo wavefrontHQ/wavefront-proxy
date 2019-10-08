@@ -462,6 +462,30 @@ public class PreprocessorSpanRulesTest {
             collect(Collectors.toList()));
   }
 
+  @Test
+  public void testSpanSanitizeTransformer() {
+    Span span = Span.newBuilder().setCustomer("dummy").setStartMillis(System.currentTimeMillis())
+        .setDuration(2345)
+        .setName("HTTP GET ?")
+        .setSource("'customJaegerSource'")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("special|tag:", "''")))
+        .build();
+    SpanSanitizeTransformer transformer = new SpanSanitizeTransformer(metrics);
+    span = transformer.apply(span);
+    assertEquals("HTTP GET ?", span.getName());
+    assertEquals("-customJaegerSource-", span.getSource());
+    assertEquals(ImmutableList.of("''"),
+        span.getAnnotations().stream().filter(x -> x.getKey().equals("special-tag-")).map(Annotation::getValue).
+            collect(Collectors.toList()));
+    assertEquals(ImmutableList.of("frontend"),
+        span.getAnnotations().stream().filter(x -> x.getKey().equals("service")).map(Annotation::getValue).
+            collect(Collectors.toList()));
+  }
+
   private Span parseSpan(String line) {
     List<Span> out = Lists.newArrayListWithExpectedSize(1);
     new SpanDecoder("unknown").decode(line, out, "dummy");
