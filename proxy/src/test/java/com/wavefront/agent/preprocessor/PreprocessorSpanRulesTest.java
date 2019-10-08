@@ -317,6 +317,46 @@ public class PreprocessorSpanRulesTest {
   }
 
   @Test
+  public void testSpanRenameTagRule() {
+    String spanLine = "testSpanName source=spanSourceName spanId=4217104a-690d-4927-baff-d9aa779414c2 " +
+        "traceId=d5355bf7-fc8d-48d1-b761-75b170f396e0 foo=bar1-1234567890 foo=bar2-2345678901 foo=bar2-3456789012 " +
+        "foo=bar boo=baz 1532012145123 1532012146234";
+    SpanRenameAnnotationTransformer rule;
+    Span span;
+
+    // rename all annotations with key = "foo"
+    rule = new SpanRenameAnnotationTransformer(FOO, "foo1", null,
+        false,  metrics);
+    span = rule.apply(parseSpan(spanLine));
+    assertEquals(ImmutableList.of("foo1", "foo1", "foo1", "foo1", "boo"), span.getAnnotations().
+        stream().map(Annotation::getKey).collect(Collectors.toList()));
+
+    // rename all annotations with key = "foo" and value matching bar2.*
+    rule = new SpanRenameAnnotationTransformer(FOO, "foo1", "bar2.*",
+        false, metrics);
+    span = rule.apply(parseSpan(spanLine));
+    assertEquals(ImmutableList.of(FOO, "foo1", "foo1", FOO, "boo"), span.getAnnotations().stream().
+        map(Annotation::getKey).
+        collect(Collectors.toList()));
+
+    // rename only first annotations with key = "foo" and value matching bar2.*
+    rule = new SpanRenameAnnotationTransformer(FOO, "foo1", "bar2.*",
+        true, metrics);
+    span = rule.apply(parseSpan(spanLine));
+    assertEquals(ImmutableList.of(FOO, "foo1", FOO, FOO, "boo"), span.getAnnotations().stream().
+        map(Annotation::getKey).
+        collect(Collectors.toList()));
+
+    // try to rename a annotation whose value doesn't match the regex - shouldn't change
+    rule = new SpanRenameAnnotationTransformer(FOO, "foo1", "bar9.*",
+        false, metrics);
+    span = rule.apply(parseSpan(spanLine));
+    assertEquals(ImmutableList.of(FOO, FOO, FOO, FOO, "boo"), span.getAnnotations().stream().
+        map(Annotation::getKey).
+        collect(Collectors.toList()));
+  }
+
+  @Test
   public void testSpanForceLowercaseRule() {
     String spanLine = "testSpanName source=spanSourceName spanId=4217104a-690d-4927-baff-d9aa779414c2 " +
         "traceId=d5355bf7-fc8d-48d1-b761-75b170f396e0 foo=BAR1-1234567890 foo=BAR2-2345678901 foo=bAr2-3456789012 " +

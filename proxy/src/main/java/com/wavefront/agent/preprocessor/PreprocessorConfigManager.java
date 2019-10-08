@@ -174,7 +174,7 @@ public class PreprocessorConfigManager {
           try {
             requireArguments(rule, "rule", "action");
             allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "tag",
-                "key", "newtag", "value", "source", "input", "iterations", "replaceSource",
+                "key", "newtag", "newkey", "value", "source", "input", "iterations", "replaceSource",
                 "replaceInput", "actionSubtype", "maxLength", "firstMatchOnly");
             String ruleName = rule.get("rule").replaceAll("[^a-z0-9_-]", "");
             PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
@@ -350,6 +350,15 @@ public class PreprocessorConfigManager {
                           rule.get("input"), rule.get("search"), rule.get("replace"),
                           rule.get("replaceInput"), rule.get("match"), Boolean.parseBoolean(
                               rule.getOrDefault("firstMatchOnly", "false")), ruleMetrics));
+                  break;
+                case "spanRenameAnnotation":
+                case "spanRenameTag":
+                  allowArguments(rule, "rule", "action", "key", "newkey", "match", "firstMatchOnly");
+                  portMap.get(strPort).forSpan().addTransformer(
+                      new SpanRenameAnnotationTransformer(
+                          rule.get("key"), rule.get("newkey"), rule.get("match"),
+                          Boolean.parseBoolean(rule.getOrDefault("firstMatchOnly", "false")),
+                          ruleMetrics));
                   break;
                 case "spanLimitLength":
                   allowArguments(rule, "rule", "action", "scope", "actionSubtype", "maxLength",
