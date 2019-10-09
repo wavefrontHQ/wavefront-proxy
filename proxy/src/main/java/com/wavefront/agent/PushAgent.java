@@ -226,13 +226,6 @@ public class PushAgent extends AbstractAgent {
         managedExecutors.add(histogramFlushExecutor);
 
         File baseDirectory = new File(histogramStateDirectory);
-        if (persistAccumulator) {
-          // Check directory
-          checkArgument(baseDirectory.isDirectory(), baseDirectory.getAbsolutePath() +
-              " must be a directory!");
-          checkArgument(baseDirectory.canWrite(), baseDirectory.getAbsolutePath() +
-              " must be write-able!");
-        }
 
         // Central dispatch
         @SuppressWarnings("unchecked")
@@ -243,28 +236,32 @@ public class PushAgent extends AbstractAgent {
           startHistogramListeners(histMinPorts, pointHandler, remoteHostAnnotator,
               Utils.Granularity.MINUTE, histogramMinuteFlushSecs, histogramMinuteMemoryCache,
               baseDirectory, histogramMinuteAccumulatorSize, histogramMinuteAvgKeyBytes,
-              histogramMinuteAvgDigestBytes, histogramMinuteCompression);
+              histogramMinuteAvgDigestBytes, histogramMinuteCompression,
+              histogramMinuteAccumulatorPersisted);
         }
 
         if (histHourPorts.hasNext()) {
           startHistogramListeners(histHourPorts, pointHandler, remoteHostAnnotator,
               Utils.Granularity.HOUR, histogramHourFlushSecs, histogramHourMemoryCache,
               baseDirectory, histogramHourAccumulatorSize, histogramHourAvgKeyBytes,
-              histogramHourAvgDigestBytes, histogramHourCompression);
+              histogramHourAvgDigestBytes, histogramHourCompression,
+              histogramHourAccumulatorPersisted);
         }
 
         if (histDayPorts.hasNext()) {
           startHistogramListeners(histDayPorts, pointHandler, remoteHostAnnotator,
               Utils.Granularity.DAY, histogramDayFlushSecs, histogramDayMemoryCache,
               baseDirectory, histogramDayAccumulatorSize, histogramDayAvgKeyBytes,
-              histogramDayAvgDigestBytes, histogramDayCompression);
+              histogramDayAvgDigestBytes, histogramDayCompression,
+              histogramDayAccumulatorPersisted);
         }
 
         if (histDistPorts.hasNext()) {
           startHistogramListeners(histDistPorts, pointHandler, remoteHostAnnotator,
               null, histogramDistFlushSecs, histogramDistMemoryCache,
               baseDirectory, histogramDistAccumulatorSize, histogramDistAvgKeyBytes,
-              histogramDistAvgDigestBytes, histogramDistCompression);
+              histogramDistAvgDigestBytes, histogramDistCompression,
+              histogramDistAccumulatorPersisted);
         }
       }
     }
@@ -676,27 +673,33 @@ public class PushAgent extends AbstractAgent {
     logger.info("Health check port enabled: " + port);
   }
 
-
   protected void startHistogramListeners(Iterator<String> ports,
                                          ReportableEntityHandler<ReportPoint> pointHandler,
                                          SharedGraphiteHostAnnotator hostAnnotator,
                                          @Nullable Utils.Granularity granularity,
                                          int flushSecs, boolean memoryCacheEnabled,
                                          File baseDirectory, Long accumulatorSize, int avgKeyBytes,
-                                         int avgDigestBytes, short compression) {
+                                         int avgDigestBytes, short compression, boolean persist) {
     String listenerBinType = Utils.Granularity.granularityToString(granularity);
     // Accumulator
+    if (persist) {
+      // Check directory
+      checkArgument(baseDirectory.isDirectory(), baseDirectory.getAbsolutePath() +
+          " must be a directory!");
+      checkArgument(baseDirectory.canWrite(), baseDirectory.getAbsolutePath() +
+          " must be write-able!");
+    }
+
     MapLoader<HistogramKey, AgentDigest, HistogramKeyMarshaller, AgentDigestMarshaller> mapLoader =
         new MapLoader<>(
-        HistogramKey.class,
-        AgentDigest.class,
-        accumulatorSize,
-        avgKeyBytes,
-        avgDigestBytes,
-        HistogramKeyMarshaller.get(),
-        AgentDigestMarshaller.get(),
-        persistAccumulator);
-
+            HistogramKey.class,
+            AgentDigest.class,
+            accumulatorSize,
+            avgKeyBytes,
+            avgDigestBytes,
+            HistogramKeyMarshaller.get(),
+            AgentDigestMarshaller.get(),
+            persist);
     File accumulationFile = new File(baseDirectory, "accumulator." + listenerBinType);
     ChronicleMap<HistogramKey, AgentDigest> accumulator = mapLoader.get(accumulationFile);
 
