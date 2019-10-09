@@ -2,23 +2,24 @@ package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableList;
 
+import com.google.common.collect.ImmutableMap;
 import com.uber.tchannel.messages.ThriftRequest;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
-import org.junit.Test;
-
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import io.jaegertracing.thriftjava.Batch;
 import io.jaegertracing.thriftjava.Collector;
+import io.jaegertracing.thriftjava.Log;
 import io.jaegertracing.thriftjava.Process;
 import io.jaegertracing.thriftjava.Tag;
 import io.jaegertracing.thriftjava.TagType;
+import org.junit.Test;
+
 import wavefront.report.Annotation;
 import wavefront.report.Span;
+import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
 import static org.easymock.EasyMock.expectLastCall;
@@ -36,7 +37,7 @@ public class JaegerThriftCollectorHandlerTest {
 
   @Test
   public void testJaegerThriftCollector() throws Exception {
-    reset(mockTraceHandler);
+    reset(mockTraceHandler, mockTraceLogsHandler);
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(1234)
         .setName("HTTP GET")
@@ -50,8 +51,22 @@ public class JaegerThriftCollectorHandlerTest {
             new Annotation("component", "db"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none")))
+            new Annotation("shard", "none"),
+            new Annotation("_spanLogs", "true")))
         .build());
+    expectLastCall();
+
+    mockTraceLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("default").
+        setSpanId("00000000-0000-0000-0000-00000012d687").
+        setTraceId("00000000-4996-02d2-0000-011f71fb04cb").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(startTime * 1000).
+                setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
+                build()
+        )).
+        build());
     expectLastCall();
 
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
@@ -106,7 +121,7 @@ public class JaegerThriftCollectorHandlerTest {
             .build());
     expectLastCall();
 
-    replay(mockTraceHandler);
+    replay(mockTraceHandler, mockTraceLogsHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null, new RateSampler(1.0D), false,
@@ -141,6 +156,13 @@ public class JaegerThriftCollectorHandlerTest {
     span2.setTags(ImmutableList.of(componentTag, customApplicationTag));
     span4.setTags(ImmutableList.of(emptyTag));
 
+    Tag tag1 = new Tag("event", TagType.STRING);
+    tag1.setVStr("error");
+    Tag tag2 = new Tag("exception", TagType.STRING);
+    tag2.setVStr("NullPointerException");
+    span1.setLogs(ImmutableList.of(new Log(startTime * 1000,
+        ImmutableList.of(tag1, tag2))));
+
     Batch testBatch = new Batch();
     testBatch.process = new Process();
     testBatch.process.serviceName = "frontend";
@@ -154,12 +176,12 @@ public class JaegerThriftCollectorHandlerTest {
         "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
     handler.handleImpl(request);
 
-    verify(mockTraceHandler);
+    verify(mockTraceHandler, mockTraceLogsHandler);
   }
 
   @Test
   public void testApplicationTagPriority() throws Exception {
-    reset(mockTraceHandler);
+    reset(mockTraceHandler, mockTraceLogsHandler);
 
     // Span to verify span level tags precedence
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
@@ -215,7 +237,7 @@ public class JaegerThriftCollectorHandlerTest {
             new Annotation("shard", "none")))
         .build());
     expectLastCall();
-    replay(mockTraceHandler);
+    replay(mockTraceHandler, mockTraceLogsHandler);
 
     // Verify span level "application" tags precedence
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
@@ -278,12 +300,12 @@ public class JaegerThriftCollectorHandlerTest {
         build();
     handler.handleImpl(requestForProxyLevel);
 
-    verify(mockTraceHandler);
+    verify(mockTraceHandler, mockTraceLogsHandler);
   }
 
   @Test
   public void testJaegerDurationSampler() throws Exception {
-    reset(mockTraceHandler);
+    reset(mockTraceHandler, mockTraceLogsHandler);
 
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(9)
@@ -302,7 +324,7 @@ public class JaegerThriftCollectorHandlerTest {
         .build());
     expectLastCall();
 
-    replay(mockTraceHandler);
+    replay(mockTraceHandler, mockTraceLogsHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null, new DurationSampler(5), false,
@@ -330,12 +352,12 @@ public class JaegerThriftCollectorHandlerTest {
         "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
     handler.handleImpl(request);
 
-    verify(mockTraceHandler);
+    verify(mockTraceHandler, mockTraceLogsHandler);
   }
 
   @Test
   public void testJaegerDebugOverride() throws Exception {
-    reset(mockTraceHandler);
+    reset(mockTraceHandler, mockTraceLogsHandler);
 
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(9)
@@ -372,7 +394,7 @@ public class JaegerThriftCollectorHandlerTest {
         .build());
     expectLastCall();
 
-    replay(mockTraceHandler);
+    replay(mockTraceHandler, mockTraceLogsHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null, new DurationSampler(10), false,
@@ -408,12 +430,12 @@ public class JaegerThriftCollectorHandlerTest {
         "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
     handler.handleImpl(request);
 
-    verify(mockTraceHandler);
+    verify(mockTraceHandler, mockTraceLogsHandler);
   }
 
   @Test
   public void testSourceTagPriority() throws Exception {
-    reset(mockTraceHandler);
+    reset(mockTraceHandler, mockTraceLogsHandler);
 
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(9)
@@ -463,7 +485,7 @@ public class JaegerThriftCollectorHandlerTest {
             new Annotation("shard", "none")))
         .build());
     expectLastCall();
-    replay(mockTraceHandler);
+    replay(mockTraceHandler, mockTraceLogsHandler);
 
     JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876",
         mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
@@ -525,6 +547,6 @@ public class JaegerThriftCollectorHandlerTest {
         build();
     handler.handleImpl(requestForProxyLevel);
 
-    verify(mockTraceHandler);
+    verify(mockTraceHandler, mockTraceLogsHandler);
   }
 }
