@@ -343,6 +343,11 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
         }
       }
     }
+
+    if (!spanLogsDisabled.get() && span.getLogs() != null && !span.getLogs().isEmpty()) {
+      annotations.add(new Annotation("_spanLogs", "true"));
+    }
+
     Span wavefrontSpan = Span.newBuilder()
         .setCustomer("dummy")
         .setName(span.getOperationName())
@@ -376,7 +381,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
     if (isForceSampled || isDebugSpanTag || (alwaysSampleErrors && isError) ||
         sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
-      if (span.getLogs() != null) {
+      if (span.getLogs() != null && !span.getLogs().isEmpty()) {
         if (spanLogsDisabled.get()) {
           if (warningLoggerRateLimiter.tryAcquire()) {
             logger.info("Span logs discarded because the feature is not " +

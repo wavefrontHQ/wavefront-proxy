@@ -326,6 +326,11 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       annotations.add(new Annotation("ipv4", zipkinSpan.localEndpoint().ipv4()));
     }
 
+    if (!spanLogsDisabled.get() && zipkinSpan.annotations() != null &&
+        !zipkinSpan.annotations().isEmpty()) {
+      annotations.add(new Annotation("_spanLogs", "true"));
+    }
+
     /** Add source of the span following the below:
      *    1. If "source" is provided by span tags , use it else
      *    2. Default "source" to "zipkin".

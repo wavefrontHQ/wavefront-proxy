@@ -115,7 +115,7 @@ public class ZipkinPortUnificationHandlerTest {
           true
       );
       handler.handleHttpMessage(mockCtx, httpRequest);
-      verify(mockTraceHandler);
+      verify(mockTraceHandler, mockTraceSpanLogsHandler);
     }
   }
 
@@ -170,7 +170,8 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("application", "SpanLevelAppTag"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
-            new Annotation("ipv4", "10.0.0.1"))).
+            new Annotation("ipv4", "10.0.0.1"),
+            new Annotation("_spanLogs", "true"))).
         build());
     expectLastCall();
 
@@ -181,19 +182,20 @@ public class ZipkinPortUnificationHandlerTest {
             setTraceId("00000000-0000-0000-2822-889fe47043bd").
             setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
             // Note: Order of annotations list matters for this unit test.
-                    setAnnotations(ImmutableList.of(
-                    new Annotation("span.kind", "client"),
-                    new Annotation("_spanSecondaryId", "client"),
-                    new Annotation("service", "backend"),
-                    new Annotation("component", "jersey-server"),
-                    new Annotation("http.method", "GET"),
-                    new Annotation("http.status_code", "200"),
-                    new Annotation("http.url", "none+h2c://localhost:9000/api"),
-                    new Annotation("application", "SpanLevelAppTag"),
-                    new Annotation("cluster", "none"),
-                    new Annotation("shard", "none"),
-                    new Annotation("ipv4", "10.0.0.1"))).
-                    build());
+            setAnnotations(ImmutableList.of(
+                new Annotation("span.kind", "client"),
+                new Annotation("_spanSecondaryId", "client"),
+                new Annotation("service", "backend"),
+                new Annotation("component", "jersey-server"),
+                new Annotation("http.method", "GET"),
+                new Annotation("http.status_code", "200"),
+                new Annotation("http.url", "none+h2c://localhost:9000/api"),
+                new Annotation("application", "SpanLevelAppTag"),
+                new Annotation("cluster", "none"),
+                new Annotation("shard", "none"),
+                new Annotation("ipv4", "10.0.0.1"),
+                new Annotation("_spanLogs", "true"))).
+            build());
     expectLastCall();
 
     mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
@@ -301,7 +303,7 @@ public class ZipkinPortUnificationHandlerTest {
         true
     );
     handler.handleHttpMessage(mockCtx, httpRequest);
-    verify(mockTraceHandler);
+    verify(mockTraceHandler, mockTraceSpanLogsHandler);
   }
 
   @Test
@@ -414,7 +416,7 @@ public class ZipkinPortUnificationHandlerTest {
         true
     );
     handler.handleHttpMessage(mockCtx, httpRequest);
-    verify(mockTraceHandler);
+    verify(mockTraceHandler, mockTraceSpanLogsHandler);
   }
 
   @Test
@@ -480,6 +482,6 @@ public class ZipkinPortUnificationHandlerTest {
         true
     );
     handler.handleHttpMessage(mockCtx, httpRequest);
-    verify(mockTraceHandler);
+    verify(mockTraceHandler, mockTraceSpanLogsHandler);
   }
 }
