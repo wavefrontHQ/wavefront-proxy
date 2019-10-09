@@ -333,6 +333,7 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("application", "Zipkin"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
+            new Annotation("debug", "true"),
             new Annotation("ipv4", "10.0.0.1"))).
             build());
     expectLastCall();
@@ -346,7 +347,28 @@ public class ZipkinPortUnificationHandlerTest {
             setAnnotations(ImmutableList.of(
             new Annotation("span.kind", "server"),
             new Annotation("service", "frontend"),
-            new Annotation("debug", "debug-id-1"),
+            new Annotation("debug", "true"),
+            new Annotation("http.method", "GET"),
+            new Annotation("http.status_code", "200"),
+            new Annotation("http.url", "none+h1c://localhost:8881/"),
+            new Annotation("application", "Zipkin"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none"),
+            new Annotation("ipv4", "10.0.0.1"))).
+            build());
+    expectLastCall();
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+        setDuration(6).
+        setName("getservice").
+        setSource(DEFAULT_SOURCE).
+        setSpanId("00000000-0000-0000-5822-889fe47043bd").
+        setTraceId("00000000-0000-0000-5822-889fe47043bd").
+        // Note: Order of annotations list matters for this unit test.
+            setAnnotations(ImmutableList.of(
+            new Annotation("span.kind", "server"),
+            new Annotation("service", "frontend"),
+            new Annotation("debug", "true"),
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
             new Annotation("http.url", "none+h1c://localhost:8881/"),
@@ -399,7 +421,23 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("debug", "debug-id-1").
         build();
 
-    List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1, spanServer2, spanServer3);
+    zipkin2.Span spanServer4 = zipkin2.Span.newBuilder().
+        traceId("5822889fe47043bd").
+        id("5822889fe47043bd").
+        kind(zipkin2.Span.Kind.SERVER).
+        name("getservice").
+        timestamp(startTime * 1000).
+        duration(6 * 1000).
+        localEndpoint(localEndpoint1).
+        putTag("http.method", "GET").
+        putTag("http.url", "none+h1c://localhost:8881/").
+        putTag("http.status_code", "200").
+        putTag("debug", "debug-id-4").
+        debug(true).
+        build();
+
+    List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1, spanServer2, spanServer3,
+        spanServer4);
 
     SpanBytesEncoder encoder = SpanBytesEncoder.values()[1];
     ByteBuf content = Unpooled.copiedBuffer(encoder.encodeList(zipkinSpanList));
