@@ -10,7 +10,8 @@ import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.github.benmanes.caffeine.cache.Ticker;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.TDigest;
-import com.wavefront.agent.histogram.TimeProvider;
+import com.wavefront.agent.SharedMetricsRegistry;
+import com.wavefront.agent.TimeProvider;
 import com.wavefront.agent.histogram.Utils;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -27,6 +28,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.yammer.metrics.core.MetricsRegistry;
 import wavefront.report.Histogram;
 
 import static com.wavefront.agent.histogram.Utils.HistogramKey;
@@ -37,57 +39,81 @@ import static com.wavefront.agent.histogram.Utils.HistogramKey;
  * @author Tim Schmidt (tim@wavefront.com).
  */
 public class AccumulationCache implements Accumulator {
-  private final static Logger logger = Logger.getLogger(AccumulationCache.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(AccumulationCache.class.getCanonicalName());
+  private static final MetricsRegistry sharedRegistry = SharedMetricsRegistry.getInstance();
 
-  private final Counter binCreatedCounter = Metrics.newCounter(
-      new MetricName("histogram.accumulator", "", "bin_created"));
-  private final Counter flushedCounter = Metrics.newCounter(
-      new MetricName("histogram.accumulator.cache", "", "flushed"));
+  private final Counter binCreatedCounter;
+  private final Counter binMergedCounter;
+  private final Counter cacheBinCreatedCounter;
+  private final Counter cacheBinMergedCounter;
+  private final Counter flushedCounter;
   private final Counter cacheOverflowCounter = Metrics.newCounter(
       new MetricName("histogram.accumulator.cache", "", "size_exceeded"));
+  private final boolean cacheEnabled;
   private final Cache<HistogramKey, AgentDigest> cache;
   private final ConcurrentMap<HistogramKey, AgentDigest> backingStore;
-
+  private final AgentDigestFactory agentDigestFactory;
 
   /**
-   * In-memory index for dispatch timestamps to avoid iterating the backing store map, which is an expensive
-   * operation, as it requires value objects to be de-serialized first
+   * In-memory index for dispatch timestamps to avoid iterating the backing store map, which is an
+   * expensive operation, as it requires value objects to be de-serialized first.
    */
   private final ConcurrentMap<HistogramKey, Long> keyIndex;
 
   /**
-   * Constructs a new AccumulationCache instance around {@code backingStore} and builds an in-memory index maintaining
-   * dispatch times in milliseconds for all HistogramKeys in backingStore
-   * Setting cacheSize to 0 disables in-memory caching so the cache only maintains the dispatch time index.
+   * Constructs a new AccumulationCache instance around {@code backingStore} and builds an in-memory
+   * index maintaining dispatch times in milliseconds for all HistogramKeys in the backingStore.
+   * Setting cacheSize to 0 disables in-memory caching so the cache only maintains the dispatch
+   * time index.
    *
-   * @param backingStore a {@code ConcurrentMap} storing AgentDigests
-   * @param cacheSize maximum size of the cache
-   * @param ticker a nanosecond-precision time source
+   * @param backingStore       a {@code ConcurrentMap} storing {@code AgentDigests}
+   * @param agentDigestFactory a factory that generates {@code AgentDigests} with pre-defined
+   *                           compression level and TTL time
+   * @param cacheSize          maximum size of the cache
+   * @param ticker             a nanosecond-precision time source
    */
   public AccumulationCache(
       final ConcurrentMap<HistogramKey, AgentDigest> backingStore,
+      final AgentDigestFactory agentDigestFactory,
       final long cacheSize,
+      String metricPrefix,
       @Nullable Ticker ticker) {
-    this(backingStore, cacheSize, ticker, null);
+    this(backingStore, agentDigestFactory, cacheSize, metricPrefix, ticker, null);
   }
 
   /**
-   * Constructs a new AccumulationCache instance around {@code backingStore} and builds an in-memory index maintaining
-   * dispatch times in milliseconds for all HistogramKeys in backingStore
-   * Setting cacheSize to 0 disables in-memory caching so the cache only maintains the dispatch time index.
+   * Constructs a new AccumulationCache instance around {@code backingStore} and builds an in-memory
+   * index maintaining dispatch times in milliseconds for all HistogramKeys in the backingStore.
+   * Setting cacheSize to 0 disables in-memory caching, so the cache only maintains the dispatch
+   * time index.
    *
-   * @param backingStore a {@code ConcurrentMap} storing AgentDigests
-   * @param cacheSize maximum size of the cache
-   * @param ticker a nanosecond-precision time source
-   * @param onFailure a {@code Runnable} that is invoked when backing store overflows
+   * @param backingStore       a {@code ConcurrentMap} storing {@code AgentDigests}
+   * @param agentDigestFactory a factory that generates {@code AgentDigests} with pre-defined
+   *                           compression level and TTL time
+   * @param cacheSize          maximum size of the cache
+   * @param ticker             a nanosecond-precision time source
+   * @param onFailure          a {@code Runnable} that is invoked when backing store overflows
    */
   @VisibleForTesting
   protected AccumulationCache(
       final ConcurrentMap<HistogramKey, AgentDigest> backingStore,
+      final AgentDigestFactory agentDigestFactory,
       final long cacheSize,
+      String metricPrefix,
       @Nullable Ticker ticker,
       @Nullable Runnable onFailure) {
     this.backingStore = backingStore;
+    this.agentDigestFactory = agentDigestFactory;
+    this.cacheEnabled = cacheSize > 0;
+    this.binCreatedCounter = Metrics.newCounter(new MetricName(metricPrefix, "", "bin_created"));
+    this.binMergedCounter = Metrics.newCounter(new MetricName(metricPrefix, "", "bin_merged"));
+    MetricsRegistry metricsRegistry = cacheEnabled ? Metrics.defaultRegistry() : sharedRegistry;
+    this.cacheBinCreatedCounter = metricsRegistry.newCounter(new MetricName(metricPrefix + ".cache",
+        "", "bin_created"));
+    this.cacheBinMergedCounter = metricsRegistry.newCounter(new MetricName(metricPrefix + ".cache",
+        "", "bin_merged"));
+    this.flushedCounter = Metrics.newCounter(new MetricName(metricPrefix + ".cache", "",
+        "flushed"));
     this.keyIndex = new ConcurrentHashMap<>(backingStore.size());
     final Runnable failureHandler = onFailure == null ? new AccumulationCacheMonitor() : onFailure;
     if (backingStore.size() > 0) {
@@ -107,28 +133,30 @@ public class AccumulationCache implements Accumulator {
           }
 
           @Override
-          public void delete(@Nonnull HistogramKey key, @Nullable AgentDigest value, @Nonnull RemovalCause cause) {
+          public void delete(@Nonnull HistogramKey key, @Nullable AgentDigest value,
+                             @Nonnull RemovalCause cause) {
             if (value == null) {
               return;
             }
             flushedCounter.inc();
-            if (cause == RemovalCause.SIZE) cacheOverflowCounter.inc();
+            if (cause == RemovalCause.SIZE && cacheEnabled) cacheOverflowCounter.inc();
             try {
               // flush out to backing store
-              backingStore.merge(key, value, (digestA, digestB) -> {
-                if (digestA != null && digestB != null) {
-                  // Merge both digests
-                  if (digestA.centroidCount() >= digestB.centroidCount()) {
-                    digestA.add(digestB);
-                    return digestA;
-                  } else {
-                    digestB.add(digestA);
-                    return digestB;
-                  }
+              AgentDigest merged = backingStore.merge(key, value, (digestA, digestB) -> {
+                // Merge both digests
+                if (digestA.centroidCount() >= digestB.centroidCount()) {
+                  digestA.add(digestB);
+                  return digestA;
                 } else {
-                  return (digestB == null ? digestA : digestB);
+                  digestB.add(digestA);
+                  return digestB;
                 }
               });
+              if (merged == value) {
+                binCreatedCounter.inc();
+              } else {
+                binMergedCounter.inc();
+              }
             } catch (IllegalStateException e) {
               if (e.getMessage().contains("Attempt to allocate")) {
                 failureHandler.run();
@@ -151,12 +179,15 @@ public class AccumulationCache implements Accumulator {
    * @param key histogram key
    * @param value {@code AgentDigest} to be merged
    */
+  @Override
   public void put(HistogramKey key, @Nonnull AgentDigest value) {
     cache.asMap().compute(key, (k, v) -> {
       if (v == null) {
+        if (cacheEnabled) cacheBinCreatedCounter.inc();
         keyIndex.put(key, value.getDispatchTimeMillis());
         return value;
       } else {
+        if (cacheEnabled) cacheBinMergedCounter.inc();
         keyIndex.compute(key, (k1, v1) -> (
             v1 != null && v1 < v.getDispatchTimeMillis() ? v1 : v.getDispatchTimeMillis()));
         v.add(value);
@@ -166,25 +197,25 @@ public class AccumulationCache implements Accumulator {
   }
 
   /**
-   * Update {@code AgentDigest} in the cache with a double value. If such {@code AgentDigest} does not exist for
-   * the specified key, it will be created with the specified compression and ttlMillis settings.
+   * Update {@link AgentDigest} in the cache with a double value. If such {@code AgentDigest} does
+   * not exist for the specified key, it will be created using {@link AgentDigestFactory}
    *
    * @param key histogram key
    * @param value value to be merged into the {@code AgentDigest}
-   * @param compression default compression level for new bins
-   * @param ttlMillis default time-to-dispatch for new bins
    */
-  public void put(HistogramKey key, double value, short compression, long ttlMillis) {
+  @Override
+  public void put(HistogramKey key, double value) {
     cache.asMap().compute(key, (k, v) -> {
       if (v == null) {
-        binCreatedCounter.inc();
-        AgentDigest t = new AgentDigest(compression, System.currentTimeMillis() + ttlMillis);
+        if (cacheEnabled) cacheBinCreatedCounter.inc();
+        AgentDigest t = agentDigestFactory.newDigest();
         keyIndex.compute(key, (k1, v1) -> (
             v1 != null && v1 < t.getDispatchTimeMillis() ? v1 : t.getDispatchTimeMillis()
         ));
         t.add(value);
         return t;
       } else {
+        if (cacheEnabled) cacheBinMergedCounter.inc();
         keyIndex.compute(key, (k1, v1) -> (
             v1 != null && v1 < v.getDispatchTimeMillis() ? v1 : v.getDispatchTimeMillis()
         ));
@@ -195,24 +226,25 @@ public class AccumulationCache implements Accumulator {
   }
 
   /**
-   * Update {@code AgentDigest} in the cache with a {@code Histogram} value. If such {@code AgentDigest} does not exist
-   * for the specified key, it will be created with the specified compression and ttlMillis settings.
+   * Update {@link AgentDigest} in the cache with a {@code Histogram} value. If such
+   * {@code AgentDigest} does not exist for the specified key, it will be created
+   * using {@link AgentDigestFactory}.
    *
    * @param key histogram key
    * @param value a {@code Histogram} to be merged into the {@code AgentDigest}
-   * @param compression default compression level for new bins
-   * @param ttlMillis default time-to-dispatch in milliseconds for new bins
    */
-  public void put(HistogramKey key, Histogram value, short compression, long ttlMillis) {
+  @Override
+  public void put(HistogramKey key, Histogram value) {
     cache.asMap().compute(key, (k, v) -> {
       if (v == null) {
-        binCreatedCounter.inc();
-        AgentDigest t = new AgentDigest(compression, System.currentTimeMillis() + ttlMillis);
+        if (cacheEnabled) cacheBinCreatedCounter.inc();
+        AgentDigest t = agentDigestFactory.newDigest();
         keyIndex.compute(key, (k1, v1) -> (
             v1 != null && v1 < t.getDispatchTimeMillis() ? v1 : t.getDispatchTimeMillis()));
         mergeHistogram(t, value);
         return t;
       } else {
+        if (cacheEnabled) cacheBinMergedCounter.inc();
         keyIndex.compute(key, (k1, v1) -> (
             v1 != null && v1 < v.getDispatchTimeMillis() ? v1 : v.getDispatchTimeMillis()));
         mergeHistogram(v, value);
@@ -227,6 +259,7 @@ public class AccumulationCache implements Accumulator {
    * @param clock a millisecond-precision epoch time source
    * @return an iterator over "ripe" digests ready to be shipped
    */
+  @Override
   public Iterator<HistogramKey> getRipeDigestsIterator(TimeProvider clock) {
     return new Iterator<HistogramKey>() {
       private final Iterator<Map.Entry<HistogramKey, Long>> indexIterator = keyIndex.entrySet().iterator();
@@ -301,6 +334,7 @@ public class AccumulationCache implements Accumulator {
   /**
    * Merge the contents of this cache with the corresponding backing store.
    */
+  @Override
   public void flush() {
     cache.invalidateAll();
   }

@@ -22,7 +22,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
 
   private static final int SOURCE_TAGS_NUM_THREADS = 2;
 
-  private Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
+  protected final Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
 
   private final SenderTaskFactory senderTaskFactory;
   private final int blockedItemsPerBatch;

@@ -1,4 +1,4 @@
-package com.wavefront.agent.histogram;
+package com.wavefront.agent;
 
 /**
  * @author Tim Schmidt (tim@wavefront.com).
