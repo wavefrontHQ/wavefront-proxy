@@ -76,7 +76,7 @@ public class PointHandlerDispatcher implements Runnable {
       AtomicInteger dispatchedCount = new AtomicInteger(0);
 
       long startMillis = System.currentTimeMillis();
-      digestsSize.set(digests.size()); // update size before flushing, so we're showing
+      digestsSize.set(digests.size()); // update size before flushing, so we show a higher value
       Iterator<Utils.HistogramKey> index = digests.getRipeDigestsIterator(this.clock);
       while (index.hasNext()) {
         digests.compute(index.next(), (k, v) -> {
