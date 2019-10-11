@@ -45,7 +45,7 @@ cp -r opt build/opt
 cp -r etc build/etc
 cp -r usr build/usr
 
-COMMONS_DAEMON_COMMIT="7747df1f0bc21175040afb3b9adcccb3f80a8701"
+COMMONS_DAEMON_COMMIT="COMMONS_DAEMON_1_2_2"
 echo "Make jsvc at $COMMONS_DAEMON_COMMIT..."
 cp -r $COMMONS_DAEMON $PROXY_DIR
 cd $PROXY_DIR/commons-daemon
