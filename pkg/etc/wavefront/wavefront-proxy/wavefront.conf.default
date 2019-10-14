@@ -225,8 +225,6 @@ customSourceTags=fqdn, hostname
 #histogramAccumulatorFlushInterval=10000
 ## Max number of histograms to send to Wavefront in one flush (Default: no limit)
 #histogramAccumulatorFlushMaxBatchSize=4000
-## Whether to persist accumulation state. WARNING any unflushed histograms will be lost on proxy shutdown if disabled.
-#persistAccumulator=true
 ## Maximum line length for received histogram data (Default: 65536)
 #histogramMaxReceivedLength=65536
 ## Maximum allowed request size (in bytes) for incoming HTTP requests on histogram ports (Default: 16MB)
@@ -245,7 +243,11 @@ customSourceTags=fqdn, hostname
 #histogramMinuteAccumulatorSize=1000
 ## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
 ## second per time series). Default: false
-#histogramMinuteMemoryCache=true
+#histogramMinuteMemoryCache=false
+## Whether to persist accumulation state. When true, all histograms are written to disk immediately if memory cache is
+## disabled, or every histogramAccumulatorResolveInterval seconds if memory cache is enabled.
+## If accumulator is not persisted, up to histogramMinuteFlushSecs seconds worth of histograms may be lost on proxy shutdown.
+#histogramMinuteAccumulatorPersisted=false
 
 ## Wavefront format, hour aggregation:
 ## Comma-separated list of ports to listen on.
@@ -260,7 +262,11 @@ customSourceTags=fqdn, hostname
 #histogramHourAccumulatorSize=100000
 ## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
 ## second per time series). Default: false
-#histogramHourMemoryCache=false
+#histogramHourMemoryCache=true
+## Whether to persist accumulation state. When true, all histograms are written to disk immediately if memory cache is
+## disabled, or every `histogramAccumulatorResolveInterval` seconds if memory cache is enabled.
+## If accumulator is not persisted, up to `histogramHourFlushSecs` seconds worth of histograms may be lost on proxy shutdown.
+#histogramHourAccumulatorPersisted=true
 
 ## Wavefront format, day aggregation:
 ## Comma-separated list of ports to listen on.
@@ -276,6 +282,10 @@ customSourceTags=fqdn, hostname
 ## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
 ## second per time series). Default: false
 #histogramDayMemoryCache=false
+## Whether to persist accumulation state. When true, all histograms are written to disk immediately if memory cache is
+## disabled, or every `histogramAccumulatorResolveInterval` seconds if memory cache is enabled.
+## If accumulator is not persisted, up to `histogramDayFlushSecs` seconds worth of histograms may be lost on proxy shutdown.
+#histogramDayAccumulatorPersisted=true
 
 ## Distribution format:
 ## Comma-separated list of ports to listen on.
@@ -291,3 +301,7 @@ customSourceTags=fqdn, hostname
 ## Enabling memory cache reduces I/O load with fewer time series and higher frequency data (more than 1 point per
 ## second per time series). Default: false
 #histogramDistMemoryCache=false
+## Whether to persist accumulation state. When true, all histograms are written to disk immediately if memory cache is
+## disabled, or every histogramAccumulatorResolveInterval seconds if memory cache is enabled.
+## If accumulator is not persisted, up to histogramDistFlushSecs seconds worth of histograms may be lost on proxy shutdown.
+#histogramDistAccumulatorPersisted=true

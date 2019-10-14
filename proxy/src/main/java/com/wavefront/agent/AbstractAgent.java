@@ -525,6 +525,24 @@ public abstract class AbstractAgent {
       "on for proxy chaining data. For internal use. Defaults to none.")
   protected String pushRelayListenerPorts;
 
+  @Parameter(names = {"--pushRelayHistogramAggregator"}, description = "If true, aggregate " +
+      "histogram distributions received on the relay port. Default: false")
+  protected boolean pushRelayHistogramAggregator = false;
+
+  @Parameter(names = {"--pushRelayHistogramAggregatorAccumulatorSize"},
+      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
+          "reporting bins")
+  protected Long pushRelayHistogramAggregatorAccumulatorSize = 100000L;
+
+  @Parameter(names = {"--pushRelayHistogramAggregatorFlushSecs"},
+      description = "Number of seconds to keep a day granularity accumulator open for new samples.")
+  protected Integer pushRelayHistogramAggregatorFlushSecs = 70;
+
+  @Parameter(names = {"--pushRelayHistogramAggregatorCompression"},
+      description = "Controls allowable number of centroids per histogram. Must be in [20;1000] " +
+          "range. Default: 32")
+  protected Short pushRelayHistogramAggregatorCompression = 32;
+
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
   protected boolean splitPushWhenRateLimited = false;
 
@@ -1048,6 +1066,17 @@ public abstract class AbstractAgent {
       traceDerivedCustomTagKeysProperty = config.getString("traceDerivedCustomTagKeys", traceDerivedCustomTagKeysProperty);
       traceAlwaysSampleErrors = config.getBoolean("traceAlwaysSampleErrors", traceAlwaysSampleErrors);
       pushRelayListenerPorts = config.getString("pushRelayListenerPorts", pushRelayListenerPorts);
+      pushRelayHistogramAggregator = config.getBoolean("pushRelayHistogramAggregator",
+          pushRelayHistogramAggregator);
+      pushRelayHistogramAggregatorAccumulatorSize =
+          config.getNumber("pushRelayHistogramAggregatorAccumulatorSize",
+              pushRelayHistogramAggregatorAccumulatorSize).longValue();
+      pushRelayHistogramAggregatorFlushSecs =
+          config.getNumber("pushRelayHistogramAggregatorFlushSecs",
+              pushRelayHistogramAggregatorFlushSecs).intValue();
+      pushRelayHistogramAggregatorCompression =
+          config.getNumber("pushRelayHistogramAggregatorCompression",
+              pushRelayHistogramAggregatorCompression).shortValue();
       bufferFile = config.getString("buffer", bufferFile);
       preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
       dataBackfillCutoffHours = config.getNumber("dataBackfillCutoffHours", dataBackfillCutoffHours).intValue();

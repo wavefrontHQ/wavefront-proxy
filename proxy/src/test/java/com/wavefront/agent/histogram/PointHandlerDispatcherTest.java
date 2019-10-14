@@ -5,6 +5,7 @@ import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 
+import com.wavefront.agent.histogram.accumulator.AgentDigestFactory;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -45,7 +46,8 @@ public class PointHandlerDispatcherTest {
   public void setup() {
     timeMillis = new AtomicLong(0L);
     backingStore = new ConcurrentHashMap<>();
-    in = new AccumulationCache(backingStore, 0, timeMillis::get);
+    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(COMPRESSION, 100L);
+    in = new AccumulationCache(backingStore, agentDigestFactory, 0, "", timeMillis::get);
     pointOut = new LinkedList<>();
     debugLineOut = new LinkedList<>();
     blockedOut = new LinkedList<>();

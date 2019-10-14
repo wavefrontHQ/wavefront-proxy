@@ -19,6 +19,7 @@ import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.formatter.GraphiteFormatter;
+import com.wavefront.agent.handlers.DelegatingReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.HistogramAccumulationHandlerImpl;
@@ -35,6 +36,7 @@ import com.wavefront.agent.histogram.Utils.HistogramKey;
 import com.wavefront.agent.histogram.Utils.HistogramKeyMarshaller;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.Accumulator;
+import com.wavefront.agent.histogram.accumulator.AgentDigestFactory;
 import com.wavefront.agent.listeners.AdminPortUnificationHandler;
 import com.wavefront.agent.listeners.ChannelByteArrayHandler;
 import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
@@ -594,11 +596,37 @@ public class PushAgent extends AbstractAgent {
     registerTimestampFilter(strPort);
     if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
+    ReportableEntityHandlerFactory handlerFactoryDelegate = pushRelayHistogramAggregator ?
+        new DelegatingReportableEntityHandlerFactoryImpl(handlerFactory) {
+          @Override
+          public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
+            if (handlerKey.getEntityType() == ReportableEntityType.HISTOGRAM) {
+              ChronicleMap<HistogramKey, AgentDigest> accumulator = ChronicleMap.
+                  of(HistogramKey.class, AgentDigest.class).
+                  keyMarshaller(HistogramKeyMarshaller.get()).
+                  valueMarshaller(AgentDigestMarshaller.get()).
+                  entries(pushRelayHistogramAggregatorAccumulatorSize).
+                  averageKeySize(histogramDistAvgKeyBytes).
+                  averageValueSize(histogramDistAvgDigestBytes).
+                  maxBloatFactor(1000).
+                  create();
+              AgentDigestFactory agentDigestFactory = new AgentDigestFactory(
+                  pushRelayHistogramAggregatorCompression,
+                  TimeUnit.SECONDS.toMillis(pushRelayHistogramAggregatorFlushSecs));
+              AccumulationCache cachedAccumulator = new AccumulationCache(accumulator,
+                  agentDigestFactory, 0, "histogram.accumulator.distributionRelay", null);
+              return new HistogramAccumulationHandlerImpl(handlerKey.getHandle(), cachedAccumulator,
+                  pushBlockedSamples, null, () -> validationConfiguration, true);
+            }
+            return delegate.getHandler(handlerKey);
+          }
+        } : handlerFactory;
+
     Map<ReportableEntityType, ReportableEntityDecoder> filteredDecoders = decoderSupplier.get().
         entrySet().stream().filter(x -> !x.getKey().equals(ReportableEntityType.SOURCE_TAG)).
         collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     ChannelHandler channelHandler = new RelayPortUnificationHandler(strPort, tokenAuthenticator,
-        healthCheckManager, filteredDecoders, handlerFactory, preprocessors.get(strPort),
+        healthCheckManager, filteredDecoders, handlerFactoryDelegate, preprocessors.get(strPort),
         hostAnnotator, histogramDisabled::get, traceDisabled::get, spanLogsDisabled::get);
     startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
         pushListenerMaxReceivedLength, pushListenerHttpBufferSize, listenerIdleConnectionTimeout),
@@ -726,8 +754,11 @@ public class PushAgent extends AbstractAgent {
         10,
         TimeUnit.SECONDS);
 
-    Accumulator cachedAccumulator = new AccumulationCache(accumulator,
-        (memoryCacheEnabled ? accumulatorSize : 0), null);
+    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(compression,
+        TimeUnit.SECONDS.toMillis(flushSecs));
+    Accumulator cachedAccumulator = new AccumulationCache(accumulator, agentDigestFactory,
+        (memoryCacheEnabled ? accumulatorSize : 0),
+        "histogram.accumulator." + Utils.Granularity.granularityToString(granularity), null);
 
     // Schedule write-backs
     histogramExecutor.scheduleWithFixedDelay(
@@ -761,8 +792,7 @@ public class PushAgent extends AbstractAgent {
         @Override
       public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
           return handlers.computeIfAbsent(handlerKey, k -> new HistogramAccumulationHandlerImpl(
-              handlerKey.getHandle(), cachedAccumulator, pushBlockedSamples,
-              TimeUnit.SECONDS.toMillis(flushSecs), granularity, compression,
+              handlerKey.getHandle(), cachedAccumulator, pushBlockedSamples, granularity,
               () -> validationConfiguration, granularity == null));
       }
     };

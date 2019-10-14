@@ -37,9 +37,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
   private static final Random RANDOM = new Random();
 
   private final Accumulator digests;
-  private final long ttlMillis;
   private final Utils.Granularity granularity;
-  private final short compression;
   // Metrics
   private final Supplier<Counter> pointCounter;
   private final Supplier<Counter> pointRejectedCounter;
@@ -61,22 +59,18 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
    * @param digests              accumulator for storing digests
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
    *                             into the main log file.
-   * @param ttlMillis            default time-to-dispatch in milliseconds for new bins
    * @param granularity          granularity level
-   * @param compression          default compression level for new bins
    * @param validationConfig     Supplier for the ValidationConfiguration
    * @param isHistogramInput     Whether expected input data for this handler is histograms.
    */
   public HistogramAccumulationHandlerImpl(
       final String handle, final Accumulator digests, final int blockedItemsPerBatch,
-      long ttlMillis, @Nullable Utils.Granularity granularity, short compression,
+      @Nullable Utils.Granularity granularity,
       @Nullable final Supplier<ValidationConfiguration> validationConfig,
       boolean isHistogramInput) {
     super(handle, blockedItemsPerBatch, null, validationConfig, isHistogramInput, false);
     this.digests = digests;
-    this.ttlMillis = ttlMillis;
     this.granularity = granularity;
-    this.compression = compression;
     String metricNamespace = "histogram.accumulator." + granularityToString(granularity);
     pointCounter = lazySupplier(() ->
         Metrics.newCounter(new MetricName(metricNamespace, "", "sample_added")));
@@ -118,7 +112,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       pointCounter.get().inc();
 
       // atomic update
-      digests.put(histogramKey, value, compression, ttlMillis);
+      digests.put(histogramKey, value);
     } else if (point.getValue() instanceof Histogram) {
       Histogram value = (Histogram) point.getValue();
       Utils.Granularity pointGranularity = fromMillis(value.getDuration());
@@ -139,7 +133,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       histogramCounter.get().inc();
 
       // atomic update
-      digests.put(histogramKey, value, compression, ttlMillis);
+      digests.put(histogramKey, value);
     }
 
     refreshValidPointsLoggerState();

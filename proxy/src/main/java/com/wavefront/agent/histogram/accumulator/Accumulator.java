@@ -1,7 +1,7 @@
 package com.wavefront.agent.histogram.accumulator;
 
 import com.tdunning.math.stats.AgentDigest;
-import com.wavefront.agent.histogram.TimeProvider;
+import com.wavefront.agent.TimeProvider;
 import com.wavefront.agent.histogram.Utils;
 
 import java.util.Iterator;
@@ -27,26 +27,23 @@ public interface Accumulator {
   void put(Utils.HistogramKey key, @Nonnull AgentDigest value);
 
   /**
-   * Update {@code AgentDigest} in the cache with a double value. If such {@code AgentDigest} does not exist for
-   * the specified key, it will be created with the specified compression and ttlMillis settings.
+   * Update {@link AgentDigest} in the cache with a double value. If such {@code AgentDigest} does
+   * not exist for the specified key, it will be created using {@link AgentDigestFactory}
    *
-   * @param key         histogram key
-   * @param value       value to be merged into the {@code AgentDigest}
-   * @param compression default compression level for new bins
-   * @param ttlMillis   default time-to-dispatch for new bins
+   * @param key histogram key
+   * @param value value to be merged into the {@code AgentDigest}
    */
-  void put(Utils.HistogramKey key, double value, short compression, long ttlMillis);
+  void put(Utils.HistogramKey key, double value);
 
   /**
-   * Update {@code AgentDigest} in the cache with a {@code Histogram} value. If such {@code AgentDigest} does not exist
-   * for the specified key, it will be created with the specified compression and ttlMillis settings.
+   * Update {@link AgentDigest} in the cache with a {@code Histogram} value. If such
+   * {@code AgentDigest} does not exist for the specified key, it will be created
+   * using {@link AgentDigestFactory}.
    *
-   * @param key         histogram key
-   * @param value       a {@code Histogram} to be merged into the {@code AgentDigest}
-   * @param compression default compression level for new bins
-   * @param ttlMillis   default time-to-dispatch in milliseconds for new bins
+   * @param key histogram key
+   * @param value a {@code Histogram} to be merged into the {@code AgentDigest}
    */
-  void put(Utils.HistogramKey key, Histogram value, short compression, long ttlMillis);
+  void put(Utils.HistogramKey key, Histogram value);
 
   /**
    * Attempts to compute a mapping for the specified key and its current mapped value
@@ -56,8 +53,8 @@ public interface Accumulator {
    * @param remappingFunction the function to compute a value
    * @return                  the new value associated with the specified key, or null if none
    */
-  AgentDigest compute(Utils.HistogramKey key, BiFunction<? super Utils.HistogramKey, ? super AgentDigest,
-      ? extends AgentDigest> remappingFunction);
+  AgentDigest compute(Utils.HistogramKey key, BiFunction<? super Utils.HistogramKey,
+      ? super AgentDigest, ? extends AgentDigest> remappingFunction);
 
   /**
    * Returns an iterator over "ripe" digests ready to be shipped
