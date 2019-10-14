@@ -272,3 +272,16 @@
       input         : testExtractTag
       search        : "^.*$"
       replace       : "Oi! This should never happen!"
+
+    # rename a span tag/annotation if its value matches a regex
+    - rule          : test-spanrenametag
+      action        : spanRenameTag
+      key           : myDevice
+      newkey        : device
+      match         : "^\\d*$"
+
+    - rule          : test-spanrenameannotation
+      action        : spanRenameAnnotation
+      key           : myDevice
+      newkey        : device
+      match         : "^\\d*$"
