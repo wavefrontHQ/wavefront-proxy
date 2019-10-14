@@ -155,9 +155,9 @@ public abstract class AbstractAgent {
   @Parameter(names = {"-h", "--host"}, description = "Server URL", order = 2)
   protected String server = "http://localhost:8080/api/";
 
-  @Parameter(names = {"--buffer"}, description = "File to use for buffering failed transmissions to Wavefront servers" +
-      ". Defaults to buffer.", order = 7)
-  private String bufferFile = "buffer";
+  @Parameter(names = {"--buffer"}, description = "File to use for buffering transmissions " +
+      "to be retried. Defaults to /var/spool/wavefront-proxy/buffer.", order = 7)
+  private String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
   @Parameter(names = {"--retryThreads"}, description = "Number of threads retrying failed transmissions. Defaults to " +
       "the number of processors (min. 4). Buffer files are maxed out at 2G each so increasing the number of retry " +
