@@ -62,7 +62,6 @@ import zipkin2.codec.BytesDecoder;
 import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
@@ -309,8 +308,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
             // TODO : Import DEBUG_SPAN_TAG_KEY from wavefront-sdk-java constants.
             case DEBUG_SPAN_TAG_KEY:
               isDebugSpanTag = true;
-              // Ignore the original debug value
-              annotation.setValue(DEBUG_SPAN_TAG_VAL);
               break;
           }
           annotations.add(annotation);
@@ -324,21 +321,9 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     annotations.add(new Annotation(CLUSTER_TAG_KEY, cluster));
     annotations.add(new Annotation(SHARD_TAG_KEY, shard));
 
-    // Add Sampling related annotations.
-    // Add a debug span tag as needed to enable sampling of this span with intelligent sampling.
-    boolean isDebug = zipkinSpan.debug() != null ? zipkinSpan.debug() : false;
-    if (!isDebugSpanTag && isDebug) {
-      annotations.add(new Annotation(DEBUG_SPAN_TAG_KEY, DEBUG_SPAN_TAG_VAL));
-    }
-
     // Add additional annotations.
     if (zipkinSpan.localEndpoint() != null && zipkinSpan.localEndpoint().ipv4() != null) {
       annotations.add(new Annotation("ipv4", zipkinSpan.localEndpoint().ipv4()));
-    }
-
-    if (!spanLogsDisabled.get() && zipkinSpan.annotations() != null &&
-        !zipkinSpan.annotations().isEmpty()) {
-      annotations.add(new Annotation("_spanLogs", "true"));
     }
 
     /** Add source of the span following the below:
@@ -393,6 +378,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       }
     }
 
+    boolean isDebug = zipkinSpan.debug() != null ? zipkinSpan.debug() : false;
     if (isDebugSpanTag || isDebug || (alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
 

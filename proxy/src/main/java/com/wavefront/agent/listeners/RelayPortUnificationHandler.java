@@ -152,7 +152,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
     if (uri == null) return;
     String path = uri.getPath();
     final boolean isDirectIngestion = path.startsWith("/report");
-    if (path.endsWith("/checkin") && (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
+    if (path.startsWith("/api/daemon") && (path.endsWith("/checkin") ||
+        path.endsWith("/checkin/proxy"))) {
       // simulate checkin response for proxy chaining
       ObjectNode jsonResponse = JsonNodeFactory.instance.objectNode();
       jsonResponse.put("currentTime", Clock.now());
@@ -167,7 +168,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
     HttpResponseStatus okStatus;
     if (isDirectIngestion) {
       okStatus = HttpResponseStatus.ACCEPTED;
-    } else if (path.contains("/pushdata/") || path.contains("wfproxy/report")) {
+    } else if (path.contains("/pushdata/")) {
       okStatus = HttpResponseStatus.OK;
     } else {
       okStatus = HttpResponseStatus.NO_CONTENT;

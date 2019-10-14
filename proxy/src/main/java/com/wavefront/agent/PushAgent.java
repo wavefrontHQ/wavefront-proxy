@@ -50,10 +50,8 @@ import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.ZipkinPortUnificationHandler;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
-import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
-import com.wavefront.agent.preprocessor.SpanSanitizeTransformer;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.NamedThreadFactory;
@@ -226,6 +224,13 @@ public class PushAgent extends AbstractAgent {
         managedExecutors.add(histogramFlushExecutor);
 
         File baseDirectory = new File(histogramStateDirectory);
+        if (persistAccumulator) {
+          // Check directory
+          checkArgument(baseDirectory.isDirectory(), baseDirectory.getAbsolutePath() +
+              " must be a directory!");
+          checkArgument(baseDirectory.canWrite(), baseDirectory.getAbsolutePath() +
+              " must be write-able!");
+        }
 
         // Central dispatch
         @SuppressWarnings("unchecked")
@@ -236,32 +241,28 @@ public class PushAgent extends AbstractAgent {
           startHistogramListeners(histMinPorts, pointHandler, remoteHostAnnotator,
               Utils.Granularity.MINUTE, histogramMinuteFlushSecs, histogramMinuteMemoryCache,
               baseDirectory, histogramMinuteAccumulatorSize, histogramMinuteAvgKeyBytes,
-              histogramMinuteAvgDigestBytes, histogramMinuteCompression,
-              histogramMinuteAccumulatorPersisted);
+              histogramMinuteAvgDigestBytes, histogramMinuteCompression);
         }
 
         if (histHourPorts.hasNext()) {
           startHistogramListeners(histHourPorts, pointHandler, remoteHostAnnotator,
               Utils.Granularity.HOUR, histogramHourFlushSecs, histogramHourMemoryCache,
               baseDirectory, histogramHourAccumulatorSize, histogramHourAvgKeyBytes,
-              histogramHourAvgDigestBytes, histogramHourCompression,
-              histogramHourAccumulatorPersisted);
+              histogramHourAvgDigestBytes, histogramHourCompression);
         }
 
         if (histDayPorts.hasNext()) {
           startHistogramListeners(histDayPorts, pointHandler, remoteHostAnnotator,
               Utils.Granularity.DAY, histogramDayFlushSecs, histogramDayMemoryCache,
               baseDirectory, histogramDayAccumulatorSize, histogramDayAvgKeyBytes,
-              histogramDayAvgDigestBytes, histogramDayCompression,
-              histogramDayAccumulatorPersisted);
+              histogramDayAvgDigestBytes, histogramDayCompression);
         }
 
         if (histDistPorts.hasNext()) {
           startHistogramListeners(histDistPorts, pointHandler, remoteHostAnnotator,
               null, histogramDistFlushSecs, histogramDistMemoryCache,
               baseDirectory, histogramDistAccumulatorSize, histogramDistAvgKeyBytes,
-              histogramDistAvgDigestBytes, histogramDistCompression,
-              histogramDistAccumulatorPersisted);
+              histogramDistAvgDigestBytes, histogramDistCompression);
         }
       }
     }
@@ -314,28 +315,14 @@ public class PushAgent extends AbstractAgent {
 
     portIterator(traceListenerPorts).forEachRemaining(strPort ->
         startTraceListener(strPort, handlerFactory, compositeSampler));
-    portIterator(traceJaegerListenerPorts).forEachRemaining(strPort -> {
-      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
-          null, null
-      );
-      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
-          new SpanSanitizeTransformer(ruleMetrics));
-      startTraceJaegerListener(strPort, handlerFactory,
-          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
-    });
+    portIterator(traceJaegerListenerPorts).forEachRemaining(strPort ->
+        startTraceJaegerListener(strPort, handlerFactory,
+            new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler));
     portIterator(pushRelayListenerPorts).forEachRemaining(strPort ->
         startRelayListener(strPort, handlerFactory, remoteHostAnnotator));
-    portIterator(traceZipkinListenerPorts).forEachRemaining(strPort -> {
-      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
-          null, null
-      );
-      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
-          new SpanSanitizeTransformer(ruleMetrics));
-      startTraceZipkinListener(strPort, handlerFactory,
-          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
-    });
+    portIterator(traceZipkinListenerPorts).forEachRemaining(strPort ->
+        startTraceZipkinListener(strPort, handlerFactory,
+            new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler));
     portIterator(jsonListenerPorts).forEachRemaining(strPort ->
         startJsonListener(strPort, handlerFactory));
     portIterator(writeHttpJsonListenerPorts).forEachRemaining(strPort ->
@@ -673,33 +660,27 @@ public class PushAgent extends AbstractAgent {
     logger.info("Health check port enabled: " + port);
   }
 
+
   protected void startHistogramListeners(Iterator<String> ports,
                                          ReportableEntityHandler<ReportPoint> pointHandler,
                                          SharedGraphiteHostAnnotator hostAnnotator,
                                          @Nullable Utils.Granularity granularity,
                                          int flushSecs, boolean memoryCacheEnabled,
                                          File baseDirectory, Long accumulatorSize, int avgKeyBytes,
-                                         int avgDigestBytes, short compression, boolean persist) {
+                                         int avgDigestBytes, short compression) {
     String listenerBinType = Utils.Granularity.granularityToString(granularity);
     // Accumulator
-    if (persist) {
-      // Check directory
-      checkArgument(baseDirectory.isDirectory(), baseDirectory.getAbsolutePath() +
-          " must be a directory!");
-      checkArgument(baseDirectory.canWrite(), baseDirectory.getAbsolutePath() +
-          " must be write-able!");
-    }
-
     MapLoader<HistogramKey, AgentDigest, HistogramKeyMarshaller, AgentDigestMarshaller> mapLoader =
         new MapLoader<>(
-            HistogramKey.class,
-            AgentDigest.class,
-            accumulatorSize,
-            avgKeyBytes,
-            avgDigestBytes,
-            HistogramKeyMarshaller.get(),
-            AgentDigestMarshaller.get(),
-            persist);
+        HistogramKey.class,
+        AgentDigest.class,
+        accumulatorSize,
+        avgKeyBytes,
+        avgDigestBytes,
+        HistogramKeyMarshaller.get(),
+        AgentDigestMarshaller.get(),
+        persistAccumulator);
+
     File accumulationFile = new File(baseDirectory, "accumulator." + listenerBinType);
     ChronicleMap<HistogramKey, AgentDigest> accumulator = mapLoader.get(accumulationFile);
 

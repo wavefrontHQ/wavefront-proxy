@@ -6,7 +6,6 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.Accumulator;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 
@@ -32,7 +31,9 @@ public class PointHandlerDispatcher implements Runnable {
 
   private final Counter dispatchCounter;
   private final Counter dispatchErrorCounter;
-  private final Counter dispatchProcessTime;
+  private final Histogram accumulatorSize;
+  private final Histogram dispatchProcessTime;
+  private final Histogram dispatchLagMillis;
 
   private final Accumulator digests;
   private final ReportableEntityHandler<ReportPoint> output;
@@ -60,22 +61,20 @@ public class PointHandlerDispatcher implements Runnable {
     String prefix = "histogram.accumulator." + Utils.Granularity.granularityToString(granularity);
     this.dispatchCounter = Metrics.newCounter(new MetricName(prefix, "", "dispatched"));
     this.dispatchErrorCounter = Metrics.newCounter(new MetricName(prefix, "", "dispatch_errors"));
-    Metrics.newGauge(new MetricName(prefix, "", "size"), new Gauge<Long>() {
-      @Override
-      public Long value() {
-        return digests.size();
-      }
-    });
-    this.dispatchProcessTime = Metrics.newCounter(new MetricName(prefix, "",
-        "dispatch_process_millis"));
+    this.accumulatorSize = Metrics.newHistogram(new MetricName(prefix, "", "size"));
+    this.dispatchProcessTime = Metrics.newHistogram(new MetricName(prefix, "",
+        "dispatch_process_nanos"));
+    this.dispatchLagMillis = Metrics.newHistogram(new MetricName(prefix, "",
+        "dispatch_lag_millis"));
   }
 
   @Override
   public void run() {
     try {
+      accumulatorSize.update(digests.size());
       AtomicInteger dispatchedCount = new AtomicInteger(0);
 
-      long startMillis = System.currentTimeMillis();
+      long startNanos = nanoTime();
       Iterator<Utils.HistogramKey> index = digests.getRipeDigestsIterator(this.clock);
       while (index.hasNext()) {
         digests.compute(index.next(), (k, v) -> {
@@ -91,6 +90,7 @@ public class PointHandlerDispatcher implements Runnable {
             dispatchErrorCounter.inc();
             logger.log(Level.SEVERE, "Failed dispatching entry " + k, e);
           }
+          dispatchLagMillis.update(System.currentTimeMillis() - v.getDispatchTimeMillis());
           index.remove();
           dispatchedCount.incrementAndGet();
           return null;
@@ -98,7 +98,7 @@ public class PointHandlerDispatcher implements Runnable {
         if (dispatchLimit != null && dispatchedCount.get() >= dispatchLimit)
           break;
       }
-      dispatchProcessTime.inc(System.currentTimeMillis() - startMillis);
+      dispatchProcessTime.update(nanoTime() - startNanos);
     } catch (Exception e) {
       logger.log(Level.SEVERE, "PointHandlerDispatcher error", e);
     }

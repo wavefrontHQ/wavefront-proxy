@@ -247,6 +247,17 @@ public abstract class AbstractAgent {
           "(Default: no limit)")
   protected Integer histogramAccumulatorFlushMaxBatchSize = -1;
 
+  @Parameter(names = {"--histogramReceiveBufferFlushInterval"}, hidden = true,
+      description = "(DEPRECATED) Interval to send received points to the processing queue in " +
+          "millis (Default: 100)")
+  @Deprecated
+  protected Integer histogramReceiveBufferFlushInterval = 100;
+
+  @Parameter(names = {"--histogramProcessingQueueScanInterval"}, hidden = true,
+      description = "Processing queue scan interval in millis (Default: 20)")
+  @Deprecated
+  protected Integer histogramProcessingQueueScanInterval = 20;
+
   @Parameter(names = {"--histogramMaxReceivedLength"},
       description = "Maximum line length for received histogram data (Default: 65536)")
   protected Integer histogramMaxReceivedLength = 64 * 1024;
@@ -259,6 +270,11 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--histogramMinuteListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
   protected String histogramMinuteListenerPorts = "";
+
+  @Parameter(names = {"--histogramMinuteAccumulators"}, hidden = true,
+      description = "(DEPRECATED) Number of accumulators per minute port")
+  @Deprecated
+  protected Integer histogramMinuteAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(names = {"--histogramMinuteFlushSecs"},
       description = "Number of seconds to keep a minute granularity accumulator open for " +
@@ -283,10 +299,6 @@ public abstract class AbstractAgent {
           "reporting bins")
   protected Long histogramMinuteAccumulatorSize = 100000L;
 
-  @Parameter(names = {"--histogramMinuteAccumulatorPersisted"},
-      description = "Whether the accumulator should persist to disk")
-  protected boolean histogramMinuteAccumulatorPersisted = false;
-
   @Parameter(names = {"--histogramMinuteMemoryCache"},
       description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
           "frequency data (more than 1 point per second per time series). Default: false")
@@ -295,6 +307,11 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--histogramHourListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
   protected String histogramHourListenerPorts = "";
+
+  @Parameter(names = {"--histogramHourAccumulators"}, hidden = true,
+      description = "(DEPRECATED) Number of accumulators per hour port")
+  @Deprecated
+  protected Integer histogramHourAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(names = {"--histogramHourFlushSecs"},
       description = "Number of seconds to keep an hour granularity accumulator open for " +
@@ -319,10 +336,6 @@ public abstract class AbstractAgent {
           "reporting bins")
   protected Long histogramHourAccumulatorSize = 100000L;
 
-  @Parameter(names = {"--histogramHourAccumulatorPersisted"},
-      description = "Whether the accumulator should persist to disk")
-  protected boolean histogramHourAccumulatorPersisted = false;
-
   @Parameter(names = {"--histogramHourMemoryCache"},
       description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
           "frequency data (more than 1 point per second per time series). Default: false")
@@ -331,6 +344,11 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--histogramDayListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
   protected String histogramDayListenerPorts = "";
+
+  @Parameter(names = {"--histogramDayAccumulators"}, hidden = true,
+      description = "(DEPRECATED) Number of accumulators per day port")
+  @Deprecated
+  protected Integer histogramDayAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(names = {"--histogramDayFlushSecs"},
       description = "Number of seconds to keep a day granularity accumulator open for new samples.")
@@ -354,10 +372,6 @@ public abstract class AbstractAgent {
           "reporting bins")
   protected Long histogramDayAccumulatorSize = 100000L;
 
-  @Parameter(names = {"--histogramDayAccumulatorPersisted"},
-      description = "Whether the accumulator should persist to disk")
-  protected boolean histogramDayAccumulatorPersisted = false;
-
   @Parameter(names = {"--histogramDayMemoryCache"},
       description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
           "frequency data (more than 1 point per second per time series). Default: false")
@@ -366,6 +380,11 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--histogramDistListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
   protected String histogramDistListenerPorts = "";
+
+  @Parameter(names = {"--histogramDistAccumulators"}, hidden = true,
+      description = "(DEPRECATED) Number of accumulators per distribution port")
+  @Deprecated
+  protected Integer histogramDistAccumulators = Runtime.getRuntime().availableProcessors();
 
   @Parameter(names = {"--histogramDistFlushSecs"},
       description = "Number of seconds to keep a new distribution bin open for new samples.")
@@ -389,14 +408,47 @@ public abstract class AbstractAgent {
           "reporting bins")
   protected Long histogramDistAccumulatorSize = 100000L;
 
-  @Parameter(names = {"--histogramDistAccumulatorPersisted"},
-      description = "Whether the accumulator should persist to disk")
-  protected boolean histogramDistAccumulatorPersisted = false;
-
   @Parameter(names = {"--histogramDistMemoryCache"},
       description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
           "frequency data (more than 1 point per second per time series). Default: false")
   protected boolean histogramDistMemoryCache = false;
+
+  @Parameter(names = {"--histogramAccumulatorSize"}, hidden = true,
+      description = "(DEPRECATED FOR histogramMinuteAccumulatorSize/histogramHourAccumulatorSize/" +
+          "histogramDayAccumulatorSize/histogramDistAccumulatorSize)")
+  protected Long histogramAccumulatorSize = null;
+
+  @Parameter(names = {"--avgHistogramKeyBytes"}, hidden = true,
+      description = "(DEPRECATED FOR histogramMinuteAvgKeyBytes/histogramHourAvgKeyBytes/" +
+          "histogramDayAvgHistogramKeyBytes/histogramDistAvgKeyBytes)")
+  protected Integer avgHistogramKeyBytes = null;
+
+  @Parameter(names = {"--avgHistogramDigestBytes"}, hidden = true,
+      description = "(DEPRECATED FOR histogramMinuteAvgDigestBytes/histogramHourAvgDigestBytes/" +
+          "histogramDayAvgHistogramDigestBytes/histogramDistAvgDigestBytes)")
+  protected Integer avgHistogramDigestBytes = null;
+
+  @Parameter(names = {"--persistMessages"}, hidden = true,
+      description = "(DEPRECATED) Whether histogram samples or distributions should be persisted " +
+          "to disk")
+  @Deprecated
+  protected boolean persistMessages = true;
+
+  @Parameter(names = {"--persistMessagesCompression"}, hidden = true,
+      description = "(DEPRECATED) Enable LZ4 compression for histogram samples persisted to " +
+          "disk. (Default: true)")
+  @Deprecated
+  protected boolean persistMessagesCompression = true;
+
+  @Parameter(names = {"--persistAccumulator"},
+      description = "Whether the accumulator should persist to disk")
+  protected boolean persistAccumulator = true;
+
+  @Parameter(names = {"--histogramCompression"}, hidden = true,
+      description = "(DEPRECATED FOR histogramMinuteCompression/histogramHourCompression/" +
+          "histogramDayCompression/histogramDistCompression)")
+  @Deprecated
+  protected Short histogramCompression = null;
 
   @Parameter(names = {"--graphitePorts"}, description = "Comma-separated list of ports to listen on for graphite " +
       "data. Defaults to empty list.")
@@ -543,6 +595,11 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--disableRdnsLookup"}, description = "When receiving Wavefront-formatted data without source/host specified, use remote IP address as source instead of trying to resolve the DNS name. Default false.")
   protected boolean disableRdnsLookup = false;
+
+  @Parameter(names = {"--javaNetConnection"}, hidden = true, description = "(DEPRECATED) If true," +
+      " use JRE's own http client when making connections instead of Apache HTTP Client")
+  @Deprecated
+  protected boolean javaNetConnection = false;
 
   @Parameter(names = {"--gzipCompression"}, description = "If true, enables gzip compression for traffic sent to Wavefront (Default: true)")
   protected boolean gzipCompression = true;
@@ -904,6 +961,7 @@ public abstract class AbstractAgent {
           histogramMaxReceivedLength).intValue();
       histogramHttpBufferSize = config.getNumber("histogramHttpBufferSize",
           histogramHttpBufferSize).intValue();
+      persistAccumulator = config.getBoolean("persistAccumulator", persistAccumulator);
 
       deltaCountersAggregationListenerPorts =
           config.getString("deltaCountersAggregationListenerPorts",
@@ -916,27 +974,22 @@ public abstract class AbstractAgent {
       if (config.isDefined("avgHistogramKeyBytes")) {
         histogramMinuteAvgKeyBytes = histogramHourAvgKeyBytes = histogramDayAvgKeyBytes =
             histogramDistAvgKeyBytes = config.getNumber("avgHistogramKeyBytes",
-                150).intValue();
+                avgHistogramKeyBytes).intValue();
       }
       if (config.isDefined("avgHistogramDigestBytes")) {
         histogramMinuteAvgDigestBytes = histogramHourAvgDigestBytes = histogramDayAvgDigestBytes =
             histogramDistAvgDigestBytes = config.getNumber("avgHistogramDigestBytes",
-                500).intValue();
+                avgHistogramDigestBytes).intValue();
       }
       if (config.isDefined("histogramAccumulatorSize")) {
         histogramMinuteAccumulatorSize = histogramHourAccumulatorSize =
             histogramDayAccumulatorSize = histogramDistAccumulatorSize = config.getNumber(
-                "histogramAccumulatorSize", 100000).longValue();
+                "histogramAccumulatorSize", histogramAccumulatorSize).longValue();
       }
       if (config.isDefined("histogramCompression")) {
         histogramMinuteCompression = histogramHourCompression = histogramDayCompression =
             histogramDistCompression = config.getNumber("histogramCompression", null, 20, 1000).
                 shortValue();
-      }
-      if (config.isDefined("persistAccumulator")) {
-        histogramMinuteAccumulatorPersisted = histogramHourAccumulatorPersisted =
-            histogramDayAccumulatorPersisted = histogramDistAccumulatorPersisted =
-                config.getBoolean("persistAccumulator", false);
       }
 
       // Histogram: minute accumulator settings
@@ -951,8 +1004,6 @@ public abstract class AbstractAgent {
           histogramMinuteAvgDigestBytes).intValue();
       histogramMinuteAccumulatorSize = config.getNumber("histogramMinuteAccumulatorSize",
           histogramMinuteAccumulatorSize).longValue();
-      histogramMinuteAccumulatorPersisted = config.getBoolean("histogramMinuteAccumulatorPersisted",
-          histogramMinuteAccumulatorPersisted);
       histogramMinuteMemoryCache = config.getBoolean("histogramMinuteMemoryCache", histogramMinuteMemoryCache);
 
       // Histogram: hour accumulator settings
@@ -966,8 +1017,6 @@ public abstract class AbstractAgent {
           intValue();
       histogramHourAccumulatorSize = config.getNumber("histogramHourAccumulatorSize", histogramHourAccumulatorSize).
           longValue();
-      histogramHourAccumulatorPersisted = config.getBoolean("histogramHourAccumulatorPersisted",
-          histogramHourAccumulatorPersisted);
       histogramHourMemoryCache = config.getBoolean("histogramHourMemoryCache", histogramHourMemoryCache);
 
       // Histogram: day accumulator settings
@@ -981,8 +1030,6 @@ public abstract class AbstractAgent {
           intValue();
       histogramDayAccumulatorSize = config.getNumber("histogramDayAccumulatorSize", histogramDayAccumulatorSize).
           longValue();
-      histogramDayAccumulatorPersisted = config.getBoolean("histogramDayAccumulatorPersisted",
-          histogramDayAccumulatorPersisted);
       histogramDayMemoryCache = config.getBoolean("histogramDayMemoryCache", histogramDayMemoryCache);
 
       // Histogram: dist accumulator settings
@@ -996,8 +1043,6 @@ public abstract class AbstractAgent {
           intValue();
       histogramDistAccumulatorSize = config.getNumber("histogramDistAccumulatorSize", histogramDistAccumulatorSize).
           longValue();
-      histogramDistAccumulatorPersisted = config.getBoolean("histogramDistAccumulatorPersisted",
-          histogramDistAccumulatorPersisted);
       histogramDistMemoryCache = config.getBoolean("histogramDistMemoryCache", histogramDistMemoryCache);
 
       retryThreads = config.getNumber("retryThreads", retryThreads).intValue();
