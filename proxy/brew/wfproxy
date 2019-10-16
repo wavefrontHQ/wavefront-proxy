@@ -16,4 +16,4 @@ done
 
 CMDDIR=`dirname "$CMD"`                                                                                              
 
-java -jar $CMDDIR/../lib/proxy-uber.jar "$@"
+$CMDDIR/../lib/jdk/bin/java -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -Dlog4j.configurationFile=$CMDDIR/../../../../etc/wavefront/wavefront-proxy/log4j2.xml -jar $CMDDIR/../lib/proxy-uber.jar "$@"
