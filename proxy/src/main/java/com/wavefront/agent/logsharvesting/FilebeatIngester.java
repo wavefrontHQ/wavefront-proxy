@@ -39,7 +39,7 @@ public class FilebeatIngester implements IMessageListener {
     try {
       filebeatMessage = new FilebeatMessage(message);
     } catch (MalformedMessageException exn) {
-      logger.severe("Malformed message received from filebeat, dropping.");
+      logger.severe("Malformed message received from filebeat, dropping (" + exn.getMessage() + ")");
       malformed.inc();
       return;
     }

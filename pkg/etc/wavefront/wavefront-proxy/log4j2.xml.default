@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="INFO" monitorInterval="10">
+<Configuration status="INFO" monitorInterval="5">
     <Properties>
         <Property name="log-path">/var/log/wavefront</Property>
     </Properties>
@@ -72,6 +72,44 @@
             </DefaultRolloverStrategy>
         </RollingFile>
         -->
+        <!-- Uncomment the RollingFile section below to log all Jaeger tracing spans to a file -->
+        <!--
+        <RollingFile name="JaegerDataFile" fileName="${log-path}/wavefront-jaeger-data.log"
+                     filePattern="${log-path}/wavefront-jaeger-data-%d{yyyy-MM-dd}-%i.log" >
+            <PatternLayout>
+                <pattern>%m%n</pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="1024 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                    <IfFileName glob="wavefront-jaeger*.log" />
+                    <IfLastModified age="7d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        -->
+        <!-- Uncomment the RollingFile section below to log all Zipkin tracing spans to a file -->
+        <!--
+        <RollingFile name="ZipkinDataFile" fileName="${log-path}/wavefront-zipkin-data.log"
+                     filePattern="${log-path}/wavefront-zipkin-data-%d{yyyy-MM-dd}-%i.log" >
+            <PatternLayout>
+                <pattern>%m%n</pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="1024 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                    <IfFileName glob="wavefront-zipkin*.log" />
+                    <IfLastModified age="7d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        -->
     </Appenders>
     <Loggers>
         <!-- Uncomment AppenderRef to log blocked points to a file.
@@ -86,6 +124,18 @@
         <AsyncLogger name="RawValidPoints" level="DEBUG" additivity="false">
             <!--
             <AppenderRef ref="ValidPointsFile"/>
+            -->
+        </AsyncLogger>
+        <!-- Uncomment AppenderRef and set level="ALL" to log Jaeger data to a file -->
+        <AsyncLogger name="JaegerDataLogger" level="DEBUG" additivity="false">
+            <!--
+            <AppenderRef ref="JaegerDataFile"/>
+            -->
+        </AsyncLogger>
+        <!-- Uncomment AppenderRef and set level="ALL" to log Zipkin data to a file -->
+        <AsyncLogger name="ZipkinDataLogger" level="DEBUG" additivity="false">
+            <!--
+            <AppenderRef ref="ZipkinDataFile"/>
             -->
         </AsyncLogger>
         <Root level="INFO">

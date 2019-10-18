@@ -4,13 +4,9 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>4.26-SNAPSHOT</version>
+  <version>6.0-RC1-SNAPSHOT</version>
   <modules>
-    <module>java-lib</module>
     <module>proxy</module>
-    <module>java-client</module>
-    <module>dropwizard-metrics/3.1</module>
-    <module>yammer-metrics</module>
   </modules>
   <packaging>pom</packaging>
 
@@ -35,7 +31,7 @@
     <connection>scm:git:git@github.com:wavefronthq/java.git</connection>
     <developerConnection>scm:git:git@github.com:wavefronthq/java.git</developerConnection>
     <url>git@github.com:wavefronthq/java.git</url>
-    <tag>wavefront-3.0</tag>
+    <tag>release-5.x</tag>
   </scm>
 
   <distributionManagement>
@@ -46,6 +42,9 @@
   </distributionManagement>
 
   <properties>
+    <!-- jdk 11 can be used for building -->
+    <jdk.version>11</jdk.version>
+    
     <!-- Force encoding to UTF-8 (bug in OS X)-->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -55,10 +54,13 @@
     <truth.version>0.29</truth.version>
 
     <java.version>1.8</java.version>
-    <jetty.version>9.4.7.v20170914</jetty.version>
-    <jackson.version>2.9.2</jackson.version>
-    <netty.version>4.1.11.Final</netty.version>
-    <public.project.version>4.26-SNAPSHOT</public.project.version>
+    <log4j.version>2.12.1</log4j.version>
+    <jackson.version>2.9.10</jackson.version>
+    <jackson-databind.version>2.9.10</jackson-databind.version>
+    <netty.version>4.1.41.Final</netty.version>
+    <java-lib.version>2019-09.2</java-lib.version>
+
+    <doclint>none</doclint>
   </properties>
 
   <build>
@@ -97,27 +99,12 @@
       <dependency>
         <groupId>com.wavefront</groupId>
         <artifactId>java-lib</artifactId>
-        <version>${public.project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.wavefront</groupId>
-        <artifactId>proxy</artifactId>
-        <version>${public.project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.wavefront</groupId>
-        <artifactId>java-client</artifactId>
-        <version>${public.project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.wavefront</groupId>
-        <artifactId>dropwizard-metrics-3.1</artifactId>
-        <version>${public.project.version}</version>
+        <version>${java-lib.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>18.0</version>
+        <version>26.0-jre</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
@@ -127,7 +114,7 @@
       <dependency>
         <groupId>org.jboss.resteasy</groupId>
         <artifactId>resteasy-bom</artifactId>
-        <version>3.0.21.Final</version>
+        <version>3.9.0.Final</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -149,12 +136,17 @@
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
-        <version>${jackson.version}</version>
+        <version>${jackson-databind.version}</version>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.module</groupId>
         <artifactId>jackson-module-afterburner</artifactId>
         <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.ben-manes.caffeine</groupId>
+        <artifactId>caffeine</artifactId>
+        <version>2.8.0</version>
       </dependency>
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
@@ -167,34 +159,44 @@
         <version>2.5.2</version>
       </dependency>
       <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.25</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>jcl-over-slf4j</artifactId>
+        <version>1.7.25</version>
+      </dependency>
+      <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-core</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-api</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-1.2-api</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-slf4j-impl</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-jul</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-web</artifactId>
-        <version>2.8.2</version>
+        <version>${log4j.version}</version>
       </dependency>
       <dependency>
         <groupId>com.yammer.metrics</groupId>
@@ -210,11 +212,6 @@
         <groupId>commons-collections</groupId>
         <artifactId>commons-collections</artifactId>
         <version>3.2.2</version>
-      </dependency>
-      <dependency>
-        <groupId>com.thoughtworks.xstream</groupId>
-        <artifactId>xstream</artifactId>
-        <version>1.4.10</version>
       </dependency>
       <dependency>
         <groupId>javax.ws.rs</groupId>
@@ -241,7 +238,7 @@
       <dependency>
         <groupId>org.antlr</groupId>
         <artifactId>antlr4-runtime</artifactId>
-        <version>4.5.2-1</version>
+        <version>4.7.1</version>
       </dependency>
       <dependency>
         <groupId>io.netty</groupId>
@@ -263,6 +260,11 @@
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
         <version>2.0.1</version>
+      </dependency>
+      <dependency>
+        <groupId>com.thoughtworks.xstream</groupId>
+        <artifactId>xstream</artifactId>
+        <version>1.4.11.1</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -300,7 +302,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
-            <version>2.9.1</version>
+            <version>3.1.0</version>
             <executions>
               <execution>
                 <id>attach-javadocs</id>
@@ -308,7 +310,8 @@
                   <goal>jar</goal>
                 </goals>
                 <configuration>
-                  <additionalparam>-Xdoclint:none</additionalparam>
+                  <doclint>none</doclint>
+                  <source>${java.version}</source>
                 </configuration>
               </execution>
             </executions>

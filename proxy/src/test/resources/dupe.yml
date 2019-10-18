@@ -4,4 +4,4 @@ counters:
 
 gauges:
   - pattern: "plainGauge %{NUMBER:value}"
-    metricName: "plainCounter"
+    metricName: "∆plainCounter"

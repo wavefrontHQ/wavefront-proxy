@@ -1,12 +1,13 @@
 package com.wavefront.agent.preprocessor;
 
-import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Generic container class for storing transformation and filter rules
@@ -15,34 +16,52 @@ import javax.validation.constraints.NotNull;
  */
 public class Preprocessor<T> {
 
-  private final List<Function<T, T>> transformers = new ArrayList<>();
-  private final List<AnnotatedPredicate<T>> filters = new ArrayList<>();
+  private final List<Function<T, T>> transformers;
+  private final List<AnnotatedPredicate<T>> filters;
 
-  @Nullable
-  private String message;
+  public Preprocessor() {
+    this(new ArrayList<>(), new ArrayList<>());
+  }
+
+  public Preprocessor(List<Function<T, T>> transformers, List<AnnotatedPredicate<T>> filters) {
+    this.transformers = transformers;
+    this.filters = filters;
+  }
 
   /**
    * Apply all transformation rules sequentially
-   * @param point input point
+   * @param item input point
    * @return transformed point
    */
-  public T transform(@NotNull T point) {
+  public T transform(@Nonnull T item) {
     for (final Function<T, T> func : transformers) {
-      point = func.apply(point);
+      item = func.apply(item);
     }
-    return point;
+    return item;
   }
 
   /**
    * Apply all filter predicates sequentially, stop at the first "false" result
-   * @param point point to apply predicates to
+   * @param item item to apply predicates to
    * @return true if all predicates returned "true"
    */
-  public boolean filter(@NotNull T point) {
-    message = null;
+  public boolean filter(@Nonnull T item) {
+    return filter(item, null);
+  }
+
+  /**
+   * Apply all filter predicates sequentially, stop at the first "false" result
+   * @param item          item to apply predicates to
+   * @param messageHolder container to store additional output from predicate filters
+   * @return true if all predicates returned "true"
+   */
+  public boolean filter(@Nonnull T item, @Nullable String[] messageHolder) {
+    if (messageHolder != null) {
+      // empty the container to prevent previous call's results from leaking into the current one
+      messageHolder[0] = null;
+    }
     for (final AnnotatedPredicate<T> predicate : filters) {
-      if (!predicate.apply(point)) {
-        message = predicate.getMessage(point);
+      if (!predicate.test(item, messageHolder)) {
         return false;
       }
     }
@@ -50,28 +69,34 @@ public class Preprocessor<T> {
   }
 
   /**
-   * Check if any filters are registered
-   * @return true if it has at least one filter
+   * Check all filter rules as an immutable list
+   * @return filter rules
    */
-  public boolean hasFilters() {
-    return !filters.isEmpty();
+  public List<AnnotatedPredicate<T>> getFilters() {
+    return ImmutableList.copyOf(filters);
   }
 
   /**
-   * Check if any transformation rules are registered
-   * @return true if it has at least one transformer
+   * Get all transformer rules as an immutable list
+   * @return transformer rules
    */
-  public boolean hasTransformers() {
-    return !transformers.isEmpty();
+  public List<Function<T, T>> getTransformers() {
+    return ImmutableList.copyOf(transformers);
   }
 
   /**
-   * Get the detailed message, if available, with the result of the last filter() operation
-   * @return message
+   * Create a new preprocessor with rules merged from this and another preprocessor.
+   *
+   * @param other preprocessor to merge with.
+   * @return merged preprocessor.
    */
-  @Nullable
-  public String getLastFilterResult() {
-    return message;
+  public Preprocessor<T> merge(Preprocessor<T> other) {
+    Preprocessor<T> result = new Preprocessor<>();
+    this.getTransformers().forEach(result::addTransformer);
+    this.getFilters().forEach(result::addFilter);
+    other.getTransformers().forEach(result::addTransformer);
+    other.getFilters().forEach(result::addFilter);
+    return result;
   }
 
   /**
@@ -106,5 +131,19 @@ public class Preprocessor<T> {
    */
   public void addFilter(int index, AnnotatedPredicate<T> filter) {
     filters.add(index, filter);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (obj == null || getClass() != obj.getClass()) return false;
+    Preprocessor that = (Preprocessor) obj;
+    return this.transformers.equals(that.transformers) &&
+        this.filters.equals(that.filters);
+  }
+
+  @Override
+  public int hashCode() {
+    return 31 * transformers.hashCode() + filters.hashCode();
   }
 }

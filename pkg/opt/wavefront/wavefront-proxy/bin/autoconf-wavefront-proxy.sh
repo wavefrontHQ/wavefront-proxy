@@ -56,16 +56,21 @@ else
 	sed -ri s,^server.*,server=$WAVEFRONT_URL,g $CONF_FILE
 fi
 
+x_option_state=${-//[^x]/}
+set +x
+
 if [[ -z $WAVEFRONT_TOKEN ]]; then
 	get_input "2) Please enter a valid API token:"
 	WAVEFRONT_TOKEN=$user_input
 fi
-echo "Setting token=$WAVEFRONT_TOKEN"
+echo "Setting token"
 if grep -q ^#token $CONF_FILE; then
 	sed -ri s,^#token.*,token=$WAVEFRONT_TOKEN,g $CONF_FILE
 else
 	sed -ri s,^token.*,token=$WAVEFRONT_TOKEN,g $CONF_FILE
 fi
+
+if [[ -n "$x_option_state" ]]; then set -x; else set +x; fi
 
 if [[ -z $WAVEFRONT_HOSTNAME ]]; then
 	get_input "3) Please enter the hostname:" $DEFAULT_HOSTNAME

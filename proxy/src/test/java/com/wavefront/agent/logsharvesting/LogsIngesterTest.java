@@ -7,11 +7,18 @@ import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.PointMatchers;
+import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
+import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.MetricMatcher;
+import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
+import com.wavefront.common.MetricConstants;
+import com.wavefront.data.ReportableEntityType;
 
 import org.easymock.Capture;
 import org.easymock.CaptureType;
@@ -22,13 +29,13 @@ import org.logstash.beats.Message;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.SocketAddress;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-
-import javax.annotation.Nullable;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -37,6 +44,7 @@ import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
@@ -44,10 +52,12 @@ import static org.easymock.EasyMock.verify;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.lessThan;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -56,9 +66,12 @@ public class LogsIngesterTest {
   private LogsIngestionConfig logsIngestionConfig;
   private LogsIngester logsIngesterUnderTest;
   private FilebeatIngester filebeatIngesterUnderTest;
-  private RawLogsIngester rawLogsIngesterUnderTest;
-  private PointHandler mockPointHandler;
-  private AtomicLong now = new AtomicLong(System.currentTimeMillis());  // 6:30PM california time Oct 13 2016
+  private RawLogsIngesterPortUnificationHandler rawLogsIngesterUnderTest;
+  private ReportableEntityHandlerFactory mockFactory;
+  private ReportableEntityHandler<ReportPoint> mockPointHandler;
+  private ReportableEntityHandler<ReportPoint> mockHistogramHandler;
+  private AtomicLong now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
+  private AtomicLong nanos = new AtomicLong(System.nanoTime());
   private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
 
   private LogsIngestionConfig parseConfigFile(String configPath) throws IOException {
@@ -66,33 +79,35 @@ public class LogsIngesterTest {
     return objectMapper.readValue(configFile, LogsIngestionConfig.class);
   }
 
-  private void setup(String configPath) throws IOException, GrokException, ConfigurationException {
-    logsIngestionConfig = parseConfigFile(configPath);
+  private void setup(LogsIngestionConfig config) throws IOException, GrokException, ConfigurationException {
+    logsIngestionConfig = config;
     logsIngestionConfig.aggregationIntervalSeconds = 10000; // HACK: Never call flush automatically.
     logsIngestionConfig.verifyAndInit();
-    mockPointHandler = createMock(PointHandler.class);
-    logsIngesterUnderTest = new LogsIngester(mockPointHandler, () -> logsIngestionConfig, null, now::get);
+    mockPointHandler = createMock(ReportableEntityHandler.class);
+    mockHistogramHandler = createMock(ReportableEntityHandler.class);
+    mockFactory = createMock(ReportableEntityHandlerFactory.class);
+    expect(mockFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, "logs-ingester"))).
+        andReturn(mockPointHandler).anyTimes();
+    expect(mockFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, "logs-ingester"))).
+        andReturn(mockHistogramHandler).anyTimes();
+    replay(mockFactory);
+    logsIngesterUnderTest = new LogsIngester(mockFactory, () -> logsIngestionConfig, null,
+        now::get, nanos::get);
     logsIngesterUnderTest.start();
     filebeatIngesterUnderTest = new FilebeatIngester(logsIngesterUnderTest, now::get);
-    rawLogsIngesterUnderTest = new RawLogsIngester(logsIngesterUnderTest, -1, now::get);
-  }
-
-  private void receiveFilebeatLog(String log) {
-    Map<String, Object> data = Maps.newHashMap();
-    data.put("message", log);
-    data.put("beat", Maps.newHashMap());
-    data.put("@timestamp", "2016-10-13T20:43:45.172Z");
-    filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
+    rawLogsIngesterUnderTest = new RawLogsIngesterPortUnificationHandler("12345",
+        logsIngesterUnderTest, x -> "testHost", TokenAuthenticatorBuilder.create().build(),
+        new NoopHealthCheckManager(), null);
   }
 
   private void receiveRawLog(String log) {
     ChannelHandlerContext ctx = EasyMock.createMock(ChannelHandlerContext.class);
     Channel channel = EasyMock.createMock(Channel.class);
     EasyMock.expect(ctx.channel()).andReturn(channel);
-    // Hack: Returning a mock SocketAddress simply causes the fallback to be used in getHostOrDefault.
-    EasyMock.expect(channel.remoteAddress()).andReturn(EasyMock.createMock(SocketAddress.class));
+    InetSocketAddress addr = InetSocketAddress.createUnresolved("testHost", 1234);
+    EasyMock.expect(channel.remoteAddress()).andReturn(addr);
     EasyMock.replay(ctx, channel);
-    rawLogsIngesterUnderTest.ingestLog(ctx, log);
+    rawLogsIngesterUnderTest.processLine(ctx, log);
     EasyMock.verify(ctx, channel);
   }
 
@@ -125,15 +140,21 @@ public class LogsIngesterTest {
     return getPoints(numPoints, 0, this::receiveLog, logLines);
   }
 
-  private List<ReportPoint> getPoints(int numPoints, int lagPerLogLine, Consumer<String> consumer, String... logLines)
+  private List<ReportPoint> getPoints(int numPoints, int lagPerLogLine, Consumer <String> consumer,
+                                      String... logLines) throws Exception {
+    return getPoints(mockPointHandler, numPoints, lagPerLogLine, consumer, logLines);
+  }
+
+  private List<ReportPoint> getPoints(ReportableEntityHandler<ReportPoint> handler, int numPoints, int lagPerLogLine,
+                                      Consumer <String> consumer, String... logLines)
       throws Exception {
     Capture<ReportPoint> reportPointCapture = Capture.newInstance(CaptureType.ALL);
-    reset(mockPointHandler);
+    reset(handler);
     if (numPoints > 0) {
-      mockPointHandler.reportPoint(EasyMock.capture(reportPointCapture), EasyMock.notNull(String.class));
+      handler.report(EasyMock.capture(reportPointCapture));
       expectLastCall().times(numPoints);
     }
-    replay(mockPointHandler);
+    replay(handler);
     for (String line : logLines) {
       consumer.accept(line);
       tick(lagPerLogLine);
@@ -143,58 +164,118 @@ public class LogsIngesterTest {
     tick(60000L);
 
     logsIngesterUnderTest.getMetricsReporter().run();
-    verify(mockPointHandler);
+    verify(handler);
     return reportPointCapture.getValues();
   }
 
   @Test
   public void testPrefixIsApplied() throws Exception {
-    setup("test.yml");
+    setup(parseConfigFile("test.yml"));
     logsIngesterUnderTest = new LogsIngester(
-        mockPointHandler, () -> logsIngestionConfig, "myPrefix", now::get);
+        mockFactory, () -> logsIngestionConfig, "myPrefix", now::get, nanos::get);
     assertThat(
         getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(1L, "myPrefix.plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "myPrefix" +
+                        ".plainCounter", ImmutableMap.of())));
   }
 
   @Test
-  public void testFilebeatIngester() throws Exception {
-    setup("test.yml");
+  public void testFilebeatIngesterDefaultHostname() throws Exception {
+    setup(parseConfigFile("test.yml"));
     assertThat(
-        getPoints(1, 0, this::receiveFilebeatLog, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+        getPoints(1, 0, log -> {
+          Map<String, Object> data = Maps.newHashMap();
+          data.put("message", log);
+          data.put("beat", Maps.newHashMap());
+          data.put("@timestamp", "2016-10-13T20:43:45.172Z");
+          filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
+        }, "plainCounter"),
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter", "parsed-logs",
+                ImmutableMap.of())));
+  }
+
+  @Test
+  public void testFilebeatIngesterOverrideHostname() throws Exception {
+    setup(parseConfigFile("test.yml"));
+    assertThat(
+        getPoints(1, 0, log -> {
+          Map<String, Object> data = Maps.newHashMap();
+          data.put("message", log);
+          data.put("beat", new HashMap<>(ImmutableMap.of("hostname", "overrideHostname")));
+          data.put("@timestamp", "2016-10-13T20:43:45.172Z");
+          filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
+        }, "plainCounter"),
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter", "overrideHostname",
+            ImmutableMap.of())));
+  }
+
+
+  @Test
+  public void testFilebeat7Ingester() throws Exception {
+    setup(parseConfigFile("test.yml"));
+    assertThat(
+        getPoints(1, 0, log -> {
+          Map<String, Object> data = Maps.newHashMap();
+          data.put("message", log);
+          data.put("host", ImmutableMap.of("name", "filebeat7hostname"));
+          data.put("@timestamp", "2016-10-13T20:43:45.172Z");
+          filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
+        }, "plainCounter"),
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter", "filebeat7hostname",
+            ImmutableMap.of())));
+  }
+
+  @Test
+  public void testFilebeat7IngesterAlternativeHostname() throws Exception {
+    setup(parseConfigFile("test.yml"));
+    assertThat(
+        getPoints(1, 0, log -> {
+          Map<String, Object> data = Maps.newHashMap();
+          data.put("message", log);
+          data.put("agent", ImmutableMap.of("hostname", "filebeat7althost"));
+          data.put("@timestamp", "2016-10-13T20:43:45.172Z");
+          filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
+        }, "plainCounter"),
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter", "filebeat7althost",
+            ImmutableMap.of())));
   }
 
   @Test
   public void testRawLogsIngester() throws Exception {
-    setup("test.yml");
+    setup(parseConfigFile("test.yml"));
     assertThat(
         getPoints(1, 0, this::receiveRawLog, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                ImmutableMap.of())));
   }
 
   @Test(expected = ConfigurationException.class)
   public void testGaugeWithoutValue() throws Exception {
-    setup("badGauge.yml");
+    setup(parseConfigFile("badGauge.yml"));
   }
 
   @Test(expected = ConfigurationException.class)
   public void testTagsNonParallelArrays() throws Exception {
-    setup("badTags.yml");
+    setup(parseConfigFile("badTags.yml"));
   }
 
   @Test
   public void testHotloadedConfigClearsOldMetrics() throws Exception {
-    setup("test.yml");
+    setup(parseConfigFile("test.yml"));
     assertThat(
         getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                ImmutableMap.of())));
+    // once the counter is reported, it is reset because now it is treated as delta counter.
+    // hence we check that plainCounter has value 1L below.
     assertThat(
         getPoints(2, "plainCounter", "counterWithValue 42"),
         containsInAnyOrder(
             ImmutableList.of(
-                PointMatchers.matches(42L, "counterWithValue", ImmutableMap.of()),
-                PointMatchers.matches(2L, "plainCounter", ImmutableMap.of()))));
+                PointMatchers.matches(42L, MetricConstants.DELTA_PREFIX + "counterWithValue",
+                        ImmutableMap.of()),
+                PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                        ImmutableMap.of()))));
     List<MetricMatcher> counters = Lists.newCopyOnWriteArrayList(logsIngestionConfig.counters);
     int oldSize = counters.size();
     counters.removeIf((metricMatcher -> metricMatcher.getPattern().equals("plainCounter")));
@@ -205,14 +286,78 @@ public class LogsIngesterTest {
     logsIngestionConfig.verifyAndInit();
     logsIngestionConfig.counters = counters;
     logsIngesterUnderTest.logsIngestionConfigManager.forceConfigReload();
+    // once the counter is reported, it is reset because now it is treated as delta counter.
+    // since zero values are filtered out, no new values are expected.
     assertThat(
-        getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(42L, "counterWithValue", ImmutableMap.of())));
+        getPoints(0, "plainCounter"),
+        emptyIterable());
+  }
+
+  @Test
+  public void testEvictedDeltaMetricReportingAgain() throws Exception {
+    setup(parseConfigFile("test.yml"));
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter", "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX + "plainCounter",
+            ImmutableMap.of())));
+    nanos.addAndGet(1_800_000L * 1000L * 1000L);
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(3L, MetricConstants.DELTA_PREFIX + "plainCounter",
+            ImmutableMap.of())));
+    nanos.addAndGet(3_601_000L * 1000L * 1000L);
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(2L, MetricConstants.DELTA_PREFIX + "plainCounter",
+            ImmutableMap.of())));
+  }
+
+  @Test
+  public void testEvictedMetricReportingAgain() throws Exception {
+    setup(parseConfigFile("test-non-delta.yml"));
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter", "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(4L, "plainCounter", ImmutableMap.of())));
+    nanos.addAndGet(1_800_000L * 1000L * 1000L);
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(7L, "plainCounter", ImmutableMap.of())));
+    nanos.addAndGet(3_601_000L * 1000L * 1000L);
+    assertThat(
+        getPoints(1, "plainCounter", "plainCounter"),
+        contains(PointMatchers.matches(2L, "plainCounter", ImmutableMap.of())));
   }
 
   @Test
   public void testMetricsAggregation() throws Exception {
-    setup("test.yml");
+    setup(parseConfigFile("test.yml"));
+    assertThat(
+        getPoints(6,
+            "plainCounter", "noMatch 42.123 bar", "plainCounter",
+            "gauges 42",
+            "counterWithValue 2", "counterWithValue 3",
+            "dynamicCounter foo 1 done", "dynamicCounter foo 2 done", "dynamicCounter baz 1 done"),
+        containsInAnyOrder(
+            ImmutableList.of(
+                PointMatchers.matches(2L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                        ImmutableMap.of()),
+                PointMatchers.matches(5L, MetricConstants.DELTA_PREFIX + "counterWithValue",
+                        ImmutableMap.of()),
+                PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "dynamic_foo_1",
+                        ImmutableMap.of()),
+                PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "dynamic_foo_2",
+                        ImmutableMap.of()),
+                PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "dynamic_baz_1",
+                        ImmutableMap.of()),
+                PointMatchers.matches(42.0, "myGauge", ImmutableMap.of())))
+    );
+  }
+
+  @Test
+  public void testMetricsAggregationNonDeltaCounters() throws Exception {
+    LogsIngestionConfig config = parseConfigFile("test.yml");
+    config.useDeltaCounters = false;
+    setup(config);
     assertThat(
         getPoints(6,
             "plainCounter", "noMatch 42.123 bar", "plainCounter",
@@ -230,15 +375,41 @@ public class LogsIngesterTest {
     );
   }
 
+  @Test
+  public void testExtractHostname() throws Exception {
+    setup(parseConfigFile("test.yml"));
+    assertThat(
+        getPoints(3,
+            "operation foo on host web001 took 2 seconds",
+            "operation foo on host web001 took 2 seconds",
+            "operation foo on host web002 took 3 seconds",
+            "operation bar on host web001 took 4 seconds"),
+        containsInAnyOrder(
+            ImmutableList.of(
+                PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX + "Host.foo.totalSeconds",
+                    "web001.acme.corp", ImmutableMap.of("static", "value")),
+                PointMatchers.matches(3L, MetricConstants.DELTA_PREFIX + "Host.foo.totalSeconds",
+                    "web002.acme.corp", ImmutableMap.of("static", "value")),
+                PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX + "Host.bar.totalSeconds",
+                    "web001.acme.corp", ImmutableMap.of("static", "value"))
+            )
+        ));
+
+  }
+
+  /**
+   * This test is not required, because delta counters have different naming convention than gauges
+
   @Test(expected = ClassCastException.class)
   public void testDuplicateMetric() throws Exception {
-    setup("dupe.yml");
+    setup(parseConfigFile("dupe.yml"));
     assertThat(getPoints(2, "plainCounter", "plainGauge 42"), notNullValue());
   }
+   */
 
   @Test
   public void testDynamicLabels() throws Exception {
-    setup("test.yml");
+    setup(parseConfigFile("test.yml"));
     assertThat(
         getPoints(3,
             "operation foo took 2 seconds in DC=wavefront AZ=2a",
@@ -247,24 +418,52 @@ public class LogsIngesterTest {
             "operation bar took 4 seconds in DC=wavefront AZ=2a"),
         containsInAnyOrder(
             ImmutableList.of(
-                PointMatchers.matches(4L, "foo.totalSeconds", ImmutableMap.of("theDC", "wavefront", "theAZ", "2a")),
-                PointMatchers.matches(3L, "foo.totalSeconds", ImmutableMap.of("theDC", "wavefront", "theAZ", "2b")),
-                PointMatchers.matches(4L, "bar.totalSeconds", ImmutableMap.of("theDC", "wavefront", "theAZ", "2a"))
+                PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX + "foo.totalSeconds",
+                        ImmutableMap.of("theDC", "wavefront", "theAZ", "2a")),
+                PointMatchers.matches(3L, MetricConstants.DELTA_PREFIX + "foo.totalSeconds",
+                        ImmutableMap.of("theDC", "wavefront", "theAZ", "2b")),
+                PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX + "bar.totalSeconds",
+                        ImmutableMap.of("theDC", "wavefront", "theAZ", "2a"))
+            )
+        ));
+  }
+
+  @Test
+  public void testDynamicTagValues() throws Exception {
+    setup(parseConfigFile("test.yml"));
+    assertThat(
+        getPoints(3,
+            "operation TagValue foo took 2 seconds in DC=wavefront AZ=2a",
+            "operation TagValue foo took 2 seconds in DC=wavefront AZ=2a",
+            "operation TagValue foo took 3 seconds in DC=wavefront AZ=2b",
+            "operation TagValue bar took 4 seconds in DC=wavefront AZ=2a"),
+        containsInAnyOrder(
+            ImmutableList.of(
+                PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX +
+                                "TagValue.foo.totalSeconds",
+                    ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2a", "static", "value", "noMatch", "aa%{q}bb")),
+                PointMatchers.matches(3L, MetricConstants.DELTA_PREFIX +
+                                "TagValue.foo.totalSeconds",
+                    ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2b", "static", "value", "noMatch", "aa%{q}bb")),
+                PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX +
+                                "TagValue.bar.totalSeconds",
+                    ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2a", "static", "value", "noMatch", "aa%{q}bb"))
             )
         ));
   }
 
   @Test
   public void testAdditionalPatterns() throws Exception {
-    setup("test.yml");
+    setup(parseConfigFile("test.yml"));
     assertThat(
         getPoints(1, "foo and 42"),
-        contains(PointMatchers.matches(42L, "customPatternCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(42L, MetricConstants.DELTA_PREFIX +
+                "customPatternCounter", ImmutableMap.of())));
   }
 
   @Test
   public void testParseValueFromCombinedApacheLog() throws Exception {
-    setup("test.yml");
+    setup(parseConfigFile("test.yml"));
     assertThat(
         getPoints(3,
             "52.34.54.96 - - [11/Oct/2016:06:35:45 +0000] \"GET /api/alert/summary HTTP/1.0\" " +
@@ -274,8 +473,10 @@ public class LogsIngesterTest {
         ),
         containsInAnyOrder(
             ImmutableList.of(
-                PointMatchers.matches(632L, "apacheBytes", ImmutableMap.of()),
-                PointMatchers.matches(632L, "apacheBytes2", ImmutableMap.of()),
+                PointMatchers.matches(632L, MetricConstants.DELTA_PREFIX + "apacheBytes",
+                        ImmutableMap.of()),
+                PointMatchers.matches(632L, MetricConstants.DELTA_PREFIX + "apacheBytes2",
+                        ImmutableMap.of()),
                 PointMatchers.matches(200.0, "apacheStatus", ImmutableMap.of())
             )
         ));
@@ -283,43 +484,46 @@ public class LogsIngesterTest {
 
   @Test
   public void testIncrementCounterWithImplied1() throws Exception {
-    setup("test.yml");
+    setup(parseConfigFile("test.yml"));
     assertThat(
         getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(1L, "plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                ImmutableMap.of())));
+    // once the counter has been reported, the counter is reset because it is now treated as delta
+    // counter. Hence we check that plainCounter has value 1 below.
     assertThat(
         getPoints(1, "plainCounter"),
-        contains(PointMatchers.matches(2L, "plainCounter", ImmutableMap.of())));
+        contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
+                ImmutableMap.of())));
   }
 
   @Test
   public void testHistogram() throws Exception {
-    setup("test.yml");
+    setup(parseConfigFile("test.yml"));
     String[] lines = new String[100];
     for (int i = 1; i < 101; i++) {
       lines[i - 1] = "histo " + i;
     }
-    assertThat(
-        getPoints(11, lines),
+    List<ReportPoint> points = getPoints(9, 2000, this::receiveLog, lines);
+    tick(60000);
+    assertThat(points,
         containsInAnyOrder(ImmutableList.of(
             PointMatchers.almostMatches(100.0, "myHisto.count", ImmutableMap.of()),
             PointMatchers.almostMatches(1.0, "myHisto.min", ImmutableMap.of()),
             PointMatchers.almostMatches(100.0, "myHisto.max", ImmutableMap.of()),
             PointMatchers.almostMatches(50.5, "myHisto.mean", ImmutableMap.of()),
             PointMatchers.almostMatches(50.5, "myHisto.median", ImmutableMap.of()),
-            PointMatchers.almostMatches(75.75, "myHisto.p75", ImmutableMap.of()),
-            PointMatchers.almostMatches(95.95, "myHisto.p95", ImmutableMap.of()),
-            PointMatchers.almostMatches(99.99, "myHisto.p99", ImmutableMap.of()),
-            PointMatchers.almostMatches(100.0, "myHisto.p999", ImmutableMap.of()),
-            PointMatchers.almostMatches(5050.0, "myHisto.sum", ImmutableMap.of()),
-            PointMatchers.almostMatches(29.011491, "myHisto.stddev", ImmutableMap.of())
+            PointMatchers.almostMatches(75.25, "myHisto.p75", ImmutableMap.of()),
+            PointMatchers.almostMatches(95.05, "myHisto.p95", ImmutableMap.of()),
+            PointMatchers.almostMatches(99.01, "myHisto.p99", ImmutableMap.of()),
+            PointMatchers.almostMatches(99.901, "myHisto.p999", ImmutableMap.of())
         ))
     );
   }
 
   @Test
   public void testProxyLogLine() throws Exception {
-    setup("test.yml");
+    setup(parseConfigFile("test.yml"));
     assertThat(
         getPoints(1, "WARNING: [2878] (SUMMARY): points attempted: 859432; blocked: 0"),
         contains(PointMatchers.matches(859432.0, "wavefrontPointsSent.2878", ImmutableMap.of()))
@@ -328,37 +532,62 @@ public class LogsIngesterTest {
 
   @Test
   public void testWavefrontHistogram() throws Exception {
-    setup("histos.yml");
-    String[] lines = new String[100];
-    for (int i = 1; i < 101; i++) {
-      lines[i - 1] = "histo " + i;
+    setup(parseConfigFile("histos.yml"));
+    List<String> logs = new ArrayList<>();
+    logs.add("histo 100");
+    logs.add("histo 100");
+    logs.add("histo 100");
+    logs.add("histo 1");
+    for (int i = 0; i < 1000; i++) {
+      logs.add("histo 75");
     }
-    ReportPoint reportPoint = getPoints(1, lines).get(0);
+    for (int i = 0; i < 100; i++) {
+      logs.add("histo 90");
+    }
+    for (int i = 0; i < 10; i++) {
+      logs.add("histo 99");
+    }
+    for (int i = 0; i < 10000; i++) {
+      logs.add("histo 50");
+    }
+
+    ReportPoint reportPoint = getPoints(mockHistogramHandler, 1, 0, this::receiveLog, logs.toArray(new String[0])).get(0);
     assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
     Histogram wavefrontHistogram = (Histogram) reportPoint.getValue();
-    assertThat(wavefrontHistogram.getBins(), hasSize(1));
-    assertThat(wavefrontHistogram.getBins(), contains(50.5));
-    assertThat(wavefrontHistogram.getCounts(), hasSize(1));
-    assertThat(wavefrontHistogram.getCounts(), contains(100));
+    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(11114));
+    assertThat(wavefrontHistogram.getBins().size(), greaterThan(300));
+    assertThat(wavefrontHistogram.getBins().size(), lessThan(600));
+    assertThat(wavefrontHistogram.getBins().get(0), equalTo(1.0));
+    assertThat(wavefrontHistogram.getBins().get(wavefrontHistogram.getBins().size() - 1), equalTo(100.0));
   }
 
   @Test
   public void testWavefrontHistogramMultipleCentroids() throws Exception {
-    setup("histos.yml");
-    String[] lines = new String[60];
-    for (int i = 1; i < 61; i++) {
-      lines[i - 1] = "histo " + i;
+    setup(parseConfigFile("histos.yml"));
+    String[] lines = new String[240];
+    for (int i = 0; i < 240; i++) {
+      lines[i] = "histo " + (i + 1);
     }
-    ReportPoint reportPoint = getPoints(1, 1000, this::receiveLog, lines).get(0);
+    List<ReportPoint> reportPoints = getPoints(mockHistogramHandler, 2, 500, this::receiveLog, lines);
+    ReportPoint reportPoint = reportPoints.get(0);
     assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
     Histogram wavefrontHistogram = (Histogram) reportPoint.getValue();
-    assertThat(wavefrontHistogram.getBins(), hasSize(2));
-    assertThat(wavefrontHistogram.getCounts(), hasSize(2));
-    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(60));
+    assertThat(wavefrontHistogram.getBins(), hasSize(120));
+    assertThat(wavefrontHistogram.getCounts(), hasSize(120));
+    assertThat(wavefrontHistogram.getBins().stream().reduce(Double::sum).get(), equalTo(7260.0));
+    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(120));
+    reportPoint = reportPoints.get(1);
+    assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
+    wavefrontHistogram = (Histogram) reportPoint.getValue();
+    assertThat(wavefrontHistogram.getBins(), hasSize(120));
+    assertThat(wavefrontHistogram.getCounts(), hasSize(120));
+    assertThat(wavefrontHistogram.getBins().stream().reduce(Double::sum).get(), equalTo(21660.0));
+    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(120));
+
   }
 
   @Test(expected = ConfigurationException.class)
   public void testBadName() throws Exception {
-    setup("badName.yml");
+    setup(parseConfigFile("badName.yml"));
   }
 }

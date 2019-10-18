@@ -2,8 +2,10 @@ package com.wavefront.agent.histogram;
 
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.PointHandler;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 
+import com.wavefront.agent.histogram.accumulator.AgentDigestFactory;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -12,6 +14,9 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+
+import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
 
@@ -27,7 +32,7 @@ public class PointHandlerDispatcherTest {
   private ConcurrentMap<Utils.HistogramKey, AgentDigest> backingStore;
   private List<ReportPoint> pointOut;
   private List<String> debugLineOut;
-  private List<String> blockedOut;
+  private List<ReportPoint> blockedOut;
   private AtomicLong timeMillis;
   private PointHandlerDispatcher subject;
 
@@ -41,42 +46,61 @@ public class PointHandlerDispatcherTest {
   public void setup() {
     timeMillis = new AtomicLong(0L);
     backingStore = new ConcurrentHashMap<>();
-    in = new AccumulationCache(backingStore, 0, timeMillis::get);
+    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(COMPRESSION, 100L);
+    in = new AccumulationCache(backingStore, agentDigestFactory, 0, "", timeMillis::get);
     pointOut = new LinkedList<>();
     debugLineOut = new LinkedList<>();
     blockedOut = new LinkedList<>();
     digestA = new AgentDigest(COMPRESSION, 100L);
     digestB = new AgentDigest(COMPRESSION, 1000L);
-    subject = new PointHandlerDispatcher(in, new PointHandler() {
+    subject = new PointHandlerDispatcher(in, new ReportableEntityHandler<ReportPoint>() {
 
       @Override
-      public void reportPoint(ReportPoint point, String debugLine) {
-        pointOut.add(point);
-        debugLineOut.add(debugLine);
+      public void report(ReportPoint reportPoint) {
+        pointOut.add(reportPoint);
       }
 
       @Override
-      public void reportPoints(List<ReportPoint> points) {
-        pointOut.addAll(points);
+      public void report(ReportPoint reportPoint, @Nullable Object messageObject, Function<Object, String> messageSerializer) {
+        pointOut.add(reportPoint);
       }
 
       @Override
-      public void handleBlockedPoint(String pointLine) {
-        blockedOut.add(pointLine);
+      public void block(ReportPoint reportPoint) {
+        blockedOut.add(reportPoint);
       }
-    }, timeMillis::get, null);
+
+      @Override
+      public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
+        blockedOut.add(reportPoint);
+      }
+
+      @Override
+      public void reject(ReportPoint reportPoint) {
+        blockedOut.add(reportPoint);
+      }
+
+      @Override
+      public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
+        blockedOut.add(reportPoint);
+      }
+
+      @Override
+      public void reject(String t, @Nullable String message) {
+      }
+
+    }, timeMillis::get, null, null);
   }
 
   @Test
   public void testBasicDispatch() {
     in.put(keyA, digestA);
-    in.getResolveTask().run();
+    in.flush();
 
     timeMillis.set(101L);
     subject.run();
 
     assertThat(pointOut).hasSize(1);
-    assertThat(debugLineOut).hasSize(1);
     assertThat(blockedOut).hasSize(0);
     assertThat(backingStore).isEmpty();
 
@@ -89,14 +113,13 @@ public class PointHandlerDispatcherTest {
   public void testOnlyRipeEntriesAreDispatched() {
     in.put(keyA, digestA);
     in.put(keyB, digestB);
-    in.getResolveTask().run();
+    in.flush();
 
     timeMillis.set(101L);
     subject.run();
-    in.getResolveTask().run();
+    in.flush();
 
     assertThat(pointOut).hasSize(1);
-    assertThat(debugLineOut).hasSize(1);
     assertThat(blockedOut).hasSize(0);
     assertThat(backingStore).containsEntry(keyB, digestB);
 

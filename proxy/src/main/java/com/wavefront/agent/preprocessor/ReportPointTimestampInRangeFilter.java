@@ -8,7 +8,7 @@ import com.yammer.metrics.core.MetricName;
 import org.apache.commons.lang.time.DateUtils;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -21,14 +21,12 @@ import wavefront.report.ReportPoint;
  * - to add support for hoursInFutureAllowed
  * - changed variable names to hoursInPastAllowed and hoursInFutureAllowed
  */
-public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<ReportPoint> {
+public class ReportPointTimestampInRangeFilter implements AnnotatedPredicate<ReportPoint> {
 
   private final int hoursInPastAllowed;
   private final int hoursInFutureAllowed;
 
   private final Counter outOfRangePointTimes;
-  @Nullable
-  private String message = null;
 
   public ReportPointTimestampInRangeFilter(final int hoursInPastAllowed, final int hoursInFutureAllowed) {
     this.hoursInPastAllowed = hoursInPastAllowed;
@@ -37,8 +35,7 @@ public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<Report
   }
 
   @Override
-  public boolean apply(@NotNull ReportPoint point) {
-    this.message = null;
+  public boolean test(@Nonnull ReportPoint point, @Nullable String[] messageHolder) {
     long pointTime = point.getTimestamp();
     long rightNow = Clock.now();
 
@@ -47,13 +44,11 @@ public class ReportPointTimestampInRangeFilter extends AnnotatedPredicate<Report
         (pointTime < (rightNow + (this.hoursInFutureAllowed * DateUtils.MILLIS_PER_HOUR)));
     if (!pointInRange) {
       outOfRangePointTimes.inc();
-      this.message = "WF-402: Point outside of reasonable timeframe (" + point.toString() + ")";
+      if (messageHolder != null && messageHolder.length > 0) {
+        messageHolder[0] = "WF-402: Point outside of reasonable timeframe (" + point.toString() + ")";
+      }
     }
     return pointInRange;
   }
 
-  @Override
-  public String getMessage(ReportPoint point) {
-    return this.message;
-  }
 }

@@ -5,7 +5,7 @@
   <parent>
     <groupId>com.wavefront</groupId>
     <artifactId>wavefront</artifactId>
-    <version>4.26-SNAPSHOT</version>
+    <version>6.0-RC1-SNAPSHOT</version>
   </parent>
 
   <properties>
@@ -23,9 +23,19 @@
       <artifactId>java-lib</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.wavefront</groupId>
+      <artifactId>wavefront-sdk-java</artifactId>
+      <version>1.1</version>
+    </dependency>
+    <dependency>
+      <groupId>com.wavefront</groupId>
+      <artifactId>wavefront-internal-reporter-java</artifactId>
+      <version>0.9.1</version>
+    </dependency>
+    <dependency>
       <groupId>com.beust</groupId>
       <artifactId>jcommander</artifactId>
-      <version>1.30</version>
+      <version>1.72</version>
     </dependency>
     <dependency>
       <groupId>com.google.code.gson</groupId>
@@ -36,6 +46,32 @@
       <groupId>com.squareup</groupId>
       <artifactId>tape</artifactId>
       <version>1.2.3</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jaegertracing</groupId>
+      <artifactId>jaeger-thrift</artifactId>
+      <version>0.31.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.uber.tchannel</groupId>
+      <artifactId>tchannel-core</artifactId>
+      <version>0.8.5</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-transport-native-epoll</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.thrift</groupId>
+      <artifactId>libthrift</artifactId>
+      <version>0.12.0</version>
+    </dependency>
+    <dependency>
+      <groupId>io.zipkin.zipkin2</groupId>
+      <artifactId>zipkin</artifactId>
+      <version>2.11.12</version>
     </dependency>
     <dependency>
       <groupId>commons-lang</groupId>
@@ -66,21 +102,6 @@
       <artifactId>metrics-core</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-server</artifactId>
-      <version>${jetty.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-servlet</artifactId>
-      <version>${jetty.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-util</artifactId>
-      <version>${jetty.version}</version>
-    </dependency>
-    <dependency>
       <groupId>javax.annotation</groupId>
       <artifactId>javax.annotation-api</artifactId>
       <version>1.2</version>
@@ -93,7 +114,13 @@
     <dependency>
       <groupId>net.openhft</groupId>
       <artifactId>chronicle-map</artifactId>
-      <version>3.10.1</version>
+      <version>3.17.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.sun.java</groupId>
+          <artifactId>tools</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -104,7 +131,7 @@
       <groupId>org.easymock</groupId>
       <artifactId>easymock</artifactId>
       <scope>test</scope>
-      <version>3.4</version>
+      <version>4.0.1</version>
     </dependency>
     <!-- https://mvnrepository.com/artifact/org.hamcrest/hamcrest-all -->
     <dependency>
@@ -127,7 +154,39 @@
     </dependency>
     <dependency>
       <groupId>io.netty</groupId>
+      <artifactId>netty-codec</artifactId>
+      <version>${netty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
       <artifactId>netty-codec-http</artifactId>
+      <version>${netty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-handler</artifactId>
+      <version>${netty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-buffer</artifactId>
+      <version>${netty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport</artifactId>
+      <version>${netty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-resolver</artifactId>
+      <version>${netty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-epoll</artifactId>
+      <version>${netty.version}</version>
+      <classifier>linux-x86_64</classifier>
     </dependency>
     <dependency>
       <groupId>commons-daemon</groupId>
@@ -196,7 +255,6 @@
     <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>
       <artifactId>caffeine</artifactId>
-      <version>2.3.3</version>
     </dependency>
     <dependency>
       <groupId>io.thekraken</groupId>
@@ -228,7 +286,7 @@
         <configuration>
           <forkCount>4</forkCount>
           <reuseForks>false</reuseForks>
-          <argLine>-Xmx4G</argLine>
+          <argLine>-Xmx4G -Duser.country=US</argLine>
           <rerunFailingTestsCount>3</rerunFailingTestsCount>
           <systemProperties>
             <property>
@@ -260,6 +318,14 @@
                   <mainClass>com.wavefront.agent.PushAgent</mainClass>
                 </transformer>
               </transformers>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>**/Log4j2Plugins.dat</exclude>
+                  </excludes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>
@@ -314,6 +380,59 @@
               <descriptors>
                 <descriptor>src/assembly.xml</descriptor>
               </descriptors>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.groovy.maven</groupId>
+        <artifactId>gmaven-plugin</artifactId>
+        <version>1.0</version>
+        <executions>
+          <execution>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>execute</goal>
+            </goals>
+            <configuration>
+              <source>
+                project.properties["hostname"] = InetAddress.getLocalHost().getHostName()
+              </source>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>buildnumber-maven-plugin</artifactId>
+        <version>1.2</version>
+        <executions>
+          <execution>
+            <id>Generate Detailed Build Properties</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>create</goal>
+            </goals>
+            <configuration>
+              <doCheck>false</doCheck>
+              <doUpdate>false</doUpdate>
+              <timestampFormat>
+                {0,date,yyyy-MM-dd HH:mm:ss (ZZZ)}
+              </timestampFormat>
+              <timestampPropertyName>build-timestamp</timestampPropertyName>
+              <buildNumberPropertyName>build-commit</buildNumberPropertyName>
+            </configuration>
+          </execution>
+          <execution>
+            <id>Generate Build Properties</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>create</goal>
+            </goals>
+            <configuration>
+              <doCheck>false</doCheck>
+              <doUpdate>false</doUpdate>
+              <timestampPropertyName>maven-timestamp</timestampPropertyName>
             </configuration>
           </execution>
         </executions>

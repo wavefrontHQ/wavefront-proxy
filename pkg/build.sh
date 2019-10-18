@@ -52,7 +52,7 @@ fpm \
 	--iteration $ITERATION \
 	--license "Apache 2.0" \
 	--log info \
-	--maintainer "Wavefront <support@wavefront.com>" \
+	--maintainer "Wavefront" \
 	--name wavefront-proxy \
 	--rpm-os linux \
 	--url https://www.wavefront.com \

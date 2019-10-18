@@ -1,16 +1,19 @@
 package com.wavefront.agent;
 
 import com.wavefront.common.Clock;
+import com.wavefront.data.Validation;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.lang.time.DateUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,22 +22,25 @@ import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
 
-import static com.wavefront.agent.Validation.validatePoint;
+import static com.wavefront.data.Validation.validatePoint;
 
 /**
  * Adds all graphite strings to a working list, and batches them up on a set schedule (100ms) to be sent (through the
  * daemon's logic) up to the collector on the server side.
  */
+@Deprecated
 public class PointHandlerImpl implements PointHandler {
 
   private static final Logger logger = Logger.getLogger(PointHandlerImpl.class.getCanonicalName());
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
   private static final Logger validPointsLogger = Logger.getLogger("RawValidPoints");
+  private static final Random RANDOM = new Random();
 
   private final Histogram receivedPointLag;
   private final String validationLevel;
   private final String handle;
   private boolean logPoints = false;
+  private final double logPointsSampleRate;
   private volatile long logPointsUpdatedMillis = 0L;
 
   /**
@@ -66,6 +72,9 @@ public class PointHandlerImpl implements PointHandler {
     this.prefix = prefix;
     String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
     this.logPointsFlag = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
+    String logPointsSampleRateProperty = System.getProperty("wavefront.proxy.logpoints.sample-rate");
+    this.logPointsSampleRate = logPointsSampleRateProperty != null &&
+        NumberUtils.isNumber(logPointsSampleRateProperty) ? Double.parseDouble(logPointsSampleRateProperty) : 1.0d;
 
     this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handle + ".received", "", "lag"));
 
@@ -81,20 +90,26 @@ public class PointHandlerImpl implements PointHandler {
       }
       validatePoint(
           point,
-          "" + handle,
-          debugLine,
+          handle,
           validationLevel == null ? null : Validation.Level.valueOf(validationLevel));
 
       String strPoint = pointToString(point);
 
       if (logPointsUpdatedMillis + TimeUnit.SECONDS.toMillis(1) < System.currentTimeMillis()) {
         // refresh validPointsLogger level once a second
-        logPoints = validPointsLogger.isLoggable(Level.FINEST);
+        if (logPoints != validPointsLogger.isLoggable(Level.FINEST)) {
+          logPoints = !logPoints;
+          logger.info("Valid points logging is now " + (logPoints ?
+              "enabled with " + (logPointsSampleRate * 100) + "% sampling":
+              "disabled"));
+        }
         logPointsUpdatedMillis = System.currentTimeMillis();
       }
-      if (logPoints || logPointsFlag) {
+      if ((logPoints || logPointsFlag) &&
+          (logPointsSampleRate >= 1.0d || (logPointsSampleRate > 0.0d && RANDOM.nextDouble() < logPointsSampleRate))) {
         // we log valid points only if system property wavefront.proxy.logpoints is true or RawValidPoints log level is
         // set to "ALL". this is done to prevent introducing overhead and accidentally logging points to the main log
+        // Additionally, honor sample rate limit, if set.
         validPointsLogger.info(strPoint);
       }
       randomPostTask.addPoint(strPoint);
@@ -102,8 +117,9 @@ public class PointHandlerImpl implements PointHandler {
       receivedPointLag.update(Clock.now() - point.getTimestamp());
 
     } catch (IllegalArgumentException e) {
-      blockedPointsLogger.warning(pointToString(point));
-      this.handleBlockedPoint(e.getMessage());
+      String pointString = pointToString(point);
+      blockedPointsLogger.warning(pointString);
+      this.handleBlockedPoint(e.getMessage() + " (" + (debugLine == null ? pointString : debugLine) + ")");
     } catch (Exception ex) {
       logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling point (" +
           (debugLine == null ? pointToString(point) : debugLine) + ")", ex);

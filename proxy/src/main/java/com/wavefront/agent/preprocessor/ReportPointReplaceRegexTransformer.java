@@ -9,7 +9,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -27,15 +27,24 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   private final Integer maxIterations;
   @Nullable
   private final Pattern compiledMatchPattern;
-  @Nullable
-  private final Counter ruleAppliedCounter;
+  private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public ReportPointReplaceRegexTransformer(final String scope,
                                             final String patternSearch,
                                             final String patternReplace,
                                             @Nullable final String patternMatch,
                                             @Nullable final Integer maxIterations,
                                             @Nullable final Counter ruleAppliedCounter) {
+    this(scope, patternSearch, patternReplace, patternMatch, maxIterations, new PreprocessorRuleMetrics(ruleAppliedCounter));
+  }
+
+  public ReportPointReplaceRegexTransformer(final String scope,
+                                            final String patternSearch,
+                                            final String patternReplace,
+                                            @Nullable final String patternMatch,
+                                            @Nullable final Integer maxIterations,
+                                            final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
     Preconditions.checkArgument(!patternSearch.isEmpty(), "[search] can't be blank");
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
@@ -44,18 +53,17 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     this.compiledMatchPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     this.maxIterations = maxIterations != null ? maxIterations : 1;
     Preconditions.checkArgument(this.maxIterations > 0, "[iterations] must be > 0");
-    this.ruleAppliedCounter = ruleAppliedCounter;
+    Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
+    this.ruleMetrics = ruleMetrics;
   }
 
-  private String replaceString(@NotNull ReportPoint reportPoint, String content) {
+  private String replaceString(@Nonnull ReportPoint reportPoint, String content) {
     Matcher patternMatcher;
     patternMatcher = compiledSearchPattern.matcher(content);
     if (!patternMatcher.find()) {
       return content;
     }
-    if (ruleAppliedCounter != null) {
-      ruleAppliedCounter.inc();
-    }
+    ruleMetrics.incrementRuleAppliedCounter();
 
     String replacement = PreprocessorUtil.expandPlaceholders(patternReplace, reportPoint);
 
@@ -72,7 +80,8 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   }
 
   @Override
-  public ReportPoint apply(@NotNull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+    long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":
         if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getMetric()).matches()) {
@@ -97,6 +106,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
           }
         }
     }
+    ruleMetrics.ruleEnd(startNanos);
     return reportPoint;
   }
 }

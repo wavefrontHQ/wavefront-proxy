@@ -5,9 +5,8 @@ import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.squareup.tape.TaskInjector;
 import com.wavefront.agent.QueuedAgentService.PostPushDataResultTask;
-import com.wavefront.api.WavefrontAPI;
-import com.wavefront.api.agent.ShellOutputDTO;
-import com.wavefront.ingester.StringLineIngester;
+import com.wavefront.agent.handlers.LineDelimitedUtils;
+import com.wavefront.agent.api.WavefrontV2API;
 
 import net.jcip.annotations.NotThreadSafe;
 
@@ -27,13 +26,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.ws.rs.core.Response;
 
+import io.netty.util.internal.StringUtil;
+
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -43,18 +42,16 @@ import static org.junit.Assert.assertTrue;
 public class QueuedAgentServiceTest {
 
   private QueuedAgentService queuedAgentService;
-  private WavefrontAPI mockAgentAPI;
+  private WavefrontV2API mockAgentAPI;
   private UUID newAgentId;
-  private AtomicInteger splitBatchSize = new AtomicInteger(50000);
 
   @Before
   public void testSetup() throws IOException {
-    mockAgentAPI = EasyMock.createMock(WavefrontAPI.class);
+    mockAgentAPI = EasyMock.createMock(WavefrontV2API.class);
     newAgentId = UUID.randomUUID();
 
     int retryThreads = 1;
-    QueuedAgentService.setSplitBatchSize(splitBatchSize);
-
+    QueuedAgentService.setMinSplitBatchSize(2);
     queuedAgentService = new QueuedAgentService(mockAgentAPI, "unitTestBuffer", retryThreads,
         Executors.newScheduledThreadPool(retryThreads + 1, new ThreadFactory() {
 
@@ -66,7 +63,8 @@ public class QueuedAgentServiceTest {
             toReturn.setName("unit test submission worker: " + counter.getAndIncrement());
             return toReturn;
           }
-        }), true, newAgentId, false, (RecyclableRateLimiter) null);
+        }), true, newAgentId, false, (RecyclableRateLimiter) null, StringUtil.EMPTY_STRING);
+    queuedAgentService.start();
   }
   // post sourcetag metadata
 
@@ -93,7 +91,7 @@ public class QueuedAgentServiceTest {
   public void postSourceTagIntoQueue() {
     String id = "localhost";
     String tagValue = "sourceTag1";
-    Response response = queuedAgentService.removeTag(id, StringUtils.EMPTY, tagValue, true);
+    Response response = queuedAgentService.removeTag(id, tagValue, true);
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
   }
@@ -108,7 +106,7 @@ public class QueuedAgentServiceTest {
     String id = "dummy";
     EasyMock.expect(mockAgentAPI.removeDescription(id, StringUtils.EMPTY)).andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.removeDescription(id, StringUtils.EMPTY);
+    Response response = queuedAgentService.removeDescription(id, false);
     EasyMock.verify(mockAgentAPI);
     assertEquals("Response code was incorrect.", Response.Status.OK.getStatusCode(), response
         .getStatus());
@@ -124,7 +122,7 @@ public class QueuedAgentServiceTest {
   public void postSourceDescriptionIntoQueue() throws Exception {
     String id = "localhost";
     String desc = "A Description";
-    Response response = queuedAgentService.setDescription(id, StringUtils.EMPTY, desc, true);
+    Response response = queuedAgentService.setDescription(id, desc, true);
     assertEquals("Response code did not match", Response.Status.NOT_ACCEPTABLE.getStatusCode(),
         response.getStatus());
     assertEquals("No task found in the backlog queue", 1, queuedAgentService
@@ -143,7 +141,7 @@ public class QueuedAgentServiceTest {
     EasyMock.expect(mockAgentAPI.setTags(id, StringUtils.EMPTY,
         Arrays.asList(tags))).andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setTags(id, StringUtils.EMPTY, Arrays.asList(tags));
+    Response response = queuedAgentService.setTags(id, Arrays.asList(tags), false);
     EasyMock.verify(mockAgentAPI);
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
   }
@@ -161,7 +159,7 @@ public class QueuedAgentServiceTest {
     EasyMock.expect(mockAgentAPI.setDescription(id, StringUtils.EMPTY, desc)).andReturn(Response.ok()
         .build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setDescription(id, StringUtils.EMPTY, desc);
+    Response response = queuedAgentService.setDescription(id, desc, false);
     EasyMock.verify(mockAgentAPI);
     assertEquals("Response code did not match.", Response.Status.OK.getStatusCode(),
         response.getStatus());
@@ -185,7 +183,7 @@ public class QueuedAgentServiceTest {
         .Status.OK).build()).once();
     EasyMock.replay(mockAgentAPI);
     // call the api
-    Response response = queuedAgentService.removeTag(id, StringUtils.EMPTY, tagValue);
+    Response response = queuedAgentService.removeTag(id, tagValue, false);
     // verify
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
@@ -210,7 +208,7 @@ public class QueuedAgentServiceTest {
     EasyMock.expect(mockAgentAPI.setTags(id, StringUtils.EMPTY, Arrays.asList(tags))).andReturn(
         Response.status(Response.Status.OK).build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setTags(id, StringUtils.EMPTY, Arrays.asList(tags));
+    Response response = queuedAgentService.setTags(id, Arrays.asList(tags), false);
     // verify
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
@@ -237,7 +235,7 @@ public class QueuedAgentServiceTest {
         .status
         (Response.Status.OK).build()).once();
     EasyMock.replay(mockAgentAPI);
-    Response response = queuedAgentService.setDescription(id, StringUtils.EMPTY, description);
+    Response response = queuedAgentService.setDescription(id, description, false);
     // verify
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
     assertEquals(1, queuedAgentService.getQueuedSourceTagTasksCount());
@@ -245,64 +243,6 @@ public class QueuedAgentServiceTest {
     TimeUnit.SECONDS.sleep(5);
     EasyMock.verify(mockAgentAPI);
     assertEquals(0, queuedAgentService.getQueuedSourceTagTasksCount());
-  }
-
-  // postWorkUnitResult
-
-  @Test
-  public void postWorkUnitResultCallsApproriateServiceMethodAndReturnsOK() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO)).
-        andReturn(Response.ok().build()).once();
-    EasyMock.replay(mockAgentAPI);
-
-    Response response = queuedAgentService.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO);
-
-    EasyMock.verify(mockAgentAPI);
-    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
-  }
-
-  @Test
-  public void postWorkUnitResultServiceReturns406RequeuesAndReturnsNotAcceptable() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO)).
-        andReturn(Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
-    EasyMock.replay(mockAgentAPI);
-
-    Response response = queuedAgentService.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO);
-
-    EasyMock.verify(mockAgentAPI);
-    assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
-    assertEquals(1, queuedAgentService.getQueuedTasksCount());
-  }
-
-  @Test
-  public void postWorkUnitResultServiceReturns413RequeuesAndReturnsNotAcceptable() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO)).
-        andReturn(Response.status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
-    EasyMock.replay(mockAgentAPI);
-
-    Response response = queuedAgentService.postWorkUnitResult(agentId, workUnitId, targetId, shellOutputDTO);
-
-    EasyMock.verify(mockAgentAPI);
-    assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
-    assertEquals(1, queuedAgentService.getQueuedTasksCount());
   }
 
   // postPushData
@@ -319,13 +259,13 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).
+    EasyMock.expect(mockAgentAPI.proxyReport(agentId, format, pretendPushData)).
         andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
 
-    Response response = queuedAgentService.postPushData(agentId, workUnitId, now, format, pretendPushData);
+    Response response = queuedAgentService.proxyReport(agentId, format, pretendPushData);
 
     EasyMock.verify(mockAgentAPI);
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
@@ -343,13 +283,13 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).
+    EasyMock.expect(mockAgentAPI.proxyReport(agentId, format, pretendPushData)).
         andReturn(Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
     EasyMock.replay(mockAgentAPI);
 
-    Response response = queuedAgentService.postPushData(agentId, workUnitId, now, format, pretendPushData);
+    Response response = queuedAgentService.proxyReport(agentId, format, pretendPushData);
 
     EasyMock.verify(mockAgentAPI);
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
@@ -372,18 +312,19 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str1);
     pretendPushDataList.add(str2);
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    QueuedAgentService.setMinSplitBatchSize(1);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).
+    EasyMock.expect(mockAgentAPI.proxyReport(agentId, format, pretendPushData)).
         andReturn(Response.status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, str1)).
+    EasyMock.expect(mockAgentAPI.proxyReport(agentId, format, str1)).
         andReturn(Response.ok().build()).once();
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, str2)).
+    EasyMock.expect(mockAgentAPI.proxyReport(agentId, format, str2)).
         andReturn(Response.ok().build()).once();
 
     EasyMock.replay(mockAgentAPI);
 
-    Response response = queuedAgentService.postPushData(agentId, workUnitId, now, format, pretendPushData);
+    Response response = queuedAgentService.proxyReport(agentId, format, pretendPushData);
 
     EasyMock.verify(mockAgentAPI);
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
@@ -408,18 +349,19 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str1);
     pretendPushDataList.add(str2);
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
+    QueuedAgentService.setMinSplitBatchSize(1);
 
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, pretendPushData)).andReturn(Response
+    EasyMock.expect(mockAgentAPI.proxyReport(agentId, format, pretendPushData)).andReturn(Response
         .status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, str1)).andReturn(Response.status
+    EasyMock.expect(mockAgentAPI.proxyReport(agentId, format, str1)).andReturn(Response.status
         (Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
-    EasyMock.expect(mockAgentAPI.postPushData(agentId, workUnitId, now, format, str2)).andReturn(Response.status
+    EasyMock.expect(mockAgentAPI.proxyReport(agentId, format, str2)).andReturn(Response.status
         (Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
 
     EasyMock.replay(mockAgentAPI);
 
-    Response response = queuedAgentService.postPushData(agentId, workUnitId, now, format, pretendPushData);
+    Response response = queuedAgentService.proxyReport(agentId, format, pretendPushData);
 
     EasyMock.verify(mockAgentAPI);
     assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), response.getStatus());
@@ -434,131 +376,6 @@ public class QueuedAgentServiceTest {
         task.currentAgentId = newAgentId;
       }
     }.injectMembers(task);
-  }
-
-  // *******
-  // ** PostWorkUnitResultTask
-  // *******
-  @Test
-  public void postWorkUnitResultTaskExecuteCallsAppropriateService() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    QueuedAgentService.PostWorkUnitResultTask task = new QueuedAgentService.PostWorkUnitResultTask(
-        agentId,
-        workUnitId,
-        targetId,
-        shellOutputDTO
-    );
-
-    injectServiceToResubmissionTask(task);
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(newAgentId, workUnitId, targetId, shellOutputDTO))
-        .andReturn(Response.ok().build()).once();
-
-    EasyMock.replay(mockAgentAPI);
-
-    task.execute(null);
-
-    EasyMock.verify(mockAgentAPI);
-  }
-
-  @Test
-  public void postWorkUnitResultTaskExecuteServiceReturns406ThrowsException() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    QueuedAgentService.PostWorkUnitResultTask task = new QueuedAgentService.PostWorkUnitResultTask(
-        agentId,
-        workUnitId,
-        targetId,
-        shellOutputDTO
-    );
-
-    injectServiceToResubmissionTask(task);
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(newAgentId, workUnitId, targetId, shellOutputDTO))
-        .andReturn(Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
-
-    EasyMock.replay(mockAgentAPI);
-
-    boolean exceptionThrown = false;
-
-    try {
-      task.execute(null);
-    } catch (RejectedExecutionException e) {
-      exceptionThrown = true;
-    }
-
-    assertTrue(exceptionThrown);
-    EasyMock.verify(mockAgentAPI);
-  }
-
-
-  @Test
-  public void postWorkUnitResultTaskExecuteServiceReturns413ThrowsException() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    QueuedAgentService.PostWorkUnitResultTask task = new QueuedAgentService.PostWorkUnitResultTask(
-        agentId,
-        workUnitId,
-        targetId,
-        shellOutputDTO
-    );
-
-    injectServiceToResubmissionTask(task);
-
-    EasyMock.expect(mockAgentAPI.postWorkUnitResult(newAgentId, workUnitId, targetId, shellOutputDTO))
-        .andReturn(Response.status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
-
-    EasyMock.replay(mockAgentAPI);
-
-    boolean exceptionThrown = false;
-
-    try {
-      task.execute(null);
-    } catch (QueuedPushTooLargeException e) {
-      exceptionThrown = true;
-    }
-
-    assertTrue(exceptionThrown);
-    EasyMock.verify(mockAgentAPI);
-  }
-
-  @Test
-  public void postWorkUnitResultTaskSplitReturnsListOfOne() {
-    UUID agentId = UUID.randomUUID();
-    UUID workUnitId = UUID.randomUUID();
-    UUID targetId = UUID.randomUUID();
-
-    ShellOutputDTO shellOutputDTO = new ShellOutputDTO();
-
-    QueuedAgentService.PostWorkUnitResultTask task = new QueuedAgentService.PostWorkUnitResultTask(
-        agentId,
-        workUnitId,
-        targetId,
-        shellOutputDTO
-    );
-
-    injectServiceToResubmissionTask(task);
-
-    List<QueuedAgentService.PostWorkUnitResultTask> splitTasks = task.splitTask();
-    assertEquals(1, splitTasks.size());
-    assertEquals(task.agentId, splitTasks.get(0).agentId);
-    assertEquals(task.hostId, splitTasks.get(0).hostId);
-    assertEquals(task.workUnitId, splitTasks.get(0).workUnitId);
-    assertEquals(task.shellOutputDTO, splitTasks.get(0).shellOutputDTO);
-    assertNull(splitTasks.get(0).service);
   }
 
   // *******
@@ -577,11 +394,10 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
-        workUnitId,
         now,
         format,
         pretendPushData
@@ -589,7 +405,7 @@ public class QueuedAgentServiceTest {
 
     injectServiceToResubmissionTask(task);
 
-    EasyMock.expect(mockAgentAPI.postPushData(newAgentId, workUnitId, now, format, pretendPushData))
+    EasyMock.expect(mockAgentAPI.proxyReport(newAgentId, format, pretendPushData))
         .andReturn(Response.ok().build()).once();
 
     EasyMock.replay(mockAgentAPI);
@@ -612,11 +428,10 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
-        workUnitId,
         now,
         format,
         pretendPushData
@@ -624,7 +439,7 @@ public class QueuedAgentServiceTest {
 
     injectServiceToResubmissionTask(task);
 
-    EasyMock.expect(mockAgentAPI.postPushData(newAgentId, workUnitId, now, format, pretendPushData))
+    EasyMock.expect(mockAgentAPI.proxyReport(newAgentId, format, pretendPushData))
         .andReturn(Response.status(Response.Status.NOT_ACCEPTABLE).build()).once();
 
     EasyMock.replay(mockAgentAPI);
@@ -654,11 +469,10 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add("string line 1");
     pretendPushDataList.add("string line 2");
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
-        workUnitId,
         now,
         format,
         pretendPushData
@@ -666,7 +480,7 @@ public class QueuedAgentServiceTest {
 
     injectServiceToResubmissionTask(task);
 
-    EasyMock.expect(mockAgentAPI.postPushData(newAgentId, workUnitId, now, format, pretendPushData))
+    EasyMock.expect(mockAgentAPI.proxyReport(newAgentId, format, pretendPushData))
         .andReturn(Response.status(Response.Status.REQUEST_ENTITY_TOO_LARGE).build()).once();
 
     EasyMock.replay(mockAgentAPI);
@@ -697,11 +511,10 @@ public class QueuedAgentServiceTest {
     List<String> pretendPushDataList = new ArrayList<String>();
     pretendPushDataList.add(str1);
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     QueuedAgentService.PostPushDataResultTask task = new QueuedAgentService.PostPushDataResultTask(
         agentId,
-        workUnitId,
         now,
         format,
         pretendPushData
@@ -711,7 +524,7 @@ public class QueuedAgentServiceTest {
     assertEquals(1, splitTasks.size());
 
     String firstSplitDataString = splitTasks.get(0).getPushData();
-    List<String> firstSplitData = StringLineIngester.unjoinPushData(firstSplitDataString);
+    List<String> firstSplitData = unjoinPushData(firstSplitDataString);
 
     assertEquals(1, firstSplitData.size());
   }
@@ -736,11 +549,10 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str3);
     pretendPushDataList.add(str4);
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     PostPushDataResultTask task = new PostPushDataResultTask(
         agentId,
-        workUnitId,
         now,
         format,
         pretendPushData
@@ -750,26 +562,25 @@ public class QueuedAgentServiceTest {
     assertEquals(2, splitTasks.size());
 
     String firstSplitDataString = splitTasks.get(0).getPushData();
-    List<String> firstSplitData = StringLineIngester.unjoinPushData(firstSplitDataString);
+    List<String> firstSplitData = unjoinPushData(firstSplitDataString);
     assertEquals(2, firstSplitData.size());
 
     String secondSplitDataString = splitTasks.get(1).getPushData();
-    List<String> secondSplitData = StringLineIngester.unjoinPushData(secondSplitDataString);
+    List<String> secondSplitData = unjoinPushData(secondSplitDataString);
     assertEquals(2, secondSplitData.size());
 
     // and all the data is the same...
     for (ResubmissionTask taskUnderTest : splitTasks) {
       PostPushDataResultTask taskUnderTestCasted = (PostPushDataResultTask) taskUnderTest;
       assertEquals(agentId, taskUnderTestCasted.getAgentId());
-      assertEquals(workUnitId, taskUnderTestCasted.getWorkUnitId());
       assertEquals(now, (long) taskUnderTestCasted.getCurrentMillis());
       assertEquals(format, taskUnderTestCasted.getFormat());
     }
 
     // first list should have the first 2 strings
-    assertEquals(StringLineIngester.joinPushData(Arrays.asList(str1, str2)), firstSplitDataString);
+    assertEquals(LineDelimitedUtils.joinPushData(Arrays.asList(str1, str2)), firstSplitDataString);
     // second list should have the last 2
-    assertEquals(StringLineIngester.joinPushData(Arrays.asList(str3, str4)), secondSplitDataString);
+    assertEquals(LineDelimitedUtils.joinPushData(Arrays.asList(str3, str4)), secondSplitDataString);
 
   }
 
@@ -798,11 +609,10 @@ public class QueuedAgentServiceTest {
     pretendPushDataList.add(str4);
     pretendPushDataList.add(str5);
 
-    String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+    String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
     PostPushDataResultTask task = new PostPushDataResultTask(
         agentId,
-        workUnitId,
         now,
         format,
         pretendPushData
@@ -812,60 +622,18 @@ public class QueuedAgentServiceTest {
     assertEquals(2, splitTasks.size());
 
     String firstSplitDataString = splitTasks.get(0).getPushData();
-    List<String> firstSplitData = StringLineIngester.unjoinPushData(firstSplitDataString);
+    List<String> firstSplitData = unjoinPushData(firstSplitDataString);
 
     assertEquals(3, firstSplitData.size());
 
     String secondSplitDataString = splitTasks.get(1).getPushData();
-    List<String> secondSplitData = StringLineIngester.unjoinPushData(secondSplitDataString);
+    List<String> secondSplitData = unjoinPushData(secondSplitDataString);
 
     assertEquals(2, secondSplitData.size());
   }
 
   @Test
-  public void postPushDataResultTaskSplitsIntoManyTask() {
-    for (int targetBatchSize = 1; targetBatchSize <= 10; targetBatchSize++) {
-      splitBatchSize.set(targetBatchSize);
-
-      UUID agentId = UUID.randomUUID();
-      UUID workUnitId = UUID.randomUUID();
-
-      long now = System.currentTimeMillis();
-
-      String format = "unitTestFormat";
-
-      for (int numTestStrings = 1; numTestStrings <= 51; numTestStrings += 1) {
-        List<String> pretendPushDataList = new ArrayList<String>();
-        for (int i = 0; i < numTestStrings; i++) {
-          pretendPushDataList.add(RandomStringUtils.randomAlphabetic(6));
-        }
-
-        String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
-
-        PostPushDataResultTask task = new PostPushDataResultTask(
-            agentId,
-            workUnitId,
-            now,
-            format,
-            pretendPushData
-        );
-
-        List<PostPushDataResultTask> splitTasks = task.splitTask();
-        Set<String> splitData = Sets.newHashSet();
-        for (PostPushDataResultTask taskN : splitTasks) {
-          List<String> dataStrings = StringLineIngester.unjoinPushData(taskN.getPushData());
-          splitData.addAll(dataStrings);
-          assertTrue(dataStrings.size() <= targetBatchSize + 1);
-        }
-        assertEquals(Sets.newHashSet(pretendPushDataList), splitData);
-      }
-    }
-  }
-
-  @Test
   public void splitIntoTwoTest() {
-    splitBatchSize.set(10000000);
-
     UUID agentId = UUID.randomUUID();
     UUID workUnitId = UUID.randomUUID();
 
@@ -879,11 +647,11 @@ public class QueuedAgentServiceTest {
         pretendPushDataList.add(RandomStringUtils.randomAlphabetic(6));
       }
 
-      String pretendPushData = StringLineIngester.joinPushData(pretendPushDataList);
+      QueuedAgentService.setMinSplitBatchSize(1);
+      String pretendPushData = LineDelimitedUtils.joinPushData(pretendPushDataList);
 
       PostPushDataResultTask task = new PostPushDataResultTask(
           agentId,
-          workUnitId,
           now,
           format,
           pretendPushData
@@ -893,11 +661,15 @@ public class QueuedAgentServiceTest {
       assertEquals(2, splitTasks.size());
       Set<String> splitData = Sets.newHashSet();
       for (PostPushDataResultTask taskN : splitTasks) {
-        List<String> dataStrings = StringLineIngester.unjoinPushData(taskN.getPushData());
+        List<String> dataStrings = unjoinPushData(taskN.getPushData());
         splitData.addAll(dataStrings);
         assertTrue(dataStrings.size() <= numTestStrings / 2 + 1);
       }
       assertEquals(Sets.newHashSet(pretendPushDataList), splitData);
     }
+  }
+
+  private static List<String> unjoinPushData(String pushData) {
+    return Arrays.asList(StringUtils.split(pushData, "\n"));
   }
 }

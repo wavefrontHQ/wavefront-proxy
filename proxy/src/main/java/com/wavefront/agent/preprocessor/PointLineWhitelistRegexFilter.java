@@ -13,27 +13,34 @@ import javax.annotation.Nullable;
  *
  * Created by Vasily on 9/13/16.
  */
-public class PointLineWhitelistRegexFilter extends AnnotatedPredicate<String> {
+public class PointLineWhitelistRegexFilter implements AnnotatedPredicate<String> {
 
   private final Pattern compiledPattern;
-  @Nullable
-  private final Counter ruleAppliedCounter;
+  private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public PointLineWhitelistRegexFilter(final String patternMatch,
                                        @Nullable final Counter ruleAppliedCounter) {
+    this(patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
+  }
+
+  public PointLineWhitelistRegexFilter(final String patternMatch,
+                                       final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
     Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
-    this.ruleAppliedCounter = ruleAppliedCounter;
+    Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
+    this.ruleMetrics = ruleMetrics;
   }
 
   @Override
-  public boolean apply(String pointLine) {
+  public boolean test(String pointLine, @Nullable String[] messageHolder) {
+  long startNanos = ruleMetrics.ruleStart();
     if (!compiledPattern.matcher(pointLine).matches()) {
-      if (ruleAppliedCounter != null) {
-        ruleAppliedCounter.inc();
-      }
+      ruleMetrics.incrementRuleAppliedCounter();
+      ruleMetrics.ruleEnd(startNanos);
       return false;
     }
+    ruleMetrics.ruleEnd(startNanos);
     return true;
   }
 }

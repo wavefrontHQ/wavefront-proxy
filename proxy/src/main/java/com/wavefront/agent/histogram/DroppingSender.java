@@ -1,7 +1,6 @@
 package com.wavefront.agent.histogram;
 
 import com.squareup.tape.ObjectQueue;
-import com.tdunning.math.stats.TDigest;
 
 import java.util.Random;
 import java.util.logging.Level;

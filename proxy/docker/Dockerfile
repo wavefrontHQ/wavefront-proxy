@@ -1,4 +1,4 @@
-FROM ubuntu:14.04
+FROM ubuntu:18.04
 
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
@@ -6,40 +6,41 @@ FROM ubuntu:14.04
 #  WAVEFRONT_TOKEN         (required)
 #  JAVA_HEAP_USAGE         (default is 4G)
 #  WAVEFRONT_HOSTNAME      (default is the docker containers hostname)
-#  WAVEFRONT_USE_GRAPHITE  (default is false)
+#  WAVEFRONT_PROXY_ARGS    (default is none)
+#  JAVA_ARGS               (default is none)
 
 # Dumb-init
 RUN apt-get -y update
+RUN apt-get install -y apt-utils
 RUN apt-get install -y curl
-RUN curl -SLO https://github.com/Yelp/dumb-init/releases/download/v1.1.3/dumb-init_1.1.3_amd64.deb
-RUN dpkg -i dumb-init_*.deb
-RUN rm dumb-init_*.deb
+RUN apt-get install -y sudo
+RUN apt-get install -y gnupg2
+RUN apt-get install -y dumb-init
+RUN apt-get install -y debian-archive-keyring
+RUN apt-get install -y apt-transport-https
+RUN apt-get install -y openjdk-8-jdk
+
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
-# Download wavefront. Merely extract the debian, don't want to try running startup scripts.
-RUN curl -SLO https://packagecloud.io/wavefront/proxy/packages/ubuntu/trusty/wavefront-proxy_4.17-9_amd64.deb/download
-RUN dpkg -x download /
-RUN rm download
-# Download and install JRE, since it's no longer bundled with the proxy
-RUN mkdir /opt/wavefront/wavefront-proxy/jre
-RUN curl -s https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz | tar -xz --strip 1 -C /opt/wavefront/wavefront-proxy/jre
+# Download wavefront proxy (latest release). Merely extract the debian, don't want to try running startup scripts.
+RUN echo "deb https://packagecloud.io/wavefront/proxy/ubuntu/ bionic main" > /etc/apt/sources.list.d/wavefront_proxy.list
+RUN echo "deb-src https://packagecloud.io/wavefront/proxy/ubuntu/ bionic main" >> /etc/apt/sources.list.d/wavefront_proxy.list
+RUN curl -L "https://packagecloud.io/wavefront/proxy/gpgkey" | apt-key add -
+RUN apt-get -y update
+
+RUN apt-get -d install wavefront-proxy
+RUN dpkg -x $(ls /var/cache/apt/archives/wavefront-proxy* | tail -n1) /
 
 # Clean up APT when done.
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Configure agent
-ENV DO_SERVICE_RESTART=false
-RUN cp /etc/wavefront/wavefront-proxy/wavefront.conf.default /etc/wavefront/wavefront-proxy/wavefront.conf
 RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
-RUN echo '\nephemeral=true' >> /etc/wavefront/wavefront-proxy/wavefront.conf
-RUN echo '\nflushThreads=6' >> /etc/wavefront/wavefront-proxy/wavefront.conf
 
 # Run the agent
 EXPOSE 3878
 EXPOSE 2878
 EXPOSE 4242
 
-ENV PATH=/opt/wavefront/wavefront-proxy/jre/bin:$PATH
-ENV WAVEFRONT_USE_GRAPHITE=false
 ADD run.sh run.sh
 CMD ["/bin/bash", "/run.sh"]

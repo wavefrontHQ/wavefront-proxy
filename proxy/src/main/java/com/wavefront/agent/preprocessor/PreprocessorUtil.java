@@ -3,12 +3,14 @@ package com.wavefront.agent.preprocessor;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
+import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
+import wavefront.report.Span;
 
 /**
- * Utility class for methods used by preprocessors
+ * Utility class for methods used by preprocessors.
  *
  * @author vasily@wavefront.com
  */
@@ -23,7 +25,7 @@ public abstract class PreprocessorUtil {
    * @param reportPoint  ReportPoint object to extract components from
    * @return string with substituted placeholders
    */
-  public static String expandPlaceholders(String input, @NotNull ReportPoint reportPoint) {
+  public static String expandPlaceholders(String input, @Nonnull ReportPoint reportPoint) {
     if (input.contains("{{")) {
       StringBuffer result = new StringBuffer();
       Matcher placeholders = Pattern.compile("\\{\\{(.*?)}}").matcher(input);
@@ -55,4 +57,45 @@ public abstract class PreprocessorUtil {
     return input;
   }
 
+  /**
+   * Substitute {{...}} placeholders with corresponding components of a Span
+   * {{spanName}} {{sourceName}} are replaced with the span name and source respectively
+   * {{anyKey}} is replaced with the value of an annotation with anyKey key
+   *
+   * @param input input string with {{...}} placeholders
+   * @param span  Span object to extract components from
+   * @return string with substituted placeholders
+   */
+  public static String expandPlaceholders(String input, @Nonnull Span span) {
+    if (input.contains("{{")) {
+      StringBuffer result = new StringBuffer();
+      Matcher placeholders = Pattern.compile("\\{\\{(.*?)}}").matcher(input);
+      while (placeholders.find()) {
+        if (placeholders.group(1).isEmpty()) {
+          placeholders.appendReplacement(result, placeholders.group(0));
+        } else {
+          String substitution;
+          switch (placeholders.group(1)) {
+            case "spanName":
+              substitution = span.getName();
+              break;
+            case "sourceName":
+              substitution = span.getSource();
+              break;
+            default:
+              substitution = span.getAnnotations().stream().filter(a -> a.getKey().equals(placeholders.group(1))).
+                  map(Annotation::getValue).findFirst().orElse(null);
+          }
+          if (substitution != null) {
+            placeholders.appendReplacement(result, substitution);
+          } else {
+            placeholders.appendReplacement(result, placeholders.group(0));
+          }
+        }
+      }
+      placeholders.appendTail(result);
+      return result.toString();
+    }
+    return input;
+  }
 }

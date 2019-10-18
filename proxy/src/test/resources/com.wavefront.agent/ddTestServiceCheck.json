@@ -1,0 +1,6 @@
+{
+  "check": "testApp.status",
+  "host_name": "testHost",
+  "timestamp": 1536719228,
+  "status": 3
+}

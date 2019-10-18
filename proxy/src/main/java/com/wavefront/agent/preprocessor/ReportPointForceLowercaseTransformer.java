@@ -8,7 +8,7 @@ import com.yammer.metrics.core.Counter;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -23,38 +23,42 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
   private final String scope;
   @Nullable
   private final Pattern compiledMatchPattern;
-  @Nullable
-  private final Counter ruleAppliedCounter;
+  private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public ReportPointForceLowercaseTransformer(final String scope,
                                               @Nullable final String patternMatch,
                                               @Nullable final Counter ruleAppliedCounter) {
+    this(scope, patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
+  }
+
+  public ReportPointForceLowercaseTransformer(final String scope,
+                                              @Nullable final String patternMatch,
+                                              final PreprocessorRuleMetrics ruleMetrics) {
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
     this.compiledMatchPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
-    this.ruleAppliedCounter = ruleAppliedCounter;
+    Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
+    this.ruleMetrics = ruleMetrics;
   }
 
   @Override
-  public ReportPoint apply(@NotNull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+    long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":
         if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getMetric()).matches()) {
           break;
         }
         reportPoint.setMetric(reportPoint.getMetric().toLowerCase());
-        if (ruleAppliedCounter != null) {
-          ruleAppliedCounter.inc();
-        }
+        ruleMetrics.incrementRuleAppliedCounter();
         break;
       case "sourceName": // source name is not case sensitive in Wavefront, but we'll do it anyway
         if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getHost()).matches()) {
           break;
         }
         reportPoint.setHost(reportPoint.getHost().toLowerCase());
-          if (ruleAppliedCounter != null) {
-            ruleAppliedCounter.inc();
-          }
+        ruleMetrics.incrementRuleAppliedCounter();
         break;
       default:
         if (reportPoint.getAnnotations() != null) {
@@ -64,12 +68,11 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
               break;
             }
             reportPoint.getAnnotations().put(scope, tagValue.toLowerCase());
-            if (ruleAppliedCounter != null) {
-              ruleAppliedCounter.inc();
-            }
+            ruleMetrics.incrementRuleAppliedCounter();
           }
         }
     }
+    ruleMetrics.ruleEnd(startNanos);
     return reportPoint;
   }
 }

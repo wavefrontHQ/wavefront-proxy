@@ -184,3 +184,104 @@
       action  : forceLowercase
       scope   : metricName
       match   : "^.*$"
+
+'1234':
+    # extract 3rd dot-delimited node from the metric name into fromMetric tag and remove it from the metric name
+    - rule          : test-extracttag-metric
+      action        : extractTag
+      tag           : fromMetric
+      source        : metricName
+      match         : "^.*testExtractTag.*"
+      search        : "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
+      replace       : "$2"
+      replaceInput  : "$1$3"
+
+    - rule          : test-extracttag-source
+      action        : extractTag
+      tag           : fromSource
+      source        : sourceName
+      search        : "^([^-]*-[^-]*)-(.*)$"
+      replace       : "$2"
+      replaceInput  : "$1"
+
+    - rule          : test-extracttagifnotexists-tag
+      action        : extractTagIfNotExists
+      tag           : fromSource  # should not work because such tag already exists!
+      source        : testExtractTag
+      search        : "^.*$"
+      replace       : "Oi! This should never happen!"
+
+    - rule          : test-extracttagifnotexists-tag-2
+      action        : extractTagIfNotExists
+      tag           : fromTag
+      source        : testExtractTag
+      search        : "^([^\\.]*)\\..*$"
+      replace       : "$1"
+
+# Span Preprocessor rules:
+'30123':
+    - rule          : test-spanAddTag
+      action        : spanAddTag
+      key           : customtag1
+      value         : val1
+
+    - rule          : test-spanAddAnnotation
+      action        : spanAddAnnotation
+      key           : customtag1
+      value         : val1
+
+    - rule          : test-spanDropTag
+      action        : spanDropTag
+      key           : datacenter
+      match         : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
+
+    - rule          : test-spanDropAnnotation
+      action        : spanDropAnnotation
+      key           : datacenter
+      match         : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
+
+    # extract 3rd dot-delimited node from the span name into fromSource tag and remove it from the span name
+    - rule          : test-extracttag-spanAnnotation
+      action        : spanExtractAnnotation
+      key           : fromSource
+      input         : spanName
+      match         : "^.*testExtractTag.*"
+      search        : "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
+      replace       : "$2"
+      replaceInput  : "$1$3"
+
+    - rule          : test-extracttag-spanTag
+      action        : spanExtractTag
+      key           : fromSource
+      input         : spanName
+      match         : "^.*testExtractTag.*"
+      search        : "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
+      replace       : "$2"
+      replaceInput  : "$1$3"
+
+    - rule          : test-extracttagifnotexists-spanAnnotation
+      action        : spanExtractAnnotationIfNotExists
+      key           : fromSource  # should not work because such tag already exists!
+      input         : testExtractTag
+      search        : "^.*$"
+      replace       : "Oi! This should never happen!"
+
+    - rule          : test-extracttagifnotexists-spanTag
+      action        : spanExtractTagIfNotExists
+      key           : fromSource  # should not work because such tag already exists!
+      input         : testExtractTag
+      search        : "^.*$"
+      replace       : "Oi! This should never happen!"
+
+    # rename a span tag/annotation if its value matches a regex
+    - rule          : test-spanrenametag
+      action        : spanRenameTag
+      key           : myDevice
+      newkey        : device
+      match         : "^\\d*$"
+
+    - rule          : test-spanrenameannotation
+      action        : spanRenameAnnotation
+      key           : myDevice
+      newkey        : device
+      match         : "^\\d*$"

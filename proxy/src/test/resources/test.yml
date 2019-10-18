@@ -15,6 +15,25 @@ counters:
     tagValueLabels:
       - "dc"
       - "az"
+  - pattern: "operation TagValue %{WORD:op} took %{NUMBER:value} seconds in DC=%{WORD:dc}.*AZ=%{WORD:az}"
+    metricName: "TagValue.%{op}.totalSeconds"
+    tagKeys:
+      - "theDC"
+      - "theAZ"
+      - "static"
+      - "noMatch"
+    tagValues:
+      - "%{dc}"
+      - "az-%{az}"
+      - "value"
+      - "aa%{q}bb"
+  - pattern: "operation %{WORD:op} on host %{WORD:hostname} took %{NUMBER:value} seconds"
+    metricName: "Host.%{op}.totalSeconds"
+    hostName: "%{hostname}.acme.corp"
+    tagKeys:
+      - "static"
+    tagValues:
+      - "value"
   - pattern: "%{COMBINEDAPACHELOG}"
     metricName: "apacheBytes"
     valueLabel: "bytes"

@@ -7,7 +7,7 @@ import com.yammer.metrics.core.Counter;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -17,39 +17,45 @@ import wavefront.report.ReportPoint;
  *
  * Created by Vasily on 9/13/16.
  */
-public class ReportPointWhitelistRegexFilter extends AnnotatedPredicate<ReportPoint> {
+public class ReportPointWhitelistRegexFilter implements AnnotatedPredicate<ReportPoint> {
 
   private final String scope;
   private final Pattern compiledPattern;
-  @Nullable
-  private final Counter ruleAppliedCounter;
+  private final PreprocessorRuleMetrics ruleMetrics;
 
+  @Deprecated
   public ReportPointWhitelistRegexFilter(final String scope,
                                          final String patternMatch,
                                          @Nullable final Counter ruleAppliedCounter) {
+    this(scope, patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
+  }
+
+  public ReportPointWhitelistRegexFilter(final String scope,
+                                         final String patternMatch,
+                                         final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
     Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
-    this.ruleAppliedCounter = ruleAppliedCounter;
+    Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
+    this.ruleMetrics = ruleMetrics;
   }
 
   @Override
-  public boolean apply(@NotNull ReportPoint reportPoint) {
+  public boolean test(@Nonnull ReportPoint reportPoint, @Nullable String[] messageHolder) {
+    long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":
         if (!compiledPattern.matcher(reportPoint.getMetric()).matches()) {
-          if (ruleAppliedCounter != null) {
-            ruleAppliedCounter.inc();
-          }
+          ruleMetrics.incrementRuleAppliedCounter();
+          ruleMetrics.ruleEnd(startNanos);
           return false;
         }
         break;
       case "sourceName":
         if (!compiledPattern.matcher(reportPoint.getHost()).matches()) {
-          if (ruleAppliedCounter != null) {
-            ruleAppliedCounter.inc();
-          }
+          ruleMetrics.incrementRuleAppliedCounter();
+          ruleMetrics.ruleEnd(startNanos);
           return false;
         }
         break;
@@ -57,14 +63,15 @@ public class ReportPointWhitelistRegexFilter extends AnnotatedPredicate<ReportPo
         if (reportPoint.getAnnotations() != null) {
           String tagValue = reportPoint.getAnnotations().get(scope);
           if (tagValue != null && compiledPattern.matcher(tagValue).matches()) {
+            ruleMetrics.ruleEnd(startNanos);
             return true;
           }
         }
-        if (ruleAppliedCounter != null) {
-          ruleAppliedCounter.inc();
-        }
+        ruleMetrics.incrementRuleAppliedCounter();
+        ruleMetrics.ruleEnd(startNanos);
         return false;
     }
+    ruleMetrics.ruleEnd(startNanos);
     return true;
   }
 }

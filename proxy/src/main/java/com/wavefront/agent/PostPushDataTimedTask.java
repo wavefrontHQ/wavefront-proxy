@@ -3,9 +3,10 @@ package com.wavefront.agent;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
-import com.wavefront.agent.api.ForceQueueEnabledAgentAPI;
+import com.wavefront.agent.handlers.LineDelimitedUtils;
+import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
 import com.wavefront.api.agent.Constants;
-import com.wavefront.ingester.StringLineIngester;
+import com.wavefront.common.NamedThreadFactory;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -15,8 +16,12 @@ import com.yammer.metrics.core.TimerContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -27,6 +32,7 @@ import javax.ws.rs.core.Response;
 /**
  * @author Andrew Kao (andrew@wavefront.com)
  */
+@Deprecated
 public class PostPushDataTimedTask implements Runnable {
 
   private static final Logger logger = Logger.getLogger(PostPushDataTimedTask.class.getCanonicalName());
@@ -52,6 +58,13 @@ public class PostPushDataTimedTask implements Runnable {
    * Write a sample of blocked points to log once a minute
    */
   private final RateLimiter blockedSamplesRateLimiter = RateLimiter.create(0.017);
+
+  /**
+   * Attempt to schedule drainBuffersToQueueTask no more than once every 100ms to reduce
+   * scheduler overhead under memory pressure
+   */
+  private final RateLimiter drainBuffersRateLimiter = RateLimiter.create(10);
+
   private final RecyclableRateLimiter pushRateLimiter;
 
   private final Counter pointsReceived;
@@ -72,11 +85,13 @@ public class PostPushDataTimedTask implements Runnable {
   private final int threadId;
   private long pushFlushInterval;
   private final ScheduledExecutorService scheduler;
+  private final ExecutorService flushExecutor;
+
   private static AtomicInteger pointsPerBatch = new AtomicInteger(50000);
   private static AtomicInteger memoryBufferLimit = new AtomicInteger(50000 * 32);
   private boolean isFlushingToQueue = false;
 
-  private ForceQueueEnabledAgentAPI agentAPI;
+  private ForceQueueEnabledProxyAPI agentAPI;
 
   static void setPointsPerBatch(AtomicInteger newSize) {
     pointsPerBatch = newSize;
@@ -141,13 +156,13 @@ public class PostPushDataTimedTask implements Runnable {
   }
 
   @Deprecated
-  public PostPushDataTimedTask(String pushFormat, ForceQueueEnabledAgentAPI agentAPI, String logLevel,
+  public PostPushDataTimedTask(String pushFormat, ForceQueueEnabledProxyAPI agentAPI, String logLevel,
                                UUID daemonId, String handle, int threadId, RecyclableRateLimiter pushRateLimiter,
                                long pushFlushInterval) {
     this(pushFormat, agentAPI, daemonId, handle, threadId, pushRateLimiter, pushFlushInterval);
   }
 
-  public PostPushDataTimedTask(String pushFormat, ForceQueueEnabledAgentAPI agentAPI,
+  public PostPushDataTimedTask(String pushFormat, ForceQueueEnabledProxyAPI agentAPI,
                                UUID daemonId, String handle, int threadId, RecyclableRateLimiter pushRateLimiter,
                                long pushFlushInterval) {
     this.pushFormat = pushFormat;
@@ -159,6 +174,8 @@ public class PostPushDataTimedTask implements Runnable {
     this.pushRateLimiter = pushRateLimiter;
     this.scheduler = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("submitter-main-" + handle + "-" + String.valueOf(threadId)));
+    this.flushExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.MINUTES,
+        new SynchronousQueue<>(), new NamedThreadFactory("flush-" + handle + "-" + String.valueOf(threadId)));
 
     this.pointsAttempted = Metrics.newCounter(new MetricName("points." + handle, "", "sent"));
     this.pointsQueued = Metrics.newCounter(new MetricName("points." + handle, "", "queued"));
@@ -190,12 +207,8 @@ public class PostPushDataTimedTask implements Runnable {
         TimerContext timerContext = this.batchSendTime.time();
         Response response = null;
         try {
-          response = agentAPI.postPushData(
-              daemonId,
-              Constants.GRAPHITE_BLOCK_WORK_UNIT,
-              System.currentTimeMillis(),
-              pushFormat,
-              StringLineIngester.joinPushData(current));
+          response = agentAPI.proxyReport(daemonId, pushFormat,
+              LineDelimitedUtils.joinPushData(current));
           int pointsInList = current.size();
           this.pointsAttempted.inc(pointsInList);
           if (response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
@@ -243,21 +256,35 @@ public class PostPushDataTimedTask implements Runnable {
   }
 
   public void enforceBufferLimits() {
-    if (points.size() > memoryBufferLimit.get()) {
-      // there are going to be too many points to be able to flush w/o the agent blowing up
-      // drain the leftovers straight to the retry queue (i.e. to disk)
-      // don't let anyone add any more to points while we're draining it.
-      logger.warning("[FLUSH THREAD " + threadId + "]: WF-3 Too many pending points (" + points.size() +
-          "), block size: " + pointsPerBatch + ". flushing to retry queue");
-      drainBuffersToQueue();
-      logger.info("[FLUSH THREAD " + threadId + "]: flushing to retry queue complete. " +
-          "Pending points: " + points.size());
+    if (points.size() > memoryBufferLimit.get() && drainBuffersRateLimiter.tryAcquire()) {
+      try {
+        flushExecutor.submit(drainBuffersToQueueTask);
+      } catch (RejectedExecutionException e) {
+        // ignore - another task is already being executed
+      }
     }
   }
+
+  private Runnable drainBuffersToQueueTask = new Runnable() {
+    @Override
+    public void run() {
+      if (points.size() > memoryBufferLimit.get()) {
+        // there are going to be too many points to be able to flush w/o the agent blowing up
+        // drain the leftovers straight to the retry queue (i.e. to disk)
+        // don't let anyone add any more to points while we're draining it.
+        logger.warning("[FLUSH THREAD " + threadId + "]: WF-3 Too many pending points (" + points.size() +
+            "), block size: " + pointsPerBatch + ". flushing to retry queue");
+        drainBuffersToQueue();
+        logger.info("[FLUSH THREAD " + threadId + "]: flushing to retry queue complete. " +
+            "Pending points: " + points.size());
+      }
+    }
+  };
 
   public void drainBuffersToQueue() {
     try {
       isFlushingToQueue = true;
+      int lastBatchSize = Integer.MIN_VALUE;
       // roughly limit number of points to flush to the the current buffer size (+1 blockSize max)
       // if too many points arrive at the proxy while it's draining, they will be taken care of in the next run
       int pointsToFlush = points.size();
@@ -265,18 +292,20 @@ public class PostPushDataTimedTask implements Runnable {
         List<String> pushData = createAgentPostBatch();
         int pushDataPointCount = pushData.size();
         if (pushDataPointCount > 0) {
-          agentAPI.postPushData(daemonId, Constants.GRAPHITE_BLOCK_WORK_UNIT,
-              System.currentTimeMillis(), Constants.PUSH_FORMAT_GRAPHITE_V2,
-              StringLineIngester.joinPushData(pushData), true);
+          agentAPI.proxyReport(daemonId, Constants.PUSH_FORMAT_GRAPHITE_V2,
+              LineDelimitedUtils.joinPushData(pushData), true);
 
           // update the counters as if this was a failed call to the API
           this.pointsAttempted.inc(pushDataPointCount);
           this.pointsQueued.inc(pushDataPointCount);
-          if (pushRateLimiter != null) {
-            this.permitsDenied.inc(pushDataPointCount);
-          }
           numApiCalls++;
           pointsToFlush -= pushDataPointCount;
+
+          // stop draining buffers if the batch is smaller than the previous one
+          if (pushDataPointCount < lastBatchSize) {
+            break;
+          }
+          lastBatchSize = pushDataPointCount;
         } else {
           break;
         }

@@ -16,8 +16,11 @@ import net.openhft.chronicle.hash.serialization.BytesWriter;
 import net.openhft.chronicle.wire.WireIn;
 import net.openhft.chronicle.wire.WireOut;
 
+import org.apache.commons.lang.time.DateUtils;
+
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,9 +28,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.time.DateUtils;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 
 import wavefront.report.ReportPoint;
 
@@ -85,6 +87,34 @@ public final class Utils {
         return DAY;
       }
     }
+
+    public static Granularity fromString(String granularityName) {
+      if (granularityName.equals("minute")) {
+        return MINUTE;
+      }
+      if (granularityName.equals("hour")) {
+        return HOUR;
+      }
+      if (granularityName.equals("day")) {
+        return DAY;
+      }
+      return null;
+    }
+
+    public static String granularityToString(@Nullable Granularity granularity) {
+      if (granularity == null) {
+        return "distribution";
+      }
+      switch (granularity) {
+        case DAY:
+          return "day";
+        case HOUR:
+          return "hour";
+        case MINUTE:
+          return "minute";
+      }
+      return "unknown";
+    }
   }
 
   /**
@@ -96,9 +126,8 @@ public final class Utils {
 
     String[] annotations = null;
     if (point.getAnnotations() != null) {
-      // TODO should this toLowerCase tag keys (and values)
       List<Map.Entry<String, String>> keyOrderedTags = point.getAnnotations().entrySet()
-          .stream().sorted((e1, e2) -> e1.getKey().compareTo(e2.getKey())).collect(Collectors.toList());
+          .stream().sorted(Comparator.comparing(Map.Entry::getKey)).collect(Collectors.toList());
       annotations = new String[keyOrderedTags.size() * 2];
       for (int i = 0; i < keyOrderedTags.size(); ++i) {
         annotations[2 * i] = keyOrderedTags.get(i).getKey();
@@ -203,7 +232,6 @@ public final class Utils {
       if (binId != histogramKey.binId) return false;
       if (!metric.equals(histogramKey.metric)) return false;
       if (source != null ? !source.equals(histogramKey.source) : histogramKey.source != null) return false;
-      // Probably incorrect - comparing Object[] arrays with Arrays.equals
       return Arrays.equals(tags, histogramKey.tags);
 
     }

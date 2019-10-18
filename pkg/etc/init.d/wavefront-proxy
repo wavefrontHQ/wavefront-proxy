@@ -56,7 +56,19 @@ pid_file=${PID_FILE:-/var/run/$service_name.pid}
 agent_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-push-agent.jar}
 class="com.wavefront.agent.PushAgentDaemon"
 app_args=${APP_ARGS:--f $conf_file}
-java_args=${JAVA_ARGS:--XX:+AggressiveHeap}
+
+# If JAVA_ARGS is not set, try to detect memory size and set heap to 8GB if machine has more than 8GB.
+# Fall back to using AggressiveHeap (old behavior) if less than 8GB.
+if [[ -z $JAVA_ARGS ]]; then
+    if [ `grep MemTotal /proc/meminfo | awk '{print $2}'` -gt "8388607" ]; then
+        java_args=-Xmx8g
+        >&2 echo "Using default heap size (8GB), please set JAVA_ARGS in /etc/sysconfig/wavefront-proxy to use a different value"
+    else
+        java_args=-XX:+AggressiveHeap
+    fi
+else
+    java_args=$JAVA_ARGS
+fi
 
 # Legacy support for overrding JVM args in wavefront_proxy_launch.conf. We don't ship this starting in 3.25,
 # use /etc/sysconfig/wavefront-proxy for all configuration instead (this is a RHEL idiom, but it will work
@@ -142,38 +154,51 @@ jsvc_exec()
 	fi
 }
 
+start()
+{
+    if [[ -f "$pid_file" ]]; then
+        echo "$desc is already running (PID $(cat "$pid_file"))"
+    fi
+    echo "Starting $desc"
+    jsvc_exec
+    echo "Done"
+}
+
+status()
+{
+    if [[ -f "$pid_file" ]]; then
+        echo "$desc is running (PID $(cat "$pid_file"))"
+    else
+        echo "$desc is not running."
+        exit 3
+    fi
+}
+
+stop()
+{
+    echo "Stopping $desc"
+    jsvc_exec "-stop"
+    echo "Done"
+}
+
+restart()
+{
+    stop
+    start
+}
+
+condrestart()
+{
+    [ -f "$pid_file" ] && restart || :
+}
 case "$1" in
-start)
-	if [[ -f "$pid_file" ]]; then
-		echo "$desc is already running (PID $(cat "$pid_file"))"
-	fi
-	echo "Starting $desc"
-	jsvc_exec
-	echo "Done"
-;;
-status)
-	if [[ -f "$pid_file" ]]; then
-		echo "$desc is running (PID $(cat "$pid_file"))"
-	else
-		echo "$desc is not running."
-		exit 3
-	fi
-;;
-stop)
-	echo "Stopping $desc"
-	jsvc_exec "-stop"
-	echo "Done"
-;;
-restart)
-	if [[ -f "$pid_file" ]]; then
-		echo "Stopping $desc"
-		jsvc_exec "-stop"
-	fi
-	echo "Starting $desc"
-	jsvc_exec
-	echo "Done"
-;;
+start) start ;;
+status) status ;;
+stop) stop ;;
+restart) restart ;;
+condrestart) condrestart ;;
+
 *)
-	echo "Usage: $0 {status | start | stop | restart}"
+	echo "Usage: $0 {status | start | stop | restart | condrestart}"
 	exit 1
 esac
