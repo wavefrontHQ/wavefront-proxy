@@ -200,6 +200,19 @@ public abstract class AbstractAgent {
       " to 5.")
   protected Integer pushBlockedSamples = 5;
 
+  @Parameter(names = {"--blockedPointsLoggerName"}, description = "Logger Name for blocked points")
+  protected String blockedPointsLoggerName = "RawBlockedPoints";
+  protected Logger blockedPointsLogger;
+
+  @Parameter(names = {"--blockedHistogramsLoggerName"}, description = "Logger Name for blocked " +
+      "histograms")
+  protected String blockedHistogramsLoggerName = "RawBlockedPoints";
+  protected Logger blockedHistogramsLogger;
+
+  @Parameter(names = {"--blockedSpansLoggerName"}, description = "Logger Name for blocked spans")
+  protected String blockedSpansLoggerName = "RawBlockedPoints";
+  protected Logger blockedSpansLogger;
+
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
       "2878.", order = 4)
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
@@ -897,6 +910,12 @@ public abstract class AbstractAgent {
       pushRateLimitMaxBurstSeconds = config.getNumber("pushRateLimitMaxBurstSeconds", pushRateLimitMaxBurstSeconds).
           intValue();
       pushBlockedSamples = config.getNumber("pushBlockedSamples", pushBlockedSamples).intValue();
+      blockedPointsLoggerName = config.getString("blockedPointsLoggerName", blockedPointsLoggerName);
+      blockedPointsLogger = Logger.getLogger(blockedPointsLoggerName);
+      blockedHistogramsLoggerName = config.getString("blockedHistogramsLoggerName", blockedHistogramsLoggerName);
+      blockedHistogramsLogger = Logger.getLogger(blockedHistogramsLoggerName);
+      blockedSpansLoggerName = config.getString("blockedSpansLoggerName", blockedSpansLoggerName);
+      blockedSpansLogger = Logger.getLogger(blockedSpansLoggerName);
       pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
       pushListenerMaxReceivedLength = config.getNumber("pushListenerMaxReceivedLength",
           pushListenerMaxReceivedLength).intValue();

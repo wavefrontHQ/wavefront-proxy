@@ -70,9 +70,11 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
                                                final int blockedItemsPerBatch,
                                                final Collection<SenderTask> senderTasks,
                                                @Nullable final Supplier<ValidationConfiguration> validationConfig,
-                                               long deltaCountersAggregationIntervalSeconds) {
+                                               long deltaCountersAggregationIntervalSeconds,
+                                               final Logger blockedItemLogger) {
         super(ReportableEntityType.DELTA_COUNTER, handle, blockedItemsPerBatch,
-            new ReportPointSerializer(), senderTasks, validationConfig, "pps", true);
+            new ReportPointSerializer(), senderTasks, validationConfig, "pps", true,
+            blockedItemLogger);
 
         this.aggregatedDeltas = Caffeine.newBuilder().
             expireAfterAccess(5 * deltaCountersAggregationIntervalSeconds, TimeUnit.SECONDS).

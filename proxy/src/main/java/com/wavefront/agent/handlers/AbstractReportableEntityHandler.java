@@ -94,9 +94,10 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
                                   @Nullable Collection<SenderTask> senderTasks,
                                   @Nullable Supplier<ValidationConfiguration> validationConfig,
                                   @Nullable String rateUnit,
-                                  boolean setupMetrics) {
+                                  boolean setupMetrics,
+                                  final Logger blockedItemsLogger) {
     this.entityType = entityType;
-    this.blockedItemsLogger = Logger.getLogger("RawBlockedPoints");
+    this.blockedItemsLogger = blockedItemsLogger;
     this.handle = handle;
     this.blockedItemsLimiter = blockedItemsPerBatch == 0 ? null :
         RateLimiter.create(blockedItemsPerBatch / 10d);
