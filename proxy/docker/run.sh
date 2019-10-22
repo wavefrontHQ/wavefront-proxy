@@ -14,12 +14,6 @@ if [ "${JVM_USE_CONTAINER_OPTS}" = false ] ; then
     jvm_container_opts="-Xmx$java_heap_usage -Xms$java_heap_usage"
 fi
 
-echo $jvm_container_opts
-
-java $jvm_container_opts -XshowSettings:vm \
-     -XX:+PrintFlagsFinal -version \
-               | grep -E "UseContainerSupport | InitialRAMPercentage | MaxRAMPercentage | MinRAMPercentage"
-
 java \
     $jvm_container_opts $JAVA_ARGS \
 	-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
