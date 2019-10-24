@@ -153,6 +153,9 @@ public class PushAgent extends AbstractAgent {
           new HistogramDecoder("unknown")),
       ReportableEntityType.TRACE, new SpanDecoder("unknown"),
       ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder()));
+  private Logger blockedPointsLogger;
+  private Logger blockedHistogramsLogger;
+  private Logger blockedSpansLogger;
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -175,6 +178,10 @@ public class PushAgent extends AbstractAgent {
 
   @Override
   protected void startListeners() {
+    blockedPointsLogger = Logger.getLogger(blockedPointsLoggerName);
+    blockedHistogramsLogger = Logger.getLogger(blockedHistogramsLoggerName);
+    blockedSpansLogger = Logger.getLogger(blockedSpansLoggerName);
+
     if (soLingerTime >= 0) {
       childChannelOptions.put(ChannelOption.SO_LINGER, soLingerTime);
     }

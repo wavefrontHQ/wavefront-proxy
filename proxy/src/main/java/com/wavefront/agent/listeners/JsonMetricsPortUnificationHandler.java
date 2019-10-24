@@ -50,8 +50,6 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
  */
 @ChannelHandler.Sharable
 public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
-  private static final Logger logger = Logger.getLogger(JsonMetricsPortUnificationHandler.class.getCanonicalName());
-  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
   private static final Set<String> STANDARD_PARAMS = ImmutableSet.of("h", "p", "d", "t");
 
   /**
