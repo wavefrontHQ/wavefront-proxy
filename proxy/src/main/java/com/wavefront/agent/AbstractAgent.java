@@ -430,7 +430,7 @@ public abstract class AbstractAgent {
   protected boolean dataDogProcessSystemMetrics = false;
 
   @Parameter(names = {"--dataDogProcessServiceChecks"}, description = "If true, convert service checks to metrics. " +
-      "Defaults to true.")
+      "Defaults to true.", arity = 1)
   protected boolean dataDogProcessServiceChecks = true;
 
   @Parameter(names = {"--writeHttpJsonListenerPorts", "--writeHttpJsonPorts"}, description = "Comma-separated list " +
@@ -518,7 +518,7 @@ public abstract class AbstractAgent {
   protected String traceDerivedCustomTagKeysProperty;
 
   @Parameter(names = {"--traceAlwaysSampleErrors"}, description = "Always sample spans with error tag (set to true) " +
-      "ignoring other sampling configuration. Defaults to true." )
+      "ignoring other sampling configuration. Defaults to true.", arity = 1)
   protected boolean traceAlwaysSampleErrors = true;
 
   @Parameter(names = {"--pushRelayListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
@@ -538,13 +538,15 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--agentMetricsPointTags"}, description = "Additional point tags and their respective values to be included into internal agent's metrics (comma-separated list, ex: dc=west,env=prod)")
   protected String agentMetricsPointTags = null;
 
-  @Parameter(names = {"--ephemeral"}, description = "If true, this proxy is removed from Wavefront after 24 hours of inactivity.")
+  @Parameter(names = {"--ephemeral"}, arity = 1, description = "If true, this proxy is removed " +
+      "from Wavefront after 24 hours of inactivity. Default: true")
   protected boolean ephemeral = true;
 
   @Parameter(names = {"--disableRdnsLookup"}, description = "When receiving Wavefront-formatted data without source/host specified, use remote IP address as source instead of trying to resolve the DNS name. Default false.")
   protected boolean disableRdnsLookup = false;
 
-  @Parameter(names = {"--gzipCompression"}, description = "If true, enables gzip compression for traffic sent to Wavefront (Default: true)")
+  @Parameter(names = {"--gzipCompression"}, arity = 1, description = "If true, enables gzip " +
+      "compression for traffic sent to Wavefront (Default: true)")
   protected boolean gzipCompression = true;
 
   @Parameter(names = {"--soLingerTime"}, description = "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
@@ -1121,7 +1123,9 @@ public abstract class AbstractAgent {
       config.reportSettingAsGauge(pushMemoryBufferLimit, "pushMemoryBufferLimit");
       logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
 
-      logger.warning("Loaded configuration file " + pushConfigFile);
+      if (pushConfigFile != null) {
+        logger.warning("Loaded configuration file " + pushConfigFile);
+      }
     } catch (Throwable exception) {
       logger.severe("Could not load configuration file " + pushConfigFile);
       throw exception;
