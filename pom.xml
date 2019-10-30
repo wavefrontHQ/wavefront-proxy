@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>5.6</version>
+  <version>5.7-SNAPSHOT</version>
   <modules>
     <module>proxy</module>
   </modules>
@@ -31,7 +31,7 @@
     <connection>scm:git:git@github.com:wavefronthq/java.git</connection>
     <developerConnection>scm:git:git@github.com:wavefronthq/java.git</developerConnection>
     <url>git@github.com:wavefronthq/java.git</url>
-    <tag>wavefront-5.6</tag>
+    <tag>release-5.x</tag>
   </scm>
 
   <distributionManagement>
