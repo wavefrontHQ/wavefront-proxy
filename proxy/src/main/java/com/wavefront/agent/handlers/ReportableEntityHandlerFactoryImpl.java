@@ -28,6 +28,9 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final int blockedItemsPerBatch;
   private final int defaultFlushThreads;
   private final Supplier<ValidationConfiguration> validationConfig;
+  private final Logger blockedPointsLogger;
+  private final Logger blockedHistogramsLogger;
+  private final Logger blockedSpansLogger;
 
   /**
    * Create new instance.
@@ -42,11 +45,16 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   public ReportableEntityHandlerFactoryImpl(
       final SenderTaskFactory senderTaskFactory, final int blockedItemsPerBatch,
       final int defaultFlushThreads,
-      @Nullable final Supplier<ValidationConfiguration> validationConfig) {
+      @Nullable final Supplier<ValidationConfiguration> validationConfig,
+      final Logger blockedPointsLogger, final Logger blockedHistogramsLogger,
+      final Logger blockedSpansLogger) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.defaultFlushThreads = defaultFlushThreads;
     this.validationConfig = validationConfig;
+    this.blockedPointsLogger = blockedPointsLogger;
+    this.blockedHistogramsLogger = blockedHistogramsLogger;
+    this.blockedSpansLogger = blockedSpansLogger;
   }
 
   @Override
@@ -56,21 +64,21 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
         case POINT:
           return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
-              validationConfig, false, true);
+              validationConfig, false, true, blockedPointsLogger);
         case HISTOGRAM:
           return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
-              validationConfig, true, true);
+              validationConfig, true, true, blockedHistogramsLogger);
         case SOURCE_TAG:
           return new ReportSourceTagHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, SOURCE_TAGS_NUM_THREADS));
+              senderTaskFactory.createSenderTasks(handlerKey, SOURCE_TAGS_NUM_THREADS), blockedPointsLogger);
         case TRACE:
           return new SpanHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
-              validationConfig);
+              validationConfig, blockedSpansLogger);
         case TRACE_SPAN_LOGS:
           return new SpanLogsHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads));
+              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads), blockedSpansLogger);
         default:
           throw new IllegalArgumentException("Unexpected entity type " +
               handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());

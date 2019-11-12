@@ -66,10 +66,11 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
                          final Collection<SenderTask> senderTasks,
                          @Nullable final Supplier<ValidationConfiguration> validationConfig,
                          final boolean isHistogramHandler,
-                         final boolean setupMetrics) {
+                         final boolean setupMetrics,
+                         final Logger blockedItemLogger) {
     super(isHistogramHandler ? ReportableEntityType.HISTOGRAM : ReportableEntityType.POINT, handle,
         blockedItemsPerBatch, new ReportPointSerializer(), senderTasks, validationConfig,
-        isHistogramHandler ? "dps" : "pps", setupMetrics);
+        isHistogramHandler ? "dps" : "pps", setupMetrics, blockedItemLogger);
     String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
     this.logPointsFlag = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
     String logPointsSampleRateProperty =

@@ -49,9 +49,10 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
   SpanHandlerImpl(final String handle,
                   final int blockedItemsPerBatch,
                   final Collection<SenderTask> sendDataTasks,
-                  @Nullable final Supplier<ValidationConfiguration> validationConfig) {
+                  @Nullable final Supplier<ValidationConfiguration> validationConfig,
+                  final Logger blockedItemLogger) {
     super(ReportableEntityType.TRACE, handle, blockedItemsPerBatch, new SpanSerializer(),
-        sendDataTasks, validationConfig, "sps", true);
+        sendDataTasks, validationConfig, "sps", true, blockedItemLogger);
 
     String logTracesSampleRateProperty = System.getProperty("wavefront.proxy.logspans.sample-rate");
     this.logSampleRate = NumberUtils.isNumber(logTracesSampleRateProperty) ?
