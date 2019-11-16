@@ -503,8 +503,12 @@ public abstract class AbstractAgent {
       "data. Defaults to none.")
   protected String traceListenerPorts;
 
+  @Parameter(names = {"--traceJaegerListenerProtocol"}, description = "Protocol used to listen " +
+      "for Jaeger Thrift formatted data. Options are tchannel and http. Defaults to tchannel.")
+  protected String traceJaegerListenerProtocol = "tchannel";
+
   @Parameter(names = {"--traceJaegerListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
-      "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
+      "on for jaeger thrift formatted data. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
   @Parameter(names = {"--traceJaegerApplicationName"}, description = "Application name for Jaeger. Defaults to Jaeger.")
@@ -1073,6 +1077,8 @@ public abstract class AbstractAgent {
       disableRdnsLookup = config.getBoolean("disableRdnsLookup", disableRdnsLookup);
       picklePorts = config.getString("picklePorts", picklePorts);
       traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
+      traceJaegerListenerProtocol = config.getString("traceJaegerListenerProtocol",
+          traceJaegerListenerProtocol);
       traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
       traceJaegerApplicationName = config.getString("traceJaegerApplicationName", traceJaegerApplicationName);
       traceZipkinListenerPorts = config.getString("traceZipkinListenerPorts", traceZipkinListenerPorts);

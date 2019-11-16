@@ -1,12 +1,14 @@
 package com.wavefront.agent.listeners.tracing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
-import com.uber.tchannel.api.handlers.ThriftRequestHandler;
-import com.uber.tchannel.messages.ThriftRequest;
-import com.uber.tchannel.messages.ThriftResponse;
+import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
+import com.wavefront.agent.channel.ChannelUtils;
+import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.data.ReportableEntityType;
@@ -17,14 +19,18 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import io.jaegertracing.thriftjava.Batch;
-import io.jaegertracing.thriftjava.Collector;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.commons.lang.StringUtils;
+import org.apache.thrift.TDeserializer;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -35,20 +41,21 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.tracing.JaegerThriftUtils.processBatch;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
 
 /**
- * Handler that processes trace data in Jaeger Thrift compact format and
- * converts them to Wavefront format
+ * Handler that processes Jaeger Thrift trace data over HTTP and converts them to Wavefront format.
  *
- * @author vasily@wavefront.com
+ * @author Han Zhang (zhanghan@vmware.com)
  */
-public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector.submitBatches_args,
-    Collector.submitBatches_result> implements Runnable, Closeable {
+public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implements Runnable,
+    Closeable {
   protected static final Logger logger =
-      Logger.getLogger(JaegerThriftCollectorHandler.class.getCanonicalName());
+      Logger.getLogger(JaegerPortUnificationHandler.class.getCanonicalName());
 
   private final static String JAEGER_COMPONENT = "jaeger";
   private final static String DEFAULT_SOURCE = "jaeger";
@@ -76,8 +83,12 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
+  private final static String JAEGER_VALID_PATH = "/api/traces/";
+  private final static String JAEGER_VALID_HTTP_METHOD = "POST";
+
   @SuppressWarnings("unchecked")
-  public JaegerThriftCollectorHandler(String handle,
+  public JaegerPortUnificationHandler(String handle,
+                                      final HealthCheckManager healthCheckManager,
                                       ReportableEntityHandlerFactory handlerFactory,
                                       @Nullable WavefrontSender wfSender,
                                       Supplier<Boolean> traceDisabled,
@@ -87,23 +98,27 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       boolean alwaysSampleErrors,
                                       @Nullable String traceJaegerApplicationName,
                                       Set<String> traceDerivedCustomTagKeys) {
-    this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
+    this(handle, healthCheckManager,
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler, alwaysSampleErrors,
         traceJaegerApplicationName, traceDerivedCustomTagKeys);
   }
 
-  public JaegerThriftCollectorHandler(String handle,
-                                      ReportableEntityHandler<Span> spanHandler,
-                                      ReportableEntityHandler<SpanLogs> spanLogsHandler,
-                                      @Nullable WavefrontSender wfSender,
-                                      Supplier<Boolean> traceDisabled,
-                                      Supplier<Boolean> spanLogsDisabled,
-                                      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                                      Sampler sampler,
-                                      boolean alwaysSampleErrors,
-                                      @Nullable String traceJaegerApplicationName,
-                                      Set<String> traceDerivedCustomTagKeys) {
+  @VisibleForTesting
+  JaegerPortUnificationHandler(String handle,
+                               final HealthCheckManager healthCheckManager,
+                               ReportableEntityHandler<Span> spanHandler,
+                               ReportableEntityHandler<SpanLogs> spanLogsHandler,
+                               @Nullable WavefrontSender wfSender,
+                               Supplier<Boolean> traceDisabled,
+                               Supplier<Boolean> spanLogsDisabled,
+                               @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
+                               Sampler sampler,
+                               boolean alwaysSampleErrors,
+                               @Nullable String traceJaegerApplicationName,
+                               Set<String> traceDerivedCustomTagKeys) {
+    super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, handle);
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
@@ -143,24 +158,48 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   }
 
   @Override
-  public ThriftResponse<Collector.submitBatches_result> handleImpl(
-      ThriftRequest<Collector.submitBatches_args> request) {
-    for (Batch batch : request.getBody(Collector.submitBatches_args.class).getBatches()) {
-      try {
-        processBatch(batch, null, DEFAULT_SOURCE, proxyLevelApplicationName, spanHandler,
-            spanLogsHandler, wfInternalReporter, traceDisabled, spanLogsDisabled,
-            preprocessorSupplier, sampler, alwaysSampleErrors, traceDerivedCustomTagKeys,
-            discardedTraces, discardedBatches, discardedSpansBySampler, discoveredHeartbeatMetrics);
-        processedBatches.inc();
-      } catch (Exception e) {
-        failedBatches.inc();
-        logger.log(Level.WARNING, "Jaeger Thrift batch processing failed",
-            Throwables.getRootCause(e));
-      }
+  protected void handleHttpMessage(final ChannelHandlerContext ctx,
+                                   final FullHttpRequest incomingRequest) {
+    URI uri = ChannelUtils.parseUri(ctx, incomingRequest);
+    if (uri == null) return;
+
+    String path = uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
+
+    // Validate Uri Path and HTTP method of incoming Jaeger spans.
+    if (!path.equals(JAEGER_VALID_PATH)) {
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported URL path.", incomingRequest);
+      logWarning("WF-400: Requested URI path '" + path + "' is not supported.", null, ctx);
+      return;
     }
-    return new ThriftResponse.Builder<Collector.submitBatches_result>(request)
-        .setBody(new Collector.submitBatches_result())
-        .build();
+    if (!incomingRequest.method().toString().equalsIgnoreCase(JAEGER_VALID_HTTP_METHOD)) {
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported Http method.", incomingRequest);
+      logWarning("WF-400: Requested http method '" + incomingRequest.method().toString() +
+          "' is not supported.", null, ctx);
+      return;
+    }
+
+    HttpResponseStatus status;
+    StringBuilder output = new StringBuilder();
+
+    try {
+      byte[] bytesArray = new byte[incomingRequest.content().nioBuffer().remaining()];
+      incomingRequest.content().nioBuffer().get(bytesArray, 0, bytesArray.length);
+      Batch batch = new Batch();
+      new TDeserializer().deserialize(batch, bytesArray);
+
+      processBatch(batch, output, DEFAULT_SOURCE, proxyLevelApplicationName, spanHandler,
+          spanLogsHandler, wfInternalReporter, traceDisabled, spanLogsDisabled,
+          preprocessorSupplier, sampler, alwaysSampleErrors, traceDerivedCustomTagKeys,
+          discardedTraces, discardedBatches, discardedSpansBySampler, discoveredHeartbeatMetrics);
+      status = HttpResponseStatus.ACCEPTED;
+      processedBatches.inc();
+    } catch (Exception e) {
+      failedBatches.inc();
+      writeExceptionText(e, output);
+      status = HttpResponseStatus.BAD_REQUEST;
+      logger.log(Level.WARNING, "Jaeger HTTP batch processing failed", Throwables.getRootCause(e));
+    }
+    writeHttpResponse(ctx, status, output, incomingRequest);
   }
 
   @Override

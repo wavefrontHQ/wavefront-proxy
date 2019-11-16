@@ -47,6 +47,7 @@ import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
+import com.wavefront.agent.listeners.tracing.JaegerPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.JaegerThriftCollectorHandler;
 import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.ZipkinPortUnificationHandler;
@@ -325,16 +326,34 @@ public class PushAgent extends AbstractAgent {
 
     portIterator(traceListenerPorts).forEachRemaining(strPort ->
         startTraceListener(strPort, handlerFactory, compositeSampler));
-    portIterator(traceJaegerListenerPorts).forEachRemaining(strPort -> {
-      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
-          null, null
-      );
-      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
-          new SpanSanitizeTransformer(ruleMetrics));
-      startTraceJaegerListener(strPort, handlerFactory,
-          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
-    });
+
+    if (traceJaegerListenerProtocol.equals("tchannel")) {
+      portIterator(traceJaegerListenerPorts).forEachRemaining(strPort -> {
+        PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+            Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+            null, null
+        );
+        preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+            new SpanSanitizeTransformer(ruleMetrics));
+        startTraceJaegerListener(strPort, handlerFactory,
+            new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
+      });
+    } else if (traceJaegerListenerProtocol.equals("http")) {
+      portIterator(traceJaegerListenerPorts).forEachRemaining(strPort -> {
+        PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+            Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+            null, null
+        );
+        preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+            new SpanSanitizeTransformer(ruleMetrics));
+        startTraceJaegerHttpListener(strPort, handlerFactory,
+            new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
+      });
+    } else {
+      logger.severe("Unable to start Jaeger listener due to invalid listener protocol: " +
+          traceJaegerListenerProtocol + ". Valid protocols are tchannel and http.");
+    }
+
     portIterator(pushRelayListenerPorts).forEachRemaining(strPort ->
         startRelayListener(strPort, handlerFactory, remoteHostAnnotator));
     portIterator(traceZipkinListenerPorts).forEachRemaining(strPort -> {
@@ -530,7 +549,25 @@ public class PushAgent extends AbstractAgent {
         activeListeners.dec();
       }
     }, "listener-jaeger-thrift-" + strPort);
-    logger.info("listening on port: " + strPort + " for trace data (Jaeger format)");
+    logger.info("listening on port: " + strPort + " for trace data (Jaeger format over TChannel)");
+  }
+
+  protected void startTraceJaegerHttpListener(final String strPort,
+                                              ReportableEntityHandlerFactory handlerFactory,
+                                              @Nullable WavefrontSender wfSender,
+                                              Sampler sampler) {
+    final int port = Integer.parseInt(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
+
+    ChannelHandler channelHandler = new JaegerPortUnificationHandler(strPort, healthCheckManager,
+        handlerFactory, wfSender, traceDisabled::get, spanLogsDisabled::get,
+        preprocessors.get(strPort), sampler, traceAlwaysSampleErrors, traceJaegerApplicationName,
+        traceDerivedCustomTagKeys);
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
+        traceListenerMaxReceivedLength, traceListenerHttpBufferSize, listenerIdleConnectionTimeout),
+        port).withChildChannelOptions(childChannelOptions), "listener-jaeger-http-" + port);
+    logger.info("listening on port: " + strPort + " for trace data (Jaeger format over HTTP)");
   }
 
   protected void startTraceZipkinListener(String strPort,
