@@ -2,7 +2,8 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.collect.ImmutableList;
 
-import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
+import com.wavefront.agent.api.APIContainer;
+import com.wavefront.api.SourceTagAPI;
 import com.wavefront.data.ReportableEntityType;
 
 import org.easymock.EasyMock;
@@ -29,15 +30,16 @@ public class ReportSourceTagHandlerTest {
 
   private ReportSourceTagHandlerImpl sourceTagHandler;
   private SenderTaskFactory senderTaskFactory;
-  private ForceQueueEnabledProxyAPI mockAgentAPI;
+  private SourceTagAPI mockAgentAPI;
   private UUID newAgentId;
 
   @Before
   public void setup() {
-    mockAgentAPI = EasyMock.createMock(ForceQueueEnabledProxyAPI.class);
+    mockAgentAPI = EasyMock.createMock(SourceTagAPI.class);
     newAgentId = UUID.randomUUID();
-    senderTaskFactory = new SenderTaskFactoryImpl(mockAgentAPI, newAgentId, null, new AtomicInteger(100),
-        new AtomicInteger(10), new AtomicInteger(1000));
+    senderTaskFactory = new SenderTaskFactoryImpl(new APIContainer(null, mockAgentAPI, null),
+        newAgentId, null, null, new AtomicInteger(100), new AtomicInteger(10),
+        new AtomicInteger(1000));
     sourceTagHandler = new ReportSourceTagHandlerImpl("4878", 10, senderTaskFactory.createSenderTasks(
         HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"), 2));
   }
@@ -51,7 +53,7 @@ public class ReportSourceTagHandlerTest {
     String[] annotations = new String[]{"tag1", "tag2", "tag3"};
     ReportSourceTag sourceTag = new ReportSourceTag("SourceTag", "save", "dummy", "desc", Arrays.asList
         (annotations));
-    EasyMock.expect(mockAgentAPI.setTags("dummy", Arrays.asList(annotations), false)).andReturn(
+    EasyMock.expect(mockAgentAPI.setTags("dummy", Arrays.asList(annotations))).andReturn(
         Response.ok().build()).once();
 
     EasyMock.replay(mockAgentAPI);

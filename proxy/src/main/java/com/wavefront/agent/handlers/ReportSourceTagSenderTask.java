@@ -2,15 +2,21 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-
-import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
-import com.wavefront.ingester.ReportSourceTagIngesterFormatter;
+import com.wavefront.agent.data.SourceTagSubmissionTask;
+import com.wavefront.agent.data.TaskQueueingDirective;
+import com.wavefront.agent.data.TaskResult;
+import com.wavefront.agent.queueing.TaskQueue;
+import com.wavefront.api.SourceTagAPI;
+import com.wavefront.common.TaggedMetricName;
+import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
+import wavefront.report.ReportSourceTag;
 
+import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -18,15 +24,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.annotation.Nullable;
-import javax.ws.rs.core.Response;
-
-import wavefront.report.ReportSourceTag;
-
-import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_ADD;
-import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_DELETE;
-import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_SAVE;
 
 /**
  * This class is responsible for accumulating the source tag changes and post it in a batch. This
@@ -45,42 +42,38 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
 
   private final Timer batchSendTime;
 
-  private final ForceQueueEnabledProxyAPI proxyAPI;
+  private final SourceTagAPI proxyAPI;
   private final AtomicInteger pushFlushInterval;
   private final RecyclableRateLimiter rateLimiter;
-  private final Counter permitsGranted;
-  private final Counter permitsDenied;
-  private final Counter permitsRetried;
+  private final TaskQueue<SourceTagSubmissionTask> backlog;
 
   /**
    * Create new instance
    *
    * @param proxyAPI          handles interaction with Wavefront servers as well as queueing.
-   * @param handle            handle (usually port number), that serves as an identifier for the metrics pipeline.
+   * @param handle            handle (usually port number), that serves as an identifier
+   *                          for the metrics pipeline.
    * @param threadId          thread number.
    * @param rateLimiter       rate limiter to control outbound point rate.
    * @param pushFlushInterval interval between flushes.
    * @param itemsPerBatch     max points per flush.
    * @param memoryBufferLimit max points in task's memory buffer before queueing.
+   * @param backlog
    *
    */
-  ReportSourceTagSenderTask(ForceQueueEnabledProxyAPI proxyAPI, String handle, int threadId,
-                            AtomicInteger pushFlushInterval,
-                            @Nullable RecyclableRateLimiter rateLimiter,
-                            @Nullable AtomicInteger itemsPerBatch,
-                            @Nullable AtomicInteger memoryBufferLimit) {
-    super("sourceTags", handle, threadId, itemsPerBatch, memoryBufferLimit);
+  ReportSourceTagSenderTask(
+      SourceTagAPI proxyAPI, String handle, int threadId, AtomicInteger pushFlushInterval,
+      @Nullable RecyclableRateLimiter rateLimiter, @Nullable AtomicInteger itemsPerBatch,
+      @Nullable AtomicInteger memoryBufferLimit,
+      TaskQueue<SourceTagSubmissionTask> backlog) {
+    super(ReportableEntityType.SOURCE_TAG, handle, threadId, itemsPerBatch, memoryBufferLimit,
+        rateLimiter);
     this.proxyAPI = proxyAPI;
-    this.batchSendTime = Metrics.newTimer(new MetricName("api.sourceTags." + handle, "", "duration"),
-        TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+    this.batchSendTime = Metrics.newTimer(new MetricName("api.sourceTags." + handle, "",
+            "duration"), TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
     this.pushFlushInterval = pushFlushInterval;
     this.rateLimiter = rateLimiter;
-
-    this.permitsGranted = Metrics.newCounter(new MetricName("limiter", "", "permits-granted"));
-    this.permitsDenied = Metrics.newCounter(new MetricName("limiter", "", "permits-denied"));
-    this.permitsRetried = Metrics.newCounter(new MetricName("limiter", "", "permits-retried"));
-
-
+    this.backlog = backlog;
     this.scheduler.schedule(this, this.pushFlushInterval.get(), TimeUnit.MILLISECONDS);
   }
 
@@ -91,42 +84,51 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
     try {
       List<ReportSourceTag> current = createBatch();
       if (current.size() == 0) return;
-      Response response = null;
       boolean forceToQueue = false;
       Iterator<ReportSourceTag> iterator = current.iterator();
       while (iterator.hasNext()) {
         TimerContext timerContext = this.batchSendTime.time();
         if (rateLimiter == null || rateLimiter.tryAcquire()) {
-          if (rateLimiter != null) this.permitsGranted.inc();
-          ReportSourceTag sourceTag = iterator.next();
-
           try {
-            response = executeSourceTagAction(proxyAPI, sourceTag, forceToQueue);
-            this.attemptedCounter.inc();
-            if (response != null && response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
-              if (rateLimiter != null) {
-                this.rateLimiter.recyclePermits(1);
-                this.permitsRetried.inc(1);
+            ReportSourceTag tag = iterator.next();
+            SourceTagSubmissionTask task = new SourceTagSubmissionTask(proxyAPI, handle, tag, null);
+            if (forceToQueue) {
+              try {
+                task.enqueue(backlog);
+                // update the counters as if this was a failed call to the API
+                this.attemptedCounter.inc();
+                this.queuedCounter.inc();
+              } catch (IOException e) {
+                Metrics.newCounter(new TaggedMetricName("buffer", "failures", "port", handle)).inc();
+                logger.severe("CRITICAL (Losing tags!): WF-1: Error adding task to the queue: " +
+                    e.getMessage());
               }
-              this.queuedCounter.inc();
-              forceToQueue = true;
+            } else {
+              TaskResult result = task.execute(TaskQueueingDirective.DEFAULT, backlog);
+              this.attemptedCounter.inc();
+              if (result == TaskResult.PERSISTED) {
+                if (rateLimiter != null) {
+                  this.rateLimiter.recyclePermits(1);
+                }
+                this.queuedCounter.inc();
+                forceToQueue = true;
+              }
             }
           } finally {
             timerContext.stop();
-            if (response != null) response.close();
           }
         } else {
           final List<ReportSourceTag> remainingItems = new ArrayList<>();
           iterator.forEachRemaining(remainingItems::add);
-          permitsDenied.inc(remainingItems.size());
-          nextRunMillis = 250 + (int) (Math.random() * 250);
+          // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
+          // to introduce some degree of fairness.
+          nextRunMillis = nextRunMillis / 4 + (int) (Math.random() * nextRunMillis / 4);
           if (warningMessageRateLimiter.tryAcquire()) {
-            logger.warning("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter active " +
-                "(pending " + entityType + ": " + datum.size() + "), will retry");
+            logger.info("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter " +
+                "active (pending " + entityType + ": " + datum.size() + "), will retry in " +
+                nextRunMillis + "ms");
           }
-          synchronized (mutex) { // return the batch to the beginning of the queue
-            datum.addAll(0, remainingItems);
-          }
+          undoBatch(remainingItems);
         }
       }
     } catch (Throwable t) {
@@ -138,61 +140,38 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
   }
 
   @Override
-  public void drainBuffersToQueueInternal() {
+  void drainBuffersToQueueInternal() {
     int lastBatchSize = Integer.MIN_VALUE;
     // roughly limit number of points to flush to the the current buffer size (+1 blockSize max)
-    // if too many points arrive at the proxy while it's draining, they will be taken care of in the next run
+    // if too many points arrive at the proxy while it's draining,
+    // they will be taken care of in the next run
     int toFlush = datum.size();
     while (toFlush > 0) {
-      List<ReportSourceTag> items = createBatch();
-      int batchSize = items.size();
-      if (batchSize == 0) return;
-      for (ReportSourceTag sourceTag : items) {
-        executeSourceTagAction(proxyAPI, sourceTag, true);
-        this.attemptedCounter.inc();
-        this.queuedCounter.inc();
-      }
-      toFlush -= batchSize;
-
-      // stop draining buffers if the batch is smaller than the previous one
-      if (batchSize < lastBatchSize) {
+      List<ReportSourceTag> pushData = createBatch();
+      int numTags = pushData.size();
+      if (numTags > 0) {
+        for (ReportSourceTag tag : pushData) {
+          SourceTagSubmissionTask task = new SourceTagSubmissionTask(proxyAPI, handle, tag, null);
+          try {
+            task.enqueue(backlog);
+            // update the counters as if this was a failed call to the API
+            this.attemptedCounter.inc(numTags);
+            this.queuedCounter.inc(numTags);
+          } catch (IOException e) {
+            Metrics.newCounter(new TaggedMetricName("buffer", "failures", "port", handle)).inc();
+            logger.severe("CRITICAL (Losing tags!): WF-1: Error adding task to the queue: " +
+                e.getMessage());
+          }
+          toFlush--;
+        }
+        // stop draining buffers if the batch is smaller than the previous one
+        if (numTags < lastBatchSize) {
+          break;
+        }
+        lastBatchSize = numTags;
+      } else {
         break;
       }
-      lastBatchSize = batchSize;
-    }
-  }
-
-  @Nullable
-  static Response executeSourceTagAction(ForceQueueEnabledProxyAPI wavefrontAPI,
-                                                   ReportSourceTag sourceTag,
-                                                   boolean forceToQueue) {
-    switch (sourceTag.getSourceTagLiteral()) {
-      case "SourceDescription":
-        if (sourceTag.getAction().equals("delete")) {
-          return wavefrontAPI.removeDescription(sourceTag.getSource(), forceToQueue);
-        } else {
-          return wavefrontAPI.setDescription(sourceTag.getSource(), sourceTag.getDescription(),
-              forceToQueue);
-        }
-      case "SourceTag":
-        switch (sourceTag.getAction()) {
-          case ACTION_ADD:
-            return wavefrontAPI.appendTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0),
-                forceToQueue);
-          case ACTION_DELETE:
-            return wavefrontAPI.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0),
-                forceToQueue);
-          case ACTION_SAVE:
-            return wavefrontAPI.setTags(sourceTag.getSource(), sourceTag.getAnnotations(),
-                forceToQueue);
-          default:
-            logger.warning("Unexpected action: " + sourceTag.getAction() + ", input: " + sourceTag);
-            return null;
-        }
-      default:
-        logger.warning("None of the literals matched. Expected SourceTag or " +
-            "SourceDescription. Input = " + sourceTag);
-        return null;
     }
   }
 }

@@ -44,6 +44,18 @@ public class ReportableConfig {
     return prop.getProperty(key, defaultValue);
   }
 
+  public int getInteger(String key, Number defaultValue) {
+    return getNumber(key, defaultValue).intValue();
+  }
+
+  public long getLong(String key, Number defaultValue) {
+    return getNumber(key, defaultValue).longValue();
+  }
+
+  public double getDouble(String key, Number defaultValue) {
+    return getNumber(key, defaultValue).doubleValue();
+  }
+
   public Number getNumber(String key, Number defaultValue) {
     return getNumber(key, defaultValue, null, null);
   }
@@ -52,26 +64,27 @@ public class ReportableConfig {
                           @Nullable Number clampMaxValue) {
     String property = prop.getProperty(key);
     if (property == null && defaultValue == null) return null;
-    Long l;
+    Double d;
     try {
-      l = property == null ? defaultValue.longValue() : Long.parseLong(property.trim());
+      d = property == null ? defaultValue.doubleValue() : Double.parseDouble(property.trim());
     } catch (NumberFormatException e) {
-      throw new NumberFormatException("Config setting \"" + key + "\": invalid number format \"" + property + "\"");
+      throw new NumberFormatException("Config setting \"" + key + "\": invalid number format \"" +
+          property + "\"");
     }
-    if (clampMinValue != null && l < clampMinValue.longValue()) {
-      logger.log(Level.WARNING, key + " (" + l + ") is less than " + clampMinValue +
+    if (clampMinValue != null && d < clampMinValue.longValue()) {
+      logger.log(Level.WARNING, key + " (" + d + ") is less than " + clampMinValue +
           ", will default to " + clampMinValue);
       reportGauge(clampMinValue, new MetricName("config", "", key));
       return clampMinValue;
     }
-    if (clampMaxValue != null && l > clampMaxValue.longValue()) {
-      logger.log(Level.WARNING, key + " (" + l + ") is greater than " + clampMaxValue +
+    if (clampMaxValue != null && d > clampMaxValue.longValue()) {
+      logger.log(Level.WARNING, key + " (" + d + ") is greater than " + clampMaxValue +
           ", will default to " + clampMaxValue);
       reportGauge(clampMaxValue, new MetricName("config", "", key));
       return clampMaxValue;
     }
-    reportGauge(l, new MetricName("config", "", key));
-    return l;
+    reportGauge(d, new MetricName("config", "", key));
+    return d;
   }
 
   public String getString(String key, String defaultValue) {

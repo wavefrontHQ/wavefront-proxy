@@ -16,6 +16,7 @@ import java.lang.reflect.Type;
  *
  * @author Clement Pang (clement@wavefront.com)
  */
+@Deprecated
 public class ResubmissionTaskDeserializer implements
     JsonSerializer<Object>, JsonDeserializer<Object> {
 

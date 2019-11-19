@@ -2,15 +2,21 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-
-import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
+import com.wavefront.agent.data.DataSubmissionTask;
+import com.wavefront.agent.data.EventDataSubmissionTask;
+import com.wavefront.agent.queueing.TaskQueue;
+import com.wavefront.api.EventAPI;
+import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.EventDTO;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
+import wavefront.report.Event;
 
+import javax.annotation.Nullable;
+import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -18,11 +24,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.annotation.Nullable;
-import javax.ws.rs.core.Response;
-
-import wavefront.report.Event;
 
 /**
  * This class is responsible for accumulating events and sending them batch. This
@@ -40,7 +41,7 @@ class EventSenderTask extends AbstractSenderTask<Event> {
 
   private final Timer batchSendTime;
 
-  private final ForceQueueEnabledProxyAPI proxyAPI;
+  private final EventAPI proxyAPI;
   private final AtomicInteger pushFlushInterval;
   private final RecyclableRateLimiter rateLimiter;
   private final Counter permitsGranted;
@@ -59,12 +60,14 @@ class EventSenderTask extends AbstractSenderTask<Event> {
    * @param memoryBufferLimit max points in task's memory buffer before queueing.
    *
    */
-  EventSenderTask(ForceQueueEnabledProxyAPI proxyAPI, String handle, int threadId,
+  EventSenderTask(EventAPI proxyAPI, String handle, int threadId,
                   AtomicInteger pushFlushInterval,
                   @Nullable RecyclableRateLimiter rateLimiter,
                   @Nullable AtomicInteger itemsPerBatch,
-                  @Nullable AtomicInteger memoryBufferLimit) {
-    super("events", handle, threadId, itemsPerBatch, memoryBufferLimit);
+                  @Nullable AtomicInteger memoryBufferLimit,
+                  TaskQueue<DataSubmissionTask<EventDataSubmissionTask>> backlog) {
+    super(ReportableEntityType.EVENT, handle, threadId, itemsPerBatch, memoryBufferLimit,
+        rateLimiter);
     this.proxyAPI = proxyAPI;
     this.batchSendTime = Metrics.newTimer(new MetricName("api.events." + handle, "", "duration"),
         TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
@@ -95,7 +98,10 @@ class EventSenderTask extends AbstractSenderTask<Event> {
           Event event = iterator.next();
 
           try {
-            response = proxyAPI.createEvent(new EventDTO(event), forceToQueue);
+            EventDataSubmissionTask eventTask = new EventDataSubmissionTask(proxyAPI, handle,
+                new EventDTO(event), null);
+
+            response = proxyAPI.createEvent(new EventDTO(event));
             this.attemptedCounter.inc();
             if (response != null &&
                 response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
@@ -143,7 +149,8 @@ class EventSenderTask extends AbstractSenderTask<Event> {
       int batchSize = items.size();
       if (batchSize == 0) return;
       for (Event event : items) {
-        proxyAPI.createEvent(new EventDTO(event), true);
+        // TODO
+        proxyAPI.createEvent(new EventDTO(event));
         this.attemptedCounter.inc();
         this.queuedCounter.inc();
       }
