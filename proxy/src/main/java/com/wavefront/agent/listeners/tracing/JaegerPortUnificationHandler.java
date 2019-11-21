@@ -2,7 +2,7 @@ package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
-import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
+import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -88,6 +88,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
 
   @SuppressWarnings("unchecked")
   public JaegerPortUnificationHandler(String handle,
+                                      final TokenAuthenticator tokenAuthenticator,
                                       final HealthCheckManager healthCheckManager,
                                       ReportableEntityHandlerFactory handlerFactory,
                                       @Nullable WavefrontSender wfSender,
@@ -98,7 +99,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
                                       boolean alwaysSampleErrors,
                                       @Nullable String traceJaegerApplicationName,
                                       Set<String> traceDerivedCustomTagKeys) {
-    this(handle, healthCheckManager,
+    this(handle, tokenAuthenticator, healthCheckManager,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler, alwaysSampleErrors,
@@ -107,6 +108,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
 
   @VisibleForTesting
   JaegerPortUnificationHandler(String handle,
+                               final TokenAuthenticator tokenAuthenticator,
                                final HealthCheckManager healthCheckManager,
                                ReportableEntityHandler<Span> spanHandler,
                                ReportableEntityHandler<SpanLogs> spanLogsHandler,
@@ -118,7 +120,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
                                boolean alwaysSampleErrors,
                                @Nullable String traceJaegerApplicationName,
                                Set<String> traceDerivedCustomTagKeys) {
-    super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, handle);
+    super(tokenAuthenticator, healthCheckManager, handle);
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;

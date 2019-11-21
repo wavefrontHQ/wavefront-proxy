@@ -48,7 +48,7 @@ import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.JaegerPortUnificationHandler;
-import com.wavefront.agent.listeners.tracing.JaegerThriftCollectorHandler;
+import com.wavefront.agent.listeners.tracing.JaegerTChannelCollectorHandler;
 import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.ZipkinPortUnificationHandler;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
@@ -326,34 +326,26 @@ public class PushAgent extends AbstractAgent {
 
     portIterator(traceListenerPorts).forEachRemaining(strPort ->
         startTraceListener(strPort, handlerFactory, compositeSampler));
-
-    if (traceJaegerListenerProtocol.equals("tchannel")) {
-      portIterator(traceJaegerListenerPorts).forEachRemaining(strPort -> {
-        PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-            Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
-            null, null
-        );
-        preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
-            new SpanSanitizeTransformer(ruleMetrics));
-        startTraceJaegerListener(strPort, handlerFactory,
-            new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
-      });
-    } else if (traceJaegerListenerProtocol.equals("http")) {
-      portIterator(traceJaegerListenerPorts).forEachRemaining(strPort -> {
-        PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-            Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
-            null, null
-        );
-        preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
-            new SpanSanitizeTransformer(ruleMetrics));
-        startTraceJaegerHttpListener(strPort, handlerFactory,
-            new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
-      });
-    } else {
-      logger.severe("Unable to start Jaeger listener due to invalid listener protocol: " +
-          traceJaegerListenerProtocol + ". Valid protocols are tchannel and http.");
-    }
-
+    portIterator(traceJaegerListenerPorts).forEachRemaining(strPort -> {
+      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
+      );
+      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+          new SpanSanitizeTransformer(ruleMetrics));
+      startTraceJaegerListener(strPort, handlerFactory,
+          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
+    });
+    portIterator(traceJaegerHttpListenerPorts).forEachRemaining(strPort -> {
+      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
+      );
+      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+          new SpanSanitizeTransformer(ruleMetrics));
+      startTraceJaegerHttpListener(strPort, handlerFactory,
+          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
+    });
     portIterator(pushRelayListenerPorts).forEachRemaining(strPort ->
         startRelayListener(strPort, handlerFactory, remoteHostAnnotator));
     portIterator(traceZipkinListenerPorts).forEachRemaining(strPort -> {
@@ -535,7 +527,7 @@ public class PushAgent extends AbstractAgent {
             build();
         server.
             makeSubChannel("jaeger-collector", Connection.Direction.IN).
-            register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort,
+            register("Collector::submitBatches", new JaegerTChannelCollectorHandler(strPort,
                 handlerFactory, wfSender, traceDisabled::get, spanLogsDisabled::get,
                 preprocessors.get(strPort), sampler, traceAlwaysSampleErrors,
                 traceJaegerApplicationName, traceDerivedCustomTagKeys));
@@ -559,8 +551,8 @@ public class PushAgent extends AbstractAgent {
     final int port = Integer.parseInt(strPort);
     if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
-    ChannelHandler channelHandler = new JaegerPortUnificationHandler(strPort, healthCheckManager,
-        handlerFactory, wfSender, traceDisabled::get, spanLogsDisabled::get,
+    ChannelHandler channelHandler = new JaegerPortUnificationHandler(strPort, tokenAuthenticator,
+        healthCheckManager, handlerFactory, wfSender, traceDisabled::get, spanLogsDisabled::get,
         preprocessors.get(strPort), sampler, traceAlwaysSampleErrors, traceJaegerApplicationName,
         traceDerivedCustomTagKeys);
 

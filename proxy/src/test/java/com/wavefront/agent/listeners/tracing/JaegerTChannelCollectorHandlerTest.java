@@ -27,7 +27,7 @@ import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
 
-public class JaegerThriftCollectorHandlerTest {
+public class JaegerTChannelCollectorHandlerTest {
   private final static String DEFAULT_SOURCE = "jaeger";
   private ReportableEntityHandler<Span> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
@@ -36,7 +36,7 @@ public class JaegerThriftCollectorHandlerTest {
   private long startTime = System.currentTimeMillis();
 
   @Test
-  public void testJaegerThriftCollector() throws Exception {
+  public void testJaegerTChannelCollector() throws Exception {
     reset(mockTraceHandler, mockTraceLogsHandler);
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(1234)
@@ -123,7 +123,7 @@ public class JaegerThriftCollectorHandlerTest {
 
     replay(mockTraceHandler, mockTraceLogsHandler);
 
-    JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
+    JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null, new RateSampler(1.0D), false,
         null, null);
 
@@ -240,7 +240,7 @@ public class JaegerThriftCollectorHandlerTest {
     replay(mockTraceHandler, mockTraceLogsHandler);
 
     // Verify span level "application" tags precedence
-    JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
+    JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null, new RateSampler(1.0D), false,
         "ProxyLevelAppTag", null);
 
@@ -326,7 +326,7 @@ public class JaegerThriftCollectorHandlerTest {
 
     replay(mockTraceHandler, mockTraceLogsHandler);
 
-    JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
+    JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null, new DurationSampler(5), false,
         null, null);
 
@@ -396,7 +396,7 @@ public class JaegerThriftCollectorHandlerTest {
 
     replay(mockTraceHandler, mockTraceLogsHandler);
 
-    JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876", mockTraceHandler,
+    JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null, new DurationSampler(10), false,
         null, null);
 
@@ -487,7 +487,7 @@ public class JaegerThriftCollectorHandlerTest {
     expectLastCall();
     replay(mockTraceHandler, mockTraceLogsHandler);
 
-    JaegerThriftCollectorHandler handler = new JaegerThriftCollectorHandler("9876",
+    JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
         mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
         null, new RateSampler(1.0D), false,
         null, null);

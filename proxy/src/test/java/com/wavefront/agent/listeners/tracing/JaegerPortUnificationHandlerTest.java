@@ -2,6 +2,7 @@ package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -31,6 +32,8 @@ import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
 
 /**
+ * Unit tests for {@link JaegerPortUnificationHandler}.
+ *
  * @author Han Zhang (zhanghan@vmware.com)
  */
 public class JaegerPortUnificationHandlerTest {
@@ -134,8 +137,9 @@ public class JaegerPortUnificationHandlerTest {
     replay(mockTraceHandler, mockTraceSpanLogsHandler, mockCtx);
 
     JaegerPortUnificationHandler handler = new JaegerPortUnificationHandler("14268",
-        new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null, () -> false,
-        () -> false, null, new RateSampler(1.0D), false, null, null);
+        TokenAuthenticatorBuilder.create().build(), new NoopHealthCheckManager(),
+        mockTraceHandler, mockTraceSpanLogsHandler, null, () -> false, () -> false, null,
+        new RateSampler(1.0D), false, null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");

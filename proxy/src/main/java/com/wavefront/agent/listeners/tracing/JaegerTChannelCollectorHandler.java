@@ -45,10 +45,10 @@ import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.repo
  *
  * @author vasily@wavefront.com
  */
-public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector.submitBatches_args,
+public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collector.submitBatches_args,
     Collector.submitBatches_result> implements Runnable, Closeable {
   protected static final Logger logger =
-      Logger.getLogger(JaegerThriftCollectorHandler.class.getCanonicalName());
+      Logger.getLogger(JaegerTChannelCollectorHandler.class.getCanonicalName());
 
   private final static String JAEGER_COMPONENT = "jaeger";
   private final static String DEFAULT_SOURCE = "jaeger";
@@ -77,33 +77,33 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final ScheduledExecutorService scheduledExecutorService;
 
   @SuppressWarnings("unchecked")
-  public JaegerThriftCollectorHandler(String handle,
-                                      ReportableEntityHandlerFactory handlerFactory,
-                                      @Nullable WavefrontSender wfSender,
-                                      Supplier<Boolean> traceDisabled,
-                                      Supplier<Boolean> spanLogsDisabled,
-                                      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                                      Sampler sampler,
-                                      boolean alwaysSampleErrors,
-                                      @Nullable String traceJaegerApplicationName,
-                                      Set<String> traceDerivedCustomTagKeys) {
+  public JaegerTChannelCollectorHandler(String handle,
+                                        ReportableEntityHandlerFactory handlerFactory,
+                                        @Nullable WavefrontSender wfSender,
+                                        Supplier<Boolean> traceDisabled,
+                                        Supplier<Boolean> spanLogsDisabled,
+                                        @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
+                                        Sampler sampler,
+                                        boolean alwaysSampleErrors,
+                                        @Nullable String traceJaegerApplicationName,
+                                        Set<String> traceDerivedCustomTagKeys) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler, alwaysSampleErrors,
         traceJaegerApplicationName, traceDerivedCustomTagKeys);
   }
 
-  public JaegerThriftCollectorHandler(String handle,
-                                      ReportableEntityHandler<Span> spanHandler,
-                                      ReportableEntityHandler<SpanLogs> spanLogsHandler,
-                                      @Nullable WavefrontSender wfSender,
-                                      Supplier<Boolean> traceDisabled,
-                                      Supplier<Boolean> spanLogsDisabled,
-                                      @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                                      Sampler sampler,
-                                      boolean alwaysSampleErrors,
-                                      @Nullable String traceJaegerApplicationName,
-                                      Set<String> traceDerivedCustomTagKeys) {
+  public JaegerTChannelCollectorHandler(String handle,
+                                        ReportableEntityHandler<Span> spanHandler,
+                                        ReportableEntityHandler<SpanLogs> spanLogsHandler,
+                                        @Nullable WavefrontSender wfSender,
+                                        Supplier<Boolean> traceDisabled,
+                                        Supplier<Boolean> spanLogsDisabled,
+                                        @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
+                                        Sampler sampler,
+                                        boolean alwaysSampleErrors,
+                                        @Nullable String traceJaegerApplicationName,
+                                        Set<String> traceDerivedCustomTagKeys) {
     this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
