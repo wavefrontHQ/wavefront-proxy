@@ -540,7 +540,7 @@ public class PushAgent extends AbstractAgent {
       } finally {
         activeListeners.dec();
       }
-    }, "listener-jaeger-thrift-" + strPort);
+    }, "listener-jaeger-tchannel-" + strPort);
     logger.info("listening on port: " + strPort + " for trace data (Jaeger format over TChannel)");
   }
 
