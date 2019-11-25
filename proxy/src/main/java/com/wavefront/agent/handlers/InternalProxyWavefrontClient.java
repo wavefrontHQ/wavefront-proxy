@@ -31,6 +31,7 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
   private final Supplier<ReportableEntityHandler<Span>> spanHandlerSupplier;
   private final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandlerSupplier;
+  private final String clientId;
 
   public InternalProxyWavefrontClient(ReportableEntityHandlerFactory handlerFactory) {
     this(handlerFactory, "internal_client");
@@ -47,6 +48,7 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)));
     this.spanLogsHandlerSupplier = lazySupplier(() ->
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)));
+    this.clientId = handle;
   }
 
   @Override
@@ -130,6 +132,11 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   }
 
   @Override
+  public void sendFormattedMetric(String s) throws IOException {
+    throw new UnsupportedOperationException("Not applicable");
+  }
+
+  @Override
   public void sendSpan(String name, long startMillis, long durationMillis, String source, UUID traceId, UUID spanId,
                        List<UUID> parents, List<UUID> followsFrom, List<Pair<String, String>> tags,
                        @Nullable List<SpanLog> spanLogs) throws IOException {
@@ -139,5 +146,10 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   @Override
   public void close() throws IOException {
     // noop
+  }
+
+  @Override
+  public String getClientId() {
+    return clientId;
   }
 }
