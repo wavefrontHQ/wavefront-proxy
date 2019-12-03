@@ -46,7 +46,6 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger = Logger.getLogger(
       WriteHttpJsonPortUnificationHandler.class.getCanonicalName());
-  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and retries, etc

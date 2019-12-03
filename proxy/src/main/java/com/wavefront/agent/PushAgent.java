@@ -107,6 +107,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
@@ -154,6 +155,9 @@ public class PushAgent extends AbstractAgent {
           put(ReportableEntityType.TRACE, new SpanDecoder("unknown")).
           put(ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder()).
           put(ReportableEntityType.EVENT, new EventDecoder()).build());
+  private Logger blockedPointsLogger;
+  private Logger blockedHistogramsLogger;
+  private Logger blockedSpansLogger;
 
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
@@ -176,6 +180,10 @@ public class PushAgent extends AbstractAgent {
 
   @Override
   protected void startListeners() {
+    blockedPointsLogger = Logger.getLogger(blockedPointsLoggerName);
+    blockedHistogramsLogger = Logger.getLogger(blockedHistogramsLoggerName);
+    blockedSpansLogger = Logger.getLogger(blockedSpansLoggerName);
+
     if (soLingerTime >= 0) {
       childChannelOptions.put(ChannelOption.SO_LINGER, soLingerTime);
     }
@@ -185,7 +193,8 @@ public class PushAgent extends AbstractAgent {
     senderTaskFactory = new SenderTaskFactoryImpl(agentAPI, agentId, pushRateLimiter,
         pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples,
-        flushThreads, () -> validationConfiguration);
+        flushThreads, () -> validationConfiguration, blockedPointsLogger, blockedHistogramsLogger,
+        blockedSpansLogger);
     healthCheckManager = new HealthCheckManagerImpl(httpHealthCheckPath,
         httpHealthCheckResponseContentType, httpHealthCheckPassStatusCode,
         httpHealthCheckPassResponseBody, httpHealthCheckFailStatusCode,
@@ -575,7 +584,7 @@ public class PushAgent extends AbstractAgent {
         return handlers.computeIfAbsent(handlerKey, k -> new DeltaCounterAccumulationHandlerImpl(
             handlerKey.getHandle(), pushBlockedSamples,
             senderTaskFactory.createSenderTasks(handlerKey, flushThreads),
-            () -> validationConfiguration, deltaCountersAggregationIntervalSeconds));
+            () -> validationConfiguration, deltaCountersAggregationIntervalSeconds, blockedPointsLogger));
       }
     };
 
@@ -618,7 +627,8 @@ public class PushAgent extends AbstractAgent {
               AccumulationCache cachedAccumulator = new AccumulationCache(accumulator,
                   agentDigestFactory, 0, "histogram.accumulator.distributionRelay", null);
               return new HistogramAccumulationHandlerImpl(handlerKey.getHandle(), cachedAccumulator,
-                  pushBlockedSamples, null, () -> validationConfiguration, true);
+                  pushBlockedSamples, null, () -> validationConfiguration,
+                  true, blockedHistogramsLogger);
             }
             return delegate.getHandler(handlerKey);
           }
@@ -795,7 +805,7 @@ public class PushAgent extends AbstractAgent {
       public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
           return handlers.computeIfAbsent(handlerKey, k -> new HistogramAccumulationHandlerImpl(
               handlerKey.getHandle(), cachedAccumulator, pushBlockedSamples, granularity,
-              () -> validationConfiguration, granularity == null));
+              () -> validationConfiguration, granularity == null, blockedHistogramsLogger));
       }
     };
 

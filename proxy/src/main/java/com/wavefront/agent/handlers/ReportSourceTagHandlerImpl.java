@@ -23,9 +23,11 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
       AbstractReportableEntityHandler.class.getCanonicalName());
 
   public ReportSourceTagHandlerImpl(final String handle, final int blockedItemsPerBatch,
-                                    final Collection<SenderTask> senderTasks) {
+                                    final Collection<SenderTask> senderTasks,
+                                    final Logger blockedItemLogger) {
     super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch,
-        new ReportSourceTagSerializer(), senderTasks, null, null, true);
+        new ReportSourceTagSerializer(), senderTasks, null, null,
+        true, blockedItemLogger);
   }
 
   @Override

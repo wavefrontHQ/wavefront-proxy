@@ -200,6 +200,18 @@ public abstract class AbstractAgent {
       " to 5.")
   protected Integer pushBlockedSamples = 5;
 
+  @Parameter(names = {"--blockedPointsLoggerName"}, description = "Logger Name for blocked " +
+      "points. " + "Default: RawBlockedPoints")
+  protected String blockedPointsLoggerName = "RawBlockedPoints";
+
+  @Parameter(names = {"--blockedHistogramsLoggerName"}, description = "Logger Name for blocked " +
+      "histograms" + "Default: RawBlockedPoints")
+  protected String blockedHistogramsLoggerName = "RawBlockedPoints";
+
+  @Parameter(names = {"--blockedSpansLoggerName"}, description =
+      "Logger Name for blocked spans" + "Default: RawBlockedPoints")
+  protected String blockedSpansLoggerName = "RawBlockedPoints";
+
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
       "2878.", order = 4)
   protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
@@ -899,6 +911,9 @@ public abstract class AbstractAgent {
       pushRateLimitMaxBurstSeconds = config.getNumber("pushRateLimitMaxBurstSeconds", pushRateLimitMaxBurstSeconds).
           intValue();
       pushBlockedSamples = config.getNumber("pushBlockedSamples", pushBlockedSamples).intValue();
+      blockedPointsLoggerName = config.getString("blockedPointsLoggerName", blockedPointsLoggerName);
+      blockedHistogramsLoggerName = config.getString("blockedHistogramsLoggerName", blockedHistogramsLoggerName);
+      blockedSpansLoggerName = config.getString("blockedSpansLoggerName", blockedSpansLoggerName);
       pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
       pushListenerMaxReceivedLength = config.getNumber("pushListenerMaxReceivedLength",
           pushListenerMaxReceivedLength).intValue();
