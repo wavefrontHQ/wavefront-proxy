@@ -1,7 +1,7 @@
 package com.wavefront.agent.data;
 
 /**
- * Class to inject non-serializable members into a {@code DataSubmissionTask} before execution
+ * Class to inject non-serializable members into a {@link DataSubmissionTask} before execution
  *
  * @author vasily@wavefront.com
  */

@@ -18,7 +18,7 @@ import java.util.function.Supplier;
 import static com.wavefront.agent.queueing.QueueController.parsePostingResponse;
 
 /**
- *
+ * A {@link DataSubmissionTask} that handles plaintext payloads in the newline-delimited format.
  *
  * @author vasily@wavefront.com
  */
@@ -35,6 +35,7 @@ public class LineDelimitedDataSubmissionTask
   private final List<String> payload;
 
   /**
+   * Create a new instance.
    *
    * @param api
    * @param proxyId

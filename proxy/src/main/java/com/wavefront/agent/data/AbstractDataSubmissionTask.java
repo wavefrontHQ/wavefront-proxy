@@ -16,11 +16,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
+ * A base class for data submission tasks.
  *
+ * @param <T> task type
  *
- * @param <T>
- *
- * @author vasily@wavefront.com
+ * @author vasily@wavefront.com.
  */
 abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     implements DataSubmissionTask<T> {
@@ -42,12 +42,11 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
   protected transient Supplier<Long> timeProvider;
 
   /**
+   * Create a new instance.
    *
-   *
-   *
-   * @param handle
-   * @param entityType
-   * @param timeProvider
+   * @param handle       port/handle
+   * @param entityType   entity type
+   * @param timeProvider time provider (in millis)
    */
   AbstractDataSubmissionTask(String handle, ReportableEntityType entityType,
                              @Nullable Supplier<Long> timeProvider) {

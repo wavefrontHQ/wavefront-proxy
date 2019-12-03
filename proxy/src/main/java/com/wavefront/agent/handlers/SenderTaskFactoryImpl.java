@@ -5,14 +5,19 @@ import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.queueing.TaskSizeEstimator;
 import com.wavefront.agent.queueing.TaskQueueFactory;
+import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -31,6 +36,11 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
   private List<SenderTask> managedTasks = new ArrayList<>();
 
+  /**
+   * Keep track of all {@link TaskSizeEstimator} instances to calculate global buffer fill rate.
+   */
+  private List<TaskSizeEstimator> taskSizeEstimators = new ArrayList<>();
+
   private final APIContainer apiContainer;
   private final UUID proxyId;
   private final TaskQueueFactory taskQueueFactory;
@@ -39,8 +49,10 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   private final AtomicInteger pointsPerBatch;
   private final AtomicInteger memoryBufferLimit;
 
+  // TODO: Implement using source tag rate limit from the backend
   public static final RecyclableRateLimiter SOURCE_TAG_RATE_LIMITER =
       RecyclableRateLimiterImpl.create(5, 10);
+  // TODO: Implement using event rate limit from the backend
   public static final RecyclableRateLimiter EVENT_RATE_LIMITER =
       RecyclableRateLimiterImpl.create(0.2, 10);
 
@@ -69,6 +81,16 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     this.pushFlushInterval = pushFlushInterval;
     this.pointsPerBatch = itemsPerBatch;
     this.memoryBufferLimit = memoryBufferLimit;
+    Metrics.newGauge(new TaggedMetricName("buffer", "fill-rate"),
+        new Gauge<Long>() {
+          @Override
+          public Long value() {
+            List<Long> sizes = taskSizeEstimators.stream().
+                map(TaskSizeEstimator::getBytesPerMinute).filter(Objects::nonNull).
+                collect(Collectors.toList());
+            return sizes.size() == 0 ? null : sizes.stream().mapToLong(x -> x).sum();
+          }
+        });
   }
 
   @SuppressWarnings("unchecked")
@@ -76,6 +98,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                                                   final int numThreads) {
     List<SenderTask> toReturn = new ArrayList<>(numThreads);
     TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getHandle());
+    taskSizeEstimators.add(taskSizeEstimator);
     for (int threadNo = 0; threadNo < numThreads; threadNo++) {
       SenderTask senderTask;
       switch (handlerKey.getEntityType()) {

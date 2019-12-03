@@ -20,8 +20,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
+ * A serializer + deserializer of {@link DataSubmissionTask} objects for storage.
  *
- * @param <T>
+ * @param <T> task type
  *
  * @author vasily@wavefront.com
  */

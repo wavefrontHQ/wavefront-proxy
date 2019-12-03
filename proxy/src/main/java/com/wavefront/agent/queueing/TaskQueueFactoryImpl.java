@@ -15,6 +15,7 @@ import java.util.TreeMap;
 import java.util.logging.Logger;
 
 /**
+ * A caching implementation of a {@link TaskQueueFactory}.
  *
  * @author vasily@wavefront.com.
  */
@@ -27,10 +28,11 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
   private final boolean purgeBuffer;
 
   /**
+   * Create a new instance.
    *
-   *
-   * @param bufferFile
-   * @param purgeBuffer
+   * @param bufferFile  Path prefix for queue file names.
+   * @param purgeBuffer Whether buffer files should be nuked before starting (this may cause data
+   *                    loss if queue files are not empty).
    */
   public TaskQueueFactoryImpl(String bufferFile, boolean purgeBuffer) {
     this.bufferFile = bufferFile;
@@ -38,16 +40,19 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
   }
 
   public TaskQueue getTaskQueue(@NotNull HandlerKey handlerKey, int threadNum) {
+    logger.info("*** getTaskQueue called for " + handlerKey + ", #" + threadNum);
     return taskQueues.computeIfAbsent(handlerKey, x -> new TreeMap<>()).computeIfAbsent(threadNum,
         x -> {
           String fileName = bufferFile + "." + handlerKey.getEntityType().toString() + "." +
               handlerKey.getHandle() + "." + threadNum;
+          String lockFileName = fileName + ".lck";
+          String spoolFileName = fileName + ".spool";
           // Having two proxy processes write to the same buffer file simultaneously causes buffer
           // file corruption. To prevent concurrent access from another process, we try to obtain
           // exclusive access to a .lck file. trylock() is platform-specific so there is no
           // iron-clad guarantee, but it works well in most cases.
           try {
-            File lockFile = new File(fileName + ".lck");
+            File lockFile = new File(lockFileName);
             if (lockFile.exists()) {
               Preconditions.checkArgument(true, lockFile.delete());
             }
@@ -56,15 +61,15 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
             Preconditions.checkNotNull(channel.tryLock());
           } catch (Exception e) {
             logger.severe("WF-005: Error requesting exclusive access to the buffer lock file " +
-                fileName + ".lck - please make sure that no other processes access this file " +
+                lockFileName + " - please make sure that no other processes access this file " +
                 "and restart the proxy");
             System.exit(-1);
           }
           try {
-            File buffer = new File(fileName);
+            File buffer = new File(spoolFileName);
             if (purgeBuffer) {
               if (buffer.delete()) {
-                logger.warning("Retry buffer has been purged: " + fileName);
+                logger.warning("Retry buffer has been purged: " + spoolFileName);
               }
             }
             return new DataSubmissionQueue<>(ObjectQueue.create(
@@ -72,7 +77,7 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
                 new RetryTaskConverter<>(handlerKey.getHandle(), true)), // TODO: enable compression
                 handlerKey.getHandle(), handlerKey.getEntityType());
           } catch (Exception e) {
-            logger.severe("WF-006: Unable to open or create queue file " + fileName);
+            logger.severe("WF-006: Unable to open or create queue file " + spoolFileName);
             System.exit(-1);
           }
           return null;

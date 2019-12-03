@@ -11,7 +11,6 @@ import com.yammer.metrics.core.Gauge;
 
 import javax.annotation.Nonnull;
 import javax.ws.rs.core.Response;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -20,7 +19,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
- *
+ * A queue controller (one per entity/port). Responsible for reporting queue-related metrics and
  *
  * @param <T>
  */

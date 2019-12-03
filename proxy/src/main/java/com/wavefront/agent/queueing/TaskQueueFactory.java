@@ -5,11 +5,19 @@ import com.wavefront.agent.handlers.HandlerKey;
 import javax.validation.constraints.NotNull;
 
 /**
- *
+ * A factory for {@link TaskQueue} objects.
  *
  * @author vasily@wavefront.com.
  */
 public interface TaskQueueFactory {
 
+  /**
+   * Create a task queue for a specified {@link HandlerKey} and thread number.
+   *
+   * @param handlerKey handler key for the {@code TaskQueue}. Usually part of the file name.
+   * @param threadNum thread number. Usually part of the file name.
+   *
+   * @return task queue for the specified thread
+   */
   TaskQueue getTaskQueue(@NotNull HandlerKey handlerKey, int threadNum);
 }

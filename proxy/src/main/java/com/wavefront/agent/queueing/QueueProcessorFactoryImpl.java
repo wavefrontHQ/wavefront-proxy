@@ -1,16 +1,13 @@
 package com.wavefront.agent.queueing;
 
-import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
-import com.wavefront.agent.data.TaskInjector;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.common.NamedThreadFactory;
-import com.wavefront.data.ReportableEntityType;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -26,7 +23,7 @@ import static com.wavefront.agent.handlers.SenderTaskFactoryImpl.EVENT_RATE_LIMI
 import static com.wavefront.agent.handlers.SenderTaskFactoryImpl.SOURCE_TAG_RATE_LIMITER;
 
 /**
- *
+ * A caching implementation of {@link QueueProcessorFactory}.
  *
  * @author vasily@wavefront.com
  */
@@ -47,9 +44,19 @@ public class QueueProcessorFactoryImpl implements QueueProcessorFactory {
   private final RecyclableRateLimiter pushRateLimiterSpanLogs;
 
   /**
-   *
+   * Creates a new instance.
    *
    * @param taskQueueFactory
+   * @param apiContainer
+   * @param proxyId
+   * @param splitPushWhenRateLimited
+   * @param minSplitSize
+   * @param flushInterval
+   * @param retryBackoffBaseSeconds
+   * @param pushRateLimiter
+   * @param pushRateLimiterHistograms
+   * @param pushRateLimiterSpans
+   * @param pushRateLimiterSpanLogs
    */
   public QueueProcessorFactoryImpl(TaskQueueFactory taskQueueFactory,
                                    APIContainer apiContainer,

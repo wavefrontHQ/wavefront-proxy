@@ -21,7 +21,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- *
+ * Calculates approximate task sizes (to estimate
  *
  * @author vasily@wavefront.com.
  */
@@ -71,10 +71,13 @@ public class TaskSizeEstimator {
   }
 
   /**
-   * @return bytes per minute for requests submissions. Null if no data is available yet.
+   * Calculates the bytes per minute buffer usage rate. Needs at
+   *
+   * @return bytes per minute for requests submissions. Null if no data is available yet (needs
+   *         at least
    */
   @Nullable
-  private Long getBytesPerMinute() {
+  public Long getBytesPerMinute() {
     if (resultPostingSizes.count() < 50) return null;
     if (resultPostingMeter.fifteenMinuteRate() == 0 || resultPostingSizes.mean() == 0) return null;
     return (long) (resultPostingSizes.mean() * resultPostingMeter.fifteenMinuteRate());
