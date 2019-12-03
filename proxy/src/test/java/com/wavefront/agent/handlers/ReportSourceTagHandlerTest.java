@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 
 import javax.ws.rs.core.Response;
 
@@ -32,6 +33,7 @@ public class ReportSourceTagHandlerTest {
   private SenderTaskFactory senderTaskFactory;
   private SourceTagAPI mockAgentAPI;
   private UUID newAgentId;
+  private Logger blockedLogger = Logger.getLogger("RawBlockedPoints");
 
   @Before
   public void setup() {
@@ -41,7 +43,7 @@ public class ReportSourceTagHandlerTest {
         newAgentId, null, null, new AtomicInteger(100), new AtomicInteger(10),
         new AtomicInteger(1000));
     sourceTagHandler = new ReportSourceTagHandlerImpl("4878", 10, senderTaskFactory.createSenderTasks(
-        HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"), 2));
+        HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"), 2), blockedLogger);
   }
 
   /**
@@ -78,7 +80,8 @@ public class ReportSourceTagHandlerTest {
     ReportSourceTagSenderTask task2 = EasyMock.createMock(ReportSourceTagSenderTask.class);
     tasks.add(task1);
     tasks.add(task2);
-    ReportSourceTagHandlerImpl sourceTagHandler = new ReportSourceTagHandlerImpl("4878", 10, tasks);
+    ReportSourceTagHandlerImpl sourceTagHandler = new ReportSourceTagHandlerImpl("4878", 10,
+        tasks, blockedLogger);
     task1.add(sourceTag1);
     EasyMock.expectLastCall();
     task1.add(sourceTag2);
