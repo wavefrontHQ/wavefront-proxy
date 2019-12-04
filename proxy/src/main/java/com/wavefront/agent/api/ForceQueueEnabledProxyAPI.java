@@ -1,6 +1,6 @@
 package com.wavefront.agent.api;
 
-import com.wavefront.dto.EventDTO;
+import com.wavefront.dto.Event;
 
 import java.util.List;
 import java.util.UUID;
@@ -77,8 +77,8 @@ public interface ForceQueueEnabledProxyAPI extends WavefrontV2API {
   /**
    * Create an event.
    *
-   * @param event        event object.
+   * @param eventBatch   events to create.
    * @param forceToQueue Whether to bypass posting data to the API and write to queue instead.
    */
-  Response createEvent(EventDTO event, boolean forceToQueue);
+  Response reportEvents(List<Event> eventBatch, boolean forceToQueue);
 }

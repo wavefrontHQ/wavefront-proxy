@@ -24,7 +24,7 @@ import com.wavefront.agent.api.WavefrontV2API;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
-import com.wavefront.dto.EventDTO;
+import com.wavefront.dto.Event;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -94,22 +94,18 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
   private WavefrontV2API wrapped;
   private final List<ResubmissionTaskQueue> taskQueues;
   private final List<ResubmissionTaskQueue> sourceTagTaskQueues;
+  private final List<ResubmissionTaskQueue> eventTaskQueues;
   private final List<Runnable> taskRunnables;
   private final List<Runnable> sourceTagTaskRunnables;
+  private final List<Runnable> eventTaskRunnables;
   private static AtomicInteger minSplitBatchSize = new AtomicInteger(100);
   private static AtomicDouble retryBackoffBaseSeconds = new AtomicDouble(2.0);
   private boolean lastKnownQueueSizeIsPositive = true;
-  private boolean lastKnownSourceTagQueueSizeIsPositive = true;
+  private boolean lastKnownSourceTagQueueSizeIsPositive = false;
+  private boolean lastKnownEventQueueSizeIsPositive = false;
   private AtomicBoolean isRunning = new AtomicBoolean(false);
   private final ScheduledExecutorService executorService;
   private final String token;
-
-  /**
-   *  A loading cache for tracking queue sizes (refreshed once a minute). Calculating the number of objects across
-   *  all queues can be a non-trivial operation, hence the once-a-minute refresh.
-   */
-  private final LoadingCache<ResubmissionTaskQueue, AtomicInteger> queueSizes;
-
   private MetricsRegistry metricsRegistry = new MetricsRegistry();
   private Meter resultPostingMeter = metricsRegistry.newMeter(QueuedAgentService.class, "post-result", "results",
       TimeUnit.MINUTES);
@@ -165,46 +161,34 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
         token);
     this.sourceTagTaskQueues = QueuedAgentService.createResubmissionTasks(service, retryThreads,
         bufferFile + "SourceTag", purge, agentId, token);
+    this.eventTaskQueues = QueuedAgentService.createResubmissionTasks(service, retryThreads,
+        bufferFile + ".events", purge, agentId, token);
     this.taskRunnables = Lists.newArrayListWithExpectedSize(taskQueues.size());
     this.sourceTagTaskRunnables = Lists.newArrayListWithExpectedSize(sourceTagTaskQueues.size());
+    this.eventTaskRunnables = Lists.newArrayListWithExpectedSize(eventTaskQueues.size());
     this.executorService = executorService;
     this.token = token;
 
-    queueSizes = Caffeine.newBuilder()
-        .refreshAfterWrite(15, TimeUnit.SECONDS)
-        .build(new CacheLoader<ResubmissionTaskQueue, AtomicInteger>() {
-                 @Override
-                 public AtomicInteger load(@Nonnull ResubmissionTaskQueue key) throws Exception {
-                   return new AtomicInteger(key.size());
-                 }
-
-                 // reuse old object if possible
-                 @Override
-                 public AtomicInteger reload(@Nonnull ResubmissionTaskQueue key,
-                                             @Nonnull AtomicInteger oldValue) {
-                   oldValue.set(key.size());
-                   return oldValue;
-                 }
-               });
-
     int threadId = 0;
     for (ResubmissionTaskQueue taskQueue : taskQueues) {
-      taskRunnables.add(createRunnable(executorService, splitPushWhenRateLimited, threadId, taskQueue,
-          pushRateLimiter));
-      threadId++;
+      taskRunnables.add(createRunnable(executorService, splitPushWhenRateLimited, threadId++,
+          taskQueue, pushRateLimiter));
     }
     threadId = 0;
     for (ResubmissionTaskQueue taskQueue : sourceTagTaskQueues) {
-      sourceTagTaskRunnables.add(createRunnable(executorService, splitPushWhenRateLimited, threadId, taskQueue,
-          pushRateLimiter));
-      threadId++;
+      sourceTagTaskRunnables.add(createRunnable(executorService, splitPushWhenRateLimited,
+          threadId++, taskQueue, pushRateLimiter));
+    }
+    threadId = 0;
+    for (ResubmissionTaskQueue taskQueue : eventTaskQueues) {
+      eventTaskRunnables.add(createRunnable(executorService, splitPushWhenRateLimited,
+          threadId++, taskQueue, pushRateLimiter));
     }
 
     if (taskQueues.size() > 0) {
       executorService.scheduleAtFixedRate(() -> {
         try {
-          Supplier<Stream<Integer>> sizes = () -> taskQueues.stream()
-              .map(k -> Math.max(0, queueSizes.get(k).intValue()));
+          Supplier<Stream<Integer>> sizes = () -> taskQueues.stream().map(TaskQueue::size);
           if (sizes.get().anyMatch(i -> i > 0)) {
             lastKnownQueueSizeIsPositive = true;
             logger.info("current retry queue sizes: [" +
@@ -239,6 +223,19 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
             lastKnownSourceTagQueueSizeIsPositive = false;
             logger.warning("source tag retry queue has been cleared");
           }
+
+          // do the same thing for event queues
+          Supplier<Stream<Integer>> eventQueueSizes = () -> eventTaskQueues.stream().
+              map(TaskQueue::size);
+          if (eventQueueSizes.get().anyMatch(i -> i > 0)) {
+            lastKnownEventQueueSizeIsPositive = true;
+            logger.warning("current event retry queue sizes: [" +
+                eventQueueSizes.get().map(Object::toString).collect(Collectors.joining("/")) + "]");
+          } else if (lastKnownEventQueueSizeIsPositive) {
+            lastKnownEventQueueSizeIsPositive = false;
+            logger.warning("event retry queue has been cleared");
+          }
+
         } catch (Exception ex) {
           logger.warning("Exception " + ex);
         }
@@ -265,6 +262,8 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
       taskRunnables.forEach(taskRunnable -> executorService.schedule(taskRunnable,
           (long) (Math.random() * taskRunnables.size()), TimeUnit.SECONDS));
       sourceTagTaskRunnables.forEach(taskRunnable -> executorService.schedule(taskRunnable,
+          (long) (Math.random() * taskRunnables.size()), TimeUnit.SECONDS));
+      eventTaskRunnables.forEach(taskRunnable -> executorService.schedule(taskRunnable,
           (long) (Math.random() * taskRunnables.size()), TimeUnit.SECONDS));
     }
   }
@@ -321,7 +320,6 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
                 List<? extends ResubmissionTask> splitTasks = task.splitTask();
                 for (ResubmissionTask smallerTask : splitTasks) {
                   taskQueue.add(smallerTask);
-                  queueSizes.get(taskQueue).incrementAndGet();
                   queuePointsCount.addAndGet(smallerTask.size());
                 }
                 break;
@@ -335,7 +333,6 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
                     List<? extends ResubmissionTask> splitTasks = task.splitTask();
                     for (ResubmissionTask smallerTask : splitTasks) {
                       taskQueue.add(smallerTask);
-                      queueSizes.get(taskQueue).incrementAndGet();
                       queuePointsCount.addAndGet(smallerTask.size());
                     }
                   } else {
@@ -351,7 +348,6 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
               task.service = null;
               task.currentAgentId = null;
               taskQueue.add(task);
-              queueSizes.get(taskQueue).incrementAndGet();
               queuePointsCount.addAndGet(taskSize);
               if (failures > 10) {
                 logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will " +
@@ -361,7 +357,6 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
             } finally {
               if (removeTask) {
                 taskQueue.remove();
-                queueSizes.get(taskQueue).decrementAndGet();
                 queuePointsCount.addAndGet(-taskSize);
               }
             }
@@ -499,12 +494,6 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
     return toReturn;
   }
 
-  private ResubmissionTaskQueue getSmallestQueue() {
-    Optional<ResubmissionTaskQueue> smallestQueue = taskQueues.stream()
-        .min(Comparator.comparingInt(q -> queueSizes.get(q).intValue()));
-    return smallestQueue.orElse(null);
-  }
-
   private Runnable getPostingSizerTask(final ResubmissionTask task) {
     return () -> {
       try {
@@ -605,6 +594,15 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
     addSourceTagTaskToSmallestQueue(taskToRetry);
   }
 
+  private void handleEventTaskRetry(RuntimeException failureException,
+                                    PostEventResultTask taskToRetry) {
+    if (failureException instanceof QueuedPushTooLargeException) {
+      taskToRetry.splitTask().forEach(this::addEventTaskToSmallestQueue);
+    } else {
+      addTaskToSmallestQueue(taskToRetry);
+    }
+  }
+
   private void addSourceTagTaskToSmallestQueue(PostSourceTagResultTask taskToRetry) {
     // we need to make sure the we preserve the order of operations for each source
     ResubmissionTaskQueue queue = sourceTagTaskQueues.get(Math.abs(taskToRetry.id.hashCode()) % sourceTagTaskQueues.size());
@@ -621,17 +619,31 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
   }
 
   private void addTaskToSmallestQueue(ResubmissionTask taskToRetry) {
-    ResubmissionTaskQueue queue = getSmallestQueue();
+    ResubmissionTaskQueue queue = taskQueues.stream().min(Comparator.comparingInt(TaskQueue::size)).
+        orElse(null);
     if (queue != null) {
       try {
         queue.add(taskToRetry);
-        queueSizes.get(queue).incrementAndGet();
         queuePointsCount.addAndGet(taskToRetry.size());
       } catch (FileException e) {
         logger.log(Level.SEVERE, "CRITICAL (Losing points!): WF-1: Submission queue is full.", e);
       }
     } else {
       logger.severe("CRITICAL (Losing points!): WF-2: No retry queues found.");
+    }
+  }
+
+  private void addEventTaskToSmallestQueue(ResubmissionTask taskToRetry) {
+    ResubmissionTaskQueue queue = eventTaskQueues.stream().
+        min(Comparator.comparingInt(TaskQueue::size)).orElse(null);
+    if (queue != null) {
+      try {
+        queue.add(taskToRetry);
+      } catch (FileException e) {
+        logger.log(Level.SEVERE, "CRITICAL (Losing events!): WF-1: Submission queue is full.", e);
+      }
+    } else {
+      logger.severe("CRITICAL (Losing events!): WF-2: No retry queues found.");
     }
   }
 
@@ -751,18 +763,18 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
   }
 
   @Override
-  public Response createEvent(EventDTO event, boolean forceToQueue) {
-    PostEventResultTask task = new PostEventResultTask(event);
+  public Response reportEvents(List<Event> eventBatch, boolean forceToQueue) {
+    PostEventResultTask task = new PostEventResultTask(eventBatch);
 
     if (forceToQueue) {
-      addTaskToSmallestQueue(task);
+      addEventTaskToSmallestQueue(task);
       return Response.status(Response.Status.NOT_ACCEPTABLE).build();
     } else {
       try {
-        parsePostingResponse(wrapped.createEvent(event));
+        parsePostingResponse(wrapped.reportEvents(eventBatch));
       } catch (RuntimeException ex) {
-        logger.warning("Unable to create event " + ExceptionUtils.getFullStackTrace(ex));
-        addTaskToSmallestQueue(task);
+        logger.warning("Unable to create events: " + ExceptionUtils.getFullStackTrace(ex));
+        addEventTaskToSmallestQueue(task);
         return Response.status(Response.Status.NOT_ACCEPTABLE).build();
       }
       return Response.ok().build();
@@ -845,15 +857,15 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
   }
 
   @Override
-  public Response createEvent(EventDTO eventDTO) {
-    return createEvent(eventDTO, false);
+  public Response reportEvents(List<Event> events) {
+    return reportEvents(events, false);
   }
 
   public static class PostEventResultTask extends ResubmissionTask<PostEventResultTask> {
-    private final EventDTO eventDTO;
+    private final List<Event> events;
 
-    public PostEventResultTask(EventDTO eventDTO) {
-      this.eventDTO = eventDTO;
+    public PostEventResultTask(List<Event> events) {
+      this.events = events;
     }
 
     @Override
@@ -871,7 +883,7 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
     public void execute(Object callback) {
       Response response;
       try {
-        response = service.createEvent(eventDTO);
+        response = service.reportEvents(events);
       } catch (Exception ex) {
         throw new RuntimeException(SERVER_ERROR + ": " + Throwables.getRootCause(ex));
       }

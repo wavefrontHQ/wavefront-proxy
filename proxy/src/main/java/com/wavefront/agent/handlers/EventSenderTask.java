@@ -4,25 +4,24 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
-import com.wavefront.dto.EventDTO;
+import com.wavefront.dto.Event;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 
-import wavefront.report.Event;
+import wavefront.report.ReportEvent;
 
 /**
  * This class is responsible for accumulating events and sending them batch. This
@@ -30,7 +29,7 @@ import wavefront.report.Event;
  *
  * @author vasily@wavefront.com
  */
-class EventSenderTask extends AbstractSenderTask<Event> {
+class EventSenderTask extends AbstractSenderTask<ReportEvent> {
   private static final Logger logger = Logger.getLogger(EventSenderTask.class.getCanonicalName());
 
   /**
@@ -83,45 +82,37 @@ class EventSenderTask extends AbstractSenderTask<Event> {
     long nextRunMillis = this.pushFlushInterval.get();
     isSending = true;
     try {
-      List<Event> current = createBatch();
+      List<ReportEvent> current = createBatch();
       if (current.size() == 0) return;
       Response response = null;
-      boolean forceToQueue = false;
-      Iterator<Event> iterator = current.iterator();
-      while (iterator.hasNext()) {
-        TimerContext timerContext = this.batchSendTime.time();
-        if (rateLimiter == null || rateLimiter.tryAcquire()) {
-          if (rateLimiter != null) this.permitsGranted.inc();
-          Event event = iterator.next();
-
-          try {
-            response = proxyAPI.createEvent(new EventDTO(event), forceToQueue);
-            this.attemptedCounter.inc();
-            if (response != null &&
-                response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
-              if (rateLimiter != null) {
-                this.rateLimiter.recyclePermits(1);
-                this.permitsRetried.inc(1);
-              }
-              this.queuedCounter.inc();
-              forceToQueue = true;
+      TimerContext timerContext = this.batchSendTime.time();
+      if (rateLimiter == null || rateLimiter.tryAcquire()) {
+        if (rateLimiter != null) this.permitsGranted.inc(current.size());
+        try {
+          response = proxyAPI.reportEvents(current.stream().map(Event::new).
+              collect(Collectors.toList()), false);
+          this.attemptedCounter.inc();
+          if (response != null &&
+              response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
+            if (rateLimiter != null) {
+              this.rateLimiter.recyclePermits(1);
+              this.permitsRetried.inc(1);
             }
-          } finally {
-            timerContext.stop();
-            if (response != null) response.close();
+            this.queuedCounter.inc();
           }
-        } else {
-          final List<Event> remainingItems = new ArrayList<>();
-          iterator.forEachRemaining(remainingItems::add);
-          permitsDenied.inc(remainingItems.size());
-          nextRunMillis = 250 + (int) (Math.random() * 250);
-          if (warningMessageRateLimiter.tryAcquire()) {
-            logger.warning("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter active " +
-                "(pending " + entityType + ": " + datum.size() + "), will retry");
-          }
-          synchronized (mutex) { // return the batch to the beginning of the queue
-            datum.addAll(0, remainingItems);
-          }
+        } finally {
+          timerContext.stop();
+          if (response != null) response.close();
+        }
+      } else {
+        permitsDenied.inc(current.size());
+        nextRunMillis = 250 + (int) (Math.random() * 250);
+        if (warningMessageRateLimiter.tryAcquire()) {
+          logger.warning("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter active " +
+              "(pending " + entityType + ": " + datum.size() + "), will retry");
+        }
+        synchronized (mutex) { // return the batch to the beginning of the queue
+          datum.addAll(0, current);
         }
       }
     } catch (Throwable t) {
@@ -139,14 +130,12 @@ class EventSenderTask extends AbstractSenderTask<Event> {
     // if too many points arrive at the proxy while it's draining, they will be taken care of in the next run
     int toFlush = datum.size();
     while (toFlush > 0) {
-      List<Event> items = createBatch();
+      List<ReportEvent> items = createBatch();
       int batchSize = items.size();
       if (batchSize == 0) return;
-      for (Event event : items) {
-        proxyAPI.createEvent(new EventDTO(event), true);
-        this.attemptedCounter.inc();
-        this.queuedCounter.inc();
-      }
+      proxyAPI.reportEvents(items.stream().map(Event::new).collect(Collectors.toList()), true);
+      this.attemptedCounter.inc(items.size());
+      this.queuedCounter.inc(items.size());
       toFlush -= batchSize;
 
       // stop draining buffers if the batch is smaller than the previous one
