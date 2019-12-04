@@ -77,8 +77,9 @@ public interface ForceQueueEnabledProxyAPI extends WavefrontV2API {
   /**
    * Create an event.
    *
+   * @param proxyId      id of the proxy submitting events.
    * @param eventBatch   events to create.
    * @param forceToQueue Whether to bypass posting data to the API and write to queue instead.
    */
-  Response reportEvents(List<Event> eventBatch, boolean forceToQueue);
+  Response proxyEvents(UUID proxyId, List<Event> eventBatch, boolean forceToQueue);
 }

@@ -37,10 +37,11 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   private final AtomicInteger pointsPerBatch;
   private final AtomicInteger memoryBufferLimit;
 
+  // TODO: sync with backend
   private static final RecyclableRateLimiter SOURCE_TAG_RATE_LIMITER =
       RecyclableRateLimiterImpl.create(5, 10);
   private static final RecyclableRateLimiter EVENT_RATE_LIMITER =
-      RecyclableRateLimiterImpl.create(0.2, 10);
+      RecyclableRateLimiterImpl.create(5, 10);
 
   /**
    * Create new instance.
@@ -102,7 +103,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
               globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
           break;
         case EVENT:
-          senderTask = new EventSenderTask(proxyAPI, handlerKey.getHandle(), threadNo,
+          senderTask = new EventSenderTask(proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
               pushFlushInterval, EVENT_RATE_LIMITER, pointsPerBatch, memoryBufferLimit);
           break;
         default:

@@ -20,10 +20,7 @@ public enum DataFormat {
             input.startsWith(ReportSourceTagDecoder.SOURCE_DESCRIPTION)) {
           return SOURCE_TAG;
         }
-        if (input.startsWith(EventDecoder.EVENT) ||
-            input.startsWith(EventDecoder.ONGOING_EVENT)) {
-          return EVENT;
-        }
+        if (input.startsWith(EventDecoder.EVENT)) return EVENT;
         break;
       case '{':
         if (input.charAt(input.length() - 1) == '}') return JSON_STRING;

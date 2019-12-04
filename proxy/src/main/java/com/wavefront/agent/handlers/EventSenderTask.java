@@ -12,6 +12,7 @@ import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -40,6 +41,7 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
   private final Timer batchSendTime;
 
   private final ForceQueueEnabledProxyAPI proxyAPI;
+  private final UUID proxyId;
   private final AtomicInteger pushFlushInterval;
   private final RecyclableRateLimiter rateLimiter;
   private final Counter permitsGranted;
@@ -50,6 +52,7 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
    * Create new instance
    *
    * @param proxyAPI          handles interaction with Wavefront servers as well as queueing.
+   * @param proxyId           id of the proxy.
    * @param handle            handle (usually port number), that serves as an identifier for the metrics pipeline.
    * @param threadId          thread number.
    * @param rateLimiter       rate limiter to control outbound point rate.
@@ -58,13 +61,14 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
    * @param memoryBufferLimit max points in task's memory buffer before queueing.
    *
    */
-  EventSenderTask(ForceQueueEnabledProxyAPI proxyAPI, String handle, int threadId,
+  EventSenderTask(ForceQueueEnabledProxyAPI proxyAPI, UUID proxyId, String handle, int threadId,
                   AtomicInteger pushFlushInterval,
                   @Nullable RecyclableRateLimiter rateLimiter,
                   @Nullable AtomicInteger itemsPerBatch,
                   @Nullable AtomicInteger memoryBufferLimit) {
     super("events", handle, threadId, itemsPerBatch, memoryBufferLimit);
     this.proxyAPI = proxyAPI;
+    this.proxyId = proxyId;
     this.batchSendTime = Metrics.newTimer(new MetricName("api.events." + handle, "", "duration"),
         TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
     this.pushFlushInterval = pushFlushInterval;
@@ -89,7 +93,7 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
       if (rateLimiter == null || rateLimiter.tryAcquire()) {
         if (rateLimiter != null) this.permitsGranted.inc(current.size());
         try {
-          response = proxyAPI.reportEvents(current.stream().map(Event::new).
+          response = proxyAPI.proxyEvents(proxyId, current.stream().map(Event::new).
               collect(Collectors.toList()), false);
           this.attemptedCounter.inc();
           if (response != null &&
@@ -133,7 +137,8 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
       List<ReportEvent> items = createBatch();
       int batchSize = items.size();
       if (batchSize == 0) return;
-      proxyAPI.reportEvents(items.stream().map(Event::new).collect(Collectors.toList()), true);
+      proxyAPI.proxyEvents(proxyId, items.stream().map(Event::new).collect(Collectors.toList()),
+          true);
       this.attemptedCounter.inc(items.size());
       this.queuedCounter.inc(items.size());
       toFlush -= batchSize;

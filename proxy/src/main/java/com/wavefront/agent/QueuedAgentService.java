@@ -763,15 +763,15 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
   }
 
   @Override
-  public Response reportEvents(List<Event> eventBatch, boolean forceToQueue) {
-    PostEventResultTask task = new PostEventResultTask(eventBatch);
+  public Response proxyEvents(UUID proxyId, List<Event> eventBatch, boolean forceToQueue) {
+    PostEventResultTask task = new PostEventResultTask(proxyId, eventBatch);
 
     if (forceToQueue) {
       addEventTaskToSmallestQueue(task);
       return Response.status(Response.Status.NOT_ACCEPTABLE).build();
     } else {
       try {
-        parsePostingResponse(wrapped.reportEvents(eventBatch));
+        parsePostingResponse(wrapped.proxyEvents(proxyId, eventBatch));
       } catch (RuntimeException ex) {
         logger.warning("Unable to create events: " + ExceptionUtils.getFullStackTrace(ex));
         addEventTaskToSmallestQueue(task);
@@ -857,33 +857,41 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
   }
 
   @Override
-  public Response reportEvents(List<Event> events) {
-    return reportEvents(events, false);
+  public Response proxyEvents(UUID proxyId, List<Event> events) {
+    return proxyEvents(proxyId, events, false);
   }
 
   public static class PostEventResultTask extends ResubmissionTask<PostEventResultTask> {
+    private final UUID proxyId;
     private final List<Event> events;
 
-    public PostEventResultTask(List<Event> events) {
+    public PostEventResultTask(UUID proxyId, List<Event> events) {
+      this.proxyId = proxyId;
       this.events = events;
     }
 
     @Override
     public List<PostEventResultTask> splitTask() {
-      // currently this is a no-op
+      if (events.size() > 1) {
+        // in this case, split the payload in 2 batches approximately in the middle.
+        int splitPoint = events.size() / 2;
+        return ImmutableList.of(
+            new PostEventResultTask(proxyId, events.subList(0, splitPoint)),
+            new PostEventResultTask(proxyId, events.subList(splitPoint, events.size())));
+      }
       return ImmutableList.of(this);
     }
 
     @Override
     public int size() {
-      return 1;
+      return events.size();
     }
 
     @Override
     public void execute(Object callback) {
       Response response;
       try {
-        response = service.reportEvents(events);
+        response = service.proxyEvents(proxyId, events);
       } catch (Exception ex) {
         throw new RuntimeException(SERVER_ERROR + ": " + Throwables.getRootCause(ex));
       }
