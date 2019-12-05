@@ -6,14 +6,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.data.Validation;
-import com.wavefront.ingester.ReportSourceTagSerializer;
 
 import java.util.Collection;
 import java.util.function.Function;
 import java.util.logging.Logger;
 
 import wavefront.report.ReportEvent;
-import wavefront.report.ReportSourceTag;
 
 /**
  * This class will validate parsed events and distribute them among SenderTask threads.
@@ -35,9 +33,10 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
   };
 
   public EventHandlerImpl(final String handle, final int blockedItemsPerBatch,
-                          final Collection<SenderTask> senderTasks) {
-    super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch,
-        EVENT_SERIALIZER, senderTasks, null, null, true, null);
+                          final Collection<SenderTask> senderTasks,
+                          final Logger blockedEventsLogger) {
+    super(ReportableEntityType.EVENT, handle, blockedItemsPerBatch,
+        EVENT_SERIALIZER, senderTasks, null, null, true, blockedEventsLogger);
   }
 
   @Override
@@ -47,6 +46,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
       throw new IllegalArgumentException("WF-401: Event annotation key has illegal characters.");
     }
     getTask().add(event);
+    getReceivedCounter().inc();
   }
 
   @VisibleForTesting

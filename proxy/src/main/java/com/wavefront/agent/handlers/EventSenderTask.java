@@ -87,7 +87,8 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
     isSending = true;
     try {
       List<ReportEvent> current = createBatch();
-      if (current.size() == 0) return;
+      int batchSize = current.size();
+      if (batchSize == 0) return;
       Response response = null;
       TimerContext timerContext = this.batchSendTime.time();
       if (rateLimiter == null || rateLimiter.tryAcquire()) {
@@ -95,14 +96,14 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
         try {
           response = proxyAPI.proxyEvents(proxyId, current.stream().map(Event::new).
               collect(Collectors.toList()), false);
-          this.attemptedCounter.inc();
+          this.attemptedCounter.inc(batchSize);
           if (response != null &&
               response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
             if (rateLimiter != null) {
-              this.rateLimiter.recyclePermits(1);
-              this.permitsRetried.inc(1);
+              this.rateLimiter.recyclePermits(batchSize);
+              this.permitsRetried.inc(batchSize);
             }
-            this.queuedCounter.inc();
+            this.queuedCounter.inc(batchSize);
           }
         } finally {
           timerContext.stop();

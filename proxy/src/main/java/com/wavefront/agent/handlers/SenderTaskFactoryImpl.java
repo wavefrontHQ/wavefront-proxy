@@ -104,7 +104,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
           break;
         case EVENT:
           senderTask = new EventSenderTask(proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
-              pushFlushInterval, EVENT_RATE_LIMITER, pointsPerBatch, memoryBufferLimit);
+              pushFlushInterval, EVENT_RATE_LIMITER, new AtomicInteger(25), memoryBufferLimit);
           break;
         default:
           throw new IllegalArgumentException("Unexpected entity type " +

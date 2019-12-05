@@ -113,7 +113,10 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
   private Counter permitsDenied = Metrics.newCounter(new MetricName("limiter", "", "permits-denied"));
   private Counter permitsRetried = Metrics.newCounter(new MetricName("limiter", "", "permits-retried"));
   private final AtomicLong queuePointsCount = new AtomicLong();
+  private final AtomicLong queueSourceTagsCount = new AtomicLong();
+  private final AtomicLong queueEventsCount = new AtomicLong();
   private Gauge queuedPointsCountGauge = null;
+  private Gauge queuedEventsCountGauge = null;
   /**
    * Biases result sizes to the last 5 minutes heavily. This histogram does not see all result
    * sizes. The executor only ever processes one posting at any given time and drops the rest.
@@ -172,17 +175,17 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
     int threadId = 0;
     for (ResubmissionTaskQueue taskQueue : taskQueues) {
       taskRunnables.add(createRunnable(executorService, splitPushWhenRateLimited, threadId++,
-          taskQueue, pushRateLimiter));
+          taskQueue, pushRateLimiter, queuePointsCount));
     }
     threadId = 0;
     for (ResubmissionTaskQueue taskQueue : sourceTagTaskQueues) {
       sourceTagTaskRunnables.add(createRunnable(executorService, splitPushWhenRateLimited,
-          threadId++, taskQueue, pushRateLimiter));
+          threadId++, taskQueue, pushRateLimiter, queueSourceTagsCount));
     }
     threadId = 0;
     for (ResubmissionTaskQueue taskQueue : eventTaskQueues) {
       eventTaskRunnables.add(createRunnable(executorService, splitPushWhenRateLimited,
-          threadId++, taskQueue, pushRateLimiter));
+          threadId++, taskQueue, pushRateLimiter, queueEventsCount));
     }
 
     if (taskQueues.size() > 0) {
@@ -232,7 +235,18 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
             logger.warning("current event retry queue sizes: [" +
                 eventQueueSizes.get().map(Object::toString).collect(Collectors.joining("/")) + "]");
           } else if (lastKnownEventQueueSizeIsPositive) {
+            if (queuedEventsCountGauge == null) {
+              queuedEventsCountGauge = Metrics.newGauge(new MetricName("buffer", "", "events-count"),
+                  new Gauge<Long>() {
+                    @Override
+                    public Long value() {
+                      return queueEventsCount.get();
+                    }
+                  }
+              );
+            }
             lastKnownEventQueueSizeIsPositive = false;
+            queueEventsCount.set(0);
             logger.warning("event retry queue has been cleared");
           }
 
@@ -272,7 +286,8 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
                                   final boolean splitPushWhenRateLimited,
                                   final int threadId,
                                   final ResubmissionTaskQueue taskQueue,
-                                  final RecyclableRateLimiter pushRateLimiter) {
+                                  final RecyclableRateLimiter pushRateLimiter,
+                                  final AtomicLong weight) {
     return new Runnable() {
       private int backoffExponent = 1;
 
@@ -320,7 +335,7 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
                 List<? extends ResubmissionTask> splitTasks = task.splitTask();
                 for (ResubmissionTask smallerTask : splitTasks) {
                   taskQueue.add(smallerTask);
-                  queuePointsCount.addAndGet(smallerTask.size());
+                  weight.addAndGet(smallerTask.size());
                 }
                 break;
               } else //noinspection ThrowableResultOfMethodCallIgnored
@@ -333,7 +348,7 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
                     List<? extends ResubmissionTask> splitTasks = task.splitTask();
                     for (ResubmissionTask smallerTask : splitTasks) {
                       taskQueue.add(smallerTask);
-                      queuePointsCount.addAndGet(smallerTask.size());
+                      weight.addAndGet(smallerTask.size());
                     }
                   } else {
                     removeTask = false;
@@ -348,7 +363,7 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
               task.service = null;
               task.currentAgentId = null;
               taskQueue.add(task);
-              queuePointsCount.addAndGet(taskSize);
+              weight.addAndGet(taskSize);
               if (failures > 10) {
                 logger.warning("[RETRY THREAD " + threadId + "] saw too many submission errors. Will " +
                     "re-attempt later");
@@ -357,7 +372,7 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
             } finally {
               if (removeTask) {
                 taskQueue.remove();
-                queuePointsCount.addAndGet(-taskSize);
+                weight.addAndGet(-taskSize);
               }
             }
           }
@@ -862,11 +877,11 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
   }
 
   public static class PostEventResultTask extends ResubmissionTask<PostEventResultTask> {
-    private final UUID proxyId;
+    private static final long serialVersionUID = -2180196054824104362L;
     private final List<Event> events;
 
     public PostEventResultTask(UUID proxyId, List<Event> events) {
-      this.proxyId = proxyId;
+      this.currentAgentId = proxyId;
       this.events = events;
     }
 
@@ -876,8 +891,8 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
         // in this case, split the payload in 2 batches approximately in the middle.
         int splitPoint = events.size() / 2;
         return ImmutableList.of(
-            new PostEventResultTask(proxyId, events.subList(0, splitPoint)),
-            new PostEventResultTask(proxyId, events.subList(splitPoint, events.size())));
+            new PostEventResultTask(currentAgentId, events.subList(0, splitPoint)),
+            new PostEventResultTask(currentAgentId, events.subList(splitPoint, events.size())));
       }
       return ImmutableList.of(this);
     }
@@ -891,7 +906,7 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
     public void execute(Object callback) {
       Response response;
       try {
-        response = service.proxyEvents(proxyId, events);
+        response = service.proxyEvents(currentAgentId, events);
       } catch (Exception ex) {
         throw new RuntimeException(SERVER_ERROR + ": " + Throwables.getRootCause(ex));
       }
@@ -992,8 +1007,6 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
 
   public static class PostPushDataResultTask extends ResubmissionTask<PostPushDataResultTask> {
     private static final long serialVersionUID = 1973695079812309903L; // to ensure backwards compatibility
-
-    private final UUID agentId;
     private final Long currentMillis;
     private final String format;
     private final String pushData;
@@ -1002,7 +1015,7 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
     private transient Histogram timeSpentInQueue;
 
     public PostPushDataResultTask(UUID agentId, Long currentMillis, String format, String pushData) {
-      this.agentId = agentId;
+      this.currentAgentId = agentId;
       this.currentMillis = currentMillis;
       this.format = format;
       this.pushData = pushData;
@@ -1029,15 +1042,15 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
         int splitPoint = pushData.indexOf(LineDelimitedUtils.PUSH_DATA_DELIMETER,
             pushData.length() / 2);
         if (splitPoint > 0) {
-          splitTasks.add(new PostPushDataResultTask(agentId, currentMillis, format,
+          splitTasks.add(new PostPushDataResultTask(currentAgentId, currentMillis, format,
               pushData.substring(0, splitPoint)));
-          splitTasks.add(new PostPushDataResultTask(agentId, currentMillis, format,
+          splitTasks.add(new PostPushDataResultTask(currentAgentId, currentMillis, format,
               pushData.substring(splitPoint + 1)));
           return splitTasks;
         }
       }
       // 1 or 0
-      splitTasks.add(new PostPushDataResultTask(agentId, currentMillis, format,
+      splitTasks.add(new PostPushDataResultTask(currentAgentId, currentMillis, format,
           pushData));
       return splitTasks;
     }
@@ -1049,7 +1062,7 @@ public class QueuedAgentService implements ForceQueueEnabledProxyAPI {
 
     @VisibleForTesting
     public UUID getAgentId() {
-      return agentId;
+      return currentAgentId;
     }
 
     @VisibleForTesting
