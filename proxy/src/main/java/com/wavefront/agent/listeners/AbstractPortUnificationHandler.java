@@ -214,6 +214,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
         }
       }
     } catch (final Exception e) {
+      e.printStackTrace();
       logWarning("Failed to handle message", e, ctx);
     }
   }

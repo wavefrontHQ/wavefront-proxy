@@ -61,6 +61,7 @@ import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
+import com.wavefront.ingester.EventDecoder;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.HistogramDecoder;
 import com.wavefront.ingester.OpenTSDBDecoder;
@@ -145,14 +146,15 @@ public class PushAgent extends AbstractAgent {
   protected ReportableEntityHandlerFactory handlerFactory;
   protected HealthCheckManager healthCheckManager;
   protected Supplier<Map<ReportableEntityType, ReportableEntityDecoder>> decoderSupplier =
-      lazySupplier(() -> ImmutableMap.of(
-      ReportableEntityType.POINT, new ReportPointDecoderWrapper(new GraphiteDecoder("unknown",
-          customSourceTags)),
-      ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder(),
-      ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(
-          new HistogramDecoder("unknown")),
-      ReportableEntityType.TRACE, new SpanDecoder("unknown"),
-      ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder()));
+      lazySupplier(() -> ImmutableMap.<ReportableEntityType, ReportableEntityDecoder>builder().
+          put(ReportableEntityType.POINT, new ReportPointDecoderWrapper(
+              new GraphiteDecoder("unknown", customSourceTags))).
+          put(ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder()).
+          put(ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(
+              new HistogramDecoder("unknown"))).
+          put(ReportableEntityType.TRACE, new SpanDecoder("unknown")).
+          put(ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder()).
+          put(ReportableEntityType.EVENT, new EventDecoder()).build());
   private Logger blockedPointsLogger;
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;

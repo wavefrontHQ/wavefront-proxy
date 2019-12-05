@@ -37,7 +37,10 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   private final AtomicInteger pointsPerBatch;
   private final AtomicInteger memoryBufferLimit;
 
-  private static final RecyclableRateLimiter sourceTagRateLimiter =
+  // TODO: sync with backend
+  private static final RecyclableRateLimiter SOURCE_TAG_RATE_LIMITER =
+      RecyclableRateLimiterImpl.create(5, 10);
+  private static final RecyclableRateLimiter EVENT_RATE_LIMITER =
       RecyclableRateLimiterImpl.create(5, 10);
 
   /**
@@ -87,7 +90,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
           break;
         case SOURCE_TAG:
           senderTask = new ReportSourceTagSenderTask(proxyAPI, handlerKey.getHandle(),
-              threadNo, pushFlushInterval, sourceTagRateLimiter, pointsPerBatch, memoryBufferLimit);
+              threadNo, pushFlushInterval, SOURCE_TAG_RATE_LIMITER, pointsPerBatch, memoryBufferLimit);
           break;
         case TRACE:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE.toString(),
@@ -98,6 +101,10 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE_SPAN_LOGS.toString(),
               PUSH_FORMAT_TRACING_SPAN_LOGS, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
               globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
+          break;
+        case EVENT:
+          senderTask = new EventSenderTask(proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
+              pushFlushInterval, EVENT_RATE_LIMITER, new AtomicInteger(25), memoryBufferLimit);
           break;
         default:
           throw new IllegalArgumentException("Unexpected entity type " +

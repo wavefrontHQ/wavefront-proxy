@@ -1,5 +1,6 @@
 package com.wavefront.agent.api;
 
+import com.wavefront.api.EventAPI;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.SourceTagAPI;
 
@@ -8,5 +9,5 @@ import com.wavefront.api.SourceTagAPI;
  *
  * @author vasily@wavefront.com
  */
-public interface WavefrontV2API extends ProxyV2API, SourceTagAPI {
+public interface WavefrontV2API extends ProxyV2API, SourceTagAPI, EventAPI {
 }
