@@ -139,9 +139,10 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case EVENT:
-          senderTask = new EventSenderTask(apiContainer.getEventAPI(), handlerKey.getHandle(),
-              threadNo, pushFlushInterval, EVENT_RATE_LIMITER, pointsPerBatch, memoryBufferLimit,
-              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+          senderTask = new EventSenderTask(apiContainer.getEventAPI(), proxyId,
+              handlerKey.getHandle(), threadNo, pushFlushInterval, EVENT_RATE_LIMITER,
+              pointsPerBatch, memoryBufferLimit, taskQueueFactory.getTaskQueue(handlerKey,
+              threadNo));
           break;
         default:
           throw new IllegalArgumentException("Unexpected entity type " +

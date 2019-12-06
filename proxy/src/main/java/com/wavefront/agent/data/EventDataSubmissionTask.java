@@ -1,17 +1,13 @@
 package com.wavefront.agent.data;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.EventAPI;
-import com.wavefront.api.ProxyV2API;
 import com.wavefront.data.ReportableEntityType;
-import com.wavefront.dto.EventDTO;
+import com.wavefront.dto.Event;
 
 import javax.annotation.Nullable;
-import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -24,28 +20,31 @@ import java.util.function.Supplier;
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS_KEY")
 public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDataSubmissionTask> {
   private transient EventAPI api;
+  private transient UUID proxyId;
 
-  private final EventDTO eventDTO;
+  private final List<Event> events;
 
   /**
    *
    *
    * @param api
+   * @param proxyId
    * @param handle
-   * @param eventDTO
+   * @param events
    * @param timeProvider
    */
-  public EventDataSubmissionTask(EventAPI api, String handle, EventDTO eventDTO,
+  public EventDataSubmissionTask(EventAPI api, UUID proxyId, String handle, List<Event> events,
                                  @Nullable Supplier<Long> timeProvider) {
     super(handle, ReportableEntityType.EVENT, timeProvider);
     this.api = api;
-    this.eventDTO = eventDTO;
+    this.proxyId = proxyId;
+    this.events = events;
   }
 
   @Override
   public TaskResult doExecute(TaskQueueingDirective queueingContext,
                               TaskQueue<EventDataSubmissionTask> taskQueue) {
-    api.createEvent(eventDTO);
+    api.proxyEvents(proxyId, events);
     // TODO: Return correct status
     return TaskResult.COMPLETE;
   }
@@ -60,7 +59,8 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
     return 1;
   }
 
-  public void injectMembers(EventAPI api) {
+  public void injectMembers(EventAPI api, UUID proxyId) {
     this.api = api;
+    this.proxyId = proxyId;
   }
 }

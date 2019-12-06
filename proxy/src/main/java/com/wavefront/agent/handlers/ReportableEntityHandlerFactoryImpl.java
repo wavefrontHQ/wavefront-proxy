@@ -82,7 +82,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
               blockedSpansLogger);
         case EVENT:
           return new EventHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, API_NUM_THREADS));
+              senderTaskFactory.createSenderTasks(handlerKey, API_NUM_THREADS),
+              blockedPointsLogger);
         default:
           throw new IllegalArgumentException("Unexpected entity type " +
               handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());

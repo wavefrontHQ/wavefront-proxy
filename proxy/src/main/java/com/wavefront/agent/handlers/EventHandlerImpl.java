@@ -6,26 +6,24 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.data.Validation;
-import com.wavefront.ingester.ReportSourceTagSerializer;
 
 import java.util.Collection;
 import java.util.function.Function;
 import java.util.logging.Logger;
 
-import wavefront.report.Event;
-import wavefront.report.ReportSourceTag;
+import wavefront.report.ReportEvent;
 
 /**
  * This class will validate parsed events and distribute them among SenderTask threads.
  *
  * @author vasily@wavefront.com
  */
-public class EventHandlerImpl extends AbstractReportableEntityHandler<Event> {
+public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEvent> {
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
-  private static final Function<Event, String> EVENT_SERIALIZER = value -> {
+  private static final Function<ReportEvent, String> EVENT_SERIALIZER = value -> {
     try {
       return JSON_PARSER.writeValueAsString(value);
     } catch (JsonProcessingException e) {
@@ -35,14 +33,14 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<Event> {
   };
 
   public EventHandlerImpl(final String handle, final int blockedItemsPerBatch,
-                                    final Collection<SenderTask> senderTasks) {
+                          final Collection<SenderTask> senderTasks, Logger blockedItemsLogger) {
     super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch,
-        EVENT_SERIALIZER, senderTasks, null, null, true);
+        EVENT_SERIALIZER, senderTasks, null, null, true, blockedItemsLogger);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  protected void reportInternal(Event event) {
+  protected void reportInternal(ReportEvent event) {
     if (!annotationKeysAreValid(event)) {
       throw new IllegalArgumentException("WF-401: Event annotation key has illegal characters.");
     }
@@ -50,7 +48,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<Event> {
   }
 
   @VisibleForTesting
-  static boolean annotationKeysAreValid(Event event) {
+  static boolean annotationKeysAreValid(ReportEvent event) {
     if (event.getAnnotations() != null) {
       for (String key : event.getAnnotations().keySet()) {
         if (!Validation.charactersAreValid(key)) {

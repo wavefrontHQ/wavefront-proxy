@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import wavefront.report.Event;
+import wavefront.report.ReportEvent;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
 
@@ -51,12 +51,12 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
 
   private final ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
   private final ReportableEntityDecoder<String, ReportSourceTag> sourceTagDecoder;
-  private final ReportableEntityDecoder<String, Event> eventDecoder;
+  private final ReportableEntityDecoder<String, ReportEvent> eventDecoder;
   private final ReportableEntityDecoder<String, ReportPoint> histogramDecoder;
   private final ReportableEntityHandler<ReportPoint> wavefrontHandler;
   private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
   private final Supplier<ReportableEntityHandler<ReportSourceTag>> sourceTagHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<Event>> eventHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportEvent>> eventHandlerSupplier;
 
   /**
    * Create new instance with lazy initialization for handlers.
@@ -123,15 +123,15 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         }
         return;
       case EVENT:
-        ReportableEntityHandler<Event> eventHandler = eventHandlerSupplier.get();
+        ReportableEntityHandler<ReportEvent> eventHandler = eventHandlerSupplier.get();
         if (eventHandler == null || eventDecoder == null) {
           wavefrontHandler.reject(message, "Port is not configured to accept event data!");
           return;
         }
-        List<Event> events = Lists.newArrayListWithCapacity(1);
+        List<ReportEvent> events = Lists.newArrayListWithCapacity(1);
         try {
           eventDecoder.decode(message, events, "dummy");
-          for (Event event : events) {
+          for (ReportEvent event : events) {
             eventHandler.report(event);
           }
         } catch (Exception e) {

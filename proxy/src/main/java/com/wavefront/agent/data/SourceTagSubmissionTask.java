@@ -63,7 +63,7 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
           }
       }
     } catch (Exception e) {
-
+      // TODO handle
     }
     return TaskResult.COMPLETE;
   }

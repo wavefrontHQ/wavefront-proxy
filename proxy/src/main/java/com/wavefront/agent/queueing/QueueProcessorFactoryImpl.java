@@ -127,7 +127,7 @@ public class QueueProcessorFactoryImpl implements QueueProcessorFactory {
                       injectMembers(apiContainer.getSourceTagAPI());
                 } else if (task instanceof EventDataSubmissionTask) {
                   ((EventDataSubmissionTask) task).
-                      injectMembers(apiContainer.getEventAPI());
+                      injectMembers(apiContainer.getEventAPI(), proxyId);
                 } else {
                   throw new IllegalArgumentException("Unexpected submission task type: " +
                       task.getClass().getCanonicalName());
