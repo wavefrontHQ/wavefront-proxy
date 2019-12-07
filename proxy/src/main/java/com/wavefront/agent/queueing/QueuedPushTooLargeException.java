@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.agent.queueing;
 
 import java.util.concurrent.RejectedExecutionException;
 

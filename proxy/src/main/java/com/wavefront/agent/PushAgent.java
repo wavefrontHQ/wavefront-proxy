@@ -56,6 +56,8 @@ import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.preprocessor.SpanSanitizeTransformer;
+import com.wavefront.agent.queueing.TaskQueueFactory;
+import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.NamedThreadFactory;
@@ -140,6 +142,7 @@ public class PushAgent extends AbstractAgent {
   protected ScheduledExecutorService histogramFlushExecutor;
   protected final Counter bindErrors = Metrics.newCounter(
       ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
+  protected TaskQueueFactory taskQueueFactory;
   protected SharedGraphiteHostAnnotator remoteHostAnnotator;
   protected Function<InetAddress, String> hostnameResolver;
   protected SenderTaskFactory senderTaskFactory;
@@ -189,9 +192,10 @@ public class PushAgent extends AbstractAgent {
     }
     hostnameResolver = new CachingHostnameLookupResolver(disableRdnsLookup,
         ExpectedAgentMetric.RDNS_CACHE_SIZE.metricName);
+    taskQueueFactory = new TaskQueueFactoryImpl(bufferFile, purgeBuffer);
     remoteHostAnnotator = new SharedGraphiteHostAnnotator(customSourceTags, hostnameResolver);
-    senderTaskFactory = new SenderTaskFactoryImpl(agentAPI, agentId, pushRateLimiter,
-        pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
+    senderTaskFactory = new SenderTaskFactoryImpl(apiContainer, agentId, taskQueueFactory,
+        pushRateLimiter, pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples,
         flushThreads, () -> validationConfiguration, blockedPointsLogger, blockedHistogramsLogger,
         blockedSpansLogger);
@@ -883,7 +887,7 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void processConfiguration(AgentConfiguration config) {
     try {
-      agentAPI.proxyConfigProcessed(agentId);
+      apiContainer.getProxyV2API().proxyConfigProcessed(agentId);
       Long pointsPerBatch = config.getPointsPerBatch();
       if (BooleanUtils.isTrue(config.getCollectorSetsPointsPerBatch())) {
         if (pointsPerBatch != null) {

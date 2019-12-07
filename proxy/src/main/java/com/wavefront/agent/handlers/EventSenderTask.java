@@ -2,15 +2,23 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-
-import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
+import com.wavefront.agent.data.EventDataSubmissionTask;
+import com.wavefront.agent.data.TaskQueueingDirective;
+import com.wavefront.agent.data.TaskResult;
+import com.wavefront.agent.queueing.TaskQueue;
+import com.wavefront.api.EventAPI;
+import com.wavefront.common.TaggedMetricName;
+import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
+import wavefront.report.ReportEvent;
 
+import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -18,11 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import javax.annotation.Nullable;
-import javax.ws.rs.core.Response;
-
-import wavefront.report.ReportEvent;
 
 /**
  * This class is responsible for accumulating events and sending them batch. This
@@ -40,13 +43,14 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
 
   private final Timer batchSendTime;
 
-  private final ForceQueueEnabledProxyAPI proxyAPI;
+  private final EventAPI proxyAPI;
   private final UUID proxyId;
   private final AtomicInteger pushFlushInterval;
   private final RecyclableRateLimiter rateLimiter;
   private final Counter permitsGranted;
   private final Counter permitsDenied;
   private final Counter permitsRetried;
+  private final TaskQueue<EventDataSubmissionTask> backlog;
 
   /**
    * Create new instance
@@ -59,20 +63,23 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
    * @param pushFlushInterval interval between flushes.
    * @param itemsPerBatch     max points per flush.
    * @param memoryBufferLimit max points in task's memory buffer before queueing.
-   *
+   * @param backlog
    */
-  EventSenderTask(ForceQueueEnabledProxyAPI proxyAPI, UUID proxyId, String handle, int threadId,
+  EventSenderTask(EventAPI proxyAPI, UUID proxyId, String handle, int threadId,
                   AtomicInteger pushFlushInterval,
                   @Nullable RecyclableRateLimiter rateLimiter,
                   @Nullable AtomicInteger itemsPerBatch,
-                  @Nullable AtomicInteger memoryBufferLimit) {
-    super("events", handle, threadId, itemsPerBatch, memoryBufferLimit);
+                  @Nullable AtomicInteger memoryBufferLimit,
+                  TaskQueue<EventDataSubmissionTask> backlog) {
+    super(ReportableEntityType.EVENT, handle, threadId, itemsPerBatch, memoryBufferLimit,
+        rateLimiter);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
     this.batchSendTime = Metrics.newTimer(new MetricName("api.events." + handle, "", "duration"),
         TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
     this.pushFlushInterval = pushFlushInterval;
     this.rateLimiter = rateLimiter;
+    this.backlog = backlog;
 
     this.permitsGranted = Metrics.newCounter(new MetricName("limiter", "", "permits-granted"));
     this.permitsDenied = Metrics.newCounter(new MetricName("limiter", "", "permits-denied"));
@@ -89,28 +96,25 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
       List<ReportEvent> current = createBatch();
       int batchSize = current.size();
       if (batchSize == 0) return;
-      Response response = null;
       TimerContext timerContext = this.batchSendTime.time();
-      if (rateLimiter == null || rateLimiter.tryAcquire()) {
-        if (rateLimiter != null) this.permitsGranted.inc(current.size());
+      if (rateLimiter == null || rateLimiter.tryAcquire(batchSize)) {
+        if (rateLimiter != null) this.permitsGranted.inc(batchSize);
         try {
-          response = proxyAPI.proxyEvents(proxyId, current.stream().map(Event::new).
-              collect(Collectors.toList()), false);
-          this.attemptedCounter.inc(batchSize);
-          if (response != null &&
-              response.getStatus() == Response.Status.NOT_ACCEPTABLE.getStatusCode()) {
+          EventDataSubmissionTask task = new EventDataSubmissionTask(proxyAPI, proxyId, handle,
+              current.stream().map(Event::new).collect(Collectors.toList()), null);
+          TaskResult result = task.execute(TaskQueueingDirective.DEFAULT, backlog);
+          this.attemptedCounter.inc();
+          if (result == TaskResult.PERSISTED) {
             if (rateLimiter != null) {
               this.rateLimiter.recyclePermits(batchSize);
-              this.permitsRetried.inc(batchSize);
             }
             this.queuedCounter.inc(batchSize);
           }
         } finally {
           timerContext.stop();
-          if (response != null) response.close();
         }
       } else {
-        permitsDenied.inc(current.size());
+        permitsDenied.inc(batchSize);
         nextRunMillis = 250 + (int) (Math.random() * 250);
         if (warningMessageRateLimiter.tryAcquire()) {
           logger.warning("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter active " +
@@ -138,10 +142,17 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
       List<ReportEvent> items = createBatch();
       int batchSize = items.size();
       if (batchSize == 0) return;
-      proxyAPI.proxyEvents(proxyId, items.stream().map(Event::new).collect(Collectors.toList()),
-          true);
-      this.attemptedCounter.inc(items.size());
-      this.queuedCounter.inc(items.size());
+      EventDataSubmissionTask task = new EventDataSubmissionTask(proxyAPI, proxyId, handle,
+          items.stream().map(Event::new).collect(Collectors.toList()), null);
+      try {
+        task.enqueue(backlog);
+        this.attemptedCounter.inc(batchSize);
+        this.queuedCounter.inc(batchSize);
+      } catch (IOException e) {
+        Metrics.newCounter(new TaggedMetricName("buffer", "failures", "port", handle)).inc();
+        logger.severe("CRITICAL (Losing events!): WF-1: Error adding task to the queue: " +
+            e.getMessage());
+      }
       toFlush -= batchSize;
 
       // stop draining buffers if the batch is smaller than the previous one
