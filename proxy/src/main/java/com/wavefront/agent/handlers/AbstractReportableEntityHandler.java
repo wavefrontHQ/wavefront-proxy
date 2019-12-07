@@ -258,14 +258,14 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   }
 
   private String getPrintableRate(long count) {
-    long rate = count / 60;
+    long rate = (count + 60 - 1) / 60;
     return count > 0 && rate == 0 ? "<1" : String.valueOf(rate);
   }
 
   protected void printStats() {
     logger.info("[" + this.handle + "] " + entityType.toCapitalizedString() + " received rate: " +
         getPrintableRate(getReceivedOneMinuteCount()) + " " + rateUnit + " (1 min), " +
-        getPrintableRate(getReceivedFiveMinuteCount()) + " " + rateUnit + " (5 min), " +
+        getPrintableRate(getReceivedFiveMinuteCount() / 5) + " " + rateUnit + " (5 min), " +
         this.receivedBurstRateCurrent + " " + rateUnit + " (current).");
   }
 
