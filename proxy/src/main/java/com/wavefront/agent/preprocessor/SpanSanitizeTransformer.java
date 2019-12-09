@@ -75,6 +75,7 @@ public class SpanSanitizeTransformer implements Function<Span, Span> {
    * Sanitize a string so that every invalid character is replaced with a dash.
    */
   private String sanitize(String s) {
+    // TODO: sanitize using SDK instead
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < s.length(); i++) {
       char c = s.charAt(i);
@@ -92,6 +93,7 @@ public class SpanSanitizeTransformer implements Function<Span, Span> {
    * Remove leading/trailing whitespace and escape newlines.
    */
   private String sanitizeValue(String s) {
+    // TODO: sanitize using SDK instead
     return s.trim().replaceAll("\\n", "\\\\n");
   }
 }

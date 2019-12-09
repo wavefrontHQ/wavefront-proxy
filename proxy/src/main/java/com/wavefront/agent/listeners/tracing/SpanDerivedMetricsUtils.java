@@ -11,7 +11,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import wavefront.report.Annotation;
 
@@ -29,8 +28,6 @@ import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
  * @author Sushant Dewan (sushant@wavefront.com).
  */
 public class SpanDerivedMetricsUtils {
-
-  private final static Pattern WHITESPACE = Pattern.compile("[\\s]+");
 
   public final static String TRACING_DERIVED_PREFIX = "tracing.derived";
   private final static String INVOCATION_SUFFIX = ".invocation";
@@ -127,13 +124,22 @@ public class SpanDerivedMetricsUtils {
   }
 
   private static String sanitize(String s) {
-    final String whitespaceSanitized = WHITESPACE.matcher(s).replaceAll("-");
-    if (s.contains("\"") || s.contains("'")) {
-      // for single quotes, once we are double-quoted, single quotes can exist happily inside it.
-      return whitespaceSanitized.replaceAll("\"", "\\\\\"");
-    } else {
-      return whitespaceSanitized;
+    // TODO: sanitize using SDK instead
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < s.length(); i++) {
+      char cur = s.charAt(i);
+      boolean isLegal = true;
+      if (!(44 <= cur && cur <= 57) && !(65 <= cur && cur <= 90) && !(97 <= cur && cur <= 122) &&
+          cur != 95) {
+        if (!((i == 0 && cur == 0x2206) || (i == 0 && cur == 0x0394) || (i == 0 && cur == 126))) {
+          // first character can also be \u2206 (∆ - INCREMENT) or \u0394 (Δ - GREEK CAPITAL LETTER DELTA)
+          // or ~ tilda character for internal metrics
+          isLegal = false;
+        }
+      }
+      sb.append(isLegal ? cur : '-');
     }
+    return sb.toString();
   }
 
   /**
