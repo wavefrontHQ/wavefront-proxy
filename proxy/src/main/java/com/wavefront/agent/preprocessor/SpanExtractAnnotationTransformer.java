@@ -104,8 +104,10 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
     }
   }
 
+  @Nullable
   @Override
-  public Span apply(@Nonnull Span span) {
+  public Span apply(@Nullable Span span) {
+    if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     if (span.getAnnotations() == null) {
       span.setAnnotations(Lists.newArrayList());

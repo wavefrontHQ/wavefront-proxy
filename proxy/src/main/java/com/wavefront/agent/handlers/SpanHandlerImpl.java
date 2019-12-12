@@ -26,7 +26,7 @@ import static com.wavefront.data.Validation.validateSpan;
  *
  * @author vasily@wavefront.com
  */
-public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
+public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, String> {
 
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
@@ -48,7 +48,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
    */
   SpanHandlerImpl(final String handle,
                   final int blockedItemsPerBatch,
-                  final Collection<SenderTask> sendDataTasks,
+                  final Collection<SenderTask<String>> sendDataTasks,
                   @Nullable final Supplier<ValidationConfiguration> validationConfig,
                   final Logger blockedItemLogger) {
     super(ReportableEntityType.TRACE, handle, blockedItemsPerBatch, new SpanSerializer(),
@@ -60,7 +60,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span> {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   protected void reportInternal(Span span) {
     validateSpan(span, validationConfig.get());
 

@@ -37,9 +37,9 @@ import static org.easymock.EasyMock.verify;
 
 public class ZipkinPortUnificationHandlerTest {
   private final static String DEFAULT_SOURCE = "zipkin";
-  private ReportableEntityHandler<Span> mockTraceHandler =
+  private ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
+  private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private long startTime = System.currentTimeMillis();
 
@@ -125,8 +125,8 @@ public class ZipkinPortUnificationHandlerTest {
     EasyMock.replay(mockCtx);
   }
 
-  private void doMockLifecycle(ReportableEntityHandler<Span> mockTraceHandler,
-                               ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler) {
+  private void doMockLifecycle(ReportableEntityHandler<Span, String> mockTraceHandler,
+                               ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler) {
     // Reset mock
     reset(mockTraceHandler, mockTraceSpanLogsHandler);
 

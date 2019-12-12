@@ -23,7 +23,7 @@ import wavefront.report.SpanLogs;
  *
  * @author vasily@wavefront.com
  */
-public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLogs> {
+public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLogs, String> {
 
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
@@ -58,7 +58,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
    */
   SpanLogsHandlerImpl(final String handle,
                       final int blockedItemsPerBatch,
-                      final Collection<SenderTask> sendDataTasks,
+                      final Collection<SenderTask<String>> sendDataTasks,
                       final Logger blockedItemLogger) {
     super(ReportableEntityType.TRACE_SPAN_LOGS, handle, blockedItemsPerBatch, SPAN_LOGS_SERIALIZER,
         sendDataTasks, null, "logs/s", true, blockedItemLogger);
@@ -69,7 +69,6 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   protected void reportInternal(SpanLogs spanLogs) {
     String strSpanLogs = serializer.apply(spanLogs);
 
@@ -99,7 +98,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
     }
   }
 
-  abstract class IgnoreSchemaProperty
+  abstract static class IgnoreSchemaProperty
   {
     @JsonIgnore
     abstract void getSchema();

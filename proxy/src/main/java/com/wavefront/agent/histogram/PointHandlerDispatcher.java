@@ -35,12 +35,12 @@ public class PointHandlerDispatcher implements Runnable {
 
   private final Accumulator digests;
   private final AtomicLong digestsSize = new AtomicLong(0);
-  private final ReportableEntityHandler<ReportPoint> output;
+  private final ReportableEntityHandler<ReportPoint, String> output;
   private final TimeProvider clock;
   private final Integer dispatchLimit;
 
   public PointHandlerDispatcher(Accumulator digests,
-                                ReportableEntityHandler<ReportPoint> output,
+                                ReportableEntityHandler<ReportPoint, String> output,
                                 @Nullable Integer dispatchLimit,
                                 @Nullable Utils.Granularity granularity) {
     this(digests, output, System::currentTimeMillis, dispatchLimit, granularity);
@@ -48,7 +48,7 @@ public class PointHandlerDispatcher implements Runnable {
 
   @VisibleForTesting
   PointHandlerDispatcher(Accumulator digests,
-                         ReportableEntityHandler<ReportPoint> output,
+                         ReportableEntityHandler<ReportPoint, String> output,
                          TimeProvider clock,
                          @Nullable Integer dispatchLimit,
                          @Nullable Utils.Granularity granularity) {

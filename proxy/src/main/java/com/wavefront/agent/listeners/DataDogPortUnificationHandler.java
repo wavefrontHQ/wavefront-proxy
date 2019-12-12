@@ -66,13 +66,13 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Pattern INVALID_METRIC_CHARACTERS = Pattern.compile("[^-_\\.\\dA-Za-z]");
   private static final Pattern INVALID_TAG_CHARACTERS = Pattern.compile("[^-_:\\.\\\\/\\dA-Za-z]");
 
-  private volatile Histogram httpRequestSize;
+  private final Histogram httpRequestSize;
 
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and
    * retries, etc
    */
-  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
   private final boolean processSystemMetrics;
   private final boolean processServiceChecks;
   @Nullable
@@ -90,7 +90,6 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       maximumSize(100_000).
       build();
 
-  @SuppressWarnings("unchecked")
   public DataDogPortUnificationHandler(
       final String handle, final HealthCheckManager healthCheckManager,
       final ReportableEntityHandlerFactory handlerFactory, final boolean processSystemMetrics,
@@ -105,7 +104,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   @VisibleForTesting
   protected DataDogPortUnificationHandler(
       final String handle, final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandler<ReportPoint> pointHandler, final boolean processSystemMetrics,
+      final ReportableEntityHandler<ReportPoint, String> pointHandler, final boolean processSystemMetrics,
       final boolean processServiceChecks, @Nullable final HttpClient requestRelayClient,
       @Nullable final String requestRelayTarget,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
@@ -145,7 +144,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         incomingRequest.method() == POST) {
       Histogram requestRelayDuration = Metrics.newHistogram(new TaggedMetricName("listeners",
           "http-relay.duration-nanos", "port", handle));
-      Long startNanos = System.nanoTime();
+      long startNanos = System.nanoTime();
       try {
         String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + incomingRequest.uri();
         HttpPost outgoingRequest = new HttpPost(outgoingUrl);

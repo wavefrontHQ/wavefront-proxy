@@ -13,7 +13,7 @@ import java.io.IOException;
  *
  * @author vasily@wavefront.com.
  */
-public interface TaskQueue<T extends DataSubmissionTask> {
+public interface TaskQueue<T extends DataSubmissionTask<T>> {
 
   /**
    * Retrieve a task that is currently at the head of the queue.

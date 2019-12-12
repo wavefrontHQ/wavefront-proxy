@@ -52,7 +52,7 @@ public class PointHandlerDispatcherTest {
     blockedOut = new LinkedList<>();
     digestA = new AgentDigest(COMPRESSION, 100L);
     digestB = new AgentDigest(COMPRESSION, 1000L);
-    subject = new PointHandlerDispatcher(in, new ReportableEntityHandler<ReportPoint>() {
+    subject = new PointHandlerDispatcher(in, new ReportableEntityHandler<ReportPoint, String>() {
 
       @Override
       public void report(ReportPoint reportPoint) {

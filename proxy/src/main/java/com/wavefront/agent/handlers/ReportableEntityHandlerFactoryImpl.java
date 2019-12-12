@@ -23,7 +23,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private static final int SOURCE_TAG_API_NUM_THREADS = 2;
   private static final int EVENT_API_NUM_THREADS = 2;
 
-  protected final Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
+  protected final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
 
   private final SenderTaskFactory senderTaskFactory;
   private final int blockedItemsPerBatch;
@@ -58,9 +58,10 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
     this.blockedSpansLogger = blockedSpansLogger;
   }
 
+  @SuppressWarnings("unchecked")
   @Override
-  public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
-    return  handlers.computeIfAbsent(handlerKey, k -> {
+  public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
+    return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey, k -> {
       switch (handlerKey.getEntityType()) {
         case POINT:
           return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,

@@ -37,13 +37,13 @@ public class LineDelimitedDataSubmissionTask
   /**
    * Create a new instance.
    *
-   * @param api
-   * @param proxyId
-   * @param format
-   * @param entityType
-   * @param handle
-   * @param payload
-   * @param timeProvider
+   * @param api          API endpoint
+   * @param proxyId      Proxy identifier. Used to authenticate proxy with the API.
+   * @param format       Data format (passed as an argument to the API)
+   * @param entityType   Entity type handled
+   * @param handle       Handle (usually port number) of the pipeline where the data came from.
+   * @param payload      Data payload
+   * @param timeProvider Time provider (in millis)
    */
   public LineDelimitedDataSubmissionTask(ProxyV2API api, UUID proxyId, String format,
                                          ReportableEntityType entityType, String handle,

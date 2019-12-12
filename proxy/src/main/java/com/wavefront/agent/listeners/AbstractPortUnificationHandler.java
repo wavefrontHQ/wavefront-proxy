@@ -51,6 +51,7 @@ import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
  *
  * @author vasily@wavefront.com
  */
+@SuppressWarnings("SameReturnValue")
 @ChannelHandler.Sharable
 public abstract class AbstractPortUnificationHandler extends SimpleChannelInboundHandler<Object> {
   private static final Logger logger = Logger.getLogger(
@@ -59,7 +60,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
   protected final Supplier<Histogram> httpRequestHandleDuration;
   protected final Supplier<Counter> requestsDiscarded;
   protected final Supplier<Counter> pointsDiscarded;
-  protected final Supplier<Gauge> httpRequestsInFlightGauge;
+  protected final Supplier<Gauge<Long>> httpRequestsInFlightGauge;
   protected final AtomicLong httpRequestsInFlight = new AtomicLong();
 
   protected final String handle;
@@ -219,6 +220,11 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
     }
   }
 
+  /**
+   * Checks whether HTTP protocol is enabled on this port
+   *
+   * @return whether HTTP protocol is enabled
+   */
   protected boolean getHttpEnabled() {
     return true;
   }

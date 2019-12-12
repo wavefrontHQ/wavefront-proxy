@@ -1,5 +1,6 @@
 package com.wavefront.agent.queueing;
 
+import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
 
 import javax.validation.constraints.NotNull;
@@ -19,5 +20,6 @@ public interface TaskQueueFactory {
    *
    * @return task queue for the specified thread
    */
-  TaskQueue getTaskQueue(@NotNull HandlerKey handlerKey, int threadNum);
+  <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@NotNull HandlerKey handlerKey,
+                                                              int threadNum);
 }

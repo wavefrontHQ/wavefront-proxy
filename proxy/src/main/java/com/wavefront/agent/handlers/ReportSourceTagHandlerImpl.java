@@ -17,13 +17,14 @@ import wavefront.report.ReportSourceTag;
  * @author Suranjan Pramanik (suranjan@wavefront.com).
  * @author vasily@wavefront.com
  */
-public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<ReportSourceTag> {
+public class ReportSourceTagHandlerImpl
+    extends AbstractReportableEntityHandler<ReportSourceTag, ReportSourceTag> {
 
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
 
   public ReportSourceTagHandlerImpl(final String handle, final int blockedItemsPerBatch,
-                                    final Collection<SenderTask> senderTasks,
+                                    final Collection<SenderTask<ReportSourceTag>> senderTasks,
                                     final Logger blockedItemLogger) {
     super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch,
         new ReportSourceTagSerializer(), senderTasks, null, null,
@@ -31,7 +32,6 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   protected void reportInternal(ReportSourceTag sourceTag) {
     if (!annotationKeysAreValid(sourceTag)) {
       throw new IllegalArgumentException("WF-401: SourceTag annotation key has illegal characters.");
@@ -51,7 +51,7 @@ public class ReportSourceTagHandlerImpl extends AbstractReportableEntityHandler<
     return true;
   }
 
-  private SenderTask getTask(ReportSourceTag sourceTag) {
+  private SenderTask<ReportSourceTag> getTask(ReportSourceTag sourceTag) {
     // we need to make sure the we preserve the order of operations for each source
     return senderTasks.get(Math.abs(sourceTag.getSource().hashCode()) % senderTasks.size());
   }

@@ -68,8 +68,8 @@ public class LogsIngesterTest {
   private FilebeatIngester filebeatIngesterUnderTest;
   private RawLogsIngesterPortUnificationHandler rawLogsIngesterUnderTest;
   private ReportableEntityHandlerFactory mockFactory;
-  private ReportableEntityHandler<ReportPoint> mockPointHandler;
-  private ReportableEntityHandler<ReportPoint> mockHistogramHandler;
+  private ReportableEntityHandler<ReportPoint, String> mockPointHandler;
+  private ReportableEntityHandler<ReportPoint, String> mockHistogramHandler;
   private AtomicLong now = new AtomicLong((System.currentTimeMillis() / 60000) * 60000);
   private AtomicLong nanos = new AtomicLong(System.nanoTime());
   private ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
@@ -86,9 +86,9 @@ public class LogsIngesterTest {
     mockPointHandler = createMock(ReportableEntityHandler.class);
     mockHistogramHandler = createMock(ReportableEntityHandler.class);
     mockFactory = createMock(ReportableEntityHandlerFactory.class);
-    expect(mockFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, "logs-ingester"))).
+    expect((ReportableEntityHandler) mockFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, "logs-ingester"))).
         andReturn(mockPointHandler).anyTimes();
-    expect(mockFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, "logs-ingester"))).
+    expect((ReportableEntityHandler) mockFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, "logs-ingester"))).
         andReturn(mockHistogramHandler).anyTimes();
     replay(mockFactory);
     logsIngesterUnderTest = new LogsIngester(mockFactory, () -> logsIngestionConfig, null,
@@ -145,7 +145,7 @@ public class LogsIngesterTest {
     return getPoints(mockPointHandler, numPoints, lagPerLogLine, consumer, logLines);
   }
 
-  private List<ReportPoint> getPoints(ReportableEntityHandler<ReportPoint> handler, int numPoints, int lagPerLogLine,
+  private List<ReportPoint> getPoints(ReportableEntityHandler<ReportPoint, String> handler, int numPoints, int lagPerLogLine,
                                       Consumer <String> consumer, String... logLines)
       throws Exception {
     Capture<ReportPoint> reportPointCapture = Capture.newInstance(CaptureType.ALL);
@@ -176,7 +176,7 @@ public class LogsIngesterTest {
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "myPrefix" +
-                        ".plainCounter", ImmutableMap.of())));
+            ".plainCounter", ImmutableMap.of())));
   }
 
   @Test
@@ -191,7 +191,7 @@ public class LogsIngesterTest {
           filebeatIngesterUnderTest.onNewMessage(null, new Message(0, data));
         }, "plainCounter"),
         contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter", "parsed-logs",
-                ImmutableMap.of())));
+            ImmutableMap.of())));
   }
 
   @Test
@@ -246,7 +246,7 @@ public class LogsIngesterTest {
     assertThat(
         getPoints(1, 0, this::receiveRawLog, "plainCounter"),
         contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
-                ImmutableMap.of())));
+            ImmutableMap.of())));
   }
 
   @Test(expected = ConfigurationException.class)
@@ -265,7 +265,7 @@ public class LogsIngesterTest {
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
-                ImmutableMap.of())));
+            ImmutableMap.of())));
     // once the counter is reported, it is reset because now it is treated as delta counter.
     // hence we check that plainCounter has value 1L below.
     assertThat(
@@ -273,9 +273,9 @@ public class LogsIngesterTest {
         containsInAnyOrder(
             ImmutableList.of(
                 PointMatchers.matches(42L, MetricConstants.DELTA_PREFIX + "counterWithValue",
-                        ImmutableMap.of()),
+                    ImmutableMap.of()),
                 PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
-                        ImmutableMap.of()))));
+                    ImmutableMap.of()))));
     List<MetricMatcher> counters = Lists.newCopyOnWriteArrayList(logsIngestionConfig.counters);
     int oldSize = counters.size();
     counters.removeIf((metricMatcher -> metricMatcher.getPattern().equals("plainCounter")));
@@ -340,15 +340,15 @@ public class LogsIngesterTest {
         containsInAnyOrder(
             ImmutableList.of(
                 PointMatchers.matches(2L, MetricConstants.DELTA_PREFIX + "plainCounter",
-                        ImmutableMap.of()),
+                    ImmutableMap.of()),
                 PointMatchers.matches(5L, MetricConstants.DELTA_PREFIX + "counterWithValue",
-                        ImmutableMap.of()),
+                    ImmutableMap.of()),
                 PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "dynamic_foo_1",
-                        ImmutableMap.of()),
+                    ImmutableMap.of()),
                 PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "dynamic_foo_2",
-                        ImmutableMap.of()),
+                    ImmutableMap.of()),
                 PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "dynamic_baz_1",
-                        ImmutableMap.of()),
+                    ImmutableMap.of()),
                 PointMatchers.matches(42.0, "myGauge", ImmutableMap.of())))
     );
   }
@@ -400,11 +400,11 @@ public class LogsIngesterTest {
   /**
    * This test is not required, because delta counters have different naming convention than gauges
 
-  @Test(expected = ClassCastException.class)
-  public void testDuplicateMetric() throws Exception {
-    setup(parseConfigFile("dupe.yml"));
-    assertThat(getPoints(2, "plainCounter", "plainGauge 42"), notNullValue());
-  }
+   @Test(expected = ClassCastException.class)
+   public void testDuplicateMetric() throws Exception {
+   setup(parseConfigFile("dupe.yml"));
+   assertThat(getPoints(2, "plainCounter", "plainGauge 42"), notNullValue());
+   }
    */
 
   @Test
@@ -419,11 +419,11 @@ public class LogsIngesterTest {
         containsInAnyOrder(
             ImmutableList.of(
                 PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX + "foo.totalSeconds",
-                        ImmutableMap.of("theDC", "wavefront", "theAZ", "2a")),
+                    ImmutableMap.of("theDC", "wavefront", "theAZ", "2a")),
                 PointMatchers.matches(3L, MetricConstants.DELTA_PREFIX + "foo.totalSeconds",
-                        ImmutableMap.of("theDC", "wavefront", "theAZ", "2b")),
+                    ImmutableMap.of("theDC", "wavefront", "theAZ", "2b")),
                 PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX + "bar.totalSeconds",
-                        ImmutableMap.of("theDC", "wavefront", "theAZ", "2a"))
+                    ImmutableMap.of("theDC", "wavefront", "theAZ", "2a"))
             )
         ));
   }
@@ -440,13 +440,13 @@ public class LogsIngesterTest {
         containsInAnyOrder(
             ImmutableList.of(
                 PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX +
-                                "TagValue.foo.totalSeconds",
+                        "TagValue.foo.totalSeconds",
                     ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2a", "static", "value", "noMatch", "aa%{q}bb")),
                 PointMatchers.matches(3L, MetricConstants.DELTA_PREFIX +
-                                "TagValue.foo.totalSeconds",
+                        "TagValue.foo.totalSeconds",
                     ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2b", "static", "value", "noMatch", "aa%{q}bb")),
                 PointMatchers.matches(4L, MetricConstants.DELTA_PREFIX +
-                                "TagValue.bar.totalSeconds",
+                        "TagValue.bar.totalSeconds",
                     ImmutableMap.of("theDC", "wavefront", "theAZ", "az-2a", "static", "value", "noMatch", "aa%{q}bb"))
             )
         ));
@@ -458,7 +458,7 @@ public class LogsIngesterTest {
     assertThat(
         getPoints(1, "foo and 42"),
         contains(PointMatchers.matches(42L, MetricConstants.DELTA_PREFIX +
-                "customPatternCounter", ImmutableMap.of())));
+            "customPatternCounter", ImmutableMap.of())));
   }
 
   @Test
@@ -474,9 +474,9 @@ public class LogsIngesterTest {
         containsInAnyOrder(
             ImmutableList.of(
                 PointMatchers.matches(632L, MetricConstants.DELTA_PREFIX + "apacheBytes",
-                        ImmutableMap.of()),
+                    ImmutableMap.of()),
                 PointMatchers.matches(632L, MetricConstants.DELTA_PREFIX + "apacheBytes2",
-                        ImmutableMap.of()),
+                    ImmutableMap.of()),
                 PointMatchers.matches(200.0, "apacheStatus", ImmutableMap.of())
             )
         ));
@@ -488,13 +488,13 @@ public class LogsIngesterTest {
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
-                ImmutableMap.of())));
+            ImmutableMap.of())));
     // once the counter has been reported, the counter is reset because it is now treated as delta
     // counter. Hence we check that plainCounter has value 1 below.
     assertThat(
         getPoints(1, "plainCounter"),
         contains(PointMatchers.matches(1L, MetricConstants.DELTA_PREFIX + "plainCounter",
-                ImmutableMap.of())));
+            ImmutableMap.of())));
   }
 
   @Test

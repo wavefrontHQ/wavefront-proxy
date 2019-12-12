@@ -134,7 +134,7 @@ public class PreprocessorConfigManager {
     return this.preprocessors.computeIfAbsent(key, x -> new ReportableEntityPreprocessor());
   }
   private void requireArguments(@Nonnull Map<String, String> rule, String... arguments) {
-    if (rule == null)
+    if (rule.isEmpty())
       throw new IllegalArgumentException("Rule is empty");
     for (String argument : arguments) {
       if (rule.get(argument) == null || rule.get(argument).replaceAll("[^a-z0-9_-]", "").isEmpty())

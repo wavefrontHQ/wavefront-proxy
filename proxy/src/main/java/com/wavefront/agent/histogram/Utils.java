@@ -2,12 +2,10 @@ package com.wavefront.agent.histogram;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-
 import com.tdunning.math.stats.AgentDigest;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
-
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.core.io.IORuntimeException;
 import net.openhft.chronicle.core.util.ReadResolvable;
@@ -15,23 +13,19 @@ import net.openhft.chronicle.hash.serialization.BytesReader;
 import net.openhft.chronicle.hash.serialization.BytesWriter;
 import net.openhft.chronicle.wire.WireIn;
 import net.openhft.chronicle.wire.WireOut;
-
 import org.apache.commons.lang.time.DateUtils;
+import wavefront.report.ReportPoint;
 
-import java.io.UnsupportedEncodingException;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
+import java.util.Objects;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
-
-import wavefront.report.ReportPoint;
 
 /**
  * Helpers around histograms
@@ -127,7 +121,7 @@ public final class Utils {
     String[] annotations = null;
     if (point.getAnnotations() != null) {
       List<Map.Entry<String, String>> keyOrderedTags = point.getAnnotations().entrySet()
-          .stream().sorted(Comparator.comparing(Map.Entry::getKey)).collect(Collectors.toList());
+          .stream().sorted(Map.Entry.comparingByKey()).collect(Collectors.toList());
       annotations = new String[keyOrderedTags.size() * 2];
       for (int i = 0; i < keyOrderedTags.size(); ++i) {
         annotations[2 * i] = keyOrderedTags.get(i).getKey();
@@ -175,8 +169,8 @@ public final class Utils {
     @Nullable
     private String[] tags;
 
-
-    private HistogramKey(byte granularityOrdinal, int binId, @NotNull String metric, @Nullable String source, @Nullable String[] tags) {
+    private HistogramKey(byte granularityOrdinal, int binId, @Nonnull String metric,
+                         @Nullable String source, @Nullable String[] tags) {
       this.granularityOrdinal = granularityOrdinal;
       this.binId = binId;
       this.metric = metric;
@@ -231,7 +225,7 @@ public final class Utils {
       if (granularityOrdinal != histogramKey.granularityOrdinal) return false;
       if (binId != histogramKey.binId) return false;
       if (!metric.equals(histogramKey.metric)) return false;
-      if (source != null ? !source.equals(histogramKey.source) : histogramKey.source != null) return false;
+      if (!Objects.equals(source, histogramKey.source)) return false;
       return Arrays.equals(tags, histogramKey.tags);
 
     }
@@ -292,21 +286,18 @@ public final class Utils {
       return INSTANCE;
     }
 
+    @Nonnull
     @Override
     public HistogramKeyMarshaller readResolve() {
       return INSTANCE;
     }
 
     private static void writeString(Bytes out, String s) {
-      try {
-        Preconditions.checkArgument(s == null || s.length() <= Short.MAX_VALUE, "String too long (more than 32K)");
-        byte[] bytes = s == null ? new byte[0] : s.getBytes("UTF-8");
-        out.writeShort((short) bytes.length);
-        out.write(bytes);
-      } catch (UnsupportedEncodingException e) {
-        logger.log(Level.SEVERE, "Likely programmer error, String to Byte encoding failed: ", e);
-        e.printStackTrace();
-      }
+      Preconditions.checkArgument(s == null || s.length() <= Short.MAX_VALUE,
+          "String too long (more than 32K)");
+      byte[] bytes = s == null ? new byte[0] : s.getBytes(StandardCharsets.UTF_8);
+      out.writeShort((short) bytes.length);
+      out.write(bytes);
     }
 
     private static String readString(Bytes in) {
@@ -316,16 +307,16 @@ public final class Utils {
     }
 
     @Override
-    public void readMarshallable(@NotNull WireIn wire) throws IORuntimeException {
+    public void readMarshallable(@Nonnull WireIn wire) throws IORuntimeException {
       // ignore, stateless
     }
 
     @Override
-    public void writeMarshallable(@NotNull WireOut wire) {
+    public void writeMarshallable(@Nonnull WireOut wire) {
       // ignore, stateless
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public HistogramKey read(Bytes in, @Nullable HistogramKey using) {
       if (using == null) {
@@ -346,7 +337,7 @@ public final class Utils {
     }
 
     @Override
-    public void write(Bytes out, @NotNull HistogramKey toWrite) {
+    public void write(Bytes out, @Nonnull HistogramKey toWrite) {
       int accumulatorKeySize = 5;
       out.writeByte(toWrite.granularityOrdinal);
       out.writeInt(toWrite.binId);

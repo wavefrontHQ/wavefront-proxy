@@ -15,7 +15,7 @@ public abstract class Configuration {
 
   public abstract void verifyAndInit() throws ConfigurationException;
 
-  private static ObjectMapper objectMapper = new ObjectMapper();
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   @Override
   public String toString() {

@@ -38,8 +38,8 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
   /**
    * Execute this task
    *
-   * @param queueingLevel
-   * @param taskQueue
+   * @param queueingLevel  TODO
+   * @param taskQueue      TODO
    *
    * @return operation result
    */
@@ -51,7 +51,7 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
    *
    * @param taskQueue queue to use
    *
-   * @throws IOException
+   * @throws IOException throws if there was an error submitting data to the queue
    */
   void enqueue(TaskQueue<T> taskQueue) throws IOException;
 

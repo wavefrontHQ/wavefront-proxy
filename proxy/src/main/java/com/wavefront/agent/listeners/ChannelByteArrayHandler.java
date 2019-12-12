@@ -34,7 +34,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
   private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   private final ReportableEntityDecoder<byte[], ReportPoint> decoder;
-  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
 
   @Nullable
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
@@ -45,7 +45,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
    */
   public ChannelByteArrayHandler(
       final ReportableEntityDecoder<byte[], ReportPoint> decoder,
-      final ReportableEntityHandler<ReportPoint> pointHandler,
+      final ReportableEntityHandler<ReportPoint, String> pointHandler,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessorSupplier) {
     this.decoder = decoder;
     this.pointHandler = pointHandler;

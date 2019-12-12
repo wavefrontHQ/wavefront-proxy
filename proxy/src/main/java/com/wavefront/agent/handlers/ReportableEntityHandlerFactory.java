@@ -15,7 +15,7 @@ public interface ReportableEntityHandlerFactory {
    * @param handlerKey unique identifier for the handler.
    * @return new or existing handler.
    */
-  ReportableEntityHandler getHandler(HandlerKey handlerKey);
+  <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey);
 
   /**
    * Create, or return existing, {@link ReportableEntityHandler}.
@@ -24,7 +24,8 @@ public interface ReportableEntityHandlerFactory {
    * @param  handle     handle.
    * @return new or existing handler.
    */
-  default ReportableEntityHandler getHandler(ReportableEntityType entityType, String handle) {
+  default <T, U> ReportableEntityHandler<T, U> getHandler(
+      ReportableEntityType entityType, String handle) {
     return getHandler(HandlerKey.of(entityType, handle));
   }
 
@@ -34,5 +35,4 @@ public interface ReportableEntityHandlerFactory {
   default void shutdown() {
     // no-op
   }
-
 }

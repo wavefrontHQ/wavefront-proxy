@@ -1,9 +1,10 @@
 package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Function;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
+
+import javax.annotation.Nullable;
 
 /**
  * Sanitize spans (e.g., span source and tag keys) according to the same rules that are applied at
@@ -21,6 +22,7 @@ public class SpanSanitizeTransformer implements Function<Span, Span> {
   @Nullable
   @Override
   public Span apply(@Nullable Span span) {
+    if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     boolean ruleApplied = false;
     if (!charactersAreValid(span.getSource())) {

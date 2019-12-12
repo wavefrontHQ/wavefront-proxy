@@ -14,7 +14,7 @@ public class DelegatingReportableEntityHandlerFactoryImpl implements ReportableE
   }
 
   @Override
-  public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
+  public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
     return delegate.getHandler(handlerKey);
   }
 

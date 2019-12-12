@@ -3,12 +3,9 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
-import com.yammer.metrics.core.Counter;
-
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import wavefront.report.Annotation;
@@ -45,8 +42,10 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
     this.ruleMetrics = ruleMetrics;
   }
 
+  @Nullable
   @Override
-  public Span apply(@Nonnull Span span) {
+  public Span apply(@Nullable Span span) {
+    if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     if (span.getAnnotations() == null) {
       ruleMetrics.ruleEnd(startNanos);
@@ -58,9 +57,7 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
           filter(a -> a.getKey().equals(key) &&
           (compiledPattern == null || compiledPattern.matcher(a.getValue()).matches())).findFirst();
 
-      if (annotation.isPresent()) {
-        annotation.get().setKey(newKey);
-      }
+      annotation.ifPresent(value -> value.setKey(newKey));
       ruleMetrics.incrementRuleAppliedCounter();
       ruleMetrics.ruleEnd(startNanos);
       return span;

@@ -17,6 +17,7 @@ import com.yammer.metrics.core.MetricName;
 
 import org.apache.commons.lang.math.NumberUtils;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -38,7 +39,8 @@ import com.yammer.metrics.core.Gauge;
  *
  * @author djia@vmware.com
  */
-public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntityHandler<ReportPoint> {
+public class DeltaCounterAccumulationHandlerImpl
+    extends AbstractReportableEntityHandler<ReportPoint, String> {
 
     private static final Logger logger = Logger.getLogger(
         DeltaCounterAccumulationHandlerImpl.class.getCanonicalName());
@@ -68,7 +70,7 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
      */
     public DeltaCounterAccumulationHandlerImpl(final String handle,
                                                final int blockedItemsPerBatch,
-                                               final Collection<SenderTask> senderTasks,
+                                               final Collection<SenderTask<String>> senderTasks,
                                                @Nullable final Supplier<ValidationConfiguration> validationConfig,
                                                long deltaCountersAggregationIntervalSeconds,
                                                final Logger blockedItemLogger) {
@@ -113,7 +115,7 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
     }
 
     private void reportAggregatedDeltaValue(@Nullable HostMetricTagsPair hostMetricTagsPair,
-                                            @Nullable  AtomicDouble value) {
+                                            @Nullable AtomicDouble value) {
         this.reportedCounter.inc();
         if (value == null || hostMetricTagsPair == null) {return;}
         double reportedValue = value.getAndSet(0);
@@ -125,7 +127,6 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     void reportInternal(ReportPoint point) {
         if (validationConfig.get() == null) {
             validatePoint(point, handle, Validation.Level.NUMERIC_ONLY);
@@ -148,8 +149,8 @@ public class DeltaCounterAccumulationHandlerImpl extends AbstractReportableEntit
             receivedPointLag.update(Clock.now() - point.getTimestamp());
             HostMetricTagsPair hostMetricTagsPair = new HostMetricTagsPair(point.getHost(),
                 point.getMetric(), point.getAnnotations());
-            aggregatedDeltas.get(hostMetricTagsPair,
-                key -> new AtomicDouble(0)).getAndAdd(deltaValue);
+            Objects.requireNonNull(aggregatedDeltas.get(hostMetricTagsPair,
+                key -> new AtomicDouble(0))).getAndAdd(deltaValue);
             getReceivedCounter().inc();
         } else {
             reject(point, "Port is not configured to accept non-delta counter data!");

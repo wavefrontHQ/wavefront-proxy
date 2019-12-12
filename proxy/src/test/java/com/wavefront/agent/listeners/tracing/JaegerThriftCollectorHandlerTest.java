@@ -29,9 +29,9 @@ import static org.easymock.EasyMock.verify;
 
 public class JaegerThriftCollectorHandlerTest {
   private final static String DEFAULT_SOURCE = "jaeger";
-  private ReportableEntityHandler<Span> mockTraceHandler =
+  private ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs> mockTraceLogsHandler =
+  private ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private long startTime = System.currentTimeMillis();
 

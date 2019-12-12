@@ -1,14 +1,13 @@
 package com.wavefront.agent.channel;
 
-import org.apache.commons.lang3.StringUtils;
-
-import java.nio.charset.Charset;
-import java.util.List;
-import java.util.logging.Logger;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.LineBasedFrameDecoder;
+import org.apache.commons.lang3.StringUtils;
+
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * Line-delimited decoder that has the ability of detecting when clients have disconnected while leaving some
@@ -30,7 +29,7 @@ public class IncompleteLineDetectingLineBasedFrameDecoder extends LineBasedFrame
     super.decodeLast(ctx, in, out);
     int readableBytes = in.readableBytes();
     if (readableBytes > 0) {
-      String discardedData = in.readBytes(readableBytes).toString(Charset.forName("UTF-8"));
+      String discardedData = in.readBytes(readableBytes).toString(StandardCharsets.UTF_8);
       if (StringUtils.isNotBlank(discardedData)) {
         logger.warning("Client " + ChannelUtils.getRemoteName(ctx) +
             " disconnected, leaving unterminated string. Input (" + readableBytes +

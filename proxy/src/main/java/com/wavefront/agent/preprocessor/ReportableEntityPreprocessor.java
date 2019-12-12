@@ -42,7 +42,7 @@ public class ReportableEntityPreprocessor {
     return spanPreprocessor;
   }
 
-  public boolean preprocessPointLine(String pointLine, ReportableEntityHandler handler) {
+  public boolean preprocessPointLine(String pointLine, ReportableEntityHandler<?, ?> handler) {
     pointLine = pointLinePreprocessor.transform(pointLine);
     String[] messageHolder = new String[1];
 
@@ -51,7 +51,7 @@ public class ReportableEntityPreprocessor {
       if (messageHolder[0] != null) {
         handler.reject(pointLine, messageHolder[0]);
       } else {
-        handler.block(pointLine);
+        handler.block(null, pointLine);
       }
       return false;
     }

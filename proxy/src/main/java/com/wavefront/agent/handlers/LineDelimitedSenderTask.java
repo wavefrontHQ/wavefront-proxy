@@ -3,7 +3,7 @@ package com.wavefront.agent.handlers;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
-import com.wavefront.agent.data.DataSubmissionTask;
+import com.wavefront.agent.config.ProxyRuntimeSettings;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.TaskQueueingDirective;
 import com.wavefront.agent.data.TaskResult;
@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -40,8 +41,10 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
   /**
    * Warn about exceeding the rate limit no more than once per 10 seconds (per thread)
    */
+  @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter warningMessageRateLimiter = RateLimiter.create(0.1);
 
+  private final ProxyRuntimeSettings runtimeSettings;
   private final RecyclableRateLimiter pushRateLimiter;
   private final TaskSizeEstimator taskSizeEstimator;
   private final TaskQueue<LineDelimitedDataSubmissionTask> backlog;
@@ -49,10 +52,8 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
   private final Counter batchesSuccessful;
   private final Counter batchesFailed;
 
-  private final AtomicInteger pushFlushInterval;
-
-  private ProxyV2API proxyAPI;
-  private UUID proxyId;
+  private final ProxyV2API proxyAPI;
+  private final UUID proxyId;
 
 
   /**
@@ -64,26 +65,24 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
    * @param proxyId           proxy ID.
    * @param handle            handle (usually port number), that serves as an identifier for the
    *                          metrics pipeline.
+   * @param runtimeSettings   container for mutable proxy settings.
    * @param threadId          thread number.
    * @param pushRateLimiter   rate limiter to control outbound point rate.
-   * @param pushFlushInterval interval between flushes.
-   * @param itemsPerBatch     max points per flush.
-   * @param memoryBufferLimit max points in task's memory buffer before queueing.
-   * @param taskSizeEstimator
-   * @param backlog
+   * @param taskSizeEstimator optional task size estimator used to calculate approximate
+   *                          buffer fill rate.
+   * @param backlog           backing queue.
    */
   LineDelimitedSenderTask(ReportableEntityType entityType, String pushFormat,
                           ProxyV2API proxyAPI, UUID proxyId, String handle,
+                          final ProxyRuntimeSettings runtimeSettings,
                           int threadId, final RecyclableRateLimiter pushRateLimiter,
-                          final AtomicInteger pushFlushInterval,
-                          @Nullable final AtomicInteger itemsPerBatch,
-                          @Nullable final AtomicInteger memoryBufferLimit,
-                          TaskSizeEstimator taskSizeEstimator,
+                          @Nullable final TaskSizeEstimator taskSizeEstimator,
                           TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
-    super(entityType, handle, threadId, itemsPerBatch, memoryBufferLimit, pushRateLimiter);
+    super(entityType, handle, threadId, runtimeSettings.getItemsPerBatchForEntityType(entityType),
+        runtimeSettings.getMemoryBufferLimitForEntityType(entityType), pushRateLimiter);
+    this.runtimeSettings = runtimeSettings;
     this.pushFormat = pushFormat;
     this.proxyId = proxyId;
-    this.pushFlushInterval = pushFlushInterval;
     this.proxyAPI = proxyAPI;
     this.pushRateLimiter = pushRateLimiter;
     this.taskSizeEstimator = taskSizeEstimator;
@@ -92,12 +91,12 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
     this.batchesSuccessful = Metrics.newCounter(new MetricName("push." + handle, "", "batches"));
     this.batchesFailed = Metrics.newCounter(new MetricName("push." + handle, "", "batches-errors"));
 
-    this.scheduler.schedule(this, pushFlushInterval.get(), TimeUnit.MILLISECONDS);
+    this.scheduler.schedule(this, runtimeSettings.getPushFlushInterval(), TimeUnit.MILLISECONDS);
   }
 
   @Override
   public void run() {
-    long nextRunMillis = this.pushFlushInterval.get();
+    long nextRunMillis = runtimeSettings.getPushFlushInterval();
     isSending = true;
     try {
       List<String> current = createBatch();
@@ -108,7 +107,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
       if (pushRateLimiter == null || pushRateLimiter.tryAcquire(currentBatchSize)) {
         LineDelimitedDataSubmissionTask task = new LineDelimitedDataSubmissionTask(proxyAPI,
             proxyId, pushFormat, entityType, handle, current, null);
-        taskSizeEstimator.scheduleTaskForSizing(task);
+        if (taskSizeEstimator != null) taskSizeEstimator.scheduleTaskForSizing(task);
         TaskResult result = task.execute(TaskQueueingDirective.DEFAULT, backlog);
         this.attemptedCounter.inc(currentBatchSize);
         switch (result) {
@@ -129,6 +128,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
         // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
         // to introduce some degree of fairness.
         nextRunMillis = nextRunMillis / 4 + (int) (Math.random() * nextRunMillis / 4);
+        //noinspection UnstableApiUsage
         if (warningMessageRateLimiter.tryAcquire()) {
           logger.info("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter " +
               "active (pending " + entityType + ": " + datum.size() + "), will retry in " +

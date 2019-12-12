@@ -20,7 +20,7 @@ public enum TokenValidationMethod {
     return null;
   }
 
-  public class TokenValidationMethodConverter implements IStringConverter<TokenValidationMethod> {
+  public static class TokenValidationMethodConverter implements IStringConverter<TokenValidationMethod> {
     @Override
     public TokenValidationMethod convert(String value) {
       TokenValidationMethod convertedValue = TokenValidationMethod.fromString(value);

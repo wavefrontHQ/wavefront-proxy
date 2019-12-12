@@ -18,8 +18,8 @@ public interface SenderTaskFactory {
    * @param numThreads create a specified number of threads.
    * @return created tasks.
    */
-  Collection<SenderTask> createSenderTasks(@NotNull HandlerKey handlerKey,
-                                           final int numThreads);
+  <T> Collection<SenderTask<T>> createSenderTasks(@NotNull HandlerKey handlerKey,
+                                                  final int numThreads);
 
   /**
    * Shut down all tasks.

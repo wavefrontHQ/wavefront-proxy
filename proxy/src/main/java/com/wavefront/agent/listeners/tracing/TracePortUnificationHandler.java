@@ -52,8 +52,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
-  private final ReportableEntityHandler<Span> handler;
-  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
+  private final ReportableEntityHandler<Span, String> handler;
+  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   private final ReportableEntityDecoder<String, Span> decoder;
   private final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
@@ -61,12 +61,12 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private final boolean alwaysSampleErrors;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
+  @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
 
   private final Counter discardedSpans;
   private final Counter discardedSpansBySampler;
 
-  @SuppressWarnings("unchecked")
   public TracePortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
@@ -89,8 +89,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       final ReportableEntityDecoder<String, Span> traceDecoder,
       final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
-      final ReportableEntityHandler<Span> handler,
-      final ReportableEntityHandler<SpanLogs> spanLogsHandler, final Sampler sampler,
+      final ReportableEntityHandler<Span, String> handler,
+      final ReportableEntityHandler<SpanLogs, String> spanLogsHandler, final Sampler sampler,
       final boolean alwaysSampleErrors, final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {
     super(tokenAuthenticator, healthCheckManager, handle);
@@ -111,6 +111,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   @Override
   protected void processLine(final ChannelHandlerContext ctx, @Nonnull String message) {
     if (traceDisabled.get()) {
+      //noinspection UnstableApiUsage
       if (warningLoggerRateLimiter.tryAcquire()) {
         logger.warning("Ingested spans discarded because tracing feature is not enabled on the " +
             "server");
@@ -120,6 +121,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
     }
     if (message.startsWith("{") && message.endsWith("}")) { // span logs
       if (spanLogsDisabled.get()) {
+        //noinspection UnstableApiUsage
         if (warningLoggerRateLimiter.tryAcquire()) {
           logger.warning("Ingested span logs discarded because the feature is not enabled on the " +
               "server");

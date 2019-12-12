@@ -98,4 +98,21 @@ public abstract class PreprocessorUtil {
     }
     return input;
   }
+
+  /**
+   *
+   * @param input
+   * @return
+   */
+  public static String truncate(String input, int maxLength, LengthLimitActionType actionSubtype) {
+    switch (actionSubtype) {
+      case TRUNCATE:
+        return input.substring(0, maxLength);
+      case TRUNCATE_WITH_ELLIPSIS:
+        return input.substring(0, maxLength - 3) + "...";
+      default:
+        return input;
+    }
+  }
+
 }

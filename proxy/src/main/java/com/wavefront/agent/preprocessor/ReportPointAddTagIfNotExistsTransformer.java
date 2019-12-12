@@ -5,7 +5,6 @@ import com.google.common.collect.Maps;
 import com.yammer.metrics.core.Counter;
 
 import javax.annotation.Nullable;
-import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -29,11 +28,13 @@ public class ReportPointAddTagIfNotExistsTransformer extends ReportPointAddTagTr
     super(tag, value, ruleMetrics);
   }
 
+  @Nullable
   @Override
-  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nullable ReportPoint reportPoint) {
+    if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.<String, String>newHashMap());
+      reportPoint.setAnnotations(Maps.newHashMap());
     }
     if (reportPoint.getAnnotations().get(tag) == null) {
       reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));

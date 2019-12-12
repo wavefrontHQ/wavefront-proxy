@@ -27,7 +27,7 @@ import static com.wavefront.agent.Utils.lazySupplier;
 public class ProxyMemoryGuard {
   private static final Logger logger = Logger.getLogger(ProxyMemoryGuard.class.getCanonicalName());
 
-  private Supplier<Counter> drainBuffersCount = lazySupplier(() -> Metrics.newCounter(new TaggedMetricName("buffer",
+  private final Supplier<Counter> drainBuffersCount = lazySupplier(() -> Metrics.newCounter(new TaggedMetricName("buffer",
       "flush-count", "reason", "heapUsageThreshold")));
 
   /**

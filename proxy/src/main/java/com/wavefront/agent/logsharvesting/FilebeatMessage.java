@@ -20,8 +20,8 @@ import javax.annotation.Nullable;
  */
 public class FilebeatMessage implements LogsMessage {
   private final Message wrapped;
-  private final Map messageData;
-  private final Map beatData;
+  private final Map<String, Object> messageData;
+  private final Map<String, Object> beatData;
   private final String logLine;
   private Long timestampMillis = null;
 
@@ -29,8 +29,10 @@ public class FilebeatMessage implements LogsMessage {
   public FilebeatMessage(Message wrapped) throws MalformedMessageException {
     this.wrapped = wrapped;
     this.messageData = this.wrapped.getData();
-    this.beatData = (Map) this.messageData.getOrDefault("beat", ImmutableMap.of());
-    if (!this.messageData.containsKey("message")) throw new MalformedMessageException("No log line in message.");
+    this.beatData = (Map<String, Object>) this.messageData.getOrDefault("beat", ImmutableMap.of());
+    if (!this.messageData.containsKey("message")) {
+      throw new MalformedMessageException("No log line in message.");
+    }
     this.logLine = (String) this.messageData.get("message");
     if (getTimestampMillis() == null) throw new MalformedMessageException("No timestamp metadata.");
   }
@@ -63,13 +65,13 @@ public class FilebeatMessage implements LogsMessage {
     }
     // 7.0+: return host.name or agent.hostname
     if (this.messageData.containsKey("host")) {
-      Map hostData = (Map) this.messageData.get("host");
+      Map<?, ?> hostData = (Map<?, ?>) this.messageData.get("host");
       if (hostData.containsKey("name")) {
         return (String) hostData.get("name");
       }
     }
     if (this.messageData.containsKey("agent")) {
-      Map agentData = (Map) this.messageData.get("agent");
+      Map<?, ?> agentData = (Map<?, ?>) this.messageData.get("agent");
       if (agentData.containsKey("hostname")) {
         return (String) agentData.get("hostname");
       }

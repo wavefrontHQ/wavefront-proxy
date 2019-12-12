@@ -50,7 +50,7 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
    * The point handler that takes report metrics one data point at a time and handles batching
    * and retries, etc
    */
-  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
 
   /**
    * OpenTSDB decoder object
@@ -63,7 +63,6 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
   @Nullable
   private final Function<InetAddress, String> resolver;
 
-  @SuppressWarnings("unchecked")
   public OpenTSDBPortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,

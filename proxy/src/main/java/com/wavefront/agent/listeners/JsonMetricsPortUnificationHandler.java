@@ -25,9 +25,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
@@ -55,7 +55,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and retries, etc
    */
-  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
   private final String prefix;
   private final String defaultHost;
 
@@ -74,7 +74,6 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
    * @param defaultHost        default host name to use, if none specified.
    * @param preprocessor       preprocessor.
    */
-  @SuppressWarnings("unchecked")
   public JsonMetricsPortUnificationHandler(
       final String handle, final TokenAuthenticator authenticator,
       final HealthCheckManager healthCheckManager,
@@ -89,7 +88,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
   protected JsonMetricsPortUnificationHandler(
       final String handle, final TokenAuthenticator authenticator,
       final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandler<ReportPoint> pointHandler,
+      final ReportableEntityHandler<ReportPoint, String> pointHandler,
       final String prefix, final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(authenticator, healthCheckManager, handle);
@@ -105,7 +104,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
                                    final FullHttpRequest incomingRequest) {
     StringBuilder output = new StringBuilder();
     try {
-      URI uri = ChannelUtils.parseUri(ctx, incomingRequest);
+      URI uri = Objects.requireNonNull(ChannelUtils.parseUri(ctx, incomingRequest));
       Map<String, String> params = Arrays.stream(uri.getRawQuery().split("&")).
           map(x -> new Pair<>(x.split("=")[0].trim().toLowerCase(), x.split("=")[1])).
           collect(Collectors.toMap(k -> k._1, v -> v._2));
@@ -117,7 +116,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
           filter(x -> !STANDARD_PARAMS.contains(x.getKey()) && x.getValue().length() > 0).
           forEach(x -> tags.put(x.getKey(), x.getValue()));
       List<ReportPoint> points = new ArrayList<>();
-      Long timestamp;
+      long timestamp;
       if (params.get("d") == null) {
         timestamp = Clock.now();
       } else {

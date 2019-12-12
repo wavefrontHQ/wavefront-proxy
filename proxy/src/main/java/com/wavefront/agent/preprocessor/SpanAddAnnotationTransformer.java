@@ -4,7 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import wavefront.report.Annotation;
 import wavefront.report.Span;
@@ -31,8 +31,10 @@ public class SpanAddAnnotationTransformer implements Function<Span, Span> {
     this.ruleMetrics = ruleMetrics;
   }
 
+  @Nullable
   @Override
-  public Span apply(@Nonnull Span span) {
+  public Span apply(@Nullable Span span) {
+    if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     if (span.getAnnotations() == null) {
       span.setAnnotations(Lists.newArrayList());

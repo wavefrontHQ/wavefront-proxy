@@ -339,9 +339,10 @@ public class AccumulationCache implements Accumulator {
     cache.invalidateAll();
   }
 
-  public class AccumulationCacheMonitor implements Runnable {
+  public static class AccumulationCacheMonitor implements Runnable {
 
     private Counter failureCounter;
+    @SuppressWarnings("UnstableApiUsage")
     private final RateLimiter failureMessageLimiter = RateLimiter.create(1);
 
     @Override
@@ -350,6 +351,7 @@ public class AccumulationCache implements Accumulator {
         failureCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "failure"));
       }
       failureCounter.inc();
+      //noinspection UnstableApiUsage
       if (failureMessageLimiter.tryAcquire()) {
         logger.severe("CRITICAL: Histogram accumulator overflow - losing histogram data!!! " +
             "Accumulator size configuration setting is not appropriate for workload, please increase " +

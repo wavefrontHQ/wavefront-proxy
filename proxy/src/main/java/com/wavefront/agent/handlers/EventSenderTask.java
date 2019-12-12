@@ -2,6 +2,7 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
+import com.wavefront.agent.config.ProxyRuntimeSettings;
 import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.TaskQueueingDirective;
 import com.wavefront.agent.data.TaskResult;
@@ -39,13 +40,14 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
   /**
    * Warn about exceeding the rate limit no more than once per 10 seconds (per thread)
    */
+  @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter warningMessageRateLimiter = RateLimiter.create(0.1);
 
   private final Timer batchSendTime;
 
   private final EventAPI proxyAPI;
   private final UUID proxyId;
-  private final AtomicInteger pushFlushInterval;
+  private final ProxyRuntimeSettings runtimeSettings;
   private final RecyclableRateLimiter rateLimiter;
   private final Counter permitsGranted;
   private final Counter permitsDenied;
@@ -59,25 +61,23 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
    * @param proxyId           id of the proxy.
    * @param handle            handle (usually port number), that serves as an identifier for the metrics pipeline.
    * @param threadId          thread number.
+   * @param runtimeSettings   container for mutable proxy settings.
    * @param rateLimiter       rate limiter to control outbound point rate.
-   * @param pushFlushInterval interval between flushes.
-   * @param itemsPerBatch     max points per flush.
-   * @param memoryBufferLimit max points in task's memory buffer before queueing.
-   * @param backlog
+   * @param backlog           backing queue
    */
   EventSenderTask(EventAPI proxyAPI, UUID proxyId, String handle, int threadId,
-                  AtomicInteger pushFlushInterval,
+                  ProxyRuntimeSettings runtimeSettings,
                   @Nullable RecyclableRateLimiter rateLimiter,
-                  @Nullable AtomicInteger itemsPerBatch,
-                  @Nullable AtomicInteger memoryBufferLimit,
                   TaskQueue<EventDataSubmissionTask> backlog) {
-    super(ReportableEntityType.EVENT, handle, threadId, itemsPerBatch, memoryBufferLimit,
+    super(ReportableEntityType.EVENT, handle, threadId,
+        runtimeSettings.getItemsPerBatchForEntityType(ReportableEntityType.EVENT),
+        runtimeSettings.getMemoryBufferLimitForEntityType(ReportableEntityType.EVENT),
         rateLimiter);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
+    this.runtimeSettings = runtimeSettings;
     this.batchSendTime = Metrics.newTimer(new MetricName("api.events." + handle, "", "duration"),
         TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
-    this.pushFlushInterval = pushFlushInterval;
     this.rateLimiter = rateLimiter;
     this.backlog = backlog;
 
@@ -85,12 +85,12 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
     this.permitsDenied = Metrics.newCounter(new MetricName("limiter", "", "permits-denied"));
     this.permitsRetried = Metrics.newCounter(new MetricName("limiter", "", "permits-retried"));
 
-    this.scheduler.schedule(this, this.pushFlushInterval.get(), TimeUnit.MILLISECONDS);
+    this.scheduler.schedule(this, runtimeSettings.getPushFlushInterval(), TimeUnit.MILLISECONDS);
   }
 
   @Override
   public void run() {
-    long nextRunMillis = this.pushFlushInterval.get();
+    long nextRunMillis = runtimeSettings.getPushFlushInterval();
     isSending = true;
     try {
       List<ReportEvent> current = createBatch();
@@ -116,6 +116,7 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
       } else {
         permitsDenied.inc(batchSize);
         nextRunMillis = 250 + (int) (Math.random() * 250);
+        //noinspection UnstableApiUsage
         if (warningMessageRateLimiter.tryAcquire()) {
           logger.warning("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter active " +
               "(pending " + entityType + ": " + datum.size() + "), will retry");

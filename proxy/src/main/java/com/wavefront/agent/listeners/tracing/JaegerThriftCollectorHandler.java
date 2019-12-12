@@ -88,9 +88,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   public final static String FORCE_SAMPLED_KEY = "sampling.priority";
   private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
 
-  private final String handle;
-  private final ReportableEntityHandler<Span> spanHandler;
-  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
+  private final ReportableEntityHandler<Span, String> spanHandler;
+  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   @Nullable
   private final WavefrontSender wfSender;
   @Nullable
@@ -104,6 +103,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final Set<String> traceDerivedCustomTagKeys;
 
   // log every 5 seconds
+  @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
 
   private final Counter discardedTraces;
@@ -114,7 +114,6 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
-  @SuppressWarnings("unchecked")
   public JaegerThriftCollectorHandler(String handle,
                                       ReportableEntityHandlerFactory handlerFactory,
                                       @Nullable WavefrontSender wfSender,
@@ -132,8 +131,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   }
 
   public JaegerThriftCollectorHandler(String handle,
-                                      ReportableEntityHandler<Span> spanHandler,
-                                      ReportableEntityHandler<SpanLogs> spanLogsHandler,
+                                      ReportableEntityHandler<Span, String> spanHandler,
+                                      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
                                       @Nullable WavefrontSender wfSender,
                                       Supplier<Boolean> traceDisabled,
                                       Supplier<Boolean> spanLogsDisabled,
@@ -142,7 +141,6 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                                       boolean alwaysSampleErrors,
                                       @Nullable String traceJaegerApplicationName,
                                       Set<String> traceDerivedCustomTagKeys) {
-    this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
@@ -171,7 +169,9 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
     if (wfSender != null) {
       wfInternalReporter = new WavefrontInternalReporter.Builder().
-          prefixedWith(TRACING_DERIVED_PREFIX).withSource(DEFAULT_SOURCE).reportMinuteDistribution().
+          prefixedWith(TRACING_DERIVED_PREFIX).
+          withSource(DEFAULT_SOURCE).
+          reportMinuteDistribution().
           build(wfSender);
       // Start the reporter
       wfInternalReporter.start(1, TimeUnit.MINUTES);
@@ -234,6 +234,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       }
     }
     if (traceDisabled.get()) {
+      //noinspection UnstableApiUsage
       if (warningLoggerRateLimiter.tryAcquire()) {
         logger.info("Ingested spans discarded because tracing feature is not " +
             "enabled on the server");
@@ -252,8 +253,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
                            String sourceName,
                            String applicationName,
                            List<Annotation> processAnnotations) {
-    List<Annotation> annotations = new ArrayList<>();
-    annotations.addAll(processAnnotations);
+    List<Annotation> annotations = new ArrayList<>(processAnnotations);
     // serviceName is mandatory in Jaeger
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
     long parentSpanId = span.getParentSpanId();
@@ -270,7 +270,8 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
 
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
-        if (IGNORE_TAGS.contains(tag.getKey()) || (tag.vType == TagType.STRING && StringUtils.isBlank(tag.getVStr()))) {
+        if (IGNORE_TAGS.contains(tag.getKey()) || (tag.vType == TagType.STRING &&
+            StringUtils.isBlank(tag.getVStr()))) {
           continue;
         }
 
@@ -383,6 +384,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null && !span.getLogs().isEmpty()) {
         if (spanLogsDisabled.get()) {
+          //noinspection UnstableApiUsage
           if (warningLoggerRateLimiter.tryAcquire()) {
             logger.info("Span logs discarded because the feature is not " +
                 "enabled on the server!");
@@ -469,7 +471,7 @@ public class JaegerThriftCollectorHandler extends ThriftRequestHandler<Collector
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     scheduledExecutorService.shutdownNow();
   }
 }

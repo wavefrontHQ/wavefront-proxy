@@ -1,9 +1,9 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
-
 import com.wavefront.agent.SharedMetricsRegistry;
 import com.wavefront.api.agent.ValidationConfiguration;
+import com.wavefront.common.EvictingRingBuffer;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -12,11 +12,12 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 
+import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -27,9 +28,6 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
-
 /**
  * Base class for all {@link ReportableEntityHandler} implementations.
  *
@@ -37,15 +35,16 @@ import javax.validation.constraints.NotNull;
  *
  * @param <T> the type of input objects handled
  */
-abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHandler<T> {
+abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntityHandler<T, U> {
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
 
   private final Class<T> type;
 
-  private static SharedMetricsRegistry metricsRegistry = SharedMetricsRegistry.getInstance();
+  private static final SharedMetricsRegistry metricsRegistry = SharedMetricsRegistry.getInstance();
 
-  private ScheduledExecutorService statsExecutor = Executors.newSingleThreadScheduledExecutor();
+  private final ScheduledExecutorService statsExecutor = Executors.
+      newSingleThreadScheduledExecutor();
   private final Logger blockedItemsLogger;
 
   final ReportableEntityType entityType;
@@ -56,18 +55,19 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   private final Counter blockedCounter;
   private final Counter rejectedCounter;
 
+  @SuppressWarnings("UnstableApiUsage")
   final RateLimiter blockedItemsLimiter;
   final Function<T, String> serializer;
-  final List<SenderTask<T>> senderTasks;
+  final List<SenderTask<U>> senderTasks;
   final Supplier<ValidationConfiguration> validationConfig;
   final String rateUnit;
 
-  final ArrayList<Long> receivedStats = new ArrayList<>(Collections.nCopies(300, 0L));
+  final EvictingRingBuffer<Long> receivedStats = new EvictingRingBuffer<>(300, false, 0L);
   private final Histogram receivedBurstRateHistogram;
   private long receivedPrevious = 0;
   long receivedBurstRateCurrent = 0;
 
-  Function<Object, String> serializerFunc;
+  final Function<Object, String> serializerFunc;
 
   private final AtomicLong roundRobinCounter = new AtomicLong();
 
@@ -85,20 +85,21 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
    * @param validationConfig     supplier for the validation configuration.
    * @param rateUnit             optional display name for unit of measure. Default: rps
    * @param setupMetrics         Whether we should report counter metrics.
+   * @param blockedItemsLogger   a {@link Logger} instance for blocked items
    */
-  @SuppressWarnings("unchecked")
   AbstractReportableEntityHandler(ReportableEntityType entityType,
                                   @NotNull String handle,
                                   final int blockedItemsPerBatch,
                                   Function<T, String> serializer,
-                                  @Nullable Collection<SenderTask> senderTasks,
+                                  @Nullable Collection<SenderTask<U>> senderTasks,
                                   @Nullable Supplier<ValidationConfiguration> validationConfig,
                                   @Nullable String rateUnit,
                                   boolean setupMetrics,
-                                  final Logger blockedItemsLogger) {
+                                  @Nullable final Logger blockedItemsLogger) {
     this.entityType = entityType;
     this.blockedItemsLogger = blockedItemsLogger;
     this.handle = handle;
+    //noinspection UnstableApiUsage
     this.blockedItemsLimiter = blockedItemsPerBatch == 0 ? null :
         RateLimiter.create(blockedItemsPerBatch / 10d);
     this.serializer = serializer;
@@ -112,9 +113,7 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
     };
     this.senderTasks = new ArrayList<>();
     if (senderTasks != null) {
-      for (SenderTask task : senderTasks) {
-        this.senderTasks.add((SenderTask<T>) task);
-      }
+      this.senderTasks.addAll(senderTasks);
     }
     this.validationConfig = validationConfig == null ? () -> null : validationConfig;
     this.rateUnit = rateUnit == null ? "rps" : rateUnit;
@@ -143,8 +142,7 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
       this.receivedBurstRateCurrent = received - this.receivedPrevious;
       this.receivedBurstRateHistogram.update(this.receivedBurstRateCurrent);
       this.receivedPrevious = received;
-      receivedStats.remove(0);
-      receivedStats.add(this.receivedBurstRateCurrent);
+      receivedStats.append(this.receivedBurstRateCurrent);
     }, 1, 1, TimeUnit.SECONDS);
 
     if (setupMetrics) {
@@ -157,9 +155,10 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   public void reject(T item) {
     blockedCounter.inc();
     rejectedCounter.inc();
-    if (item != null) {
+    if (item != null && blockedItemsLogger != null) {
       blockedItemsLogger.warning(serializer.apply(item));
     }
+    //noinspection UnstableApiUsage
     if (blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
       logger.info("[" + handle + "] blocked input: [" + serializer.apply(item) + "]");
     }
@@ -169,9 +168,10 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   public void reject(@Nullable T item, @Nullable String message) {
     blockedCounter.inc();
     rejectedCounter.inc();
-    if (item != null) {
+    if (item != null && blockedItemsLogger != null) {
       blockedItemsLogger.warning(serializer.apply(item));
     }
+    //noinspection UnstableApiUsage
     if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
       logger.info("[" + handle + "] blocked input: [" + message + "]");
     }
@@ -181,7 +181,8 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   public void reject(@NotNull String line, @Nullable String message) {
     blockedCounter.inc();
     rejectedCounter.inc();
-    blockedItemsLogger.warning(line);
+    if (blockedItemsLogger != null) blockedItemsLogger.warning(line);
+    //noinspection UnstableApiUsage
     if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
       logger.info("[" + handle + "] blocked input: [" + message + "]");
     }
@@ -190,16 +191,18 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   @Override
   public void block(T item) {
     blockedCounter.inc();
-    blockedItemsLogger.info(serializer.apply(item));
+    if (blockedItemsLogger != null) {
+      blockedItemsLogger.info(serializer.apply(item));
+    }
   }
 
   @Override
   public void block(@Nullable T item, @Nullable String message) {
     blockedCounter.inc();
-    if (item != null) {
+    if (item != null && blockedItemsLogger != null) {
       blockedItemsLogger.info(serializer.apply(item));
     }
-    if (message != null) {
+    if (message != null && blockedItemsLogger != null) {
       blockedItemsLogger.info(message);
     }
   }
@@ -229,14 +232,14 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   }
 
   protected long getReceivedOneMinuteCount() {
-    return receivedStats.subList(240, 300).stream().mapToLong(i -> i).sum();
+    return receivedStats.toList().subList(240, 300).stream().mapToLong(i -> i).sum();
   }
 
   protected long getReceivedFiveMinuteCount() {
-    return receivedStats.stream().mapToLong(i -> i).sum();
+    return receivedStats.toList().stream().mapToLong(i -> i).sum();
   }
 
-  protected SenderTask getTask() {
+  protected SenderTask<U> getTask() {
     if (senderTasks == null) {
       throw new IllegalStateException("getTask() cannot be called on null senderTasks");
     }
@@ -258,8 +261,8 @@ abstract class AbstractReportableEntityHandler<T> implements ReportableEntityHan
   }
 
   private String getPrintableRate(long count) {
-    long rate = (count + 60 - 1) / 60;
-    return count > 0 && rate == 0 ? "<1" : String.valueOf(rate);
+    // round rate to the nearest integer, unless it's < 1
+    return count < 60 ? "<1" : String.valueOf((count + 30) / 60);
   }
 
   protected void printStats() {

@@ -26,6 +26,7 @@ import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.config.LogsIngestionConfig;
+import com.wavefront.agent.config.ProxyRuntimeSettings;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
@@ -89,6 +90,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.MissingResourceException;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.Timer;
@@ -110,6 +112,8 @@ import javax.annotation.Nullable;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.ClientRequestFilter;
+
+import static com.wavefront.agent.Utils.lazySupplier;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
@@ -179,13 +183,11 @@ public abstract class AbstractAgent {
   protected boolean purgeBuffer = false;
 
   @Parameter(names = {"--pushFlushInterval"}, description = "Milliseconds between flushes to . Defaults to 1000 ms")
-  protected AtomicInteger pushFlushInterval = new AtomicInteger(1000);
-  protected int pushFlushIntervalInitialValue = 1000; // store initially configured value to revert to
+  protected int pushFlushInterval = 1000;
 
   @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points in a single push flush. Defaults" +
       " to 40,000")
-  protected AtomicInteger pushFlushMaxPoints = new AtomicInteger(40000);
-  protected int pushFlushMaxPointsInitialValue = 40000; // store initially configured value to revert to
+  protected int pushFlushMaxPoints = 40000;
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
@@ -211,7 +213,7 @@ public abstract class AbstractAgent {
       " before spooling to disk. Defaults to 16 * pushFlushMaxPoints, minimum size: pushFlushMaxPoints. Setting this " +
       " value lower than default reduces memory usage but will force the proxy to spool to disk more frequently if " +
       " you have points arriving at the proxy in short bursts")
-  protected AtomicInteger pushMemoryBufferLimit = new AtomicInteger(16 * pushFlushMaxPoints.get());
+  protected int pushMemoryBufferLimit = 16 * pushFlushMaxPoints;
 
   @Parameter(names = {"--pushBlockedSamples"}, description = "Max number of blocked samples to print to log. Defaults" +
       " to 5.")
@@ -243,7 +245,7 @@ public abstract class AbstractAgent {
 
   @Parameter(names = {"--traceListenerMaxReceivedLength"}, description = "Maximum line length for received spans and" +
       " span logs (Default: 1MB)")
-  protected Integer traceListenerMaxReceivedLength = 1 * 1024 * 1024;
+  protected Integer traceListenerMaxReceivedLength = 1024 * 1024;
 
   @Parameter(names = {"--traceListenerHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
       " incoming HTTP requests on tracing ports (Default: 16MB)")
@@ -576,8 +578,7 @@ public abstract class AbstractAgent {
   protected boolean splitPushWhenRateLimited = false;
 
   @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
-  protected AtomicDouble retryBackoffBaseSeconds = new AtomicDouble(2.0);
-  protected double retryBackoffBaseSecondsInitialValue = 2.0d;
+  protected double retryBackoffBaseSeconds = 2.0d;
 
   @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
   protected String customSourceTagsProperty = "fqdn";
@@ -707,7 +708,7 @@ public abstract class AbstractAgent {
       "body to return with 'fail' health checks. Default: none")
   protected String httpHealthCheckFailResponseBody = null;
 
-  @Parameter(description = "")
+  @Parameter()
   protected List<String> unparsed_params;
 
   @Parameter(names = {"--deltaCountersAggregationIntervalSeconds"},
@@ -735,12 +736,18 @@ public abstract class AbstractAgent {
   protected PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
   protected ValidationConfiguration validationConfiguration = null;
   protected RecyclableRateLimiter pushRateLimiter = null;
+  protected ProxyRuntimeSettings runtimeSettings = new ProxyRuntimeSettings();
+  protected RecyclableRateLimiter histogramRateLimiter = null;
+  protected RecyclableRateLimiter sourceTagRateLimiter = RecyclableRateLimiterImpl.create(5, 10);
+  protected RecyclableRateLimiter spanRateLimiter = null;
+  protected RecyclableRateLimiter spanLogRateLimiter = null;
+  protected RecyclableRateLimiter eventRateLimiter = RecyclableRateLimiterImpl.create(5, 10);
   protected TokenAuthenticator tokenAuthenticator = TokenAuthenticatorBuilder.create().build();
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
   protected volatile boolean hadSuccessfulCheckin = false;
   protected volatile boolean retryCheckin = false;
-  protected AtomicBoolean shuttingDown = new AtomicBoolean(false);
+  protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);
   protected String serverEndpointUrl = null;
 
   /**
@@ -813,7 +820,9 @@ public abstract class AbstractAgent {
       }
 
       if (agentMetricsPointTags != null) {
-        pointTags.putAll(Splitter.on(",").withKeyValueSeparator("=").split(agentMetricsPointTags));
+        //noinspection UnstableApiUsage
+        pointTags.putAll(Splitter.on(",").trimResults().omitEmptyStrings().
+            withKeyValueSeparator("=").split(agentMetricsPointTags));
       }
       pointTags.put("processId", processId);
       synchronized (agentConfigurationExecutor) {
@@ -868,7 +877,7 @@ public abstract class AbstractAgent {
     }
   }
 
-  private void initPreprocessors() throws IOException {
+  private void initPreprocessors() {
     try {
       preprocessors = new PreprocessorConfigManager(preprocessorConfigFile);
     } catch (FileNotFoundException ex) {
@@ -1180,24 +1189,24 @@ public abstract class AbstractAgent {
           httpHealthCheckFailResponseBody);
 
       // track mutable settings
-      pushFlushIntervalInitialValue = Integer.parseInt(config.getRawProperty("pushFlushInterval",
-          String.valueOf(pushFlushInterval.get())).trim());
-      pushFlushInterval.set(pushFlushIntervalInitialValue);
-      config.reportSettingAsGauge(pushFlushInterval, "pushFlushInterval");
+      pushFlushInterval = Integer.parseInt(config.getRawProperty("pushFlushInterval",
+          String.valueOf(pushFlushInterval)).trim());
+      runtimeSettings.setPushFlushInterval(pushFlushInterval);
+      config.reportSettingAsGauge(runtimeSettings::getPushFlushInterval, "pushFlushInterval");
 
-      pushFlushMaxPointsInitialValue = Integer.parseInt(config.getRawProperty("pushFlushMaxPoints",
-          String.valueOf(pushFlushMaxPoints.get())).trim());
-      // clamp values for pushFlushMaxPoints between 1..50000
-      pushFlushMaxPointsInitialValue = Math.max(Math.min(pushFlushMaxPointsInitialValue,
-          MAX_SPLIT_BATCH_SIZE), 1);
-      pushFlushMaxPoints.set(pushFlushMaxPointsInitialValue);
-      config.reportSettingAsGauge(pushFlushMaxPoints, "pushFlushMaxPoints");
+      // clamp values for pushFlushMaxPoints between 1..MAX_SPLIT_BATCH_SIZE
+      pushFlushMaxPoints = Math.max(Math.min(Integer.parseInt(config.getRawProperty(
+          "pushFlushMaxPoints", String.valueOf(pushFlushMaxPoints)).trim()), MAX_SPLIT_BATCH_SIZE),
+          1);
+      runtimeSettings.setItemsPerBatch(pushFlushMaxPoints);
+      config.reportSettingAsGauge(runtimeSettings::getItemsPerBatch, "pushFlushMaxPoints");
 
-      retryBackoffBaseSecondsInitialValue = Double.parseDouble(config.
-          getRawProperty("retryBackoffBaseSeconds", String.valueOf(retryBackoffBaseSeconds.get())).
-          trim());
-      retryBackoffBaseSeconds.set(retryBackoffBaseSecondsInitialValue);
-      config.reportSettingAsGauge(retryBackoffBaseSeconds, "retryBackoffBaseSeconds");
+      retryBackoffBaseSeconds = Math.max(Math.min(Double.parseDouble(config.getRawProperty(
+          "retryBackoffBaseSeconds", String.valueOf(retryBackoffBaseSeconds)).trim()),
+          MAX_RETRY_BACKOFF_BASE_SECONDS), 1.0);
+      runtimeSettings.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
+      config.reportSettingAsGauge(runtimeSettings::getRetryBackoffBaseSeconds,
+          "retryBackoffBaseSeconds");
 
       /*
         default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of
@@ -1208,13 +1217,14 @@ public abstract class AbstractAgent {
        */
       int listeningPorts = Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().
           split(pushListenerPorts));
-      long calculatedMemoryBufferLimit = Math.max(Math.min(16 * pushFlushMaxPoints.get(),
+      long calculatedMemoryBufferLimit = Math.max(Math.min(16 * pushFlushMaxPoints,
           Runtime.getRuntime().maxMemory() / Math.max(0, listeningPorts) / 4 / flushThreads / 400),
-          pushFlushMaxPoints.get());
+          pushFlushMaxPoints);
       logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
-      pushMemoryBufferLimit.set(Integer.parseInt(config.getRawProperty("pushMemoryBufferLimit",
-              String.valueOf(pushMemoryBufferLimit.get())).trim()));
-      config.reportSettingAsGauge(pushMemoryBufferLimit, "pushMemoryBufferLimit");
+      pushMemoryBufferLimit = Math.max(Integer.parseInt(config.getRawProperty("pushMemoryBufferLimit",
+              String.valueOf(pushMemoryBufferLimit)).trim()), pushFlushMaxPoints);
+      runtimeSettings.setMemoryBufferLimit(pushMemoryBufferLimit);
+      config.reportSettingAsGauge(runtimeSettings::getMemoryBufferLimit, "pushMemoryBufferLimit");
       logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
 
       if (pushConfigFile != null) {
@@ -1237,22 +1247,26 @@ public abstract class AbstractAgent {
     }
 
     if (pushRateLimit > 0) {
-      pushRateLimiter = new RecyclableRateLimiterWithMetrics(
-          RecyclableRateLimiterImpl.create(pushRateLimit, pushRateLimitMaxBurstSeconds),
-          Metrics.newCounter(new TaggedMetricName("limiter", "permits-granted")),
-          Metrics.newCounter(new TaggedMetricName("limiter", "permits-denied")),
-          Metrics.newCounter(new TaggedMetricName("limiter", "permits-retried")));
+      pushRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
+          create(pushRateLimit, pushRateLimitMaxBurstSeconds), "limiter");
+    }
+    if (pushRateLimitHistograms > 0) {
+      histogramRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
+          create(pushRateLimitHistograms, pushRateLimitMaxBurstSeconds), "limiter.histograms");
+    }
+    if (pushRateLimitSpans > 0) {
+      spanRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
+          create(pushRateLimitSpans, pushRateLimitMaxBurstSeconds), "limiter.spans");
+    }
+    if (pushRateLimitSpanLogs > 0) {
+      spanLogRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
+          create(pushRateLimitSpanLogs, pushRateLimitMaxBurstSeconds), "limiter.spanLogs");
     }
 
     if (httpUserAgent == null) {
       httpUserAgent = "Wavefront-Proxy/" + props.getString("build.version");
     }
 
-    pushMemoryBufferLimit.set(Math.max(pushMemoryBufferLimit.get(), pushFlushMaxPoints.get()));
-
-    retryBackoffBaseSeconds.set(Math.max(
-        Math.min(retryBackoffBaseSeconds.get(), MAX_RETRY_BACKOFF_BASE_SECONDS),
-        1.0));
     //QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
 
     // create List of custom tags from the configuration string
@@ -1285,6 +1299,7 @@ public abstract class AbstractAgent {
       return "unknown";
     }
   }
+
   private void parseArguments(String[] args) {
     // read build information and print version.
     String versionStr = "Wavefront Proxy version " + getBuildVersion();
@@ -1317,7 +1332,7 @@ public abstract class AbstractAgent {
    *
    * @param args Command-line parameters passed on to JCommander to configure the daemon.
    */
-  public void start(String[] args) throws IOException {
+  public void start(String[] args) {
     try {
 
       /* ------------------------------------------------------------------------------------
@@ -1339,6 +1354,7 @@ public abstract class AbstractAgent {
       if (testLogs) {
         InteractiveLogsTester interactiveLogsTester = new InteractiveLogsTester(this::loadLogsIngestionConfig, prefix);
         logger.info("Reading line-by-line sample log messages from STDIN");
+        //noinspection StatementWithEmptyBody
         while (interactiveLogsTester.interactiveTest()) {
           // empty
         }
@@ -1562,7 +1578,8 @@ public abstract class AbstractAgent {
     if (agentIdFile.exists()) {
       if (agentIdFile.isFile()) {
         try {
-          agentId = UUID.fromString(Files.readFirstLine(agentIdFile, Charsets.UTF_8));
+          agentId = UUID.fromString(Objects.requireNonNull(Files.asCharSource(agentIdFile,
+              Charsets.UTF_8).readFirstLine()));
           logger.info("Proxy Id read from file: " + agentId);
         } catch (IllegalArgumentException ex) {
           logger.severe("Cannot read proxy id from " + agentIdFile +
@@ -1580,7 +1597,7 @@ public abstract class AbstractAgent {
       agentId = UUID.randomUUID();
       logger.info("Proxy Id created: " + agentId);
       try {
-        Files.write(agentId.toString(), agentIdFile, Charsets.UTF_8);
+        Files.asCharSink(agentIdFile, Charsets.UTF_8).write(agentId.toString());
       } catch (IOException e) {
         logger.severe("Cannot write to " + agentIdFile);
         System.exit(1);
@@ -1607,7 +1624,7 @@ public abstract class AbstractAgent {
    * @return Fetched configuration. {@code null} if the configuration is invalid.
    */
   private AgentConfiguration checkin() {
-    AgentConfiguration newConfig = null;
+    AgentConfiguration newConfig;
     JsonNode agentMetricsWorkingCopy;
     long agentMetricsCaptureTsWorkingCopy;
     synchronized(agentConfigurationExecutor) {
@@ -1759,9 +1776,6 @@ public abstract class AbstractAgent {
       logger.info("initial configuration is available, setting up proxy");
       processConfiguration(config);
     }
-  }
-
-  private static void safeLogInfo(String msg) {
   }
 
   public void shutdown() {

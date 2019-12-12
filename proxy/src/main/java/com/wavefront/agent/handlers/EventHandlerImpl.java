@@ -18,7 +18,7 @@ import wavefront.report.ReportEvent;
  *
  * @author vasily@wavefront.com
  */
-public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEvent> {
+public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEvent, ReportEvent> {
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
 
@@ -33,14 +33,13 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
   };
 
   public EventHandlerImpl(final String handle, final int blockedItemsPerBatch,
-                          final Collection<SenderTask> senderTasks,
+                          final Collection<SenderTask<ReportEvent>> senderTasks,
                           final Logger blockedEventsLogger) {
     super(ReportableEntityType.EVENT, handle, blockedItemsPerBatch,
         EVENT_SERIALIZER, senderTasks, null, null, true, blockedEventsLogger);
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   protected void reportInternal(ReportEvent event) {
     if (!annotationKeysAreValid(event)) {
       throw new IllegalArgumentException("WF-401: Event annotation key has illegal characters.");

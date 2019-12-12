@@ -3,6 +3,7 @@ package com.wavefront.agent.handlers;
 import com.wavefront.data.ReportableEntityType;
 
 import javax.validation.constraints.NotNull;
+import java.util.Objects;
 
 /**
  * An immutable unique identifier for a handler pipeline (type of objects handled + port/handle name)
@@ -37,7 +38,7 @@ public class HandlerKey {
     if (o == null || getClass() != o.getClass()) return false;
     HandlerKey that = (HandlerKey) o;
     if (!entityType.equals(that.entityType)) return false;
-    if (handle != null ? !handle.equals(that.handle) : that.handle != null) return false;
+    if (!Objects.equals(handle, that.handle)) return false;
     return true;
   }
 

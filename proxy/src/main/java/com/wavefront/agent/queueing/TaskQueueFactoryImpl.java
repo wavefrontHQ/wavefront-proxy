@@ -3,6 +3,7 @@ package com.wavefront.agent.queueing;
 import com.google.common.base.Preconditions;
 import com.squareup.tape2.ObjectQueue;
 import com.squareup.tape2.QueueFile;
+import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
 
 import javax.validation.constraints.NotNull;
@@ -22,7 +23,7 @@ import java.util.logging.Logger;
 public class TaskQueueFactoryImpl implements TaskQueueFactory {
   private static final Logger logger =
       Logger.getLogger(TaskQueueFactoryImpl.class.getCanonicalName());
-  private final Map<HandlerKey, Map<Integer, TaskQueue>> taskQueues = new HashMap<>();
+  private final Map<HandlerKey, Map<Integer, TaskQueue<?>>> taskQueues = new HashMap<>();
 
   private final String bufferFile;
   private final boolean purgeBuffer;
@@ -39,9 +40,12 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
     this.purgeBuffer = purgeBuffer;
   }
 
-  public TaskQueue getTaskQueue(@NotNull HandlerKey handlerKey, int threadNum) {
+  public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@NotNull HandlerKey handlerKey,
+                                                                     int threadNum) {
+    // TODO remove
     logger.info("*** getTaskQueue called for " + handlerKey + ", #" + threadNum);
-    return taskQueues.computeIfAbsent(handlerKey, x -> new TreeMap<>()).computeIfAbsent(threadNum,
+    //noinspection unchecked
+    return (TaskQueue<T>) taskQueues.computeIfAbsent(handlerKey, x -> new TreeMap<>()).computeIfAbsent(threadNum,
         x -> {
           String fileName = bufferFile + "." + handlerKey.getEntityType().toString() + "." +
               handlerKey.getHandle() + "." + threadNum;
@@ -74,7 +78,7 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
             }
             return new DataSubmissionQueue<>(ObjectQueue.create(
                 new QueueFile.Builder(buffer).build(),
-                new RetryTaskConverter<>(handlerKey.getHandle(), true)), // TODO: enable compression
+                new RetryTaskConverter<T>(handlerKey.getHandle(), true)), // TODO: enable compression
                 handlerKey.getHandle(), handlerKey.getEntityType());
           } catch (Exception e) {
             logger.severe("WF-006: Unable to open or create queue file " + spoolFileName);

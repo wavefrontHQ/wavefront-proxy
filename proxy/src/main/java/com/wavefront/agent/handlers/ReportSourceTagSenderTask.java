@@ -2,6 +2,7 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
+import com.wavefront.agent.config.ProxyRuntimeSettings;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.agent.data.TaskQueueingDirective;
 import com.wavefront.agent.data.TaskResult;
@@ -38,12 +39,13 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
   /**
    * Warn about exceeding the rate limit no more than once per 10 seconds (per thread)
    */
+  @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter warningMessageRateLimiter = RateLimiter.create(0.1);
 
   private final Timer batchSendTime;
 
   private final SourceTagAPI proxyAPI;
-  private final AtomicInteger pushFlushInterval;
+  private final ProxyRuntimeSettings runtimeSettings;
   private final RecyclableRateLimiter rateLimiter;
   private final TaskQueue<SourceTagSubmissionTask> backlog;
 
@@ -54,32 +56,31 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
    * @param handle            handle (usually port number), that serves as an identifier
    *                          for the metrics pipeline.
    * @param threadId          thread number.
+   * @param runtimeSettings   container for mutable proxy settings.
    * @param rateLimiter       rate limiter to control outbound point rate.
-   * @param pushFlushInterval interval between flushes.
-   * @param itemsPerBatch     max points per flush.
-   * @param memoryBufferLimit max points in task's memory buffer before queueing.
-   * @param backlog
+   * @param backlog           backing queue
    *
    */
-  ReportSourceTagSenderTask(
-      SourceTagAPI proxyAPI, String handle, int threadId, AtomicInteger pushFlushInterval,
-      @Nullable RecyclableRateLimiter rateLimiter, @Nullable AtomicInteger itemsPerBatch,
-      @Nullable AtomicInteger memoryBufferLimit,
-      TaskQueue<SourceTagSubmissionTask> backlog) {
-    super(ReportableEntityType.SOURCE_TAG, handle, threadId, itemsPerBatch, memoryBufferLimit,
+  ReportSourceTagSenderTask(SourceTagAPI proxyAPI, String handle, int threadId,
+                            ProxyRuntimeSettings runtimeSettings,
+                            @Nullable RecyclableRateLimiter rateLimiter,
+                            TaskQueue<SourceTagSubmissionTask> backlog) {
+    super(ReportableEntityType.SOURCE_TAG, handle, threadId,
+        runtimeSettings.getItemsPerBatchForEntityType(ReportableEntityType.SOURCE_TAG),
+        runtimeSettings.getMemoryBufferLimitForEntityType(ReportableEntityType.SOURCE_TAG),
         rateLimiter);
     this.proxyAPI = proxyAPI;
     this.batchSendTime = Metrics.newTimer(new MetricName("api.sourceTags." + handle, "",
             "duration"), TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
-    this.pushFlushInterval = pushFlushInterval;
+    this.runtimeSettings = runtimeSettings;
     this.rateLimiter = rateLimiter;
     this.backlog = backlog;
-    this.scheduler.schedule(this, this.pushFlushInterval.get(), TimeUnit.MILLISECONDS);
+    this.scheduler.schedule(this, runtimeSettings.getPushFlushInterval(), TimeUnit.MILLISECONDS);
   }
 
   @Override
   public void run() {
-    long nextRunMillis = this.pushFlushInterval.get();
+    long nextRunMillis = runtimeSettings.getPushFlushInterval();
     isSending = true;
     try {
       List<ReportSourceTag> current = createBatch();
@@ -123,6 +124,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
           // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
           // to introduce some degree of fairness.
           nextRunMillis = nextRunMillis / 4 + (int) (Math.random() * nextRunMillis / 4);
+          //noinspection UnstableApiUsage
           if (warningMessageRateLimiter.tryAcquire()) {
             logger.info("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter " +
                 "active (pending " + entityType + ": " + datum.size() + "), will retry in " +

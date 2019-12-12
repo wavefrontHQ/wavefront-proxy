@@ -76,12 +76,12 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
-  private final Map<ReportableEntityType, ReportableEntityDecoder> decoders;
+  private final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders;
   private final ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
-  private final ReportableEntityHandler<ReportPoint> wavefrontHandler;
-  private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<Span>> spanHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandlerSupplier;
+  private final ReportableEntityHandler<ReportPoint, String> wavefrontHandler;
+  private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<Span, String>> spanHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandlerSupplier;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final SharedGraphiteHostAnnotator annotator;
 
@@ -90,6 +90,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private final Supplier<Boolean> spanLogsDisabled;
 
   // log warnings every 5 seconds
+  @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
 
   private final Supplier<Counter> discardedHistograms;
@@ -113,7 +114,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   public RelayPortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
-      final Map<ReportableEntityType, ReportableEntityDecoder> decoders,
+      final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders,
       final ReportableEntityHandlerFactory handlerFactory,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       @Nullable final SharedGraphiteHostAnnotator annotator,
@@ -121,7 +122,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       final Supplier<Boolean> spanLogsDisabled) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.decoders = decoders;
-    this.wavefrontDecoder = decoders.get(ReportableEntityType.POINT);
+    this.wavefrontDecoder = (ReportableEntityDecoder<String, ReportPoint>) decoders.
+        get(ReportableEntityType.POINT);
     this.wavefrontHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT,
         handle));
     this.histogramHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
@@ -184,6 +186,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         if (histogramDisabled.get()) {
           discardedHistograms.get().inc(lines.length);
           status = HttpResponseStatus.FORBIDDEN;
+          //noinspection UnstableApiUsage
           if (warningLoggerRateLimiter.tryAcquire()) {
             logger.info(ERROR_HISTO_DISABLED);
           }
@@ -195,8 +198,9 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         AtomicBoolean hasSuccessfulPoints = new AtomicBoolean(false);
         try {
           //noinspection unchecked
-          ReportableEntityDecoder<String, ReportPoint> histogramDecoder = decoders.get(
-              ReportableEntityType.HISTOGRAM);
+          ReportableEntityDecoder<String, ReportPoint> histogramDecoder =
+              (ReportableEntityDecoder<String, ReportPoint>) decoders.
+                  get(ReportableEntityType.HISTOGRAM);
           Arrays.stream(lines).forEach(line -> {
             String message = line.trim();
             if (message.isEmpty()) return;
@@ -209,6 +213,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
               case HISTOGRAM:
                 if (histogramDisabled.get()) {
                   discardedHistograms.get().inc(lines.length);
+                  //noinspection UnstableApiUsage
                   if (warningLoggerRateLimiter.tryAcquire()) {
                     logger.info(ERROR_HISTO_DISABLED);
                   }
@@ -240,6 +245,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         if (traceDisabled.get()) {
           discardedSpans.get().inc(lines.length);
           status = HttpResponseStatus.FORBIDDEN;
+          //noinspection UnstableApiUsage
           if (warningLoggerRateLimiter.tryAcquire()) {
             logger.info(ERROR_SPAN_DISABLED);
           }
@@ -248,9 +254,10 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         }
         List<Span> spans = Lists.newArrayListWithCapacity(lines.length);
         //noinspection unchecked
-        ReportableEntityDecoder<String, Span> spanDecoder = decoders.get(
-            ReportableEntityType.TRACE);
-        ReportableEntityHandler<Span> spanHandler = spanHandlerSupplier.get();
+        ReportableEntityDecoder<String, Span> spanDecoder =
+            (ReportableEntityDecoder<String, Span>) decoders.
+                get(ReportableEntityType.TRACE);
+        ReportableEntityHandler<Span, String> spanHandler = spanHandlerSupplier.get();
         Arrays.stream(lines).forEach(line -> {
           try {
             spanDecoder.decode(line, spans, "dummy");
@@ -265,6 +272,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         if (spanLogsDisabled.get()) {
           discardedSpanLogs.get().inc(lines.length);
           status = HttpResponseStatus.FORBIDDEN;
+          //noinspection UnstableApiUsage
           if (warningLoggerRateLimiter.tryAcquire()) {
             logger.info(ERROR_SPANLOGS_DISABLED);
           }
@@ -273,9 +281,10 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         }
         List<SpanLogs> spanLogs = Lists.newArrayListWithCapacity(lines.length);
         //noinspection unchecked
-        ReportableEntityDecoder<JsonNode, SpanLogs> spanLogDecoder = decoders.get(
-            ReportableEntityType.TRACE_SPAN_LOGS);
-        ReportableEntityHandler<SpanLogs> spanLogsHandler = spanLogsHandlerSupplier.get();
+        ReportableEntityDecoder<JsonNode, SpanLogs> spanLogDecoder =
+            (ReportableEntityDecoder<JsonNode, SpanLogs>) decoders.
+                get(ReportableEntityType.TRACE_SPAN_LOGS);
+        ReportableEntityHandler<SpanLogs, String> spanLogsHandler = spanLogsHandlerSupplier.get();
         Arrays.stream(lines).forEach(line -> {
           try {
             spanLogDecoder.decode(JSON_PARSER.readTree(line), spanLogs, "dummy");

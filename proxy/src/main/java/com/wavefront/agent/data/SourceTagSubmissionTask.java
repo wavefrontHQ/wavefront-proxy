@@ -2,7 +2,6 @@ package com.wavefront.agent.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
@@ -11,11 +10,7 @@ import wavefront.report.ReportSourceTag;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
-import javax.xml.transform.Source;
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_ADD;

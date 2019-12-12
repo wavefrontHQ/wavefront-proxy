@@ -198,7 +198,7 @@ public class MetricMatcher extends Configuration {
   }
 
   public boolean hasCapture(String label) {
-    return grok().getNamedRegexCollection().values().contains(label);
+    return grok().getNamedRegexCollection().containsValue(label);
   }
 
   @Override

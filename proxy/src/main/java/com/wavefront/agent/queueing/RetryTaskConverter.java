@@ -26,7 +26,8 @@ import javax.annotation.Nullable;
  *
  * @author vasily@wavefront.com
  */
-public class RetryTaskConverter<T extends DataSubmissionTask> implements ObjectQueue.Converter<T> {
+public class RetryTaskConverter<T extends DataSubmissionTask<T>>
+    implements ObjectQueue.Converter<T> {
   private static final Logger logger = Logger.getLogger(
       RetryTaskConverter.class.getCanonicalName());
 

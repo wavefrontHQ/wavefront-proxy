@@ -41,7 +41,7 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger = Logger.getLogger(
       AdminPortUnificationHandler.class.getCanonicalName());
 
-  private static Pattern PATH = Pattern.compile("/(enable|disable|status)/?(\\d*)/?");
+  private static final Pattern PATH = Pattern.compile("/(enable|disable|status)/?(\\d*)/?");
 
   private final String remoteIpWhitelistRegex;
 

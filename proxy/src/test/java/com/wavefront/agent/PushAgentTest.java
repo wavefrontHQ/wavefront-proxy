@@ -78,21 +78,22 @@ public class PushAgentTest {
   private int tracePort;
   private int ddPort;
   private int deltaPort;
-  private ReportableEntityHandler<ReportPoint> mockPointHandler =
+  private ReportableEntityHandler<ReportPoint, String> mockPointHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
-  private ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler =
+  private ReportableEntityHandler<ReportSourceTag, ReportSourceTag> mockSourceTagHandler =
       MockReportableEntityHandlerFactory.getMockSourceTagHandler();
-  private ReportableEntityHandler<ReportPoint> mockHistogramHandler =
+  private ReportableEntityHandler<ReportPoint, String> mockHistogramHandler =
       MockReportableEntityHandlerFactory.getMockHistogramHandler();
-  private ReportableEntityHandler<Span> mockTraceHandler =
+  private ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
+  private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
-  private SenderTask mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
-  private Collection<SenderTask> mockSenderTasks = new ArrayList<>(Arrays.asList(mockSenderTask));
+  private SenderTask<String> mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
+  private Collection<SenderTask<String>> mockSenderTasks = ImmutableList.of(mockSenderTask);
   private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
+    @SuppressWarnings("unchecked")
     @Override
-    public Collection<SenderTask> createSenderTasks(HandlerKey handlerKey, int numThreads) {
+    public Collection<SenderTask<String>> createSenderTasks(HandlerKey handlerKey, int numThreads) {
       return mockSenderTasks;
     }
 

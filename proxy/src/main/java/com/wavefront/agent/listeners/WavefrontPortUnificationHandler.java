@@ -53,10 +53,10 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   private final ReportableEntityDecoder<String, ReportSourceTag> sourceTagDecoder;
   private final ReportableEntityDecoder<String, ReportEvent> eventDecoder;
   private final ReportableEntityDecoder<String, ReportPoint> histogramDecoder;
-  private final ReportableEntityHandler<ReportPoint> wavefrontHandler;
-  private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<ReportSourceTag>> sourceTagHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<ReportEvent>> eventHandlerSupplier;
+  private final ReportableEntityHandler<ReportPoint, String> wavefrontHandler;
+  private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportSourceTag, ReportSourceTag>> sourceTagHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportEvent, ReportEvent>> eventHandlerSupplier;
 
   /**
    * Create new instance with lazy initialization for handlers.
@@ -73,18 +73,22 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   public WavefrontPortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
-      final Map<ReportableEntityType, ReportableEntityDecoder> decoders,
+      final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders,
       final ReportableEntityHandlerFactory handlerFactory,
       @Nullable final SharedGraphiteHostAnnotator annotator,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(tokenAuthenticator, healthCheckManager, handle);
-    this.wavefrontDecoder = decoders.get(ReportableEntityType.POINT);
+    this.wavefrontDecoder = (ReportableEntityDecoder<String, ReportPoint>) decoders.
+        get(ReportableEntityType.POINT);
     this.annotator = annotator;
     this.preprocessorSupplier = preprocessor;
     this.wavefrontHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
-    this.histogramDecoder = decoders.get(ReportableEntityType.HISTOGRAM);
-    this.sourceTagDecoder = decoders.get(ReportableEntityType.SOURCE_TAG);
-    this.eventDecoder = decoders.get(ReportableEntityType.EVENT);
+    this.histogramDecoder = (ReportableEntityDecoder<String, ReportPoint>) decoders.
+        get(ReportableEntityType.HISTOGRAM);
+    this.sourceTagDecoder = (ReportableEntityDecoder<String, ReportSourceTag>) decoders.
+        get(ReportableEntityType.SOURCE_TAG);
+    this.eventDecoder = (ReportableEntityDecoder<String, ReportEvent>) decoders.
+        get(ReportableEntityType.EVENT);
     this.histogramHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
         HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)));
     this.sourceTagHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
@@ -99,13 +103,13 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
    * @param message  line being processed
    */
   @Override
-  @SuppressWarnings("unchecked")
   protected void processLine(final ChannelHandlerContext ctx, String message) {
     if (message.isEmpty()) return;
     DataFormat dataFormat = DataFormat.autodetect(message);
     switch (dataFormat) {
       case SOURCE_TAG:
-        ReportableEntityHandler<ReportSourceTag> sourceTagHandler = sourceTagHandlerSupplier.get();
+        ReportableEntityHandler<ReportSourceTag, ReportSourceTag> sourceTagHandler =
+            sourceTagHandlerSupplier.get();
         if (sourceTagHandler == null || sourceTagDecoder == null) {
           wavefrontHandler.reject(message, "Port is not configured to accept " +
               "sourceTag-formatted data!");
@@ -123,7 +127,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         }
         return;
       case EVENT:
-        ReportableEntityHandler<ReportEvent> eventHandler = eventHandlerSupplier.get();
+        ReportableEntityHandler<ReportEvent, ReportEvent> eventHandler = eventHandlerSupplier.get();
         if (eventHandler == null || eventDecoder == null) {
           wavefrontHandler.reject(message, "Port is not configured to accept event data!");
           return;
@@ -140,7 +144,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         }
         return;
       case HISTOGRAM:
-        ReportableEntityHandler<ReportPoint> histogramHandler = histogramHandlerSupplier.get();
+        ReportableEntityHandler<ReportPoint, String> histogramHandler = histogramHandlerSupplier.get();
         if (histogramHandler == null || histogramDecoder == null) {
           wavefrontHandler.reject(message, "Port is not configured to accept " +
               "histogram-formatted data!");
@@ -159,7 +163,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
 
   static void preprocessAndHandlePoint(
       String message, ReportableEntityDecoder<String, ReportPoint> decoder,
-      ReportableEntityHandler<ReportPoint> handler,
+      ReportableEntityHandler<ReportPoint, String> handler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       @Nullable ChannelHandlerContext ctx) {
     ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?

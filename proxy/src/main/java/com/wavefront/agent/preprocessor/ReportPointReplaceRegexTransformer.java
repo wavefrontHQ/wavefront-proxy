@@ -79,8 +79,10 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     return content;
   }
 
+  @Nullable
   @Override
-  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nullable ReportPoint reportPoint) {
+    if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":

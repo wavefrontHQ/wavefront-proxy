@@ -8,7 +8,6 @@ import com.yammer.metrics.core.Counter;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
-import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -46,8 +45,10 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
     this.ruleMetrics = ruleMetrics;
   }
 
+  @Nullable
   @Override
-  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nullable ReportPoint reportPoint) {
+    if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     if (reportPoint.getAnnotations() == null) {
       ruleMetrics.ruleEnd(startNanos);

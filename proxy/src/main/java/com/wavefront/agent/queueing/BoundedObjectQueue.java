@@ -33,7 +33,7 @@ public class BoundedObjectQueue<T> extends ObjectQueue<T> {
       return Integer.MAX_VALUE;
     }
     int available = maxCapacity - delegate.size();
-    return available <= 0 ? 0 : available;
+    return Math.max(available, 0);
   }
 
   public boolean isFull() {

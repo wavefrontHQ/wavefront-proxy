@@ -136,8 +136,8 @@ public class Preprocessor<T> {
   @Override
   public boolean equals(Object obj) {
     if (this == obj) return true;
-    if (obj == null || getClass() != obj.getClass()) return false;
-    Preprocessor that = (Preprocessor) obj;
+    if (!(obj instanceof Preprocessor<?>)) return false;
+    Preprocessor<?> that = (Preprocessor<?>) obj;
     return this.transformers.equals(that.transformers) &&
         this.filters.equals(that.filters);
   }

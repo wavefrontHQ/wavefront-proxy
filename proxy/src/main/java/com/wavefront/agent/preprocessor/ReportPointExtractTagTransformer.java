@@ -72,7 +72,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
       return false;
     }
     if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.<String, String>newHashMap());
+      reportPoint.setAnnotations(Maps.newHashMap());
     }
     String value = patternMatcher.replaceAll(PreprocessorUtil.expandPlaceholders(patternReplace, reportPoint));
     if (!value.isEmpty()) {
@@ -107,11 +107,13 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
     }
   }
 
+  @Nullable
   @Override
-  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nullable ReportPoint reportPoint) {
+    if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.<String, String>newHashMap());
+      reportPoint.setAnnotations(Maps.newHashMap());
     }
     internalApply(reportPoint);
     ruleMetrics.ruleEnd(startNanos);

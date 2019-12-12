@@ -2,7 +2,6 @@ package com.wavefront.agent.queueing;
 
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.TaskInjector;
 import com.wavefront.agent.data.TaskQueueingDirective;
@@ -15,6 +14,8 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.UNLIMITED;
+
 /**
  * A queue processor thread
  *
@@ -24,9 +25,6 @@ import java.util.logging.Logger;
  */
 public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable {
   protected static final Logger logger = Logger.getLogger(QueueProcessor.class.getCanonicalName());
-
-  private static final RecyclableRateLimiter INFINITE_RATELIMITER =
-      RecyclableRateLimiterImpl.create(10_000_000, 10);
 
   protected final String handle;
   protected final TaskQueue<T> taskQueue;
@@ -43,15 +41,15 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   /**
    *
    *
-   * @param handle
-   * @param taskQueue
-   * @param executorService
-   * @param taskInjector
-   * @param splitPushWhenRateLimited
-   * @param minSplitSize
-   * @param flushInterval
-   * @param retryBackoffBaseSeconds
-   * @param rateLimiter
+   * @param handle                   pipeline handle
+   * @param taskQueue                backing queue
+   * @param executorService          executor service used to run tasks
+   * @param taskInjector             injects members into task objects after deserialization
+   * @param splitPushWhenRateLimited whether to split batches and retry immediately on pushback
+   * @param minSplitSize             don't split batches if at or below this threshold
+   * @param flushInterval            flush frequency
+   * @param retryBackoffBaseSeconds  base for exponential back-off
+   * @param rateLimiter              optional rate limiter
    */
   public QueueProcessor(final String handle,
                         final TaskQueue<T> taskQueue,
@@ -70,7 +68,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
     this.minSplitSize = minSplitSize;
     this.flushInterval = flushInterval;
     this.retryBackoffBaseSeconds = retryBackoffBaseSeconds;
-    this.rateLimiter = rateLimiter == null ? INFINITE_RATELIMITER : rateLimiter;
+    this.rateLimiter = rateLimiter == null ? UNLIMITED : rateLimiter;
   }
 
   @Override
@@ -104,7 +102,6 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         } catch (Exception ex) {
           rateLimiter.recyclePermits(taskSize);
           failures++;
-          //noinspection ThrowableResultOfMethodCallIgnored
           if (Throwables.getRootCause(ex) instanceof QueuedPushTooLargeException) {
             // this should split this task, remove it from the queue, and not try more tasks
             logger.warning("Wavefront server rejected push with HTTP 413: request too large, " +
@@ -113,8 +110,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
               taskQueue.add(smallerTask);
             }
             break;
-          } else //noinspection ThrowableResultOfMethodCallIgnored
-            if (Throwables.getRootCause(ex) instanceof RejectedExecutionException) {
+          } else if (Throwables.getRootCause(ex) instanceof RejectedExecutionException) {
               // this should either split and remove the original task or keep it at front
               // it also should not try any more tasks
               logger.warning("Wavefront server rejected push " +

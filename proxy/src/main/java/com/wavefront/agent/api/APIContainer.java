@@ -5,6 +5,7 @@ import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.SourceTagAPI;
 
 /**
+ * Container for all Wavefront back-end API objects (proxy, source tag, event)
  *
  * @author vasily@wavefront.com
  */
@@ -13,9 +14,11 @@ public class APIContainer {
   private SourceTagAPI sourceTagAPI;
   private EventAPI eventAPI;
 
-  public APIContainer() {
-  }
-
+  /**
+   * @param proxyV2API   API endpoint for line-delimited payloads
+   * @param sourceTagAPI API endpoint for source tags
+   * @param eventAPI     API endpoint for events
+   */
   public APIContainer(ProxyV2API proxyV2API, SourceTagAPI sourceTagAPI, EventAPI eventAPI) {
     this.proxyV2API = proxyV2API;
     this.sourceTagAPI = sourceTagAPI;

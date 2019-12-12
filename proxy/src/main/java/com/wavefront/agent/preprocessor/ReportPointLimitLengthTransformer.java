@@ -55,7 +55,10 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
     return input;
   }
 
-  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+  @Nullable
+  @Override
+  public ReportPoint apply(@Nullable ReportPoint reportPoint) {
+    if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":

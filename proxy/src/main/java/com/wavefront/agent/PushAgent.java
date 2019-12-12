@@ -24,6 +24,8 @@ import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.HistogramAccumulationHandlerImpl;
 import com.wavefront.agent.handlers.InternalProxyWavefrontClient;
+import com.wavefront.agent.handlers.RecyclableRateLimiterFactory;
+import com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
@@ -147,9 +149,11 @@ public class PushAgent extends AbstractAgent {
   protected Function<InetAddress, String> hostnameResolver;
   protected SenderTaskFactory senderTaskFactory;
   protected ReportableEntityHandlerFactory handlerFactory;
+  protected RecyclableRateLimiterFactory rateLimiterFactory;
   protected HealthCheckManager healthCheckManager;
-  protected Supplier<Map<ReportableEntityType, ReportableEntityDecoder>> decoderSupplier =
-      lazySupplier(() -> ImmutableMap.<ReportableEntityType, ReportableEntityDecoder>builder().
+  protected final Supplier<Map<ReportableEntityType, ReportableEntityDecoder<?, ?>>>
+      decoderSupplier = lazySupplier(() ->
+      ImmutableMap.<ReportableEntityType, ReportableEntityDecoder<?, ?>>builder().
           put(ReportableEntityType.POINT, new ReportPointDecoderWrapper(
               new GraphiteDecoder("unknown", customSourceTags))).
           put(ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder()).
@@ -194,8 +198,10 @@ public class PushAgent extends AbstractAgent {
         ExpectedAgentMetric.RDNS_CACHE_SIZE.metricName);
     taskQueueFactory = new TaskQueueFactoryImpl(bufferFile, purgeBuffer);
     remoteHostAnnotator = new SharedGraphiteHostAnnotator(customSourceTags, hostnameResolver);
+    rateLimiterFactory = new RecyclableRateLimiterFactoryImpl(pushRateLimiter, histogramRateLimiter,
+        sourceTagRateLimiter, spanRateLimiter, spanLogRateLimiter, eventRateLimiter);
     senderTaskFactory = new SenderTaskFactoryImpl(apiContainer, agentId, taskQueueFactory,
-        pushRateLimiter, pushFlushInterval, pushFlushMaxPoints, pushMemoryBufferLimit);
+        rateLimiterFactory, runtimeSettings);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples,
         flushThreads, () -> validationConfiguration, blockedPointsLogger, blockedHistogramsLogger,
         blockedSpansLogger);
@@ -245,8 +251,7 @@ public class PushAgent extends AbstractAgent {
         File baseDirectory = new File(histogramStateDirectory);
 
         // Central dispatch
-        @SuppressWarnings("unchecked")
-        ReportableEntityHandler<ReportPoint> pointHandler = handlerFactory.getHandler(
+        ReportableEntityHandler<ReportPoint, String> pointHandler = handlerFactory.getHandler(
             HandlerKey.of(ReportableEntityType.HISTOGRAM, "histogram_ports"));
 
         if (histMinPorts.hasNext()) {
@@ -473,7 +478,6 @@ public class PushAgent extends AbstractAgent {
     registerTimestampFilter(strPort);
 
     // Set up a custom handler
-    //noinspection unchecked
     ChannelHandler channelHandler = new ChannelByteArrayHandler(
         new PickleProtocolDecoder("unknown", customSourceTags, formatter.getMetricMangler(), port),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, strPort)),
@@ -481,7 +485,7 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(new TcpIngester(createInitializer(ImmutableList.of(
         () -> new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false),
-        () -> new ByteArrayDecoder(), () -> channelHandler), strPort,
+        ByteArrayDecoder::new, () -> channelHandler), strPort,
         listenerIdleConnectionTimeout), port).withChildChannelOptions(childChannelOptions),
         "listener-binary-pickle-" + strPort);
     logger.info("listening on port: " + strPort + " for Graphite/pickle protocol metrics");
@@ -518,7 +522,7 @@ public class PushAgent extends AbstractAgent {
       activeListeners.inc();
       try {
         TChannel server = new TChannel.Builder("jaeger-collector").
-            setServerPort(Integer.valueOf(strPort)).
+            setServerPort(Integer.parseInt(strPort)).
             build();
         server.
             makeSubChannel("jaeger-collector", Connection.Direction.IN).
@@ -582,13 +586,15 @@ public class PushAgent extends AbstractAgent {
     if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
 
     ReportableEntityHandlerFactory deltaCounterHandlerFactory = new ReportableEntityHandlerFactory() {
-      private Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
+      private final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
       @Override
-      public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
-        return handlers.computeIfAbsent(handlerKey, k -> new DeltaCounterAccumulationHandlerImpl(
-            handlerKey.getHandle(), pushBlockedSamples,
-            senderTaskFactory.createSenderTasks(handlerKey, flushThreads),
-            () -> validationConfiguration, deltaCountersAggregationIntervalSeconds, blockedPointsLogger));
+      public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
+        //noinspection unchecked
+        return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey,
+            k -> new DeltaCounterAccumulationHandlerImpl(handlerKey.getHandle(), pushBlockedSamples,
+                senderTaskFactory.createSenderTasks(handlerKey, flushThreads),
+                () -> validationConfiguration, deltaCountersAggregationIntervalSeconds,
+                blockedPointsLogger));
       }
     };
 
@@ -614,7 +620,7 @@ public class PushAgent extends AbstractAgent {
     ReportableEntityHandlerFactory handlerFactoryDelegate = pushRelayHistogramAggregator ?
         new DelegatingReportableEntityHandlerFactoryImpl(handlerFactory) {
           @Override
-          public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
+          public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
             if (handlerKey.getEntityType() == ReportableEntityType.HISTOGRAM) {
               ChronicleMap<HistogramKey, AgentDigest> accumulator = ChronicleMap.
                   of(HistogramKey.class, AgentDigest.class).
@@ -630,15 +636,16 @@ public class PushAgent extends AbstractAgent {
                   TimeUnit.SECONDS.toMillis(pushRelayHistogramAggregatorFlushSecs));
               AccumulationCache cachedAccumulator = new AccumulationCache(accumulator,
                   agentDigestFactory, 0, "histogram.accumulator.distributionRelay", null);
-              return new HistogramAccumulationHandlerImpl(handlerKey.getHandle(), cachedAccumulator,
-                  pushBlockedSamples, null, () -> validationConfiguration,
-                  true, blockedHistogramsLogger);
+              //noinspection unchecked
+              return (ReportableEntityHandler<T, U>) new HistogramAccumulationHandlerImpl(
+                  handlerKey.getHandle(), cachedAccumulator, pushBlockedSamples, null,
+                  () -> validationConfiguration, true, blockedHistogramsLogger);
             }
             return delegate.getHandler(handlerKey);
           }
         } : handlerFactory;
 
-    Map<ReportableEntityType, ReportableEntityDecoder> filteredDecoders = decoderSupplier.get().
+    Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> filteredDecoders = decoderSupplier.get().
         entrySet().stream().filter(x -> !x.getKey().equals(ReportableEntityType.SOURCE_TAG)).
         collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     ChannelHandler channelHandler = new RelayPortUnificationHandler(strPort, tokenAuthenticator,
@@ -718,7 +725,7 @@ public class PushAgent extends AbstractAgent {
   }
 
   protected void startHistogramListeners(Iterator<String> ports,
-                                         ReportableEntityHandler<ReportPoint> pointHandler,
+                                         ReportableEntityHandler<ReportPoint, String> pointHandler,
                                          SharedGraphiteHostAnnotator hostAnnotator,
                                          @Nullable Utils.Granularity granularity,
                                          int flushSecs, boolean memoryCacheEnabled,
@@ -804,12 +811,14 @@ public class PushAgent extends AbstractAgent {
     });
 
     ReportableEntityHandlerFactory histogramHandlerFactory = new ReportableEntityHandlerFactory() {
-      private Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
-        @Override
-      public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
-          return handlers.computeIfAbsent(handlerKey, k -> new HistogramAccumulationHandlerImpl(
-              handlerKey.getHandle(), cachedAccumulator, pushBlockedSamples, granularity,
-              () -> validationConfiguration, granularity == null, blockedHistogramsLogger));
+      private final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
+      @SuppressWarnings("unchecked")
+      @Override
+      public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
+          return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey,
+              k -> new HistogramAccumulationHandlerImpl(handlerKey.getHandle(), cachedAccumulator,
+                  pushBlockedSamples, granularity, () -> validationConfiguration,
+                  granularity == null, blockedHistogramsLogger));
       }
     };
 
@@ -832,14 +841,14 @@ public class PushAgent extends AbstractAgent {
 
   }
 
-  private static ChannelInitializer createInitializer(ChannelHandler channelHandler,
+  private static ChannelInitializer<SocketChannel> createInitializer(ChannelHandler channelHandler,
                                                       String port, int messageMaxLength,
                                                       int httpRequestBufferSize, int idleTimeout) {
     return createInitializer(ImmutableList.of(() -> new PlainTextOrHttpFrameDecoder(channelHandler,
         messageMaxLength, httpRequestBufferSize)), port, idleTimeout);
   }
 
-  private static ChannelInitializer createInitializer(
+  private static ChannelInitializer<SocketChannel> createInitializer(
       Iterable<Supplier<ChannelHandler>> channelHandlerSuppliers, String port, int idleTimeout) {
     ChannelHandler idleStateEventHandler = new IdleStateEventHandler(Metrics.newCounter(
         new TaggedMetricName("listeners", "connections.idle.closed", "port", port)));
@@ -892,13 +901,13 @@ public class PushAgent extends AbstractAgent {
       if (BooleanUtils.isTrue(config.getCollectorSetsPointsPerBatch())) {
         if (pointsPerBatch != null) {
           // if the collector is in charge and it provided a setting, use it
-          pushFlushMaxPoints.set(pointsPerBatch.intValue());
+          runtimeSettings.setItemsPerBatch(pointsPerBatch.intValue());
           logger.fine("Proxy push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
-        pushFlushMaxPoints.set(pushFlushMaxPointsInitialValue);
-        logger.fine("Proxy push batch set to (locally) " + pushFlushMaxPoints.get());
+        runtimeSettings.setItemsPerBatch(runtimeSettings.getItemsPerBatchOriginal());
+        logger.fine("Proxy push batch set to (locally) " + runtimeSettings.getItemsPerBatch());
       }
 
       if (BooleanUtils.isTrue(config.getCollectorSetsRateLimit())) {
@@ -922,14 +931,16 @@ public class PushAgent extends AbstractAgent {
       if (BooleanUtils.isTrue(config.getCollectorSetsRetryBackoff())) {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
-          retryBackoffBaseSeconds.set(config.getRetryBackoffBaseSeconds());
+          runtimeSettings.setRetryBackoffBaseSeconds(config.getRetryBackoffBaseSeconds());
           logger.fine("Proxy backoff base set to (remotely) " +
               config.getRetryBackoffBaseSeconds());
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
-        retryBackoffBaseSeconds.set(retryBackoffBaseSecondsInitialValue);
-        logger.fine("Proxy backoff base set to (locally) " + retryBackoffBaseSeconds.get());
+        runtimeSettings.setRetryBackoffBaseSeconds(
+            runtimeSettings.getRetryBackoffBaseSecondsOriginal());
+        logger.fine("Proxy backoff base set to (locally) " +
+            runtimeSettings.getRetryBackoffBaseSeconds());
       }
 
       histogramDisabled.set(BooleanUtils.toBoolean(config.getHistogramDisabled()));

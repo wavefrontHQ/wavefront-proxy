@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
-import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -44,8 +43,10 @@ public class ReportPointDropTagTransformer implements Function<ReportPoint, Repo
     this.ruleMetrics = ruleMetrics;
   }
 
+  @Nullable
   @Override
-  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nullable ReportPoint reportPoint) {
+    if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     if (reportPoint.getAnnotations() == null || compiledTagPattern == null) {
       ruleMetrics.ruleEnd(startNanos);

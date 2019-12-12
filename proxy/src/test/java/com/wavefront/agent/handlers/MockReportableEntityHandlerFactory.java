@@ -35,27 +35,30 @@ public class MockReportableEntityHandlerFactory {
   }
 
   public static ReportableEntityHandlerFactory createMockHandlerFactory(
-      ReportableEntityHandler<ReportPoint> mockReportPointHandler,
-      ReportableEntityHandler<ReportSourceTag> mockSourceTagHandler,
-      ReportableEntityHandler<ReportPoint> mockHistogramHandler,
-      ReportableEntityHandler<Span> mockTraceHandler,
-      ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler) {
-    return handlerKey -> {
-      switch (handlerKey.getEntityType()) {
-        case POINT:
-          return mockReportPointHandler;
-        case SOURCE_TAG:
-          return mockSourceTagHandler;
-        case HISTOGRAM:
-          return mockHistogramHandler;
-        case TRACE:
-          return mockTraceHandler;
-        case TRACE_SPAN_LOGS:
-          return mockTraceSpanLogsHandler;
-        default:
-          throw new IllegalArgumentException("Unknown entity type");
+      ReportableEntityHandler<ReportPoint, String> mockReportPointHandler,
+      ReportableEntityHandler<ReportSourceTag, ReportSourceTag> mockSourceTagHandler,
+      ReportableEntityHandler<ReportPoint, String> mockHistogramHandler,
+      ReportableEntityHandler<Span, String> mockTraceHandler,
+      ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler) {
+    return new ReportableEntityHandlerFactory() {
+      @SuppressWarnings("unchecked")
+      @Override
+      public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
+        switch (handlerKey.getEntityType()) {
+          case POINT:
+            return (ReportableEntityHandler<T, U>) mockReportPointHandler;
+          case SOURCE_TAG:
+            return (ReportableEntityHandler<T, U>) mockSourceTagHandler;
+          case HISTOGRAM:
+            return (ReportableEntityHandler<T, U>) mockHistogramHandler;
+          case TRACE:
+            return (ReportableEntityHandler<T, U>) mockTraceHandler;
+          case TRACE_SPAN_LOGS:
+            return (ReportableEntityHandler<T, U>) mockTraceSpanLogsHandler;
+          default:
+            throw new IllegalArgumentException("Unknown entity type");
+        }
       }
     };
   }
-
 }

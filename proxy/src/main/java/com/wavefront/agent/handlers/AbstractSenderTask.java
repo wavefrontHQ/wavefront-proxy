@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.RateLimiter;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
+import com.wavefront.agent.config.ProxyRuntimeSettings;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
@@ -22,9 +23,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
+
+import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.UNLIMITED;
 
 /**
  * Base class for all {@link SenderTask} implementations.
@@ -36,9 +40,6 @@ import javax.annotation.Nullable;
 abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   private static final Logger logger = Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
 
-  private static final RecyclableRateLimiter INFINITE_RATELIMITER =
-      RecyclableRateLimiterImpl.create(10_000_000, 10);
-
   List<T> datum = new ArrayList<>();
   final Object mutex = new Object();
   final ScheduledExecutorService scheduler;
@@ -48,8 +49,8 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   protected final String handle;
   final int threadId;
 
-  final AtomicInteger itemsPerBatch;
-  final AtomicInteger memoryBufferLimit;
+  final Supplier<Integer> itemsPerBatch;
+  final Supplier<Integer> memoryBufferLimit;
   final RecyclableRateLimiter rateLimiter;
 
   final Counter receivedCounter;
@@ -59,13 +60,14 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   final Counter bufferFlushCounter;
   final Counter bufferCompletedFlushCounter;
 
-  AtomicBoolean isBuffering = new AtomicBoolean(false);
+  final AtomicBoolean isBuffering = new AtomicBoolean(false);
   boolean isSending = false;
 
   /**
    * Attempt to schedule drainBuffersToQueueTask no more than once every 100ms to reduce
    * scheduler overhead under memory pressure.
    */
+  @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter drainBuffersRateLimiter = RateLimiter.create(10);
 
   /**
@@ -79,16 +81,15 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
    * @param memoryBufferLimit max points in task's memory buffer before queueing.
    */
   AbstractSenderTask(ReportableEntityType entityType, String handle, int threadId,
-                     @Nullable final AtomicInteger itemsPerBatch,
-                     @Nullable final AtomicInteger memoryBufferLimit,
+                     final Supplier<Integer> itemsPerBatch,
+                     final Supplier<Integer> memoryBufferLimit,
                      @Nullable RecyclableRateLimiter rateLimiter) {
     this.entityType = entityType;
     this.handle = handle;
     this.threadId = threadId;
-    this.itemsPerBatch = itemsPerBatch == null ? new AtomicInteger(40000) : itemsPerBatch;
-    this.memoryBufferLimit = memoryBufferLimit == null ?
-        new AtomicInteger(32 * 40000) : memoryBufferLimit;
-    this.rateLimiter = rateLimiter == null ? INFINITE_RATELIMITER : rateLimiter;
+    this.itemsPerBatch = itemsPerBatch;
+    this.memoryBufferLimit = memoryBufferLimit;
+    this.rateLimiter = rateLimiter == null ? UNLIMITED : rateLimiter;
     this.scheduler = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("submitter-" + entityType + "-" + handle + "-" + threadId));
     this.flushExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.MINUTES,
@@ -123,6 +124,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     synchronized (mutex) {
       this.datum.add(metricString);
     }
+    //noinspection UnstableApiUsage
     if (datum.size() >= memoryBufferLimit.get() && !isBuffering.get() &&
         drainBuffersRateLimiter.tryAcquire()) {
       try {
@@ -155,7 +157,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     }
   }
 
-  private Runnable drainBuffersToQueueTask = new Runnable() {
+  private final Runnable drainBuffersToQueueTask = new Runnable() {
     @Override
     public void run() {
       if (datum.size() > memoryBufferLimit.get()) {

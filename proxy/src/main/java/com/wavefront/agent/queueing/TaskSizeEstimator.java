@@ -44,6 +44,7 @@ public class TaskSizeEstimator {
   /**
    * Only size postings once every 5 seconds.
    */
+  @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter resultSizingRateLimier = RateLimiter.create(0.2);
 
   public TaskSizeEstimator(String handle) {
@@ -60,8 +61,9 @@ public class TaskSizeEstimator {
         });
   }
 
-  public void scheduleTaskForSizing(DataSubmissionTask task) {
+  public void scheduleTaskForSizing(DataSubmissionTask<?> task) {
     try {
+      //noinspection UnstableApiUsage
       if (resultSizingRateLimier.tryAcquire()) {
         resultPostingSizerExecutorService.submit(getPostingSizerTask(task));
       }
@@ -83,7 +85,7 @@ public class TaskSizeEstimator {
     return (long) (resultPostingSizes.mean() * resultPostingMeter.fifteenMinuteRate());
   }
 
-  private Runnable getPostingSizerTask(final DataSubmissionTask task) {
+  private Runnable getPostingSizerTask(final DataSubmissionTask<?> task) {
     return () -> {
       try {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

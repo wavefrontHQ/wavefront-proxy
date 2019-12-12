@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,7 +24,7 @@ import javax.annotation.Nullable;
 public class ReportableConfig {
   private static final Logger logger = Logger.getLogger(ReportableConfig.class.getCanonicalName());
 
-  private Properties prop = new Properties();
+  private final Properties prop = new Properties();
 
   public ReportableConfig(InputStream stream) throws IOException {
     prop.load(stream);
@@ -64,7 +65,7 @@ public class ReportableConfig {
                           @Nullable Number clampMaxValue) {
     String property = prop.getProperty(key);
     if (property == null && defaultValue == null) return null;
-    Double d;
+    double d;
     try {
       d = property == null ? defaultValue.doubleValue() : Double.parseDouble(property.trim());
     } catch (NumberFormatException e) {
@@ -114,6 +115,21 @@ public class ReportableConfig {
 
   public void reportSettingAsGauge(Number number, String key) {
     reportGauge(number, new MetricName("config", "", key));
+  }
+
+  public void reportSettingAsGauge(Supplier<Number> numberSupplier, String key) {
+    reportGauge(numberSupplier, new MetricName("config", "", key));
+  }
+
+  public void reportGauge(Supplier<Number> numberSupplier, MetricName metricName) {
+    Metrics.newGauge(metricName,
+        new Gauge<Double>() {
+          @Override
+          public Double value() {
+            return numberSupplier.get().doubleValue();
+          }
+        }
+    );
   }
 
   public void reportGauge(Number number, MetricName metricName) {

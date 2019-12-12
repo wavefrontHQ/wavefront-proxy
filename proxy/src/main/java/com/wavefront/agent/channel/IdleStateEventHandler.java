@@ -23,7 +23,7 @@ public class IdleStateEventHandler extends ChannelInboundHandlerAdapter {
   private static final Logger logger = Logger.getLogger(
       IdleStateEventHandler.class.getCanonicalName());
 
-  private Counter idleClosedConnections;
+  private final Counter idleClosedConnections;
 
   public IdleStateEventHandler(@NotNull Counter idleClosedConnectionsCounter) {
     this.idleClosedConnections = idleClosedConnectionsCounter;

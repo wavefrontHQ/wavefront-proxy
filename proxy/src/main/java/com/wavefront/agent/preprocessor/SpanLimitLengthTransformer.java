@@ -14,6 +14,8 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
+import static com.wavefront.agent.preprocessor.PreprocessorUtil.truncate;
+
 public class SpanLimitLengthTransformer implements Function<Span, Span> {
 
   private final String scope;
@@ -46,29 +48,22 @@ public class SpanLimitLengthTransformer implements Function<Span, Span> {
     this.ruleMetrics = ruleMetrics;
   }
 
-  private String truncate(String input) {
-    ruleMetrics.incrementRuleAppliedCounter();
-    switch (actionSubtype) {
-      case TRUNCATE:
-        return input.substring(0, maxLength);
-      case TRUNCATE_WITH_ELLIPSIS:
-        return input.substring(0, maxLength - 3) + "...";
-      default:
-        return input;
-    }
-  }
-
-  public Span apply(@Nonnull Span span) {
+  @Nullable
+  @Override
+  public Span apply(@Nullable Span span) {
+    if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "spanName":
         if (compiledMatchPattern == null || compiledMatchPattern.matcher(span.getName()).matches()) {
-          span.setName(truncate(span.getName()));
+          span.setName(truncate(span.getName(), maxLength, actionSubtype));
+          ruleMetrics.incrementRuleAppliedCounter();
         }
         break;
       case "sourceName":
         if (compiledMatchPattern == null || compiledMatchPattern.matcher(span.getSource()).matches()) {
-          span.setSource(truncate(span.getSource()));
+          span.setSource(truncate(span.getSource(), maxLength, actionSubtype));
+          ruleMetrics.incrementRuleAppliedCounter();
         }
         break;
       default:
@@ -82,10 +77,10 @@ public class SpanLimitLengthTransformer implements Function<Span, Span> {
               changed = true;
               if (actionSubtype == LengthLimitActionType.DROP) {
                 iterator.remove();
-                ruleMetrics.incrementRuleAppliedCounter();
               } else {
-                entry.setValue(truncate(entry.getValue()));
+                entry.setValue(truncate(entry.getValue(), maxLength, actionSubtype));
               }
+              ruleMetrics.incrementRuleAppliedCounter();
               if (firstMatchOnly) {
                 break;
               }

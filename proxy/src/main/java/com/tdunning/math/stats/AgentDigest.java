@@ -85,13 +85,13 @@ public class AgentDigest extends AbstractTDigest {
   // this is the index of the next temporary centroid
   // this is a more Java-like convention than lastUsedCell uses
   private int tempUsed = 0;
-  private double[] tempWeight;
-  private double[] tempMean;
+  private final double[] tempWeight;
+  private final double[] tempMean;
   private List<List<Double>> tempData = null;
 
   // array used for sorting the temp centroids.  This is a field
   // to avoid allocations during operation
-  private int[] order;
+  private final int[] order;
 
   private long dispatchTimeMillis;
 
@@ -415,7 +415,8 @@ public class AgentDigest extends AbstractTDigest {
   /**
    * Stateless AgentDigest codec for chronicle maps
    */
-  public static class AgentDigestMarshaller implements SizedReader<AgentDigest>, SizedWriter<AgentDigest>, ReadResolvable<AgentDigestMarshaller> {
+  public static class AgentDigestMarshaller implements SizedReader<AgentDigest>,
+      SizedWriter<AgentDigest>, ReadResolvable<AgentDigestMarshaller> {
     private static final AgentDigestMarshaller INSTANCE = new AgentDigestMarshaller();
     private static final com.yammer.metrics.core.Histogram accumulatorValueSizes =
         Metrics.newHistogram(new MetricName("histogram", "", "accumulatorValueSize"));
@@ -485,6 +486,7 @@ public class AgentDigest extends AbstractTDigest {
       }
     }
 
+    @NotNull
     @Override
     public AgentDigestMarshaller readResolve() {
       return INSTANCE;

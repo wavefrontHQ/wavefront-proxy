@@ -1,27 +1,22 @@
 package com.wavefront.agent.queueing;
 
 import com.google.common.collect.ImmutableList;
-
 import com.squareup.tape2.ObjectQueue;
 import com.squareup.tape2.QueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
 
 /**
  *
@@ -30,7 +25,7 @@ import javax.validation.constraints.NotNull;
  *
  * @author vasily@wavefront.com
  */
-public class DataSubmissionQueue<T extends DataSubmissionTask> extends ObjectQueue<T>
+public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends ObjectQueue<T>
     implements TaskQueue<T> {
   private static final Logger log = Logger.getLogger(DataSubmissionQueue.class.getCanonicalName());
 
@@ -39,13 +34,13 @@ public class DataSubmissionQueue<T extends DataSubmissionTask> extends ObjectQue
   private final ObjectQueue<T> delegate;
 
   private AtomicLong currentWeight = null;
-  private AtomicLong lastKnownTaskSize = new AtomicLong(-1);
+  private final AtomicLong lastKnownTaskSize = new AtomicLong(-1);
   @Nullable
   private final String handle;
   private final String entityName;
 
   // maintain a fair lock on the queue
-  private ReentrantLock queueLock = new ReentrantLock(true);
+  private final ReentrantLock queueLock = new ReentrantLock(true);
 
   public DataSubmissionQueue(ObjectQueue<T> delegate, @Nullable String handle,
                              @Nullable ReportableEntityType entityType) {
@@ -162,7 +157,7 @@ public class DataSubmissionQueue<T extends DataSubmissionTask> extends ObjectQue
     }
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public Iterator<T> iterator() {
     throw new UnsupportedOperationException("Iterators are not supported");

@@ -31,7 +31,7 @@ import static com.wavefront.data.Validation.validatePoint;
  *
  * @author vasily@wavefront.com
  */
-class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint> {
+class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint, String> {
 
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
@@ -63,7 +63,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    */
   ReportPointHandlerImpl(final String handle,
                          final int blockedItemsPerBatch,
-                         final Collection<SenderTask> senderTasks,
+                         final Collection<SenderTask<String>> senderTasks,
                          @Nullable final Supplier<ValidationConfiguration> validationConfig,
                          final boolean isHistogramHandler,
                          final boolean setupMetrics,
@@ -84,7 +84,6 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   void reportInternal(ReportPoint point) {
     if (validationConfig.get() == null) {
       validatePoint(point, handle, Validation.Level.NUMERIC_ONLY);

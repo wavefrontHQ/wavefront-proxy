@@ -34,12 +34,12 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
   @JsonProperty
   private int attempts = 0;
   @JsonProperty
-  protected String handle;
+  protected final String handle;
   @JsonProperty
-  protected ReportableEntityType entityType;
+  protected final ReportableEntityType entityType;
 
   private transient Histogram timeSpentInQueue;
-  protected transient Supplier<Long> timeProvider;
+  protected final transient Supplier<Long> timeProvider;
 
   /**
    * Create a new instance.
@@ -94,6 +94,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     }
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public void enqueue(TaskQueue<T> taskQueue) throws IOException {
     enqueuedTimeMillis = timeProvider.get();

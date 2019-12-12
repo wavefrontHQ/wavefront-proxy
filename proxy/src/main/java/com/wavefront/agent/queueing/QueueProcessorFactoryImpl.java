@@ -7,6 +7,7 @@ import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.handlers.RecyclableRateLimiterFactory;
 import com.wavefront.common.NamedThreadFactory;
 
 import javax.annotation.Nullable;
@@ -19,16 +20,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
-import static com.wavefront.agent.handlers.SenderTaskFactoryImpl.EVENT_RATE_LIMITER;
-import static com.wavefront.agent.handlers.SenderTaskFactoryImpl.SOURCE_TAG_RATE_LIMITER;
-
 /**
  * A caching implementation of {@link QueueProcessorFactory}.
  *
  * @author vasily@wavefront.com
  */
 public class QueueProcessorFactoryImpl implements QueueProcessorFactory {
-  private final Map<HandlerKey, Map<Integer, QueueProcessor>> queueProcessors = new HashMap<>();
+  private final Map<HandlerKey, Map<Integer, QueueProcessor<?>>> queueProcessors = new HashMap<>();
   private final Map<HandlerKey, ScheduledExecutorService> executors = new HashMap<>();
 
   private final TaskQueueFactory taskQueueFactory;
@@ -38,10 +36,7 @@ public class QueueProcessorFactoryImpl implements QueueProcessorFactory {
   private final int minSplitSize;
   private final int flushInterval;
   private final Supplier<Double> retryBackoffBaseSeconds;
-  private final RecyclableRateLimiter pushRateLimiter;
-  private final RecyclableRateLimiter pushRateLimiterHistogram;
-  private final RecyclableRateLimiter pushRateLimiterSpans;
-  private final RecyclableRateLimiter pushRateLimiterSpanLogs;
+  private final RecyclableRateLimiterFactory rateLimiterFactory;
 
   /**
    * Creates a new instance.
@@ -53,87 +48,52 @@ public class QueueProcessorFactoryImpl implements QueueProcessorFactory {
    * @param minSplitSize
    * @param flushInterval
    * @param retryBackoffBaseSeconds
-   * @param pushRateLimiter
-   * @param pushRateLimiterHistograms
-   * @param pushRateLimiterSpans
-   * @param pushRateLimiterSpanLogs
+   * @param rateLimiterFactory
    */
-  public QueueProcessorFactoryImpl(TaskQueueFactory taskQueueFactory,
-                                   APIContainer apiContainer,
+  public QueueProcessorFactoryImpl(APIContainer apiContainer,
                                    UUID proxyId,
+                                   final TaskQueueFactory taskQueueFactory,
+                                   final RecyclableRateLimiterFactory rateLimiterFactory,
                                    final boolean splitPushWhenRateLimited,
                                    final int minSplitSize,
                                    final int flushInterval,
-                                   final Supplier<Double> retryBackoffBaseSeconds,
-                                   @Nullable final RecyclableRateLimiter pushRateLimiter,
-                                   @Nullable final RecyclableRateLimiter pushRateLimiterHistograms,
-                                   @Nullable final RecyclableRateLimiter pushRateLimiterSpans,
-                                   @Nullable final RecyclableRateLimiter pushRateLimiterSpanLogs) {
-    this.taskQueueFactory = taskQueueFactory;
+                                   final Supplier<Double> retryBackoffBaseSeconds) {
     this.apiContainer = apiContainer;
     this.proxyId = proxyId;
+    this.taskQueueFactory = taskQueueFactory;
+    this.rateLimiterFactory = rateLimiterFactory;
     this.splitPushWhenRateLimited = splitPushWhenRateLimited;
     this.minSplitSize = minSplitSize;
     this.flushInterval = flushInterval;
     this.retryBackoffBaseSeconds = retryBackoffBaseSeconds;
-    this.pushRateLimiter = pushRateLimiter;
-    this.pushRateLimiterHistogram = pushRateLimiterHistograms;
-    this.pushRateLimiterSpans = pushRateLimiterSpans;
-    this.pushRateLimiterSpanLogs = pushRateLimiterSpanLogs;
   }
 
   @SuppressWarnings("unchecked")
   @Override
   public <T extends DataSubmissionTask<T>> QueueProcessor<T> getQueueProcessor(
       @NotNull HandlerKey handlerKey, int totalThreads, int threadNum) {
-    return queueProcessors.computeIfAbsent(handlerKey, x -> new TreeMap<>()).
-        computeIfAbsent(threadNum, x -> {
-          RecyclableRateLimiter rateLimiter;
-          switch (handlerKey.getEntityType()) {
-            case POINT:
-              rateLimiter = pushRateLimiter;
-              break;
-            case HISTOGRAM:
-              rateLimiter = pushRateLimiterHistogram;
-              break;
-            case TRACE:
-              rateLimiter = pushRateLimiterSpans;
-              break;
-            case TRACE_SPAN_LOGS:
-              rateLimiter = pushRateLimiterSpanLogs;
-              break;
-            case SOURCE_TAG:
-              rateLimiter = SOURCE_TAG_RATE_LIMITER;
-              break;
-            case EVENT:
-              rateLimiter = EVENT_RATE_LIMITER;
-              break;
-            default:
-              throw new IllegalArgumentException("Unexpected entity type " +
-                  handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());
-          }
-          return new QueueProcessor<T>(
-              handlerKey.getHandle(), taskQueueFactory.getTaskQueue(handlerKey, threadNum),
-              executors.computeIfAbsent(handlerKey,
-                  executor -> Executors.newScheduledThreadPool(totalThreads,
-                      new NamedThreadFactory("queueprocessor-" + handlerKey.getEntityType() + "-" +
-                          handlerKey.getHandle()))),
-              task -> {
-                if (task instanceof LineDelimitedDataSubmissionTask) {
-                  ((LineDelimitedDataSubmissionTask) task).
-                      injectMembers(apiContainer.getProxyV2API(), proxyId);
-                } else if (task instanceof SourceTagSubmissionTask) {
-                  ((SourceTagSubmissionTask) task).
-                      injectMembers(apiContainer.getSourceTagAPI());
-                } else if (task instanceof EventDataSubmissionTask) {
-                  ((EventDataSubmissionTask) task).
-                      injectMembers(apiContainer.getEventAPI(), proxyId);
-                } else {
-                  throw new IllegalArgumentException("Unexpected submission task type: " +
-                      task.getClass().getCanonicalName());
-                }
-              }, splitPushWhenRateLimited, minSplitSize, flushInterval, retryBackoffBaseSeconds,
-              rateLimiter);
-        });
+    return (QueueProcessor<T>) queueProcessors.computeIfAbsent(handlerKey, x -> new TreeMap<>()).
+        computeIfAbsent(threadNum, x -> new QueueProcessor<T>(
+            handlerKey.getHandle(), taskQueueFactory.getTaskQueue(handlerKey, threadNum),
+            executors.computeIfAbsent(handlerKey,
+                executor -> Executors.newScheduledThreadPool(totalThreads,
+                    new NamedThreadFactory("queueprocessor-" + handlerKey.getEntityType() + "-" +
+                        handlerKey.getHandle()))),
+            task -> {
+              if (task instanceof LineDelimitedDataSubmissionTask) {
+                ((LineDelimitedDataSubmissionTask) task).
+                    injectMembers(apiContainer.getProxyV2API(), proxyId);
+              } else if (task instanceof SourceTagSubmissionTask) {
+                ((SourceTagSubmissionTask) task).
+                    injectMembers(apiContainer.getSourceTagAPI());
+              } else if (task instanceof EventDataSubmissionTask) {
+                ((EventDataSubmissionTask) task).
+                    injectMembers(apiContainer.getEventAPI(), proxyId);
+              } else {
+                throw new IllegalArgumentException("Unexpected submission task type: " +
+                    task.getClass().getCanonicalName());
+              }
+            }, splitPushWhenRateLimited, minSplitSize, flushInterval, retryBackoffBaseSeconds,
+            rateLimiterFactory.getRateLimiter(handlerKey)));
   }
 }
