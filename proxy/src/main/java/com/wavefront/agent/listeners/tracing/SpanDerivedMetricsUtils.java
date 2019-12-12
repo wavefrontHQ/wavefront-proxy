@@ -21,6 +21,7 @@ import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
+import static com.wavefront.sdk.common.Utils.sanitizeWithoutQuotes;
 
 /**
  * Util methods to generate data (metrics/histograms/heartbeats) from tracing spans
@@ -94,52 +95,33 @@ public class SpanDerivedMetricsUtils {
     }
 
     // tracing.derived.<application>.<service>.<operation>.invocation.count
-    wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
-        operationName + INVOCATION_SUFFIX), pointTags)).inc();
+    wfInternalReporter.newDeltaCounter(new MetricName(sanitizeWithoutQuotes(application +
+        "." + service + "." + operationName + INVOCATION_SUFFIX), pointTags)).inc();
 
     if (isError) {
       // tracing.derived.<application>.<service>.<operation>.error.count
-      wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
-          operationName + ERROR_SUFFIX), pointTags)).inc();
+      wfInternalReporter.newDeltaCounter(new MetricName(sanitizeWithoutQuotes(application +
+          "." + service + "." + operationName + ERROR_SUFFIX), pointTags)).inc();
     }
 
     // tracing.derived.<application>.<service>.<operation>.duration.micros.m
     if (isError) {
       Map<String, String> errorPointTags = new HashMap<>(pointTags);
       errorPointTags.put("error", "true");
-      wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(application + "." + service + "." +
-          operationName + DURATION_SUFFIX), errorPointTags)).
+      wfInternalReporter.newWavefrontHistogram(new MetricName(sanitizeWithoutQuotes(application +
+          "." + service + "." + operationName + DURATION_SUFFIX), errorPointTags)).
           update(spanDurationMicros);
     } else {
-      wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(application + "." + service + "." +
-          operationName + DURATION_SUFFIX), pointTags)).
+      wfInternalReporter.newWavefrontHistogram(new MetricName(sanitizeWithoutQuotes(application +
+          "." + service + "." + operationName + DURATION_SUFFIX), pointTags)).
           update(spanDurationMicros);
     }
 
     // tracing.derived.<application>.<service>.<operation>.total_time.millis.count
-    wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
-        operationName + TOTAL_TIME_SUFFIX), pointTags)).
+    wfInternalReporter.newDeltaCounter(new MetricName(sanitizeWithoutQuotes(application +
+        "." + service + "." + operationName + TOTAL_TIME_SUFFIX), pointTags)).
         inc(spanDurationMicros / 1000);
     return new HeartbeatMetricKey(application, service, cluster, shard, source, customTags);
-  }
-
-  private static String sanitize(String s) {
-    // TODO: sanitize using SDK instead
-    StringBuilder sb = new StringBuilder();
-    for (int i = 0; i < s.length(); i++) {
-      char cur = s.charAt(i);
-      boolean isLegal = true;
-      if (!(44 <= cur && cur <= 57) && !(65 <= cur && cur <= 90) && !(97 <= cur && cur <= 122) &&
-          cur != 95) {
-        if (!((i == 0 && cur == 0x2206) || (i == 0 && cur == 0x0394) || (i == 0 && cur == 126))) {
-          // first character can also be \u2206 (∆ - INCREMENT) or \u0394 (Δ - GREEK CAPITAL LETTER DELTA)
-          // or ~ tilda character for internal metrics
-          isLegal = false;
-        }
-      }
-      sb.append(isLegal ? cur : '-');
-    }
-    return sb.toString();
   }
 
   /**
