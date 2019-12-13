@@ -6,6 +6,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.uber.tchannel.api.TChannel;
@@ -18,6 +19,7 @@ import com.wavefront.agent.channel.IdleStateEventHandler;
 import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.config.ConfigurationException;
+import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.agent.handlers.DelegatingReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
@@ -58,6 +60,9 @@ import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.preprocessor.SpanSanitizeTransformer;
+import com.wavefront.agent.queueing.QueueProcessorFactory;
+import com.wavefront.agent.queueing.QueueProcessorFactoryImpl;
+import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
@@ -86,6 +91,7 @@ import com.yammer.metrics.core.Counter;
 import net.openhft.chronicle.map.ChronicleMap;
 
 import org.apache.commons.lang.BooleanUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
@@ -108,12 +114,14 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
@@ -129,6 +137,7 @@ import wavefront.report.ReportPoint;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.NO_RATE_LIMIT;
 
 /**
  * Push-only Agent.
@@ -148,6 +157,7 @@ public class PushAgent extends AbstractAgent {
   protected SharedGraphiteHostAnnotator remoteHostAnnotator;
   protected Function<InetAddress, String> hostnameResolver;
   protected SenderTaskFactory senderTaskFactory;
+  protected QueueProcessorFactory queueProcessorFactory;
   protected ReportableEntityHandlerFactory handlerFactory;
   protected RecyclableRateLimiterFactory rateLimiterFactory;
   protected HealthCheckManager healthCheckManager;
@@ -201,7 +211,9 @@ public class PushAgent extends AbstractAgent {
     rateLimiterFactory = new RecyclableRateLimiterFactoryImpl(pushRateLimiter, histogramRateLimiter,
         sourceTagRateLimiter, spanRateLimiter, spanLogRateLimiter, eventRateLimiter);
     senderTaskFactory = new SenderTaskFactoryImpl(apiContainer, agentId, taskQueueFactory,
-        rateLimiterFactory, runtimeSettings);
+        rateLimiterFactory, runtimeProperties);
+    queueProcessorFactory = new QueueProcessorFactoryImpl(apiContainer, agentId, taskQueueFactory,
+        rateLimiterFactory, runtimeProperties);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory, pushBlockedSamples,
         flushThreads, () -> validationConfiguration, blockedPointsLogger, blockedHistogramsLogger,
         blockedSpansLogger);
@@ -901,46 +913,58 @@ public class PushAgent extends AbstractAgent {
       if (BooleanUtils.isTrue(config.getCollectorSetsPointsPerBatch())) {
         if (pointsPerBatch != null) {
           // if the collector is in charge and it provided a setting, use it
-          runtimeSettings.setItemsPerBatch(pointsPerBatch.intValue());
+          runtimeProperties.setItemsPerBatch(pointsPerBatch.intValue());
           logger.fine("Proxy push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
-        runtimeSettings.setItemsPerBatch(runtimeSettings.getItemsPerBatchOriginal());
-        logger.fine("Proxy push batch set to (locally) " + runtimeSettings.getItemsPerBatch());
+        runtimeProperties.setItemsPerBatch(runtimeProperties.getItemsPerBatchOriginal());
+        logger.fine("Proxy push batch set to (locally) " + runtimeProperties.getItemsPerBatch());
       }
 
-      if (BooleanUtils.isTrue(config.getCollectorSetsRateLimit())) {
-        Long collectorRateLimit = config.getCollectorRateLimit();
-        if (pushRateLimiter != null && collectorRateLimit != null &&
-            pushRateLimiter.getRate() != collectorRateLimit) {
-          pushRateLimiter.setRate(collectorRateLimit);
-          logger.warning("Proxy rate limit set to " + collectorRateLimit + " remotely");
-        }
-      } else {
-        if (pushRateLimiter != null && pushRateLimiter.getRate() != pushRateLimit) {
-          pushRateLimiter.setRate(pushRateLimit);
-          if (pushRateLimit >= NO_RATE_LIMIT) {
-            logger.warning("Proxy rate limit no longer enforced by remote");
-          } else {
-            logger.warning("Proxy rate limit restored to " + pushRateLimit);
-          }
-        }
-      }
+      updateRateLimiter("Proxy rate limit", pushRateLimiter, pushRateLimit,
+          runtimeProperties.getItemsPerBatch(), runtimeProperties.getItemsPerBatchOriginal(),
+          config.getCollectorSetsRateLimit(), config.getCollectorRateLimit(),
+          config.getGlobalCollectorRateLimit(), runtimeProperties::setItemsPerBatch);
+      updateRateLimiter("Histogram rate limit", histogramRateLimiter, pushRateLimitHistograms,
+          runtimeProperties.getItemsPerBatchHistograms(),
+          runtimeProperties.getItemsPerBatchHistogramsOriginal(),
+          config.getCollectorSetsRateLimit(), config.getHistogramRateLimit(),
+          config.getGlobalHistogramRateLimit(), runtimeProperties::setItemsPerBatchHistograms);
+      updateRateLimiter("Source tag rate limit", sourceTagRateLimiter, pushRateLimitSourceTags,
+          runtimeProperties.getItemsPerBatchSourceTags(),
+          runtimeProperties.getItemsPerBatchSourceTagsOriginal(),
+          config.getCollectorSetsRateLimit(), config.getSourceTagsRateLimit(),
+          config.getGlobalSourceTagRateLimit(), runtimeProperties::setItemsPerBatchSourceTags);
+      updateRateLimiter("Span rate limit", spanRateLimiter, pushRateLimitSpans,
+          runtimeProperties.getItemsPerBatchSpans(),
+          runtimeProperties.getItemsPerBatchSpansOriginal(),
+          config.getCollectorSetsRateLimit(), config.getSpanRateLimit(),
+          config.getGlobalSpanRateLimit(), runtimeProperties::setItemsPerBatchSpans);
+      updateRateLimiter("Span log rate limit", spanLogRateLimiter, pushRateLimitSpanLogs,
+          runtimeProperties.getItemsPerBatchSpanLogs(),
+          runtimeProperties.getItemsPerBatchSpanLogsOriginal(),
+          config.getCollectorSetsRateLimit(), config.getSpanLogsRateLimit(),
+          config.getGlobalSpanLogsRateLimit(), runtimeProperties::setItemsPerBatchSpanLogs);
+      updateRateLimiter("Event rate limit", eventRateLimiter, pushRateLimitEvents,
+          runtimeProperties.getItemsPerBatchEvents(),
+          runtimeProperties.getItemsPerBatchEventsOriginal(), config.getCollectorSetsRateLimit(),
+          config.getEventsRateLimit(), config.getGlobalEventRateLimit(),
+          runtimeProperties::setItemsPerBatchEvents);
 
       if (BooleanUtils.isTrue(config.getCollectorSetsRetryBackoff())) {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
-          runtimeSettings.setRetryBackoffBaseSeconds(config.getRetryBackoffBaseSeconds());
+          runtimeProperties.setRetryBackoffBaseSeconds(config.getRetryBackoffBaseSeconds());
           logger.fine("Proxy backoff base set to (remotely) " +
               config.getRetryBackoffBaseSeconds());
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
-        runtimeSettings.setRetryBackoffBaseSeconds(
-            runtimeSettings.getRetryBackoffBaseSecondsOriginal());
+        runtimeProperties.setRetryBackoffBaseSeconds(
+            runtimeProperties.getRetryBackoffBaseSecondsOriginal());
         logger.fine("Proxy backoff base set to (locally) " +
-            runtimeSettings.getRetryBackoffBaseSeconds());
+            runtimeProperties.getRetryBackoffBaseSeconds());
       }
 
       histogramDisabled.set(BooleanUtils.toBoolean(config.getHistogramDisabled()));
@@ -948,6 +972,41 @@ public class PushAgent extends AbstractAgent {
       spanLogsDisabled.set(BooleanUtils.toBoolean(config.getSpanLogsDisabled()));
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
+    }
+  }
+
+  private void updateRateLimiter(String name,
+                                 @Nullable RecyclableRateLimiter pushRateLimiter,
+                                 Number initialRateLimit,
+                                 int itemsPerBatch,
+                                 int itemsPerBatchOriginal,
+                                 @Nullable Boolean collectorSetsRateLimit,
+                                 @Nullable Number collectorRateLimit,
+                                 @Nullable Number globalRateLimit,
+                                 @Nonnull Consumer<Integer> setItemsPerBatch) {
+    if (pushRateLimiter != null) {
+      if (BooleanUtils.isTrue(collectorSetsRateLimit)) {
+        if (collectorRateLimit != null &&
+            pushRateLimiter.getRate() != collectorRateLimit.doubleValue()) {
+          pushRateLimiter.setRate(collectorRateLimit.doubleValue());
+          setItemsPerBatch.accept(Math.min(collectorRateLimit.intValue(), itemsPerBatch));
+          logger.warning(name + " set to " + collectorRateLimit + " remotely");
+        }
+      } else {
+        double rateLimit = Math.min(initialRateLimit.doubleValue(),
+            ObjectUtils.firstNonNull(globalRateLimit, NO_RATE_LIMIT).intValue());
+        if (pushRateLimiter.getRate() != rateLimit) {
+          pushRateLimiter.setRate(rateLimit);
+          setItemsPerBatch.accept(itemsPerBatchOriginal);
+          if (rateLimit >= NO_RATE_LIMIT) {
+            logger.warning(name + " no longer enforced by remote");
+          } else {
+            if (hadSuccessfulCheckin) { // this will skip printing this message upon init
+              logger.warning(name + " restored to " + rateLimit);
+            }
+          }
+        }
+      }
     }
   }
 

@@ -13,6 +13,8 @@ import javax.annotation.Nonnull;
 import javax.ws.rs.core.Response;
 import java.util.List;
 import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
@@ -20,10 +22,13 @@ import java.util.stream.Collectors;
 
 /**
  * A queue controller (one per entity/port). Responsible for reporting queue-related metrics and
+ * adjusting priority across queues.
  *
- * @param <T>
+ * @param <T> submission task type
+ *
+ * @author vasily@wavefront.com
  */
-public class QueueController<T extends DataSubmissionTask<T>> implements Managed, Runnable {
+public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask implements Managed {
   private static final Logger logger =
       Logger.getLogger(QueueController.class.getCanonicalName());
   private static final Gson GSON = new Gson();
@@ -37,7 +42,15 @@ public class QueueController<T extends DataSubmissionTask<T>> implements Managed
 
   private AtomicLong currentWeight = null;
   private final AtomicInteger queueSize = new AtomicInteger();
+  private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
+  /**
+   * TODO (VV): javadoc
+   *
+   * @param handle
+   * @param entityType
+   * @param processorTasks
+   */
   public QueueController(String handle, ReportableEntityType entityType,
                          List<QueueProcessor<T>> processorTasks) {
     this.handle = handle;
@@ -83,20 +96,24 @@ public class QueueController<T extends DataSubmissionTask<T>> implements Managed
       currentWeight.set(totalWeight);
     }
 
-    // grab last processed ts
-    // adjust scheduler
+    // TODO (VV): grab last processed ts, adjust scheduler
   }
 
   @Override
   public void start() {
-    // TODO:
+    if (isRunning.compareAndSet(false, true)) {
+      timer.scheduleAtFixedRate(this, 1000, 1000);
+    }
   }
 
   @Override
   public void stop() {
-    timer.cancel();
+    if (isRunning.compareAndSet(true, false)) {
+      timer.cancel();
+    }
   }
 
+  // TODO (VV): move some place more appropriate
   public static TaskAction parsePostingResponse(@Nonnull Response response, String handle) {
     try {
       if (response.getStatus() < 300) return TaskAction.NONE;

@@ -1,5 +1,6 @@
 package com.wavefront.agent.data;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.data.ReportableEntityType;
 
@@ -12,6 +13,7 @@ import java.util.List;
  *
  * @param <T>
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Serializable {
 
   /**
@@ -38,8 +40,10 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
   /**
    * Execute this task
    *
-   * @param queueingLevel  TODO
-   * @param taskQueue      TODO
+   * TODO (VV): javadoc
+   *
+   * @param queueingLevel
+   * @param taskQueue
    *
    * @return operation result
    */

@@ -8,7 +8,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
-import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import com.google.common.util.concurrent.RecyclableRateLimiterWithMetrics;
@@ -26,7 +25,7 @@ import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.config.LogsIngestionConfig;
-import com.wavefront.agent.config.ProxyRuntimeSettings;
+import com.wavefront.agent.config.ProxyRuntimeProperties;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
@@ -101,7 +100,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -113,13 +111,24 @@ import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.ClientRequestFilter;
 
-import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE;
+import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_EVENTS;
+import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_HISTOGRAMS;
+import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_SOURCE_TAGS;
+import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_SPANS;
+import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_SPAN_LOGS;
+import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_FLUSH_INTERVAL;
+import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
+import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
+import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
+import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.NO_RATE_LIMIT;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
  *
  * @author Clement Pang (clement@wavefront.com)
  */
+@SuppressWarnings("CanBeFinal")
 public abstract class AbstractAgent {
 
   protected static final Logger logger = Logger.getLogger("proxy");
@@ -129,8 +138,8 @@ public abstract class AbstractAgent {
   private static final int GRAPHITE_LISTENING_PORT = 2878;
 
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
-  private static final int MAX_SPLIT_BATCH_SIZE = 40000; // same value as default pushFlushMaxPoints
-  static final int NO_RATE_LIMIT = 10_000_000;
+  protected static final double DEFAULT_SOURCE_TAG_RATE_LIMIT = 5.0;
+  protected static final double DEFAULT_EVENT_RATE_LIMIT = 5.0;
 
   @Parameter(names = {"--help"}, help = true)
   private boolean help = false;
@@ -182,12 +191,33 @@ public abstract class AbstractAgent {
       "false.")
   protected boolean purgeBuffer = false;
 
-  @Parameter(names = {"--pushFlushInterval"}, description = "Milliseconds between flushes to . Defaults to 1000 ms")
-  protected int pushFlushInterval = 1000;
+  @Parameter(names = {"--pushFlushInterval"}, description = "Milliseconds between batches. " +
+      "Defaults to 1000 ms")
+  protected int pushFlushInterval = DEFAULT_FLUSH_INTERVAL;
 
-  @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points in a single push flush. Defaults" +
-      " to 40,000")
-  protected int pushFlushMaxPoints = 40000;
+  @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points " +
+      "in a single flush. Defaults: 40000")
+  protected int pushFlushMaxPoints = DEFAULT_BATCH_SIZE;
+
+  @Parameter(names = {"--pushFlushMaxHistograms"}, description = "Maximum allowed histograms " +
+      "in a single flush. Default: 10000")
+  protected int pushFlushMaxHistograms = DEFAULT_BATCH_SIZE_HISTOGRAMS;
+
+  @Parameter(names = {"--pushFlushMaxSourceTags"}, description = "Maximum allowed source tags " +
+      "in a single flush. Default: 50")
+  protected int pushFlushMaxSourceTags = DEFAULT_BATCH_SIZE_SOURCE_TAGS;
+
+  @Parameter(names = {"--pushFlushMaxSpans"}, description = "Maximum allowed spans " +
+      "in a single flush. Default: 5000")
+  protected int pushFlushMaxSpans = DEFAULT_BATCH_SIZE_SPANS;
+
+  @Parameter(names = {"--pushFlushMaxSpanLogs"}, description = "Maximum allowed span logs " +
+      "in a single flush. Default: 1000")
+  protected int pushFlushMaxSpanLogs = DEFAULT_BATCH_SIZE_SPAN_LOGS;
+
+  @Parameter(names = {"--pushFlushMaxEvents"}, description = "Maximum allowed events " +
+      "in a single flush. Default: 50")
+  protected int pushFlushMaxEvents = DEFAULT_BATCH_SIZE_EVENTS;
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
@@ -197,6 +227,10 @@ public abstract class AbstractAgent {
       "rate at the proxy. Default: do not throttle.")
   protected Integer pushRateLimitHistograms = NO_RATE_LIMIT;
 
+  @Parameter(names = {"--pushRateLimitSourceTags"}, description = "Limit the outgoing rate " +
+      "for source tags at the proxy. Default: 5 op/s")
+  protected Double pushRateLimitSourceTags = 5.0d;
+
   @Parameter(names = {"--pushRateLimitSpans"}, description = "Limit the outgoing tracing spans " +
       "rate at the proxy. Default: do not throttle.")
   protected Integer pushRateLimitSpans = NO_RATE_LIMIT;
@@ -204,6 +238,10 @@ public abstract class AbstractAgent {
   @Parameter(names = {"--pushRateLimitSpanLogs"}, description = "Limit the outgoing span logs " +
       "rate at the proxy. Default: do not throttle.")
   protected Integer pushRateLimitSpanLogs = NO_RATE_LIMIT;
+
+  @Parameter(names = {"--pushRateLimitEvents"}, description = "Limit the outgoing rate " +
+      "for events at the proxy. Default: 5 events/s")
+  protected Double pushRateLimitEvents = 5.0d;
 
   @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
       "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
@@ -575,10 +613,10 @@ public abstract class AbstractAgent {
   protected Short pushRelayHistogramAggregatorCompression = 32;
 
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
-  protected boolean splitPushWhenRateLimited = false;
+  protected boolean splitPushWhenRateLimited = DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
 
   @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
-  protected double retryBackoffBaseSeconds = 2.0d;
+  protected double retryBackoffBaseSeconds = DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
 
   @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
   protected String customSourceTagsProperty = "fqdn";
@@ -735,13 +773,13 @@ public abstract class AbstractAgent {
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
   protected ValidationConfiguration validationConfiguration = null;
+  protected ProxyRuntimeProperties runtimeProperties = null;
   protected RecyclableRateLimiter pushRateLimiter = null;
-  protected ProxyRuntimeSettings runtimeSettings = new ProxyRuntimeSettings();
   protected RecyclableRateLimiter histogramRateLimiter = null;
-  protected RecyclableRateLimiter sourceTagRateLimiter = RecyclableRateLimiterImpl.create(5, 10);
+  protected RecyclableRateLimiter sourceTagRateLimiter = null;
   protected RecyclableRateLimiter spanRateLimiter = null;
   protected RecyclableRateLimiter spanLogRateLimiter = null;
-  protected RecyclableRateLimiter eventRateLimiter = RecyclableRateLimiterImpl.create(5, 10);
+  protected RecyclableRateLimiter eventRateLimiter = null;
   protected TokenAuthenticator tokenAuthenticator = TokenAuthenticatorBuilder.create().build();
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
@@ -937,8 +975,11 @@ public abstract class AbstractAgent {
       pushRateLimit = config.getInteger("pushRateLimit", pushRateLimit);
       pushRateLimitHistograms = config.getInteger("pushRateLimitHistograms",
           pushRateLimitHistograms);
+      pushRateLimitSourceTags = config.getDouble("pushRateLimitSourceTags",
+          pushRateLimitSourceTags);
       pushRateLimitSpans = config.getInteger("pushRateLimitSpans", pushRateLimitSpans);
       pushRateLimitSpanLogs = config.getInteger("pushRateLimitSpanLogs", pushRateLimitSpanLogs);
+      pushRateLimitEvents = config.getDouble("pushRateLimitEvents", pushRateLimitEvents);
       pushRateLimitMaxBurstSeconds = config.getInteger("pushRateLimitMaxBurstSeconds",
           pushRateLimitMaxBurstSeconds);
       pushBlockedSamples = config.getInteger("pushBlockedSamples", pushBlockedSamples);
@@ -1188,25 +1229,25 @@ public abstract class AbstractAgent {
       httpHealthCheckFailResponseBody = config.getString("httpHealthCheckFailResponseBody",
           httpHealthCheckFailResponseBody);
 
-      // track mutable settings
-      pushFlushInterval = Integer.parseInt(config.getRawProperty("pushFlushInterval",
-          String.valueOf(pushFlushInterval)).trim());
-      runtimeSettings.setPushFlushInterval(pushFlushInterval);
-      config.reportSettingAsGauge(runtimeSettings::getPushFlushInterval, "pushFlushInterval");
-
-      // clamp values for pushFlushMaxPoints between 1..MAX_SPLIT_BATCH_SIZE
-      pushFlushMaxPoints = Math.max(Math.min(Integer.parseInt(config.getRawProperty(
-          "pushFlushMaxPoints", String.valueOf(pushFlushMaxPoints)).trim()), MAX_SPLIT_BATCH_SIZE),
-          1);
-      runtimeSettings.setItemsPerBatch(pushFlushMaxPoints);
-      config.reportSettingAsGauge(runtimeSettings::getItemsPerBatch, "pushFlushMaxPoints");
-
-      retryBackoffBaseSeconds = Math.max(Math.min(Double.parseDouble(config.getRawProperty(
-          "retryBackoffBaseSeconds", String.valueOf(retryBackoffBaseSeconds)).trim()),
-          MAX_RETRY_BACKOFF_BASE_SECONDS), 1.0);
-      runtimeSettings.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
-      config.reportSettingAsGauge(runtimeSettings::getRetryBackoffBaseSeconds,
-          "retryBackoffBaseSeconds");
+      // clamp values for pushFlushMaxPoints/etc between min split size
+      // (or 1 in case of source tags and events) and default batch size.
+      // also make sure it is never higher than the configured rate limit.
+      pushFlushMaxPoints = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxPoints",
+          pushFlushMaxPoints), DEFAULT_MIN_SPLIT_BATCH_SIZE), DEFAULT_BATCH_SIZE), pushRateLimit);
+      pushFlushMaxHistograms = Math.min(Math.min(Math.max(config.getInteger(
+          "pushFlushMaxHistograms", pushFlushMaxHistograms), DEFAULT_MIN_SPLIT_BATCH_SIZE),
+          DEFAULT_BATCH_SIZE_HISTOGRAMS), pushRateLimitHistograms);
+      pushFlushMaxSourceTags = Math.min(Math.min(Math.max(config.getInteger(
+          "pushFlushMaxSourceTags", pushFlushMaxSourceTags), 1),
+          DEFAULT_BATCH_SIZE_SOURCE_TAGS), pushRateLimitSourceTags.intValue());
+      pushFlushMaxSpans = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxSpans",
+          pushFlushMaxSpans), DEFAULT_MIN_SPLIT_BATCH_SIZE), DEFAULT_BATCH_SIZE_SPANS),
+          pushRateLimitSpans);
+      pushFlushMaxSpanLogs = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxSpanLogs",
+          pushFlushMaxSpanLogs), DEFAULT_MIN_SPLIT_BATCH_SIZE), DEFAULT_BATCH_SIZE_SPAN_LOGS),
+          pushRateLimitSpanLogs);
+      pushFlushMaxEvents = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxEvents",
+          pushFlushMaxEvents), 1), DEFAULT_BATCH_SIZE_EVENTS), pushRateLimitEvents.intValue());
 
       /*
         default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of
@@ -1221,11 +1262,42 @@ public abstract class AbstractAgent {
           Runtime.getRuntime().maxMemory() / Math.max(0, listeningPorts) / 4 / flushThreads / 400),
           pushFlushMaxPoints);
       logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
-      pushMemoryBufferLimit = Math.max(Integer.parseInt(config.getRawProperty("pushMemoryBufferLimit",
-              String.valueOf(pushMemoryBufferLimit)).trim()), pushFlushMaxPoints);
-      runtimeSettings.setMemoryBufferLimit(pushMemoryBufferLimit);
-      config.reportSettingAsGauge(runtimeSettings::getMemoryBufferLimit, "pushMemoryBufferLimit");
+      pushMemoryBufferLimit = Math.max(config.getInteger("pushMemoryBufferLimit",
+          pushMemoryBufferLimit), pushFlushMaxPoints);
       logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
+      pushFlushInterval = config.getInteger("pushFlushInterval", pushFlushInterval);
+      retryBackoffBaseSeconds = Math.max(Math.min(config.getDouble("retryBackoffBaseSeconds",
+          retryBackoffBaseSeconds), MAX_RETRY_BACKOFF_BASE_SECONDS), 1.0);
+
+      runtimeProperties = ProxyRuntimeProperties.newBuilder().
+          setSplitPushWhenRateLimited(splitPushWhenRateLimited).
+          setRetryBackoffBaseSeconds(retryBackoffBaseSeconds).
+          setPushRateLimitMaxBurstSeconds(pushRateLimitMaxBurstSeconds).
+          setPushFlushInterval(pushFlushInterval).
+          setItemsPerBatch(pushFlushMaxPoints).
+          setItemsPerBatchHistograms(pushFlushMaxHistograms).
+          setItemsPerBatchSourceTags(pushFlushMaxSourceTags).
+          setItemsPerBatchSpans(pushFlushMaxSpans).
+          setItemsPerBatchSpanLogs(pushFlushMaxSpanLogs).
+          setItemsPerBatchEvents(pushFlushMaxEvents).
+          setMinBatchSplitSize(DEFAULT_MIN_SPLIT_BATCH_SIZE).
+          setMemoryBufferLimit(pushMemoryBufferLimit).
+          setMemoryBufferLimitSourceTags(16 * pushFlushMaxSourceTags).
+          setMemoryBufferLimitEvents(16 * pushFlushMaxEvents).
+          build();
+      config.reportSettingAsGauge(runtimeProperties::getPushFlushInterval, "pushFlushInterval");
+      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatch, "pushFlushMaxPoints");
+      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatchHistograms,
+          "pushFlushMaxHistograms");
+      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatchSourceTags,
+          "pushFlushMaxSourceTags");
+      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatchSpans, "pushFlushMaxSpans");
+      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatchSpanLogs,
+          "pushFlushMaxSpanLogs");
+      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatchEvents, "pushFlushMaxEvents");
+      config.reportSettingAsGauge(runtimeProperties::getRetryBackoffBaseSeconds,
+          "retryBackoffBaseSeconds");
+      config.reportSettingAsGauge(runtimeProperties::getMemoryBufferLimit, "pushMemoryBufferLimit");
 
       if (pushConfigFile != null) {
         logger.info("Loaded configuration file " + pushConfigFile);
@@ -1250,6 +1322,10 @@ public abstract class AbstractAgent {
       pushRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
           create(pushRateLimit, pushRateLimitMaxBurstSeconds), "limiter");
     }
+    if (pushRateLimitSourceTags > 0) {
+      sourceTagRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
+          create(DEFAULT_SOURCE_TAG_RATE_LIMIT, pushRateLimitMaxBurstSeconds), "limiter.sourceTags");
+    }
     if (pushRateLimitHistograms > 0) {
       histogramRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
           create(pushRateLimitHistograms, pushRateLimitMaxBurstSeconds), "limiter.histograms");
@@ -1261,6 +1337,10 @@ public abstract class AbstractAgent {
     if (pushRateLimitSpanLogs > 0) {
       spanLogRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
           create(pushRateLimitSpanLogs, pushRateLimitMaxBurstSeconds), "limiter.spanLogs");
+    }
+    if (pushRateLimitEvents > 0) {
+      eventRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
+          create(DEFAULT_EVENT_RATE_LIMIT, pushRateLimitMaxBurstSeconds), "limiter.events");
     }
 
     if (httpUserAgent == null) {
@@ -1639,7 +1719,6 @@ public abstract class AbstractAgent {
           props.getString("build.version"), agentMetricsCaptureTsWorkingCopy,
           agentMetricsWorkingCopy, ephemeral);
       agentMetricsWorkingCopy = null;
-      hadSuccessfulCheckin = true;
     } catch (ClientErrorException ex) {
       agentMetricsWorkingCopy = null;
       switch (ex.getResponse().getStatus()) {
@@ -1775,6 +1854,7 @@ public abstract class AbstractAgent {
     if (config != null) {
       logger.info("initial configuration is available, setting up proxy");
       processConfiguration(config);
+      hadSuccessfulCheckin = true;
     }
   }
 

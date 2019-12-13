@@ -2,7 +2,7 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.config.ProxyRuntimeSettings;
+import com.wavefront.agent.config.ProxyRuntimeProperties;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.agent.data.TaskQueueingDirective;
 import com.wavefront.agent.data.TaskResult;
@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,7 +44,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
   private final Timer batchSendTime;
 
   private final SourceTagAPI proxyAPI;
-  private final ProxyRuntimeSettings runtimeSettings;
+  private final ProxyRuntimeProperties runtimeProperties;
   private final RecyclableRateLimiter rateLimiter;
   private final TaskQueue<SourceTagSubmissionTask> backlog;
 
@@ -56,31 +55,31 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
    * @param handle            handle (usually port number), that serves as an identifier
    *                          for the metrics pipeline.
    * @param threadId          thread number.
-   * @param runtimeSettings   container for mutable proxy settings.
+   * @param runtimeProperties container for mutable proxy settings.
    * @param rateLimiter       rate limiter to control outbound point rate.
    * @param backlog           backing queue
    *
    */
   ReportSourceTagSenderTask(SourceTagAPI proxyAPI, String handle, int threadId,
-                            ProxyRuntimeSettings runtimeSettings,
+                            ProxyRuntimeProperties runtimeProperties,
                             @Nullable RecyclableRateLimiter rateLimiter,
                             TaskQueue<SourceTagSubmissionTask> backlog) {
     super(ReportableEntityType.SOURCE_TAG, handle, threadId,
-        runtimeSettings.getItemsPerBatchForEntityType(ReportableEntityType.SOURCE_TAG),
-        runtimeSettings.getMemoryBufferLimitForEntityType(ReportableEntityType.SOURCE_TAG),
+        runtimeProperties.getItemsPerBatchForEntityType(ReportableEntityType.SOURCE_TAG),
+        runtimeProperties.getMemoryBufferLimitForEntityType(ReportableEntityType.SOURCE_TAG),
         rateLimiter);
     this.proxyAPI = proxyAPI;
     this.batchSendTime = Metrics.newTimer(new MetricName("api.sourceTags." + handle, "",
             "duration"), TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
-    this.runtimeSettings = runtimeSettings;
+    this.runtimeProperties = runtimeProperties;
     this.rateLimiter = rateLimiter;
     this.backlog = backlog;
-    this.scheduler.schedule(this, runtimeSettings.getPushFlushInterval(), TimeUnit.MILLISECONDS);
+    this.scheduler.schedule(this, runtimeProperties.getPushFlushInterval(), TimeUnit.MILLISECONDS);
   }
 
   @Override
   public void run() {
-    long nextRunMillis = runtimeSettings.getPushFlushInterval();
+    long nextRunMillis = runtimeProperties.getPushFlushInterval();
     isSending = true;
     try {
       List<ReportSourceTag> current = createBatch();

@@ -20,12 +20,16 @@ import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_SAV
 /**
  *
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS_KEY")
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTagSubmissionTask> {
   private transient SourceTagAPI api;
 
   @JsonProperty
-  private final ReportSourceTag sourceTag;
+  private ReportSourceTag sourceTag;
+
+  @SuppressWarnings("unused")
+  SourceTagSubmissionTask() {
+  }
 
   public SourceTagSubmissionTask(SourceTagAPI api, String handle,
                                  ReportSourceTag sourceTag,
@@ -58,7 +62,7 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
           }
       }
     } catch (Exception e) {
-      // TODO handle
+      // TODO (VV): handle
     }
     return TaskResult.COMPLETE;
   }

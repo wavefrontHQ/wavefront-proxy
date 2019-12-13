@@ -36,7 +36,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
                           final Collection<SenderTask<ReportEvent>> senderTasks,
                           final Logger blockedEventsLogger) {
     super(ReportableEntityType.EVENT, handle, blockedItemsPerBatch,
-        EVENT_SERIALIZER, senderTasks, null, null, true, blockedEventsLogger);
+        EVENT_SERIALIZER, senderTasks, null, "eps", true, blockedEventsLogger);
   }
 
   @Override

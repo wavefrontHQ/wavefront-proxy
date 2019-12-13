@@ -25,21 +25,24 @@ import java.util.function.Supplier;
 abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     implements DataSubmissionTask<T> {
   // to ensure backwards compatibility
-  private static final long serialVersionUID = 1973695079812309903L;
+  //private static final long serialVersionUID = 1973695079812309903L;
 
   @JsonProperty
-  private final Long createdMillis;
+  private Long createdMillis;
   @JsonProperty
   protected Long enqueuedTimeMillis = null;
   @JsonProperty
   private int attempts = 0;
   @JsonProperty
-  protected final String handle;
+  protected String handle;
   @JsonProperty
-  protected final ReportableEntityType entityType;
+  protected ReportableEntityType entityType;
 
   private transient Histogram timeSpentInQueue;
-  protected final transient Supplier<Long> timeProvider;
+  protected transient Supplier<Long> timeProvider;
+
+  AbstractDataSubmissionTask() {
+  }
 
   /**
    * Create a new instance.

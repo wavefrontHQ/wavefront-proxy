@@ -2,7 +2,7 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.config.ProxyRuntimeSettings;
+import com.wavefront.agent.config.ProxyRuntimeProperties;
 import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.TaskQueueingDirective;
 import com.wavefront.agent.data.TaskResult;
@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -47,7 +46,7 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
 
   private final EventAPI proxyAPI;
   private final UUID proxyId;
-  private final ProxyRuntimeSettings runtimeSettings;
+  private final ProxyRuntimeProperties runtimeProperties;
   private final RecyclableRateLimiter rateLimiter;
   private final Counter permitsGranted;
   private final Counter permitsDenied;
@@ -61,21 +60,21 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
    * @param proxyId           id of the proxy.
    * @param handle            handle (usually port number), that serves as an identifier for the metrics pipeline.
    * @param threadId          thread number.
-   * @param runtimeSettings   container for mutable proxy settings.
+   * @param runtimeProperties container for mutable proxy settings.
    * @param rateLimiter       rate limiter to control outbound point rate.
    * @param backlog           backing queue
    */
   EventSenderTask(EventAPI proxyAPI, UUID proxyId, String handle, int threadId,
-                  ProxyRuntimeSettings runtimeSettings,
+                  ProxyRuntimeProperties runtimeProperties,
                   @Nullable RecyclableRateLimiter rateLimiter,
                   TaskQueue<EventDataSubmissionTask> backlog) {
     super(ReportableEntityType.EVENT, handle, threadId,
-        runtimeSettings.getItemsPerBatchForEntityType(ReportableEntityType.EVENT),
-        runtimeSettings.getMemoryBufferLimitForEntityType(ReportableEntityType.EVENT),
+        runtimeProperties.getItemsPerBatchForEntityType(ReportableEntityType.EVENT),
+        runtimeProperties.getMemoryBufferLimitForEntityType(ReportableEntityType.EVENT),
         rateLimiter);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
-    this.runtimeSettings = runtimeSettings;
+    this.runtimeProperties = runtimeProperties;
     this.batchSendTime = Metrics.newTimer(new MetricName("api.events." + handle, "", "duration"),
         TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
     this.rateLimiter = rateLimiter;
@@ -85,12 +84,12 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
     this.permitsDenied = Metrics.newCounter(new MetricName("limiter", "", "permits-denied"));
     this.permitsRetried = Metrics.newCounter(new MetricName("limiter", "", "permits-retried"));
 
-    this.scheduler.schedule(this, runtimeSettings.getPushFlushInterval(), TimeUnit.MILLISECONDS);
+    this.scheduler.schedule(this, runtimeProperties.getPushFlushInterval(), TimeUnit.MILLISECONDS);
   }
 
   @Override
   public void run() {
-    long nextRunMillis = runtimeSettings.getPushFlushInterval();
+    long nextRunMillis = runtimeProperties.getPushFlushInterval();
     isSending = true;
     try {
       List<ReportEvent> current = createBatch();
@@ -115,7 +114,8 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
         }
       } else {
         permitsDenied.inc(batchSize);
-        nextRunMillis = 250 + (int) (Math.random() * 250);
+        nextRunMillis = runtimeProperties.getPushFlushInterval() +
+            (int) (Math.random() * runtimeProperties.getPushFlushInterval() );
         //noinspection UnstableApiUsage
         if (warningMessageRateLimiter.tryAcquire()) {
           logger.warning("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter active " +

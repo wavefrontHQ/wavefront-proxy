@@ -12,8 +12,12 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 public class RecyclableRateLimiterFactoryImpl implements RecyclableRateLimiterFactory {
-  public static final RecyclableRateLimiter UNLIMITED =
-      RecyclableRateLimiterImpl.create(10_000_000, 10);
+  /**
+   * What we consider "unlimited".
+   */
+  public static final int NO_RATE_LIMIT = 10_000_000;
+  public static final RecyclableRateLimiter UNLIMITED = RecyclableRateLimiterImpl.create(
+      NO_RATE_LIMIT, 10);
 
   private final RecyclableRateLimiter pushRateLimiter;
   private final RecyclableRateLimiter histogramRateLimiter;

@@ -3,8 +3,6 @@ package com.wavefront.agent.handlers;
 import com.google.common.util.concurrent.RateLimiter;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
-import com.wavefront.agent.config.ProxyRuntimeSettings;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
@@ -22,7 +20,6 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
@@ -90,7 +87,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     this.itemsPerBatch = itemsPerBatch;
     this.memoryBufferLimit = memoryBufferLimit;
     this.rateLimiter = rateLimiter == null ? UNLIMITED : rateLimiter;
-    this.scheduler = Executors.newScheduledThreadPool(1,
+    this.scheduler = Executors.newSingleThreadScheduledExecutor(
         new NamedThreadFactory("submitter-" + entityType + "-" + handle + "-" + threadId));
     this.flushExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.MINUTES,
         new SynchronousQueue<>(), new NamedThreadFactory("flush-" + entityType + "-" + handle +

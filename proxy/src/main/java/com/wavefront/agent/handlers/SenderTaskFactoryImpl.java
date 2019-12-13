@@ -1,9 +1,7 @@
 package com.wavefront.agent.handlers;
 
-import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import com.wavefront.agent.api.APIContainer;
-import com.wavefront.agent.config.ProxyRuntimeSettings;
+import com.wavefront.agent.config.ProxyRuntimeProperties;
 import com.wavefront.agent.queueing.TaskSizeEstimator;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.common.TaggedMetricName;
@@ -17,7 +15,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
@@ -47,7 +44,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   private final UUID proxyId;
   private final TaskQueueFactory taskQueueFactory;
   private final RecyclableRateLimiterFactory rateLimiterFactory;
-  private final ProxyRuntimeSettings runtimeSettings;
+  private final ProxyRuntimeProperties runtimeProperties;
 
   /**
    * Create new instance.
@@ -56,18 +53,18 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
    * @param proxyId            proxy ID.
    * @param taskQueueFactory   factory for backing queues.
    * @param rateLimiterFactory factory for rate limiters.
-   * @param runtimeSettings    container for mutable proxy settings.
+   * @param runtimeProperties  container for mutable proxy settings.
    */
   public SenderTaskFactoryImpl(final APIContainer apiContainer,
                                final UUID proxyId,
                                final TaskQueueFactory taskQueueFactory,
                                @Nullable final RecyclableRateLimiterFactory rateLimiterFactory,
-                               final ProxyRuntimeSettings runtimeSettings) {
+                               final ProxyRuntimeProperties runtimeProperties) {
     this.apiContainer = apiContainer;
     this.proxyId = proxyId;
     this.taskQueueFactory = taskQueueFactory;
     this.rateLimiterFactory = rateLimiterFactory == null ? x -> UNLIMITED : rateLimiterFactory;
-    this.runtimeSettings = runtimeSettings;
+    this.runtimeProperties = runtimeProperties;
     // global `~proxy.buffer.fill-rate` metric aggregated from all task size estimators
     Metrics.newGauge(new TaggedMetricName("buffer", "fill-rate"),
         new Gauge<Long>() {
@@ -83,7 +80,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
   @SuppressWarnings("unchecked")
   public Collection<SenderTask<?>> createSenderTasks(@NotNull HandlerKey handlerKey,
-                                                  final int numThreads) {
+                                                     final int numThreads) {
     List<SenderTask<?>> toReturn = new ArrayList<>(numThreads);
     TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getHandle());
     taskSizeEstimators.add(taskSizeEstimator);
@@ -93,44 +90,44 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
         case POINT:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.POINT,
               PUSH_FORMAT_WAVEFRONT, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              runtimeSettings, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
+              runtimeProperties, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
               taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case DELTA_COUNTER:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.DELTA_COUNTER,
               PUSH_FORMAT_WAVEFRONT, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              runtimeSettings, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
+              runtimeProperties, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
               taskSizeEstimator,
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case HISTOGRAM:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.HISTOGRAM,
               PUSH_FORMAT_HISTOGRAM, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              runtimeSettings, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
+              runtimeProperties, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
               taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case SOURCE_TAG:
           senderTask = new ReportSourceTagSenderTask(apiContainer.getSourceTagAPI(),
-              handlerKey.getHandle(), threadNo, runtimeSettings,
+              handlerKey.getHandle(), threadNo, runtimeProperties,
               rateLimiterFactory.getRateLimiter(handlerKey),
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE,
               PUSH_FORMAT_TRACING, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              runtimeSettings, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
+              runtimeProperties, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
               taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE_SPAN_LOGS:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE_SPAN_LOGS,
               PUSH_FORMAT_TRACING_SPAN_LOGS, apiContainer.getProxyV2API(), proxyId,
-              handlerKey.getHandle(), runtimeSettings, threadNo,
+              handlerKey.getHandle(), runtimeProperties, threadNo,
               rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case EVENT:
           senderTask = new EventSenderTask(apiContainer.getEventAPI(), proxyId,
-              handlerKey.getHandle(), threadNo, runtimeSettings,
+              handlerKey.getHandle(), threadNo, runtimeProperties,
               rateLimiterFactory.getRateLimiter(handlerKey),
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;

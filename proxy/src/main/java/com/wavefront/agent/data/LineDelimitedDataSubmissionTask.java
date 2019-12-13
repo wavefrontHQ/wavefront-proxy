@@ -22,7 +22,7 @@ import static com.wavefront.agent.queueing.QueueController.parsePostingResponse;
  *
  * @author vasily@wavefront.com
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS_KEY")
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class LineDelimitedDataSubmissionTask
     extends AbstractDataSubmissionTask<LineDelimitedDataSubmissionTask> {
 
@@ -30,9 +30,13 @@ public class LineDelimitedDataSubmissionTask
   private transient UUID proxyId;
 
   @JsonProperty
-  private final String format;
+  private String format;
   @JsonProperty
-  private final List<String> payload;
+  private List<String> payload;
+
+  @SuppressWarnings("unused")
+  LineDelimitedDataSubmissionTask() {
+  }
 
   /**
    * Create a new instance.

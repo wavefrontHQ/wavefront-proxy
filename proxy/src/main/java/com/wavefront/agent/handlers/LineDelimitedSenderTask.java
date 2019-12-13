@@ -3,7 +3,7 @@ package com.wavefront.agent.handlers;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
-import com.wavefront.agent.config.ProxyRuntimeSettings;
+import com.wavefront.agent.config.ProxyRuntimeProperties;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.TaskQueueingDirective;
 import com.wavefront.agent.data.TaskResult;
@@ -20,8 +20,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,7 +42,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
   @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter warningMessageRateLimiter = RateLimiter.create(0.1);
 
-  private final ProxyRuntimeSettings runtimeSettings;
+  private final ProxyRuntimeProperties runtimeProperties;
   private final RecyclableRateLimiter pushRateLimiter;
   private final TaskSizeEstimator taskSizeEstimator;
   private final TaskQueue<LineDelimitedDataSubmissionTask> backlog;
@@ -65,7 +63,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
    * @param proxyId           proxy ID.
    * @param handle            handle (usually port number), that serves as an identifier for the
    *                          metrics pipeline.
-   * @param runtimeSettings   container for mutable proxy settings.
+   * @param runtimeProperties container for mutable proxy settings.
    * @param threadId          thread number.
    * @param pushRateLimiter   rate limiter to control outbound point rate.
    * @param taskSizeEstimator optional task size estimator used to calculate approximate
@@ -74,13 +72,13 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
    */
   LineDelimitedSenderTask(ReportableEntityType entityType, String pushFormat,
                           ProxyV2API proxyAPI, UUID proxyId, String handle,
-                          final ProxyRuntimeSettings runtimeSettings,
+                          final ProxyRuntimeProperties runtimeProperties,
                           int threadId, final RecyclableRateLimiter pushRateLimiter,
                           @Nullable final TaskSizeEstimator taskSizeEstimator,
                           TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
-    super(entityType, handle, threadId, runtimeSettings.getItemsPerBatchForEntityType(entityType),
-        runtimeSettings.getMemoryBufferLimitForEntityType(entityType), pushRateLimiter);
-    this.runtimeSettings = runtimeSettings;
+    super(entityType, handle, threadId, runtimeProperties.getItemsPerBatchForEntityType(entityType),
+        runtimeProperties.getMemoryBufferLimitForEntityType(entityType), pushRateLimiter);
+    this.runtimeProperties = runtimeProperties;
     this.pushFormat = pushFormat;
     this.proxyId = proxyId;
     this.proxyAPI = proxyAPI;
@@ -91,12 +89,12 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
     this.batchesSuccessful = Metrics.newCounter(new MetricName("push." + handle, "", "batches"));
     this.batchesFailed = Metrics.newCounter(new MetricName("push." + handle, "", "batches-errors"));
 
-    this.scheduler.schedule(this, runtimeSettings.getPushFlushInterval(), TimeUnit.MILLISECONDS);
+    this.scheduler.schedule(this, runtimeProperties.getPushFlushInterval(), TimeUnit.MILLISECONDS);
   }
 
   @Override
   public void run() {
-    long nextRunMillis = runtimeSettings.getPushFlushInterval();
+    long nextRunMillis = runtimeProperties.getPushFlushInterval();
     isSending = true;
     try {
       List<String> current = createBatch();

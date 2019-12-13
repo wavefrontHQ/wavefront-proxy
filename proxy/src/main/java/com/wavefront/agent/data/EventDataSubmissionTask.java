@@ -17,21 +17,25 @@ import java.util.function.Supplier;
  *
  * @author vasily@wavefront.com
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS_KEY")
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDataSubmissionTask> {
   private transient EventAPI api;
   private transient UUID proxyId;
 
-  private final List<Event> events;
+  private List<Event> events;
+
+  @SuppressWarnings("unused")
+  EventDataSubmissionTask() {
+  }
 
   /**
+   * TODO (VV): javadoc
    *
-   *
-   * @param api           TODO
-   * @param proxyId       TODO
-   * @param handle        TODO
-   * @param events        TODO
-   * @param timeProvider  TODO
+   * @param api
+   * @param proxyId
+   * @param handle
+   * @param events
+   * @param timeProvider
    */
   public EventDataSubmissionTask(EventAPI api, UUID proxyId, String handle, List<Event> events,
                                  @Nullable Supplier<Long> timeProvider) {
@@ -45,7 +49,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
   public TaskResult doExecute(TaskQueueingDirective queueingContext,
                               TaskQueue<EventDataSubmissionTask> taskQueue) {
     api.proxyEvents(proxyId, events);
-    // TODO: Return correct status
+    // TODO (VV): Return correct status
     return TaskResult.COMPLETE;
   }
 

@@ -42,11 +42,9 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
 
   public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@NotNull HandlerKey handlerKey,
                                                                      int threadNum) {
-    // TODO remove
-    logger.info("*** getTaskQueue called for " + handlerKey + ", #" + threadNum);
     //noinspection unchecked
-    return (TaskQueue<T>) taskQueues.computeIfAbsent(handlerKey, x -> new TreeMap<>()).computeIfAbsent(threadNum,
-        x -> {
+    return (TaskQueue<T>) taskQueues.computeIfAbsent(handlerKey, x -> new TreeMap<>()).
+        computeIfAbsent(threadNum, x -> {
           String fileName = bufferFile + "." + handlerKey.getEntityType().toString() + "." +
               handlerKey.getHandle() + "." + threadNum;
           String lockFileName = fileName + ".lck";
@@ -78,7 +76,7 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
             }
             return new DataSubmissionQueue<>(ObjectQueue.create(
                 new QueueFile.Builder(buffer).build(),
-                new RetryTaskConverter<T>(handlerKey.getHandle(), true)), // TODO: enable compression
+                new RetryTaskConverter<T>(handlerKey.getHandle(), true)), // TODO (VV): enable compression
                 handlerKey.getHandle(), handlerKey.getEntityType());
           } catch (Exception e) {
             logger.severe("WF-006: Unable to open or create queue file " + spoolFileName);
