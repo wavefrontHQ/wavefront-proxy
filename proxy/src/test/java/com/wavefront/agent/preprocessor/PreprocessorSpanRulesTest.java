@@ -466,23 +466,24 @@ public class PreprocessorSpanRulesTest {
   public void testSpanSanitizeTransformer() {
     Span span = Span.newBuilder().setCustomer("dummy").setStartMillis(System.currentTimeMillis())
         .setDuration(2345)
-        .setName("HTTP GET ?")
+        .setName(" HTTP GET\"\n? ")
         .setSource("'customJaegerSource'")
         .setSpanId("00000000-0000-0000-0000-00000023cace")
         .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
         .setAnnotations(ImmutableList.of(
             new Annotation("service", "frontend"),
-            new Annotation("special|tag:", "''")))
+            new Annotation("special|tag:", "''"),
+            new Annotation("specialvalue", " hello \n world ")))
         .build();
     SpanSanitizeTransformer transformer = new SpanSanitizeTransformer(metrics);
     span = transformer.apply(span);
-    assertEquals("HTTP GET ?", span.getName());
+    assertEquals("HTTP GET\"\\n?", span.getName());
     assertEquals("-customJaegerSource-", span.getSource());
     assertEquals(ImmutableList.of("''"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("special-tag-")).map(Annotation::getValue).
             collect(Collectors.toList()));
-    assertEquals(ImmutableList.of("frontend"),
-        span.getAnnotations().stream().filter(x -> x.getKey().equals("service")).map(Annotation::getValue).
+    assertEquals(ImmutableList.of("hello \\n world"),
+        span.getAnnotations().stream().filter(x -> x.getKey().equals("specialvalue")).map(Annotation::getValue).
             collect(Collectors.toList()));
   }
 
