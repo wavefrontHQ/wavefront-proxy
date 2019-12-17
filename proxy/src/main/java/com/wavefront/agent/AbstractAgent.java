@@ -507,6 +507,10 @@ public abstract class AbstractAgent {
       "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
   protected String traceJaegerListenerPorts;
 
+  @Parameter(names = {"--traceJaegerHttpListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
+      "on for jaeger thrift formatted data over HTTP. Defaults to none.")
+  protected String traceJaegerHttpListenerPorts;
+
   @Parameter(names = {"--traceJaegerApplicationName"}, description = "Application name for Jaeger. Defaults to Jaeger.")
   protected String traceJaegerApplicationName;
 
@@ -1074,6 +1078,8 @@ public abstract class AbstractAgent {
       picklePorts = config.getString("picklePorts", picklePorts);
       traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
       traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts", traceJaegerListenerPorts);
+      traceJaegerHttpListenerPorts = config.getString("traceJaegerHttpListenerPorts",
+          traceJaegerHttpListenerPorts);
       traceJaegerApplicationName = config.getString("traceJaegerApplicationName", traceJaegerApplicationName);
       traceZipkinListenerPorts = config.getString("traceZipkinListenerPorts", traceZipkinListenerPorts);
       traceZipkinApplicationName = config.getString("traceZipkinApplicationName", traceZipkinApplicationName);
