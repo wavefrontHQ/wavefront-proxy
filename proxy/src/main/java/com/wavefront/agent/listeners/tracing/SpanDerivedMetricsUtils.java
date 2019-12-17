@@ -11,7 +11,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import wavefront.report.Annotation;
 
@@ -22,6 +21,7 @@ import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
+import static com.wavefront.sdk.common.Utils.sanitizeWithoutQuotes;
 
 /**
  * Util methods to generate data (metrics/histograms/heartbeats) from tracing spans
@@ -29,8 +29,6 @@ import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
  * @author Sushant Dewan (sushant@wavefront.com).
  */
 public class SpanDerivedMetricsUtils {
-
-  private final static Pattern WHITESPACE = Pattern.compile("[\\s]+");
 
   public final static String TRACING_DERIVED_PREFIX = "tracing.derived";
   private final static String INVOCATION_SUFFIX = ".invocation";
@@ -97,43 +95,33 @@ public class SpanDerivedMetricsUtils {
     }
 
     // tracing.derived.<application>.<service>.<operation>.invocation.count
-    wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
-        operationName + INVOCATION_SUFFIX), pointTags)).inc();
+    wfInternalReporter.newDeltaCounter(new MetricName(sanitizeWithoutQuotes(application +
+        "." + service + "." + operationName + INVOCATION_SUFFIX), pointTags)).inc();
 
     if (isError) {
       // tracing.derived.<application>.<service>.<operation>.error.count
-      wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
-          operationName + ERROR_SUFFIX), pointTags)).inc();
+      wfInternalReporter.newDeltaCounter(new MetricName(sanitizeWithoutQuotes(application +
+          "." + service + "." + operationName + ERROR_SUFFIX), pointTags)).inc();
     }
 
     // tracing.derived.<application>.<service>.<operation>.duration.micros.m
     if (isError) {
       Map<String, String> errorPointTags = new HashMap<>(pointTags);
       errorPointTags.put("error", "true");
-      wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(application + "." + service + "." +
-          operationName + DURATION_SUFFIX), errorPointTags)).
+      wfInternalReporter.newWavefrontHistogram(new MetricName(sanitizeWithoutQuotes(application +
+          "." + service + "." + operationName + DURATION_SUFFIX), errorPointTags)).
           update(spanDurationMicros);
     } else {
-      wfInternalReporter.newWavefrontHistogram(new MetricName(sanitize(application + "." + service + "." +
-          operationName + DURATION_SUFFIX), pointTags)).
+      wfInternalReporter.newWavefrontHistogram(new MetricName(sanitizeWithoutQuotes(application +
+          "." + service + "." + operationName + DURATION_SUFFIX), pointTags)).
           update(spanDurationMicros);
     }
 
     // tracing.derived.<application>.<service>.<operation>.total_time.millis.count
-    wfInternalReporter.newDeltaCounter(new MetricName(sanitize(application + "." + service + "." +
-        operationName + TOTAL_TIME_SUFFIX), pointTags)).
+    wfInternalReporter.newDeltaCounter(new MetricName(sanitizeWithoutQuotes(application +
+        "." + service + "." + operationName + TOTAL_TIME_SUFFIX), pointTags)).
         inc(spanDurationMicros / 1000);
     return new HeartbeatMetricKey(application, service, cluster, shard, source, customTags);
-  }
-
-  private static String sanitize(String s) {
-    final String whitespaceSanitized = WHITESPACE.matcher(s).replaceAll("-");
-    if (s.contains("\"") || s.contains("'")) {
-      // for single quotes, once we are double-quoted, single quotes can exist happily inside it.
-      return whitespaceSanitized.replaceAll("\"", "\\\\\"");
-    } else {
-      return whitespaceSanitized;
-    }
   }
 
   /**
