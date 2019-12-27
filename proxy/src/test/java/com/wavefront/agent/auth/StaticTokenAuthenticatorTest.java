@@ -11,6 +11,7 @@ public class StaticTokenAuthenticatorTest {
   @Test
   public void testValidTokenWorks() {
     TokenAuthenticator authenticator = new StaticTokenAuthenticator("staticToken");
+    assertTrue(authenticator.authRequired());
 
     // null should fail
     assertFalse(authenticator.authorize(null));

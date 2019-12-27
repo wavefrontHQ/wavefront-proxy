@@ -1,12 +1,22 @@
 package com.wavefront.agent;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.StringUtils;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.ws.rs.core.Response;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.Enumeration;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import javax.annotation.Nullable;
 
 /**
  * A placeholder class for miscellaneous utility methods.
@@ -15,6 +25,8 @@ import javax.annotation.Nullable;
  */
 public abstract class Utils {
 
+  private static final ObjectMapper JSON_PARSER = new ObjectMapper();
+  private static final ResourceBundle buildProps = ResourceBundle.getBundle("build");
   private static final Pattern patternUuid = Pattern.compile(
       "(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})");
 
@@ -70,5 +82,80 @@ public abstract class Utils {
       return id;
     }
     return addHyphensToUuid(StringUtils.leftPad(id, 32, '0'));
+  }
+
+  /**
+   * TODO (vv): javadoc
+   * @return
+   */
+  public static String getBuildVersion() {
+    try {
+      return buildProps.getString("build.version");
+    } catch (MissingResourceException ex) {
+      return "unknown";
+    }
+  }
+
+  /**
+   * TODO (vv): javadoc
+   * @return
+   */
+  public static String getLocalHostName() {
+    InetAddress localAddress = null;
+    try {
+      Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
+      while (nics.hasMoreElements()) {
+        NetworkInterface network = nics.nextElement();
+        if (!network.isUp() || network.isLoopback()) {
+          continue;
+        }
+        for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements(); ) {
+          InetAddress address = addresses.nextElement();
+          if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isMulticastAddress()) {
+            continue;
+          }
+          if (address instanceof Inet4Address) { // prefer ipv4
+            localAddress = address;
+            break;
+          }
+          if (localAddress == null) {
+            localAddress = address;
+          }
+        }
+      }
+    } catch (SocketException ex) {
+      // ignore
+    }
+    if (localAddress != null) {
+      return localAddress.getCanonicalHostName();
+    }
+    return "localhost";
+  }
+
+  /**
+   * Check if the HTTP 407/408 response was actually received from Wavefront - if it's a
+   * JSON object containing "code" key, with value equal to the HTTP response code,
+   * it's most likely from us.
+   *
+   * @param response Response object.
+   * @return whether we consider it a Wavefront response
+   */
+  public static boolean isWavefrontResponse(@Nonnull Response response) {
+    try {
+      Status res = JSON_PARSER.readValue(response.readEntity(String.class), Status.class);
+      if (res.code == response.getStatus()) {
+        return true;
+      }
+    } catch (Exception ex) {
+      // ignore
+    }
+    return false;
+  }
+
+  private static class Status {
+    @JsonProperty
+    String message;
+    @JsonProperty
+    int code;
   }
 }

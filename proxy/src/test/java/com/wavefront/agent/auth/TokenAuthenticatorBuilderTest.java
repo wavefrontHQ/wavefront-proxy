@@ -20,8 +20,19 @@ public class TokenAuthenticatorBuilderTest {
 
     HttpClient httpClient = HttpClientBuilder.create().useSystemProperties().build();
 
-    assertTrue(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.HTTP_GET).
-        setHttpClient(httpClient).setTokenIntrospectionServiceUrl("https://acme.corp/url").
+    assertTrue(TokenAuthenticatorBuilder.create().
+        setTokenValidationMethod(TokenValidationMethod.HTTP_GET).
+        setHttpClient(httpClient).
+        setTokenIntrospectionServiceUrl("https://acme.corp/url").
+        build() instanceof HttpGetTokenIntrospectionAuthenticator);
+
+    assertTrue(TokenAuthenticatorBuilder.create().
+        setTokenValidationMethod(TokenValidationMethod.HTTP_GET).
+        setHttpClient(httpClient).
+        setTokenIntrospectionServiceUrl("https://acme.corp/url").
+        setAuthResponseMaxTtl(10).
+        setAuthResponseRefreshInterval(60).
+        setTokenIntrospectionAuthorizationHeader("Bearer: 12345secret").
         build() instanceof HttpGetTokenIntrospectionAuthenticator);
 
     assertTrue(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.OAUTH2).

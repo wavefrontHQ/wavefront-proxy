@@ -1,10 +1,9 @@
 package com.wavefront.agent.data;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.data.ReportableEntityType;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.List;
 
@@ -42,22 +41,16 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
    *
    * TODO (VV): javadoc
    *
-   * @param queueingLevel
-   * @param taskQueue
-   *
    * @return operation result
    */
-  TaskResult execute(TaskQueueingDirective queueingLevel,
-                     TaskQueue<T> taskQueue);
+  TaskResult execute();
 
   /**
    * Persist task in the queue
    *
-   * @param taskQueue queue to use
-   *
-   * @throws IOException throws if there was an error submitting data to the queue
+   * @param reason reason for queueing. used to increment metrics, if specified.
    */
-  void enqueue(TaskQueue<T> taskQueue) throws IOException;
+  void enqueue(@Nullable QueueingReason reason);
 
   /**
    * Returns entity type handled.
@@ -67,10 +60,11 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
   ReportableEntityType getEntityType();
 
   /**
-   * Split the task into two smaller tasks.
+   * Split the task into smaller tasks.
    *
    * @param minSplitSize Don't split the task if its weight is smaller than this number.
+   * @param maxSplitSize Split tasks size cap.
    * @return tasks
    */
-  List<T> splitTask(int minSplitSize);
+  List<T> splitTask(int minSplitSize, int maxSplitSize);
 }

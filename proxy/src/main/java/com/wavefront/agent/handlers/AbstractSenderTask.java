@@ -3,6 +3,9 @@ package com.wavefront.agent.handlers;
 import com.google.common.util.concurrent.RateLimiter;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
+import com.wavefront.agent.data.EntityWrapper.EntityProperties;
+import com.wavefront.agent.data.QueueingReason;
+import com.wavefront.agent.data.TaskResult;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
@@ -20,7 +23,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -37,6 +40,12 @@ import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.UNLI
 abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   private static final Logger logger = Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
 
+  /**
+   * Warn about exceeding the rate limit no more than once per 10 seconds (per thread)
+   */
+  @SuppressWarnings("UnstableApiUsage")
+  private final RateLimiter warningMessageRateLimiter = RateLimiter.create(0.1);
+
   List<T> datum = new ArrayList<>();
   final Object mutex = new Object();
   final ScheduledExecutorService scheduler;
@@ -45,9 +54,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   final ReportableEntityType entityType;
   protected final String handle;
   final int threadId;
-
-  final Supplier<Integer> itemsPerBatch;
-  final Supplier<Integer> memoryBufferLimit;
+  final EntityProperties properties;
   final RecyclableRateLimiter rateLimiter;
 
   final Counter receivedCounter;
@@ -58,7 +65,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   final Counter bufferCompletedFlushCounter;
 
   final AtomicBoolean isBuffering = new AtomicBoolean(false);
-  boolean isSending = false;
+  volatile boolean isSending = false;
 
   /**
    * Attempt to schedule drainBuffersToQueueTask no more than once every 100ms to reduce
@@ -74,18 +81,16 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
    * @param handle            handle (usually port number), that serves as an identifier
    *                          for the metrics pipeline.
    * @param threadId          thread number
-   * @param itemsPerBatch     max points per flush.
-   * @param memoryBufferLimit max points in task's memory buffer before queueing.
+   * @param properties runtime properties container
+   * @param rateLimiter       rate limiter
    */
   AbstractSenderTask(ReportableEntityType entityType, String handle, int threadId,
-                     final Supplier<Integer> itemsPerBatch,
-                     final Supplier<Integer> memoryBufferLimit,
+                     EntityProperties properties,
                      @Nullable RecyclableRateLimiter rateLimiter) {
     this.entityType = entityType;
     this.handle = handle;
     this.threadId = threadId;
-    this.itemsPerBatch = itemsPerBatch;
-    this.memoryBufferLimit = memoryBufferLimit;
+    this.properties = properties;
     this.rateLimiter = rateLimiter == null ? UNLIMITED : rateLimiter;
     this.scheduler = Executors.newSingleThreadScheduledExecutor(
         new NamedThreadFactory("submitter-" + entityType + "-" + handle + "-" + threadId));
@@ -107,6 +112,52 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         new TaggedMetricName("buffer", "completed-flush-count", "port", handle));
   }
 
+  abstract TaskResult processSingleBatch(List<T> batch);
+
+  @Override
+  public void run() {
+    long nextRunMillis = properties.getPushFlushInterval();
+    isSending = true;
+    try {
+      List<T> current = createBatch();
+      int currentBatchSize = current.size();
+      if (currentBatchSize == 0) return;
+      if (rateLimiter == null || rateLimiter.tryAcquire(currentBatchSize)) {
+        TaskResult result = processSingleBatch(current);
+        this.attemptedCounter.inc(currentBatchSize);
+        switch (result) {
+          case DELIVERED:
+            break;
+          case PERSISTED:
+          case PERSISTED_RETRY:
+            if (rateLimiter != null) rateLimiter.recyclePermits(currentBatchSize);
+            break;
+          case RETRY_IMMEDIATELY:
+          case RETRY_LATER:
+            undoBatch(current);
+            if (rateLimiter != null) rateLimiter.recyclePermits(currentBatchSize);
+          default:
+        }
+      } else {
+        // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
+        // to introduce some degree of fairness.
+        nextRunMillis = nextRunMillis / 4 + (int) (Math.random() * nextRunMillis / 4);
+        //noinspection UnstableApiUsage
+        if (warningMessageRateLimiter.tryAcquire()) {
+          logger.info("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter " +
+              "active (pending " + entityType + ": " + datum.size() + "), will retry in " +
+              nextRunMillis + "ms");
+        }
+        undoBatch(current);
+      }
+    } catch (Throwable t) {
+      logger.log(Level.SEVERE, "Unexpected error in flush loop", t);
+    } finally {
+      isSending = false;
+      scheduler.schedule(this, nextRunMillis, TimeUnit.MILLISECONDS);
+    }
+  }
+
   /**
    * Shut down the scheduler for this task (prevent future scheduled runs)
    */
@@ -122,7 +173,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
       this.datum.add(metricString);
     }
     //noinspection UnstableApiUsage
-    if (datum.size() >= memoryBufferLimit.get() && !isBuffering.get() &&
+    if (datum.size() >= properties.getMemoryBufferLimit() && !isBuffering.get() &&
         drainBuffersRateLimiter.tryAcquire()) {
       try {
         flushExecutor.submit(drainBuffersToQueueTask);
@@ -136,7 +187,8 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     List<T> current;
     int blockSize;
     synchronized (mutex) {
-      blockSize = Math.min(datum.size(), Math.min(itemsPerBatch.get(), (int)rateLimiter.getRate()));
+      blockSize = Math.min(datum.size(), Math.min(properties.getItemsPerBatch(),
+          (int)rateLimiter.getRate()));
       current = datum.subList(0, blockSize);
       datum = new ArrayList<>(datum.subList(blockSize, datum.size()));
     }
@@ -157,27 +209,48 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   private final Runnable drainBuffersToQueueTask = new Runnable() {
     @Override
     public void run() {
-      if (datum.size() > memoryBufferLimit.get()) {
+      if (datum.size() > properties.getMemoryBufferLimit()) {
         // there are going to be too many points to be able to flush w/o the agent blowing up
         // drain the leftovers straight to the retry queue (i.e. to disk)
         // don't let anyone add any more to points while we're draining it.
         logger.warning("[" + handle + " thread " + threadId + "]: WF-3 Too many pending " +
-            entityType + " (" + datum.size() + "), block size: " + itemsPerBatch.get() +
-            ". flushing to retry queue");
-        drainBuffersToQueue();
+            entityType + " (" + datum.size() + "), block size: " +
+            properties.getItemsPerBatch() + ". flushing to retry queue");
+        drainBuffersToQueue(QueueingReason.BUFFER_SIZE);
         logger.info("[" + handle + " thread " + threadId + "]: flushing to retry queue complete. " +
             "Pending " + entityType + ": " + datum.size());
       }
     }
   };
 
-  abstract void drainBuffersToQueueInternal();
+  abstract void flushSingleBatch(List<T> batch, QueueingReason reason);
 
-  public void drainBuffersToQueue() {
+  public void drainBuffersToQueue(QueueingReason reason) {
     if (isBuffering.compareAndSet(false, true)) {
       bufferFlushCounter.inc();
       try {
-        drainBuffersToQueueInternal();
+        int lastBatchSize = Integer.MIN_VALUE;
+        // roughly limit number of items to flush to the the current buffer size (+1 blockSize max)
+        // if too many points arrive at the proxy while it's draining,
+        // they will be taken care of in the next run
+        int toFlush = datum.size();
+        while (toFlush > 0) {
+          List<T> batch = createBatch();
+          int batchSize = batch.size();
+          if (batchSize > 0) {
+            flushSingleBatch(batch, reason);
+            // update the counters as if this was a failed call to the API
+            this.attemptedCounter.inc(batchSize);
+            toFlush -= batchSize;
+            // stop draining buffers if the batch is smaller than the previous one
+            if (batchSize < lastBatchSize) {
+              break;
+            }
+            lastBatchSize = batchSize;
+          } else {
+            break;
+          }
+        }
       } finally {
         isBuffering.set(false);
         bufferCompletedFlushCounter.inc();
@@ -187,8 +260,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
 
   @Override
   public long getTaskRelativeScore() {
-    return datum.size() + (isBuffering.get() ?
-        memoryBufferLimit.get() :
-        (isSending ? itemsPerBatch.get() / 2 : 0));
+    return datum.size() + (isBuffering.get() ? properties.getMemoryBufferLimit() :
+        (isSending ? properties.getItemsPerBatch() / 2 : 0));
   }
 }

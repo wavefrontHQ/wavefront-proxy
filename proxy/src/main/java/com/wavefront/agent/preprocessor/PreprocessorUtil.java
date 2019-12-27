@@ -16,6 +16,7 @@ import wavefront.report.Span;
  */
 public abstract class PreprocessorUtil {
 
+  private static final Pattern PLACEHOLDERS = Pattern.compile("\\{\\{(.*?)}}");
   /**
    * Substitute {{...}} placeholders with corresponding components of the point
    * {{metricName}} {{sourceName}} are replaced with the metric name and source respectively
@@ -28,7 +29,7 @@ public abstract class PreprocessorUtil {
   public static String expandPlaceholders(String input, @Nonnull ReportPoint reportPoint) {
     if (input.contains("{{")) {
       StringBuffer result = new StringBuffer();
-      Matcher placeholders = Pattern.compile("\\{\\{(.*?)}}").matcher(input);
+      Matcher placeholders = PLACEHOLDERS.matcher(input);
       while (placeholders.find()) {
         if (placeholders.group(1).isEmpty()) {
           placeholders.appendReplacement(result, placeholders.group(0));
@@ -69,7 +70,7 @@ public abstract class PreprocessorUtil {
   public static String expandPlaceholders(String input, @Nonnull Span span) {
     if (input.contains("{{")) {
       StringBuffer result = new StringBuffer();
-      Matcher placeholders = Pattern.compile("\\{\\{(.*?)}}").matcher(input);
+      Matcher placeholders = PLACEHOLDERS.matcher(input);
       while (placeholders.find()) {
         if (placeholders.group(1).isEmpty()) {
           placeholders.appendReplacement(result, placeholders.group(0));

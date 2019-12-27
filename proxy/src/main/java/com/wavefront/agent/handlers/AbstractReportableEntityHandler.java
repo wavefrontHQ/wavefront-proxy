@@ -12,8 +12,8 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -88,7 +88,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
    * @param blockedItemsLogger   a {@link Logger} instance for blocked items
    */
   AbstractReportableEntityHandler(ReportableEntityType entityType,
-                                  @NotNull String handle,
+                                  @Nonnull String handle,
                                   final int blockedItemsPerBatch,
                                   Function<T, String> serializer,
                                   @Nullable Collection<SenderTask<U>> senderTasks,
@@ -178,7 +178,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   }
 
   @Override
-  public void reject(@NotNull String line, @Nullable String message) {
+  public void reject(@Nonnull String line, @Nullable String message) {
     blockedCounter.inc();
     rejectedCounter.inc();
     if (blockedItemsLogger != null) blockedItemsLogger.warning(line);
@@ -214,7 +214,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   @Override
   public void report(T item, @Nullable Object messageObject,
-                     @NotNull Function<Object, String> messageSerializer) {
+                     @Nonnull Function<Object, String> messageSerializer) {
     try {
       reportInternal(item);
     } catch (IllegalArgumentException e) {

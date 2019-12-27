@@ -1,8 +1,11 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.data.QueueingReason;
+
 import java.util.Collection;
 
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Factory for {@link SenderTask} objects.
@@ -18,7 +21,7 @@ public interface SenderTaskFactory {
    * @param numThreads create a specified number of threads.
    * @return created tasks.
    */
-  <T> Collection<SenderTask<T>> createSenderTasks(@NotNull HandlerKey handlerKey,
+  <T> Collection<SenderTask<T>> createSenderTasks(@Nonnull HandlerKey handlerKey,
                                                   final int numThreads);
 
   /**
@@ -28,6 +31,8 @@ public interface SenderTaskFactory {
 
   /**
    * Drain memory buffers to queue for all tasks.
+   *
+   * @param reason reason for queueing
    */
-  void drainBuffersToQueue();
+  void drainBuffersToQueue(@Nullable QueueingReason reason);
 }

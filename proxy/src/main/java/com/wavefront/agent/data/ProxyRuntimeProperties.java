@@ -1,9 +1,4 @@
-package com.wavefront.agent.config;
-
-import com.google.common.base.Preconditions;
-import com.wavefront.data.ReportableEntityType;
-
-import java.util.function.Supplier;
+package com.wavefront.agent.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -25,23 +20,24 @@ public class ProxyRuntimeProperties {
   public static final int DEFAULT_BATCH_SIZE_EVENTS = 50;
   public static final int DEFAULT_MIN_SPLIT_BATCH_SIZE = 100;
 
-  public static final ProxyRuntimeProperties DEFAULT_SETTINGS = ProxyRuntimeProperties.newBuilder().
-      setSplitPushWhenRateLimited(DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED).
-      setRetryBackoffBaseSeconds(DEFAULT_RETRY_BACKOFF_BASE_SECONDS).
-      setPushRateLimitMaxBurstSeconds(DEFAULT_MAX_BURST_SECONDS).
-      setPushFlushInterval(DEFAULT_FLUSH_INTERVAL).
-      setItemsPerBatch(DEFAULT_BATCH_SIZE).
-      setItemsPerBatchHistograms(DEFAULT_BATCH_SIZE_HISTOGRAMS).
-      setItemsPerBatchSourceTags(DEFAULT_BATCH_SIZE_SOURCE_TAGS).
-      setItemsPerBatchSpans(DEFAULT_BATCH_SIZE_SPANS).
-      setItemsPerBatchSpanLogs(DEFAULT_BATCH_SIZE_SPAN_LOGS).
-      setItemsPerBatchEvents(DEFAULT_BATCH_SIZE_EVENTS).
-      setMinBatchSplitSize(DEFAULT_MIN_SPLIT_BATCH_SIZE).
-      setMemoryBufferLimit(16 * DEFAULT_BATCH_SIZE).
-      setMemoryBufferLimitSourceTags(16 * DEFAULT_BATCH_SIZE_SOURCE_TAGS).
-      setMemoryBufferLimitEvents(16 * DEFAULT_BATCH_SIZE_EVENTS).
-      build();
-
+  public static final ProxyRuntimeProperties DEFAULT_SETTINGS =
+      ProxyRuntimeProperties.newBuilder().
+          setTaskQueueLevel(TaskQueueLevel.ANY_ERROR).
+          setSplitPushWhenRateLimited(DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED).
+          setRetryBackoffBaseSeconds(DEFAULT_RETRY_BACKOFF_BASE_SECONDS).
+          setPushRateLimitMaxBurstSeconds(DEFAULT_MAX_BURST_SECONDS).
+          setPushFlushInterval(DEFAULT_FLUSH_INTERVAL).
+          setItemsPerBatch(DEFAULT_BATCH_SIZE).
+          setItemsPerBatchHistograms(DEFAULT_BATCH_SIZE_HISTOGRAMS).
+          setItemsPerBatchSourceTags(DEFAULT_BATCH_SIZE_SOURCE_TAGS).
+          setItemsPerBatchSpans(DEFAULT_BATCH_SIZE_SPANS).
+          setItemsPerBatchSpanLogs(DEFAULT_BATCH_SIZE_SPAN_LOGS).
+          setItemsPerBatchEvents(DEFAULT_BATCH_SIZE_EVENTS).
+          setMinBatchSplitSize(DEFAULT_MIN_SPLIT_BATCH_SIZE).
+          setMemoryBufferLimit(16 * DEFAULT_BATCH_SIZE).
+          setMemoryBufferLimitSourceTags(16 * DEFAULT_BATCH_SIZE_SOURCE_TAGS).
+          setMemoryBufferLimitEvents(16 * DEFAULT_BATCH_SIZE_EVENTS).
+          build();
 
   /**
    * Initial values provided with the builder
@@ -54,6 +50,7 @@ public class ProxyRuntimeProperties {
   private int itemsPerBatchEventsOriginal;
   private double retryBackoffBaseSecondsOriginal;
 
+  private volatile TaskQueueLevel taskQueueLevel;
   private volatile boolean splitPushWhenRateLimited;
   private volatile double retryBackoffBaseSeconds;
   private volatile int pushRateLimitMaxBurstSeconds;
@@ -98,6 +95,14 @@ public class ProxyRuntimeProperties {
 
   public double getRetryBackoffBaseSecondsOriginal() {
     return retryBackoffBaseSecondsOriginal;
+  }
+
+  public TaskQueueLevel getTaskQueueLevel() {
+    return taskQueueLevel;
+  }
+
+  public void setTaskQueueLevel(TaskQueueLevel taskQueueLevel) {
+    this.taskQueueLevel = taskQueueLevel;
   }
 
   public boolean isSplitPushWhenRateLimited() {
@@ -212,47 +217,12 @@ public class ProxyRuntimeProperties {
     this.memoryBufferLimitEvents = memoryBufferLimitEvents;
   }
 
-  public Supplier<Integer> getItemsPerBatchForEntityType(ReportableEntityType entityType) {
-    switch (entityType) {
-      case POINT:
-      case DELTA_COUNTER:
-      case HISTOGRAM:
-        return this::getItemsPerBatch;
-      case SOURCE_TAG:
-        return this::getItemsPerBatchSourceTags;
-      case TRACE:
-        return this::getItemsPerBatchSpans;
-      case TRACE_SPAN_LOGS:
-        return this::getItemsPerBatchSpanLogs;
-      case EVENT:
-        return this::getItemsPerBatchEvents;
-      default:
-        throw new IllegalArgumentException("Unexpected entity type " + entityType.name());
-    }
-  }
-
-  public Supplier<Integer> getMemoryBufferLimitForEntityType(ReportableEntityType entityType) {
-    switch (entityType) {
-      case POINT:
-      case DELTA_COUNTER:
-      case HISTOGRAM:
-      case TRACE:
-      case TRACE_SPAN_LOGS:
-        return this::getMemoryBufferLimit;
-      case SOURCE_TAG:
-        return this::getMemoryBufferLimitSourceTags;
-      case EVENT:
-        return this::getMemoryBufferLimitEvents;
-      default:
-        throw new IllegalArgumentException("Unexpected entity type " + entityType.name());
-    }
-  }
-
   public static Builder newBuilder() {
     return new Builder();
   }
 
   public static class Builder {
+    private TaskQueueLevel taskQueueLevel;
     private Boolean splitPushWhenRateLimited;
     private Double retryBackoffBaseSeconds;
     private Integer pushFlushInterval;
@@ -269,6 +239,11 @@ public class ProxyRuntimeProperties {
     private Integer memoryBufferLimitEvents;
 
     private Builder() {
+    }
+
+    public Builder setTaskQueueLevel(TaskQueueLevel taskQueueLevel) {
+      this.taskQueueLevel = taskQueueLevel;
+      return this;
     }
 
     public Builder setSplitPushWhenRateLimited(boolean splitPushWhenRateLimited) {
@@ -349,6 +324,7 @@ public class ProxyRuntimeProperties {
       checkNotNull(itemsPerBatchSpanLogs, "itemsPerBatchSpanLogs not set!");
       checkNotNull(itemsPerBatchEvents, "itemsPerBatchEvents not set!");
       checkNotNull(retryBackoffBaseSeconds, "retryBackoffBaseSeconds not set!");
+      checkNotNull(taskQueueLevel, "taskQueueLevel not set!");
       checkNotNull(splitPushWhenRateLimited, "splitPushWhenRateLimited not set!");
       checkNotNull(pushRateLimitMaxBurstSeconds, "pushRateLimitMaxBurstSeconds not set!");
       checkNotNull(pushFlushInterval, "pushFlushInterval not set!");
@@ -364,6 +340,7 @@ public class ProxyRuntimeProperties {
       prop.itemsPerBatchSpanLogsOriginal = prop.itemsPerBatchSpanLogs = itemsPerBatchSpanLogs;
       prop.itemsPerBatchEventsOriginal = prop.itemsPerBatchEvents = itemsPerBatchEvents;
       prop.retryBackoffBaseSecondsOriginal = prop.retryBackoffBaseSeconds = retryBackoffBaseSeconds;
+      prop.taskQueueLevel = taskQueueLevel;
       prop.splitPushWhenRateLimited = splitPushWhenRateLimited;
       prop.pushRateLimitMaxBurstSeconds = pushRateLimitMaxBurstSeconds;
       prop.pushFlushInterval = pushFlushInterval;

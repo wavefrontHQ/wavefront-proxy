@@ -1,7 +1,11 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.Managed;
 import com.wavefront.agent.api.APIContainer;
-import com.wavefront.agent.config.ProxyRuntimeProperties;
+import com.wavefront.agent.data.EntityWrapper;
+import com.wavefront.agent.data.QueueingReason;
+import com.wavefront.agent.queueing.QueueController;
+import com.wavefront.agent.queueing.QueueingFactory;
 import com.wavefront.agent.queueing.TaskSizeEstimator;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.common.TaggedMetricName;
@@ -17,8 +21,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
 
 import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.UNLIMITED;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_HISTOGRAM;
@@ -34,6 +38,7 @@ import static com.wavefront.api.agent.Constants.PUSH_FORMAT_WAVEFRONT;
 public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
   private final List<SenderTask<?>> managedTasks = new ArrayList<>();
+  private final List<Managed> managedServices = new ArrayList<>();
 
   /**
    * Keep track of all {@link TaskSizeEstimator} instances to calculate global buffer fill rate.
@@ -43,8 +48,9 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   private final APIContainer apiContainer;
   private final UUID proxyId;
   private final TaskQueueFactory taskQueueFactory;
+  private final QueueingFactory queueingFactory;
   private final RecyclableRateLimiterFactory rateLimiterFactory;
-  private final ProxyRuntimeProperties runtimeProperties;
+  private final EntityWrapper entityProps;
 
   /**
    * Create new instance.
@@ -52,19 +58,22 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
    * @param apiContainer       handles interaction with Wavefront servers as well as queueing.
    * @param proxyId            proxy ID.
    * @param taskQueueFactory   factory for backing queues.
+   * @param queueingFactory    factory for queueing.
    * @param rateLimiterFactory factory for rate limiters.
-   * @param runtimeProperties  container for mutable proxy settings.
+   * @param entityProps        entity-specific wrapper over mutable proxy settings' container.
    */
   public SenderTaskFactoryImpl(final APIContainer apiContainer,
                                final UUID proxyId,
                                final TaskQueueFactory taskQueueFactory,
+                               @Nullable final QueueingFactory queueingFactory,
                                @Nullable final RecyclableRateLimiterFactory rateLimiterFactory,
-                               final ProxyRuntimeProperties runtimeProperties) {
+                               final EntityWrapper entityProps) {
     this.apiContainer = apiContainer;
     this.proxyId = proxyId;
     this.taskQueueFactory = taskQueueFactory;
+    this.queueingFactory = queueingFactory;
     this.rateLimiterFactory = rateLimiterFactory == null ? x -> UNLIMITED : rateLimiterFactory;
-    this.runtimeProperties = runtimeProperties;
+    this.entityProps = entityProps;
     // global `~proxy.buffer.fill-rate` metric aggregated from all task size estimators
     Metrics.newGauge(new TaggedMetricName("buffer", "fill-rate"),
         new Gauge<Long>() {
@@ -79,7 +88,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   }
 
   @SuppressWarnings("unchecked")
-  public Collection<SenderTask<?>> createSenderTasks(@NotNull HandlerKey handlerKey,
+  public Collection<SenderTask<?>> createSenderTasks(@Nonnull HandlerKey handlerKey,
                                                      final int numThreads) {
     List<SenderTask<?>> toReturn = new ArrayList<>(numThreads);
     TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getHandle());
@@ -90,44 +99,47 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
         case POINT:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.POINT,
               PUSH_FORMAT_WAVEFRONT, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              runtimeProperties, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              entityProps.get(ReportableEntityType.POINT), threadNo,
+              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case DELTA_COUNTER:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.DELTA_COUNTER,
               PUSH_FORMAT_WAVEFRONT, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              runtimeProperties, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
-              taskSizeEstimator,
+              entityProps.get(ReportableEntityType.POINT), threadNo,
+              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case HISTOGRAM:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.HISTOGRAM,
               PUSH_FORMAT_HISTOGRAM, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              runtimeProperties, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              entityProps.get(ReportableEntityType.HISTOGRAM), threadNo,
+              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case SOURCE_TAG:
           senderTask = new ReportSourceTagSenderTask(apiContainer.getSourceTagAPI(),
-              handlerKey.getHandle(), threadNo, runtimeProperties,
+              handlerKey.getHandle(), threadNo, entityProps.get(ReportableEntityType.SOURCE_TAG),
               rateLimiterFactory.getRateLimiter(handlerKey),
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE,
               PUSH_FORMAT_TRACING, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              runtimeProperties, threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              entityProps.get(ReportableEntityType.TRACE), threadNo,
+              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE_SPAN_LOGS:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE_SPAN_LOGS,
               PUSH_FORMAT_TRACING_SPAN_LOGS, apiContainer.getProxyV2API(), proxyId,
-              handlerKey.getHandle(), runtimeProperties, threadNo,
-              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
+              handlerKey.getHandle(), entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS),
+              threadNo, rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case EVENT:
           senderTask = new EventSenderTask(apiContainer.getEventAPI(), proxyId,
-              handlerKey.getHandle(), threadNo, runtimeProperties,
+              handlerKey.getHandle(), threadNo, entityProps.get(ReportableEntityType.EVENT),
               rateLimiterFactory.getRateLimiter(handlerKey),
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
@@ -138,11 +150,17 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       toReturn.add(senderTask);
       managedTasks.add(senderTask);
     }
+    if (queueingFactory != null) {
+      QueueController<?> controller = queueingFactory.getQueueController(handlerKey, numThreads);
+      managedServices.add(controller);
+      controller.start();
+    }
     return toReturn;
   }
 
   @Override
   public void shutdown() {
+    managedServices.forEach(Managed::stop);
     managedTasks.stream().map(SenderTask::shutdown).forEach(x -> {
       try {
         x.awaitTermination(1000, TimeUnit.MILLISECONDS);
@@ -153,7 +171,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   }
 
   @Override
-  public void drainBuffersToQueue() {
-    managedTasks.forEach(SenderTask::drainBuffersToQueue);
+  public void drainBuffersToQueue(QueueingReason reason) {
+    managedTasks.forEach(x -> x.drainBuffersToQueue(reason));
   }
 }

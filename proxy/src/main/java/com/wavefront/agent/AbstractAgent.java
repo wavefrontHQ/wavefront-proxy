@@ -1,32 +1,25 @@
 package com.wavefront.agent;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.io.Files;
-import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
-import com.google.common.util.concurrent.RecyclableRateLimiterWithMetrics;
-import com.google.gson.Gson;
-
 import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
-import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
+import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
-import com.wavefront.agent.config.ProxyRuntimeProperties;
-import com.wavefront.agent.config.ReportableConfig;
+import com.wavefront.agent.config.ProxyConfig;
+import com.wavefront.agent.data.EntityWrapper;
+import com.wavefront.agent.data.ProxyRuntimeProperties;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
@@ -45,7 +38,6 @@ import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.http.HttpRequest;
@@ -67,30 +59,23 @@ import org.jboss.resteasy.plugins.interceptors.encoding.GZIPEncodingInterceptor;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
+import javax.annotation.Nullable;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.ProcessingException;
+import javax.ws.rs.client.ClientRequestFilter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
 import java.net.Authenticator;
 import java.net.ConnectException;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
 import java.net.PasswordAuthentication;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.MissingResourceException;
-import java.util.Objects;
-import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -100,686 +85,42 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import javax.annotation.Nullable;
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.client.ClientRequestFilter;
-
-import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE;
-import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_EVENTS;
-import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_HISTOGRAMS;
-import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_SOURCE_TAGS;
-import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_SPANS;
-import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_SPAN_LOGS;
-import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_FLUSH_INTERVAL;
-import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
-import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-import static com.wavefront.agent.config.ProxyRuntimeProperties.DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
-import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.NO_RATE_LIMIT;
+import static com.wavefront.agent.ProxyUtil.getProcessId;
+import static com.wavefront.agent.Utils.getBuildVersion;
+import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
+import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
  *
  * @author Clement Pang (clement@wavefront.com)
  */
-@SuppressWarnings("CanBeFinal")
 public abstract class AbstractAgent {
 
   protected static final Logger logger = Logger.getLogger("proxy");
   final Counter activeListeners = Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
 
-  private static final Gson GSON = new Gson();
-  private static final int GRAPHITE_LISTENING_PORT = 2878;
-
-  private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
-  protected static final double DEFAULT_SOURCE_TAG_RATE_LIMIT = 5.0;
-  protected static final double DEFAULT_EVENT_RATE_LIMIT = 5.0;
-
-  @Parameter(names = {"--help"}, help = true)
-  private boolean help = false;
-
-  @Parameter(names = {"--version"}, description = "Print version and exit.", order = 0)
-  private boolean version = false;
-
-  @Parameter(names = {"-f", "--file"}, description =
-      "Proxy configuration file", order = 1)
-  private String pushConfigFile = null;
-
-  @Parameter(names = {"-c", "--config"}, description =
-      "Local configuration file to use (overrides using the server to obtain a config file)")
-  private String configFile = null;
-
-  @Parameter(names = {"-p", "--prefix"}, description =
-      "Prefix to prepend to all push metrics before reporting.")
-  protected String prefix = null;
-
-  @Parameter(names = {"-t", "--token"}, description =
-      "Token to auto-register proxy with an account", order = 3)
-  protected String token = null;
-
-  @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
-  private boolean testLogs = false;
-
-  @Parameter(names = {"-v", "--validationlevel", "--pushValidationLevel"}, description =
-      "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY); NUMERIC_ONLY is default")
-  protected String pushValidationLevel = "NUMERIC_ONLY";
-
-  @Parameter(names = {"-h", "--host"}, description = "Server URL", order = 2)
-  protected String server = "http://localhost:8080/api/";
-
-  @Parameter(names = {"--buffer"}, description = "File to use for buffering transmissions " +
-      "to be retried. Defaults to /var/spool/wavefront-proxy/buffer.", order = 7)
-  protected String bufferFile = "/var/spool/wavefront-proxy/buffer";
-
-  @Parameter(names = {"--retryThreads"}, description = "Number of threads retrying failed transmissions. Defaults to " +
-      "the number of processors (min. 4). Buffer files are maxed out at 2G each so increasing the number of retry " +
-      "threads effectively governs the maximum amount of space the proxy will use to buffer points locally", order = 6)
-  protected Integer retryThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
-
-  @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
-      "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
-      "small to the server and wasting connections. This setting is per listening port.", order = 5)
-  protected Integer flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
-
-  @Parameter(names = {"--purgeBuffer"}, description = "Whether to purge the retry buffer on start-up. Defaults to " +
-      "false.")
-  protected boolean purgeBuffer = false;
-
-  @Parameter(names = {"--pushFlushInterval"}, description = "Milliseconds between batches. " +
-      "Defaults to 1000 ms")
-  protected int pushFlushInterval = DEFAULT_FLUSH_INTERVAL;
-
-  @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points " +
-      "in a single flush. Defaults: 40000")
-  protected int pushFlushMaxPoints = DEFAULT_BATCH_SIZE;
-
-  @Parameter(names = {"--pushFlushMaxHistograms"}, description = "Maximum allowed histograms " +
-      "in a single flush. Default: 10000")
-  protected int pushFlushMaxHistograms = DEFAULT_BATCH_SIZE_HISTOGRAMS;
-
-  @Parameter(names = {"--pushFlushMaxSourceTags"}, description = "Maximum allowed source tags " +
-      "in a single flush. Default: 50")
-  protected int pushFlushMaxSourceTags = DEFAULT_BATCH_SIZE_SOURCE_TAGS;
-
-  @Parameter(names = {"--pushFlushMaxSpans"}, description = "Maximum allowed spans " +
-      "in a single flush. Default: 5000")
-  protected int pushFlushMaxSpans = DEFAULT_BATCH_SIZE_SPANS;
-
-  @Parameter(names = {"--pushFlushMaxSpanLogs"}, description = "Maximum allowed span logs " +
-      "in a single flush. Default: 1000")
-  protected int pushFlushMaxSpanLogs = DEFAULT_BATCH_SIZE_SPAN_LOGS;
-
-  @Parameter(names = {"--pushFlushMaxEvents"}, description = "Maximum allowed events " +
-      "in a single flush. Default: 50")
-  protected int pushFlushMaxEvents = DEFAULT_BATCH_SIZE_EVENTS;
-
-  @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
-      "do not throttle.")
-  protected Integer pushRateLimit = NO_RATE_LIMIT;
-
-  @Parameter(names = {"--pushRateLimitHistograms"}, description = "Limit the outgoing histogram " +
-      "rate at the proxy. Default: do not throttle.")
-  protected Integer pushRateLimitHistograms = NO_RATE_LIMIT;
-
-  @Parameter(names = {"--pushRateLimitSourceTags"}, description = "Limit the outgoing rate " +
-      "for source tags at the proxy. Default: 5 op/s")
-  protected Double pushRateLimitSourceTags = 5.0d;
-
-  @Parameter(names = {"--pushRateLimitSpans"}, description = "Limit the outgoing tracing spans " +
-      "rate at the proxy. Default: do not throttle.")
-  protected Integer pushRateLimitSpans = NO_RATE_LIMIT;
-
-  @Parameter(names = {"--pushRateLimitSpanLogs"}, description = "Limit the outgoing span logs " +
-      "rate at the proxy. Default: do not throttle.")
-  protected Integer pushRateLimitSpanLogs = NO_RATE_LIMIT;
-
-  @Parameter(names = {"--pushRateLimitEvents"}, description = "Limit the outgoing rate " +
-      "for events at the proxy. Default: 5 events/s")
-  protected Double pushRateLimitEvents = 5.0d;
-
-  @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
-      "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
-  protected Integer pushRateLimitMaxBurstSeconds = 10;
-
-  @Parameter(names = {"--pushMemoryBufferLimit"}, description = "Max number of points that can stay in memory buffers" +
-      " before spooling to disk. Defaults to 16 * pushFlushMaxPoints, minimum size: pushFlushMaxPoints. Setting this " +
-      " value lower than default reduces memory usage but will force the proxy to spool to disk more frequently if " +
-      " you have points arriving at the proxy in short bursts")
-  protected int pushMemoryBufferLimit = 16 * pushFlushMaxPoints;
-
-  @Parameter(names = {"--pushBlockedSamples"}, description = "Max number of blocked samples to print to log. Defaults" +
-      " to 5.")
-  protected Integer pushBlockedSamples = 5;
-
-  @Parameter(names = {"--blockedPointsLoggerName"}, description = "Logger Name for blocked " +
-      "points. " + "Default: RawBlockedPoints")
-  protected String blockedPointsLoggerName = "RawBlockedPoints";
-
-  @Parameter(names = {"--blockedHistogramsLoggerName"}, description = "Logger Name for blocked " +
-      "histograms" + "Default: RawBlockedPoints")
-  protected String blockedHistogramsLoggerName = "RawBlockedPoints";
-
-  @Parameter(names = {"--blockedSpansLoggerName"}, description =
-      "Logger Name for blocked spans" + "Default: RawBlockedPoints")
-  protected String blockedSpansLoggerName = "RawBlockedPoints";
-
-  @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
-      "2878.", order = 4)
-  protected String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
-
-  @Parameter(names = {"--pushListenerMaxReceivedLength"}, description = "Maximum line length for received points in" +
-      " plaintext format on Wavefront/OpenTSDB/Graphite ports. Default: 32768 (32KB)")
-  protected Integer pushListenerMaxReceivedLength = 32768;
-
-  @Parameter(names = {"--pushListenerHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
-      " incoming HTTP requests on Wavefront/OpenTSDB/Graphite ports (Default: 16MB)")
-  protected Integer pushListenerHttpBufferSize = 16 * 1024 * 1024;
-
-  @Parameter(names = {"--traceListenerMaxReceivedLength"}, description = "Maximum line length for received spans and" +
-      " span logs (Default: 1MB)")
-  protected Integer traceListenerMaxReceivedLength = 1024 * 1024;
-
-  @Parameter(names = {"--traceListenerHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
-      " incoming HTTP requests on tracing ports (Default: 16MB)")
-  protected Integer traceListenerHttpBufferSize = 16 * 1024 * 1024;
-
-  @Parameter(names = {"--listenerIdleConnectionTimeout"}, description = "Close idle inbound connections after " +
-      " specified time in seconds. Default: 300")
-  protected int listenerIdleConnectionTimeout = 300;
-
-  @Parameter(names = {"--memGuardFlushThreshold"}, description = "If heap usage exceeds this threshold (in percent), " +
-      "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 99")
-  protected int memGuardFlushThreshold = 99;
-
-  @Parameter(names = {"--histogramStateDirectory"},
-      description = "Directory for persistent proxy state, must be writable.")
-  protected String histogramStateDirectory = "/var/spool/wavefront-proxy";
-
-  @Parameter(names = {"--histogramAccumulatorResolveInterval"},
-      description = "Interval to write-back accumulation changes from memory cache to disk in " +
-          "millis (only applicable when memory cache is enabled")
-  protected Long histogramAccumulatorResolveInterval = 5000L;
-
-  @Parameter(names = {"--histogramAccumulatorFlushInterval"},
-      description = "Interval to check for histograms to send to Wavefront in millis. " +
-          "(Default: 10000)")
-  protected Long histogramAccumulatorFlushInterval = 10000L;
-
-  @Parameter(names = {"--histogramAccumulatorFlushMaxBatchSize"},
-      description = "Max number of histograms to send to Wavefront in one flush " +
-          "(Default: no limit)")
-  protected Integer histogramAccumulatorFlushMaxBatchSize = -1;
-
-  @Parameter(names = {"--histogramMaxReceivedLength"},
-      description = "Maximum line length for received histogram data (Default: 65536)")
-  protected Integer histogramMaxReceivedLength = 64 * 1024;
-
-  @Parameter(names = {"--histogramHttpBufferSize"},
-      description = "Maximum allowed request size (in bytes) for incoming HTTP requests on " +
-          "histogram ports (Default: 16MB)")
-  protected Integer histogramHttpBufferSize = 16 * 1024 * 1024;
-
-  @Parameter(names = {"--histogramMinuteListenerPorts"},
-      description = "Comma-separated list of ports to listen on. Defaults to none.")
-  protected String histogramMinuteListenerPorts = "";
-
-  @Parameter(names = {"--histogramMinuteFlushSecs"},
-      description = "Number of seconds to keep a minute granularity accumulator open for " +
-          "new samples.")
-  protected Integer histogramMinuteFlushSecs = 70;
-
-  @Parameter(names = {"--histogramMinuteCompression"},
-      description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  protected Short histogramMinuteCompression = 32;
-
-  @Parameter(names = {"--histogramMinuteAvgKeyBytes"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
-          "corresponds to a metric, source and tags concatenation.")
-  protected Integer histogramMinuteAvgKeyBytes = 150;
-
-  @Parameter(names = {"--histogramMinuteAvgDigestBytes"},
-      description = "Average number of bytes in a encoded histogram.")
-  protected Integer histogramMinuteAvgDigestBytes = 500;
-
-  @Parameter(names = {"--histogramMinuteAccumulatorSize"},
-      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
-          "reporting bins")
-  protected Long histogramMinuteAccumulatorSize = 100000L;
-
-  @Parameter(names = {"--histogramMinuteAccumulatorPersisted"},
-      description = "Whether the accumulator should persist to disk")
-  protected boolean histogramMinuteAccumulatorPersisted = false;
-
-  @Parameter(names = {"--histogramMinuteMemoryCache"},
-      description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
-          "frequency data (more than 1 point per second per time series). Default: false")
-  protected boolean histogramMinuteMemoryCache = false;
-
-  @Parameter(names = {"--histogramHourListenerPorts"},
-      description = "Comma-separated list of ports to listen on. Defaults to none.")
-  protected String histogramHourListenerPorts = "";
-
-  @Parameter(names = {"--histogramHourFlushSecs"},
-      description = "Number of seconds to keep an hour granularity accumulator open for " +
-          "new samples.")
-  protected Integer histogramHourFlushSecs = 4200;
-
-  @Parameter(names = {"--histogramHourCompression"},
-      description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  protected Short histogramHourCompression = 32;
-
-  @Parameter(names = {"--histogramHourAvgKeyBytes"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
-          " corresponds to a metric, source and tags concatenation.")
-  protected Integer histogramHourAvgKeyBytes = 150;
-
-  @Parameter(names = {"--histogramHourAvgDigestBytes"},
-      description = "Average number of bytes in a encoded histogram.")
-  protected Integer histogramHourAvgDigestBytes = 500;
-
-  @Parameter(names = {"--histogramHourAccumulatorSize"},
-      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
-          "reporting bins")
-  protected Long histogramHourAccumulatorSize = 100000L;
-
-  @Parameter(names = {"--histogramHourAccumulatorPersisted"},
-      description = "Whether the accumulator should persist to disk")
-  protected boolean histogramHourAccumulatorPersisted = false;
-
-  @Parameter(names = {"--histogramHourMemoryCache"},
-      description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
-          "frequency data (more than 1 point per second per time series). Default: false")
-  protected boolean histogramHourMemoryCache = false;
-
-  @Parameter(names = {"--histogramDayListenerPorts"},
-      description = "Comma-separated list of ports to listen on. Defaults to none.")
-  protected String histogramDayListenerPorts = "";
-
-  @Parameter(names = {"--histogramDayFlushSecs"},
-      description = "Number of seconds to keep a day granularity accumulator open for new samples.")
-  protected Integer histogramDayFlushSecs = 18000;
-
-  @Parameter(names = {"--histogramDayCompression"},
-      description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  protected Short histogramDayCompression = 32;
-
-  @Parameter(names = {"--histogramDayAvgKeyBytes"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
-          "corresponds to a metric, source and tags concatenation.")
-  protected Integer histogramDayAvgKeyBytes = 150;
-
-  @Parameter(names = {"--histogramDayAvgHistogramDigestBytes"},
-      description = "Average number of bytes in a encoded histogram.")
-  protected Integer histogramDayAvgDigestBytes = 500;
-
-  @Parameter(names = {"--histogramDayAccumulatorSize"},
-      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
-          "reporting bins")
-  protected Long histogramDayAccumulatorSize = 100000L;
-
-  @Parameter(names = {"--histogramDayAccumulatorPersisted"},
-      description = "Whether the accumulator should persist to disk")
-  protected boolean histogramDayAccumulatorPersisted = false;
-
-  @Parameter(names = {"--histogramDayMemoryCache"},
-      description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
-          "frequency data (more than 1 point per second per time series). Default: false")
-  protected boolean histogramDayMemoryCache = false;
-
-  @Parameter(names = {"--histogramDistListenerPorts"},
-      description = "Comma-separated list of ports to listen on. Defaults to none.")
-  protected String histogramDistListenerPorts = "";
-
-  @Parameter(names = {"--histogramDistFlushSecs"},
-      description = "Number of seconds to keep a new distribution bin open for new samples.")
-  protected Integer histogramDistFlushSecs = 70;
-
-  @Parameter(names = {"--histogramDistCompression"},
-      description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  protected Short histogramDistCompression = 32;
-
-  @Parameter(names = {"--histogramDistAvgKeyBytes"},
-      description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
-          "corresponds to a metric, source and tags concatenation.")
-  protected Integer histogramDistAvgKeyBytes = 150;
-
-  @Parameter(names = {"--histogramDistAvgDigestBytes"},
-      description = "Average number of bytes in a encoded histogram.")
-  protected Integer histogramDistAvgDigestBytes = 500;
-
-  @Parameter(names = {"--histogramDistAccumulatorSize"},
-      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
-          "reporting bins")
-  protected Long histogramDistAccumulatorSize = 100000L;
-
-  @Parameter(names = {"--histogramDistAccumulatorPersisted"},
-      description = "Whether the accumulator should persist to disk")
-  protected boolean histogramDistAccumulatorPersisted = false;
-
-  @Parameter(names = {"--histogramDistMemoryCache"},
-      description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
-          "frequency data (more than 1 point per second per time series). Default: false")
-  protected boolean histogramDistMemoryCache = false;
-
-  @Parameter(names = {"--graphitePorts"}, description = "Comma-separated list of ports to listen on for graphite " +
-      "data. Defaults to empty list.")
-  protected String graphitePorts = "";
-
-  @Parameter(names = {"--graphiteFormat"}, description = "Comma-separated list of metric segments to extract and " +
-      "reassemble as the hostname (1-based).")
-  protected String graphiteFormat = "";
-
-  @Parameter(names = {"--graphiteDelimiters"}, description = "Concatenated delimiters that should be replaced in the " +
-      "extracted hostname with dots. Defaults to underscores (_).")
-  protected String graphiteDelimiters = "_";
-
-  @Parameter(names = {"--graphiteFieldsToRemove"}, description = "Comma-separated list of metric segments to remove (1-based)")
-  protected String graphiteFieldsToRemove;
-
-  @Parameter(names = {"--jsonListenerPorts", "--httpJsonPorts"}, description = "Comma-separated list of ports to " +
-      "listen on for json metrics data. Binds, by default, to none.")
-  protected String jsonListenerPorts = "";
-
-  @Parameter(names = {"--dataDogJsonPorts"}, description = "Comma-separated list of ports to listen on for JSON " +
-      "metrics data in DataDog format. Binds, by default, to none.")
-  protected String dataDogJsonPorts = "";
-
-  @Parameter(names = {"--dataDogRequestRelayTarget"}, description = "HTTP/HTTPS target for relaying all incoming " +
-      "requests on dataDogJsonPorts to. Defaults to none (do not relay incoming requests)")
-  protected String dataDogRequestRelayTarget = null;
-
-  @Parameter(names = {"--dataDogProcessSystemMetrics"}, description = "If true, handle system metrics as reported by " +
-      "DataDog collection agent. Defaults to false.")
-  protected boolean dataDogProcessSystemMetrics = false;
-
-  @Parameter(names = {"--dataDogProcessServiceChecks"}, description = "If true, convert service checks to metrics. " +
-      "Defaults to true.", arity = 1)
-  protected boolean dataDogProcessServiceChecks = true;
-
-  @Parameter(names = {"--writeHttpJsonListenerPorts", "--writeHttpJsonPorts"}, description = "Comma-separated list " +
-      "of ports to listen on for json metrics from collectd write_http json format data. Binds, by default, to none.")
-  protected String writeHttpJsonListenerPorts = "";
-
-  // logs ingestion
-  @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
-  protected Integer filebeatPort = 0;
-
-  @Parameter(names = {"--rawLogsPort"}, description = "Port on which to listen for raw logs data.")
-  protected Integer rawLogsPort = 0;
-
-  @Parameter(names = {"--rawLogsMaxReceivedLength"}, description = "Maximum line length for received raw logs (Default: 4096)")
-  protected Integer rawLogsMaxReceivedLength = 4096;
-
-  @Parameter(names = {"--rawLogsHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
-      " incoming HTTP requests with raw logs (Default: 16MB)")
-  protected Integer rawLogsHttpBufferSize = 16 * 1024 * 1024;
-
-  @Parameter(names = {"--logsIngestionConfigFile"}, description = "Location of logs ingestions config yaml file.")
-  protected String logsIngestionConfigFile = "/etc/wavefront/wavefront-proxy/logsingestion.yaml";
-
-  @Parameter(names = {"--hostname"}, description = "Hostname for the proxy. Defaults to FQDN of machine.")
-  protected String hostname;
-
-  @Parameter(names = {"--idFile"}, description = "File to read proxy id from. Defaults to ~/.dshell/id." +
-      "This property is ignored if ephemeral=true.")
-  protected String idFile = null;
-
-  @Parameter(names = {"--graphiteWhitelistRegex"}, description = "(DEPRECATED for whitelistRegex)", hidden = true)
-  protected String graphiteWhitelistRegex;
-
-  @Parameter(names = {"--graphiteBlacklistRegex"}, description = "(DEPRECATED for blacklistRegex)", hidden = true)
-  protected String graphiteBlacklistRegex;
-
-  @Parameter(names = {"--whitelistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must match to be accepted")
-  protected String whitelistRegex;
-
-  @Parameter(names = {"--blacklistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must NOT match to be accepted")
-  protected String blacklistRegex;
-
-  @Parameter(names = {"--opentsdbPorts"}, description = "Comma-separated list of ports to listen on for opentsdb data. " +
-      "Binds, by default, to none.")
-  protected String opentsdbPorts = "";
-
-  @Parameter(names = {"--opentsdbWhitelistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must match to be accepted")
-  protected String opentsdbWhitelistRegex;
-
-  @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
-  protected String opentsdbBlacklistRegex;
-
-  @Parameter(names = {"--picklePorts"}, description = "Comma-separated list of ports to listen on for pickle protocol " +
-      "data. Defaults to none.")
-  protected String picklePorts;
-
-  @Parameter(names = {"--traceListenerPorts"}, description = "Comma-separated list of ports to listen on for trace " +
-      "data. Defaults to none.")
-  protected String traceListenerPorts;
-
-  @Parameter(names = {"--traceJaegerListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
-      "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
-  protected String traceJaegerListenerPorts;
-
-  @Parameter(names = {"--traceJaegerApplicationName"}, description = "Application name for Jaeger. Defaults to Jaeger.")
-  protected String traceJaegerApplicationName;
-
-  @Parameter(names = {"--traceZipkinListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
-      "on for zipkin trace data over HTTP. Defaults to none.")
-  protected String traceZipkinListenerPorts;
-
-  @Parameter(names = {"--traceZipkinApplicationName"}, description = "Application name for Zipkin. Defaults to Zipkin.")
-  protected String traceZipkinApplicationName;
-
-  @Parameter(names = {"--traceSamplingRate"}, description = "Value between 0.0 and 1.0. " +
-      "Defaults to 1.0 (allow all spans).")
-  protected double traceSamplingRate = 1.0d;
-
-  @Parameter(names = {"--traceSamplingDuration"}, description = "Sample spans by duration in " +
-      "milliseconds. " + "Defaults to 0 (ignore duration based sampling).")
-  protected Integer traceSamplingDuration = 0;
-
-  @Parameter(names = {"--traceDerivedCustomTagKeys"}, description = "Comma-separated " +
-      "list of custom tag keys for trace derived RED metrics.")
-  protected String traceDerivedCustomTagKeysProperty;
-
-  @Parameter(names = {"--traceAlwaysSampleErrors"}, description = "Always sample spans with error tag (set to true) " +
-      "ignoring other sampling configuration. Defaults to true.", arity = 1)
-  protected boolean traceAlwaysSampleErrors = true;
-
-  @Parameter(names = {"--pushRelayListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
-      "on for proxy chaining data. For internal use. Defaults to none.")
-  protected String pushRelayListenerPorts;
-
-  @Parameter(names = {"--pushRelayHistogramAggregator"}, description = "If true, aggregate " +
-      "histogram distributions received on the relay port. Default: false")
-  protected boolean pushRelayHistogramAggregator = false;
-
-  @Parameter(names = {"--pushRelayHistogramAggregatorAccumulatorSize"},
-      description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
-          "reporting bins")
-  protected Long pushRelayHistogramAggregatorAccumulatorSize = 100000L;
-
-  @Parameter(names = {"--pushRelayHistogramAggregatorFlushSecs"},
-      description = "Number of seconds to keep a day granularity accumulator open for new samples.")
-  protected Integer pushRelayHistogramAggregatorFlushSecs = 70;
-
-  @Parameter(names = {"--pushRelayHistogramAggregatorCompression"},
-      description = "Controls allowable number of centroids per histogram. Must be in [20;1000] " +
-          "range. Default: 32")
-  protected Short pushRelayHistogramAggregatorCompression = 32;
-
-  @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.")
-  protected boolean splitPushWhenRateLimited = DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
-
-  @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
-  protected double retryBackoffBaseSeconds = DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-
-  @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
-  protected String customSourceTagsProperty = "fqdn";
-
-  @Parameter(names = {"--agentMetricsPointTags"}, description = "Additional point tags and their respective values to be included into internal agent's metrics (comma-separated list, ex: dc=west,env=prod)")
-  protected String agentMetricsPointTags = null;
-
-  @Parameter(names = {"--ephemeral"}, arity = 1, description = "If true, this proxy is removed " +
-      "from Wavefront after 24 hours of inactivity. Default: true")
-  protected boolean ephemeral = true;
-
-  @Parameter(names = {"--disableRdnsLookup"}, description = "When receiving Wavefront-formatted data without source/host specified, use remote IP address as source instead of trying to resolve the DNS name. Default false.")
-  protected boolean disableRdnsLookup = false;
-
-  @Parameter(names = {"--gzipCompression"}, arity = 1, description = "If true, enables gzip " +
-      "compression for traffic sent to Wavefront (Default: true)")
-  protected boolean gzipCompression = true;
-
-  @Parameter(names = {"--soLingerTime"}, description = "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
-  protected Integer soLingerTime = -1;
-
-  @Parameter(names = {"--proxyHost"}, description = "Proxy host for routing traffic through a http proxy")
-  protected String proxyHost = null;
-
-  @Parameter(names = {"--proxyPort"}, description = "Proxy port for routing traffic through a http proxy")
-  protected Integer proxyPort = 0;
-
-  @Parameter(names = {"--proxyUser"}, description = "If proxy authentication is necessary, this is the username that will be passed along")
-  protected String proxyUser = null;
-
-  @Parameter(names = {"--proxyPassword"}, description = "If proxy authentication is necessary, this is the password that will be passed along")
-  protected String proxyPassword = null;
-
-  @Parameter(names = {"--httpUserAgent"}, description = "Override User-Agent in request headers")
-  protected String httpUserAgent = null;
-
-  @Parameter(names = {"--httpConnectTimeout"}, description = "Connect timeout in milliseconds (default: 5000)")
-  protected Integer httpConnectTimeout = 5000;
-
-  @Parameter(names = {"--httpRequestTimeout"}, description = "Request timeout in milliseconds (default: 10000)")
-  protected Integer httpRequestTimeout = 10000;
-
-  @Parameter(names = {"--httpMaxConnTotal"}, description = "Max connections to keep open (default: 200)")
-  protected Integer httpMaxConnTotal = 200;
-
-  @Parameter(names = {"--httpMaxConnPerRoute"}, description = "Max connections per route to keep open (default: 100)")
-  protected Integer httpMaxConnPerRoute = 100;
-
-  @Parameter(names = {"--httpAutoRetries"}, description = "Number of times to retry http requests before queueing, set to 0 to disable (default: 3)")
-  protected Integer httpAutoRetries = 3;
-
-  @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
-  protected String preprocessorConfigFile = null;
-
-  @Parameter(names = {"--dataBackfillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for back-dated points. Default is 8760 (1 year)")
-  protected Integer dataBackfillCutoffHours = 8760;
-
-  @Parameter(names = {"--dataPrefillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for pre-dated points. Default is 24 (1 day)")
-  protected Integer dataPrefillCutoffHours = 24;
-
-  @Parameter(names = {"--authMethod"}, converter = TokenValidationMethod.TokenValidationMethodConverter.class,
-      description = "Authenticate all incoming HTTP requests and disables TCP streams when set to a value " +
-          "other than NONE. Allowed values are: NONE, STATIC_TOKEN, HTTP_GET, OAUTH2. Default: NONE")
-  protected TokenValidationMethod authMethod = TokenValidationMethod.NONE;
-
-  @Parameter(names = {"--authTokenIntrospectionServiceUrl"}, description = "URL for the token introspection endpoint " +
-      "used to validate tokens for incoming HTTP requests. Required for authMethod = OAUTH2 (endpoint must be " +
-      "RFC7662-compliant) and authMethod = HTTP_GET (use {{token}} placeholder in the URL to pass token to the " +
-      "service, endpoint must return any 2xx status for valid tokens, any other response code is a fail)")
-  protected String authTokenIntrospectionServiceUrl = null;
-
-  @Parameter(names = {"--authTokenIntrospectionAuthorizationHeader"}, description = "Optional credentials for use " +
-      "with the token introspection endpoint.")
-  protected String authTokenIntrospectionAuthorizationHeader = null;
-
-  @Parameter(names = {"--authResponseRefreshInterval"}, description = "Cache TTL (in seconds) for token validation " +
-      "results (re-authenticate when expired). Default: 600 seconds")
-  protected int authResponseRefreshInterval = 600;
-
-  @Parameter(names = {"--authResponseMaxTtl"}, description = "Maximum allowed cache TTL (in seconds) for token " +
-      "validation results when token introspection service is unavailable. Default: 86400 seconds (1 day)")
-  protected int authResponseMaxTtl = 86400;
-
-  @Parameter(names = {"--authStaticToken"}, description = "Static token that is considered valid for all incoming " +
-      "HTTP requests. Required when authMethod = STATIC_TOKEN.")
-  protected String authStaticToken = null;
-
-  @Parameter(names = {"--adminApiListenerPort"}, description = "Enables admin port to control " +
-      "healthcheck status per port. Default: none")
-  protected Integer adminApiListenerPort = 0;
-
-  @Parameter(names = {"--adminApiRemoteIpWhitelistRegex"}, description = "Remote IPs must match " +
-      "this regex to access admin API")
-  protected String adminApiRemoteIpWhitelistRegex = null;
-
-  @Parameter(names = {"--httpHealthCheckPorts"}, description = "Comma-delimited list of ports " +
-      "to function as standalone healthchecks. May be used independently of " +
-      "--httpHealthCheckAllPorts parameter. Default: none")
-  protected String httpHealthCheckPorts = null;
-
-  @Parameter(names = {"--httpHealthCheckAllPorts"}, description = "When true, all listeners that " +
-      "support HTTP protocol also respond to healthcheck requests. May be used independently of " +
-      "--httpHealthCheckPorts parameter. Default: false")
-  protected boolean httpHealthCheckAllPorts = false;
-
-  @Parameter(names = {"--httpHealthCheckPath"}, description = "Healthcheck's path, for example, " +
-      "'/health'. Default: '/'")
-  protected String httpHealthCheckPath = "/";
-
-  @Parameter(names = {"--httpHealthCheckResponseContentType"}, description = "Optional " +
-      "Content-Type to use in healthcheck response, for example, 'application/json'. Default: none")
-  protected String httpHealthCheckResponseContentType = null;
-
-  @Parameter(names = {"--httpHealthCheckPassStatusCode"}, description = "HTTP status code for " +
-      "'pass' health checks. Default: 200")
-  protected int httpHealthCheckPassStatusCode = 200;
-
-  @Parameter(names = {"--httpHealthCheckPassResponseBody"}, description = "Optional response " +
-      "body to return with 'pass' health checks. Default: none")
-  protected String httpHealthCheckPassResponseBody = null;
-
-  @Parameter(names = {"--httpHealthCheckFailStatusCode"}, description = "HTTP status code for " +
-      "'fail' health checks. Default: 503")
-  protected int httpHealthCheckFailStatusCode = 503;
-
-  @Parameter(names = {"--httpHealthCheckFailResponseBody"}, description = "Optional response " +
-      "body to return with 'fail' health checks. Default: none")
-  protected String httpHealthCheckFailResponseBody = null;
-
-  @Parameter()
-  protected List<String> unparsed_params;
-
-  @Parameter(names = {"--deltaCountersAggregationIntervalSeconds"},
-      description = "Delay time for delta counter reporter. Defaults to 30 seconds.")
-  protected long deltaCountersAggregationIntervalSeconds = 30;
-
-  @Parameter(names = {"--deltaCountersAggregationListenerPorts"},
-      description = "Comma-separated list of ports to listen on Wavefront-formatted delta " +
-          "counters. Helps reduce outbound point rate by pre-aggregating delta counters at proxy." +
-          " Defaults: none")
-  protected String deltaCountersAggregationListenerPorts = "";
+  private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
   /**
    * A set of commandline parameters to hide when echoing command line arguments
    */
-  protected static final Set<String> PARAMETERS_TO_HIDE = ImmutableSet.of("-t", "--token", "--proxyPassword");
+  protected static final Set<String> PARAMETERS_TO_HIDE = ImmutableSet.of("-t", "--token",
+      "--proxyPassword");
 
+  protected final ProxyConfig proxyConfig = new ProxyConfig();
   protected APIContainer apiContainer;
-  protected ResourceBundle props = null;
-  protected final AtomicLong bufferSpaceLeft = new AtomicLong();
-  protected final List<String> customSourceTags = new ArrayList<>();
-  protected final Set<String> traceDerivedCustomTagKeys = new HashSet<>();
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
   protected ValidationConfiguration validationConfiguration = null;
   protected ProxyRuntimeProperties runtimeProperties = null;
-  protected RecyclableRateLimiter pushRateLimiter = null;
-  protected RecyclableRateLimiter histogramRateLimiter = null;
-  protected RecyclableRateLimiter sourceTagRateLimiter = null;
-  protected RecyclableRateLimiter spanRateLimiter = null;
-  protected RecyclableRateLimiter spanLogRateLimiter = null;
-  protected RecyclableRateLimiter eventRateLimiter = null;
+  protected EntityWrapper entityWrapper = null;
   protected TokenAuthenticator tokenAuthenticator = TokenAuthenticatorBuilder.create().build();
   protected JsonNode agentMetrics;
   protected long agentMetricsCaptureTs;
@@ -789,9 +130,10 @@ public abstract class AbstractAgent {
   protected String serverEndpointUrl = null;
 
   /**
-   * A unique process ID value (PID, when available, or a random hexadecimal string), assigned at proxy start-up,
-   * to be reported with all ~proxy metrics as a "processId" point tag  to prevent potential ~proxy metrics
-   * collisions caused by users spinning up multiple proxies with duplicate names.
+   * A unique process ID value (PID, when available, or a random hexadecimal string), assigned
+   * at proxy start-up, to be reported with all ~proxy metrics as a "processId" point tag to
+   * prevent potential ~proxy metrics collisions caused by users spinning up multiple proxies
+   * with duplicate names.
    */
   protected final String processId = getProcessId();
 
@@ -807,10 +149,8 @@ public abstract class AbstractAgent {
   /**
    * Executors for support tasks.
    */
-  private final ScheduledExecutorService agentConfigurationExecutor = Executors.newScheduledThreadPool(2,
-      new NamedThreadFactory("proxy-configuration"));
-  private final ScheduledExecutorService queuedAgentExecutor = Executors.newScheduledThreadPool(retryThreads + 1,
-      new NamedThreadFactory("submitter-queue"));
+  private final ScheduledExecutorService agentConfigurationExecutor = Executors.
+      newScheduledThreadPool(2, new NamedThreadFactory("proxy-configuration"));
   protected UUID agentId;
   private final Runnable updateConfiguration = () -> {
     boolean doShutDown = false;
@@ -834,34 +174,8 @@ public abstract class AbstractAgent {
   };
 
   private final Runnable updateAgentMetrics = () -> {
-    @Nullable Map<String, String> pointTags = new HashMap<>();
     try {
-      // calculate disk space available for queueing
-      long maxAvailableSpace = 0;
-      try {
-        File bufferDirectory = new File(bufferFile).getAbsoluteFile();
-        while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
-          bufferDirectory = bufferDirectory.getParentFile();
-        }
-        for (int i = 0; i < retryThreads; i++) {
-          File buffer = new File(bufferFile + "." + i);
-          if (buffer.exists()) {
-            maxAvailableSpace += Integer.MAX_VALUE - buffer.length(); // 2GB max file size minus size used
-          }
-        }
-        if (bufferDirectory != null) {
-          // lesser of: available disk space or available buffer space
-          bufferSpaceLeft.set(Math.min(maxAvailableSpace, bufferDirectory.getUsableSpace()));
-        }
-      } catch (Throwable t) {
-        logger.warning("cannot compute remaining space in buffer file partition: " + t);
-      }
-
-      if (agentMetricsPointTags != null) {
-        //noinspection UnstableApiUsage
-        pointTags.putAll(Splitter.on(",").trimResults().omitEmptyStrings().
-            withKeyValueSeparator("=").split(agentMetricsPointTags));
-      }
+      Map<String, String> pointTags = new HashMap<>(proxyConfig.getAgentMetricsPointTags());
       pointTags.put("processId", processId);
       synchronized (agentConfigurationExecutor) {
         agentMetricsCaptureTs = System.currentTimeMillis();
@@ -880,22 +194,29 @@ public abstract class AbstractAgent {
   public AbstractAgent(boolean localAgent, boolean pushAgent) {
     this.pushAgent = pushAgent;
     this.localAgent = localAgent;
-    this.hostname = getLocalHostName();
     Metrics.newGauge(ExpectedAgentMetric.BUFFER_BYTES_LEFT.metricName,
         new Gauge<Long>() {
           @Override
           public Long value() {
-            return bufferSpaceLeft.get();
+            try {
+              File bufferDirectory = new File(proxyConfig.getBufferFile()).getAbsoluteFile();
+              while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
+                bufferDirectory = bufferDirectory.getParentFile();
+              }
+              if (bufferDirectory != null) {
+                return bufferDirectory.getUsableSpace();
+              }
+            } catch (Throwable t) {
+              logger.warning("cannot compute remaining space in buffer file partition: " + t);
+            }
+            return null;
           }
         }
     );
   }
 
-  protected abstract void startListeners();
-
-  protected abstract void stopListeners();
-
-  private void addPreprocessorFilters(String commaDelimitedPorts, String whitelist, String blacklist) {
+  private void addPreprocessorFilters(String commaDelimitedPorts, String whitelist,
+                                      String blacklist) {
     if (commaDelimitedPorts != null && (whitelist != null || blacklist != null)) {
       for (String strPort : Splitter.on(",").omitEmptyStrings().trimResults().split(commaDelimitedPorts)) {
         PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
@@ -905,7 +226,7 @@ public abstract class AbstractAgent {
         );
         if (blacklist != null) {
           preprocessors.getSystemPreprocessor(strPort).forPointLine().addFilter(
-              new PointLineBlacklistRegexFilter(blacklistRegex, ruleMetrics));
+              new PointLineBlacklistRegexFilter(proxyConfig.getBlacklistRegex(), ruleMetrics));
         }
         if (whitelist != null) {
           preprocessors.getSystemPreprocessor(strPort).forPointLine().addFilter(
@@ -917,37 +238,40 @@ public abstract class AbstractAgent {
 
   private void initPreprocessors() {
     try {
-      preprocessors = new PreprocessorConfigManager(preprocessorConfigFile);
+      preprocessors = new PreprocessorConfigManager(proxyConfig.getPreprocessorConfigFile());
     } catch (FileNotFoundException ex) {
       throw new RuntimeException("Unable to load preprocessor rules - file does not exist: " +
-          preprocessorConfigFile);
+          proxyConfig.getPreprocessorConfigFile());
     }
-    if (preprocessorConfigFile != null) {
-      logger.info("Preprocessor configuration loaded from " + preprocessorConfigFile);
+    if (proxyConfig.getPreprocessorConfigFile() != null) {
+      logger.info("Preprocessor configuration loaded from " +
+          proxyConfig.getPreprocessorConfigFile());
     }
 
     // convert blacklist/whitelist fields to filters for full backwards compatibility
     // blacklistRegex and whitelistRegex are applied to pushListenerPorts, graphitePorts and picklePorts
     String allPorts = StringUtils.join(new String[]{
-        pushListenerPorts == null ? "" : pushListenerPorts,
-        graphitePorts == null ? "" : graphitePorts,
-        picklePorts == null ? "" : picklePorts,
-        traceListenerPorts == null ? "" : traceListenerPorts
+        ObjectUtils.firstNonNull(proxyConfig.getPushListenerPorts(), ""),
+        ObjectUtils.firstNonNull(proxyConfig.getGraphitePorts(), ""),
+        ObjectUtils.firstNonNull(proxyConfig.getPicklePorts(), ""),
+        ObjectUtils.firstNonNull(proxyConfig.getTraceListenerPorts(), "")
     }, ",");
-    addPreprocessorFilters(allPorts, whitelistRegex, blacklistRegex);
-
+    addPreprocessorFilters(allPorts, proxyConfig.getWhitelistRegex(),
+        proxyConfig.getBlacklistRegex());
     // opentsdbBlacklistRegex and opentsdbWhitelistRegex are applied to opentsdbPorts only
-    addPreprocessorFilters(opentsdbPorts, opentsdbWhitelistRegex, opentsdbBlacklistRegex);
+    addPreprocessorFilters(proxyConfig.getOpentsdbPorts(), proxyConfig.getOpentsdbWhitelistRegex(),
+        proxyConfig.getOpentsdbBlacklistRegex());
   }
 
   // Returns null on any exception, and logs the exception.
   protected LogsIngestionConfig loadLogsIngestionConfig() {
     try {
-      if (logsIngestionConfigFile == null) {
+      if (proxyConfig.getLogsIngestionConfigFile() == null) {
         return null;
       }
       ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
-      return objectMapper.readValue(new File(logsIngestionConfigFile), LogsIngestionConfig.class);
+      return objectMapper.readValue(new File(proxyConfig.getLogsIngestionConfigFile()),
+          LogsIngestionConfig.class);
     } catch (UnrecognizedPropertyException e) {
       logger.severe("Unable to load logs ingestion config: " + e.getMessage());
     } catch (Exception e) {
@@ -956,454 +280,74 @@ public abstract class AbstractAgent {
     return null;
   }
 
-  private void loadListenerConfigurationFile() throws IOException {
-    ReportableConfig config;
-    // If they've specified a push configuration file, override the command line values
-    try {
-      if (pushConfigFile != null) {
-        config = new ReportableConfig(pushConfigFile);
-      } else {
-        config = new ReportableConfig(); // dummy config
-      }
-      prefix = Strings.emptyToNull(config.getString("prefix", prefix));
-      pushValidationLevel = config.getString("pushValidationLevel", pushValidationLevel);
-      // don't track token in proxy config metrics
-      token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
-      server = config.getRawProperty("server", server).trim();
-      hostname = config.getString("hostname", hostname);
-      idFile = config.getString("idFile", idFile);
-      pushRateLimit = config.getInteger("pushRateLimit", pushRateLimit);
-      pushRateLimitHistograms = config.getInteger("pushRateLimitHistograms",
-          pushRateLimitHistograms);
-      pushRateLimitSourceTags = config.getDouble("pushRateLimitSourceTags",
-          pushRateLimitSourceTags);
-      pushRateLimitSpans = config.getInteger("pushRateLimitSpans", pushRateLimitSpans);
-      pushRateLimitSpanLogs = config.getInteger("pushRateLimitSpanLogs", pushRateLimitSpanLogs);
-      pushRateLimitEvents = config.getDouble("pushRateLimitEvents", pushRateLimitEvents);
-      pushRateLimitMaxBurstSeconds = config.getInteger("pushRateLimitMaxBurstSeconds",
-          pushRateLimitMaxBurstSeconds);
-      pushBlockedSamples = config.getInteger("pushBlockedSamples", pushBlockedSamples);
-      blockedPointsLoggerName = config.getString("blockedPointsLoggerName", blockedPointsLoggerName);
-      blockedHistogramsLoggerName = config.getString("blockedHistogramsLoggerName", blockedHistogramsLoggerName);
-      blockedSpansLoggerName = config.getString("blockedSpansLoggerName", blockedSpansLoggerName);
-      pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
-      pushListenerMaxReceivedLength = config.getInteger("pushListenerMaxReceivedLength",
-          pushListenerMaxReceivedLength);
-      pushListenerHttpBufferSize = config.getInteger("pushListenerHttpBufferSize",
-          pushListenerHttpBufferSize);
-      traceListenerMaxReceivedLength = config.getInteger("traceListenerMaxReceivedLength",
-          traceListenerMaxReceivedLength);
-      traceListenerHttpBufferSize = config.getInteger("traceListenerHttpBufferSize",
-          traceListenerHttpBufferSize);
-      listenerIdleConnectionTimeout = config.getInteger("listenerIdleConnectionTimeout",
-          listenerIdleConnectionTimeout);
-      memGuardFlushThreshold = config.getInteger("memGuardFlushThreshold", memGuardFlushThreshold);
-
-      // Histogram: global settings
-      histogramStateDirectory = config.getString("histogramStateDirectory",
-          histogramStateDirectory);
-      histogramAccumulatorResolveInterval = config.getLong("histogramAccumulatorResolveInterval",
-          histogramAccumulatorResolveInterval);
-      histogramAccumulatorFlushInterval = config.getLong("histogramAccumulatorFlushInterval",
-          histogramAccumulatorFlushInterval);
-      histogramAccumulatorFlushMaxBatchSize =
-          config.getInteger("histogramAccumulatorFlushMaxBatchSize",
-              histogramAccumulatorFlushMaxBatchSize);
-      histogramMaxReceivedLength = config.getInteger("histogramMaxReceivedLength",
-          histogramMaxReceivedLength);
-      histogramHttpBufferSize = config.getInteger("histogramHttpBufferSize",
-          histogramHttpBufferSize);
-
-      deltaCountersAggregationListenerPorts =
-          config.getString("deltaCountersAggregationListenerPorts",
-              deltaCountersAggregationListenerPorts);
-      deltaCountersAggregationIntervalSeconds =
-          config.getLong("deltaCountersAggregationIntervalSeconds",
-              deltaCountersAggregationIntervalSeconds);
-
-      // Histogram: deprecated settings - fall back for backwards compatibility
-      if (config.isDefined("avgHistogramKeyBytes")) {
-        histogramMinuteAvgKeyBytes = histogramHourAvgKeyBytes = histogramDayAvgKeyBytes =
-            histogramDistAvgKeyBytes = config.getInteger("avgHistogramKeyBytes", 150);
-      }
-      if (config.isDefined("avgHistogramDigestBytes")) {
-        histogramMinuteAvgDigestBytes = histogramHourAvgDigestBytes = histogramDayAvgDigestBytes =
-            histogramDistAvgDigestBytes = config.getInteger("avgHistogramDigestBytes", 500);
-      }
-      if (config.isDefined("histogramAccumulatorSize")) {
-        histogramMinuteAccumulatorSize = histogramHourAccumulatorSize =
-            histogramDayAccumulatorSize = histogramDistAccumulatorSize = config.getLong(
-                "histogramAccumulatorSize", 100000);
-      }
-      if (config.isDefined("histogramCompression")) {
-        histogramMinuteCompression = histogramHourCompression = histogramDayCompression =
-            histogramDistCompression = config.getNumber("histogramCompression", null, 20, 1000).
-                shortValue();
-      }
-      if (config.isDefined("persistAccumulator")) {
-        histogramMinuteAccumulatorPersisted = histogramHourAccumulatorPersisted =
-            histogramDayAccumulatorPersisted = histogramDistAccumulatorPersisted =
-                config.getBoolean("persistAccumulator", false);
-      }
-
-      // Histogram: minute accumulator settings
-      histogramMinuteListenerPorts = config.getString("histogramMinuteListenerPorts",
-          histogramMinuteListenerPorts);
-      histogramMinuteFlushSecs = config.getInteger("histogramMinuteFlushSecs",
-          histogramMinuteFlushSecs);
-      histogramMinuteCompression = config.getNumber("histogramMinuteCompression",
-          histogramMinuteCompression, 20, 1000).shortValue();
-      histogramMinuteAvgKeyBytes = config.getInteger("histogramMinuteAvgKeyBytes",
-          histogramMinuteAvgKeyBytes);
-      histogramMinuteAvgDigestBytes = 32 + histogramMinuteCompression * 7;
-      histogramMinuteAvgDigestBytes = config.getInteger("histogramMinuteAvgDigestBytes",
-          histogramMinuteAvgDigestBytes);
-      histogramMinuteAccumulatorSize = config.getLong("histogramMinuteAccumulatorSize",
-          histogramMinuteAccumulatorSize);
-      histogramMinuteAccumulatorPersisted = config.getBoolean("histogramMinuteAccumulatorPersisted",
-          histogramMinuteAccumulatorPersisted);
-      histogramMinuteMemoryCache = config.getBoolean("histogramMinuteMemoryCache",
-          histogramMinuteMemoryCache);
-
-      // Histogram: hour accumulator settings
-      histogramHourListenerPorts = config.getString("histogramHourListenerPorts",
-          histogramHourListenerPorts);
-      histogramHourFlushSecs = config.getInteger("histogramHourFlushSecs", histogramHourFlushSecs);
-      histogramHourCompression = config.getNumber("histogramHourCompression",
-          histogramHourCompression, 20, 1000).shortValue();
-      histogramHourAvgKeyBytes = config.getInteger("histogramHourAvgKeyBytes",
-          histogramHourAvgKeyBytes);
-      histogramHourAvgDigestBytes = 32 + histogramHourCompression * 7;
-      histogramHourAvgDigestBytes = config.getInteger("histogramHourAvgDigestBytes",
-          histogramHourAvgDigestBytes);
-      histogramHourAccumulatorSize = config.getLong("histogramHourAccumulatorSize",
-          histogramHourAccumulatorSize);
-      histogramHourAccumulatorPersisted = config.getBoolean("histogramHourAccumulatorPersisted",
-          histogramHourAccumulatorPersisted);
-      histogramHourMemoryCache = config.getBoolean("histogramHourMemoryCache",
-          histogramHourMemoryCache);
-
-      // Histogram: day accumulator settings
-      histogramDayListenerPorts = config.getString("histogramDayListenerPorts",
-          histogramDayListenerPorts);
-      histogramDayFlushSecs = config.getInteger("histogramDayFlushSecs", histogramDayFlushSecs);
-      histogramDayCompression = config.getNumber("histogramDayCompression",
-          histogramDayCompression, 20, 1000).shortValue();
-      histogramDayAvgKeyBytes = config.getInteger("histogramDayAvgKeyBytes",
-          histogramDayAvgKeyBytes);
-      histogramDayAvgDigestBytes = 32 + histogramDayCompression * 7;
-      histogramDayAvgDigestBytes = config.getInteger("histogramDayAvgDigestBytes",
-          histogramDayAvgDigestBytes);
-      histogramDayAccumulatorSize = config.getLong("histogramDayAccumulatorSize",
-          histogramDayAccumulatorSize);
-      histogramDayAccumulatorPersisted = config.getBoolean("histogramDayAccumulatorPersisted",
-          histogramDayAccumulatorPersisted);
-      histogramDayMemoryCache = config.getBoolean("histogramDayMemoryCache",
-          histogramDayMemoryCache);
-
-      // Histogram: dist accumulator settings
-      histogramDistListenerPorts = config.getString("histogramDistListenerPorts",
-          histogramDistListenerPorts);
-      histogramDistFlushSecs = config.getInteger("histogramDistFlushSecs", histogramDistFlushSecs);
-      histogramDistCompression = config.getNumber("histogramDistCompression",
-          histogramDistCompression, 20, 1000).shortValue();
-      histogramDistAvgKeyBytes = config.getInteger("histogramDistAvgKeyBytes",
-          histogramDistAvgKeyBytes);
-      histogramDistAvgDigestBytes = 32 + histogramDistCompression * 7;
-      histogramDistAvgDigestBytes = config.getInteger("histogramDistAvgDigestBytes",
-          histogramDistAvgDigestBytes);
-      histogramDistAccumulatorSize = config.getLong("histogramDistAccumulatorSize",
-          histogramDistAccumulatorSize);
-      histogramDistAccumulatorPersisted = config.getBoolean("histogramDistAccumulatorPersisted",
-          histogramDistAccumulatorPersisted);
-      histogramDistMemoryCache = config.getBoolean("histogramDistMemoryCache",
-          histogramDistMemoryCache);
-
-      retryThreads = config.getInteger("retryThreads", retryThreads);
-      flushThreads = config.getInteger("flushThreads", flushThreads);
-      jsonListenerPorts = config.getString("jsonListenerPorts", jsonListenerPorts);
-      writeHttpJsonListenerPorts = config.getString("writeHttpJsonListenerPorts",
-          writeHttpJsonListenerPorts);
-      dataDogJsonPorts = config.getString("dataDogJsonPorts", dataDogJsonPorts);
-      dataDogRequestRelayTarget = config.getString("dataDogRequestRelayTarget",
-          dataDogRequestRelayTarget);
-      dataDogProcessSystemMetrics = config.getBoolean("dataDogProcessSystemMetrics",
-          dataDogProcessSystemMetrics);
-      dataDogProcessServiceChecks = config.getBoolean("dataDogProcessServiceChecks",
-          dataDogProcessServiceChecks);
-      graphitePorts = config.getString("graphitePorts", graphitePorts);
-      graphiteFormat = config.getString("graphiteFormat", graphiteFormat);
-      graphiteFieldsToRemove = config.getString("graphiteFieldsToRemove", graphiteFieldsToRemove);
-      graphiteDelimiters = config.getString("graphiteDelimiters", graphiteDelimiters);
-      graphiteWhitelistRegex = config.getString("graphiteWhitelistRegex", graphiteWhitelistRegex);
-      graphiteBlacklistRegex = config.getString("graphiteBlacklistRegex", graphiteBlacklistRegex);
-      whitelistRegex = config.getString("whitelistRegex", whitelistRegex);
-      blacklistRegex = config.getString("blacklistRegex", blacklistRegex);
-      opentsdbPorts = config.getString("opentsdbPorts", opentsdbPorts);
-      opentsdbWhitelistRegex = config.getString("opentsdbWhitelistRegex", opentsdbWhitelistRegex);
-      opentsdbBlacklistRegex = config.getString("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
-      proxyHost = config.getString("proxyHost", proxyHost);
-      proxyPort = config.getInteger("proxyPort", proxyPort);
-      proxyPassword = config.getString("proxyPassword", proxyPassword, s -> "<removed>");
-      proxyUser = config.getString("proxyUser", proxyUser);
-      httpUserAgent = config.getString("httpUserAgent", httpUserAgent);
-      httpConnectTimeout = config.getInteger("httpConnectTimeout", httpConnectTimeout);
-      httpRequestTimeout = config.getInteger("httpRequestTimeout", httpRequestTimeout);
-      httpMaxConnTotal = Math.min(200, config.getInteger("httpMaxConnTotal", httpMaxConnTotal));
-      httpMaxConnPerRoute = Math.min(100, config.getInteger("httpMaxConnPerRoute",
-          httpMaxConnPerRoute));
-      httpAutoRetries = config.getInteger("httpAutoRetries", httpAutoRetries);
-      gzipCompression = config.getBoolean("gzipCompression", gzipCompression);
-      soLingerTime = config.getInteger("soLingerTime", soLingerTime);
-      splitPushWhenRateLimited = config.getBoolean("splitPushWhenRateLimited",
-          splitPushWhenRateLimited);
-      customSourceTagsProperty = config.getString("customSourceTags", customSourceTagsProperty);
-      agentMetricsPointTags = config.getString("agentMetricsPointTags", agentMetricsPointTags);
-      ephemeral = config.getBoolean("ephemeral", ephemeral);
-      disableRdnsLookup = config.getBoolean("disableRdnsLookup", disableRdnsLookup);
-      picklePorts = config.getString("picklePorts", picklePorts);
-      traceListenerPorts = config.getString("traceListenerPorts", traceListenerPorts);
-      traceJaegerListenerPorts = config.getString("traceJaegerListenerPorts",
-          traceJaegerListenerPorts);
-      traceJaegerApplicationName = config.getString("traceJaegerApplicationName",
-          traceJaegerApplicationName);
-      traceZipkinListenerPorts = config.getString("traceZipkinListenerPorts",
-          traceZipkinListenerPorts);
-      traceZipkinApplicationName = config.getString("traceZipkinApplicationName",
-          traceZipkinApplicationName);
-      traceSamplingRate = config.getDouble("traceSamplingRate", traceSamplingRate);
-      traceSamplingDuration = config.getInteger("traceSamplingDuration", traceSamplingDuration);
-      traceDerivedCustomTagKeysProperty = config.getString("traceDerivedCustomTagKeys",
-          traceDerivedCustomTagKeysProperty);
-      traceAlwaysSampleErrors = config.getBoolean("traceAlwaysSampleErrors",
-          traceAlwaysSampleErrors);
-      pushRelayListenerPorts = config.getString("pushRelayListenerPorts", pushRelayListenerPorts);
-      pushRelayHistogramAggregator = config.getBoolean("pushRelayHistogramAggregator",
-          pushRelayHistogramAggregator);
-      pushRelayHistogramAggregatorAccumulatorSize =
-          config.getLong("pushRelayHistogramAggregatorAccumulatorSize",
-              pushRelayHistogramAggregatorAccumulatorSize);
-      pushRelayHistogramAggregatorFlushSecs =
-          config.getInteger("pushRelayHistogramAggregatorFlushSecs",
-              pushRelayHistogramAggregatorFlushSecs);
-      pushRelayHistogramAggregatorCompression =
-          config.getNumber("pushRelayHistogramAggregatorCompression",
-              pushRelayHistogramAggregatorCompression).shortValue();
-      bufferFile = config.getString("buffer", bufferFile);
-      preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
-      dataBackfillCutoffHours = config.getInteger("dataBackfillCutoffHours", dataBackfillCutoffHours);
-      dataPrefillCutoffHours = config.getInteger("dataPrefillCutoffHours", dataPrefillCutoffHours);
-      filebeatPort = config.getInteger("filebeatPort", filebeatPort);
-      rawLogsPort = config.getInteger("rawLogsPort", rawLogsPort);
-      rawLogsMaxReceivedLength = config.getInteger("rawLogsMaxReceivedLength",
-          rawLogsMaxReceivedLength);
-      rawLogsHttpBufferSize = config.getInteger("rawLogsHttpBufferSize", rawLogsHttpBufferSize);
-      logsIngestionConfigFile = config.getString("logsIngestionConfigFile", logsIngestionConfigFile);
-
-      authMethod = TokenValidationMethod.fromString(config.getString("authMethod",
-          authMethod.toString()));
-      authTokenIntrospectionServiceUrl = config.getString("authTokenIntrospectionServiceUrl",
-          authTokenIntrospectionServiceUrl);
-      authTokenIntrospectionAuthorizationHeader =
-          config.getString("authTokenIntrospectionAuthorizationHeader",
-          authTokenIntrospectionAuthorizationHeader);
-      authResponseRefreshInterval = config.getInteger("authResponseRefreshInterval",
-          authResponseRefreshInterval);
-      authResponseMaxTtl = config.getInteger("authResponseMaxTtl", authResponseMaxTtl);
-      authStaticToken = config.getString("authStaticToken", authStaticToken);
-
-      adminApiListenerPort = config.getInteger("adminApiListenerPort", adminApiListenerPort);
-      adminApiRemoteIpWhitelistRegex = config.getString("adminApiRemoteIpWhitelistRegex",
-          adminApiRemoteIpWhitelistRegex);
-      httpHealthCheckPorts = config.getString("httpHealthCheckPorts", httpHealthCheckPorts);
-      httpHealthCheckAllPorts = config.getBoolean("httpHealthCheckAllPorts", false);
-      httpHealthCheckPath = config.getString("httpHealthCheckPath", httpHealthCheckPath);
-      httpHealthCheckResponseContentType = config.getString("httpHealthCheckResponseContentType",
-          httpHealthCheckResponseContentType);
-      httpHealthCheckPassStatusCode = config.getInteger("httpHealthCheckPassStatusCode",
-          httpHealthCheckPassStatusCode);
-      httpHealthCheckPassResponseBody = config.getString("httpHealthCheckPassResponseBody",
-          httpHealthCheckPassResponseBody);
-      httpHealthCheckFailStatusCode = config.getInteger("httpHealthCheckFailStatusCode",
-          httpHealthCheckFailStatusCode);
-      httpHealthCheckFailResponseBody = config.getString("httpHealthCheckFailResponseBody",
-          httpHealthCheckFailResponseBody);
-
-      // clamp values for pushFlushMaxPoints/etc between min split size
-      // (or 1 in case of source tags and events) and default batch size.
-      // also make sure it is never higher than the configured rate limit.
-      pushFlushMaxPoints = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxPoints",
-          pushFlushMaxPoints), DEFAULT_MIN_SPLIT_BATCH_SIZE), DEFAULT_BATCH_SIZE), pushRateLimit);
-      pushFlushMaxHistograms = Math.min(Math.min(Math.max(config.getInteger(
-          "pushFlushMaxHistograms", pushFlushMaxHistograms), DEFAULT_MIN_SPLIT_BATCH_SIZE),
-          DEFAULT_BATCH_SIZE_HISTOGRAMS), pushRateLimitHistograms);
-      pushFlushMaxSourceTags = Math.min(Math.min(Math.max(config.getInteger(
-          "pushFlushMaxSourceTags", pushFlushMaxSourceTags), 1),
-          DEFAULT_BATCH_SIZE_SOURCE_TAGS), pushRateLimitSourceTags.intValue());
-      pushFlushMaxSpans = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxSpans",
-          pushFlushMaxSpans), DEFAULT_MIN_SPLIT_BATCH_SIZE), DEFAULT_BATCH_SIZE_SPANS),
-          pushRateLimitSpans);
-      pushFlushMaxSpanLogs = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxSpanLogs",
-          pushFlushMaxSpanLogs), DEFAULT_MIN_SPLIT_BATCH_SIZE), DEFAULT_BATCH_SIZE_SPAN_LOGS),
-          pushRateLimitSpanLogs);
-      pushFlushMaxEvents = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxEvents",
-          pushFlushMaxEvents), 1), DEFAULT_BATCH_SIZE_EVENTS), pushRateLimitEvents.intValue());
-
-      /*
-        default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of
-        available heap memory. 25% is chosen heuristically as a safe number for scenarios with
-        limited system resources (4 CPU cores or less, heap size less than 4GB) to prevent OOM.
-        this is a conservative estimate, budgeting 200 characters (400 bytes) per per point line.
-        Also, it shouldn't be less than 1 batch size (pushFlushMaxPoints).
-       */
-      int listeningPorts = Iterables.size(Splitter.on(",").omitEmptyStrings().trimResults().
-          split(pushListenerPorts));
-      long calculatedMemoryBufferLimit = Math.max(Math.min(16 * pushFlushMaxPoints,
-          Runtime.getRuntime().maxMemory() / Math.max(0, listeningPorts) / 4 / flushThreads / 400),
-          pushFlushMaxPoints);
-      logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
-      pushMemoryBufferLimit = Math.max(config.getInteger("pushMemoryBufferLimit",
-          pushMemoryBufferLimit), pushFlushMaxPoints);
-      logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
-      pushFlushInterval = config.getInteger("pushFlushInterval", pushFlushInterval);
-      retryBackoffBaseSeconds = Math.max(Math.min(config.getDouble("retryBackoffBaseSeconds",
-          retryBackoffBaseSeconds), MAX_RETRY_BACKOFF_BASE_SECONDS), 1.0);
-
-      runtimeProperties = ProxyRuntimeProperties.newBuilder().
-          setSplitPushWhenRateLimited(splitPushWhenRateLimited).
-          setRetryBackoffBaseSeconds(retryBackoffBaseSeconds).
-          setPushRateLimitMaxBurstSeconds(pushRateLimitMaxBurstSeconds).
-          setPushFlushInterval(pushFlushInterval).
-          setItemsPerBatch(pushFlushMaxPoints).
-          setItemsPerBatchHistograms(pushFlushMaxHistograms).
-          setItemsPerBatchSourceTags(pushFlushMaxSourceTags).
-          setItemsPerBatchSpans(pushFlushMaxSpans).
-          setItemsPerBatchSpanLogs(pushFlushMaxSpanLogs).
-          setItemsPerBatchEvents(pushFlushMaxEvents).
-          setMinBatchSplitSize(DEFAULT_MIN_SPLIT_BATCH_SIZE).
-          setMemoryBufferLimit(pushMemoryBufferLimit).
-          setMemoryBufferLimitSourceTags(16 * pushFlushMaxSourceTags).
-          setMemoryBufferLimitEvents(16 * pushFlushMaxEvents).
-          build();
-      config.reportSettingAsGauge(runtimeProperties::getPushFlushInterval, "pushFlushInterval");
-      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatch, "pushFlushMaxPoints");
-      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatchHistograms,
-          "pushFlushMaxHistograms");
-      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatchSourceTags,
-          "pushFlushMaxSourceTags");
-      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatchSpans, "pushFlushMaxSpans");
-      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatchSpanLogs,
-          "pushFlushMaxSpanLogs");
-      config.reportSettingAsGauge(runtimeProperties::getItemsPerBatchEvents, "pushFlushMaxEvents");
-      config.reportSettingAsGauge(runtimeProperties::getRetryBackoffBaseSeconds,
-          "retryBackoffBaseSeconds");
-      config.reportSettingAsGauge(runtimeProperties::getMemoryBufferLimit, "pushMemoryBufferLimit");
-
-      if (pushConfigFile != null) {
-        logger.info("Loaded configuration file " + pushConfigFile);
-      }
-    } catch (Throwable exception) {
-      logger.severe("Could not load configuration file " + pushConfigFile);
-      throw exception;
-    }
-  }
-
   private void postProcessConfig() {
-    // Compatibility with deprecated fields
-    if (whitelistRegex == null && graphiteWhitelistRegex != null) {
-      whitelistRegex = graphiteWhitelistRegex;
-    }
+    runtimeProperties = ProxyRuntimeProperties.newBuilder().
+        setSplitPushWhenRateLimited(proxyConfig.isSplitPushWhenRateLimited()).
+        setRetryBackoffBaseSeconds(proxyConfig.getRetryBackoffBaseSeconds()).
+        setPushRateLimitMaxBurstSeconds(proxyConfig.getPushRateLimitMaxBurstSeconds()).
+        setPushFlushInterval(proxyConfig.getPushFlushInterval()).
+        setItemsPerBatch(proxyConfig.getPushFlushMaxPoints()).
+        setItemsPerBatchHistograms(proxyConfig.getPushFlushMaxHistograms()).
+        setItemsPerBatchSourceTags(proxyConfig.getPushFlushMaxSourceTags()).
+        setItemsPerBatchSpans(proxyConfig.getPushFlushMaxSpans()).
+        setItemsPerBatchSpanLogs(proxyConfig.getPushFlushMaxSpanLogs()).
+        setItemsPerBatchEvents(proxyConfig.getPushFlushMaxEvents()).
+        setMinBatchSplitSize(DEFAULT_MIN_SPLIT_BATCH_SIZE).
+        setMemoryBufferLimit(proxyConfig.getPushMemoryBufferLimit()).
+        setMemoryBufferLimitSourceTags(16 * proxyConfig.getPushFlushMaxSourceTags()).
+        setMemoryBufferLimitEvents(16 * proxyConfig.getPushFlushMaxEvents()).
+        build();
+    reportSettingAsGauge(runtimeProperties::getPushFlushInterval, "pushFlushInterval");
+    reportSettingAsGauge(runtimeProperties::getItemsPerBatch, "pushFlushMaxPoints");
+    reportSettingAsGauge(runtimeProperties::getItemsPerBatchHistograms, "pushFlushMaxHistograms");
+    reportSettingAsGauge(runtimeProperties::getItemsPerBatchSourceTags, "pushFlushMaxSourceTags");
+    reportSettingAsGauge(runtimeProperties::getItemsPerBatchSpans, "pushFlushMaxSpans");
+    reportSettingAsGauge(runtimeProperties::getItemsPerBatchSpanLogs, "pushFlushMaxSpanLogs");
+    reportSettingAsGauge(runtimeProperties::getItemsPerBatchEvents, "pushFlushMaxEvents");
+    reportSettingAsGauge(runtimeProperties::getRetryBackoffBaseSeconds, "retryBackoffBaseSeconds");
+    reportSettingAsGauge(runtimeProperties::getMemoryBufferLimit, "pushMemoryBufferLimit");
 
-    if (blacklistRegex == null && graphiteBlacklistRegex != null) {
-      blacklistRegex = graphiteBlacklistRegex;
-    }
+    Logger retryLogger = Logger.getLogger("org.apache.http.impl.execchain.RetryExec");
+    if (retryLogger.getLevel() == Level.INFO) retryLogger.setLevel(Level.WARNING);
 
-    if (pushRateLimit > 0) {
-      pushRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
-          create(pushRateLimit, pushRateLimitMaxBurstSeconds), "limiter");
-    }
-    if (pushRateLimitSourceTags > 0) {
-      sourceTagRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
-          create(DEFAULT_SOURCE_TAG_RATE_LIMIT, pushRateLimitMaxBurstSeconds), "limiter.sourceTags");
-    }
-    if (pushRateLimitHistograms > 0) {
-      histogramRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
-          create(pushRateLimitHistograms, pushRateLimitMaxBurstSeconds), "limiter.histograms");
-    }
-    if (pushRateLimitSpans > 0) {
-      spanRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
-          create(pushRateLimitSpans, pushRateLimitMaxBurstSeconds), "limiter.spans");
-    }
-    if (pushRateLimitSpanLogs > 0) {
-      spanLogRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
-          create(pushRateLimitSpanLogs, pushRateLimitMaxBurstSeconds), "limiter.spanLogs");
-    }
-    if (pushRateLimitEvents > 0) {
-      eventRateLimiter = new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
-          create(DEFAULT_EVENT_RATE_LIMIT, pushRateLimitMaxBurstSeconds), "limiter.events");
-    }
-
-    if (httpUserAgent == null) {
-      httpUserAgent = "Wavefront-Proxy/" + props.getString("build.version");
-    }
-
-    //QueuedAgentService.setRetryBackoffBaseSeconds(retryBackoffBaseSeconds);
-
-    // create List of custom tags from the configuration string
-    Set<String> tagSet = new LinkedHashSet<>();
-    Splitter.on(",").trimResults().omitEmptyStrings().split(customSourceTagsProperty).forEach(x -> {
-      if (!tagSet.add(x)) {
-        logger.warning("Duplicate tag " + x + " specified in customSourceTags config setting");
-      }
-    });
-    customSourceTags.addAll(tagSet);
-
-    // Create set of trace derived RED metrics custom Tag keys.
-    Splitter.on(",").trimResults().omitEmptyStrings().
-        split(ObjectUtils.firstNonNull(traceDerivedCustomTagKeysProperty, "")).
-        forEach(traceDerivedCustomTagKeys::add);
-
-    if (StringUtils.isBlank(hostname.trim())) {
+    if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
       logger.severe("hostname cannot be blank! Please correct your configuration settings.");
       System.exit(1);
     }
   }
 
-  private String getBuildVersion() {
-    try {
-      if (props == null) {
-        props = ResourceBundle.getBundle("build");
-      }
-      return props.getString("build.version");
-    } catch (MissingResourceException ex) {
-      return "unknown";
-    }
-  }
-
-  private void parseArguments(String[] args) {
+  @VisibleForTesting
+  void parseArguments(String[] args) {
     // read build information and print version.
     String versionStr = "Wavefront Proxy version " + getBuildVersion();
     JCommander jCommander = JCommander.newBuilder().
         programName(this.getClass().getCanonicalName()).
-        addObject(this).
+        addObject(proxyConfig).
         allowParameterOverwriting(true).
         build();
-    jCommander.parse(args);
-    if (version) {
-      System.out.println(versionStr);
-      System.exit(0);
-    }
-    if (help) {
-      System.out.println(versionStr);
-      jCommander.usage();
-      System.exit(0);
-    }
-    logger.info(versionStr);
-    logger.info("Arguments: " + IntStream.range(0, args.length).
-        mapToObj(i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i]).
-        collect(Collectors.joining(", ")));
-    if (unparsed_params != null) {
-      logger.info("Unparsed arguments: " + Joiner.on(", ").join(unparsed_params));
+    try {
+      jCommander.parse(args);
+
+      if (proxyConfig.isVersion()) {
+        System.out.println(versionStr);
+        System.exit(0);
+      }
+      if (proxyConfig.isHelp()) {
+        System.out.println(versionStr);
+        jCommander.usage();
+        System.exit(0);
+      }
+      logger.info(versionStr);
+      logger.info("Arguments: " + IntStream.range(0, args.length).
+          mapToObj(i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i]).
+          collect(Collectors.joining(" ")));
+      proxyConfig.verifyAndInit();
+    } catch (ParameterException e) {
+      logger.severe("Parameter exception: " + e.getMessage());
+      System.exit(1);
+    } catch (ConfigurationException e) {
+      logger.severe("Configuration exception: " + e.getMessage());
+      System.exit(1);
     }
   }
 
@@ -1419,11 +363,8 @@ public abstract class AbstractAgent {
        * Configuration Setup.
        * ------------------------------------------------------------------------------------ */
 
-      // Parse commandline arguments
+      // Parse commandline arguments and load configuration file
       parseArguments(args);
-
-      // Load configuration
-      loadListenerConfigurationFile();
       postProcessConfig();
       initPreprocessors();
       configureTokenAuthenticator();
@@ -1431,8 +372,9 @@ public abstract class AbstractAgent {
       managedExecutors.add(agentConfigurationExecutor);
 
       // Conditionally enter an interactive debugging session for logsIngestionConfig.yaml
-      if (testLogs) {
-        InteractiveLogsTester interactiveLogsTester = new InteractiveLogsTester(this::loadLogsIngestionConfig, prefix);
+      if (proxyConfig.isTestLogs()) {
+        InteractiveLogsTester interactiveLogsTester = new InteractiveLogsTester(
+            this::loadLogsIngestionConfig, proxyConfig.getPrefix());
         logger.info("Reading line-by-line sample log messages from STDIN");
         //noinspection StatementWithEmptyBody
         while (interactiveLogsTester.interactiveTest()) {
@@ -1442,32 +384,30 @@ public abstract class AbstractAgent {
       }
 
       // 2. Read or create the unique Id for the daemon running on this machine.
-      if (ephemeral) {
+      if (proxyConfig.isEphemeral()) {
         agentId = UUID.randomUUID(); // don't need to store one
         logger.info("Ephemeral proxy id created: " + agentId);
       } else {
-        readOrCreateDaemonId();
+        agentId = ProxyUtil.getOrCreateProxyId(proxyConfig.getIdFile());
       }
 
       configureHttpProxy();
 
       // Setup queueing.
-      apiContainer = new APIContainer(createService(server, ProxyV2API.class),
-          createService(server, SourceTagAPI.class), createService(server, EventAPI.class));
+      apiContainer = new APIContainer(createService(proxyConfig.getServer(), ProxyV2API.class),
+          createService(proxyConfig.getServer(), SourceTagAPI.class),
+          createService(proxyConfig.getServer(), EventAPI.class));
       //setupQueueing(service);
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       setupCheckins();
 
-      // Start processing of the backlog queues
-      startQueueingService();
-
       // Start the listening endpoints
       startListeners();
 
       // set up OoM memory guard
-      if (memGuardFlushThreshold > 0) {
-        setupMemoryGuard((float) memGuardFlushThreshold / 100);
+      if (proxyConfig.getMemGuardFlushThreshold() > 0) {
+        setupMemoryGuard((float) proxyConfig.getMemGuardFlushThreshold() / 100);
       }
 
       new Timer().schedule(
@@ -1476,8 +416,9 @@ public abstract class AbstractAgent {
             public void run() {
               // exit if no active listeners
               if (activeListeners.count() == 0) {
-                logger.severe("**** All listener threads failed to start - there is already a running instance " +
-                    "listening on configured ports, or no listening ports configured!");
+                logger.severe("**** All listener threads failed to start - there is already a " +
+                    "running instance listening on configured ports,  or no listening ports " +
+                    "configured!");
                 logger.severe("Aborting start-up");
                 System.exit(1);
               }
@@ -1501,19 +442,20 @@ public abstract class AbstractAgent {
   }
 
   private void configureHttpProxy() {
-    if (proxyHost != null) {
-      System.setProperty("http.proxyHost", proxyHost);
-      System.setProperty("https.proxyHost", proxyHost);
-      System.setProperty("http.proxyPort", String.valueOf(proxyPort));
-      System.setProperty("https.proxyPort", String.valueOf(proxyPort));
+    if (proxyConfig.getProxyHost() != null) {
+      System.setProperty("http.proxyHost", proxyConfig.getProxyHost());
+      System.setProperty("https.proxyHost", proxyConfig.getProxyHost());
+      System.setProperty("http.proxyPort", String.valueOf(proxyConfig.getProxyPort()));
+      System.setProperty("https.proxyPort", String.valueOf(proxyConfig.getProxyPort()));
     }
-    if (proxyUser != null && proxyPassword != null) {
+    if (proxyConfig.getProxyUser() != null && proxyConfig.getProxyPassword() != null) {
       Authenticator.setDefault(
           new Authenticator() {
             @Override
             public PasswordAuthentication getPasswordAuthentication() {
               if (getRequestorType() == RequestorType.PROXY) {
-                return new PasswordAuthentication(proxyUser, proxyPassword.toCharArray());
+                return new PasswordAuthentication(proxyConfig.getProxyUser(),
+                    proxyConfig.getProxyPassword().toCharArray());
               } else {
                 return null;
               }
@@ -1523,39 +465,12 @@ public abstract class AbstractAgent {
     }
   }
 
-  protected void configureTokenAuthenticator() {
-    HttpClient httpClient = HttpClientBuilder.create().
-        useSystemProperties().
-        setUserAgent(httpUserAgent).
-        setMaxConnPerRoute(10).
-        setMaxConnTotal(10).
-        setConnectionTimeToLive(1, TimeUnit.MINUTES).
-        setRetryHandler(new DefaultHttpRequestRetryHandler(httpAutoRetries, true)).
-        setDefaultRequestConfig(
-            RequestConfig.custom().
-                setContentCompressionEnabled(true).
-                setRedirectsEnabled(true).
-                setConnectTimeout(httpConnectTimeout).
-                setConnectionRequestTimeout(httpConnectTimeout).
-                setSocketTimeout(httpRequestTimeout).build()).
-        build();
-
-    this.tokenAuthenticator = TokenAuthenticatorBuilder.create().
-        setTokenValidationMethod(authMethod).
-        setHttpClient(httpClient).
-        setTokenIntrospectionServiceUrl(authTokenIntrospectionServiceUrl).
-        setTokenIntrospectionAuthorizationHeader(authTokenIntrospectionAuthorizationHeader).
-        setAuthResponseRefreshInterval(authResponseRefreshInterval).
-        setAuthResponseMaxTtl(authResponseMaxTtl).
-        setStaticToken(authStaticToken).
-        build();
-  }
-
   /**
    * Create RESTeasy proxies for remote calls via HTTP.
    */
   protected <T> T createService(String serverEndpointUrl, Class<T> apiClass) {
-    ResteasyProviderFactory factory = new LocalResteasyProviderFactory(ResteasyProviderFactory.getInstance());
+    ResteasyProviderFactory factory = new LocalResteasyProviderFactory(
+        ResteasyProviderFactory.getInstance());
     factory.registerProvider(JsonNodeWriter.class);
     if (!factory.getClasses().contains(ResteasyJackson2Provider.class)) {
       factory.registerProvider(ResteasyJackson2Provider.class);
@@ -1563,17 +478,17 @@ public abstract class AbstractAgent {
     ClientHttpEngine httpEngine;
     HttpClient httpClient = HttpClientBuilder.create().
         useSystemProperties().
-        setUserAgent(httpUserAgent).
-        setMaxConnTotal(httpMaxConnTotal).
-        setMaxConnPerRoute(httpMaxConnPerRoute).
+        setUserAgent(proxyConfig.getHttpUserAgent()).
+        setMaxConnTotal(proxyConfig.getHttpMaxConnTotal()).
+        setMaxConnPerRoute(proxyConfig.getHttpMaxConnPerRoute()).
         setConnectionTimeToLive(1, TimeUnit.MINUTES).
         setDefaultSocketConfig(
             SocketConfig.custom().
-                setSoTimeout(httpRequestTimeout).build()).
+                setSoTimeout(proxyConfig.getHttpRequestTimeout()).build()).
         setSSLSocketFactory(new SSLConnectionSocketFactoryImpl(
             SSLConnectionSocketFactory.getSystemSocketFactory(),
-            httpRequestTimeout)).
-        setRetryHandler(new DefaultHttpRequestRetryHandler(httpAutoRetries, true) {
+            proxyConfig.getHttpRequestTimeout())).
+        setRetryHandler(new DefaultHttpRequestRetryHandler(proxyConfig.getHttpAutoRetries(), true) {
           @Override
           protected boolean handleAsIdempotent(HttpRequest request) {
             // by default, retry all http calls (submissions are idempotent).
@@ -1584,11 +499,12 @@ public abstract class AbstractAgent {
             RequestConfig.custom().
                 setContentCompressionEnabled(true).
                 setRedirectsEnabled(true).
-                setConnectTimeout(httpConnectTimeout).
-                setConnectionRequestTimeout(httpConnectTimeout).
-                setSocketTimeout(httpRequestTimeout).build()).
+                setConnectTimeout(proxyConfig.getHttpConnectTimeout()).
+                setConnectionRequestTimeout(proxyConfig.getHttpConnectTimeout()).
+                setSocketTimeout(proxyConfig.getHttpRequestTimeout()).build()).
         build();
-    final ApacheHttpClient4Engine apacheHttpClient4Engine = new ApacheHttpClient4Engine(httpClient, true);
+    final ApacheHttpClient4Engine apacheHttpClient4Engine = new ApacheHttpClient4Engine(httpClient,
+        true);
     // avoid using disk at all
     apacheHttpClient4Engine.setFileUploadInMemoryThresholdLimit(100);
     apacheHttpClient4Engine.setFileUploadMemoryUnit(ApacheHttpClient4Engine.MemoryUnit.MB);
@@ -1597,92 +513,19 @@ public abstract class AbstractAgent {
         httpEngine(httpEngine).
         providerFactory(factory).
         register(GZIPDecodingInterceptor.class).
-        register(gzipCompression ? GZIPEncodingInterceptor.class : DisableGZIPEncodingInterceptor.class).
+        register(proxyConfig.isGzipCompression() ?
+            GZIPEncodingInterceptor.class : DisableGZIPEncodingInterceptor.class).
         register(AcceptEncodingGZIPFilter.class).
         register((ClientRequestFilter) context -> {
           if (context.getUri().getPath().contains("/v2/wfproxy") ||
               context.getUri().getPath().contains("/v2/source") ||
               context.getUri().getPath().contains("/event")) {
-            context.getHeaders().add("Authorization", "Bearer " + token);
+            context.getHeaders().add("Authorization", "Bearer " + proxyConfig.getToken());
           }
         }).
         build();
     ResteasyWebTarget target = client.target(serverEndpointUrl);
     return target.proxy(apiClass);
-  }
-
-  @Deprecated
-  protected void startQueueingService() {
-    // noop
-    /*
-    proxyApi.start();
-    shutdownTasks.add(() -> {
-      try {
-        queuedAgentExecutor.shutdownNow();
-        // wait for up to httpRequestTimeout
-        queuedAgentExecutor.awaitTermination(httpRequestTimeout, TimeUnit.MILLISECONDS);
-      } catch (InterruptedException e) {
-        // ignore
-      }
-    });
-     */
-  }
-
-  /**
-   * Read or create the Daemon id for this machine. Reads from ~/.dshell/id.
-   */
-  private void readOrCreateDaemonId() {
-    File agentIdFile;
-    if (idFile != null) {
-      agentIdFile = new File(idFile);
-    } else {
-      File userHome = new File(System.getProperty("user.home"));
-      if (!userHome.exists() || !userHome.isDirectory()) {
-        logger.severe("Cannot read from user.home, quitting");
-        System.exit(1);
-      }
-      File configDirectory = new File(userHome, ".dshell");
-      if (configDirectory.exists()) {
-        if (!configDirectory.isDirectory()) {
-          logger.severe(configDirectory + " must be a directory!");
-          System.exit(1);
-        }
-      } else {
-        if (!configDirectory.mkdir()) {
-          logger.severe("Cannot create .dshell directory under " + userHome);
-          System.exit(1);
-        }
-      }
-      agentIdFile = new File(configDirectory, "id");
-    }
-    if (agentIdFile.exists()) {
-      if (agentIdFile.isFile()) {
-        try {
-          agentId = UUID.fromString(Objects.requireNonNull(Files.asCharSource(agentIdFile,
-              Charsets.UTF_8).readFirstLine()));
-          logger.info("Proxy Id read from file: " + agentId);
-        } catch (IllegalArgumentException ex) {
-          logger.severe("Cannot read proxy id from " + agentIdFile +
-              ", content is malformed");
-          System.exit(1);
-        } catch (IOException e) {
-          logger.log(Level.SEVERE, "Cannot read from " + agentIdFile, e);
-          System.exit(1);
-        }
-      } else {
-        logger.severe(agentIdFile + " is not a file!");
-        System.exit(1);
-      }
-    } else {
-      agentId = UUID.randomUUID();
-      logger.info("Proxy Id created: " + agentId);
-      try {
-        Files.asCharSink(agentIdFile, Charsets.UTF_8).write(agentId.toString());
-      } catch (IOException e) {
-        logger.severe("Cannot write to " + agentIdFile);
-        System.exit(1);
-      }
-    }
   }
 
   private void checkinError(String errMsg, @Nullable String secondErrMsg) {
@@ -1713,11 +556,12 @@ public abstract class AbstractAgent {
       agentMetricsCaptureTsWorkingCopy = agentMetricsCaptureTs;
       agentMetrics = null;
     }
-    logger.info("Checking in: " + ObjectUtils.firstNonNull(serverEndpointUrl, server));
+    logger.info("Checking in: " + ObjectUtils.firstNonNull(serverEndpointUrl,
+        proxyConfig.getServer()));
     try {
-      newConfig = apiContainer.getProxyV2API().proxyCheckin(agentId, "Bearer " + token, hostname,
-          props.getString("build.version"), agentMetricsCaptureTsWorkingCopy,
-          agentMetricsWorkingCopy, ephemeral);
+      newConfig = apiContainer.getProxyV2API().proxyCheckin(agentId,
+          "Bearer " + proxyConfig.getToken(), proxyConfig.getHostname(), getBuildVersion(),
+          agentMetricsCaptureTsWorkingCopy, agentMetricsWorkingCopy, proxyConfig.isEphemeral());
       agentMetricsWorkingCopy = null;
     } catch (ClientErrorException ex) {
       agentMetricsWorkingCopy = null;
@@ -1727,11 +571,12 @@ public abstract class AbstractAgent {
               "are correct and that the token has Proxy Management permission!");
           break;
         case 403:
-          checkinError("HTTP 403 Forbidden: Please verify that your token has Proxy Management permission!", null);
+          checkinError("HTTP 403 Forbidden: Please verify that your token has Proxy Management " +
+              "permission!", null);
           break;
         case 404:
         case 405:
-          String serverUrl = server.replaceAll("/$", "");
+          String serverUrl = proxyConfig.getServer().replaceAll("/$", "");
           if (!hadSuccessfulCheckin && !retryCheckin && !serverUrl.endsWith("/api")) {
             this.serverEndpointUrl = serverUrl + "/api/";
             checkinError("Possible server endpoint misconfiguration detected, attempting to use " +
@@ -1743,42 +588,46 @@ public abstract class AbstractAgent {
             return null;
           }
           String secondaryMessage = serverUrl.endsWith("/api") ?
-              "Current setting: " + server :
-              "Server endpoint URLs normally end with '/api/'. Current setting: " + server;
-          checkinError("HTTP " + ex.getResponse().getStatus() + ": Misconfiguration detected, please verify that " +
-                  "your server setting is correct", secondaryMessage);
+              "Current setting: " + proxyConfig.getServer() :
+              "Server endpoint URLs normally end with '/api/'. Current setting: " +
+                  proxyConfig.getServer();
+          checkinError("HTTP " + ex.getResponse().getStatus() + ": Misconfiguration detected, " +
+              "please verify that your server setting is correct", secondaryMessage);
           if (!hadSuccessfulCheckin) {
             logger.warning("Aborting start-up");
             System.exit(-5);
           }
           break;
         case 407:
-          checkinError("HTTP 407 Proxy Authentication Required: Please verify that proxyUser and proxyPassword",
+          checkinError("HTTP 407 Proxy Authentication Required: Please verify that " +
+                  "proxyUser and proxyPassword",
               "settings are correct and make sure your HTTP proxy is not rate limiting!");
           break;
         default:
-          checkinError("HTTP " + ex.getResponse().getStatus() + " error: Unable to check in with Wavefront!",
-              server + ": " + Throwables.getRootCause(ex).getMessage());
+          checkinError("HTTP " + ex.getResponse().getStatus() +
+                  " error: Unable to check in with Wavefront!",
+              proxyConfig.getServer() + ": " + Throwables.getRootCause(ex).getMessage());
       }
-      return new AgentConfiguration(); // return empty configuration to prevent checking in every second
+      return new AgentConfiguration(); // return empty configuration to prevent checking in every 1s
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);
       if (rootCause instanceof UnknownHostException) {
-        checkinError("Unknown host: " + server + ". Please verify your DNS and network settings!", null);
+        checkinError("Unknown host: " + proxyConfig.getServer() +
+            ". Please verify your DNS and network settings!", null);
         return null;
       }
       if (rootCause instanceof ConnectException ||
           rootCause instanceof SocketTimeoutException) {
-        checkinError("Unable to connect to " + server + ": " + rootCause.getMessage(),
+        checkinError("Unable to connect to " + proxyConfig.getServer() + ": " + rootCause.getMessage(),
             "Please verify your network/firewall settings!");
         return null;
       }
       checkinError("Request processing error: Unable to retrieve proxy configuration!",
-          server + ": " + rootCause);
+          proxyConfig.getServer() + ": " + rootCause);
       return null;
     } catch (Exception ex) {
       checkinError("Unable to retrieve proxy configuration from remote server!",
-          server + ": " + Throwables.getRootCause(ex));
+          proxyConfig.getServer() + ": " + Throwables.getRootCause(ex));
       return null;
     } finally {
       synchronized(agentConfigurationExecutor) {
@@ -1823,13 +672,14 @@ public abstract class AbstractAgent {
   protected void setupCheckins() {
     // Poll or read the configuration file to use.
     AgentConfiguration config;
-    if (configFile != null) {
-      logger.info("Loading configuration file from: " + configFile);
+    if (proxyConfig.getConfigFile() != null) {
+      logger.info("Loading configuration file from: " + proxyConfig.getConfigFile());
       try {
-        config = GSON.fromJson(new FileReader(configFile),
+        config = JSON_PARSER.readValue(new FileReader(proxyConfig.getConfigFile()),
             AgentConfiguration.class);
-      } catch (FileNotFoundException e) {
-        throw new RuntimeException("Cannot read config file: " + configFile);
+      } catch (IOException e) {
+        logger.log(Level.SEVERE, "cannot read from config file", e);
+        throw new RuntimeException("Cannot read from config file: " + proxyConfig.getConfigFile());
       }
       try {
         config.validate(localAgent);
@@ -1842,7 +692,8 @@ public abstract class AbstractAgent {
       updateAgentMetrics.run();
       config = checkin();
       if (config == null && retryCheckin) {
-        // immediately retry check-ins if we need to re-attempt due to changing the server endpoint URL
+        // immediately retry check-ins if we need to re-attempt
+        // due to changing the server endpoint URL
         updateAgentMetrics.run();
         config = checkin();
       }
@@ -1868,23 +719,20 @@ public abstract class AbstractAgent {
       }
 
       System.out.println("Shutting down: Stopping listeners...");
-
       stopListeners();
 
       System.out.println("Shutting down: Stopping schedulers...");
-
       managedExecutors.forEach(ExecutorService::shutdownNow);
         // wait for up to request timeout
       managedExecutors.forEach(x -> {
         try {
-          x.awaitTermination(httpRequestTimeout, TimeUnit.MILLISECONDS);
+          x.awaitTermination(proxyConfig.getHttpRequestTimeout(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
           // ignore
         }
       });
 
       System.out.println("Shutting down: Running finalizing tasks...");
-
       shutdownTasks.forEach(Runnable::run);
 
       System.out.println("Shutdown complete.");
@@ -1898,60 +746,11 @@ public abstract class AbstractAgent {
     }
   }
 
-  private static String getLocalHostName() {
-    InetAddress localAddress = null;
-    try {
-      Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
-      while (nics.hasMoreElements()) {
-        NetworkInterface network = nics.nextElement();
-        if (!network.isUp() || network.isLoopback()) {
-          continue;
-        }
-        for (Enumeration<InetAddress> addresses = network.getInetAddresses(); addresses.hasMoreElements(); ) {
-          InetAddress address = addresses.nextElement();
-          if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isMulticastAddress()) {
-            continue;
-          }
-          if (address instanceof Inet4Address) { // prefer ipv4
-            localAddress = address;
-            break;
-          }
-          if (localAddress == null) {
-            localAddress = address;
-          }
-        }
-      }
-    } catch (SocketException ex) {
-      // ignore
-    }
-    if (localAddress != null) {
-      return localAddress.getCanonicalHostName();
-    }
-    return "localhost";
-  }
+  protected abstract void startListeners();
+
+  protected abstract void stopListeners();
+
+  protected abstract void configureTokenAuthenticator();
 
   abstract void setupMemoryGuard(double threshold);
-
-  /**
-   * Return a unique process identifier used to prevent collisions in ~proxy metrics.
-   * Try to extract system PID from RuntimeMXBean name string (usually in the "11111@hostname" format).
-   * If it's not parsable or an extracted PID is too low, for example, when running in containerized
-   * environment, chances of ID collision are much higher, so we use a random 32bit hex string instead.
-   *
-   * @return unique process identifier string
-   */
-  private static String getProcessId() {
-    try {
-      final String runtime = ManagementFactory.getRuntimeMXBean().getName();
-      if (runtime.indexOf("@") >= 1) {
-        long id = Long.parseLong(runtime.substring(0, runtime.indexOf("@")));
-        if (id > 1000) {
-          return Long.toString(id);
-        }
-      }
-    } catch (Exception e) {
-      // can't resolve process ID, fall back to using random ID
-    }
-    return Integer.toHexString((int) (Math.random() * Integer.MAX_VALUE));
-  }
 }

@@ -6,7 +6,7 @@ import com.squareup.tape2.QueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
 
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
@@ -40,7 +40,7 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
     this.purgeBuffer = purgeBuffer;
   }
 
-  public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@NotNull HandlerKey handlerKey,
+  public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@Nonnull HandlerKey handlerKey,
                                                                      int threadNum) {
     //noinspection unchecked
     return (TaskQueue<T>) taskQueues.computeIfAbsent(handlerKey, x -> new TreeMap<>()).

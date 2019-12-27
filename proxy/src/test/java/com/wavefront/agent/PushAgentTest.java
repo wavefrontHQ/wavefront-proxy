@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 
+import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -25,6 +26,7 @@ import org.apache.http.entity.StringEntity;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
+import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -67,6 +69,9 @@ import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 @NotThreadSafe
 public class PushAgentTest {
@@ -93,7 +98,7 @@ public class PushAgentTest {
   private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
     @SuppressWarnings("unchecked")
     @Override
-    public Collection<SenderTask<String>> createSenderTasks(HandlerKey handlerKey, int numThreads) {
+    public Collection<SenderTask<String>> createSenderTasks(@NotNull HandlerKey handlerKey, int numThreads) {
       return mockSenderTasks;
     }
 
@@ -102,7 +107,7 @@ public class PushAgentTest {
     }
 
     @Override
-    public void drainBuffersToQueue() {
+    public void drainBuffersToQueue(QueueingReason reason) {
     }
   };
 
@@ -137,22 +142,29 @@ public class PushAgentTest {
     ddPort = findAvailablePort(4888);
     deltaPort = findAvailablePort(5888);
     proxy = new PushAgent();
-    proxy.flushThreads = 2;
-    proxy.retryThreads = 1;
-    proxy.dataBackfillCutoffHours = 100000000;
-    proxy.pushListenerPorts = String.valueOf(port);
-    proxy.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
-    proxy.traceListenerPorts = String.valueOf(tracePort);
-    proxy.dataDogJsonPorts = String.valueOf(ddPort);
-    proxy.dataDogProcessSystemMetrics = false;
-    proxy.dataDogProcessServiceChecks = true;
-    proxy.deltaCountersAggregationIntervalSeconds = 3;
-    proxy.startGraphiteListener(proxy.pushListenerPorts, mockHandlerFactory, null);
-    proxy.startDeltaCounterListener(proxy.deltaCountersAggregationListenerPorts, null,
-        mockSenderTaskFactory);
-    proxy.startTraceListener(proxy.traceListenerPorts, mockHandlerFactory,
+    proxy.parseArguments(new String[] {
+        "--flushThreads", "2",
+        "--retryThreads", "1",
+        "--dataBackfillCutoffHours", "100000000",
+        "--pushListenerPorts", String.valueOf(port),
+        "--deltaCountersAggregationListenerPorts", String.valueOf(deltaPort),
+        "--traceListenerPorts", String.valueOf(tracePort),
+        "--dataDogJsonPorts", String.valueOf(ddPort),
+        "--dataDogProcessSystemMetrics", "false",
+        "--dataDogProcessServiceChecks", "true",
+        "--deltaCountersAggregationIntervalSeconds", "3"
+    });
+    assertEquals(Integer.valueOf(2), proxy.proxyConfig.getFlushThreads());
+    assertEquals(Integer.valueOf(1), proxy.proxyConfig.getRetryThreads());
+    assertFalse(proxy.proxyConfig.isDataDogProcessSystemMetrics());
+    assertTrue(proxy.proxyConfig.isDataDogProcessServiceChecks());
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    proxy.startDeltaCounterListener(proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
+        null, mockSenderTaskFactory);
+    proxy.startTraceListener(proxy.proxyConfig.getTraceListenerPorts(), mockHandlerFactory,
         new RateSampler(1.0D));
-    proxy.startDataDogListener(proxy.dataDogJsonPorts, mockHandlerFactory, mockHttpClient);
+    proxy.startDataDogListener(proxy.proxyConfig.getDataDogJsonPorts(), mockHandlerFactory,
+        mockHttpClient);
     TimeUnit.MILLISECONDS.sleep(500);
   }
 
@@ -392,14 +404,22 @@ public class PushAgentTest {
   public void testDataDogUnifiedPortHandler() throws Exception {
     int ddPort2 = findAvailablePort(4988);
     PushAgent proxy2 = new PushAgent();
-    proxy2.dataBackfillCutoffHours = 100000000;
-    proxy2.flushThreads = 2;
-    proxy2.retryThreads = 1;
-    proxy2.dataDogJsonPorts = String.valueOf(ddPort2);
-    proxy2.dataDogProcessSystemMetrics = true;
-    proxy2.dataDogProcessServiceChecks = false;
-    proxy2.dataDogRequestRelayTarget = "http://relay-to:1234";
-    proxy2.startDataDogListener(proxy2.dataDogJsonPorts, mockHandlerFactory, mockHttpClient);
+    proxy2.parseArguments(new String[]{
+        "--flushThreads", "2",
+        "--retryThreads", "1",
+        "--dataBackfillCutoffHours", "100000000",
+        "--dataDogJsonPorts", String.valueOf(ddPort2),
+        "--dataDogProcessSystemMetrics", "true",
+        "--dataDogProcessServiceChecks", "false",
+        "--dataDogRequestRelayTarget", "http://relay-to:1234"
+    });
+    assertEquals(Integer.valueOf(2), proxy2.proxyConfig.getFlushThreads());
+    assertEquals(Integer.valueOf(1), proxy2.proxyConfig.getRetryThreads());
+    assertTrue(proxy2.proxyConfig.isDataDogProcessSystemMetrics());
+    assertFalse(proxy2.proxyConfig.isDataDogProcessServiceChecks());
+
+    proxy2.startDataDogListener(proxy2.proxyConfig.getDataDogJsonPorts(), mockHandlerFactory,
+        mockHttpClient);
     TimeUnit.MILLISECONDS.sleep(500);
 
     // test 1: post to /intake with system metrics enabled and http relay enabled
@@ -566,7 +586,7 @@ public class PushAgentTest {
     int pointInd = 0;
     for (String s : capturedArgument.getValues()) {
       System.out.println(s);
-      Assert.assertTrue(s.startsWith("\"∆test.mixed" + Integer.toString(pointInd + 1) + "\" " +
+      assertTrue(s.startsWith("\"∆test.mixed" + Integer.toString(pointInd + 1) + "\" " +
           reportPoints[pointInd]));
       pointInd += 1;
     }
@@ -600,7 +620,7 @@ public class PushAgentTest {
     String[] reportPoints = { "2.0", "3.0" };
     int pointInd = 0;
     for (String s : capturedArgument.getValues()) {
-      Assert.assertTrue(s.startsWith("\"∆test.mixed\" " + reportPoints[pointInd]));
+      assertTrue(s.startsWith("\"∆test.mixed\" " + reportPoints[pointInd]));
       pointInd += 1;
     }
   }

@@ -157,7 +157,7 @@ public class EvictingRingBufferTest {
 
   @Test
   public void testRingBufferAccessByIndex() {
-    EvictingRingBuffer<Integer> buf = new EvictingRingBuffer<>(3, false);
+    EvictingRingBuffer<Integer> buf = new EvictingRingBuffer<>(3);
     assertEquals(0, buf.size());
     assertEquals(3, buf.capacity());
     try {

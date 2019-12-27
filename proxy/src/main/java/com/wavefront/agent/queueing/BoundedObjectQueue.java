@@ -10,8 +10,8 @@ import java.util.Iterator;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * A queue that has a hard limit on the number of items in it. Essential for in-memory queues to prevent
- * uncontrollable queue growth and eventual OOMs.
+ * A queue that has a hard limit on the number of items in it. Essential for in-memory queues to
+ * prevent uncontrollable queue growth and eventual OOMs.
  *
  * @param <T> the type of objects stored in the queue.
  *

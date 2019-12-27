@@ -2,15 +2,15 @@ package com.wavefront.agent.queueing;
 
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.config.ProxyRuntimeProperties;
+import com.wavefront.agent.Managed;
+import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.TaskInjector;
-import com.wavefront.agent.data.TaskQueueingDirective;
+import com.wavefront.agent.data.TaskQueueLevel;
+import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.common.NamedThreadFactory;
 
 import javax.annotation.Nullable;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +34,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   protected final TaskQueue<T> taskQueue;
   protected final ScheduledExecutorService scheduler;
   protected final TaskInjector<T> taskInjector;
-  protected final ProxyRuntimeProperties runtimeProperties;
+  protected final EntityProperties runtimeProperties;
   protected final RecyclableRateLimiter rateLimiter;
   protected volatile long lastProcessedTs;
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
@@ -48,23 +48,22 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
    * @param rateLimiter              optional rate limiter
    */
   public QueueProcessor(final HandlerKey handlerKey,
-                        final int threadId,
                         final TaskQueue<T> taskQueue,
                         final TaskInjector<T> taskInjector,
-                        final ProxyRuntimeProperties runtimeProperties,
+                        final ScheduledExecutorService scheduler,
+                        final EntityProperties runtimeProperties,
                         @Nullable final RecyclableRateLimiter rateLimiter) {
     this.handlerKey = handlerKey;
     this.taskQueue = taskQueue;
     this.taskInjector = taskInjector;
     this.runtimeProperties = runtimeProperties;
     this.rateLimiter = rateLimiter == null ? UNLIMITED : rateLimiter;
-    this.scheduler = Executors.newSingleThreadScheduledExecutor(
-        new NamedThreadFactory("queueProcessor-" + handlerKey.getEntityType() + "-" +
-            handlerKey.getHandle() + "-" + threadId));
+    this.scheduler = scheduler;
   }
 
   @Override
   public void run() {
+    logger.info(">>> QueueProcessor " + handlerKey + " run()");
     if (!isRunning.get()) return;
     int successes = 0;
     int failures = 0;
@@ -90,7 +89,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         try {
           if (task != null) {
             taskInjector.inject(task);
-            task.execute(TaskQueueingDirective.DEFAULT, taskQueue);
+            TaskResult result = task.execute();
             successes++;
           }
         } catch (Exception ex) {
@@ -100,7 +99,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
             // this should split this task, remove it from the queue, and not try more tasks
             logger.warning("Wavefront server rejected push with HTTP 413: request too large, " +
                 "will retry with smaller batch size.");
-            for (T smallerTask : task.splitTask(1)) {
+            for (T smallerTask : task.splitTask(1, runtimeProperties.getItemsPerBatch())) {
               taskQueue.add(smallerTask);
             }
             break;
@@ -110,7 +109,8 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
               logger.warning("Wavefront server rejected push " +
                   "(global rate limit exceeded) - will attempt later.");
               if (runtimeProperties.isSplitPushWhenRateLimited()) {
-                for (T smallerTask : task.splitTask(runtimeProperties.getMinBatchSplitSize())) {
+                for (T smallerTask : task.splitTask(runtimeProperties.getMinBatchSplitSize(),
+                    runtimeProperties.getItemsPerBatch())) {
                   taskQueue.add(smallerTask);
                 }
               } else {

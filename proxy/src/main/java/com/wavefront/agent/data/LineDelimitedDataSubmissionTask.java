@@ -2,20 +2,36 @@ package com.wavefront.agent.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.handlers.LineDelimitedUtils;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.ProxyV2API;
+import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.TimerContext;
 
 import javax.annotation.Nullable;
+import javax.net.ssl.SSLHandshakeException;
+import javax.ws.rs.ProcessingException;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import static com.wavefront.agent.queueing.QueueController.parsePostingResponse;
+import static com.wavefront.agent.Utils.isWavefrontResponse;
 
 /**
  * A {@link DataSubmissionTask} that handles plaintext payloads in the newline-delimited format.
@@ -25,14 +41,17 @@ import static com.wavefront.agent.queueing.QueueController.parsePostingResponse;
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class LineDelimitedDataSubmissionTask
     extends AbstractDataSubmissionTask<LineDelimitedDataSubmissionTask> {
+  private static final Logger log =
+      Logger.getLogger(LineDelimitedDataSubmissionTask.class.getCanonicalName());
 
   private transient ProxyV2API api;
   private transient UUID proxyId;
 
   @JsonProperty
   private String format;
+  @VisibleForTesting
   @JsonProperty
-  private List<String> payload;
+  protected List<String> payload;
 
   @SuppressWarnings("unused")
   LineDelimitedDataSubmissionTask() {
@@ -49,11 +68,12 @@ public class LineDelimitedDataSubmissionTask
    * @param payload      Data payload
    * @param timeProvider Time provider (in millis)
    */
-  public LineDelimitedDataSubmissionTask(ProxyV2API api, UUID proxyId, String format,
-                                         ReportableEntityType entityType, String handle,
-                                         List<String> payload,
+  public LineDelimitedDataSubmissionTask(ProxyV2API api, UUID proxyId, EntityProperties properties,
+                                         TaskQueue<LineDelimitedDataSubmissionTask> backlog,
+                                         String format, ReportableEntityType entityType,
+                                         String handle, List<String> payload,
                                          @Nullable Supplier<Long> timeProvider) {
-    super(handle, entityType, timeProvider);
+    super(properties, backlog, handle, entityType, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
     this.format = format;
@@ -61,32 +81,8 @@ public class LineDelimitedDataSubmissionTask
   }
 
   @Override
-  public TaskResult doExecute(TaskQueueingDirective queueingContext,
-      TaskQueue<LineDelimitedDataSubmissionTask> taskQueue) {
-    try {
-      TaskAction taskAction = parsePostingResponse(api.proxyReport(proxyId, format,
-          LineDelimitedUtils.joinPushData(payload)), handle);
-      switch (taskAction) {
-        case NONE:
-          Metrics.newCounter(new MetricName(entityType + "." + handle, "", "delivered")).
-              inc(this.weight());
-          return TaskResult.COMPLETE;
-        case ERROR:
-        case PUSHBACK:
-          if (enqueuedTimeMillis == null) {
-            Metrics.newCounter(new MetricName(entityType + "." + handle, "", "queued")).
-                inc(this.weight());
-          }
-          break;
-        case SPLIT:
-          //Metrics.newCounter(new MetricName(entityType + "." + handle, "", "retried")).
-          //    inc(this.weight());
-          //break;
-      }
-    } catch (Exception e) {
-
-    }
-    return TaskResult.COMPLETE;
+  Response doExecute() {
+    return api.proxyReport(proxyId, format, LineDelimitedUtils.joinPushData(payload));
   }
 
   @Override
@@ -95,21 +91,27 @@ public class LineDelimitedDataSubmissionTask
   }
 
   @Override
-  public List<LineDelimitedDataSubmissionTask> splitTask(int minSplitSize) {
-    if (this.payload.size() > Math.max(1, minSplitSize)) {
-      // in this case, split the payload in 2 batches approximately in the middle.
-      int splitAt = this.payload.size() / 2;
-      return ImmutableList.of(
-          new LineDelimitedDataSubmissionTask(api, proxyId, format, getEntityType(), handle,
-              payload.subList(0, splitAt), timeProvider),
-          new LineDelimitedDataSubmissionTask(api, proxyId, format, getEntityType(), handle,
-              payload.subList(splitAt + 1, payload.size()), timeProvider));
+  public List<LineDelimitedDataSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {
+    if (payload.size() > Math.max(1, minSplitSize)) {
+      List<LineDelimitedDataSubmissionTask> result = new ArrayList<>();
+      int stride = Math.min(maxSplitSize, (int) Math.ceil((float) payload.size() / 2.0));
+      int endingIndex = 0;
+      for (int startingIndex = 0; endingIndex < payload.size() - 1; startingIndex += stride) {
+        endingIndex = Math.min(payload.size(), startingIndex + stride) - 1;
+        result.add(new LineDelimitedDataSubmissionTask(api, proxyId, properties, backlog, format,
+            getEntityType(), handle, payload.subList(startingIndex, endingIndex + 1),
+            timeProvider));
+      }
+      return result;
     }
     return ImmutableList.of(this);
   }
 
-  public void injectMembers(ProxyV2API api, UUID proxyId) {
+  public void injectMembers(ProxyV2API api, UUID proxyId, EntityProperties properties,
+                            TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
     this.api = api;
     this.proxyId = proxyId;
+    this.properties = properties;
+    this.backlog = backlog;
   }
 }

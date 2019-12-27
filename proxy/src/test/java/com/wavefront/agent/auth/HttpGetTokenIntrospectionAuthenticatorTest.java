@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static com.wavefront.agent.TestUtils.httpEq;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class HttpGetTokenIntrospectionAuthenticatorTest {
@@ -23,6 +24,8 @@ public class HttpGetTokenIntrospectionAuthenticatorTest {
     AtomicLong fakeClock = new AtomicLong(1_000_000);
     TokenAuthenticator authenticator = new HttpGetTokenIntrospectionAuthenticator(client,
         "http://acme.corp/{{token}}/something", null, 300, 600, fakeClock::get);
+    assertTrue(authenticator.authRequired());
+    assertFalse(authenticator.authorize(null));
 
     String uuid = UUID.randomUUID().toString();
     EasyMock.expect(client.execute(httpEq(new HttpGet("http://acme.corp/" + uuid + "/something")))).

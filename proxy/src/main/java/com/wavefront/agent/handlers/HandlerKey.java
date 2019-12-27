@@ -2,7 +2,7 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.data.ReportableEntityType;
 
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 import java.util.Objects;
 
 /**
@@ -12,10 +12,10 @@ import java.util.Objects;
  */
 public class HandlerKey {
   private final ReportableEntityType entityType;
-  @NotNull
+  @Nonnull
   private final String handle;
 
-  private HandlerKey(ReportableEntityType entityType, @NotNull String handle) {
+  private HandlerKey(ReportableEntityType entityType, @Nonnull String handle) {
     this.entityType = entityType;
     this.handle = handle;
   }
@@ -28,7 +28,7 @@ public class HandlerKey {
     return handle;
   }
 
-  public static HandlerKey of(ReportableEntityType entityType, @NotNull String handle) {
+  public static HandlerKey of(ReportableEntityType entityType, @Nonnull String handle) {
     return new HandlerKey(entityType, handle);
   }
 

@@ -1,4 +1,4 @@
-package com.wavefront.agent.queueing;
+package com.wavefront.agent;
 
 /**
  * Background process that can be started and stopped.

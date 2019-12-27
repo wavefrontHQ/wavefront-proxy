@@ -113,15 +113,15 @@ public class ReportableConfig {
     return prop.getProperty(key) != null;
   }
 
-  public void reportSettingAsGauge(Number number, String key) {
+  public static void reportSettingAsGauge(Number number, String key) {
     reportGauge(number, new MetricName("config", "", key));
   }
 
-  public void reportSettingAsGauge(Supplier<Number> numberSupplier, String key) {
+  public static void reportSettingAsGauge(Supplier<Number> numberSupplier, String key) {
     reportGauge(numberSupplier, new MetricName("config", "", key));
   }
 
-  public void reportGauge(Supplier<Number> numberSupplier, MetricName metricName) {
+  public static void reportGauge(Supplier<Number> numberSupplier, MetricName metricName) {
     Metrics.newGauge(metricName,
         new Gauge<Double>() {
           @Override
@@ -132,7 +132,7 @@ public class ReportableConfig {
     );
   }
 
-  public void reportGauge(Number number, MetricName metricName) {
+  public static void reportGauge(Number number, MetricName metricName) {
     Metrics.newGauge(metricName,
         new Gauge<Double>() {
           @Override

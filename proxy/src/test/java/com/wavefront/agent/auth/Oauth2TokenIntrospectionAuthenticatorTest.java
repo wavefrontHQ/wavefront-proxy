@@ -28,6 +28,8 @@ public class Oauth2TokenIntrospectionAuthenticatorTest {
     AtomicLong fakeClock = new AtomicLong(1_000_000);
     TokenAuthenticator authenticator = new Oauth2TokenIntrospectionAuthenticator(client,
         "http://acme.corp/oauth", null, 300, 600, fakeClock::get);
+    assertTrue(authenticator.authRequired());
+    assertFalse(authenticator.authorize(null));
 
     String uuid = UUID.randomUUID().toString();
 

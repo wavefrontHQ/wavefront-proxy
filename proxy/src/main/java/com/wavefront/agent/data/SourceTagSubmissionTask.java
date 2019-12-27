@@ -3,6 +3,7 @@ package com.wavefront.agent.data;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
+import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.data.ReportableEntityType;
@@ -31,40 +32,49 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
   SourceTagSubmissionTask() {
   }
 
-  public SourceTagSubmissionTask(SourceTagAPI api, String handle,
+  /**
+   * TODO (VV): javadoc
+   *
+   * @param api
+   * @param properties
+   * @param backlog
+   * @param handle
+   * @param sourceTag
+   * @param timeProvider
+   */
+  public SourceTagSubmissionTask(SourceTagAPI api, EntityProperties properties,
+                                 TaskQueue<SourceTagSubmissionTask> backlog, String handle,
                                  ReportSourceTag sourceTag,
                                  @Nullable Supplier<Long> timeProvider) {
-    super(handle, ReportableEntityType.SOURCE_TAG, timeProvider);
+    super(properties, backlog, handle, ReportableEntityType.SOURCE_TAG, timeProvider);
     this.api = api;
     this.sourceTag = sourceTag;
   }
 
   @Nullable
-  TaskResult doExecute(TaskQueueingDirective queueingContext,
-                       TaskQueue<SourceTagSubmissionTask> taskQueue) {
-    Response response = null;
-    try {
-      switch (sourceTag.getSourceTagLiteral()) {
-        case "SourceDescription":
-          if (sourceTag.getAction().equals("delete")) {
-            response = api.removeDescription(sourceTag.getSource());
-          } else {
-            response = api.setDescription(sourceTag.getSource(), sourceTag.getDescription());
-          }
-        case "SourceTag":
-          switch (sourceTag.getAction()) {
-            case ACTION_ADD:
-              response = api.appendTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
-            case ACTION_DELETE:
-              response = api.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
-            case ACTION_SAVE:
-              response = api.setTags(sourceTag.getSource(), sourceTag.getAnnotations());
-          }
-      }
-    } catch (Exception e) {
-      // TODO (VV): handle
+  Response doExecute() {
+    switch (sourceTag.getSourceTagLiteral()) {
+      case "SourceDescription":
+        if (sourceTag.getAction().equals("delete")) {
+          return api.removeDescription(sourceTag.getSource());
+        } else {
+          return api.setDescription(sourceTag.getSource(), sourceTag.getDescription());
+        }
+      case "SourceTag":
+        switch (sourceTag.getAction()) {
+          case ACTION_ADD:
+            return api.appendTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
+          case ACTION_DELETE:
+            return api.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
+          case ACTION_SAVE:
+            return api.setTags(sourceTag.getSource(), sourceTag.getAnnotations());
+          default:
+            throw new IllegalArgumentException("Invalid acton: " + sourceTag.getAction());
+        }
+      default:
+        throw new IllegalArgumentException("Invalid source tag command: " +
+            sourceTag.getSourceTagLiteral());
     }
-    return TaskResult.COMPLETE;
   }
 
   @Override
@@ -73,16 +83,14 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
   }
 
   @Override
-  public ReportableEntityType getEntityType() {
-    return ReportableEntityType.SOURCE_TAG;
-  }
-
-  @Override
-  public List<SourceTagSubmissionTask> splitTask(int minSplitSize) {
+  public List<SourceTagSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {
     return ImmutableList.of(this);
   }
 
-  public void injectMembers(SourceTagAPI api) {
+  public void injectMembers(SourceTagAPI api, EntityProperties properties,
+                            TaskQueue<SourceTagSubmissionTask> backlog) {
     this.api = api;
+    this.properties = properties;
+    this.backlog = backlog;
   }
 }

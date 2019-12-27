@@ -1,17 +1,15 @@
 package com.wavefront.agent.channel;
 
 import com.yammer.metrics.core.Counter;
-
-import java.net.InetSocketAddress;
-import java.util.logging.Logger;
-
-import javax.validation.constraints.NotNull;
-
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
+
+import javax.annotation.Nonnull;
+import java.net.InetSocketAddress;
+import java.util.logging.Logger;
 
 /**
  * Disconnect idle clients (handle READER_IDLE events triggered by IdleStateHandler)
@@ -25,7 +23,7 @@ public class IdleStateEventHandler extends ChannelInboundHandlerAdapter {
 
   private final Counter idleClosedConnections;
 
-  public IdleStateEventHandler(@NotNull Counter idleClosedConnectionsCounter) {
+  public IdleStateEventHandler(@Nonnull Counter idleClosedConnectionsCounter) {
     this.idleClosedConnections = idleClosedConnectionsCounter;
   }
 

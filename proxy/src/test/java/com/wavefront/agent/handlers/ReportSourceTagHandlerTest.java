@@ -3,7 +3,8 @@ package com.wavefront.agent.handlers;
 import com.google.common.collect.ImmutableList;
 
 import com.wavefront.agent.api.APIContainer;
-import com.wavefront.agent.config.ProxyRuntimeProperties;
+import com.wavefront.agent.data.EntityWrapper;
+import com.wavefront.agent.data.ProxyRuntimeProperties;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.agent.queueing.TaskQueueFactory;
@@ -21,6 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import javax.annotation.Nonnull;
 import javax.ws.rs.core.Response;
 
 import wavefront.report.ReportSourceTag;
@@ -44,16 +46,18 @@ public class ReportSourceTagHandlerTest {
     mockAgentAPI = EasyMock.createMock(SourceTagAPI.class);
     taskQueueFactory = new TaskQueueFactory() {
       @Override
-      public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(HandlerKey handlerKey,
-                                                                         int threadNum) {
+      public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(
+          @Nonnull HandlerKey handlerKey, int threadNum) {
         return null;
       }
     };
     newAgentId = UUID.randomUUID();
     senderTaskFactory = new SenderTaskFactoryImpl(new APIContainer(null, mockAgentAPI, null),
-        newAgentId, taskQueueFactory, null, ProxyRuntimeProperties.DEFAULT_SETTINGS);
-    sourceTagHandler = new ReportSourceTagHandlerImpl("4878", 10, senderTaskFactory.createSenderTasks(
-        HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"), 2), blockedLogger);
+        newAgentId, taskQueueFactory, null, null,
+        new EntityWrapper(ProxyRuntimeProperties.DEFAULT_SETTINGS));
+    sourceTagHandler = new ReportSourceTagHandlerImpl("4878", 10,
+        senderTaskFactory.createSenderTasks(HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"),
+            2), blockedLogger);
   }
 
   /**
@@ -63,8 +67,8 @@ public class ReportSourceTagHandlerTest {
   @Test
   public void testSourceTagsSetting() throws Exception {
     String[] annotations = new String[]{"tag1", "tag2", "tag3"};
-    ReportSourceTag sourceTag = new ReportSourceTag("SourceTag", "save", "dummy", "desc", Arrays.asList
-        (annotations));
+    ReportSourceTag sourceTag = new ReportSourceTag("SourceTag", "save", "dummy", "desc",
+        Arrays.asList(annotations));
     EasyMock.expect(mockAgentAPI.setTags("dummy", Arrays.asList(annotations))).andReturn(
         Response.ok().build()).once();
 

@@ -2,8 +2,8 @@ package com.wavefront.agent.handlers;
 
 import java.util.function.Function;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
 
 /**
  * Handler that processes incoming objects of a single entity type, validates them and
@@ -31,7 +31,7 @@ public interface ReportableEntityHandler<T, U> {
    * @param messageSerializer function to convert messageObject to string.
    */
   void report(T t, @Nullable Object messageObject,
-              @NotNull Function<Object, String> messageSerializer);
+              @Nonnull Function<Object, String> messageSerializer);
 
 
   /**
@@ -72,5 +72,5 @@ public interface ReportableEntityHandler<T, U> {
    * @param t string to reject and to write to RawBlockedPointsLog.
    * @param message more user-friendly message to write to the main log.
    */
-  void reject(@NotNull String t, @Nullable String message);
+  void reject(@Nonnull String t, @Nullable String message);
 }
