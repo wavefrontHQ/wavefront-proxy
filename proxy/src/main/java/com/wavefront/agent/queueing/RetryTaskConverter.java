@@ -50,7 +50,7 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>>
   @SuppressWarnings("unchecked")
   @Nullable
   @Override
-  public T from(@Nonnull byte[] bytes) throws IOException {
+  public T from(@Nonnull byte[] bytes) {
     try {
       if (disableCompression) {
         return (T) objectMapper.readValue(bytes, DataSubmissionTask.class);

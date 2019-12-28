@@ -3,35 +3,20 @@ package com.wavefront.agent.data;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.handlers.LineDelimitedUtils;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.ProxyV2API;
-import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.TimerContext;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLHandshakeException;
-import javax.ws.rs.ProcessingException;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.net.ConnectException;
-import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static com.wavefront.agent.Utils.isWavefrontResponse;
 
 /**
  * A {@link DataSubmissionTask} that handles plaintext payloads in the newline-delimited format.

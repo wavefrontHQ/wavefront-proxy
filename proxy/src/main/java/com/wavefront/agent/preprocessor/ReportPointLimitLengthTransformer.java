@@ -10,6 +10,8 @@ import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
 
+import static com.wavefront.agent.preprocessor.PreprocessorUtil.truncate;
+
 public class ReportPointLimitLengthTransformer implements Function<ReportPoint, ReportPoint> {
 
   private final String scope;
@@ -40,21 +42,6 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
     this.ruleMetrics = ruleMetrics;
   }
 
-  private String truncate(String input) {
-    if (input.length() > maxLength && (compiledMatchPattern == null || compiledMatchPattern.matcher(input).matches())) {
-      ruleMetrics.incrementRuleAppliedCounter();
-      switch (actionSubtype) {
-        case TRUNCATE:
-          return input.substring(0, maxLength);
-        case TRUNCATE_WITH_ELLIPSIS:
-          return input.substring(0, maxLength - 3) + "...";
-        default:
-          return input;
-      }
-    }
-    return input;
-  }
-
   @Nullable
   @Override
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
@@ -62,20 +49,32 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":
-        reportPoint.setMetric(truncate(reportPoint.getMetric()));
+        if (reportPoint.getMetric().length() > maxLength && (compiledMatchPattern == null ||
+            compiledMatchPattern.matcher(reportPoint.getMetric()).matches())) {
+          reportPoint.setMetric(truncate(reportPoint.getMetric(), maxLength, actionSubtype));
+          ruleMetrics.incrementRuleAppliedCounter();
+        }
         break;
       case "sourceName":
-        reportPoint.setHost(truncate(reportPoint.getHost()));
+        if (reportPoint.getHost().length() > maxLength && (compiledMatchPattern == null ||
+            compiledMatchPattern.matcher(reportPoint.getHost()).matches())) {
+          reportPoint.setHost(truncate(reportPoint.getHost(), maxLength, actionSubtype));
+          ruleMetrics.incrementRuleAppliedCounter();
+        }
         break;
       default:
         if (reportPoint.getAnnotations() != null) {
           String tagValue = reportPoint.getAnnotations().get(scope);
-          if (tagValue != null) {
-            if (actionSubtype == LengthLimitActionType.DROP && tagValue.length() > maxLength) {
+          if (tagValue != null && tagValue.length() > maxLength) {
+            if (actionSubtype == LengthLimitActionType.DROP) {
               reportPoint.getAnnotations().remove(scope);
               ruleMetrics.incrementRuleAppliedCounter();
             } else {
-              reportPoint.getAnnotations().put(scope, truncate(tagValue));
+              if (compiledMatchPattern == null || compiledMatchPattern.matcher(tagValue).matches()) {
+                reportPoint.getAnnotations().put(scope, truncate(tagValue, maxLength,
+                    actionSubtype));
+                ruleMetrics.incrementRuleAppliedCounter();
+              }
             }
           }
         }

@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
@@ -53,7 +54,7 @@ public class InteractiveLogsTester {
 
           @Override
           public void report(ReportPoint reportPoint, @Nullable Object messageObject,
-                             Function<Object, String> messageSerializer) {
+                             @Nonnull Function<Object, String> messageSerializer) {
             reported.set(true);
             System.out.println(ReportPointSerializer.pointToString(reportPoint));
           }
@@ -79,7 +80,7 @@ public class InteractiveLogsTester {
           }
 
           @Override
-          public void reject(String t, @Nullable String message) {
+          public void reject(@Nonnull String t, @Nullable String message) {
             System.out.println("Rejected: " + t);
           }
         };

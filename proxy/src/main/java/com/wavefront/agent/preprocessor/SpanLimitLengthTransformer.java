@@ -55,13 +55,15 @@ public class SpanLimitLengthTransformer implements Function<Span, Span> {
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "spanName":
-        if (compiledMatchPattern == null || compiledMatchPattern.matcher(span.getName()).matches()) {
+        if (span.getName().length() > maxLength && (compiledMatchPattern == null ||
+            compiledMatchPattern.matcher(span.getName()).matches())) {
           span.setName(truncate(span.getName(), maxLength, actionSubtype));
           ruleMetrics.incrementRuleAppliedCounter();
         }
         break;
       case "sourceName":
-        if (compiledMatchPattern == null || compiledMatchPattern.matcher(span.getSource()).matches()) {
+        if (span.getName().length() > maxLength && (compiledMatchPattern == null ||
+            compiledMatchPattern.matcher(span.getSource()).matches())) {
           span.setSource(truncate(span.getSource(), maxLength, actionSubtype));
           ruleMetrics.incrementRuleAppliedCounter();
         }

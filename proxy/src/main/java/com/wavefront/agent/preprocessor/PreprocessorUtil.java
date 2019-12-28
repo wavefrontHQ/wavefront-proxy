@@ -101,9 +101,12 @@ public abstract class PreprocessorUtil {
   }
 
   /**
+   * Enforce string max length limit - either truncate or truncate with "..." at the end.
    *
-   * @param input
-   * @return
+   * @param input         Input string to truncate.
+   * @param maxLength     Truncate string at this length.
+   * @param actionSubtype TRUNCATE or TRUNCATE_WITH_ELLIPSIS.
+   * @return truncated string
    */
   public static String truncate(String input, int maxLength, LengthLimitActionType actionSubtype) {
     switch (actionSubtype) {

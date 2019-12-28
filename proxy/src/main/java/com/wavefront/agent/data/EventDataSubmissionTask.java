@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.EventAPI;
-import com.wavefront.api.ProxyV2API;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 
@@ -35,8 +34,8 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
   /**
    * @param api          API endpoint.
    * @param proxyId      Proxy identifier. Used to authenticate proxy with the API.
-   * @param properties
-   * @param backlog
+   * @param properties   entity-specific wrapper over mutable proxy settings' container.
+   * @param backlog      task queue.
    * @param handle       Handle (usually port number) of the pipeline where the data came from.
    * @param events       Data payload.
    * @param timeProvider Time provider (in millis).

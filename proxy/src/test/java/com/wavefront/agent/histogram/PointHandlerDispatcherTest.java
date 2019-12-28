@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
@@ -60,7 +61,7 @@ public class PointHandlerDispatcherTest {
       }
 
       @Override
-      public void report(ReportPoint reportPoint, @Nullable Object messageObject, Function<Object, String> messageSerializer) {
+      public void report(ReportPoint reportPoint, @Nullable Object messageObject, @Nonnull Function<Object, String> messageSerializer) {
         pointOut.add(reportPoint);
       }
 
@@ -85,7 +86,7 @@ public class PointHandlerDispatcherTest {
       }
 
       @Override
-      public void reject(String t, @Nullable String message) {
+      public void reject(@Nonnull String t, @Nullable String message) {
       }
 
     }, timeMillis::get, null, null);

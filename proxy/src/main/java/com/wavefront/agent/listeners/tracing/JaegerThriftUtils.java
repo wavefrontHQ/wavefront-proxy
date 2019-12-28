@@ -50,7 +50,7 @@ import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
  *
  * @author Han Zhang (zhanghan@vmware.com)
  */
-public class JaegerThriftUtils {
+public abstract class JaegerThriftUtils {
   protected static final Logger logger =
       Logger.getLogger(JaegerThriftUtils.class.getCanonicalName());
 
@@ -60,7 +60,11 @@ public class JaegerThriftUtils {
   private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
 
   // log every 5 seconds
+  @SuppressWarnings("UnstableApiUsage")
   private static final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
+
+  private JaegerThriftUtils() {
+  }
 
   public static void processBatch(Batch batch,
                                   @Nullable StringBuilder output,
@@ -112,6 +116,7 @@ public class JaegerThriftUtils {
       }
     }
     if (traceDisabled.get()) {
+      //noinspection UnstableApiUsage
       if (warningLoggerRateLimiter.tryAcquire()) {
         logger.info("Ingested spans discarded because tracing feature is not " +
             "enabled on the server");
@@ -147,8 +152,7 @@ public class JaegerThriftUtils {
                                   Set<String> traceDerivedCustomTagKeys,
                                   Counter discardedSpansBySampler,
                                   ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics) {
-    List<Annotation> annotations = new ArrayList<>();
-    annotations.addAll(processAnnotations);
+    List<Annotation> annotations = new ArrayList<>(processAnnotations);
     // serviceName is mandatory in Jaeger
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
     long parentSpanId = span.getParentSpanId();
@@ -165,7 +169,8 @@ public class JaegerThriftUtils {
 
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
-        if (IGNORE_TAGS.contains(tag.getKey()) || (tag.vType == TagType.STRING && StringUtils.isBlank(tag.getVStr()))) {
+        if (IGNORE_TAGS.contains(tag.getKey()) ||
+            (tag.vType == TagType.STRING && StringUtils.isBlank(tag.getVStr()))) {
           continue;
         }
 
@@ -277,6 +282,7 @@ public class JaegerThriftUtils {
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null && !span.getLogs().isEmpty()) {
         if (spanLogsDisabled.get()) {
+          //noinspection UnstableApiUsage
           if (warningLoggerRateLimiter.tryAcquire()) {
             logger.info("Span logs discarded because the feature is not " +
                 "enabled on the server!");

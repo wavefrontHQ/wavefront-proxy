@@ -24,6 +24,7 @@ public class HandlerKey {
     return entityType;
   }
 
+  @Nonnull
   public String getHandle() {
     return handle;
   }

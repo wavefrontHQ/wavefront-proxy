@@ -189,7 +189,7 @@ public class PushAgent extends AbstractAgent {
   protected void startListeners() {
     blockedPointsLogger = Logger.getLogger(proxyConfig.getBlockedPointsLoggerName());
     blockedHistogramsLogger = Logger.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
-    blockedSpansLogger = Logger.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
+    blockedSpansLogger = Logger.getLogger(proxyConfig.getBlockedSpansLoggerName());
 
     if (proxyConfig.getSoLingerTime() >= 0) {
       childChannelOptions.put(ChannelOption.SO_LINGER, proxyConfig.getSoLingerTime());

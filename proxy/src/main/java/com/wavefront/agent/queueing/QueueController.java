@@ -40,9 +40,10 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
   /**
-   * @param handle
-   * @param entityType
-   * @param processorTasks
+   * @param handle         Pipeline handle.
+   * @param entityType     Entity type.
+   * @param processorTasks List of {@link QueueProcessor} tasks responsible for processing the
+   *                       backlog.
    */
   public QueueController(String handle, ReportableEntityType entityType,
                          List<QueueProcessor<T>> processorTasks) {
