@@ -6,6 +6,8 @@ import wavefront.report.Span;
 
 import javax.annotation.Nullable;
 
+import static com.wavefront.sdk.common.Utils.sanitizeWithoutQuotes;
+
 /**
  * Sanitize spans (e.g., span source and tag keys) according to the same rules that are applied at
  * the SDK-level.
@@ -19,24 +21,52 @@ public class SpanSanitizeTransformer implements Function<Span, Span> {
     this.ruleMetrics = ruleMetrics;
   }
 
-  @Nullable
   @Override
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     boolean ruleApplied = false;
-    if (!charactersAreValid(span.getSource())) {
-      span.setSource(sanitize(span.getSource()));
-      ruleApplied = true;
+
+    // sanitize name and replace '*' with '-'
+    String name = span.getName();
+    if (name != null) {
+      span.setName(sanitizeValue(name).replace('*', '-'));
+      if (span.getName().equals(name)) {
+        ruleApplied = true;
+      }
     }
+
+    // sanitize source
+    String source = span.getSource();
+    if (source != null) {
+      span.setSource(sanitizeWithoutQuotes(source));
+      if (!ruleApplied && !span.getSource().equals(source)) {
+        ruleApplied = true;
+      }
+    }
+
     if (span.getAnnotations() != null) {
       for (Annotation a : span.getAnnotations()) {
-        if (!charactersAreValid(a.getKey())) {
-          a.setKey(sanitize(a.getKey()));
-          ruleApplied = true;
+        // sanitize tag key
+        String key = a.getKey();
+        if (key != null) {
+          a.setKey(sanitizeWithoutQuotes(key));
+          if (!ruleApplied && !a.getKey().equals(key)) {
+            ruleApplied = true;
+          }
+        }
+
+        // sanitize tag value
+        String value = a.getValue();
+        if (value != null) {
+          a.setValue(sanitizeValue(value));
+          if (!ruleApplied && !a.getValue().equals(value)) {
+            ruleApplied = true;
+          }
         }
       }
     }
+
     if (ruleApplied) {
       ruleMetrics.incrementRuleAppliedCounter();
     }
@@ -44,35 +74,11 @@ public class SpanSanitizeTransformer implements Function<Span, Span> {
     return span;
   }
 
-  private boolean charactersAreValid(String s) {
-    if (s == null) {
-      return true;
-    }
-    for (int i = 0; i < s.length(); i++) {
-      if (!characterIsValid(s.charAt(i))) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private boolean characterIsValid(char c) {
-    // Legal characters are 44-57 (,-./ and numbers), 65-90 (upper), 97-122 (lower), 95 (_)
-    return (44 <= c && c <= 57) || (65 <= c && c <= 90) || (97 <= c && c <= 122) || c == 95;
-  }
-
   /**
-   * Sanitize a string so that every invalid character is replaced with a dash.
+   * Remove leading/trailing whitespace and escape newlines.
    */
-  private String sanitize(String s) {
-    if (s == null) {
-      return null;
-    }
-    StringBuilder sb = new StringBuilder();
-    for (int i = 0; i < s.length(); i++) {
-      char c = s.charAt(i);
-      sb.append(characterIsValid(c) ? c : '-');
-    }
-    return sb.toString();
+  private String sanitizeValue(String s) {
+    // TODO: sanitize using SDK instead
+    return s.trim().replaceAll("\\n", "\\\\n");
   }
 }

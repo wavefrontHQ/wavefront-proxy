@@ -24,6 +24,7 @@ import static com.wavefront.agent.Utils.lazySupplier;
 public class InternalProxyWavefrontClient implements WavefrontSender {
   private final Supplier<ReportableEntityHandler<ReportPoint, String>> pointHandlerSupplier;
   private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
+  private final String clientId;
 
   public InternalProxyWavefrontClient(ReportableEntityHandlerFactory handlerFactory) {
     this(handlerFactory, "internal_client");
@@ -35,6 +36,7 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)));
     this.histogramHandlerSupplier = lazySupplier(() ->
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)));
+    this.clientId = handle;
   }
 
   @Override
@@ -117,15 +119,24 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
     pointHandlerSupplier.get().report(point);
   }
 
+  public void sendFormattedMetric(String s) throws IOException {
+    throw new UnsupportedOperationException("Not applicable");
+  }
+
   @Override
-  public void sendSpan(String name, long startMillis, long durationMillis, String source,
-                       UUID traceId, UUID spanId, List<UUID> parents, List<UUID> followsFrom,
-                       List<Pair<String, String>> tags, @Nullable List<SpanLog> spanLogs) {
+  public void sendSpan(String name, long startMillis, long durationMillis, String source, UUID traceId, UUID spanId,
+                       List<UUID> parents, List<UUID> followsFrom, List<Pair<String, String>> tags,
+                       @Nullable List<SpanLog> spanLogs) throws IOException {
     throw new UnsupportedOperationException("Not applicable");
   }
 
   @Override
   public void close() {
     // noop
+  }
+
+  @Override
+  public String getClientId() {
+    return clientId;
   }
 }

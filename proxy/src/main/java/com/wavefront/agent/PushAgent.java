@@ -48,7 +48,8 @@ import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
-import com.wavefront.agent.listeners.tracing.JaegerThriftCollectorHandler;
+import com.wavefront.agent.listeners.tracing.JaegerPortUnificationHandler;
+import com.wavefront.agent.listeners.tracing.JaegerTChannelCollectorHandler;
 import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.ZipkinPortUnificationHandler;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
@@ -354,6 +355,16 @@ public class PushAgent extends AbstractAgent {
       startTraceJaegerListener(strPort, handlerFactory,
           new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
     });
+    portIterator(proxyConfig.getTraceJaegerHttpListenerPorts()).forEachRemaining(strPort -> {
+      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
+      );
+      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+          new SpanSanitizeTransformer(ruleMetrics));
+      startTraceJaegerHttpListener(strPort, handlerFactory,
+          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
+    });
     portIterator(proxyConfig.getPushRelayListenerPorts()).forEachRemaining(strPort ->
         startRelayListener(strPort, handlerFactory, remoteHostAnnotator));
     portIterator(proxyConfig.getTraceZipkinListenerPorts()).forEachRemaining(strPort -> {
@@ -539,7 +550,7 @@ public class PushAgent extends AbstractAgent {
             build();
         server.
             makeSubChannel("jaeger-collector", Connection.Direction.IN).
-            register("Collector::submitBatches", new JaegerThriftCollectorHandler(strPort,
+            register("Collector::submitBatches", new JaegerTChannelCollectorHandler(strPort,
                 handlerFactory, wfSender, traceDisabled::get, spanLogsDisabled::get,
                 preprocessors.get(strPort), sampler, proxyConfig.isTraceAlwaysSampleErrors(),
                 proxyConfig.getTraceJaegerApplicationName(),
@@ -553,8 +564,28 @@ public class PushAgent extends AbstractAgent {
       } finally {
         activeListeners.dec();
       }
-    }, "listener-jaeger-thrift-" + strPort);
-    logger.info("listening on port: " + strPort + " for trace data (Jaeger format)");
+    }, "listener-jaeger-tchannel-" + strPort);
+    logger.info("listening on port: " + strPort + " for trace data (Jaeger format over TChannel)");
+  }
+
+  protected void startTraceJaegerHttpListener(final String strPort,
+                                              ReportableEntityHandlerFactory handlerFactory,
+                                              @Nullable WavefrontSender wfSender,
+                                              Sampler sampler) {
+    final int port = Integer.parseInt(strPort);
+    if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
+
+    ChannelHandler channelHandler = new JaegerPortUnificationHandler(strPort, tokenAuthenticator,
+        healthCheckManager, handlerFactory, wfSender, traceDisabled::get, spanLogsDisabled::get,
+        preprocessors.get(strPort), sampler, proxyConfig.isTraceAlwaysSampleErrors(),
+        proxyConfig.getTraceJaegerApplicationName(), proxyConfig.getTraceDerivedCustomTagKeys());
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
+        proxyConfig.getTraceListenerMaxReceivedLength(),
+        proxyConfig.getTraceListenerHttpBufferSize(),
+        proxyConfig.getListenerIdleConnectionTimeout()),
+        port).withChildChannelOptions(childChannelOptions), "listener-jaeger-http-" + port);
+    logger.info("listening on port: " + strPort + " for trace data (Jaeger format over HTTP)");
   }
 
   protected void startTraceZipkinListener(String strPort,
