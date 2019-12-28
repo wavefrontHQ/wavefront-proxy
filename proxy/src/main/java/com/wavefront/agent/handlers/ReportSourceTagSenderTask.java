@@ -87,7 +87,6 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
             case PERSISTED_RETRY:
               if (rateLimiter != null) rateLimiter.recyclePermits(1);
               break;
-            case RETRY_IMMEDIATELY:
             case RETRY_LATER:
               final List<ReportSourceTag> remainingItems = new ArrayList<>();
               remainingItems.add(tag);

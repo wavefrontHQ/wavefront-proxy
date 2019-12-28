@@ -221,7 +221,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     }
     if (requeue) {
       enqueue(null);
-      return TaskResult.PERSISTED;
+      return TaskResult.PERSISTED_RETRY;
     } else {
       return TaskResult.RETRY_LATER;
     }

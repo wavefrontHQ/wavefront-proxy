@@ -19,9 +19,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 /**
+ * Implements proxy-specific queue interface as a wrapper over tape {@link ObjectQueue}
  *
- *
- * @param <T>
+ * @param <T> type of objects stored.
  *
  * @author vasily@wavefront.com
  */
@@ -42,7 +42,13 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
   // maintain a fair lock on the queue
   private final ReentrantLock queueLock = new ReentrantLock(true);
 
-  public DataSubmissionQueue(ObjectQueue<T> delegate, @Nullable String handle,
+  /**
+   * @param delegate   delegate {@link ObjectQueue}.
+   * @param handle     pipeline handle.
+   * @param entityType entity type.
+   */
+  public DataSubmissionQueue(ObjectQueue<T> delegate,
+                             @Nullable String handle,
                              @Nullable ReportableEntityType entityType) {
     this.delegate = delegate;
     this.handle = handle;

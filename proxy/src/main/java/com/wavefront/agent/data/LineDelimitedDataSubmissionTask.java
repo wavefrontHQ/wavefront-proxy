@@ -58,10 +58,10 @@ public class LineDelimitedDataSubmissionTask
   }
 
   /**
-   * Create a new instance.
-   *
    * @param api          API endpoint
    * @param proxyId      Proxy identifier. Used to authenticate proxy with the API.
+   * @param properties   entity-specific wrapper over mutable proxy settings' container.
+   * @param backlog      task queue.
    * @param format       Data format (passed as an argument to the API)
    * @param entityType   Entity type handled
    * @param handle       Handle (usually port number) of the pipeline where the data came from.

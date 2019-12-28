@@ -19,7 +19,9 @@ import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_DEL
 import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_SAVE;
 
 /**
+ * A {@link DataSubmissionTask} that handles source tag payloads.
  *
+ * @author vasily@wavefront.com
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTagSubmissionTask> {
@@ -33,14 +35,12 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
   }
 
   /**
-   * TODO (VV): javadoc
-   *
-   * @param api
-   * @param properties
-   * @param backlog
-   * @param handle
-   * @param sourceTag
-   * @param timeProvider
+   * @param api          API endpoint.
+   * @param properties   container for mutable proxy settings.
+   * @param backlog      backing queue.
+   * @param handle       Handle (usually port number) of the pipeline where the data came from.
+   * @param sourceTag    source tag operation
+   * @param timeProvider Time provider (in millis).
    */
   public SourceTagSubmissionTask(SourceTagAPI api, EntityProperties properties,
                                  TaskQueue<SourceTagSubmissionTask> backlog, String handle,

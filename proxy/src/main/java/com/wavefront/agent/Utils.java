@@ -85,8 +85,9 @@ public abstract class Utils {
   }
 
   /**
-   * TODO (vv): javadoc
-   * @return
+   * Attempts to retrieve build.version from system build properties.
+   *
+   * @return build version as string
    */
   public static String getBuildVersion() {
     try {
@@ -97,8 +98,9 @@ public abstract class Utils {
   }
 
   /**
-   * TODO (vv): javadoc
-   * @return
+   * Makes a best-effort attempt to resolve the hostname for the local host.
+   *
+   * @return name for localhost
    */
   public static String getLocalHostName() {
     InetAddress localAddress = null;

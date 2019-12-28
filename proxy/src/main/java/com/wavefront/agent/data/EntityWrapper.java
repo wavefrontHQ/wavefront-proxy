@@ -6,7 +6,7 @@ import com.wavefront.data.ReportableEntityType;
 import java.util.Map;
 
 /**
- * TODO (VV): javadoc
+ * Per-entity wrappers over main proxy properties container.
  *
  * @author vasily@wavefront.com
  */
@@ -26,15 +26,18 @@ public class EntityWrapper {
   }
 
   /**
-   * TODO (VV): javadoc
+   * Get an entity-specific wrapper for proxy runtime properties.
    *
-   * @param entityType
-   * @return
+   * @param entityType entity type to get wrapper for
+   * @return EntityProperties wrapper
    */
   public EntityProperties get(ReportableEntityType entityType) {
     return wrappers.get(entityType);
   }
 
+  /**
+   * Common interface for entity-specific properties.
+   */
   public interface EntityProperties {
     int getItemsPerBatchOriginal();
 
@@ -42,19 +45,13 @@ public class EntityWrapper {
 
     boolean isSplitPushWhenRateLimited();
 
-    void setSplitPushWhenRateLimited(boolean splitPushWhenRateLimited);
-
     double getRetryBackoffBaseSeconds();
 
     void setRetryBackoffBaseSeconds(double retryBackoffBaseSeconds);
 
     int getPushRateLimitMaxBurstSeconds();
 
-    void setPushRateLimitMaxBurstSeconds(int pushRateLimitMaxBurstSeconds);
-
     int getPushFlushInterval();
-
-    void setPushFlushInterval(int pushFlushInterval);
 
     int getItemsPerBatch();
 
@@ -62,11 +59,7 @@ public class EntityWrapper {
 
     int getMinBatchSplitSize();
 
-    void setMinBatchSplitSize(int minBatchSplitSize);
-
     int getMemoryBufferLimit();
-
-    void setMemoryBufferLimit(int memoryBufferLimit);
 
     TaskQueueLevel getTaskQueueLevel();
   }
@@ -92,11 +85,6 @@ public class EntityWrapper {
     }
 
     @Override
-    public void setSplitPushWhenRateLimited(boolean splitPushWhenRateLimited) {
-      wrapped.setSplitPushWhenRateLimited(splitPushWhenRateLimited);
-    }
-
-    @Override
     public double getRetryBackoffBaseSeconds() {
       return wrapped.getRetryBackoffBaseSeconds();
     }
@@ -112,18 +100,8 @@ public class EntityWrapper {
     }
 
     @Override
-    public void setPushRateLimitMaxBurstSeconds(int pushRateLimitMaxBurstSeconds) {
-      wrapped.setPushRateLimitMaxBurstSeconds(pushRateLimitMaxBurstSeconds);
-    }
-
-    @Override
     public int getPushFlushInterval() {
       return wrapped.getPushFlushInterval();
-    }
-
-    @Override
-    public void setPushFlushInterval(int pushFlushInterval) {
-      wrapped.setPushFlushInterval(pushFlushInterval);
     }
 
     @Override
@@ -132,18 +110,8 @@ public class EntityWrapper {
     }
 
     @Override
-    public void setMinBatchSplitSize(int minBatchSplitSize) {
-      wrapped.setMinBatchSplitSize(minBatchSplitSize);
-    }
-
-    @Override
     public int getMemoryBufferLimit() {
       return wrapped.getMemoryBufferLimit();
-    }
-
-    @Override
-    public void setMemoryBufferLimit(int memoryBufferLimit) {
-      wrapped.setMemoryBufferLimit(memoryBufferLimit);
     }
 
     @Override
@@ -227,11 +195,6 @@ public class EntityWrapper {
     public int getMemoryBufferLimit() {
       return wrapped.getMemoryBufferLimitSourceTags();
     }
-
-    @Override
-    public void setMemoryBufferLimit(int memoryBufferLimit) {
-      wrapped.setMemoryBufferLimitSourceTags(memoryBufferLimit);
-    }
   }
 
   /**
@@ -308,11 +271,6 @@ public class EntityWrapper {
     @Override
     public int getMemoryBufferLimit() {
       return wrapped.getMemoryBufferLimitEvents();
-    }
-
-    @Override
-    public void setMemoryBufferLimit(int memoryBufferLimit) {
-      wrapped.setMemoryBufferLimitEvents(memoryBufferLimit);
     }
   }
 }

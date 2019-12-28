@@ -39,8 +39,6 @@ public class QueueingFactoryImpl implements QueueingFactory {
   private final EntityWrapper entityProps;
 
   /**
-   * TODO (VV): javadoc
-   *
    * @param apiContainer       handles interaction with Wavefront servers as well as queueing.
    * @param proxyId            proxy ID.
    * @param taskQueueFactory   factory for backing queues.

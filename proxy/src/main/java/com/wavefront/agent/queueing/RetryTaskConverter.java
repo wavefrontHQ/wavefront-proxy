@@ -34,16 +34,14 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>>
   private final Counter errorCounter;
 
   /**
-   * TODO (VV): javadoc
-   *
-   * @param handle
-   * @param disableCompression
+   * @param handle             Handle (usually port number) of the pipeline where the data came
+   *                           from.
+   * @param disableCompression when true, tasks are written to the queue uncompressed (for
+   *                           debugging purposes).
    */
   RetryTaskConverter(String handle, boolean disableCompression) {
     this.handle = handle;
     objectMapper.enableDefaultTyping();
-    //this.objectReader = objectMapper.readerFor(DataSubmissionTask.class);
-    //this.objectWriter = objectMapper.writerFor(DataSubmissionTask.class);
     this.disableCompression = disableCompression;
     this.errorCounter = Metrics.newCounter(new TaggedMetricName("buffer", "read-errors",
         "port", handle));

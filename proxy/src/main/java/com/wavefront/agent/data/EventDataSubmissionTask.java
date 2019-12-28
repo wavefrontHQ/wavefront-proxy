@@ -11,12 +11,13 @@ import com.wavefront.dto.Event;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * TODO (VV): javadoc
+ * A {@link DataSubmissionTask} that handles event payloads.
  *
  * @author vasily@wavefront.com
  */
@@ -32,13 +33,13 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
   }
 
   /**
-   * TODO (VV): javadoc
-   *
-   * @param api
-   * @param proxyId
-   * @param handle
-   * @param events
-   * @param timeProvider
+   * @param api          API endpoint.
+   * @param proxyId      Proxy identifier. Used to authenticate proxy with the API.
+   * @param properties
+   * @param backlog
+   * @param handle       Handle (usually port number) of the pipeline where the data came from.
+   * @param events       Data payload.
+   * @param timeProvider Time provider (in millis).
    */
   public EventDataSubmissionTask(EventAPI api, UUID proxyId, EntityProperties properties,
                                  TaskQueue<EventDataSubmissionTask> backlog, String handle,
@@ -54,9 +55,18 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
     return api.proxyEvents(proxyId, events);
   }
 
-  @Override
   public List<EventDataSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {
-    // TODO (VV): implement
+    if (events.size() > Math.max(1, minSplitSize)) {
+      List<EventDataSubmissionTask> result = new ArrayList<>();
+      int stride = Math.min(maxSplitSize, (int) Math.ceil((float) events.size() / 2.0));
+      int endingIndex = 0;
+      for (int startingIndex = 0; endingIndex < events.size() - 1; startingIndex += stride) {
+        endingIndex = Math.min(events.size(), startingIndex + stride) - 1;
+        result.add(new EventDataSubmissionTask(api, proxyId, properties, backlog, handle,
+            events.subList(startingIndex, endingIndex + 1), timeProvider));
+      }
+      return result;
+    }
     return ImmutableList.of(this);
   }
 

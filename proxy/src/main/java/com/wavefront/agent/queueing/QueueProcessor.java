@@ -1,17 +1,14 @@
 package com.wavefront.agent.queueing;
 
-import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.Managed;
-import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.data.DataSubmissionTask;
+import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.data.TaskInjector;
-import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.handlers.HandlerKey;
 
 import javax.annotation.Nullable;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,7 +33,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   protected final TaskInjector<T> taskInjector;
   protected final EntityProperties runtimeProperties;
   protected final RecyclableRateLimiter rateLimiter;
-  protected volatile long lastProcessedTs;
+  protected volatile long lastProcessedTs = Long.MIN_VALUE;
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private int backoffExponent = 1;
 
@@ -73,60 +70,41 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         if (!isRunning.get() || Thread.currentThread().isInterrupted()) return;
         T task = taskQueue.peek();
         int taskSize = task == null ? 0 : task.weight();
-        int permitsNeeded = Math.max((int) rateLimiter.getRate(), taskSize);
+        this.lastProcessedTs = task == null ? Long.MIN_VALUE : task.getCreatedMillis();
+        int permitsNeeded = Math.min((int) rateLimiter.getRate(), taskSize);
         if (rateLimiter.immediatelyAvailable(permitsNeeded)) {
           // if there's less than 1 second worth of accumulated credits,
           // don't process the backlog queue
           rateLimiting = true;
           break;
         }
-
         if (taskSize > 0) {
           rateLimiter.acquire(taskSize);
         }
-
         boolean removeTask = true;
         try {
           if (task != null) {
             taskInjector.inject(task);
             TaskResult result = task.execute();
-            successes++;
-          }
-        } catch (Exception ex) {
-          rateLimiter.recyclePermits(taskSize);
-          failures++;
-          if (Throwables.getRootCause(ex) instanceof QueuedPushTooLargeException) {
-            // this should split this task, remove it from the queue, and not try more tasks
-            logger.warning("Wavefront server rejected push with HTTP 413: request too large, " +
-                "will retry with smaller batch size.");
-            for (T smallerTask : task.splitTask(1, runtimeProperties.getItemsPerBatch())) {
-              taskQueue.add(smallerTask);
-            }
-            break;
-          } else if (Throwables.getRootCause(ex) instanceof RejectedExecutionException) {
-              // this should either split and remove the original task or keep it at front
-              // it also should not try any more tasks
-              logger.warning("Wavefront server rejected push " +
-                  "(global rate limit exceeded) - will attempt later.");
-              if (runtimeProperties.isSplitPushWhenRateLimited()) {
-                for (T smallerTask : task.splitTask(runtimeProperties.getMinBatchSplitSize(),
-                    runtimeProperties.getItemsPerBatch())) {
-                  taskQueue.add(smallerTask);
-                }
-              } else {
+            switch (result) {
+              case DELIVERED:
+                successes++;
+                break;
+              case PERSISTED:
+                rateLimiter.recyclePermits(taskSize);
+                failures++;
+                return;
+              case PERSISTED_RETRY:
+                rateLimiter.recyclePermits(taskSize);
+                failures++;
+                break;
+              case RETRY_LATER:
                 removeTask = false;
-              }
-              break;
-            } else {
-              // TODO (VV): more user-friendly messages for IO errors
-              logger.log(Level.WARNING, "Cannot submit data to Wavefront servers. Will " +
-                  "re-attempt later", Throwables.getRootCause(ex));
+                rateLimiter.recyclePermits(taskSize);
+                failures++;
             }
-          // this can potentially cause a duplicate task to be injected (but since submission is mostly
-          // idempotent it's not really a big deal)
-          taskQueue.add(task);
-          if (failures > 10) {
-            logger.warning("Too many submission errors, will re-attempt later");
+          }
+          if (failures >= 10) {
             break;
           }
         } finally {
@@ -145,7 +123,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         // (to introduce some degree of fairness)
         nextFlush = (int) ((1 + Math.random()) * runtimeProperties.getPushFlushInterval() / 4);
       } else {
-        if (successes == 0 && failures != 0) {
+        if (successes == 0 && failures > 0) {
           backoffExponent = Math.min(4, backoffExponent + 1); // caps at 2*base^4
         } else {
           backoffExponent = 1;

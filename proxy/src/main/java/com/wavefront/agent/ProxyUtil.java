@@ -25,7 +25,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * TODO (vv): javadoc
+ * Miscellaneous support methods for running Wavefront proxy.
  *
  * @author vasily@wavefront.com
  */
@@ -121,13 +121,34 @@ abstract class ProxyUtil {
     return Integer.toHexString((int) (Math.random() * Integer.MAX_VALUE));
   }
 
+  /**
+   * Create a {@link ChannelInitializer} with a single {@link ChannelHandler},
+   * wrapped in {@link PlainTextOrHttpFrameDecoder}.
+   *
+   * @param channelHandler        handler .
+   * @param port                  port handle.
+   * @param messageMaxLength      maximum line length for line-based protocols.
+   * @param httpRequestBufferSize maximum request size for HTTP POST.
+   * @param idleTimeout           idle timeout in seconds.
+   * @return channel initializer
+   */
   static ChannelInitializer<SocketChannel> createInitializer(ChannelHandler channelHandler,
-                                                                     String port, int messageMaxLength,
-                                                                     int httpRequestBufferSize, int idleTimeout) {
+                                                             String port, int messageMaxLength,
+                                                             int httpRequestBufferSize,
+                                                             int idleTimeout) {
     return createInitializer(ImmutableList.of(() -> new PlainTextOrHttpFrameDecoder(channelHandler,
         messageMaxLength, httpRequestBufferSize)), port, idleTimeout);
   }
 
+  /**
+   * Create a {@link ChannelInitializer} with multiple dynamically created
+   * {@link ChannelHandler} objects.
+   *
+   * @param channelHandlerSuppliers Suppliers of ChannelHandlers.
+   * @param port                    port handle.
+   * @param idleTimeout             idle timeout in seconds.
+   * @return channel initializer
+   */
   static ChannelInitializer<SocketChannel> createInitializer(
       Iterable<Supplier<ChannelHandler>> channelHandlerSuppliers, String port, int idleTimeout) {
     ChannelHandler idleStateEventHandler = new IdleStateEventHandler(Metrics.newCounter(
@@ -141,7 +162,6 @@ abstract class ProxyUtil {
       @Override
       public void initChannel(SocketChannel ch) {
         ChannelPipeline pipeline = ch.pipeline();
-
         pipeline.addFirst("idlehandler", new IdleStateHandler(idleTimeout, 0, 0));
         pipeline.addLast("idlestateeventhandler", idleStateEventHandler);
         pipeline.addLast("connectiontracker", connectionTracker);
@@ -149,5 +169,4 @@ abstract class ProxyUtil {
       }
     };
   }
-
 }

@@ -40,8 +40,6 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
   /**
-   * TODO (VV): javadoc
-   *
    * @param handle
    * @param entityType
    * @param processorTasks

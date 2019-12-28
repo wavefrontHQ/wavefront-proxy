@@ -39,8 +39,6 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
   /**
    * Execute this task
    *
-   * TODO (VV): javadoc
-   *
    * @return operation result
    */
   TaskResult execute();

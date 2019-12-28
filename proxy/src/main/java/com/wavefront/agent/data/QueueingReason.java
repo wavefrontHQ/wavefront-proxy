@@ -1,7 +1,7 @@
 package com.wavefront.agent.data;
 
 /**
- * TODO (VV): javadoc
+ * Additional context to help understand why a certain batch was queued.
  *
  * @author vasily@wavefront.com
  */

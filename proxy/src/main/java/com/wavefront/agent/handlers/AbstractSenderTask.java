@@ -132,7 +132,6 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
           case PERSISTED_RETRY:
             if (rateLimiter != null) rateLimiter.recyclePermits(currentBatchSize);
             break;
-          case RETRY_IMMEDIATELY:
           case RETRY_LATER:
             undoBatch(current);
             if (rateLimiter != null) rateLimiter.recyclePermits(currentBatchSize);
