@@ -13,18 +13,6 @@ import java.util.concurrent.ScheduledExecutorService;
  */
 public interface QueueingFactory {
   /**
-   * Create a new {@code QueueProcessor} instance for the specified handler key.
-   *
-   * @param handlerKey      {@link HandlerKey} for the queue processor.
-   * @param executorService executor service
-   * @param threadNum       thread number
-   * @param <T>             data submission task type
-   * @return {@code QueueProcessor} object
-   */
-  <T extends DataSubmissionTask<T>> QueueProcessor<T> getQueueProcessor(
-      @Nonnull HandlerKey handlerKey, ScheduledExecutorService executorService, int threadNum);
-
-  /**
    * Create a new {@code QueueController} instance for the specified handler key.
    *
    * @param handlerKey   {@link HandlerKey} for the queue controller.

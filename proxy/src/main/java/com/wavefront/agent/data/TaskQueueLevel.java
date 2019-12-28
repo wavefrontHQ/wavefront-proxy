@@ -1,5 +1,10 @@
 package com.wavefront.agent.data;
 
+/**
+ * Controls conditions under which proxy would actually queue data.
+ *
+ * @author vasily@wavefront.com
+ */
 public enum TaskQueueLevel {
   NEVER(0),     // never queue (not used, placeholder for future use)
   MEMORY(1),    // queue on memory pressure (heap threshold or pushMemoryBufferLimit exceeded)

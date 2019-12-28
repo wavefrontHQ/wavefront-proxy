@@ -10,7 +10,9 @@ import java.util.List;
 /**
  * A serializable data submission task.
  *
- * @param <T>
+ * @param <T> task type
+ *
+ * @author vasily@wavefront.com
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Serializable {

@@ -80,5 +80,6 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
     this.proxyId = proxyId;
     this.properties = properties;
     this.backlog = backlog;
+    this.timeProvider = System::currentTimeMillis;
   }
 }

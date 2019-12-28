@@ -17,7 +17,7 @@ import wavefront.report.ReportSourceTag;
  * @author Suranjan Pramanik (suranjan@wavefront.com).
  * @author vasily@wavefront.com
  */
-public class ReportSourceTagHandlerImpl
+class ReportSourceTagHandlerImpl
     extends AbstractReportableEntityHandler<ReportSourceTag, ReportSourceTag> {
 
   private static final Logger logger = Logger.getLogger(

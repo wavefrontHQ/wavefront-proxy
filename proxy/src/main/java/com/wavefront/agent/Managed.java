@@ -6,7 +6,13 @@ package com.wavefront.agent;
  * @author vasily@wavefront.com
  */
 public interface Managed {
+  /**
+   * Starts the process.
+   */
   void start();
 
+  /**
+   * Stops the process.
+   */
   void stop();
 }

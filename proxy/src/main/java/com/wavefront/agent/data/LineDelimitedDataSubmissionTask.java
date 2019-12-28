@@ -98,5 +98,6 @@ public class LineDelimitedDataSubmissionTask
     this.proxyId = proxyId;
     this.properties = properties;
     this.backlog = backlog;
+    this.timeProvider = System::currentTimeMillis;
   }
 }

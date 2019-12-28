@@ -107,9 +107,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     attempts += 1;
     TimerContext timer = Metrics.newTimer(new MetricName("push." + handle, "", "duration"),
         TimeUnit.MILLISECONDS, TimeUnit.MINUTES).time();
-    Response response = null;
-    try {
-      response = doExecute();
+    try (Response response = doExecute()) {
       Metrics.newCounter(new TaggedMetricName("push", handle + ".http." +
           response.getStatus() + ".count")).inc();
       if (response.getStatus() >= 200 && response.getStatus() < 300) {
@@ -189,7 +187,6 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       return checkStatusAndQueue(QueueingReason.RETRY, true);
     } finally {
       timer.stop();
-      if (response != null) response.close();
     }
   }
 

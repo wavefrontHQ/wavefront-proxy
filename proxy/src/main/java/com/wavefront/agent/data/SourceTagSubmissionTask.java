@@ -92,5 +92,6 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
     this.api = api;
     this.properties = properties;
     this.backlog = backlog;
+    this.timeProvider = System::currentTimeMillis;
   }
 }

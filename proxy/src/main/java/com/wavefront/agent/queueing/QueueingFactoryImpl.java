@@ -57,8 +57,16 @@ public class QueueingFactoryImpl implements QueueingFactory {
     this.entityProps = entityProps;
   }
 
-  @Override
-  public <T extends DataSubmissionTask<T>> QueueProcessor<T> getQueueProcessor(
+  /**
+   * Create a new {@code QueueProcessor} instance for the specified handler key.
+   *
+   * @param handlerKey      {@link HandlerKey} for the queue processor.
+   * @param executorService executor service
+   * @param threadNum       thread number
+   * @param <T>             data submission task type
+   * @return {@code QueueProcessor} object
+   */
+  <T extends DataSubmissionTask<T>> QueueProcessor<T> getQueueProcessor(
       @Nonnull HandlerKey handlerKey, ScheduledExecutorService executorService, int threadNum) {
     TaskQueue<T> taskQueue = taskQueueFactory.getTaskQueue(handlerKey, threadNum);
     //noinspection unchecked
