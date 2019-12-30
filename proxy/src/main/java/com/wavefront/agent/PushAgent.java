@@ -47,6 +47,7 @@ import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
+import com.wavefront.agent.listeners.tracing.CustomTracingPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.JaegerPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.JaegerTChannelCollectorHandler;
 import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
@@ -328,6 +329,10 @@ public class PushAgent extends AbstractAgent {
 
     portIterator(traceListenerPorts).forEachRemaining(strPort ->
         startTraceListener(strPort, handlerFactory, compositeSampler));
+    portIterator(customTracingListenerPorts).forEachRemaining(strPort -> {
+      startCustomTracingListener(strPort, handlerFactory,
+          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
+    });
     portIterator(traceJaegerListenerPorts).forEachRemaining(strPort -> {
       PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
           Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
@@ -511,6 +516,27 @@ public class PushAgent extends AbstractAgent {
         traceListenerMaxReceivedLength, traceListenerHttpBufferSize, listenerIdleConnectionTimeout),
             port).withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
     logger.info("listening on port: " + strPort + " for trace data");
+  }
+
+  @VisibleForTesting
+  protected void startCustomTracingListener(final String strPort,
+                                            ReportableEntityHandlerFactory handlerFactory,
+                                            @Nullable WavefrontSender wfSender,
+                                            Sampler sampler) {
+    final int port = Integer.parseInt(strPort);
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
+    if (httpHealthCheckAllPorts) healthCheckManager.enableHealthcheck(port);
+
+    ChannelHandler channelHandler = new CustomTracingPortUnificationHandler(strPort, tokenAuthenticator,
+        healthCheckManager, wfSender, new SpanDecoder("unknown"), preprocessors.get(strPort),
+        handlerFactory, sampler, traceAlwaysSampleErrors,
+        traceDisabled::get);
+
+    startAsManagedThread(new TcpIngester(createInitializer(channelHandler, strPort,
+        traceListenerMaxReceivedLength, traceListenerHttpBufferSize, listenerIdleConnectionTimeout),
+        port).withChildChannelOptions(childChannelOptions), "listener-custom-trace-" + port);
+    logger.info("listening on port: " + strPort + " for custom trace data");
   }
 
   protected void startTraceJaegerListener(String strPort,

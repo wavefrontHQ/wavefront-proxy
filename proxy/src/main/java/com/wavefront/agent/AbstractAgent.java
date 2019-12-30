@@ -707,6 +707,12 @@ public abstract class AbstractAgent {
           " Defaults: none")
   protected String deltaCountersAggregationListenerPorts = "";
 
+  @Parameter(names = {"--customTracingListenerPorts"},
+      description = "Comma-separated list of ports to listen on spans from level 1 SDK. Helps " +
+          "derive RED metrics and for the span and heartbeat for corresponding application at proxy." +
+          " Defaults: none")
+  protected String customTracingListenerPorts = "";
+
   /**
    * A set of commandline parameters to hide when echoing command line arguments
    */
@@ -950,6 +956,10 @@ public abstract class AbstractAgent {
       deltaCountersAggregationIntervalSeconds =
           config.getNumber("deltaCountersAggregationIntervalSeconds",
               deltaCountersAggregationIntervalSeconds).longValue();
+
+      customTracingListenerPorts =
+          config.getString("customTracingListenerPorts",
+              customTracingListenerPorts);
 
       // Histogram: deprecated settings - fall back for backwards compatibility
       if (config.isDefined("avgHistogramKeyBytes")) {
