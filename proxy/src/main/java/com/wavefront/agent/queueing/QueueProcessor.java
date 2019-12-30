@@ -33,7 +33,8 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   protected final TaskInjector<T> taskInjector;
   protected final EntityProperties runtimeProperties;
   protected final RecyclableRateLimiter rateLimiter;
-  protected volatile long lastProcessedTs = Long.MIN_VALUE;
+  private volatile long lastSeenTimestamp = Long.MIN_VALUE;
+  private volatile double schedulerPriorityFactor = 1.0d;
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private int backoffExponent = 1;
 
@@ -70,7 +71,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         if (!isRunning.get() || Thread.currentThread().isInterrupted()) return;
         T task = taskQueue.peek();
         int taskSize = task == null ? 0 : task.weight();
-        this.lastProcessedTs = task == null ? Long.MIN_VALUE : task.getCreatedMillis();
+        this.lastSeenTimestamp = task == null ? Long.MIN_VALUE : task.getCreatedMillis();
         int permitsNeeded = Math.min((int) rateLimiter.getRate(), taskSize);
         if (rateLimiter.immediatelyAvailable(permitsNeeded)) {
           // if there's less than 1 second worth of accumulated credits,
@@ -110,6 +111,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         } finally {
           if (removeTask) {
             taskQueue.remove();
+            if (taskQueue.size() == 0) schedulerPriorityFactor = 1.0d;
           }
         }
       }
@@ -148,5 +150,13 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   @Override
   public void stop() {
     isRunning.set(false);
+  }
+
+  public long getLastSeenTimestamp() {
+    return this.lastSeenTimestamp;
+  }
+
+  public void setTimingFactor(double priorityFactor) {
+    this.schedulerPriorityFactor = priorityFactor;
   }
 }

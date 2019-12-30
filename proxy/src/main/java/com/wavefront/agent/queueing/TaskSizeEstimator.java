@@ -21,12 +21,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Calculates approximate task sizes (to estimate
+ * Calculates approximate task sizes to estimate how quickly we would run out of disk space
+ * if we are no longer able to send data to the server endpoint (i.e. network outage).
  *
  * @author vasily@wavefront.com.
  */
 public class TaskSizeEstimator {
-  private static final MetricsRegistry metricsRegistry = SharedMetricsRegistry.getInstance();
+  private static final MetricsRegistry REGISTRY = SharedMetricsRegistry.getInstance();
   /**
    * Biases result sizes to the last 5 minutes heavily. This histogram does not see all result
    * sizes. The executor only ever processes one posting at any given time and drops the rest.
@@ -37,9 +38,7 @@ public class TaskSizeEstimator {
   /**
    * A single threaded bounded work queue to update result posting sizes.
    */
-  private final ExecutorService resultPostingSizerExecutorService = new ThreadPoolExecutor(1, 1,
-      60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1),
-      new NamedThreadFactory("result-posting-sizer"));
+  private final ExecutorService resultPostingSizerExecutorService;
 
   /**
    * Only size postings once every 5 seconds.
@@ -47,11 +46,17 @@ public class TaskSizeEstimator {
   @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter resultSizingRateLimier = RateLimiter.create(0.2);
 
+  /**
+   * @param handle metric pipeline handle (usually port number).
+   */
   public TaskSizeEstimator(String handle) {
-    this.resultPostingSizes = metricsRegistry.newHistogram(new TaggedMetricName("post-result",
+    this.resultPostingSizes = REGISTRY.newHistogram(new TaggedMetricName("post-result",
         "result-size", "port", handle), true);
-    this.resultPostingMeter = metricsRegistry.newMeter(new TaggedMetricName("post-result",
+    this.resultPostingMeter = REGISTRY.newMeter(new TaggedMetricName("post-result",
         "results", "port", handle), "results", TimeUnit.MINUTES);
+    this.resultPostingSizerExecutorService = new ThreadPoolExecutor(1, 1,
+        60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1),
+        new NamedThreadFactory("result-posting-sizer-" + handle));
     Metrics.newGauge(new TaggedMetricName("buffer", "fill-rate", "port", handle),
         new Gauge<Long>() {
           @Override
@@ -61,7 +66,13 @@ public class TaskSizeEstimator {
         });
   }
 
+  /**
+   * Submit a candidate task to be sized. The task may or may not be accepted, depending on
+   * the rate limiter
+   * @param task task to be sized.
+   */
   public void scheduleTaskForSizing(DataSubmissionTask<?> task) {
+    resultPostingMeter.mark();
     try {
       //noinspection UnstableApiUsage
       if (resultSizingRateLimier.tryAcquire()) {

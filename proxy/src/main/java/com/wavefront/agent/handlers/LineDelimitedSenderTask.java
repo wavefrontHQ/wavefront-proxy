@@ -22,7 +22,6 @@ import java.util.logging.Logger;
  * @author vasily@wavefront.com
  */
 class LineDelimitedSenderTask extends AbstractSenderTask<String> {
-
   private static final Logger logger =
       Logger.getLogger(LineDelimitedSenderTask.class.getCanonicalName());
 

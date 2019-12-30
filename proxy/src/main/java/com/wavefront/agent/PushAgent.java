@@ -10,6 +10,7 @@ import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.uber.tchannel.api.TChannel;
 import com.uber.tchannel.channels.Connection;
+import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.CachingHostnameLookupResolver;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -116,6 +117,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -150,6 +152,7 @@ public class PushAgent extends AbstractAgent {
   protected ReportableEntityHandlerFactory handlerFactory;
   protected RecyclableRateLimiterFactory rateLimiterFactory;
   protected HealthCheckManager healthCheckManager;
+  protected TokenAuthenticator tokenAuthenticator = TokenAuthenticatorBuilder.create().build();
   protected final Supplier<Map<ReportableEntityType, ReportableEntityDecoder<?, ?>>>
       decoderSupplier = lazySupplier(() ->
       ImmutableMap.<ReportableEntityType, ReportableEntityDecoder<?, ?>>builder().
@@ -165,24 +168,21 @@ public class PushAgent extends AbstractAgent {
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;
 
+  protected final AtomicBoolean histogramDisabled = new AtomicBoolean(false);
+  protected final AtomicBoolean traceDisabled = new AtomicBoolean(false);
+  protected final AtomicBoolean spanLogsDisabled = new AtomicBoolean(false);
+
   public static void main(String[] args) throws IOException {
     // Start the ssh daemon
     new PushAgent().start(args);
   }
 
-  public PushAgent() {
-    super(false, true);
-  }
-
-  @Deprecated
-  protected PushAgent(boolean reportAsPushAgent) {
-    super(false, reportAsPushAgent);
-  }
-
-  @Override
-  protected void setupMemoryGuard(double threshold) {
-    new ProxyMemoryGuard(() ->
-        senderTaskFactory.drainBuffersToQueue(QueueingReason.MEMORY_PRESSURE), threshold);
+  protected void setupMemoryGuard() {
+    if (proxyConfig.getMemGuardFlushThreshold() > 0) {
+      float threshold = ((float) proxyConfig.getMemGuardFlushThreshold() / 100);
+      new ProxyMemoryGuard(() ->
+          senderTaskFactory.drainBuffersToQueue(QueueingReason.MEMORY_PRESSURE), threshold);
+    }
   }
 
   @Override
@@ -215,6 +215,7 @@ public class PushAgent extends AbstractAgent {
         proxyConfig.getHttpHealthCheckPassResponseBody(),
         proxyConfig.getHttpHealthCheckFailStatusCode(),
         proxyConfig.getHttpHealthCheckFailResponseBody());
+    tokenAuthenticator = configureTokenAuthenticator();
 
     shutdownTasks.add(() -> senderTaskFactory.shutdown());
     shutdownTasks.add(() -> senderTaskFactory.drainBuffersToQueue(null));
@@ -404,6 +405,7 @@ public class PushAgent extends AbstractAgent {
         logger.warning("Cannot start logsIngestion: invalid configuration or no config specified");
       }
     }
+    setupMemoryGuard();
   }
 
   protected void startJsonListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
@@ -996,10 +998,12 @@ public class PushAgent extends AbstractAgent {
         logger.fine("Proxy backoff base set to (locally) " +
             runtimeProperties.getRetryBackoffBaseSeconds());
       }
-
       histogramDisabled.set(BooleanUtils.toBoolean(config.getHistogramDisabled()));
       traceDisabled.set(BooleanUtils.toBoolean(config.getTraceDisabled()));
       spanLogsDisabled.set(BooleanUtils.toBoolean(config.getSpanLogsDisabled()));
+      if (config.getValidationConfiguration() != null) {
+        this.validationConfiguration = config.getValidationConfiguration();
+      }
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
     }
@@ -1031,7 +1035,8 @@ public class PushAgent extends AbstractAgent {
           if (rateLimit >= NO_RATE_LIMIT) {
             logger.warning(name + " no longer enforced by remote");
           } else {
-            if (hadSuccessfulCheckin) { // this will skip printing this message upon init
+            if (proxyCheckinScheduler.hadSuccessfulCheckin()) {
+              // this will skip printing this message upon init
               logger.warning(name + " restored to " + rateLimit);
             }
           }
@@ -1040,8 +1045,7 @@ public class PushAgent extends AbstractAgent {
     }
   }
 
-  @Override
-  protected void configureTokenAuthenticator() {
+  protected TokenAuthenticator configureTokenAuthenticator() {
     HttpClient httpClient = HttpClientBuilder.create().
         useSystemProperties().
         setUserAgent(proxyConfig.getHttpUserAgent()).
@@ -1057,8 +1061,7 @@ public class PushAgent extends AbstractAgent {
                 setConnectionRequestTimeout(proxyConfig.getHttpConnectTimeout()).
                 setSocketTimeout(proxyConfig.getHttpRequestTimeout()).build()).
         build();
-
-    this.tokenAuthenticator = TokenAuthenticatorBuilder.create().
+    return TokenAuthenticatorBuilder.create().
         setTokenValidationMethod(proxyConfig.getAuthMethod()).
         setHttpClient(httpClient).
         setTokenIntrospectionServiceUrl(proxyConfig.getAuthTokenIntrospectionServiceUrl()).

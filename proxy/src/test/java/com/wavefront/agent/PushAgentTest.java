@@ -144,7 +144,6 @@ public class PushAgentTest {
     proxy = new PushAgent();
     proxy.parseArguments(new String[] {
         "--flushThreads", "2",
-        "--retryThreads", "1",
         "--dataBackfillCutoffHours", "100000000",
         "--pushListenerPorts", String.valueOf(port),
         "--deltaCountersAggregationListenerPorts", String.valueOf(deltaPort),
@@ -155,7 +154,6 @@ public class PushAgentTest {
         "--deltaCountersAggregationIntervalSeconds", "3"
     });
     assertEquals(Integer.valueOf(2), proxy.proxyConfig.getFlushThreads());
-    assertEquals(Integer.valueOf(1), proxy.proxyConfig.getRetryThreads());
     assertFalse(proxy.proxyConfig.isDataDogProcessSystemMetrics());
     assertTrue(proxy.proxyConfig.isDataDogProcessServiceChecks());
     proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
@@ -406,7 +404,6 @@ public class PushAgentTest {
     PushAgent proxy2 = new PushAgent();
     proxy2.parseArguments(new String[]{
         "--flushThreads", "2",
-        "--retryThreads", "1",
         "--dataBackfillCutoffHours", "100000000",
         "--dataDogJsonPorts", String.valueOf(ddPort2),
         "--dataDogProcessSystemMetrics", "true",
@@ -414,7 +411,6 @@ public class PushAgentTest {
         "--dataDogRequestRelayTarget", "http://relay-to:1234"
     });
     assertEquals(Integer.valueOf(2), proxy2.proxyConfig.getFlushThreads());
-    assertEquals(Integer.valueOf(1), proxy2.proxyConfig.getRetryThreads());
     assertTrue(proxy2.proxyConfig.isDataDogProcessSystemMetrics());
     assertFalse(proxy2.proxyConfig.isDataDogProcessServiceChecks());
 

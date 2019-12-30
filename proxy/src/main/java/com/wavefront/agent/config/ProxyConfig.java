@@ -1,11 +1,14 @@
 package com.wavefront.agent.config;
 
+import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.wavefront.agent.auth.TokenValidationMethod;
+import com.wavefront.agent.data.TaskQueueLevel;
 import org.apache.commons.lang3.ObjectUtils;
 
 import java.util.ArrayList;
@@ -77,10 +80,10 @@ public class ProxyConfig extends Configuration {
       "to be retried. Defaults to /var/spool/wavefront-proxy/buffer.", order = 7)
   private String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
-  @Parameter(names = {"--retryThreads"}, description = "Number of threads retrying failed transmissions. Defaults to " +
-      "the number of processors (min. 4). Buffer files are maxed out at 2G each so increasing the number of retry " +
-      "threads effectively governs the maximum amount of space the proxy will use to buffer points locally", order = 6)
-  private Integer retryThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
+  @Parameter(names = {"--taskQueueLevel"}, converter = TaskQueueLevelConverter.class,
+      description = "Sets queueing strategy. Allowed values: MEMORY, PUSHBACK, ANY_ERROR. " +
+          "Default: ANY_ERROR")
+  private TaskQueueLevel taskQueueLevel = TaskQueueLevel.PUSHBACK;
 
   @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
       "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
@@ -590,7 +593,7 @@ public class ProxyConfig extends Configuration {
   @Parameter(names = {"--dataPrefillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for pre-dated points. Default is 24 (1 day)")
   private int dataPrefillCutoffHours = 24;
 
-  @Parameter(names = {"--authMethod"}, converter = TokenValidationMethod.TokenValidationMethodConverter.class,
+  @Parameter(names = {"--authMethod"}, converter = TokenValidationMethodConverter.class,
       description = "Authenticate all incoming HTTP requests and disables TCP streams when set to a value " +
           "other than NONE. Allowed values are: NONE, STATIC_TOKEN, HTTP_GET, OAUTH2. Default: NONE")
   private TokenValidationMethod authMethod = TokenValidationMethod.NONE;
@@ -712,8 +715,8 @@ public class ProxyConfig extends Configuration {
     return bufferFile;
   }
 
-  public Integer getRetryThreads() {
-    return retryThreads;
+  public TaskQueueLevel getTaskQueueLevel() {
+    return taskQueueLevel;
   }
 
   public Integer getFlushThreads() {
@@ -1478,7 +1481,6 @@ public class ProxyConfig extends Configuration {
       histogramDistMemoryCache = config.getBoolean("histogramDistMemoryCache",
           histogramDistMemoryCache);
 
-      retryThreads = config.getInteger("retryThreads", retryThreads);
       flushThreads = config.getInteger("flushThreads", flushThreads);
       jsonListenerPorts = config.getString("jsonListenerPorts", jsonListenerPorts);
       writeHttpJsonListenerPorts = config.getString("writeHttpJsonListenerPorts",
@@ -1544,13 +1546,14 @@ public class ProxyConfig extends Configuration {
       pushRelayHistogramAggregatorAccumulatorSize =
           config.getLong("pushRelayHistogramAggregatorAccumulatorSize",
               pushRelayHistogramAggregatorAccumulatorSize);
-      pushRelayHistogramAggregatorFlushSecs =
-          config.getInteger("pushRelayHistogramAggregatorFlushSecs",
-              pushRelayHistogramAggregatorFlushSecs);
+      pushRelayHistogramAggregatorFlushSecs = config.getInteger(
+          "pushRelayHistogramAggregatorFlushSecs", pushRelayHistogramAggregatorFlushSecs);
       pushRelayHistogramAggregatorCompression =
           config.getNumber("pushRelayHistogramAggregatorCompression",
               pushRelayHistogramAggregatorCompression).shortValue();
       bufferFile = config.getString("buffer", bufferFile);
+      taskQueueLevel = TaskQueueLevel.fromString(config.getString("taskQueueStrategy",
+          taskQueueLevel.toString()));
       purgeBuffer = config.getBoolean("purgeBuffer", purgeBuffer);
       preprocessorConfigFile = config.getString("preprocessorConfigFile", preprocessorConfigFile);
       dataBackfillCutoffHours = config.getInteger("dataBackfillCutoffHours", dataBackfillCutoffHours);
@@ -1562,18 +1565,19 @@ public class ProxyConfig extends Configuration {
       rawLogsHttpBufferSize = config.getInteger("rawLogsHttpBufferSize", rawLogsHttpBufferSize);
       logsIngestionConfigFile = config.getString("logsIngestionConfigFile", logsIngestionConfigFile);
 
+      // auth settings
       authMethod = TokenValidationMethod.fromString(config.getString("authMethod",
           authMethod.toString()));
       authTokenIntrospectionServiceUrl = config.getString("authTokenIntrospectionServiceUrl",
           authTokenIntrospectionServiceUrl);
-      authTokenIntrospectionAuthorizationHeader =
-          config.getString("authTokenIntrospectionAuthorizationHeader",
-              authTokenIntrospectionAuthorizationHeader);
+      authTokenIntrospectionAuthorizationHeader = config.getString(
+          "authTokenIntrospectionAuthorizationHeader", authTokenIntrospectionAuthorizationHeader);
       authResponseRefreshInterval = config.getInteger("authResponseRefreshInterval",
           authResponseRefreshInterval);
       authResponseMaxTtl = config.getInteger("authResponseMaxTtl", authResponseMaxTtl);
       authStaticToken = config.getString("authStaticToken", authStaticToken);
 
+      // health check / admin API settings
       adminApiListenerPort = config.getInteger("adminApiListenerPort", adminApiListenerPort);
       adminApiRemoteIpWhitelistRegex = config.getString("adminApiRemoteIpWhitelistRegex",
           adminApiRemoteIpWhitelistRegex);
@@ -1646,6 +1650,29 @@ public class ProxyConfig extends Configuration {
     }
     if (pushConfigFile != null) {
       logger.info("Loaded configuration file " + pushConfigFile);
+    }
+  }
+
+  public static class TokenValidationMethodConverter
+      implements IStringConverter<TokenValidationMethod> {
+    @Override
+    public TokenValidationMethod convert(String value) {
+      TokenValidationMethod convertedValue = TokenValidationMethod.fromString(value);
+      if (convertedValue == null) {
+        throw new ParameterException("Unknown token validation method value: " + value);
+      }
+      return convertedValue;
+    }
+  }
+
+  public static class TaskQueueLevelConverter implements IStringConverter<TaskQueueLevel> {
+    @Override
+    public TaskQueueLevel convert(String value) {
+      TaskQueueLevel convertedValue = TaskQueueLevel.fromString(value);
+      if (convertedValue == null) {
+        throw new ParameterException("Unknown task queue level: " + value);
+      }
+      return convertedValue;
     }
   }
 }

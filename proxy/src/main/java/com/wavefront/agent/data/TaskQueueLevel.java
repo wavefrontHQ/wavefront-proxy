@@ -26,4 +26,12 @@ public enum TaskQueueLevel {
     return this.level < other.level;
   }
 
+  public static TaskQueueLevel fromString(String name) {
+    for (TaskQueueLevel level : TaskQueueLevel.values()) {
+      if (level.toString().equalsIgnoreCase(name)) {
+        return level;
+      }
+    }
+    return null;
+  }
 }

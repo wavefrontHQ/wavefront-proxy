@@ -6,6 +6,7 @@ import com.google.common.io.Files;
 import com.wavefront.agent.channel.ConnectionTrackingHandler;
 import com.wavefront.agent.channel.IdleStateEventHandler;
 import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
+import com.wavefront.agent.config.ProxyConfig;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import io.netty.channel.ChannelHandler;
@@ -36,13 +37,29 @@ abstract class ProxyUtil {
   }
 
   /**
+   * Gets or creates  proxy id for this machine.
+   *
+   * @param proxyConfig proxy configuration
+   * @return proxy ID
+   */
+  static UUID getOrCreateProxyId(ProxyConfig proxyConfig) {
+    if (proxyConfig.isEphemeral()) {
+      UUID proxyId = UUID.randomUUID(); // don't need to store one
+      logger.info("Ephemeral proxy id created: " + proxyId);
+      return proxyId;
+    } else {
+      return getOrCreateProxyIdFromFile(proxyConfig.getIdFile());
+    }
+  }
+
+  /**
    * Read or create proxy id for this machine. Reads the UUID from specified file,
    * or from ~/.dshell/id if idFileName is null.
    *
    * @param idFileName file name to read proxy ID from.
    * @return proxy id
    */
-  static UUID getOrCreateProxyId(@Nullable String idFileName) {
+  static UUID getOrCreateProxyIdFromFile(@Nullable String idFileName) {
     File proxyIdFile;
     UUID proxyId = UUID.randomUUID();
     if (idFileName != null) {

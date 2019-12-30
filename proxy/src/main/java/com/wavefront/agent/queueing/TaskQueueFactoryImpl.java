@@ -5,6 +5,9 @@ import com.squareup.tape2.ObjectQueue;
 import com.squareup.tape2.QueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.metrics.ExpectedAgentMetric;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
 
 import javax.annotation.Nonnull;
 import java.io.File;
@@ -29,8 +32,6 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
   private final boolean purgeBuffer;
 
   /**
-   * Create a new instance.
-   *
    * @param bufferFile  Path prefix for queue file names.
    * @param purgeBuffer Whether buffer files should be nuked before starting (this may cause data
    *                    loss if queue files are not empty).
@@ -38,6 +39,26 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
   public TaskQueueFactoryImpl(String bufferFile, boolean purgeBuffer) {
     this.bufferFile = bufferFile;
     this.purgeBuffer = purgeBuffer;
+
+    Metrics.newGauge(ExpectedAgentMetric.BUFFER_BYTES_LEFT.metricName,
+        new Gauge<Long>() {
+          @Override
+          public Long value() {
+            try {
+              File bufferDirectory = new File(bufferFile).getAbsoluteFile();
+              while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
+                bufferDirectory = bufferDirectory.getParentFile();
+              }
+              if (bufferDirectory != null) {
+                return bufferDirectory.getUsableSpace();
+              }
+            } catch (Throwable t) {
+              logger.warning("cannot compute remaining space in buffer file partition: " + t);
+            }
+            return null;
+          }
+        }
+    );
   }
 
   public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@Nonnull HandlerKey handlerKey,

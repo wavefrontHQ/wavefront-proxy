@@ -4,7 +4,6 @@ import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
 
 import javax.annotation.Nonnull;
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * Factory for {@link QueueProcessor} instances.
