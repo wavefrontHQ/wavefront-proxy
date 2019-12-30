@@ -73,8 +73,7 @@ public class QueueingFactoryImpl implements QueueingFactory {
     return (QueueProcessor<T>) queueProcessors.computeIfAbsent(handlerKey, x -> new TreeMap<>()).
         computeIfAbsent(threadNum, x -> new QueueProcessor<>(handlerKey, taskQueue,
             getTaskInjector(handlerKey, taskQueue), executorService,
-            entityProps.get(handlerKey.getEntityType()),
-            rateLimiterFactory.getRateLimiter(handlerKey)));
+            entityProps.get(handlerKey), rateLimiterFactory.getRateLimiter(handlerKey)));
   }
 
   @SuppressWarnings("unchecked")
@@ -101,15 +100,15 @@ public class QueueingFactoryImpl implements QueueingFactory {
       case TRACE:
       case TRACE_SPAN_LOGS:
         return task -> ((LineDelimitedDataSubmissionTask) task).injectMembers(
-            apiContainer.getProxyV2API(), proxyId, entityProps.get(key.getEntityType()),
+            apiContainer.getProxyV2API(), proxyId, entityProps.get(key),
             (TaskQueue<LineDelimitedDataSubmissionTask>) queue);
       case SOURCE_TAG:
         return task -> ((SourceTagSubmissionTask) task).injectMembers(
-            apiContainer.getSourceTagAPI(), entityProps.get(key.getEntityType()),
+            apiContainer.getSourceTagAPI(), entityProps.get(key),
             (TaskQueue<SourceTagSubmissionTask>) queue);
       case EVENT:
         return task -> ((EventDataSubmissionTask) task).injectMembers(
-            apiContainer.getEventAPI(), proxyId, entityProps.get(key.getEntityType()),
+            apiContainer.getEventAPI(), proxyId, entityProps.get(key),
             (TaskQueue<EventDataSubmissionTask>) queue);
       default:
         throw new IllegalArgumentException("Unexpected entity type: " + key.getEntityType());

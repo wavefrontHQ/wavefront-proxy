@@ -42,15 +42,15 @@ public class RecyclableRateLimiterFactoryImpl implements RecyclableRateLimiterFa
                 create(proxyConfig.getPushRateLimit(),
                     proxyConfig.getPushRateLimitMaxBurstSeconds()), "limiter") :
             null,
-        proxyConfig.getPushRateLimitSourceTags() > 0 ?
-            new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
-                create(DEFAULT_SOURCE_TAG_RATE_LIMIT,
-                    proxyConfig.getPushRateLimitMaxBurstSeconds()), "limiter.sourceTags") :
-            null,
         proxyConfig.getPushRateLimitHistograms() > 0 ?
             new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
                 create(proxyConfig.getPushRateLimitHistograms(),
                     proxyConfig.getPushRateLimitMaxBurstSeconds()), "limiter.histograms") :
+            null,
+        proxyConfig.getPushRateLimitSourceTags() > 0 ?
+            new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.
+                create(DEFAULT_SOURCE_TAG_RATE_LIMIT,
+                    proxyConfig.getPushRateLimitMaxBurstSeconds()), "limiter.sourceTags") :
             null,
         proxyConfig.getPushRateLimitSpans() > 0 ?
             new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.

@@ -3,12 +3,11 @@ package com.wavefront.agent.handlers;
 import com.google.common.util.concurrent.RateLimiter;
 import com.wavefront.agent.SharedMetricsRegistry;
 import com.wavefront.api.agent.ValidationConfiguration;
-import com.wavefront.common.EvictingRingBuffer;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.BurstTrackingCounter;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 
@@ -40,18 +39,12 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       AbstractReportableEntityHandler.class.getCanonicalName());
 
   private final Class<T> type;
-
-  private static final SharedMetricsRegistry metricsRegistry = SharedMetricsRegistry.getInstance();
-
-  private final ScheduledExecutorService statsExecutor = Executors.
-      newSingleThreadScheduledExecutor();
   private final Logger blockedItemsLogger;
 
   final ReportableEntityType entityType;
   final String handle;
   private final Counter receivedCounter;
   private final Counter attemptedCounter;
-  private final Counter queuedCounter;
   private final Counter blockedCounter;
   private final Counter rejectedCounter;
 
@@ -61,13 +54,10 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   final List<SenderTask<U>> senderTasks;
   final Supplier<ValidationConfiguration> validationConfig;
   final String rateUnit;
-
-  final EvictingRingBuffer<Long> receivedStats = new EvictingRingBuffer<>(300, false, 0L);
-  private final Histogram receivedBurstRateHistogram;
-  private long receivedPrevious = 0;
-  long receivedBurstRateCurrent = 0;
-
   final Function<Object, String> serializerFunc;
+
+  final BurstTrackingCounter receivedStats;
+  final BurstTrackingCounter deliveredStats;
 
   private final AtomicLong roundRobinCounter = new AtomicLong();
 
@@ -111,43 +101,31 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
         return null;
       }
     };
-    this.senderTasks = new ArrayList<>();
-    if (senderTasks != null) {
-      this.senderTasks.addAll(senderTasks);
-    }
+    this.senderTasks = senderTasks == null ? new ArrayList<>() : new ArrayList<>(senderTasks);
     this.validationConfig = validationConfig == null ? () -> null : validationConfig;
     this.rateUnit = rateUnit == null ? "rps" : rateUnit;
 
     MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry(): new MetricsRegistry();
     String metricPrefix = entityType.toString() + "." + handle;
-    this.receivedCounter = registry.newCounter(new MetricName(metricPrefix, "", "received"));
+    MetricName receivedMetricName = new MetricName(metricPrefix, "", "received");
+    MetricName deliveredMetricName = new MetricName(metricPrefix, "", "delivered");
+    this.receivedCounter = registry.newCounter(receivedMetricName);
     this.attemptedCounter = registry.newCounter(new MetricName(metricPrefix, "", "sent"));
-    this.queuedCounter = registry.newCounter(new MetricName(metricPrefix, "", "queued"));
     this.blockedCounter = registry.newCounter(new MetricName(metricPrefix, "", "blocked"));
     this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
-    this.receivedBurstRateHistogram = metricsRegistry.newHistogram(
-        AbstractReportableEntityHandler.class,
-        "received-" + entityType.toString() + ".burst-rate." + handle);
+    this.receivedStats = new BurstTrackingCounter(receivedMetricName);
+    this.deliveredStats = new BurstTrackingCounter(deliveredMetricName);
     Metrics.newGauge(new MetricName(entityType.toString() + "." + handle + ".received", "",
         "max-burst-rate"), new Gauge<Double>() {
       @Override
       public Double value() {
-        Double maxValue = receivedBurstRateHistogram.max();
-        receivedBurstRateHistogram.clear();
-        return maxValue;
+        return receivedStats.getMaxBurstRateAndClear();
       }
     });
-    statsExecutor.scheduleAtFixedRate(() -> {
-      long received = this.receivedCounter.count();
-      this.receivedBurstRateCurrent = received - this.receivedPrevious;
-      this.receivedBurstRateHistogram.update(this.receivedBurstRateCurrent);
-      this.receivedPrevious = received;
-      receivedStats.append(this.receivedBurstRateCurrent);
-    }, 1, 1, TimeUnit.SECONDS);
-
     if (setupMetrics) {
-      this.statsExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
-      this.statsExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
+      ScheduledExecutorService statsExecutor = Executors.newSingleThreadScheduledExecutor();
+      statsExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
+      statsExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
     }
   }
 
@@ -231,14 +209,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     return receivedCounter;
   }
 
-  protected long getReceivedOneMinuteCount() {
-    return receivedStats.toList().subList(240, 300).stream().mapToLong(i -> i).sum();
-  }
-
-  protected long getReceivedFiveMinuteCount() {
-    return receivedStats.toList().stream().mapToLong(i -> i).sum();
-  }
-
   protected SenderTask<U> getTask() {
     if (senderTasks == null) {
       throw new IllegalStateException("getTask() cannot be called on null senderTasks");
@@ -260,16 +230,16 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     return senderTasks.get(nextTaskId);
   }
 
-  private String getPrintableRate(long count) {
-    // round rate to the nearest integer, unless it's < 1
-    return count < 60 ? "<1" : String.valueOf((count + 30) / 60);
-  }
-
   protected void printStats() {
     logger.info("[" + this.handle + "] " + entityType.toCapitalizedString() + " received rate: " +
-        getPrintableRate(getReceivedOneMinuteCount()) + " " + rateUnit + " (1 min), " +
-        getPrintableRate(getReceivedFiveMinuteCount() / 5) + " " + rateUnit + " (5 min), " +
-        this.receivedBurstRateCurrent + " " + rateUnit + " (current).");
+        receivedStats.getOneMinutePrintableRate() + " " + rateUnit + " (1 min), " +
+        receivedStats.getFiveMinutePrintableRate() + " " + rateUnit + " (5 min), " +
+        receivedStats.getCurrentRate() + " " + rateUnit + " (current).");
+    if (deliveredStats.getFiveMinuteCount() == 0) return;
+    logger.info("[" + this.handle + "] " + entityType.toCapitalizedString() + " delivered rate: " +
+        deliveredStats.getOneMinutePrintableRate() + " " + rateUnit + " (1 min), " +
+        deliveredStats.getFiveMinutePrintableRate() + " " + rateUnit + " (5 min), " +
+        deliveredStats.getCurrentRate() + " " + rateUnit + " (current).");
   }
 
   protected void printTotal() {

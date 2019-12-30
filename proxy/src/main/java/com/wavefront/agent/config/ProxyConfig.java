@@ -83,7 +83,7 @@ public class ProxyConfig extends Configuration {
   @Parameter(names = {"--taskQueueLevel"}, converter = TaskQueueLevelConverter.class,
       description = "Sets queueing strategy. Allowed values: MEMORY, PUSHBACK, ANY_ERROR. " +
           "Default: ANY_ERROR")
-  private TaskQueueLevel taskQueueLevel = TaskQueueLevel.PUSHBACK;
+  private TaskQueueLevel taskQueueLevel = TaskQueueLevel.ANY_ERROR;
 
   @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
       "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +

@@ -1,6 +1,7 @@
 package com.wavefront.agent.data;
 
 import com.google.common.collect.ImmutableMap;
+import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.data.ReportableEntityType;
 
 import java.util.Map;
@@ -28,11 +29,11 @@ public class EntityWrapper {
   /**
    * Get an entity-specific wrapper for proxy runtime properties.
    *
-   * @param entityType entity type to get wrapper for
+   * @param handlerKey handler key to get wrapper for
    * @return EntityProperties wrapper
    */
-  public EntityProperties get(ReportableEntityType entityType) {
-    return wrappers.get(entityType);
+  public EntityProperties get(HandlerKey handlerKey) {
+    return wrappers.get(handlerKey.getEntityType());
   }
 
   /**

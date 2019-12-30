@@ -73,7 +73,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         int taskSize = task == null ? 0 : task.weight();
         this.lastSeenTimestamp = task == null ? Long.MIN_VALUE : task.getCreatedMillis();
         int permitsNeeded = Math.min((int) rateLimiter.getRate(), taskSize);
-        if (rateLimiter.immediatelyAvailable(permitsNeeded)) {
+        if (!rateLimiter.immediatelyAvailable(permitsNeeded)) {
           // if there's less than 1 second worth of accumulated credits,
           // don't process the backlog queue
           rateLimiting = true;
@@ -123,7 +123,8 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         logger.fine("Rate limiter active, will re-attempt later to prioritize real-time traffic.");
         // if proxy rate limit exceeded, try again in 1/4 to 1/2 flush interval
         // (to introduce some degree of fairness)
-        nextFlush = (int) ((1 + Math.random()) * runtimeProperties.getPushFlushInterval() / 4);
+        nextFlush = (int) ((1 + Math.random()) * runtimeProperties.getPushFlushInterval() / 4 *
+            schedulerPriorityFactor);
       } else {
         if (successes == 0 && failures > 0) {
           backoffExponent = Math.min(4, backoffExponent + 1); // caps at 2*base^4
@@ -131,7 +132,8 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
           backoffExponent = 1;
         }
         nextFlush = (long) ((Math.random() + 1.0) * runtimeProperties.getPushFlushInterval() *
-            Math.pow(runtimeProperties.getRetryBackoffBaseSeconds(), backoffExponent));
+            Math.pow(runtimeProperties.getRetryBackoffBaseSeconds(), backoffExponent) *
+            schedulerPriorityFactor);
         logger.fine("Next run scheduled in " + nextFlush + "ms");
       }
       if (isRunning.get()) {

@@ -99,47 +99,43 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
         case POINT:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.POINT,
               PUSH_FORMAT_WAVEFRONT, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              entityProps.get(ReportableEntityType.POINT), threadNo,
-              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
-              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              entityProps.get(handlerKey), threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
+              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case DELTA_COUNTER:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.DELTA_COUNTER,
               PUSH_FORMAT_WAVEFRONT, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              entityProps.get(ReportableEntityType.POINT), threadNo,
-              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
-              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              entityProps.get(handlerKey), threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
+              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case HISTOGRAM:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.HISTOGRAM,
               PUSH_FORMAT_HISTOGRAM, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              entityProps.get(ReportableEntityType.HISTOGRAM), threadNo,
-              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
-              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              entityProps.get(handlerKey), threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
+              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case SOURCE_TAG:
           senderTask = new ReportSourceTagSenderTask(apiContainer.getSourceTagAPI(),
-              handlerKey.getHandle(), threadNo, entityProps.get(ReportableEntityType.SOURCE_TAG),
+              handlerKey.getHandle(), threadNo, entityProps.get(handlerKey),
               rateLimiterFactory.getRateLimiter(handlerKey),
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE,
               PUSH_FORMAT_TRACING, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              entityProps.get(ReportableEntityType.TRACE), threadNo,
-              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
-              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              entityProps.get(handlerKey), threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
+              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE_SPAN_LOGS:
           senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE_SPAN_LOGS,
               PUSH_FORMAT_TRACING_SPAN_LOGS, apiContainer.getProxyV2API(), proxyId,
-              handlerKey.getHandle(), entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS),
-              threadNo, rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
+              handlerKey.getHandle(), entityProps.get(handlerKey), threadNo,
+              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case EVENT:
           senderTask = new EventSenderTask(apiContainer.getEventAPI(), proxyId,
-              handlerKey.getHandle(), threadNo, entityProps.get(ReportableEntityType.EVENT),
+              handlerKey.getHandle(), threadNo, entityProps.get(handlerKey),
               rateLimiterFactory.getRateLimiter(handlerKey),
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;

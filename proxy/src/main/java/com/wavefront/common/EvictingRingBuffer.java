@@ -1,10 +1,16 @@
 package com.wavefront.common;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.AbstractCollection;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Queue;
+import java.util.RandomAccess;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -15,7 +21,7 @@ import java.util.stream.Stream;
  *
  * @author vasily@wavefont.com
  */
-public class EvictingRingBuffer<T> {
+public class EvictingRingBuffer<T> extends AbstractCollection<T> implements Queue<T>, RandomAccess {
   private final List<T> buffer;
   private final int bufferSize;
   private int headPtr;
@@ -71,6 +77,11 @@ public class EvictingRingBuffer<T> {
     return bufferSize - 1;
   }
 
+  @Override
+  public Iterator<T> iterator() {
+    return toList().iterator();
+  }
+
   /**
    * Returns number of elements in the buffer.
    *
@@ -100,8 +111,10 @@ public class EvictingRingBuffer<T> {
    * Add a value at the end of the ring buffer.
    *
    * @param value element to be appended to the end of the buffer
+   * @return true (as specified by {@link Collection#add(T)})
    */
-  public void append(T value) {
+  @Override
+  public boolean add(T value) {
     if (size() == bufferSize - 1) {
       if (strict) {
         throw new IllegalStateException("Buffer capacity exceeded: " + (bufferSize - 1));
@@ -113,6 +126,23 @@ public class EvictingRingBuffer<T> {
     }
     tailPtr = wrap(tailPtr + 1);
     buffer.set(tailPtr, value);
+    return true;
+  }
+
+  /**
+   * Inserts the specified element into this queue if it is possible to do so
+   * immediately without violating capacity restrictions.
+   *
+   * @param value element to insert
+   * @return true if the element was added, else false
+   */
+  @Override
+  public boolean offer(T value) {
+    try {
+      return add(value);
+    } catch (IllegalStateException e) {
+      return false;
+    }
   }
 
   /**
@@ -134,18 +164,66 @@ public class EvictingRingBuffer<T> {
     }
   }
 
+  @Override
+  @Nonnull
+  public Object[] toArray() {
+    if (tailPtr == headPtr) {
+      return new Object[]{};
+    } else if (tailPtr > headPtr) {
+      return buffer.subList(headPtr + 1, tailPtr + 1).toArray();
+    } else {
+      return Stream.concat(
+          buffer.subList(headPtr + 1, bufferSize).stream(),
+          buffer.subList(0, tailPtr + 1).stream()).toArray();
+    }
+  }
+
   /**
-   * Retrieves and removes an item from the head of the buffer.
+   * Retrieves and removes the head of this buffer.
    *
    * @return removed element
    * @throws NoSuchElementException if buffer is empty
    */
+  @Override
   public T remove() {
-    if (size() == 0) throw new NoSuchElementException("No elements available");
+    T t = poll();
+    if (t == null) throw new NoSuchElementException("No elements available");
+    return t;
+  }
+
+  /**
+   * Retrieves and removes the head of this buffer, or returns null if empty.
+   * @return the head of this buffer or null if empty
+   */
+  @Override
+  public T poll() {
+    if (size() == 0) return null;
     T t = get(0);
     headPtr = wrap(headPtr + 1);
     buffer.set(headPtr, null); // to allow removed value to be GC'd
     return t;
+  }
+
+  /**
+   * Retrieves, but does not remove, the head of this buffer. This method differs from peek only in
+   * that it throws an exception if empty.
+   * @return the head of this buffer
+   */
+  @Override
+  public T element() {
+    T t = peek();
+    if (t == null) throw new NoSuchElementException("No elements available");
+    return t;
+  }
+
+  /**
+   * Retrieves, but does not remove, the head of this buffer, or returns null if empty.
+   * @return the head of this buffer or null if empty
+   */
+  @Override
+  public T peek() {
+    if (size() == 0) return null;
+    return get(0);
   }
 
   private int wrap(int index) {

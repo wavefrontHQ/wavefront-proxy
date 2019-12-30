@@ -46,7 +46,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
     super(properties, backlog, handle, ReportableEntityType.EVENT, timeProvider);
     this.api = api;
     this.proxyId = proxyId;
-    this.events = events;
+    this.events = new ArrayList<>(events);
   }
 
   @Override

@@ -172,6 +172,7 @@ public abstract class AbstractAgent {
         setMemoryBufferLimitSourceTags(16 * proxyConfig.getPushFlushMaxSourceTags()).
         setMemoryBufferLimitEvents(16 * proxyConfig.getPushFlushMaxEvents()).
         build();
+    entityWrapper = new EntityWrapper(runtimeProperties);
     reportSettingAsGauge(runtimeProperties::getPushFlushInterval, "pushFlushInterval");
     reportSettingAsGauge(runtimeProperties::getItemsPerBatch, "pushFlushMaxPoints");
     reportSettingAsGauge(runtimeProperties::getItemsPerBatchHistograms, "pushFlushMaxHistograms");
@@ -257,15 +258,15 @@ public abstract class AbstractAgent {
 
       // 2. Read or create the unique Id for the daemon running on this machine.
       agentId = getOrCreateProxyId(proxyConfig);
-
-      // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       apiContainer = new APIContainer(proxyConfig);
-      proxyCheckinScheduler = new ProxyCheckinScheduler(agentId, proxyConfig, apiContainer,
-          this::processConfiguration);
-      proxyCheckinScheduler.scheduleCheckins();
 
       // Start the listening endpoints
       startListeners();
+
+      // Perform initial proxy check-in and schedule regular check-ins (once a minute)
+      proxyCheckinScheduler = new ProxyCheckinScheduler(agentId, proxyConfig, apiContainer,
+          this::processConfiguration);
+      proxyCheckinScheduler.scheduleCheckins();
 
       new Timer().schedule(
           new TimerTask() {

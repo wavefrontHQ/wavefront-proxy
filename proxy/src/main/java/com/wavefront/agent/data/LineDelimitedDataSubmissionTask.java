@@ -62,7 +62,7 @@ public class LineDelimitedDataSubmissionTask
     this.api = api;
     this.proxyId = proxyId;
     this.format = format;
-    this.payload = payload;
+    this.payload = new ArrayList<>(payload);
   }
 
   @Override

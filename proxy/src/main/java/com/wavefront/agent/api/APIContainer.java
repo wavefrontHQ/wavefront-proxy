@@ -147,6 +147,17 @@ public class APIContainer {
     if (!factory.getClasses().contains(ResteasyJackson2Provider.class)) {
       factory.registerProvider(ResteasyJackson2Provider.class);
     }
+    factory.register(GZIPDecodingInterceptor.class);
+    factory.register(proxyConfig.isGzipCompression() ?
+            GZIPEncodingInterceptor.class : DisableGZIPEncodingInterceptor.class);
+    factory.register(AcceptEncodingGZIPFilter.class);
+    factory.register((ClientRequestFilter) context -> {
+          if (context.getUri().getPath().contains("/v2/wfproxy") ||
+              context.getUri().getPath().contains("/v2/source") ||
+              context.getUri().getPath().contains("/event")) {
+            context.getHeaders().add("Authorization", "Bearer " + proxyConfig.getToken());
+          }
+        });
     return factory;
   }
 
@@ -192,17 +203,6 @@ public class APIContainer {
     ResteasyClient client = new ResteasyClientBuilder().
         httpEngine(clientHttpEngine).
         providerFactory(resteasyProviderFactory).
-        register(GZIPDecodingInterceptor.class).
-        register(proxyConfig.isGzipCompression() ?
-            GZIPEncodingInterceptor.class : DisableGZIPEncodingInterceptor.class).
-        register(AcceptEncodingGZIPFilter.class).
-        register((ClientRequestFilter) context -> {
-          if (context.getUri().getPath().contains("/v2/wfproxy") ||
-              context.getUri().getPath().contains("/v2/source") ||
-              context.getUri().getPath().contains("/event")) {
-            context.getHeaders().add("Authorization", "Bearer " + proxyConfig.getToken());
-          }
-        }).
         build();
     ResteasyWebTarget target = client.target(serverEndpointUrl);
     return target.proxy(apiClass);

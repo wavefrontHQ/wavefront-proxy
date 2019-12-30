@@ -22,30 +22,30 @@ public class EvictingRingBufferTest {
     assertEquals(5, buf.capacity());
     assertEquals(0, buf.size());
     assertArrayEquals(new Integer[0], buf.toList().toArray());
-    buf.append(1);
+    buf.add(1);
     assertEquals(1, buf.size());
     assertArrayEquals(new Integer[] {1}, buf.toList().toArray());
-    buf.append(2);
+    buf.add(2);
     assertEquals(2, buf.size());
     assertArrayEquals(new Integer[] {1, 2}, buf.toList().toArray());
-    buf.append(3);
+    buf.add(3);
     assertEquals(3, buf.size());
     assertArrayEquals(new Integer[] {1, 2, 3}, buf.toList().toArray());
     // remove 1 element from head
     assertEquals(1, buf.remove().intValue());
     assertEquals(2, buf.size());
     assertArrayEquals(new Integer[] {2, 3}, buf.toList().toArray());
-    buf.append(4);
+    buf.add(4);
     assertEquals(3, buf.size());
     assertArrayEquals(new Integer[] {2, 3, 4}, buf.toList().toArray());
-    buf.append(5);
+    buf.add(5);
     assertEquals(4, buf.size());
     assertArrayEquals(new Integer[] {2, 3, 4, 5}, buf.toList().toArray());
-    buf.append(6);
+    buf.add(6);
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[] {2, 3, 4, 5, 6}, buf.toList().toArray());
     // capacity reached, next append should evict the oldest value
-    buf.append(7);
+    buf.add(7);
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[] {3, 4, 5, 6, 7}, buf.toList().toArray());
     assertEquals(3, buf.remove().intValue());
@@ -57,28 +57,28 @@ public class EvictingRingBufferTest {
     assertEquals(5, buf.remove().intValue());
     assertEquals(2, buf.size());
     assertArrayEquals(new Integer[] {6, 7}, buf.toList().toArray());
-    buf.append(8);
+    buf.add(8);
     assertEquals(3, buf.size());
     assertArrayEquals(new Integer[] {6, 7, 8}, buf.toList().toArray());
-    buf.append(9);
+    buf.add(9);
     assertEquals(4, buf.size());
     assertArrayEquals(new Integer[] {6, 7, 8, 9}, buf.toList().toArray());
-    buf.append(10);
+    buf.add(10);
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[] {6, 7, 8, 9, 10}, buf.toList().toArray());
-    buf.append(11);
+    buf.add(11);
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[] {7, 8, 9, 10, 11}, buf.toList().toArray());
-    buf.append(12);
+    buf.add(12);
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[] {8, 9, 10, 11, 12}, buf.toList().toArray());
-    buf.append(13);
+    buf.add(13);
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[] {9, 10, 11, 12, 13}, buf.toList().toArray());
-    buf.append(14);
+    buf.add(14);
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[] {10, 11, 12, 13, 14}, buf.toList().toArray());
-    buf.append(15);
+    buf.add(15);
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[] {11, 12, 13, 14, 15}, buf.toList().toArray());
     assertEquals(11, buf.remove().intValue());
@@ -103,10 +103,10 @@ public class EvictingRingBufferTest {
     assertEquals(5, buf.capacity());
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[]{777, 777, 777, 777, 777}, buf.toList().toArray());
-    buf.append(888);
+    buf.add(888);
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[]{777, 777, 777, 777, 888}, buf.toList().toArray());
-    buf.append(999);
+    buf.add(999);
     assertEquals(5, buf.size());
     assertArrayEquals(new Integer[]{777, 777, 777, 888, 999}, buf.toList().toArray());
     assertEquals(777, buf.remove().intValue());
@@ -120,19 +120,19 @@ public class EvictingRingBufferTest {
     EvictingRingBuffer<Integer> buf = new EvictingRingBuffer<>(5, true);
     assertEquals(5, buf.capacity());
     assertEquals(0, buf.size());
-    buf.append(1);
-    buf.append(2);
-    buf.append(3);
-    buf.append(4);
-    buf.append(5);
+    buf.add(1);
+    buf.add(2);
+    buf.add(3);
+    buf.add(4);
+    buf.add(5);
     try {
-      buf.append(6); // should throw here
+      buf.add(6); // should throw here
       fail();
     } catch (IllegalStateException e) {
       // ignore
     }
     assertEquals(1, buf.remove().intValue());
-    buf.append(7);
+    buf.add(7);
     assertEquals(2, buf.remove().intValue());
     assertEquals(3, buf.remove().intValue());
     assertEquals(4, buf.remove().intValue());
@@ -145,7 +145,7 @@ public class EvictingRingBufferTest {
     EvictingRingBuffer<Integer> buf = new EvictingRingBuffer<>(5, true);
     assertEquals(0, buf.size());
     assertEquals(5, buf.capacity());
-    buf.append(1);
+    buf.add(1);
     buf.remove();
     try {
       buf.remove(); // should throw here
@@ -166,7 +166,7 @@ public class EvictingRingBufferTest {
     } catch (IndexOutOfBoundsException e) {
       // ignore
     }
-    buf.append(1);
+    buf.add(1);
     buf.get(0);
     try {
       buf.get(1);
@@ -174,7 +174,7 @@ public class EvictingRingBufferTest {
     } catch (IndexOutOfBoundsException e) {
       // ignore
     }
-    buf.append(2);
+    buf.add(2);
     buf.get(0);
     buf.get(1);
     try {
@@ -191,7 +191,7 @@ public class EvictingRingBufferTest {
     } catch (IndexOutOfBoundsException e) {
       // ignore
     }
-    buf.append(3);
+    buf.add(3);
     buf.get(0);
     buf.get(1);
     try {
@@ -200,7 +200,7 @@ public class EvictingRingBufferTest {
     } catch (IndexOutOfBoundsException e) {
       // ignore
     }
-    buf.append(4);
+    buf.add(4);
     buf.get(0);
     buf.get(1);
     buf.get(2);
@@ -210,7 +210,7 @@ public class EvictingRingBufferTest {
     } catch (IndexOutOfBoundsException e) {
       // ignore
     }
-    buf.append(5);
+    buf.add(5);
     buf.get(0);
     buf.get(1);
     buf.get(2);
