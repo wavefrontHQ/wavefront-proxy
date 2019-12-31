@@ -60,7 +60,6 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
   private final static String JAEGER_COMPONENT = "jaeger";
   private final static String DEFAULT_SOURCE = "jaeger";
 
-  private final String handle;
   private final ReportableEntityHandler<Span, String> spanHandler;
   private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   @Nullable
@@ -120,7 +119,6 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
                                @Nullable String traceJaegerApplicationName,
                                Set<String> traceDerivedCustomTagKeys) {
     super(tokenAuthenticator, healthCheckManager, handle);
-    this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;

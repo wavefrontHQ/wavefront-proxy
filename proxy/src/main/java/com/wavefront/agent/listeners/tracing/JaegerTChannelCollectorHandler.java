@@ -53,7 +53,6 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   private final static String JAEGER_COMPONENT = "jaeger";
   private final static String DEFAULT_SOURCE = "jaeger";
 
-  private final String handle;
   private final ReportableEntityHandler<Span, String> spanHandler;
   private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   @Nullable
@@ -103,7 +102,6 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
                                         boolean alwaysSampleErrors,
                                         @Nullable String traceJaegerApplicationName,
                                         Set<String> traceDerivedCustomTagKeys) {
-    this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;

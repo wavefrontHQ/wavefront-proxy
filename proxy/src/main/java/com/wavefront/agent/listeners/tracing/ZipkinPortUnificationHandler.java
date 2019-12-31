@@ -85,7 +85,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {
   private static final Logger logger = Logger.getLogger(
       ZipkinPortUnificationHandler.class.getCanonicalName());
-  private final String handle;
   private final ReportableEntityHandler<Span, String> spanHandler;
   private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   @Nullable
@@ -150,7 +149,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
                                @Nullable String traceZipkinApplicationName,
                                Set<String> traceDerivedCustomTagKeys) {
     super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, handle);
-    this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;

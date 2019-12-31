@@ -101,10 +101,11 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
                 logger.warning("Retry buffer has been purged: " + spoolFileName);
               }
             }
+            // TODO: allow configurable compression types and levels
             return new DataSubmissionQueue<>(ObjectQueue.create(
                 new QueueFile.Builder(buffer).build(),
-                new RetryTaskConverter<T>(handlerKey.getHandle(), false)), // TODO (VV): enable
-                // compression
+                new RetryTaskConverter<T>(handlerKey.getHandle(),
+                    RetryTaskConverter.CompressionType.LZ4)),
                 handlerKey.getHandle(), handlerKey.getEntityType());
           } catch (Exception e) {
             logger.severe("WF-006: Unable to open or create queue file " + spoolFileName);
