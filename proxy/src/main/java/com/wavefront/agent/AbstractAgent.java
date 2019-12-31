@@ -183,8 +183,9 @@ public abstract class AbstractAgent {
     reportSettingAsGauge(runtimeProperties::getRetryBackoffBaseSeconds, "retryBackoffBaseSeconds");
     reportSettingAsGauge(runtimeProperties::getMemoryBufferLimit, "pushMemoryBufferLimit");
 
-    Logger retryLogger = Logger.getLogger("org.apache.http.impl.execchain.RetryExec");
-    if (retryLogger.getLevel() == Level.INFO) retryLogger.setLevel(Level.WARNING);
+    System.setProperty("org.apache.commons.logging.Log",
+        "org.apache.commons.logging.impl.SimpleLog");
+    System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http", "warn");
 
     if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
       logger.severe("hostname cannot be blank! Please correct your configuration settings.");

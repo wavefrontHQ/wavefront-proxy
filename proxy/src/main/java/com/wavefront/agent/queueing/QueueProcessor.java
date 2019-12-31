@@ -61,7 +61,6 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
 
   @Override
   public void run() {
-    logger.info(">>> QueueProcessor " + handlerKey + " run()");
     if (!isRunning.get()) return;
     int successes = 0;
     int failures = 0;

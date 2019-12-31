@@ -77,6 +77,7 @@ public class EvictingRingBuffer<T> extends AbstractCollection<T> implements Queu
     return bufferSize - 1;
   }
 
+  @Nonnull
   @Override
   public Iterator<T> iterator() {
     return toList().iterator();

@@ -3,6 +3,7 @@ package com.wavefront.agent.queueing;
 import com.wavefront.agent.data.DataSubmissionTask;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
@@ -61,4 +62,13 @@ public interface TaskQueue<T extends DataSubmissionTask<T>> {
    * @return weight of the queue (null if unknown)
    */
   Long weight();
+
+  /**
+   * Returns the total number of pre-allocated but unused bytes in the backing file.
+   * May return null if not applicable.
+   *
+   * @return total number of available bytes in the file or null
+   */
+  @Nullable
+  Long getAvailableBytes();
 }

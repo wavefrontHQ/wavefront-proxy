@@ -76,7 +76,6 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
-  @SuppressWarnings("unchecked")
   public JaegerTChannelCollectorHandler(String handle,
                                         ReportableEntityHandlerFactory handlerFactory,
                                         @Nullable WavefrontSender wfSender,

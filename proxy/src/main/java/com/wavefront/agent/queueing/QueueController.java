@@ -71,7 +71,6 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
 
   @Override
   public void run() {
-    logger.info(">>> QueueController " + handle + "/" + entityType + " run()");
     // 1. grab current queue sizes (tasks count)
     queueSize.set(processorTasks.stream().mapToInt(x -> x.taskQueue.size()).sum());
 

@@ -15,6 +15,7 @@ import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 
@@ -45,12 +46,17 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
           @Override
           public Long value() {
             try {
+              long availableBytes = taskQueues.values().stream().
+                  flatMap(x -> x.values().stream()).
+                  map(TaskQueue::getAvailableBytes).
+                  filter(Objects::nonNull).mapToLong(x -> x).sum();
+
               File bufferDirectory = new File(bufferFile).getAbsoluteFile();
               while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
                 bufferDirectory = bufferDirectory.getParentFile();
               }
               if (bufferDirectory != null) {
-                return bufferDirectory.getUsableSpace();
+                return bufferDirectory.getUsableSpace() + availableBytes;
               }
             } catch (Throwable t) {
               logger.warning("cannot compute remaining space in buffer file partition: " + t);
@@ -97,7 +103,8 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
             }
             return new DataSubmissionQueue<>(ObjectQueue.create(
                 new QueueFile.Builder(buffer).build(),
-                new RetryTaskConverter<T>(handlerKey.getHandle(), true)), // TODO (VV): enable compression
+                new RetryTaskConverter<T>(handlerKey.getHandle(), false)), // TODO (VV): enable
+                // compression
                 handlerKey.getHandle(), handlerKey.getEntityType());
           } catch (Exception e) {
             logger.severe("WF-006: Unable to open or create queue file " + spoolFileName);

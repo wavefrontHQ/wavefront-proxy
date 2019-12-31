@@ -1,6 +1,5 @@
 package com.yammer.metrics.core;
 
-import com.wavefront.agent.SharedMetricsRegistry;
 import com.wavefront.common.EvictingRingBuffer;
 import com.yammer.metrics.Metrics;
 
@@ -9,12 +8,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * TODO (VV): javadoc
+ * A counter that accurately tracks burst rate, 1-minute rate and 5-minute rate, with 1s precision.
  *
  * @author vasily@wavefront.com
  */
 public class BurstTrackingCounter extends Counter implements Metric {
-  private static final SharedMetricsRegistry SHARED_REGISTRY = SharedMetricsRegistry.getInstance();
+  private static final MetricsRegistry SHARED_REGISTRY = new MetricsRegistry();
   private static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(4);
 
   private final Counter delegate;
@@ -24,14 +23,12 @@ public class BurstTrackingCounter extends Counter implements Metric {
   private final EvictingRingBuffer<Long> perSecondStats = new EvictingRingBuffer<>(300, false, 0L);
 
   /**
-   * TODO (VV): javadoc
-   *
-   * @param delegateMetricName
+   * @param metricName metric name for the counter
    */
-  public BurstTrackingCounter(MetricName delegateMetricName) {
-    this.delegate = Metrics.newCounter(delegateMetricName);
+  public BurstTrackingCounter(MetricName metricName) {
+    this.delegate = Metrics.newCounter(metricName);
     this.burstRateHistogram = SHARED_REGISTRY.newHistogram(BurstTrackingCounter.class,
-            delegateMetricName.getGroup() + "-max-burst-rate");
+            metricName.getGroup() + "-max-burst-rate");
     EXECUTOR.scheduleAtFixedRate(() -> {
       long currentCount = this.delegate.count();
       this.currentRate = currentCount - this.previousCount;
@@ -41,39 +38,80 @@ public class BurstTrackingCounter extends Counter implements Metric {
     }, 1, 1, TimeUnit.SECONDS);
   }
 
+  /**
+   * Get histogram of 1s burst rates.
+   *
+   * @return burst rate histogram
+   */
   public Histogram getBurstRateHistogram() {
     return burstRateHistogram;
   }
 
+  /**
+   * Get most recent 1-second rate.
+   *
+   * @return rate
+   */
   public long getCurrentRate() {
     return currentRate;
   }
 
+  /**
+   * Get highest burst rate and reset the histogram.
+   * .
+   * @return burst rate
+   */
   public Double getMaxBurstRateAndClear() {
     Double maxValue = burstRateHistogram.max();
     burstRateHistogram.clear();
     return maxValue;
   }
 
+  /**
+   * Get 1-minute rate in human-readable form.
+   *
+   * @return 1-minute rate as string
+   */
   public String getOneMinutePrintableRate() {
     return getPrintableRate(getOneMinuteCount());
   }
 
+  /**
+   * Get 4-minute rate in human-readable form.
+   *
+   * @return 4-minute rate as string
+   */
   public String getFiveMinutePrintableRate() {
     return getPrintableRate(getFiveMinuteCount() / 5);
   }
 
+  /**
+   * Get delta value of the counter between now and 1 minute ago.
+   *
+   * @return 1-minute delta value
+   */
   public long getOneMinuteCount() {
     return perSecondStats.toList().subList(240, 300).stream().mapToLong(i -> i).sum();
   }
 
+  /**
+   * Get delta value of the counter between now and 5 minutes ago.
+   *
+   * @return 5-minute delta value
+   */
   public long getFiveMinuteCount() {
     return perSecondStats.toList().stream().mapToLong(i -> i).sum();
   }
 
+  /**
+   * Convert a per minute count to human-readable per second rate.
+   *
+   * @param count counter value.
+   * @return human readable string
+   */
   public static String getPrintableRate(long count) {
     // round rate to the nearest integer, unless it's < 1
-    return count < 60 ? "<1" : String.valueOf((count + 30) / 60);
+    return count < 60 && count > 0 ? "<1" : String.valueOf((count + 30) / 60);
   }
 
   @Override

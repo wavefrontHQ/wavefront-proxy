@@ -11,6 +11,8 @@ import com.yammer.metrics.Metrics;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -29,9 +31,17 @@ import java.util.logging.Logger;
 public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends ObjectQueue<T>
     implements TaskQueue<T> {
   private static final Logger log = Logger.getLogger(DataSubmissionQueue.class.getCanonicalName());
+  private static final Method getAvailableBytes;
 
-  private static final int DEFAULT_BATCH_WEIGHT = 50000;
-
+  static {
+    try {
+      Class<?> classQueueFile = Class.forName("com.squareup.tape2.QueueFile");
+      getAvailableBytes = classQueueFile.getDeclaredMethod("remainingBytes");
+      getAvailableBytes.setAccessible(true);
+    } catch (ClassNotFoundException | NoSuchMethodException e) {
+      throw new AssertionError(e);
+    }
+  }
   private final ObjectQueue<T> delegate;
   private volatile T head;
 
@@ -195,6 +205,16 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
   @Override
   public Long weight() {
     return currentWeight == null ? null : currentWeight.get();
+  }
+
+  @Nullable
+  @Override
+  public Long getAvailableBytes()  {
+    try {
+      return (long) getAvailableBytes.invoke(file());
+    } catch (InvocationTargetException | IllegalAccessException e) {
+      return null;
+    }
   }
 
   private synchronized void initializeTracking() {

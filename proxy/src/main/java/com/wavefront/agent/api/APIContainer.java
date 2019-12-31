@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.JsonNodeWriter;
 import com.wavefront.agent.SSLConnectionSocketFactoryImpl;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
+import com.wavefront.agent.channel.GZIPEncodingInterceptorWithVariableCompression;
 import com.wavefront.agent.config.ProxyConfig;
 import com.wavefront.api.EventAPI;
 import com.wavefront.api.ProxyV2API;
@@ -23,11 +24,11 @@ import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
 import org.jboss.resteasy.client.jaxrs.internal.LocalResteasyProviderFactory;
 import org.jboss.resteasy.plugins.interceptors.encoding.AcceptEncodingGZIPFilter;
 import org.jboss.resteasy.plugins.interceptors.encoding.GZIPDecodingInterceptor;
-import org.jboss.resteasy.plugins.interceptors.encoding.GZIPEncodingInterceptor;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 
 import javax.ws.rs.client.ClientRequestFilter;
+import javax.ws.rs.ext.WriterInterceptor;
 import java.net.Authenticator;
 import java.net.PasswordAuthentication;
 import java.util.concurrent.TimeUnit;
@@ -148,8 +149,13 @@ public class APIContainer {
       factory.registerProvider(ResteasyJackson2Provider.class);
     }
     factory.register(GZIPDecodingInterceptor.class);
-    factory.register(proxyConfig.isGzipCompression() ?
-            GZIPEncodingInterceptor.class : DisableGZIPEncodingInterceptor.class);
+    if (proxyConfig.isGzipCompression()) {
+      WriterInterceptor interceptor =
+          new GZIPEncodingInterceptorWithVariableCompression(proxyConfig.getGzipCompressionLevel());
+      factory.register(interceptor);
+    } else {
+      factory.register(DisableGZIPEncodingInterceptor.class);
+    }
     factory.register(AcceptEncodingGZIPFilter.class);
     factory.register((ClientRequestFilter) context -> {
           if (context.getUri().getPath().contains("/v2/wfproxy") ||

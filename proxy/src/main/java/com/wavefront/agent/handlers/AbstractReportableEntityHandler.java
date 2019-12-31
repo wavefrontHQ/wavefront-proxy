@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
-import com.wavefront.agent.SharedMetricsRegistry;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
@@ -238,8 +237,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     if (deliveredStats.getFiveMinuteCount() == 0) return;
     logger.info("[" + this.handle + "] " + entityType.toCapitalizedString() + " delivered rate: " +
         deliveredStats.getOneMinutePrintableRate() + " " + rateUnit + " (1 min), " +
-        deliveredStats.getFiveMinutePrintableRate() + " " + rateUnit + " (5 min), " +
-        deliveredStats.getCurrentRate() + " " + rateUnit + " (current).");
+        deliveredStats.getFiveMinutePrintableRate() + " " + rateUnit + " (5 min)");
+    // we are not going to display current delivered rate because it _will_ be misinterpreted.
   }
 
   protected void printTotal() {

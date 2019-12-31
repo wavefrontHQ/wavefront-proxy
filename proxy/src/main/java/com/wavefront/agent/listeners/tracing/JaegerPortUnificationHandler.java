@@ -86,7 +86,6 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
   private final static String JAEGER_VALID_PATH = "/api/traces/";
   private final static String JAEGER_VALID_HTTP_METHOD = "POST";
 
-  @SuppressWarnings("unchecked")
   public JaegerPortUnificationHandler(String handle,
                                       final TokenAuthenticator tokenAuthenticator,
                                       final HealthCheckManager healthCheckManager,

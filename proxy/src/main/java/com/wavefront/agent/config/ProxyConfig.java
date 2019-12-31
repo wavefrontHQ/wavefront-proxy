@@ -551,6 +551,10 @@ public class ProxyConfig extends Configuration {
       "compression for traffic sent to Wavefront (Default: true)")
   private boolean gzipCompression = true;
 
+  @Parameter(names = {"--gzipCompressionLevel"}, description = "If gzipCompression is enabled, " +
+      "sets compression level (1-9). Higher compression levels use more CPU. Default: 4")
+  private int gzipCompressionLevel = 4;
+
   @Parameter(names = {"--soLingerTime"}, description = "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
   private Integer soLingerTime = -1;
 
@@ -1177,6 +1181,10 @@ public class ProxyConfig extends Configuration {
     return gzipCompression;
   }
 
+  public int getGzipCompressionLevel() {
+    return gzipCompressionLevel;
+  }
+
   public Integer getSoLingerTime() {
     return soLingerTime;
   }
@@ -1515,6 +1523,8 @@ public class ProxyConfig extends Configuration {
           httpMaxConnPerRoute));
       httpAutoRetries = config.getInteger("httpAutoRetries", httpAutoRetries);
       gzipCompression = config.getBoolean("gzipCompression", gzipCompression);
+      gzipCompressionLevel = config.getNumber("gzipCompressionLevel", gzipCompressionLevel, 1, 9).
+          intValue();
       soLingerTime = config.getInteger("soLingerTime", soLingerTime);
       splitPushWhenRateLimited = config.getBoolean("splitPushWhenRateLimited",
           splitPushWhenRateLimited);
