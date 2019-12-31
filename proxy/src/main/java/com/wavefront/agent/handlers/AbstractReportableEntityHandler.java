@@ -1,10 +1,8 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
-import com.wavefront.api.agent.ValidationConfiguration;
-import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.BurstTrackingCounter;
+import com.yammer.metrics.core.BurstRateTrackingCounter;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.MetricName;
@@ -17,12 +15,10 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,16 +28,18 @@ import java.util.logging.Logger;
  * @author vasily@wavefront.com
  *
  * @param <T> the type of input objects handled
+ * @param <U> the type of the output object as handled by {@link SenderTask<U>}
+ *
  */
 abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntityHandler<T, U> {
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
+  protected static final MetricsRegistry LOCAL_REGISTRY = new MetricsRegistry();
 
   private final Class<T> type;
   private final Logger blockedItemsLogger;
 
-  final ReportableEntityType entityType;
-  final String handle;
+  final HandlerKey handlerKey;
   private final Counter receivedCounter;
   private final Counter attemptedCounter;
   private final Counter blockedCounter;
@@ -51,43 +49,31 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   final RateLimiter blockedItemsLimiter;
   final Function<T, String> serializer;
   final List<SenderTask<U>> senderTasks;
-  final Supplier<ValidationConfiguration> validationConfig;
   final String rateUnit;
   final Function<Object, String> serializerFunc;
 
-  final BurstTrackingCounter receivedStats;
-  final BurstTrackingCounter deliveredStats;
+  final BurstRateTrackingCounter receivedStats;
+  final BurstRateTrackingCounter deliveredStats;
 
   private final AtomicLong roundRobinCounter = new AtomicLong();
 
   /**
-   * Base constructor.
-   *
-   * @param entityType           entity type that dictates the data flow.
-   * @param handle               handle (usually port number), that serves as an identifier
-   *                             for the metrics pipeline.
+   * @param handlerKey           metrics pipeline key (entity type + port number)
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
    *                             into the main log file.
    * @param serializer           helper function to convert objects to string. Used when writing
    *                             blocked points to logs.
    * @param senderTasks          tasks actually handling data transfer to the Wavefront endpoint.
-   * @param validationConfig     supplier for the validation configuration.
-   * @param rateUnit             optional display name for unit of measure. Default: rps
    * @param setupMetrics         Whether we should report counter metrics.
    * @param blockedItemsLogger   a {@link Logger} instance for blocked items
    */
-  AbstractReportableEntityHandler(ReportableEntityType entityType,
-                                  @Nonnull String handle,
+  AbstractReportableEntityHandler(HandlerKey handlerKey,
                                   final int blockedItemsPerBatch,
-                                  Function<T, String> serializer,
-                                  @Nullable Collection<SenderTask<U>> senderTasks,
-                                  @Nullable Supplier<ValidationConfiguration> validationConfig,
-                                  @Nullable String rateUnit,
+                                  final Function<T, String> serializer,
+                                  @Nullable final Collection<SenderTask<U>> senderTasks,
                                   boolean setupMetrics,
                                   @Nullable final Logger blockedItemsLogger) {
-    this.entityType = entityType;
-    this.blockedItemsLogger = blockedItemsLogger;
-    this.handle = handle;
+    this.handlerKey = handlerKey;
     //noinspection UnstableApiUsage
     this.blockedItemsLimiter = blockedItemsPerBatch == 0 ? null :
         RateLimiter.create(blockedItemsPerBatch / 10d);
@@ -101,30 +87,40 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       }
     };
     this.senderTasks = senderTasks == null ? new ArrayList<>() : new ArrayList<>(senderTasks);
-    this.validationConfig = validationConfig == null ? () -> null : validationConfig;
-    this.rateUnit = rateUnit == null ? "rps" : rateUnit;
+    this.rateUnit = handlerKey.getEntityType().getRateUnit();
+    this.blockedItemsLogger = blockedItemsLogger;
 
-    MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry(): new MetricsRegistry();
-    String metricPrefix = entityType.toString() + "." + handle;
+    MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
+    String metricPrefix = handlerKey.toString();
     MetricName receivedMetricName = new MetricName(metricPrefix, "", "received");
     MetricName deliveredMetricName = new MetricName(metricPrefix, "", "delivered");
     this.receivedCounter = registry.newCounter(receivedMetricName);
     this.attemptedCounter = registry.newCounter(new MetricName(metricPrefix, "", "sent"));
     this.blockedCounter = registry.newCounter(new MetricName(metricPrefix, "", "blocked"));
     this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
-    this.receivedStats = new BurstTrackingCounter(receivedMetricName);
-    this.deliveredStats = new BurstTrackingCounter(deliveredMetricName);
-    Metrics.newGauge(new MetricName(entityType.toString() + "." + handle + ".received", "",
-        "max-burst-rate"), new Gauge<Double>() {
-      @Override
-      public Double value() {
-        return receivedStats.getMaxBurstRateAndClear();
-      }
-    });
+    this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 100);
+    this.deliveredStats = new BurstRateTrackingCounter(deliveredMetricName, registry, 1000);
+    registry.newGauge(new MetricName(metricPrefix + ".received", "", "max-burst-rate"),
+        new Gauge<Double>() {
+          @Override
+          public Double value() {
+            return receivedStats.getMaxBurstRateAndClear();
+          }
+        });
     if (setupMetrics) {
-      ScheduledExecutorService statsExecutor = Executors.newSingleThreadScheduledExecutor();
-      statsExecutor.scheduleAtFixedRate(this::printStats, 10, 10, TimeUnit.SECONDS);
-      statsExecutor.scheduleAtFixedRate(this::printTotal, 1, 1, TimeUnit.MINUTES);
+      Timer timer = new Timer("stats-output-" + handlerKey);
+      timer.scheduleAtFixedRate(new TimerTask() {
+        @Override
+        public void run() {
+          printStats();
+        }
+      }, 10_000, 10_000);
+      timer.scheduleAtFixedRate(new TimerTask() {
+        @Override
+        public void run() {
+          printTotal();
+        }
+      }, 60_000, 60_000);
     }
   }
 
@@ -137,7 +133,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     }
     //noinspection UnstableApiUsage
     if (blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
-      logger.info("[" + handle + "] blocked input: [" + serializer.apply(item) + "]");
+      logger.info("[" + handlerKey.getHandle() + "] blocked input: [" + serializer.apply(item) +
+          "]");
     }
   }
 
@@ -150,7 +147,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     }
     //noinspection UnstableApiUsage
     if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
-      logger.info("[" + handle + "] blocked input: [" + message + "]");
+      logger.info("[" + handlerKey.getHandle() + "] blocked input: [" + message + "]");
     }
   }
 
@@ -161,7 +158,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     if (blockedItemsLogger != null) blockedItemsLogger.warning(line);
     //noinspection UnstableApiUsage
     if (message != null && blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
-      logger.info("[" + handle + "] blocked input: [" + message + "]");
+      logger.info("[" + handlerKey.getHandle() + "] blocked input: [" + message + "]");
     }
   }
 
@@ -230,21 +227,23 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   }
 
   protected void printStats() {
-    logger.info("[" + this.handle + "] " + entityType.toCapitalizedString() + " received rate: " +
+    logger.info("[" + handlerKey.getHandle() + "] " +
+        handlerKey.getEntityType().toCapitalizedString() + " received rate: " +
         receivedStats.getOneMinutePrintableRate() + " " + rateUnit + " (1 min), " +
         receivedStats.getFiveMinutePrintableRate() + " " + rateUnit + " (5 min), " +
         receivedStats.getCurrentRate() + " " + rateUnit + " (current).");
     if (deliveredStats.getFiveMinuteCount() == 0) return;
-    logger.info("[" + this.handle + "] " + entityType.toCapitalizedString() + " delivered rate: " +
+    logger.info("[" + handlerKey.getHandle() + "] " +
+        handlerKey.getEntityType().toCapitalizedString() + " delivered rate: " +
         deliveredStats.getOneMinutePrintableRate() + " " + rateUnit + " (1 min), " +
         deliveredStats.getFiveMinutePrintableRate() + " " + rateUnit + " (5 min)");
     // we are not going to display current delivered rate because it _will_ be misinterpreted.
   }
 
   protected void printTotal() {
-    logger.info("[" + this.handle + "] Total " + entityType.toString() +
-        " processed since start: " + this.attemptedCounter.count() + "; blocked: " +
-        this.blockedCounter.count());
+    logger.info("[" + handlerKey.getHandle() + "] " +
+        handlerKey.getEntityType().toCapitalizedString() + " processed since start: " +
+        this.attemptedCounter.count() + "; blocked: " + this.blockedCounter.count());
   }
 
   private Class<T> getType() {

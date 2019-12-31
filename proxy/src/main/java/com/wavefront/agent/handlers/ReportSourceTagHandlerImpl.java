@@ -2,7 +2,6 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import com.wavefront.data.ReportableEntityType;
 import com.wavefront.data.Validation;
 import com.wavefront.ingester.ReportSourceTagSerializer;
 
@@ -10,6 +9,8 @@ import java.util.Collection;
 import java.util.logging.Logger;
 
 import wavefront.report.ReportSourceTag;
+
+import javax.annotation.Nullable;
 
 /**
  * This class will validate parsed source tags and distribute them among SenderTask threads.
@@ -23,12 +24,12 @@ class ReportSourceTagHandlerImpl
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
 
-  public ReportSourceTagHandlerImpl(final String handle, final int blockedItemsPerBatch,
-                                    final Collection<SenderTask<ReportSourceTag>> senderTasks,
-                                    final Logger blockedItemLogger) {
-    super(ReportableEntityType.SOURCE_TAG, handle, blockedItemsPerBatch,
-        new ReportSourceTagSerializer(), senderTasks, null, null,
-        true, blockedItemLogger);
+  public ReportSourceTagHandlerImpl(
+      HandlerKey handlerKey, final int blockedItemsPerBatch,
+      @Nullable final Collection<SenderTask<ReportSourceTag>> senderTasks,
+      final Logger blockedItemLogger) {
+    super(handlerKey, blockedItemsPerBatch, new ReportSourceTagSerializer(), senderTasks, true,
+        blockedItemLogger);
   }
 
   @Override

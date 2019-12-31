@@ -70,7 +70,7 @@ public abstract class AbstractAgent {
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
-  protected ValidationConfiguration validationConfiguration = null;
+  protected ValidationConfiguration validationConfiguration = new ValidationConfiguration();
   protected ProxyRuntimeProperties runtimeProperties = null;
   protected EntityWrapper entityWrapper = null;
   protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);

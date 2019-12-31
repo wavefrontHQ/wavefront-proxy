@@ -55,9 +55,10 @@ public class ReportSourceTagHandlerTest {
     senderTaskFactory = new SenderTaskFactoryImpl(new APIContainer(null, mockAgentAPI, null),
         newAgentId, taskQueueFactory, null, null,
         new EntityWrapper(ProxyRuntimeProperties.DEFAULT_SETTINGS));
-    sourceTagHandler = new ReportSourceTagHandlerImpl("4878", 10,
-        senderTaskFactory.createSenderTasks(HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"),
-            2), blockedLogger);
+    HandlerKey handlerKey = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878");
+    sourceTagHandler =
+        new ReportSourceTagHandlerImpl(handlerKey, 10,
+            senderTaskFactory.createSenderTasks(handlerKey, 2), blockedLogger);
   }
 
   /**
@@ -94,8 +95,8 @@ public class ReportSourceTagHandlerTest {
     ReportSourceTagSenderTask task2 = EasyMock.createMock(ReportSourceTagSenderTask.class);
     tasks.add(task1);
     tasks.add(task2);
-    ReportSourceTagHandlerImpl sourceTagHandler = new ReportSourceTagHandlerImpl("4878", 10,
-        tasks, blockedLogger);
+    ReportSourceTagHandlerImpl sourceTagHandler = new ReportSourceTagHandlerImpl(
+        HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"), 10, tasks, blockedLogger);
     task1.add(sourceTag1);
     EasyMock.expectLastCall();
     task1.add(sourceTag2);

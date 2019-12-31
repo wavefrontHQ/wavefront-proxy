@@ -8,7 +8,6 @@ import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
-import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -51,8 +50,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   final ScheduledExecutorService scheduler;
   private final ExecutorService flushExecutor;
 
-  final ReportableEntityType entityType;
-  protected final String handle;
+  final HandlerKey handlerKey;
   final int threadId;
   final EntityProperties properties;
   final RecyclableRateLimiter rateLimiter;
@@ -77,39 +75,31 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   /**
    * Base constructor.
    *
-   * @param entityType        entity type that dictates the data processing flow.
-   * @param handle            handle (usually port number), that serves as an identifier
-   *                          for the metrics pipeline.
+   * @param handlerKey        pipeline handler key that dictates the data processing flow.
    * @param threadId          thread number
    * @param properties runtime properties container
    * @param rateLimiter       rate limiter
    */
-  AbstractSenderTask(ReportableEntityType entityType, String handle, int threadId,
-                     EntityProperties properties,
+  AbstractSenderTask(HandlerKey handlerKey, int threadId, EntityProperties properties,
                      @Nullable RecyclableRateLimiter rateLimiter) {
-    this.entityType = entityType;
-    this.handle = handle;
+    this.handlerKey = handlerKey;
     this.threadId = threadId;
     this.properties = properties;
     this.rateLimiter = rateLimiter == null ? UNLIMITED : rateLimiter;
     this.scheduler = Executors.newSingleThreadScheduledExecutor(
-        new NamedThreadFactory("submitter-" + entityType + "-" + handle + "-" + threadId));
+        new NamedThreadFactory("submitter-" + handlerKey.toString() + "-" + threadId));
     this.flushExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.MINUTES,
-        new SynchronousQueue<>(), new NamedThreadFactory("flush-" + entityType + "-" + handle +
+        new SynchronousQueue<>(), new NamedThreadFactory("flush-" + handlerKey.toString() +
         "-" + threadId));
 
-    this.attemptedCounter = Metrics.newCounter(
-        new MetricName(entityType + "." + handle, "", "sent"));
-    this.queuedCounter = Metrics.newCounter(
-        new MetricName(entityType + "." + handle, "", "queued"));
-    this.blockedCounter = Metrics.newCounter(
-        new MetricName(entityType + "." + handle, "", "blocked"));
-    this.receivedCounter = Metrics.newCounter(
-        new MetricName(entityType + "." + handle, "", "received"));
-    this.bufferFlushCounter = Metrics.newCounter(
-        new TaggedMetricName("buffer", "flush-count", "port", handle));
-    this.bufferCompletedFlushCounter = Metrics.newCounter(
-        new TaggedMetricName("buffer", "completed-flush-count", "port", handle));
+    this.attemptedCounter = Metrics.newCounter(new MetricName(handlerKey.toString(), "", "sent"));
+    this.queuedCounter = Metrics.newCounter(new MetricName(handlerKey.toString(), "", "queued"));
+    this.blockedCounter = Metrics.newCounter(new MetricName(handlerKey.toString(), "", "blocked"));
+    this.receivedCounter = Metrics.newCounter(new MetricName(handlerKey.toString(), "", "received"));
+    this.bufferFlushCounter = Metrics.newCounter(new TaggedMetricName("buffer", "flush-count",
+        "port", handlerKey.getHandle()));
+    this.bufferCompletedFlushCounter = Metrics.newCounter(new TaggedMetricName("buffer",
+        "completed-flush-count", "port", handlerKey.getHandle()));
   }
 
   abstract TaskResult processSingleBatch(List<T> batch);
@@ -143,9 +133,9 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         nextRunMillis = nextRunMillis / 4 + (int) (Math.random() * nextRunMillis / 4);
         //noinspection UnstableApiUsage
         if (warningMessageRateLimiter.tryAcquire()) {
-          logger.info("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter " +
-              "active (pending " + entityType + ": " + datum.size() + "), will retry in " +
-              nextRunMillis + "ms");
+          logger.info("[" + handlerKey.getHandle() + " thread " + threadId +
+              "]: WF-4 Proxy rate limiter active (pending " + handlerKey.getEntityType() + ": " +
+              datum.size() + "), will retry in " + nextRunMillis + "ms");
         }
         undoBatch(current);
       }
@@ -191,8 +181,8 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
       current = datum.subList(0, blockSize);
       datum = new ArrayList<>(datum.subList(blockSize, datum.size()));
     }
-    logger.fine("[" + handle + "] (DETAILED): sending " + current.size() + " valid " + entityType +
-        "; in memory: " + this.datum.size() +
+    logger.fine("[" + handlerKey.getHandle() + "] (DETAILED): sending " + current.size() +
+        " valid " + handlerKey.getEntityType() + "; in memory: " + this.datum.size() +
         "; total attempted: " + this.attemptedCounter.count() +
         "; total blocked: " + this.blockedCounter.count() +
         "; total queued: " + this.queuedCounter.count());
@@ -212,12 +202,13 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         // there are going to be too many points to be able to flush w/o the agent blowing up
         // drain the leftovers straight to the retry queue (i.e. to disk)
         // don't let anyone add any more to points while we're draining it.
-        logger.warning("[" + handle + " thread " + threadId + "]: WF-3 Too many pending " +
-            entityType + " (" + datum.size() + "), block size: " +
-            properties.getItemsPerBatch() + ". flushing to retry queue");
+        logger.warning("[" + handlerKey.getHandle() + " thread " + threadId +
+            "]: WF-3 Too many pending " + handlerKey.getEntityType() + " (" + datum.size() +
+            "), block size: " + properties.getItemsPerBatch() + ". flushing to retry queue");
         drainBuffersToQueue(QueueingReason.BUFFER_SIZE);
-        logger.info("[" + handle + " thread " + threadId + "]: flushing to retry queue complete. " +
-            "Pending " + entityType + ": " + datum.size());
+        logger.info("[" + handlerKey.getHandle() + " thread " + threadId +
+            "]: flushing to retry queue complete. Pending " + handlerKey.getEntityType() +
+            ": " + datum.size());
       }
     }
   };

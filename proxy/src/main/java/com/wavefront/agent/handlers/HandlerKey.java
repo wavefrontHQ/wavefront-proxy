@@ -45,7 +45,7 @@ public class HandlerKey {
 
   @Override
   public String toString() {
-    return "HandlerKey{entityType=" + this.entityType + ", handle=" + this.handle + "}";
+    return this.entityType + "." + this.handle;
   }
 
 }

@@ -129,6 +129,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.wavefront.agent.ProxyUtil.createInitializer;
 import static com.wavefront.agent.Utils.lazySupplier;
 import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.NO_RATE_LIMIT;
+import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_HISTOGRAMS_LOGGER;
+import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_POINTS_LOGGER;
 
 /**
  * Push-only Agent.
@@ -207,7 +209,7 @@ public class PushAgent extends AbstractAgent {
         queueingFactory, rateLimiterFactory, entityWrapper);
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory,
         proxyConfig.getPushBlockedSamples(), proxyConfig.getFlushThreads(),
-        () -> validationConfiguration, blockedPointsLogger, blockedHistogramsLogger,
+        validationConfiguration, blockedPointsLogger, blockedHistogramsLogger,
         blockedSpansLogger);
     healthCheckManager = new HealthCheckManagerImpl(proxyConfig.getHttpHealthCheckPath(),
         proxyConfig.getHttpHealthCheckResponseContentType(),
@@ -641,11 +643,11 @@ public class PushAgent extends AbstractAgent {
       public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
         //noinspection unchecked
         return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey,
-            k -> new DeltaCounterAccumulationHandlerImpl(handlerKey.getHandle(),
+            k -> new DeltaCounterAccumulationHandlerImpl(handlerKey,
                 proxyConfig.getPushBlockedSamples(),
                 senderTaskFactory.createSenderTasks(handlerKey, proxyConfig.getFlushThreads()),
-                () -> validationConfiguration,
-                proxyConfig.getDeltaCountersAggregationIntervalSeconds(), blockedPointsLogger));
+                validationConfiguration, proxyConfig.getDeltaCountersAggregationIntervalSeconds(),
+                blockedPointsLogger, VALID_POINTS_LOGGER));
       }
     };
 
@@ -691,8 +693,8 @@ public class PushAgent extends AbstractAgent {
                   agentDigestFactory, 0, "histogram.accumulator.distributionRelay", null);
               //noinspection unchecked
               return (ReportableEntityHandler<T, U>) new HistogramAccumulationHandlerImpl(
-                  handlerKey.getHandle(), cachedAccumulator, proxyConfig.getPushBlockedSamples(),
-                  null, () -> validationConfiguration, true, blockedHistogramsLogger);
+                  handlerKey, cachedAccumulator, proxyConfig.getPushBlockedSamples(), null,
+                  validationConfiguration, true, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER);
             }
             return delegate.getHandler(handlerKey);
           }
@@ -874,9 +876,9 @@ public class PushAgent extends AbstractAgent {
       @Override
       public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
           return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey,
-              k -> new HistogramAccumulationHandlerImpl(handlerKey.getHandle(), cachedAccumulator,
-                  proxyConfig.getPushBlockedSamples(), granularity, () -> validationConfiguration,
-                  granularity == null, blockedHistogramsLogger));
+              k -> new HistogramAccumulationHandlerImpl(handlerKey, cachedAccumulator,
+                  proxyConfig.getPushBlockedSamples(), granularity, validationConfiguration,
+                  granularity == null, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER));
       }
     };
 
@@ -1001,9 +1003,7 @@ public class PushAgent extends AbstractAgent {
       histogramDisabled.set(BooleanUtils.toBoolean(config.getHistogramDisabled()));
       traceDisabled.set(BooleanUtils.toBoolean(config.getTraceDisabled()));
       spanLogsDisabled.set(BooleanUtils.toBoolean(config.getSpanLogsDisabled()));
-      if (config.getValidationConfiguration() != null) {
-        this.validationConfiguration = config.getValidationConfiguration();
-      }
+      validationConfiguration.updateFrom(config.getValidationConfiguration());
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
     }
@@ -1035,7 +1035,7 @@ public class PushAgent extends AbstractAgent {
           if (rateLimit >= NO_RATE_LIMIT) {
             logger.warning(name + " no longer enforced by remote");
           } else {
-            if (proxyCheckinScheduler.hadSuccessfulCheckin()) {
+            if (proxyCheckinScheduler.getSuccessfulCheckinCount() > 1) {
               // this will skip printing this message upon init
               logger.warning(name + " restored to " + rateLimit);
             }

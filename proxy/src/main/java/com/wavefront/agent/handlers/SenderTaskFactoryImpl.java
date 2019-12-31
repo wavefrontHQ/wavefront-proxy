@@ -9,7 +9,6 @@ import com.wavefront.agent.queueing.QueueingFactory;
 import com.wavefront.agent.queueing.TaskSizeEstimator;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.common.TaggedMetricName;
-import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 
@@ -97,46 +96,38 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       SenderTask<?> senderTask;
       switch (handlerKey.getEntityType()) {
         case POINT:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.POINT,
-              PUSH_FORMAT_WAVEFRONT, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              entityProps.get(handlerKey), threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
-          break;
         case DELTA_COUNTER:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.DELTA_COUNTER,
-              PUSH_FORMAT_WAVEFRONT, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              entityProps.get(handlerKey), threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+          senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_WAVEFRONT,
+              apiContainer.getProxyV2API(), proxyId, entityProps.get(handlerKey), threadNo,
+              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case HISTOGRAM:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.HISTOGRAM,
-              PUSH_FORMAT_HISTOGRAM, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              entityProps.get(handlerKey), threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+          senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_HISTOGRAM,
+              apiContainer.getProxyV2API(), proxyId, entityProps.get(handlerKey), threadNo,
+              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case SOURCE_TAG:
-          senderTask = new ReportSourceTagSenderTask(apiContainer.getSourceTagAPI(),
-              handlerKey.getHandle(), threadNo, entityProps.get(handlerKey),
-              rateLimiterFactory.getRateLimiter(handlerKey),
+          senderTask = new ReportSourceTagSenderTask(handlerKey, apiContainer.getSourceTagAPI(),
+              threadNo, entityProps.get(handlerKey), rateLimiterFactory.getRateLimiter(handlerKey),
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE,
-              PUSH_FORMAT_TRACING, apiContainer.getProxyV2API(), proxyId, handlerKey.getHandle(),
-              entityProps.get(handlerKey), threadNo, rateLimiterFactory.getRateLimiter(handlerKey),
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+          senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_TRACING,
+              apiContainer.getProxyV2API(), proxyId, entityProps.get(handlerKey), threadNo,
+              rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE_SPAN_LOGS:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE_SPAN_LOGS,
-              PUSH_FORMAT_TRACING_SPAN_LOGS, apiContainer.getProxyV2API(), proxyId,
-              handlerKey.getHandle(), entityProps.get(handlerKey), threadNo,
+          senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_TRACING_SPAN_LOGS,
+              apiContainer.getProxyV2API(), proxyId, entityProps.get(handlerKey), threadNo,
               rateLimiterFactory.getRateLimiter(handlerKey), taskSizeEstimator,
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case EVENT:
-          senderTask = new EventSenderTask(apiContainer.getEventAPI(), proxyId,
-              handlerKey.getHandle(), threadNo, entityProps.get(handlerKey),
-              rateLimiterFactory.getRateLimiter(handlerKey),
+          senderTask = new EventSenderTask(handlerKey, apiContainer.getEventAPI(), proxyId,
+              threadNo, entityProps.get(handlerKey), rateLimiterFactory.getRateLimiter(handlerKey),
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         default:

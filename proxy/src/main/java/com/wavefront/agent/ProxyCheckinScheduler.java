@@ -24,6 +24,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -57,7 +58,7 @@ public class ProxyCheckinScheduler {
   protected String serverEndpointUrl = null;
   private JsonNode agentMetrics;
   private long agentMetricsCaptureTs;
-  private volatile boolean hadSuccessfulCheckin = false;
+  private AtomicLong succesfulCheckins = new AtomicLong(0);
   private volatile boolean retryCheckin = false;
 
   /**
@@ -121,7 +122,7 @@ public class ProxyCheckinScheduler {
     if (config != null) {
       logger.info("initial configuration is available, setting up proxy");
       agentConfigurationConsumer.accept(config);
-      hadSuccessfulCheckin = true;
+      succesfulCheckins.incrementAndGet();
     }
 
   }
@@ -136,12 +137,12 @@ public class ProxyCheckinScheduler {
   }
 
   /**
-   * Check whether this proxy had at least one successful check-in.
+   * Returns the number of successful check-ins.
    *
    * @return true if this proxy had at least one successful check-in.
    */
-  public boolean hadSuccessfulCheckin() {
-    return hadSuccessfulCheckin;
+  public long getSuccessfulCheckinCount() {
+    return succesfulCheckins.get();
   }
 
   /**
@@ -187,7 +188,7 @@ public class ProxyCheckinScheduler {
         case 404:
         case 405:
           String serverUrl = proxyConfig.getServer().replaceAll("/$", "");
-          if (!hadSuccessfulCheckin && !retryCheckin && !serverUrl.endsWith("/api")) {
+          if (succesfulCheckins.get() == 0 && !retryCheckin && !serverUrl.endsWith("/api")) {
             this.serverEndpointUrl = serverUrl + "/api/";
             checkinError("Possible server endpoint misconfiguration detected, attempting to use " +
                 serverEndpointUrl, null);
@@ -201,7 +202,7 @@ public class ProxyCheckinScheduler {
                   proxyConfig.getServer();
           checkinError("HTTP " + ex.getResponse().getStatus() + ": Misconfiguration detected, " +
               "please verify that your server setting is correct", secondaryMessage);
-          if (!hadSuccessfulCheckin) {
+          if (succesfulCheckins.get() == 0) {
             logger.warning("Aborting start-up");
             System.exit(-5);
           }
@@ -226,8 +227,8 @@ public class ProxyCheckinScheduler {
       }
       if (rootCause instanceof ConnectException ||
           rootCause instanceof SocketTimeoutException) {
-        checkinError("Unable to connect to " + proxyConfig.getServer() + ": " + rootCause.getMessage(),
-            "Please verify your network/firewall settings!");
+        checkinError("Unable to connect to " + proxyConfig.getServer() + ": " +
+                rootCause.getMessage(), "Please verify your network/firewall settings!");
         return null;
       }
       checkinError("Request processing error: Unable to retrieve proxy configuration!",
@@ -264,7 +265,7 @@ public class ProxyCheckinScheduler {
   }
 
   private void checkinError(String errMsg, @Nullable String secondErrMsg) {
-    if (hadSuccessfulCheckin) {
+    if (succesfulCheckins.get() == 0) {
       logger.severe(errMsg + (secondErrMsg == null ? "" : " " + secondErrMsg));
     } else {
       logger.severe(Strings.repeat("*", errMsg.length()));

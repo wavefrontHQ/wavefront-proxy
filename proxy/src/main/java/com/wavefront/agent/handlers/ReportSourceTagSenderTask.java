@@ -8,7 +8,6 @@ import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
-import com.wavefront.data.ReportableEntityType;
 import wavefront.report.ReportSourceTag;
 
 import javax.annotation.Nullable;
@@ -43,18 +42,17 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
    * Create new instance
    *
    * @param proxyAPI    handles interaction with Wavefront servers as well as queueing.
-   * @param handle      handle (usually port number), that serves as an identifier
-   *                    for the metrics pipeline.
+   * @param handlerKey  metrics pipeline handler key.
    * @param threadId    thread number.
    * @param properties  container for mutable proxy settings.
    * @param rateLimiter rate limiter to control outbound point rate.
    * @param backlog     backing queue
    */
-  ReportSourceTagSenderTask(SourceTagAPI proxyAPI, String handle, int threadId,
-                            EntityProperties properties,
+  ReportSourceTagSenderTask(HandlerKey handlerKey, SourceTagAPI proxyAPI,
+                            int threadId, EntityProperties properties,
                             @Nullable RecyclableRateLimiter rateLimiter,
                             TaskQueue<SourceTagSubmissionTask> backlog) {
-    super(ReportableEntityType.SOURCE_TAG, handle, threadId, properties, rateLimiter);
+    super(handlerKey, threadId, properties, rateLimiter);
     this.proxyAPI = proxyAPI;
     this.backlog = backlog;
     this.scheduler.schedule(this, properties.getPushFlushInterval(), TimeUnit.MILLISECONDS);
@@ -77,7 +75,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
         if (rateLimiter == null || rateLimiter.tryAcquire()) {
           ReportSourceTag tag = iterator.next();
           SourceTagSubmissionTask task = new SourceTagSubmissionTask(proxyAPI, properties,
-              backlog, handle, tag, null);
+              backlog, handlerKey.getHandle(), tag, null);
           TaskResult result = task.execute();
           this.attemptedCounter.inc();
           switch (result) {
@@ -105,9 +103,9 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
           nextRunMillis = (int) (1 + Math.random()) * nextRunMillis / 4;
           //noinspection UnstableApiUsage
           if (warningMessageRateLimiter.tryAcquire()) {
-            logger.info("[" + handle + " thread " + threadId + "]: WF-4 Proxy rate limiter " +
-                "active (pending " + entityType + ": " + datum.size() + "), will retry in " +
-                nextRunMillis + "ms");
+            logger.info("[" + handlerKey.getHandle() + " thread " + threadId +
+                "]: WF-4 Proxy rate limiter " + "active (pending " + handlerKey.getEntityType() +
+                ": " + datum.size() + "), will retry in " + nextRunMillis + "ms");
           }
           return;
         }
@@ -124,7 +122,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
   void flushSingleBatch(List<ReportSourceTag> batch, QueueingReason reason) {
     for (ReportSourceTag tag : batch) {
       SourceTagSubmissionTask task = new SourceTagSubmissionTask(proxyAPI, properties, backlog,
-          handle, tag, null);
+          handlerKey.getHandle(), tag, null);
       task.enqueue(reason);
     }
   }

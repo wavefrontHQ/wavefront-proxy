@@ -8,6 +8,7 @@ import com.wavefront.agent.data.TaskInjector;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.handlers.HandlerKey;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -18,9 +19,9 @@ import java.util.logging.Logger;
 import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.UNLIMITED;
 
 /**
- * A queue processor thread.
+ * A thread responsible for processing the backlog from a single task queue.
  *
- * @param <T>
+ * @param <T> type of queued tasks
  *
  * @author vasily@wavefront.com
  */
@@ -33,8 +34,8 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   protected final TaskInjector<T> taskInjector;
   protected final EntityProperties runtimeProperties;
   protected final RecyclableRateLimiter rateLimiter;
-  private volatile long lastSeenTimestamp = Long.MIN_VALUE;
-  private volatile double schedulerPriorityFactor = 1.0d;
+  private volatile long headTaskTimestamp = Long.MIN_VALUE;
+  private volatile double schedulerTimingFactor = 1.0d;
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private int backoffExponent = 1;
 
@@ -46,7 +47,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
    * @param rateLimiter              optional rate limiter
    */
   public QueueProcessor(final HandlerKey handlerKey,
-                        final TaskQueue<T> taskQueue,
+                        @Nonnull final TaskQueue<T> taskQueue,
                         final TaskInjector<T> taskInjector,
                         final ScheduledExecutorService scheduler,
                         final EntityProperties runtimeProperties,
@@ -70,7 +71,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         if (!isRunning.get() || Thread.currentThread().isInterrupted()) return;
         T task = taskQueue.peek();
         int taskSize = task == null ? 0 : task.weight();
-        this.lastSeenTimestamp = task == null ? Long.MIN_VALUE : task.getCreatedMillis();
+        this.headTaskTimestamp = task == null ? Long.MIN_VALUE : task.getCreatedMillis();
         int permitsNeeded = Math.min((int) rateLimiter.getRate(), taskSize);
         if (!rateLimiter.immediatelyAvailable(permitsNeeded)) {
           // if there's less than 1 second worth of accumulated credits,
@@ -110,7 +111,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         } finally {
           if (removeTask) {
             taskQueue.remove();
-            if (taskQueue.size() == 0) schedulerPriorityFactor = 1.0d;
+            if (taskQueue.size() == 0) schedulerTimingFactor = 1.0d;
           }
         }
       }
@@ -123,7 +124,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         // if proxy rate limit exceeded, try again in 1/4 to 1/2 flush interval
         // (to introduce some degree of fairness)
         nextFlush = (int) ((1 + Math.random()) * runtimeProperties.getPushFlushInterval() / 4 *
-            schedulerPriorityFactor);
+            schedulerTimingFactor);
       } else {
         if (successes == 0 && failures > 0) {
           backoffExponent = Math.min(4, backoffExponent + 1); // caps at 2*base^4
@@ -132,7 +133,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         }
         nextFlush = (long) ((Math.random() + 1.0) * runtimeProperties.getPushFlushInterval() *
             Math.pow(runtimeProperties.getRetryBackoffBaseSeconds(), backoffExponent) *
-            schedulerPriorityFactor);
+            schedulerTimingFactor);
         logger.fine("Next run scheduled in " + nextFlush + "ms");
       }
       if (isRunning.get()) {
@@ -153,11 +154,29 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
     isRunning.set(false);
   }
 
-  public long getLastSeenTimestamp() {
-    return this.lastSeenTimestamp;
+  /**
+   * Returns the timestamp of the task at the head of the queue.
+   * @return timestamp
+   */
+  long getHeadTaskTimestamp() {
+    return this.headTaskTimestamp;
   }
 
-  public void setTimingFactor(double priorityFactor) {
-    this.schedulerPriorityFactor = priorityFactor;
+  /**
+   * Returns the backing queue.
+   * @return task queue
+   */
+  TaskQueue<T> getTaskQueue() {
+    return this.taskQueue;
+  }
+
+  /**
+   * Adjusts the timing multiplier for this processor. If the timingFactor value is lower than 1,
+   * delays between cycles get shorter which results in higher priority for the queue;
+   * if it's higher than 1, delays get longer, which, naturally, lowers the priority.
+   * @param timingFactor timing multiplier
+   */
+  void setTimingFactor(double timingFactor) {
+    this.schedulerTimingFactor = timingFactor;
   }
 }

@@ -21,7 +21,7 @@ public interface TaskQueue<T extends DataSubmissionTask<T>> {
    *
    * @return task object
    */
-  T peek();// throws IOException;
+  T peek();
 
   /**
    * Add a task to the end of the queue
@@ -61,6 +61,7 @@ public interface TaskQueue<T extends DataSubmissionTask<T>> {
    *
    * @return weight of the queue (null if unknown)
    */
+  @Nullable
   Long weight();
 
   /**

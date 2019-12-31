@@ -3,21 +3,17 @@ package com.wavefront.agent.handlers;
 import com.wavefront.agent.histogram.Utils;
 import com.wavefront.agent.histogram.accumulator.Accumulator;
 import com.wavefront.api.agent.ValidationConfiguration;
-import com.wavefront.data.Validation;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-
-import org.apache.commons.lang.math.NumberUtils;
-
-import java.util.Random;
-import java.util.function.Supplier;
-import java.util.logging.Logger;
-
-import javax.annotation.Nullable;
-
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.wavefront.agent.Utils.lazySupplier;
 import static com.wavefront.agent.histogram.Utils.Granularity.fromMillis;
@@ -31,11 +27,6 @@ import static com.wavefront.data.Validation.validatePoint;
  * @author vasily@wavefront.com
  */
 public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
-  private static final Logger logger = Logger.getLogger(
-      AbstractReportableEntityHandler.class.getCanonicalName());
-  private static final Logger validPointsLogger = Logger.getLogger("RawValidPoints");
-  private static final Random RANDOM = new Random();
-
   private final Accumulator digests;
   private final Utils.Granularity granularity;
   // Metrics
@@ -46,16 +37,10 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
   private final Supplier<com.yammer.metrics.core.Histogram> histogramBinCount;
   private final Supplier<com.yammer.metrics.core.Histogram> histogramSampleCount;
 
-  private final double logSampleRate;
-  /**
-   * Value of system property wavefront.proxy.logpoints (for backwards compatibility)
-   */
-  private final boolean logPointsFlag;
-
   /**
    * Creates a new instance
    *
-   * @param handle               handle/port number
+   * @param handlerKey           pipeline handler key
    * @param digests              accumulator for storing digests
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
    *                             into the main log file.
@@ -63,14 +48,16 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
    * @param validationConfig     Supplier for the ValidationConfiguration
    * @param isHistogramInput     Whether expected input data for this handler is histograms.
    */
-  public HistogramAccumulationHandlerImpl(
-      final String handle, final Accumulator digests, final int blockedItemsPerBatch,
-      @Nullable Utils.Granularity granularity,
-      @Nullable final Supplier<ValidationConfiguration> validationConfig,
-      boolean isHistogramInput,
-      final Logger blockedItemLogger) {
-    super(handle, blockedItemsPerBatch, null, validationConfig, isHistogramInput,
-        false, blockedItemLogger);
+  public HistogramAccumulationHandlerImpl(final HandlerKey handlerKey,
+                                          final Accumulator digests,
+                                          final int blockedItemsPerBatch,
+                                          @Nullable Utils.Granularity granularity,
+                                          @Nonnull final ValidationConfiguration validationConfig,
+                                          boolean isHistogramInput,
+                                          @Nullable final Logger blockedItemLogger,
+                                          @Nullable final Logger validItemsLogger) {
+    super(handlerKey, blockedItemsPerBatch, null, validationConfig, isHistogramInput,
+        blockedItemLogger, validItemsLogger);
     this.digests = digests;
     this.granularity = granularity;
     String metricNamespace = "histogram.accumulator." + granularityToString(granularity);
@@ -86,21 +73,11 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
         Metrics.newHistogram(new MetricName(metricNamespace, "", "histogram_bins")));
     histogramSampleCount = lazySupplier(() ->
         Metrics.newHistogram(new MetricName(metricNamespace, "", "histogram_samples")));
-    String logPointsProperty = System.getProperty("wavefront.proxy.logpoints");
-    this.logPointsFlag = logPointsProperty != null && logPointsProperty.equalsIgnoreCase("true");
-    String logPointsSampleRateProperty =
-        System.getProperty("wavefront.proxy.logpoints.sample-rate");
-    this.logSampleRate = NumberUtils.isNumber(logPointsSampleRateProperty) ?
-        Double.parseDouble(logPointsSampleRateProperty) : 1.0d;
   }
 
   @Override
   protected void reportInternal(ReportPoint point) {
-    if (validationConfig.get() == null) {
-      validatePoint(point, handle, Validation.Level.NUMERIC_ONLY);
-    } else {
-      validatePoint(point, validationConfig.get());
-    }
+    validatePoint(point, validationConfig);
 
     if (point.getValue() instanceof Double) {
       if (granularity == null) {
@@ -138,13 +115,8 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       digests.put(histogramKey, value);
     }
 
-    refreshValidPointsLoggerState();
-    if ((logData || logPointsFlag) &&
-        (logSampleRate >= 1.0d || (logSampleRate > 0.0d && RANDOM.nextDouble() < logSampleRate))) {
-      // we log valid points only if system property wavefront.proxy.logpoints is true or
-      // RawValidPoints log level is set to "ALL". this is done to prevent introducing overhead and
-      // accidentally logging points to the main log, Additionally, honor sample rate limit, if set.
-      validPointsLogger.info(serializer.apply(point));
+    if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
+      validItemsLogger.info(serializer.apply(point));
     }
   }
 }
