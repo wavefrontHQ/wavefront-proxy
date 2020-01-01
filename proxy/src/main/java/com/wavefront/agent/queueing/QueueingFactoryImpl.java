@@ -87,7 +87,7 @@ public class QueueingFactoryImpl implements QueueingFactory {
         mapToObj(i -> (QueueProcessor<T>) getQueueProcessor(handlerKey, executor, i)).
         collect(Collectors.toList());
     return (QueueController<T>) queueControllers.computeIfAbsent(handlerKey, x ->
-      new QueueController<>(handlerKey, queueProcessors));
+      new QueueController<>(handlerKey, queueProcessors, null));
   }
 
   @SuppressWarnings("unchecked")

@@ -2,7 +2,7 @@ package com.wavefront.agent.listeners;
 
 import com.google.common.collect.Lists;
 
-import com.wavefront.agent.Utils;
+import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;

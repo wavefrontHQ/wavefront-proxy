@@ -56,6 +56,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   final BurstRateTrackingCounter deliveredStats;
 
   private final AtomicLong roundRobinCounter = new AtomicLong();
+  @SuppressWarnings("UnstableApiUsage")
+  private final RateLimiter noDataStatsRateLimiter = RateLimiter.create(1.0d / 60);
 
   /**
    * @param handlerKey           metrics pipeline key (entity type + port number)
@@ -98,7 +100,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     this.attemptedCounter = registry.newCounter(new MetricName(metricPrefix, "", "sent"));
     this.blockedCounter = registry.newCounter(new MetricName(metricPrefix, "", "blocked"));
     this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
-    this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 100);
+    this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 1000);
     this.deliveredStats = new BurstRateTrackingCounter(deliveredMetricName, registry, 1000);
     registry.newGauge(new MetricName(metricPrefix + ".received", "", "max-burst-rate"),
         new Gauge<Double>() {
@@ -227,6 +229,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   }
 
   protected void printStats() {
+    // if we received no data over the last 5 minutes, only print stats once a minute
+    if (receivedStats.getFiveMinuteCount() == 0 && !noDataStatsRateLimiter.tryAcquire()) return;
     logger.info("[" + handlerKey.getHandle() + "] " +
         handlerKey.getEntityType().toCapitalizedString() + " received rate: " +
         receivedStats.getOneMinutePrintableRate() + " " + rateUnit + " (1 min), " +

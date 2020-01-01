@@ -1,7 +1,7 @@
 package com.wavefront.agent.queueing;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.Managed;
+import com.wavefront.common.Managed;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.data.TaskInjector;
@@ -34,7 +34,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   protected final TaskInjector<T> taskInjector;
   protected final EntityProperties runtimeProperties;
   protected final RecyclableRateLimiter rateLimiter;
-  private volatile long headTaskTimestamp = Long.MIN_VALUE;
+  private volatile long headTaskTimestamp = Long.MAX_VALUE;
   private volatile double schedulerTimingFactor = 1.0d;
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private int backoffExponent = 1;
@@ -71,7 +71,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         if (!isRunning.get() || Thread.currentThread().isInterrupted()) return;
         T task = taskQueue.peek();
         int taskSize = task == null ? 0 : task.weight();
-        this.headTaskTimestamp = task == null ? Long.MIN_VALUE : task.getCreatedMillis();
+        this.headTaskTimestamp = task == null ? Long.MAX_VALUE : task.getEnqueuedMillis();
         int permitsNeeded = Math.min((int) rateLimiter.getRate(), taskSize);
         if (!rateLimiter.immediatelyAvailable(permitsNeeded)) {
           // if there's less than 1 second worth of accumulated credits,
@@ -115,6 +115,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
           }
         }
       }
+      if (taskQueue.size() == 0) headTaskTimestamp = Long.MAX_VALUE;
     } catch (Throwable ex) {
       logger.log(Level.WARNING, "Unexpected exception", ex);
     } finally {

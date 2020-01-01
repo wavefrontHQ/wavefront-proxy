@@ -1,5 +1,6 @@
 package com.wavefront.agent.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
@@ -23,6 +24,7 @@ import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_SAV
  *
  * @author vasily@wavefront.com
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTagSubmissionTask> {
   private transient SourceTagAPI api;

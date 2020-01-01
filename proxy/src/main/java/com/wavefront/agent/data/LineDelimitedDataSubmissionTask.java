@@ -1,5 +1,6 @@
 package com.wavefront.agent.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
@@ -23,6 +24,7 @@ import java.util.logging.Logger;
  *
  * @author vasily@wavefront.com
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class LineDelimitedDataSubmissionTask
     extends AbstractDataSubmissionTask<LineDelimitedDataSubmissionTask> {

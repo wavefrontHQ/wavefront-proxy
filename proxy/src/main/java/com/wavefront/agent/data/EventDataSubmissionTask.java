@@ -1,5 +1,6 @@
 package com.wavefront.agent.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.data.EntityWrapper.EntityProperties;
@@ -20,6 +21,7 @@ import java.util.function.Supplier;
  *
  * @author vasily@wavefront.com
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDataSubmissionTask> {
   private transient EventAPI api;

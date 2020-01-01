@@ -38,7 +38,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.util.CharsetUtil;
 
-import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.common.Utils.lazySupplier;
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;

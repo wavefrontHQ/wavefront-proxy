@@ -16,19 +16,20 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.management.NotificationEmitter;
 
-import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.common.Utils.lazySupplier;
 
 /**
- * Logic around OoM protection logic that drains memory buffers on MEMORY_THRESHOLD_EXCEEDED notifications,
- * extracted from AbstractAgent.
+ * Logic around OoM protection logic that drains memory buffers on
+ * MEMORY_THRESHOLD_EXCEEDED notifications, extracted from AbstractAgent.
  *
  * @author vasily@wavefront.com
  */
 public class ProxyMemoryGuard {
   private static final Logger logger = Logger.getLogger(ProxyMemoryGuard.class.getCanonicalName());
 
-  private final Supplier<Counter> drainBuffersCount = lazySupplier(() -> Metrics.newCounter(new TaggedMetricName("buffer",
-      "flush-count", "reason", "heapUsageThreshold")));
+  private final Supplier<Counter> drainBuffersCount = lazySupplier(() ->
+      Metrics.newCounter(new TaggedMetricName("buffer", "flush-count",
+          "reason", "heapUsageThreshold")));
 
   /**
    * Set up the memory guard.

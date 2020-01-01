@@ -58,7 +58,7 @@ public class LogsIngestionConfigManager {
         });
 
     // Force reload every N seconds.
-    new Timer().schedule(new TimerTask() {
+    new Timer("Timer-logsingestion-configmanager").schedule(new TimerTask() {
       @Override
       public void run() {
         try {

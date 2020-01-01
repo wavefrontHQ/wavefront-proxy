@@ -2,7 +2,7 @@ package com.wavefront.agent.histogram;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import com.wavefront.agent.TimeProvider;
+import com.wavefront.common.TimeProvider;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.Accumulator;
 import com.yammer.metrics.Metrics;

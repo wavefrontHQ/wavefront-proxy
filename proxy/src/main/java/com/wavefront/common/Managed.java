@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.common;
 
 /**
  * Background process that can be started and stopped.

@@ -2,7 +2,7 @@ package com.wavefront.agent.histogram.accumulator;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.tdunning.math.stats.AgentDigest;
-import com.wavefront.agent.TimeProvider;
+import com.wavefront.common.TimeProvider;
 
 /**
  * A simple factory for creating {@link AgentDigest} objects with a specific compression level

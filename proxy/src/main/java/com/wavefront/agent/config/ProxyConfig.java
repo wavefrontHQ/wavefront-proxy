@@ -20,8 +20,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import static com.wavefront.agent.Utils.getLocalHostName;
-import static com.wavefront.agent.Utils.getBuildVersion;
+import static com.wavefront.common.Utils.getLocalHostName;
+import static com.wavefront.common.Utils.getBuildVersion;
 import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE;
 import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_EVENTS;
 import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_HISTOGRAMS;

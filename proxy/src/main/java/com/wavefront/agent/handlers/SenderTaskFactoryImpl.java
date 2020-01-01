@@ -1,6 +1,6 @@
 package com.wavefront.agent.handlers;
 
-import com.wavefront.agent.Managed;
+import com.wavefront.common.Managed;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.EntityWrapper;
 import com.wavefront.agent.data.QueueingReason;

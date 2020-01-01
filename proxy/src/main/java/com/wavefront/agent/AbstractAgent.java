@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.wavefront.agent.ProxyUtil.getOrCreateProxyId;
-import static com.wavefront.agent.Utils.getBuildVersion;
+import static com.wavefront.common.Utils.getBuildVersion;
 import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
 import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
 
@@ -261,15 +261,15 @@ public abstract class AbstractAgent {
       agentId = getOrCreateProxyId(proxyConfig);
       apiContainer = new APIContainer(proxyConfig);
 
-      // Start the listening endpoints
-      startListeners();
-
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       proxyCheckinScheduler = new ProxyCheckinScheduler(agentId, proxyConfig, apiContainer,
           this::processConfiguration);
       proxyCheckinScheduler.scheduleCheckins();
 
-      new Timer().schedule(
+      // Start the listening endpoints
+      startListeners();
+
+      new Timer("Timer-startup").schedule(
           new TimerTask() {
             @Override
             public void run() {

@@ -1,7 +1,8 @@
 package com.wavefront.agent.queueing;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.wavefront.agent.Managed;
+import com.google.common.util.concurrent.RateLimiter;
+import com.wavefront.common.Managed;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.common.Pair;
@@ -9,6 +10,7 @@ import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 
+import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Timer;
@@ -16,6 +18,7 @@ import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -33,25 +36,34 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
 
   // min difference in queued timestamps for the schedule adjuster to kick in
   private static final int TIME_DIFF_THRESHOLD_SECS = 60;
+  private static final int REPORT_QUEUE_STATS_DELAY_SECS = 15;
   private static final double MIN_ADJ_FACTOR = 0.25d;
   private static final double MAX_ADJ_FACTOR = 1.5d;
 
   protected final HandlerKey handlerKey;
   protected final List<QueueProcessor<T>> processorTasks;
+  protected final Supplier<Long> timeProvider;
   protected final Timer timer;
+  @SuppressWarnings("UnstableApiUsage")
+  protected final RateLimiter reportRateLimiter = RateLimiter.create(0.1);
 
   private AtomicLong currentWeight = null;
   private final AtomicInteger queueSize = new AtomicInteger();
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
+  private boolean outputQueueingStats = false;
 
   /**
    * @param handlerKey     Pipeline handler key
    * @param processorTasks List of {@link QueueProcessor} tasks responsible for processing the
    *                       backlog.
+   * @param timeProvider   current time provider (in millis).
    */
-  public QueueController(HandlerKey handlerKey, List<QueueProcessor<T>> processorTasks) {
+  public QueueController(HandlerKey handlerKey,
+                         List<QueueProcessor<T>> processorTasks,
+                         @Nullable Supplier<Long> timeProvider) {
     this.handlerKey = handlerKey;
     this.processorTasks = processorTasks;
+    this.timeProvider = timeProvider == null ? System::currentTimeMillis : timeProvider;
     this.timer = new Timer("timer-queuedservice-" + handlerKey.toString());
 
     Metrics.newGauge(new TaggedMetricName("buffer", "task-count", "port", handlerKey.getHandle()),
@@ -66,7 +78,7 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
   @Override
   public void run() {
     // 1. grab current queue sizes (tasks count)
-    queueSize.set(processorTasks.stream().mapToInt(x -> x.taskQueue.size()).sum());
+    queueSize.set(processorTasks.stream().mapToInt(x -> x.getTaskQueue().size()).sum());
 
     // 2. grab queue sizes (points/etc count)
     Long totalWeight = 0L;
@@ -91,7 +103,17 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
       currentWeight.set(totalWeight);
     }
 
+    // 3. adjust timing
     adjustTimingFactors(processorTasks);
+
+    // 4. print stats when there's backlog
+    if (queueSize.get() > 0) {
+      printQueueStats();
+    } else if (outputQueueingStats) {
+      outputQueueingStats = false;
+      logger.info("[" + handlerKey.getHandle() + "] " + handlerKey.getEntityType() +
+          " backlog has been cleared!");
+    }
   }
 
   /**
@@ -108,7 +130,7 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
       List<QueueProcessor<T>> processors) {
     List<Pair<QueueProcessor<T>, Long>> sortedProcessors = processors.stream().
         map(x -> new Pair<>(x, x.getHeadTaskTimestamp())).
-        filter(x -> x._2 > Long.MIN_VALUE).
+        filter(x -> x._2 < Long.MAX_VALUE).
         sorted(Comparator.comparing(o -> o._2)).
         collect(Collectors.toList());
     if (sortedProcessors.size() > 1) {
@@ -122,6 +144,22 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
       }
     }
   }
+
+  private void printQueueStats() {
+      long oldestTaskTimestamp = processorTasks.stream().
+          filter(x -> x.getTaskQueue().size() > 0).
+          mapToLong(QueueProcessor::getHeadTaskTimestamp).
+          min().orElse(Long.MAX_VALUE);
+      //noinspection UnstableApiUsage
+      if ((oldestTaskTimestamp < timeProvider.get() - REPORT_QUEUE_STATS_DELAY_SECS * 1000) &&
+          (reportRateLimiter.tryAcquire())) {
+        outputQueueingStats = true;
+        String queueWeightStr = currentWeight == null ? "" :
+            ", " + currentWeight.get() + " " + handlerKey.getEntityType();
+        logger.info("[" + handlerKey.getHandle() + "] " + handlerKey.getEntityType() +
+            " backlog status: " + queueSize.get() + " tasks" + queueWeightStr);
+      }
+    }
 
   @Override
   public void start() {

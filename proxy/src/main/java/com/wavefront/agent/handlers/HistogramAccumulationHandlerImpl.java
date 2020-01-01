@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.common.Utils.lazySupplier;
 import static com.wavefront.agent.histogram.Utils.Granularity.fromMillis;
 import static com.wavefront.agent.histogram.Utils.Granularity.granularityToString;
 import static com.wavefront.data.Validation.validatePoint;
@@ -56,7 +56,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
                                           boolean isHistogramInput,
                                           @Nullable final Logger blockedItemLogger,
                                           @Nullable final Logger validItemsLogger) {
-    super(handlerKey, blockedItemsPerBatch, null, validationConfig, isHistogramInput,
+    super(handlerKey, blockedItemsPerBatch, null, validationConfig, !isHistogramInput,
         blockedItemLogger, validItemsLogger);
     this.digests = digests;
     this.granularity = granularity;

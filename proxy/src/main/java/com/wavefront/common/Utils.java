@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.common;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -6,7 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.RateLimiter;
 
-import com.wavefront.agent.Utils;
+import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;

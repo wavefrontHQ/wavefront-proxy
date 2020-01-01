@@ -24,13 +24,14 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.wavefront.agent.ProxyUtil.getProcessId;
-import static com.wavefront.agent.Utils.getBuildVersion;
+import static com.wavefront.common.Utils.getBuildVersion;
 
 /**
  * Registers the proxy with the back-end, sets up regular "check-ins" (every minute),
@@ -40,6 +41,7 @@ import static com.wavefront.agent.Utils.getBuildVersion;
  */
 public class ProxyCheckinScheduler {
   private static final Logger logger = Logger.getLogger("proxy");
+  private static final int MAX_CHECKIN_ATTEMPTS = 5;
 
   /**
    * A unique process ID value (PID, when available, or a random hexadecimal string), assigned
@@ -56,8 +58,8 @@ public class ProxyCheckinScheduler {
   private final Runnable updateAgentMetrics;
 
   protected String serverEndpointUrl = null;
-  private JsonNode agentMetrics;
-  private long agentMetricsCaptureTs;
+  private volatile JsonNode agentMetrics;
+  private AtomicInteger retries = new AtomicInteger(0);
   private AtomicLong succesfulCheckins = new AtomicLong(0);
   private volatile boolean retryCheckin = false;
 
@@ -103,9 +105,9 @@ public class ProxyCheckinScheduler {
         Map<String, String> pointTags = new HashMap<>(proxyConfig.getAgentMetricsPointTags());
         pointTags.put("processId", processId);
         synchronized (agentConfigurationExecutor) {
-          agentMetricsCaptureTs = System.currentTimeMillis();
           agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
               true, true, true, pointTags, null);
+          retries.set(0);
         }
       } catch (Exception ex) {
         logger.log(Level.SEVERE, "Could not generate proxy metrics", ex);
@@ -124,7 +126,6 @@ public class ProxyCheckinScheduler {
       agentConfigurationConsumer.accept(config);
       succesfulCheckins.incrementAndGet();
     }
-
   }
 
   /**
@@ -160,19 +161,18 @@ public class ProxyCheckinScheduler {
   private AgentConfiguration checkin() {
     AgentConfiguration newConfig;
     JsonNode agentMetricsWorkingCopy;
-    long agentMetricsCaptureTsWorkingCopy;
     synchronized(agentConfigurationExecutor) {
       if (agentMetrics == null) return null;
       agentMetricsWorkingCopy = agentMetrics;
-      agentMetricsCaptureTsWorkingCopy = agentMetricsCaptureTs;
       agentMetrics = null;
+      if (retries.incrementAndGet() > MAX_CHECKIN_ATTEMPTS) return null;
     }
     logger.info("Checking in: " + ObjectUtils.firstNonNull(serverEndpointUrl,
         proxyConfig.getServer()));
     try {
       newConfig = apiContainer.getProxyV2API().proxyCheckin(proxyId,
           "Bearer " + proxyConfig.getToken(), proxyConfig.getHostname(), getBuildVersion(),
-          agentMetricsCaptureTsWorkingCopy, agentMetricsWorkingCopy, proxyConfig.isEphemeral());
+          System.currentTimeMillis(), agentMetricsWorkingCopy, proxyConfig.isEphemeral());
       agentMetricsWorkingCopy = null;
     } catch (ClientErrorException ex) {
       agentMetricsWorkingCopy = null;
@@ -254,7 +254,7 @@ public class ProxyCheckinScheduler {
     } catch (Exception ex) {
       logger.log(Level.WARNING, "configuration retrieved from server is invalid", ex);
       try {
-        apiContainer.getProxyV2API().proxyError(proxyId, "Configuration file is invalid: " +
+        apiContainer.getProxyV2API().proxyError(proxyId, "Configuration is invalid: " +
             ex.toString());
       } catch (Exception e) {
         logger.log(Level.WARNING, "cannot report error to collector", e);
@@ -265,7 +265,7 @@ public class ProxyCheckinScheduler {
   }
 
   private void checkinError(String errMsg, @Nullable String secondErrMsg) {
-    if (succesfulCheckins.get() == 0) {
+    if (succesfulCheckins.get() > 0) {
       logger.severe(errMsg + (secondErrMsg == null ? "" : " " + secondErrMsg));
     } else {
       logger.severe(Strings.repeat("*", errMsg.length()));

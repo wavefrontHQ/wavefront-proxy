@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.common.SamplingLogger;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.data.ReportableEntityType;
 import org.apache.commons.lang.math.NumberUtils;
@@ -83,11 +84,11 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
         case POINT:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
-              validationConfig, false, blockedPointsLogger, VALID_POINTS_LOGGER);
+              validationConfig, true, blockedPointsLogger, VALID_POINTS_LOGGER);
         case HISTOGRAM:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
-              validationConfig, true, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER);
+              validationConfig, false, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER);
         case SOURCE_TAG:
           return new ReportSourceTagHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey, SOURCE_TAG_API_NUM_THREADS),

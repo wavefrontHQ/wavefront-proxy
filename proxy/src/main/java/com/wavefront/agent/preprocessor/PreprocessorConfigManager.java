@@ -83,7 +83,7 @@ public class PreprocessorConfigManager {
     }
     if (fileName != null) {
       // if there is a file name with preprocessor rules, load it and schedule periodic reloads
-      new Timer().schedule(new TimerTask() {
+      new Timer("Timer-preprocessor-configmanager").schedule(new TimerTask() {
         @Override
         public void run() {
           try {

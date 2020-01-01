@@ -18,7 +18,7 @@ import java.util.logging.Logger;
 import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;
 
-import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.common.Utils.lazySupplier;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)

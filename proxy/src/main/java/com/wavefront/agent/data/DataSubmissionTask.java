@@ -25,11 +25,11 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
   int weight();
 
   /**
-   * Returns task creation time in milliseconds.
+   * Returns task enqueue time in milliseconds.
    *
-   * @return created time in milliseconds
+   * @return enqueue time in milliseconds
    */
-  long getCreatedMillis();
+  long getEnqueuedMillis();
 
   /**
    * Returns the number of attempts made while executing this task.

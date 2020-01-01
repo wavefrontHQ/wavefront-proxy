@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Throwables;
 import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.queueing.TaskQueue;
+import com.wavefront.common.MessageDedupingLogger;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
@@ -26,7 +27,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.wavefront.agent.Utils.isWavefrontResponse;
+import static com.wavefront.common.Utils.isWavefrontResponse;
 
 /**
  * A base class for data submission tasks.
@@ -38,12 +39,11 @@ import static com.wavefront.agent.Utils.isWavefrontResponse;
 abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     implements DataSubmissionTask<T> {
   private static final Logger log =
-      Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName());
+      new MessageDedupingLogger(AbstractDataSubmissionTask.class.getCanonicalName(), 1000, 1);
+      //Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName());
 
   @JsonProperty
-  private Long createdMillis;
-  @JsonProperty
-  protected Long enqueuedTimeMillis = null;
+  protected long enqueuedTimeMillis = Long.MAX_VALUE;
   @JsonProperty
   protected int attempts = 0;
   @JsonProperty
@@ -76,7 +76,6 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     this.handle = handle;
     this.entityType = entityType;
     this.timeProvider = Objects.firstNonNull(timeProvider, System::currentTimeMillis);
-    this.createdMillis = this.timeProvider.get();
   }
 
   @Override
@@ -85,8 +84,8 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
   }
 
   @Override
-  public long getCreatedMillis() {
-    return createdMillis;
+  public long getEnqueuedMillis() {
+    return enqueuedTimeMillis;
   }
 
   @Override
@@ -97,7 +96,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
   abstract Response doExecute();
 
   public TaskResult execute() {
-    if (enqueuedTimeMillis != null) {
+    if (enqueuedTimeMillis < Long.MAX_VALUE) {
       if (timeSpentInQueue == null) {
         timeSpentInQueue = Metrics.newHistogram(new TaggedMetricName("buffer", "queue-time",
             "port", handle, "content", entityType.toString()));
@@ -118,7 +117,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       switch (response.getStatus()) {
         case 406:
         case 429:
-          if (enqueuedTimeMillis == null) {
+          if (enqueuedTimeMillis == Long.MAX_VALUE) {
             if (properties.getTaskQueueLevel().isLessThan(TaskQueueLevel.PUSHBACK)) {
               return TaskResult.RETRY_LATER;
             }
@@ -152,7 +151,8 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
           return checkStatusAndQueue(QueueingReason.RETRY, false);
         case 413:
           splitTask(1, properties.getItemsPerBatch()).
-              forEach(x -> x.enqueue(enqueuedTimeMillis == null ? QueueingReason.SPLIT : null));
+              forEach(x -> x.enqueue(enqueuedTimeMillis == Long.MAX_VALUE ?
+                  QueueingReason.SPLIT : null));
           return TaskResult.PERSISTED_RETRY;
         default:
           log.info("[" + handle + "] HTTP " + response.getStatus() + " received while sending " +
@@ -177,7 +177,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
       if (log.isLoggable(Level.FINE)) {
         log.log(Level.FINE, "Full stacktrace: ", ex);
       }
-      return checkStatusAndQueue(QueueingReason.RETRY, true);
+      return checkStatusAndQueue(QueueingReason.RETRY, false);
     } catch (Exception ex) {
       log.warning("[" + handle + "] Error sending data to Wavefront: " +
           Throwables.getRootCause(ex));
@@ -209,7 +209,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
 
   private TaskResult checkStatusAndQueue(QueueingReason reason,
                                          boolean requeue) {
-    if (enqueuedTimeMillis == null) {
+    if (enqueuedTimeMillis == Long.MAX_VALUE) {
       if (properties.getTaskQueueLevel().isLessThan(TaskQueueLevel.ANY_ERROR)) {
         return TaskResult.RETRY_LATER;
       }

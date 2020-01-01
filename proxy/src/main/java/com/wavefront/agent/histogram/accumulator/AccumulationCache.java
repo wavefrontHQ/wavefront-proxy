@@ -11,7 +11,7 @@ import com.github.benmanes.caffeine.cache.Ticker;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.TDigest;
 import com.wavefront.agent.SharedMetricsRegistry;
-import com.wavefront.agent.TimeProvider;
+import com.wavefront.common.TimeProvider;
 import com.wavefront.agent.histogram.Utils;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;

@@ -19,7 +19,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.common.Utils.lazySupplier;
 
 public class InternalProxyWavefrontClient implements WavefrontSender {
   private final Supplier<ReportableEntityHandler<ReportPoint, String>> pointHandlerSupplier;

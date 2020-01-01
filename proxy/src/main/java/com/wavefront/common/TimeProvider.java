@@ -1,4 +1,4 @@
-package com.wavefront.agent;
+package com.wavefront.common;
 
 /**
  * @author Tim Schmidt (tim@wavefront.com).

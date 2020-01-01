@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.wavefront.agent.Utils;
+import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;

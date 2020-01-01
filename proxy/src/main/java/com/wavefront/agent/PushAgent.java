@@ -127,7 +127,7 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.wavefront.agent.ProxyUtil.createInitializer;
-import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.common.Utils.lazySupplier;
 import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.NO_RATE_LIMIT;
 import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_HISTOGRAMS_LOGGER;
 import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_POINTS_LOGGER;

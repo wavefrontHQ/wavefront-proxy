@@ -1,4 +1,4 @@
-package com.wavefront.agent.handlers;
+package com.wavefront.common;
 
 import com.google.common.base.Preconditions;
 import com.wavefront.data.ReportableEntityType;
@@ -11,7 +11,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * TODO (VV): javadoc
+ * A sampling logger that can be enabled and disabled dynamically
+ * by setting its level to {@code Level.FINEST}.
  *
  * @author vasily@wavefront.com
  */
@@ -19,11 +20,9 @@ public class SamplingLogger extends Logger {
   private static final Logger logger = Logger.getLogger(SamplingLogger.class.getCanonicalName());
   private static final Random RANDOM = new Random();
 
+  private final Logger delegate;
   private final ReportableEntityType entityType;
   private final double samplingRate;
-  /**
-   * Value of system property wavefront.proxy.logpoints (for backwards compatibility)
-   */
   private final boolean alwaysActive;
   private final AtomicBoolean loggingActive = new AtomicBoolean(false);
 
@@ -40,10 +39,11 @@ public class SamplingLogger extends Logger {
     super(loggerName, null);
     Preconditions.checkArgument(samplingRate >= 0, "Sampling rate should be positive!");
     Preconditions.checkArgument(samplingRate <= 1, "Sampling rate should not be be > 1!");
+    this.delegate = Logger.getLogger(loggerName);
     this.entityType = entityType;
     this.samplingRate = samplingRate;
     this.alwaysActive = alwaysActive;
-    new Timer().scheduleAtFixedRate(new TimerTask() {
+    new Timer("Timer-sampling-logger-" + loggerName).scheduleAtFixedRate(new TimerTask() {
       @Override
       public void run() {
         refreshLoggerState();
@@ -92,7 +92,7 @@ public class SamplingLogger extends Logger {
       return (alwaysActive || loggingActive.get()) &&
           (samplingRate >= 1.0d || (samplingRate > 0.0d && RANDOM.nextDouble() < samplingRate));
     } else {
-      return super.isLoggable(level);
+      return delegate.isLoggable(level);
     }
   }
 
@@ -110,12 +110,12 @@ public class SamplingLogger extends Logger {
   private void sampleAndLog(Level level, String message) {
       if ((alwaysActive || loggingActive.get()) &&
         (samplingRate >= 1.0d || (samplingRate > 0.0d && RANDOM.nextDouble() < samplingRate))) {
-      super.log(level, message);
+      delegate.log(level, message);
     }
   }
 
   private void refreshLoggerState() {
-    if (loggingActive.get() != super.isLoggable(Level.FINEST)) {
+    if (loggingActive.get() != delegate.isLoggable(Level.FINEST)) {
       loggingActive.set(!loggingActive.get());
       logger.info("Valid " + entityType.toString() + " logging is now " + (loggingActive.get() ?
           "enabled with " + (samplingRate * 100) + "% sampling" : "disabled"));
