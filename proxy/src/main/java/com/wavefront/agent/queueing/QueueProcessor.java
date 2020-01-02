@@ -116,7 +116,8 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
     } finally {
       long nextFlush;
       if (rateLimiting) {
-        logger.fine("Rate limiter active, will re-attempt later to prioritize real-time traffic.");
+        logger.fine("[" + handlerKey.getHandle() + "] Rate limiter active, will re-attempt later " +
+            "to prioritize eal-time traffic.");
         // if proxy rate limit exceeded, try again in 1/4 to 1/2 flush interval
         // (to introduce some degree of fairness)
         nextFlush = (int) ((1 + Math.random()) * runtimeProperties.getPushFlushInterval() / 4 *
@@ -130,7 +131,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
         nextFlush = (long) ((Math.random() + 1.0) * runtimeProperties.getPushFlushInterval() *
             Math.pow(runtimeProperties.getRetryBackoffBaseSeconds(), backoffExponent) *
             schedulerTimingFactor);
-        logger.fine("Next run scheduled in " + nextFlush + "ms");
+        logger.fine("[" + handlerKey.getHandle() + "] Next run scheduled in " + nextFlush + "ms");
       }
       if (isRunning.get()) {
         scheduler.schedule(this, nextFlush, TimeUnit.MILLISECONDS);

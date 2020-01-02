@@ -10,8 +10,6 @@ import com.yammer.metrics.core.MetricsRegistry;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -36,7 +34,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       AbstractReportableEntityHandler.class.getCanonicalName());
   protected static final MetricsRegistry LOCAL_REGISTRY = new MetricsRegistry();
 
-  private final Class<T> type;
   private final Logger blockedItemsLogger;
 
   final HandlerKey handlerKey;
@@ -50,7 +47,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   final Function<T, String> serializer;
   final List<SenderTask<U>> senderTasks;
   final String rateUnit;
-  final Function<Object, String> serializerFunc;
 
   final BurstRateTrackingCounter receivedStats;
   final BurstRateTrackingCounter deliveredStats;
@@ -81,14 +77,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     this.blockedItemsLimiter = blockedItemsPerBatch == 0 ? null :
         RateLimiter.create(blockedItemsPerBatch / 10d);
     this.serializer = serializer;
-    this.type = getType();
-    this.serializerFunc = obj -> {
-      if (type.isInstance(obj)) {
-        return serializer.apply(type.cast(obj));
-      } else {
-        return null;
-      }
-    };
     this.senderTasks = senderTasks == null ? new ArrayList<>() : new ArrayList<>(senderTasks);
     this.rateUnit = handlerKey.getEntityType().getRateUnit();
     this.blockedItemsLogger = blockedItemsLogger;
@@ -237,19 +225,5 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     logger.info("[" + handlerKey.getHandle() + "] " +
         handlerKey.getEntityType().toCapitalizedString() + " processed since start: " +
         this.attemptedCounter.count() + "; blocked: " + this.blockedCounter.count());
-  }
-
-  private Class<T> getType() {
-    Type type = getClass().getGenericSuperclass();
-    ParameterizedType parameterizedType = null;
-    while (parameterizedType == null) {
-      if (type instanceof ParameterizedType) {
-        parameterizedType = (ParameterizedType) type;
-      } else {
-        type = ((Class<?>) type).getGenericSuperclass();
-      }
-    }
-    //noinspection unchecked
-    return (Class<T>) parameterizedType.getActualTypeArguments()[0];
   }
 }

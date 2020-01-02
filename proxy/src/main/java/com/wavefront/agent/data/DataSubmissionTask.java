@@ -32,13 +32,6 @@ public interface DataSubmissionTask<T extends DataSubmissionTask<T>> extends Ser
   long getEnqueuedMillis();
 
   /**
-   * Returns the number of attempts made while executing this task.
-   *
-   * @return number of attempts
-   */
-  int getAttempts();
-
-  /**
    * Execute this task
    *
    * @return operation result

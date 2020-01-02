@@ -17,7 +17,6 @@ import com.wavefront.ingester.ReportableEntityDecoder;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
@@ -40,15 +39,11 @@ import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
  */
 @ChannelHandler.Sharable
 public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandler {
-  private static final Logger logger = Logger.getLogger(
-      WavefrontPortUnificationHandler.class.getCanonicalName());
 
   @Nullable
   private final SharedGraphiteHostAnnotator annotator;
-
   @Nullable
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
-
   private final ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
   private final ReportableEntityDecoder<String, ReportSourceTag> sourceTagDecoder;
   private final ReportableEntityDecoder<String, ReportEvent> eventDecoder;

@@ -211,7 +211,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     scheduledExecutorService.shutdownNow();
   }
 }

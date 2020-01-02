@@ -78,11 +78,6 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
   }
 
   @Override
-  public int getAttempts() {
-    return attempts;
-  }
-
-  @Override
   public long getEnqueuedMillis() {
     return enqueuedTimeMillis;
   }

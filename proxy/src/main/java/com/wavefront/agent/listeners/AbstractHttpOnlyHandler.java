@@ -43,7 +43,7 @@ public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHan
    */
   @Override
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        final String message) throws Exception {
+                                        final String message) {
     pointsDiscarded.get().inc();
     logger.warning("Input discarded: plaintext protocol is not supported on port " + handle);
   }

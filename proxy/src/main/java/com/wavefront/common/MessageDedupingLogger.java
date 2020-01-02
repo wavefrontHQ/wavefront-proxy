@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.util.concurrent.RateLimiter;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -75,7 +76,7 @@ public class MessageDedupingLogger extends Logger {
    */
   @Override
   public void log(Level level, String message) {
-    if (rateLimiterCache.get(message).tryAcquire()) {
+    if (Objects.requireNonNull(rateLimiterCache.get(message)).tryAcquire()) {
       delegate.log(level, message);
     }
   }

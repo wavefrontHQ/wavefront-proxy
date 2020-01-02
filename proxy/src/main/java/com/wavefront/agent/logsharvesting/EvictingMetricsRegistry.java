@@ -23,7 +23,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -39,7 +38,6 @@ import javax.annotation.Nullable;
  * @author Mori Bellamy (mori@wavefront.com)
  */
 public class EvictingMetricsRegistry {
-  protected static final Logger logger = Logger.getLogger(EvictingMetricsRegistry.class.getCanonicalName());
   private final MetricsRegistry metricsRegistry;
   private final Cache<MetricName, Metric> metricCache;
   private final LoadingCache<MetricMatcher, Set<MetricName>> metricNamesForMetricMatchers;

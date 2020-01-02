@@ -40,9 +40,8 @@ public class GZIPEncodingInterceptorWithVariableCompression implements WriterInt
   public static class CommittedGZIPOutputStream extends CommitHeaderOutputStream {
     private final int level;
     protected CommittedGZIPOutputStream(final OutputStream delegate,
-                                        final CommitCallback headers,
                                         int level) {
-      super(delegate, headers);
+      super(delegate, null);
       this.level = level;
     }
 
@@ -71,7 +70,7 @@ public class GZIPEncodingInterceptorWithVariableCompression implements WriterInt
     Object encoding = context.getHeaders().getFirst(HttpHeaders.CONTENT_ENCODING);
     if (encoding != null && encoding.toString().equalsIgnoreCase("gzip")) {
       OutputStream old = context.getOutputStream();
-      CommittedGZIPOutputStream gzipOutputStream = new CommittedGZIPOutputStream(old, null, level);
+      CommittedGZIPOutputStream gzipOutputStream = new CommittedGZIPOutputStream(old, level);
       context.getHeaders().remove("Content-Length");
       context.setOutputStream(gzipOutputStream);
       try {

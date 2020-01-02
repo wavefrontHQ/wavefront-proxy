@@ -170,7 +170,7 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     scheduledExecutorService.shutdownNow();
   }
 }

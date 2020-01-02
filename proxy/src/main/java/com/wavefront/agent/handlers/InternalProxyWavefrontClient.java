@@ -11,7 +11,6 @@ import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -119,14 +118,14 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
     pointHandlerSupplier.get().report(point);
   }
 
-  public void sendFormattedMetric(String s) throws IOException {
+  public void sendFormattedMetric(String s) {
     throw new UnsupportedOperationException("Not applicable");
   }
 
   @Override
   public void sendSpan(String name, long startMillis, long durationMillis, String source, UUID traceId, UUID spanId,
                        List<UUID> parents, List<UUID> followsFrom, List<Pair<String, String>> tags,
-                       @Nullable List<SpanLog> spanLogs) throws IOException {
+                       @Nullable List<SpanLog> spanLogs) {
     throw new UnsupportedOperationException("Not applicable");
   }
 

@@ -9,7 +9,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.api.APIContainer;
-import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.ProxyConfig;
 import com.wavefront.agent.data.EntityPropertiesFactory;
@@ -68,8 +67,8 @@ public abstract class AbstractAgent {
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
-  protected ValidationConfiguration validationConfiguration = new ValidationConfiguration();
-  protected EntityPropertiesFactory entityProps =
+  protected final ValidationConfiguration validationConfiguration = new ValidationConfiguration();
+  protected final EntityPropertiesFactory entityProps =
       new EntityPropertiesFactoryImpl(proxyConfig);
   protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);
   protected ProxyCheckinScheduler proxyCheckinScheduler;
@@ -191,9 +190,6 @@ public abstract class AbstractAgent {
       proxyConfig.verifyAndInit();
     } catch (ParameterException e) {
       logger.severe("Parameter exception: " + e.getMessage());
-      System.exit(1);
-    } catch (ConfigurationException e) {
-      logger.severe("Configuration exception: " + e.getMessage());
       System.exit(1);
     }
   }

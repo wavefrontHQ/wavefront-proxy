@@ -11,7 +11,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
@@ -28,8 +27,7 @@ public class InteractiveLogsTester {
   private final String prefix;
   private final Scanner stdin;
 
-  public InteractiveLogsTester(Supplier<LogsIngestionConfig> logsIngestionConfigSupplier, String prefix)
-      throws ConfigurationException {
+  public InteractiveLogsTester(Supplier<LogsIngestionConfig> logsIngestionConfigSupplier, String prefix) {
     this.logsIngestionConfigSupplier = logsIngestionConfigSupplier;
     this.prefix = prefix;
     stdin = new Scanner(System.in);

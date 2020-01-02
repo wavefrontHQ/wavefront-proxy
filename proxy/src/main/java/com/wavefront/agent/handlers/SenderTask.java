@@ -22,19 +22,8 @@ public interface SenderTask<T> {
   void add(T item);
 
   /**
-   * Add multiple valid items to the send queue (memory buffers).
-   *
-   * @param items items to add to the send queue.
-   */
-  default void add(Iterable<T> items) {
-    for (T item : items) {
-      add(item);
-    }
-  }
-
-  /**
-   * Calculate a numeric score (the lower the better) that is intended to help the {@link ReportableEntityHandler}
-   * to choose the best SenderTask to handle over data to.
+   * Calculate a numeric score (the lower the better) that is intended to help the
+   * {@link ReportableEntityHandler} choose the best SenderTask to handle over data to.
    *
    * @return task score
    */
@@ -42,6 +31,8 @@ public interface SenderTask<T> {
 
   /**
    * Force memory buffer flush.
+   *
+   * @param reason reason for queueing.
    */
   void drainBuffersToQueue(@Nullable QueueingReason reason);
 

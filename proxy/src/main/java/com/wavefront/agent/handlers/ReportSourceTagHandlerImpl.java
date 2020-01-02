@@ -21,9 +21,6 @@ import javax.annotation.Nullable;
 class ReportSourceTagHandlerImpl
     extends AbstractReportableEntityHandler<ReportSourceTag, ReportSourceTag> {
 
-  private static final Logger logger = Logger.getLogger(
-      AbstractReportableEntityHandler.class.getCanonicalName());
-
   public ReportSourceTagHandlerImpl(
       HandlerKey handlerKey, final int blockedItemsPerBatch,
       @Nullable final Collection<SenderTask<ReportSourceTag>> senderTasks,

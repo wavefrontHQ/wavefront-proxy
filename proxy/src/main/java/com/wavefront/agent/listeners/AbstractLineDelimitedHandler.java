@@ -3,8 +3,6 @@ package com.wavefront.agent.listeners;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 
-import java.util.logging.Logger;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -26,12 +24,8 @@ import static com.wavefront.agent.handlers.LineDelimitedUtils.splitPushData;
  */
 @ChannelHandler.Sharable
 public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificationHandler {
-  private static final Logger logger =
-      Logger.getLogger(AbstractLineDelimitedHandler.class.getCanonicalName());
 
   /**
-   * Create new instance.
-   *
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
    * @param handle             handle/port number.
@@ -69,7 +63,7 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
    */
   @Override
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        final String message) throws Exception {
+                                        final String message) {
     if (message == null) {
       throw new IllegalArgumentException("Message cannot be null");
     }

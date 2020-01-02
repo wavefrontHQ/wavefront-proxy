@@ -49,17 +49,17 @@ public class ProxyCheckinScheduler {
    * prevent potential ~proxy metrics collisions caused by users spinning up multiple proxies
    * with duplicate names.
    */
-  protected static final String processId = getProcessId();
+  private static final String processId = getProcessId();
 
   private final UUID proxyId;
   private final ProxyConfig proxyConfig;
   private final APIContainer apiContainer;
   private final Consumer<AgentConfiguration> agentConfigurationConsumer;
 
-  protected String serverEndpointUrl = null;
+  private  String serverEndpointUrl = null;
   private volatile JsonNode agentMetrics;
-  private AtomicInteger retries = new AtomicInteger(0);
-  private AtomicLong succesfulCheckins = new AtomicLong(0);
+  private final AtomicInteger retries = new AtomicInteger(0);
+  private final AtomicLong succesfulCheckins = new AtomicLong(0);
   private boolean retryImmediately = false;
 
   /**

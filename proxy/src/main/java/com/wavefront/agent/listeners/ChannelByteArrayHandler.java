@@ -54,7 +54,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
   }
 
   @Override
-  protected void channelRead0(ChannelHandlerContext ctx, byte[] msg) throws Exception {
+  protected void channelRead0(ChannelHandlerContext ctx, byte[] msg) {
     // ignore empty lines.
     if (msg == null || msg.length == 0) {
       return;
@@ -124,7 +124,7 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
   }
 
   @Override
-  public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+  public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
     if (cause.getMessage().contains("Connection reset by peer")) {
       // These errors are caused by the client and are safe to ignore
       return;

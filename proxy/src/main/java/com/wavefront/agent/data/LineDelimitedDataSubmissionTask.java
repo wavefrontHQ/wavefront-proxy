@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 /**
  * A {@link DataSubmissionTask} that handles plaintext payloads in the newline-delimited format.
@@ -27,8 +26,6 @@ import java.util.logging.Logger;
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class LineDelimitedDataSubmissionTask
     extends AbstractDataSubmissionTask<LineDelimitedDataSubmissionTask> {
-  private static final Logger log =
-      Logger.getLogger(LineDelimitedDataSubmissionTask.class.getCanonicalName());
 
   private transient ProxyV2API api;
   private transient UUID proxyId;

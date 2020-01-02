@@ -84,7 +84,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
         }
 
         @Override
-        public ChronicleMap<K, V> load(@Nonnull File file) throws Exception {
+        public ChronicleMap<K, V> load(@Nonnull File file) {
           if (!doPersist) {
             logger.log(
                 Level.WARNING,
@@ -105,8 +105,10 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
                   File originalFile = new File(file.getAbsolutePath());
                   File oldFile = new File(file.getAbsolutePath().concat(".temp"));
                   if (oldFile.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
                     oldFile.delete();
                   }
+                  //noinspection ResultOfMethodCallIgnored
                   file.renameTo(oldFile);
 
                   ChronicleMap<K, V> toMigrate = ChronicleMap
@@ -128,6 +130,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
                   }
 
                   saveSettings(newSettings, settingsFile);
+                  //noinspection ResultOfMethodCallIgnored
                   oldFile.delete();
                   logger.info(originalFile.getName() + " reconfiguration finished");
 
@@ -147,6 +150,7 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
               if (result.isEmpty()) {
                 // Create a new map with the supplied settings to be safe.
                 result.close();
+                //noinspection ResultOfMethodCallIgnored
                 file.delete();
                 logger.fine("Empty accumulator - reinitializing: " + file.getName());
                 result = newPersistedMap(file);

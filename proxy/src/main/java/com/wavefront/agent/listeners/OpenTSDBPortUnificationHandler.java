@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
@@ -43,9 +42,6 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
  * @author Mike McLaughlin (mike@wavefront.com)
  */
 public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandler {
-  private static final Logger logger = Logger.getLogger(
-      OpenTSDBPortUnificationHandler.class.getCanonicalName());
-
   /**
    * The point handler that takes report metrics one data point at a time and handles batching
    * and retries, etc

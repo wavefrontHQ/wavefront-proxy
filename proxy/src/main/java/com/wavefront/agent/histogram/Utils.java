@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -33,8 +32,6 @@ import java.util.stream.Collectors;
  * @author Tim Schmidt (tim@wavefront.com).
  */
 public final class Utils {
-  private static final Logger logger = Logger.getLogger(Utils.class.getCanonicalName());
-
   private Utils() {
     // Not instantiable
   }
@@ -80,19 +77,6 @@ public final class Utils {
       } else {
         return DAY;
       }
-    }
-
-    public static Granularity fromString(String granularityName) {
-      if (granularityName.equals("minute")) {
-        return MINUTE;
-      }
-      if (granularityName.equals("hour")) {
-        return HOUR;
-      }
-      if (granularityName.equals("day")) {
-        return DAY;
-      }
-      return null;
     }
 
     public static String granularityToString(@Nullable Granularity granularity) {

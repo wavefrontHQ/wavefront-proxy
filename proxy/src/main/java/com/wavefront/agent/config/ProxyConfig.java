@@ -39,6 +39,7 @@ import static com.wavefront.common.Utils.getBuildVersion;
  *
  * @author vasily@wavefront.com
  */
+@SuppressWarnings("CanBeFinal")
 public class ProxyConfig extends Configuration {
   protected static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
@@ -1291,7 +1292,7 @@ public class ProxyConfig extends Configuration {
   }
 
   @Override
-  public void verifyAndInit() throws ConfigurationException {
+  public void verifyAndInit() {
     if (unparsed_params != null) {
       logger.info("Unparsed arguments: " + Joiner.on(", ").join(unparsed_params));
     }

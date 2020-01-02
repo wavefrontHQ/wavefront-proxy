@@ -18,7 +18,6 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,8 +29,6 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 class Oauth2TokenIntrospectionAuthenticator extends TokenIntrospectionAuthenticator {
-  private static final Logger logger = Logger.getLogger(Oauth2TokenIntrospectionAuthenticator.class.getCanonicalName());
-
   private final HttpClient httpClient;
   private final String tokenIntrospectionServiceUrl;
   private final String tokenIntrospectionAuthorizationHeader;

@@ -18,7 +18,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 /**
@@ -49,9 +48,6 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
   @Nullable
   private final String handle;
   private final String entityName;
-  private final Supplier<Long> timeSupplier;
-  volatile long queueFirstTaskMillis = Long.MIN_VALUE;
-  volatile long queueClearedMillis = Long.MIN_VALUE;
 
   // maintain a fair lock on the queue
   private final ReentrantLock queueLock = new ReentrantLock(true);
@@ -64,23 +60,9 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
   public DataSubmissionQueue(ObjectQueue<T> delegate,
                              @Nullable String handle,
                              @Nullable ReportableEntityType entityType) {
-    this(delegate, handle, entityType, null);
-  }
-
-  /**
-   * @param delegate     delegate {@link ObjectQueue}.
-   * @param handle       pipeline handle.
-   * @param entityType   entity type.
-   * @param timeSupplier time supplier (in millis)
-   */
-  public DataSubmissionQueue(ObjectQueue<T> delegate,
-                             @Nullable String handle,
-                             @Nullable ReportableEntityType entityType,
-                             @Nullable Supplier<Long> timeSupplier) {
     this.delegate = delegate;
     this.handle = handle;
     this.entityName = entityType == null ? "points" : entityType.toString();
-    this.timeSupplier = timeSupplier == null ? System::currentTimeMillis : timeSupplier;
     if (delegate.isEmpty()) {
       initializeTracking();
     }
@@ -121,9 +103,6 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
   public void add(@Nonnull T t) throws IOException {
     queueLock.lock();
     try {
-      if (delegate.isEmpty()) {
-        this.queueFirstTaskMillis = timeSupplier.get();
-      }
       delegate.add(t);
       if (currentWeight != null) {
         currentWeight.addAndGet(t.weight());
@@ -142,7 +121,6 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
     try {
       delegate.clear();
       this.head = null;
-      this.queueClearedMillis = timeSupplier.get();
       initializeTracking();
     } catch (IOException e) {
       Metrics.newCounter(new TaggedMetricName("buffer", "failures", "port", handle)).inc();
@@ -167,7 +145,6 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
       head = null;
       if (delegate.isEmpty()) {
         initializeTracking();
-        queueClearedMillis = timeSupplier.get();
       }
     } catch (IOException e) {
       Metrics.newCounter(new TaggedMetricName("buffer", "failures", "port", handle)).inc();

@@ -113,10 +113,6 @@ public class ReportableConfig {
     return prop.getProperty(key) != null;
   }
 
-  public static void reportSettingAsGauge(Number number, String key) {
-    reportGauge(number, new MetricName("config", "", key));
-  }
-
   public static void reportSettingAsGauge(Supplier<Number> numberSupplier, String key) {
     reportGauge(numberSupplier, new MetricName("config", "", key));
   }

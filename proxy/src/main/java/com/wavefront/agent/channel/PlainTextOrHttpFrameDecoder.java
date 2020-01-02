@@ -74,7 +74,7 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
    * protocol.
    */
   @Override
-  protected void decode(final ChannelHandlerContext ctx, final ByteBuf buffer, List<Object> out) throws Exception {
+  protected void decode(final ChannelHandlerContext ctx, final ByteBuf buffer, List<Object> out) {
     // read the first 2 bytes to use for protocol detection
     if (buffer.readableBytes() < 2) {
       logger.info("Inbound data from " + ctx.channel().remoteAddress()+ " has less that 2 readable bytes - ignoring ");

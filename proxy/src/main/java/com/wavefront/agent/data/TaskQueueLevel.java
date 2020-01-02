@@ -12,7 +12,7 @@ public enum TaskQueueLevel {
   ANY_ERROR(3), // queue on any errors, pushback or memory pressure
   ALWAYS(4);    // queue before send attempts (maximum durability - placeholder for future use)
 
-  private int level;
+  private final int level;
 
   TaskQueueLevel(int level) {
     this.level = level;

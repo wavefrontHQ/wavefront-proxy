@@ -52,6 +52,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
+import javax.annotation.Nonnull;
 import javax.net.SocketFactory;
 
 import wavefront.report.Annotation;
@@ -104,6 +105,10 @@ public class PushAgentTest {
 
     @Override
     public void shutdown() {
+    }
+
+    @Override
+    public void shutdown(@Nonnull String handle) {
     }
 
     @Override

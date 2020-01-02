@@ -102,7 +102,6 @@ import wavefront.report.ReportPoint;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
-import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.nio.ByteOrder;
@@ -165,7 +164,7 @@ public class PushAgent extends AbstractAgent {
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) {
     // Start the ssh daemon
     new PushAgent().start(args);
   }
@@ -1099,6 +1098,7 @@ public class PushAgent extends AbstractAgent {
     } catch (InterruptedException e) {
       // ignore
     }
-
+    handlerFactory.shutdown(String.valueOf(port));
+    senderTaskFactory.shutdown(String.valueOf(port));
   }
 }
