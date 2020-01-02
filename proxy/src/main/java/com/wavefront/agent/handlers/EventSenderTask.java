@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
-import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.data.EntityWrapper.EntityProperties;
+import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.TaskResult;
@@ -34,13 +33,11 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
    * @param proxyId      id of the proxy.
    * @param threadId     thread number.
    * @param properties   container for mutable proxy settings.
-   * @param rateLimiter  rate limiter to control outbound point rate.
    * @param backlog      backing queue
    */
   EventSenderTask(HandlerKey handlerKey, EventAPI proxyAPI, UUID proxyId, int threadId,
-                  EntityProperties properties, @Nullable RecyclableRateLimiter rateLimiter,
-                  TaskQueue<EventDataSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties, rateLimiter);
+                  EntityProperties properties, TaskQueue<EventDataSubmissionTask> backlog) {
+    super(handlerKey, threadId, properties);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
     this.backlog = backlog;
@@ -56,7 +53,7 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
   }
 
   @Override
-  public void flushSingleBatch(List<ReportEvent> batch, QueueingReason reason) {
+  public void flushSingleBatch(List<ReportEvent> batch, @Nullable QueueingReason reason) {
     EventDataSubmissionTask task = new EventDataSubmissionTask(proxyAPI, proxyId, properties,
         backlog, handlerKey.getHandle(),
         batch.stream().map(Event::new).collect(Collectors.toList()), null);

@@ -55,6 +55,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   final BurstRateTrackingCounter receivedStats;
   final BurstRateTrackingCounter deliveredStats;
 
+  private final Timer timer;
   private final AtomicLong roundRobinCounter = new AtomicLong();
   @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter noDataStatsRateLimiter = RateLimiter.create(1.0d / 60);
@@ -110,7 +111,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
           }
         });
     if (setupMetrics) {
-      Timer timer = new Timer("stats-output-" + handlerKey);
+      timer = new Timer("stats-output-" + handlerKey);
       timer.scheduleAtFixedRate(new TimerTask() {
         @Override
         public void run() {
@@ -123,20 +124,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
           printTotal();
         }
       }, 60_000, 60_000);
-    }
-  }
-
-  @Override
-  public void reject(T item) {
-    blockedCounter.inc();
-    rejectedCounter.inc();
-    if (item != null && blockedItemsLogger != null) {
-      blockedItemsLogger.warning(serializer.apply(item));
-    }
-    //noinspection UnstableApiUsage
-    if (blockedItemsLimiter != null && blockedItemsLimiter.tryAcquire()) {
-      logger.info("[" + handlerKey.getHandle() + "] blocked input: [" + serializer.apply(item) +
-          "]");
+    } else {
+      timer = null;
     }
   }
 
@@ -185,20 +174,19 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   @Override
   public void report(T item) {
-    report(item, item, serializerFunc);
-  }
-
-  @Override
-  public void report(T item, @Nullable Object messageObject,
-                     @Nonnull Function<Object, String> messageSerializer) {
     try {
       reportInternal(item);
     } catch (IllegalArgumentException e) {
-      this.reject(item, e.getMessage() + " (" + messageSerializer.apply(messageObject) + ")");
+      this.reject(item, e.getMessage() + " (" + serializer.apply(item) + ")");
     } catch (Exception ex) {
       logger.log(Level.SEVERE, "WF-500 Uncaught exception when handling input (" +
-          messageSerializer.apply(messageObject) + ")", ex);
+          serializer.apply(item) + ")", ex);
     }
+  }
+
+  @Override
+  public void shutdown() {
+    if (this.timer != null) timer.cancel();
   }
 
   abstract void reportInternal(T item);
@@ -230,6 +218,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   protected void printStats() {
     // if we received no data over the last 5 minutes, only print stats once a minute
+    //noinspection UnstableApiUsage
     if (receivedStats.getFiveMinuteCount() == 0 && !noDataStatsRateLimiter.tryAcquire()) return;
     logger.info("[" + handlerKey.getHandle() + "] " +
         handlerKey.getEntityType().toCapitalizedString() + " received rate: " +

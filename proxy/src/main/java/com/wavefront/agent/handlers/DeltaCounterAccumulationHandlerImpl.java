@@ -44,6 +44,7 @@ public class DeltaCounterAccumulationHandlerImpl
   final Histogram receivedPointLag;
   private final Counter reportedCounter;
   private final Cache<HostMetricTagsPair, AtomicDouble> aggregatedDeltas;
+  private final ScheduledExecutorService reporter = Executors.newSingleThreadScheduledExecutor();
 
     /**
    * @param handlerKey                              metrics pipeline key.
@@ -74,7 +75,6 @@ public class DeltaCounterAccumulationHandlerImpl
     this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handlerKey.getHandle() +
         ".received", "", "lag"), false);
 
-    ScheduledExecutorService reporter = Executors.newSingleThreadScheduledExecutor();
     reporter.scheduleWithFixedDelay(this::reportCache, deltaCountersAggregationIntervalSeconds,
         deltaCountersAggregationIntervalSeconds, TimeUnit.SECONDS);
 
@@ -122,5 +122,11 @@ public class DeltaCounterAccumulationHandlerImpl
     } else {
       reject(point, "Port is not configured to accept non-delta counter data!");
     }
+  }
+
+  @Override
+  public void shutdown() {
+    super.shutdown();
+    reporter.shutdown();
   }
 }

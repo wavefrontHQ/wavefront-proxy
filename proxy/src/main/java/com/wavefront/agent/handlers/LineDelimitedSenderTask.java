@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
-import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.data.EntityWrapper.EntityProperties;
+import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.TaskResult;
@@ -34,18 +33,15 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
    * @param proxyId           proxy ID.
    * @param properties        container for mutable proxy settings.
    * @param threadId          thread number.
-   * @param rateLimiter       rate limiter to control outbound point rate.
    * @param taskSizeEstimator optional task size estimator used to calculate approximate
    *                          buffer fill rate.
    * @param backlog           backing queue.
    */
-  LineDelimitedSenderTask(HandlerKey handlerKey, String pushFormat,
-                          ProxyV2API proxyAPI, UUID proxyId,
-                          final EntityProperties properties,
-                          int threadId, final RecyclableRateLimiter rateLimiter,
+  LineDelimitedSenderTask(HandlerKey handlerKey, String pushFormat, ProxyV2API proxyAPI,
+                          UUID proxyId, final EntityProperties properties, int threadId,
                           @Nullable final TaskSizeEstimator taskSizeEstimator,
                           TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties, rateLimiter);
+    super(handlerKey, threadId, properties);
     this.pushFormat = pushFormat;
     this.proxyId = proxyId;
     this.proxyAPI = proxyAPI;
@@ -64,7 +60,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
   }
 
   @Override
-  void flushSingleBatch(List<String> batch, QueueingReason reason) {
+  void flushSingleBatch(List<String> batch, @Nullable QueueingReason reason) {
     LineDelimitedDataSubmissionTask task = new LineDelimitedDataSubmissionTask(proxyAPI,
         proxyId, properties, backlog, pushFormat, handlerKey.getEntityType(),
         handlerKey.getHandle(), batch, null);

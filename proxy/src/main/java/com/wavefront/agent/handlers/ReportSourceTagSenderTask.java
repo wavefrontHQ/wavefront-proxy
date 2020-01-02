@@ -1,8 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
-import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.data.EntityWrapper.EntityProperties;
+import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.TaskResult;
@@ -45,14 +44,12 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
    * @param handlerKey  metrics pipeline handler key.
    * @param threadId    thread number.
    * @param properties  container for mutable proxy settings.
-   * @param rateLimiter rate limiter to control outbound point rate.
    * @param backlog     backing queue
    */
   ReportSourceTagSenderTask(HandlerKey handlerKey, SourceTagAPI proxyAPI,
                             int threadId, EntityProperties properties,
-                            @Nullable RecyclableRateLimiter rateLimiter,
                             TaskQueue<SourceTagSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties, rateLimiter);
+    super(handlerKey, threadId, properties);
     this.proxyAPI = proxyAPI;
     this.backlog = backlog;
     this.scheduler.schedule(this, properties.getPushFlushInterval(), TimeUnit.MILLISECONDS);
@@ -119,7 +116,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
   }
 
   @Override
-  void flushSingleBatch(List<ReportSourceTag> batch, QueueingReason reason) {
+  void flushSingleBatch(List<ReportSourceTag> batch, @Nullable QueueingReason reason) {
     for (ReportSourceTag tag : batch) {
       SourceTagSubmissionTask task = new SourceTagSubmissionTask(proxyAPI, properties, backlog,
           handlerKey.getHandle(), tag, null);

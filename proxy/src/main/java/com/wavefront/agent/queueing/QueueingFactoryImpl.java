@@ -1,15 +1,15 @@
 package com.wavefront.agent.queueing;
 
 import com.wavefront.agent.api.APIContainer;
-import com.wavefront.agent.data.EntityWrapper;
+import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.agent.data.TaskInjector;
 import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.RecyclableRateLimiterFactory;
 import com.wavefront.common.NamedThreadFactory;
+import com.wavefront.data.ReportableEntityType;
 
 import javax.annotation.Nonnull;
 import java.util.HashMap;
@@ -35,26 +35,22 @@ public class QueueingFactoryImpl implements QueueingFactory {
   private final TaskQueueFactory taskQueueFactory;
   private final APIContainer apiContainer;
   private final UUID proxyId;
-  private final RecyclableRateLimiterFactory rateLimiterFactory;
-  private final EntityWrapper entityProps;
+  private final EntityPropertiesFactory entityPropsFactory;
 
   /**
    * @param apiContainer       handles interaction with Wavefront servers as well as queueing.
    * @param proxyId            proxy ID.
    * @param taskQueueFactory   factory for backing queues.
-   * @param rateLimiterFactory factory for rate limiters.
-   * @param entityProps        entity-specific wrapper over mutable proxy settings' container.
+   * @param entityPropsFactory factory for entity-specific wrappers for mutable proxy settings.
    */
   public QueueingFactoryImpl(APIContainer apiContainer,
                              UUID proxyId,
                              final TaskQueueFactory taskQueueFactory,
-                             final RecyclableRateLimiterFactory rateLimiterFactory,
-                             final EntityWrapper entityProps) {
+                             final EntityPropertiesFactory entityPropsFactory) {
     this.apiContainer = apiContainer;
     this.proxyId = proxyId;
     this.taskQueueFactory = taskQueueFactory;
-    this.rateLimiterFactory = rateLimiterFactory;
-    this.entityProps = entityProps;
+    this.entityPropsFactory = entityPropsFactory;
   }
 
   /**
@@ -73,7 +69,7 @@ public class QueueingFactoryImpl implements QueueingFactory {
     return (QueueProcessor<T>) queueProcessors.computeIfAbsent(handlerKey, x -> new TreeMap<>()).
         computeIfAbsent(threadNum, x -> new QueueProcessor<>(handlerKey, taskQueue,
             getTaskInjector(handlerKey, taskQueue), executorService,
-            entityProps.get(handlerKey), rateLimiterFactory.getRateLimiter(handlerKey)));
+            entityPropsFactory.get(handlerKey.getEntityType())));
   }
 
   @SuppressWarnings("unchecked")
@@ -91,27 +87,28 @@ public class QueueingFactoryImpl implements QueueingFactory {
   }
 
   @SuppressWarnings("unchecked")
-  private <T extends DataSubmissionTask<T>> TaskInjector<T> getTaskInjector(HandlerKey key,
+  private <T extends DataSubmissionTask<T>> TaskInjector<T> getTaskInjector(HandlerKey handlerKey,
                                                                             TaskQueue<T> queue) {
-    switch (key.getEntityType()) {
+    ReportableEntityType entityType = handlerKey.getEntityType();
+    switch (entityType) {
       case POINT:
       case DELTA_COUNTER:
       case HISTOGRAM:
       case TRACE:
       case TRACE_SPAN_LOGS:
         return task -> ((LineDelimitedDataSubmissionTask) task).injectMembers(
-            apiContainer.getProxyV2API(), proxyId, entityProps.get(key),
+            apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType),
             (TaskQueue<LineDelimitedDataSubmissionTask>) queue);
       case SOURCE_TAG:
         return task -> ((SourceTagSubmissionTask) task).injectMembers(
-            apiContainer.getSourceTagAPI(), entityProps.get(key),
+            apiContainer.getSourceTagAPI(), entityPropsFactory.get(entityType),
             (TaskQueue<SourceTagSubmissionTask>) queue);
       case EVENT:
         return task -> ((EventDataSubmissionTask) task).injectMembers(
-            apiContainer.getEventAPI(), proxyId, entityProps.get(key),
+            apiContainer.getEventAPI(), proxyId, entityPropsFactory.get(entityType),
             (TaskQueue<EventDataSubmissionTask>) queue);
       default:
-        throw new IllegalArgumentException("Unexpected entity type: " + key.getEntityType());
+        throw new IllegalArgumentException("Unexpected entity type: " + entityType);
     }
   }
 }

@@ -7,6 +7,8 @@ import wavefront.report.ReportSourceTag;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
+import javax.annotation.Nonnull;
+
 /**
  * Mock factory for testing
  *
@@ -58,6 +60,10 @@ public class MockReportableEntityHandlerFactory {
           default:
             throw new IllegalArgumentException("Unknown entity type");
         }
+      }
+
+      @Override
+      public void shutdown(@Nonnull String handle) {
       }
     };
   }

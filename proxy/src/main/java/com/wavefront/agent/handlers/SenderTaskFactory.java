@@ -30,6 +30,12 @@ public interface SenderTaskFactory {
   void shutdown();
 
   /**
+   * Shut down specific pipeline
+   * @param handle pipeline's handle
+   */
+  void shutdown(@Nonnull String handle);
+
+  /**
    * Drain memory buffers to queue for all tasks.
    *
    * @param reason reason for queueing

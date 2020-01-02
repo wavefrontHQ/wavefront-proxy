@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.handlers.LineDelimitedUtils;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.ProxyV2API;

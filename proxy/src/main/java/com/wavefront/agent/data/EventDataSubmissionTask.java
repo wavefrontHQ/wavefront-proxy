@@ -3,7 +3,6 @@ package com.wavefront.agent.data;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.EventAPI;
 import com.wavefront.data.ReportableEntityType;

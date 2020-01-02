@@ -53,13 +53,6 @@ public class InteractiveLogsTester {
           }
 
           @Override
-          public void report(ReportPoint reportPoint, @Nullable Object messageObject,
-                             @Nonnull Function<Object, String> messageSerializer) {
-            reported.set(true);
-            System.out.println(ReportPointSerializer.pointToString(reportPoint));
-          }
-
-          @Override
           public void block(ReportPoint reportPoint) {
             System.out.println("Blocked: " + reportPoint);
           }
@@ -67,11 +60,6 @@ public class InteractiveLogsTester {
           @Override
           public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
             System.out.println("Blocked: " + reportPoint);
-          }
-
-          @Override
-          public void reject(ReportPoint reportPoint) {
-            System.out.println("Rejected: " + reportPoint);
           }
 
           @Override
@@ -83,7 +71,15 @@ public class InteractiveLogsTester {
           public void reject(@Nonnull String t, @Nullable String message) {
             System.out.println("Rejected: " + t);
           }
+
+          @Override
+          public void shutdown() {
+          }
         };
+      }
+
+      @Override
+      public void shutdown(@Nonnull String handle) {
       }
     };
 

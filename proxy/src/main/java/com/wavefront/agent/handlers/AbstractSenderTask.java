@@ -3,7 +3,7 @@ package com.wavefront.agent.handlers;
 import com.google.common.util.concurrent.RateLimiter;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-import com.wavefront.agent.data.EntityWrapper.EntityProperties;
+import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.common.NamedThreadFactory;
@@ -12,6 +12,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -24,10 +25,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.annotation.Nullable;
-
-import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.UNLIMITED;
 
 /**
  * Base class for all {@link SenderTask} implementations.
@@ -75,17 +72,15 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   /**
    * Base constructor.
    *
-   * @param handlerKey        pipeline handler key that dictates the data processing flow.
-   * @param threadId          thread number
+   * @param handlerKey  pipeline handler key that dictates the data processing flow.
+   * @param threadId   thread number
    * @param properties runtime properties container
-   * @param rateLimiter       rate limiter
    */
-  AbstractSenderTask(HandlerKey handlerKey, int threadId, EntityProperties properties,
-                     @Nullable RecyclableRateLimiter rateLimiter) {
+  AbstractSenderTask(HandlerKey handlerKey, int threadId, EntityProperties properties) {
     this.handlerKey = handlerKey;
     this.threadId = threadId;
     this.properties = properties;
-    this.rateLimiter = rateLimiter == null ? UNLIMITED : rateLimiter;
+    this.rateLimiter = properties.getRateLimiter();
     this.scheduler = Executors.newSingleThreadScheduledExecutor(
         new NamedThreadFactory("submitter-" + handlerKey.toString() + "-" + threadId));
     this.flushExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.MINUTES,
@@ -152,6 +147,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
    */
   @Override
   public ExecutorService shutdown() {
+    flushExecutor.shutdown();
     scheduler.shutdownNow();
     return scheduler;
   }
@@ -213,9 +209,9 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     }
   };
 
-  abstract void flushSingleBatch(List<T> batch, QueueingReason reason);
+  abstract void flushSingleBatch(List<T> batch, @Nullable QueueingReason reason);
 
-  public void drainBuffersToQueue(QueueingReason reason) {
+  public void drainBuffersToQueue(@Nullable QueueingReason reason) {
     if (isBuffering.compareAndSet(false, true)) {
       bufferFlushCounter.inc();
       try {

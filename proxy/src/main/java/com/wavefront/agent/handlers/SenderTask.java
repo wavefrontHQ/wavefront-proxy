@@ -2,6 +2,7 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.QueueingReason;
 
+import javax.annotation.Nullable;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -42,7 +43,7 @@ public interface SenderTask<T> {
   /**
    * Force memory buffer flush.
    */
-  void drainBuffersToQueue(QueueingReason reason);
+  void drainBuffersToQueue(@Nullable QueueingReason reason);
 
   /**
    * Shut down the scheduler for this task (prevent future scheduled runs).

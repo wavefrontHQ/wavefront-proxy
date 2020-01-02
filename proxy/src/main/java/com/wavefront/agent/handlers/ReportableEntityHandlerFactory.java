@@ -2,6 +2,8 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.data.ReportableEntityType;
 
+import javax.annotation.Nonnull;
+
 /**
  * Factory for {@link ReportableEntityHandler} objects.
  *
@@ -30,9 +32,7 @@ public interface ReportableEntityHandlerFactory {
   }
 
   /**
-   * Perform finalizing tasks on handlers.
+   * Shutdown pipeline for a specific handle.
    */
-  default void shutdown() {
-    // no-op
-  }
+  void shutdown(@Nonnull String handle);
 }

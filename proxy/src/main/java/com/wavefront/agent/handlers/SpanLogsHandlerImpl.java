@@ -66,8 +66,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
     if (validItemsLogger != null) validItemsLogger.info(strSpanLogs);
   }
 
-  abstract static class IgnoreSchemaProperty
-  {
+  abstract static class IgnoreSchemaProperty {
     @JsonIgnore
     abstract void getSchema();
   }

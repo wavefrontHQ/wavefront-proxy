@@ -1,22 +1,19 @@
 package com.wavefront.agent.queueing;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
+import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.common.Managed;
 import com.wavefront.agent.data.DataSubmissionTask;
-import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.data.TaskInjector;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.handlers.HandlerKey;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.UNLIMITED;
 
 /**
  * A thread responsible for processing the backlog from a single task queue.
@@ -40,23 +37,21 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   private int backoffExponent = 1;
 
   /**
-   * @param handlerKey               pipeline handler key
-   * @param taskQueue                backing queue
-   * @param taskInjector             injects members into task objects after deserialization
-   * @param runtimeProperties        container for mutable proxy settings.
-   * @param rateLimiter              optional rate limiter
+   * @param handlerKey         pipeline handler key
+   * @param taskQueue          backing queue
+   * @param taskInjector       injects members into task objects after deserialization
+   * @param entityProps        container for mutable proxy settings.
    */
   public QueueProcessor(final HandlerKey handlerKey,
                         @Nonnull final TaskQueue<T> taskQueue,
                         final TaskInjector<T> taskInjector,
                         final ScheduledExecutorService scheduler,
-                        final EntityProperties runtimeProperties,
-                        @Nullable final RecyclableRateLimiter rateLimiter) {
+                        final EntityProperties entityProps) {
     this.handlerKey = handlerKey;
     this.taskQueue = taskQueue;
     this.taskInjector = taskInjector;
-    this.runtimeProperties = runtimeProperties;
-    this.rateLimiter = rateLimiter == null ? UNLIMITED : rateLimiter;
+    this.runtimeProperties = entityProps;
+    this.rateLimiter = entityProps.getRateLimiter();
     this.scheduler = scheduler;
   }
 

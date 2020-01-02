@@ -3,8 +3,9 @@ package com.wavefront.agent.handlers;
 import com.google.common.collect.ImmutableList;
 
 import com.wavefront.agent.api.APIContainer;
-import com.wavefront.agent.data.EntityWrapper;
-import com.wavefront.agent.data.ProxyRuntimeProperties;
+import com.wavefront.agent.data.DefaultEntityPropertiesForTesting;
+import com.wavefront.agent.data.EntityPropertiesFactory;
+import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.agent.queueing.TaskQueueFactory;
@@ -53,11 +54,9 @@ public class ReportSourceTagHandlerTest {
     };
     newAgentId = UUID.randomUUID();
     senderTaskFactory = new SenderTaskFactoryImpl(new APIContainer(null, mockAgentAPI, null),
-        newAgentId, taskQueueFactory, null, null,
-        new EntityWrapper(ProxyRuntimeProperties.DEFAULT_SETTINGS));
+        newAgentId, taskQueueFactory, null, type -> new DefaultEntityPropertiesForTesting());
     HandlerKey handlerKey = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878");
-    sourceTagHandler =
-        new ReportSourceTagHandlerImpl(handlerKey, 10,
+    sourceTagHandler = new ReportSourceTagHandlerImpl(handlerKey, 10,
             senderTaskFactory.createSenderTasks(handlerKey, 2), blockedLogger);
   }
 

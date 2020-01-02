@@ -1,5 +1,7 @@
 package com.wavefront.agent.handlers;
 
+import javax.annotation.Nonnull;
+
 /**
  * Wrapper for {@link ReportableEntityHandlerFactory} to allow partial overrides for the
  * {@code getHandler} method.
@@ -19,7 +21,7 @@ public class DelegatingReportableEntityHandlerFactoryImpl implements ReportableE
   }
 
   @Override
-  public void shutdown() {
-    delegate.shutdown();
+  public void shutdown(@Nonnull String handle) {
+    delegate.shutdown(handle);
   }
 }

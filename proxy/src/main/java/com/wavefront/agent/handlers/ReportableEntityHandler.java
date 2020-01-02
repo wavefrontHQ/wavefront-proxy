@@ -1,7 +1,5 @@
 package com.wavefront.agent.handlers;
 
-import java.util.function.Function;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -21,18 +19,6 @@ public interface ReportableEntityHandler<T, U> {
    * @param t object to accept.
    */
   void report(T t);
-
-  /**
-   * Validate and accept the input object. If validation fails, convert messageObject
-   * to string and write to log.
-   *
-   * @param t                 object to accept.
-   * @param messageObject     object to write to log if validation fails.
-   * @param messageSerializer function to convert messageObject to string.
-   */
-  void report(T t, @Nullable Object messageObject,
-              @Nonnull Function<Object, String> messageSerializer);
-
 
   /**
    * Handle the input object as blocked. Blocked objects are otherwise valid objects
@@ -55,13 +41,6 @@ public interface ReportableEntityHandler<T, U> {
    * Reject the input object as invalid, i.e. rejected based on criteria defined by Wavefront.
    *
    * @param t object to reject.
-   */
-  void reject(T t);
-
-  /**
-   * Reject the input object as invalid, i.e. rejected based on criteria defined by Wavefront.
-   *
-   * @param t object to reject.
    * @param message more user-friendly message to write to the main log.
    */
   void reject(@Nullable T t, @Nullable String message);
@@ -73,4 +52,9 @@ public interface ReportableEntityHandler<T, U> {
    * @param message more user-friendly message to write to the main log.
    */
   void reject(@Nonnull String t, @Nullable String message);
+
+  /**
+   * Gracefully shutdown the pipeline.
+   */
+  void shutdown();
 }

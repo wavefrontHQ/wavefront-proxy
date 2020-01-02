@@ -20,19 +20,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_EVENTS;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_HISTOGRAMS;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SOURCE_TAGS;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPANS;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPAN_LOGS;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_INTERVAL;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
+import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
 import static com.wavefront.common.Utils.getLocalHostName;
 import static com.wavefront.common.Utils.getBuildVersion;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_EVENTS;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_HISTOGRAMS;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_SOURCE_TAGS;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_SPANS;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_BATCH_SIZE_SPAN_LOGS;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_FLUSH_INTERVAL;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
-import static com.wavefront.agent.handlers.RecyclableRateLimiterFactoryImpl.NO_RATE_LIMIT;
 
 /**
  * Proxy configuration (refactored from {@link com.wavefront.agent.AbstractAgent}).
@@ -54,10 +54,6 @@ public class ProxyConfig extends Configuration {
       "Proxy configuration file", order = 1)
   private String pushConfigFile = null;
 
-  @Parameter(names = {"-c", "--config"}, description =
-      "Local configuration file to use (overrides using the server to obtain a config file)")
-  private String configFile = null;
-
   @Parameter(names = {"-p", "--prefix"}, description =
       "Prefix to prepend to all push metrics before reporting.")
   private String prefix = null;
@@ -68,10 +64,6 @@ public class ProxyConfig extends Configuration {
 
   @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
   private boolean testLogs = false;
-
-  @Parameter(names = {"-v", "--validationlevel", "--pushValidationLevel"}, description =
-      "Validation level for push data (NO_VALIDATION/NUMERIC_ONLY); NUMERIC_ONLY is default")
-  private String pushValidationLevel = "NUMERIC_ONLY";
 
   @Parameter(names = {"-h", "--host"}, description = "Server URL", order = 2)
   private String server = "http://localhost:8080/api/";
@@ -124,27 +116,27 @@ public class ProxyConfig extends Configuration {
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
-  private Integer pushRateLimit = NO_RATE_LIMIT;
+  private double pushRateLimit = NO_RATE_LIMIT;
 
   @Parameter(names = {"--pushRateLimitHistograms"}, description = "Limit the outgoing histogram " +
       "rate at the proxy. Default: do not throttle.")
-  private Integer pushRateLimitHistograms = NO_RATE_LIMIT;
+  private double pushRateLimitHistograms = NO_RATE_LIMIT;
 
   @Parameter(names = {"--pushRateLimitSourceTags"}, description = "Limit the outgoing rate " +
       "for source tags at the proxy. Default: 5 op/s")
-  private Double pushRateLimitSourceTags = 5.0d;
+  private double pushRateLimitSourceTags = 5.0d;
 
   @Parameter(names = {"--pushRateLimitSpans"}, description = "Limit the outgoing tracing spans " +
       "rate at the proxy. Default: do not throttle.")
-  private Integer pushRateLimitSpans = NO_RATE_LIMIT;
+  private double pushRateLimitSpans = NO_RATE_LIMIT;
 
   @Parameter(names = {"--pushRateLimitSpanLogs"}, description = "Limit the outgoing span logs " +
       "rate at the proxy. Default: do not throttle.")
-  private Integer pushRateLimitSpanLogs = NO_RATE_LIMIT;
+  private double pushRateLimitSpanLogs = NO_RATE_LIMIT;
 
   @Parameter(names = {"--pushRateLimitEvents"}, description = "Limit the outgoing rate " +
       "for events at the proxy. Default: 5 events/s")
-  private Double pushRateLimitEvents = 5.0d;
+  private double pushRateLimitEvents = 5.0d;
 
   @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
       "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
@@ -687,14 +679,6 @@ public class ProxyConfig extends Configuration {
     return version;
   }
 
-  public String getPushConfigFile() {
-    return pushConfigFile;
-  }
-
-  public String getConfigFile() {
-    return configFile;
-  }
-
   public String getPrefix() {
     return prefix;
   }
@@ -705,10 +689,6 @@ public class ProxyConfig extends Configuration {
 
   public boolean isTestLogs() {
     return testLogs;
-  }
-
-  public String getPushValidationLevel() {
-    return pushValidationLevel;
   }
 
   public String getServer() {
@@ -759,31 +739,31 @@ public class ProxyConfig extends Configuration {
     return pushFlushMaxEvents;
   }
 
-  public Integer getPushRateLimit() {
+  public double getPushRateLimit() {
     return pushRateLimit;
   }
 
-  public Integer getPushRateLimitHistograms() {
+  public double getPushRateLimitHistograms() {
     return pushRateLimitHistograms;
   }
 
-  public Double getPushRateLimitSourceTags() {
+  public double getPushRateLimitSourceTags() {
     return pushRateLimitSourceTags;
   }
 
-  public Integer getPushRateLimitSpans() {
+  public double getPushRateLimitSpans() {
     return pushRateLimitSpans;
   }
 
-  public Integer getPushRateLimitSpanLogs() {
+  public double getPushRateLimitSpanLogs() {
     return pushRateLimitSpanLogs;
   }
 
-  public Double getPushRateLimitEvents() {
+  public double getPushRateLimitEvents() {
     return pushRateLimitEvents;
   }
 
-  public Integer getPushRateLimitMaxBurstSeconds() {
+  public int getPushRateLimitMaxBurstSeconds() {
     return pushRateLimitMaxBurstSeconds;
   }
 
@@ -1053,14 +1033,6 @@ public class ProxyConfig extends Configuration {
 
   public String getIdFile() {
     return idFile;
-  }
-
-  public String getGraphiteWhitelistRegex() {
-    return graphiteWhitelistRegex;
-  }
-
-  public String getGraphiteBlacklistRegex() {
-    return graphiteBlacklistRegex;
   }
 
   public String getWhitelistRegex() {
@@ -1333,7 +1305,6 @@ public class ProxyConfig extends Configuration {
         config = new ReportableConfig(); // dummy config
       }
       prefix = Strings.emptyToNull(config.getString("prefix", prefix));
-      pushValidationLevel = config.getString("pushValidationLevel", pushValidationLevel);
       // don't track token in proxy config metrics
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
       server = config.getRawProperty("server", server).trim();
@@ -1608,22 +1579,23 @@ public class ProxyConfig extends Configuration {
       // clamp values for pushFlushMaxPoints/etc between min split size
       // (or 1 in case of source tags and events) and default batch size.
       // also make sure it is never higher than the configured rate limit.
-      pushFlushMaxPoints = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxPoints",
-          pushFlushMaxPoints), DEFAULT_MIN_SPLIT_BATCH_SIZE), DEFAULT_BATCH_SIZE), pushRateLimit);
-      pushFlushMaxHistograms = Math.min(Math.min(Math.max(config.getInteger(
-          "pushFlushMaxHistograms", pushFlushMaxHistograms), DEFAULT_MIN_SPLIT_BATCH_SIZE),
-          DEFAULT_BATCH_SIZE_HISTOGRAMS), pushRateLimitHistograms);
-      pushFlushMaxSourceTags = Math.min(Math.min(Math.max(config.getInteger(
-          "pushFlushMaxSourceTags", pushFlushMaxSourceTags), 1),
-          DEFAULT_BATCH_SIZE_SOURCE_TAGS), pushRateLimitSourceTags.intValue());
-      pushFlushMaxSpans = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxSpans",
-          pushFlushMaxSpans), DEFAULT_MIN_SPLIT_BATCH_SIZE), DEFAULT_BATCH_SIZE_SPANS),
-          pushRateLimitSpans);
-      pushFlushMaxSpanLogs = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxSpanLogs",
-          pushFlushMaxSpanLogs), DEFAULT_MIN_SPLIT_BATCH_SIZE), DEFAULT_BATCH_SIZE_SPAN_LOGS),
-          pushRateLimitSpanLogs);
+      pushFlushMaxPoints = Math.max(Math.min(Math.min(config.getInteger("pushFlushMaxPoints",
+          pushFlushMaxPoints), DEFAULT_BATCH_SIZE), (int) pushRateLimit),
+          DEFAULT_MIN_SPLIT_BATCH_SIZE);
+      pushFlushMaxHistograms = Math.max(Math.min(Math.min(config.getInteger(
+          "pushFlushMaxHistograms", pushFlushMaxHistograms), DEFAULT_BATCH_SIZE_HISTOGRAMS),
+          (int) pushRateLimitHistograms), DEFAULT_MIN_SPLIT_BATCH_SIZE);
+      pushFlushMaxSourceTags = Math.max(Math.min(Math.min(config.getInteger(
+          "pushFlushMaxSourceTags", pushFlushMaxSourceTags),
+          DEFAULT_BATCH_SIZE_SOURCE_TAGS), (int) pushRateLimitSourceTags), 1);
+      pushFlushMaxSpans = Math.max(Math.min(Math.min(config.getInteger("pushFlushMaxSpans",
+          pushFlushMaxSpans), DEFAULT_BATCH_SIZE_SPANS), (int) pushRateLimitSpans),
+          DEFAULT_MIN_SPLIT_BATCH_SIZE);
+      pushFlushMaxSpanLogs = Math.max(Math.min(Math.min(config.getInteger("pushFlushMaxSpanLogs",
+          pushFlushMaxSpanLogs), DEFAULT_BATCH_SIZE_SPAN_LOGS),
+          (int) pushRateLimitSpanLogs), DEFAULT_MIN_SPLIT_BATCH_SIZE);
       pushFlushMaxEvents = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxEvents",
-          pushFlushMaxEvents), 1), DEFAULT_BATCH_SIZE_EVENTS), pushRateLimitEvents.intValue());
+          pushFlushMaxEvents), 1), DEFAULT_BATCH_SIZE_EVENTS), (int) (pushRateLimitEvents + 1));
 
       /*
         default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of

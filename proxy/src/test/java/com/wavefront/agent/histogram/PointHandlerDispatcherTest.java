@@ -61,22 +61,12 @@ public class PointHandlerDispatcherTest {
       }
 
       @Override
-      public void report(ReportPoint reportPoint, @Nullable Object messageObject, @Nonnull Function<Object, String> messageSerializer) {
-        pointOut.add(reportPoint);
-      }
-
-      @Override
       public void block(ReportPoint reportPoint) {
         blockedOut.add(reportPoint);
       }
 
       @Override
       public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
-        blockedOut.add(reportPoint);
-      }
-
-      @Override
-      public void reject(ReportPoint reportPoint) {
         blockedOut.add(reportPoint);
       }
 
@@ -89,6 +79,9 @@ public class PointHandlerDispatcherTest {
       public void reject(@Nonnull String t, @Nullable String message) {
       }
 
+      @Override
+      public void shutdown() {
+      }
     }, timeMillis::get, null, null);
   }
 

@@ -41,7 +41,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private static final int SOURCE_TAG_API_NUM_THREADS = 2;
   private static final int EVENT_API_NUM_THREADS = 2;
 
-  protected final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
+  protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?, ?>>> handlers =
+      new HashMap<>();
 
   private final SenderTaskFactory senderTaskFactory;
   private final int blockedItemsPerBatch;
@@ -63,8 +64,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
    */
   public ReportableEntityHandlerFactoryImpl(
       final SenderTaskFactory senderTaskFactory, final int blockedItemsPerBatch,
-      final int defaultFlushThreads,
-      @Nonnull final ValidationConfiguration validationConfig,
+      final int defaultFlushThreads, @Nonnull final ValidationConfiguration validationConfig,
       final Logger blockedPointsLogger, final Logger blockedHistogramsLogger,
       final Logger blockedSpansLogger) {
     this.senderTaskFactory = senderTaskFactory;
@@ -79,7 +79,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   @SuppressWarnings("unchecked")
   @Override
   public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
-    return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey, k -> {
+    return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey.getHandle(),
+        h -> new HashMap<>()).computeIfAbsent(handlerKey.getEntityType(), k -> {
       switch (handlerKey.getEntityType()) {
         case POINT:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
@@ -113,8 +114,10 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   }
 
   @Override
-  public void shutdown() {
-    //
+  public void shutdown(@Nonnull String handle) {
+    if (handlers.containsKey(handle)) {
+      handlers.get(handle).values().forEach(ReportableEntityHandler::shutdown);
+    }
   }
 
   private static double getSystemPropertyAsDouble(String propertyName) {

@@ -12,8 +12,8 @@ import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.config.ProxyConfig;
-import com.wavefront.agent.data.EntityWrapper;
-import com.wavefront.agent.data.ProxyRuntimeProperties;
+import com.wavefront.agent.data.EntityPropertiesFactory;
+import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
@@ -46,8 +46,6 @@ import java.util.stream.IntStream;
 
 import static com.wavefront.agent.ProxyUtil.getOrCreateProxyId;
 import static com.wavefront.common.Utils.getBuildVersion;
-import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
-import static com.wavefront.agent.data.ProxyRuntimeProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
@@ -71,8 +69,8 @@ public abstract class AbstractAgent {
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
   protected ValidationConfiguration validationConfiguration = new ValidationConfiguration();
-  protected ProxyRuntimeProperties runtimeProperties = null;
-  protected EntityWrapper entityWrapper = null;
+  protected EntityPropertiesFactory entityProps =
+      new EntityPropertiesFactoryImpl(proxyConfig);
   protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);
   protected ProxyCheckinScheduler proxyCheckinScheduler;
   protected UUID agentId;
@@ -99,7 +97,7 @@ public abstract class AbstractAgent {
         );
         if (blacklist != null) {
           preprocessors.getSystemPreprocessor(strPort).forPointLine().addFilter(
-              new PointLineBlacklistRegexFilter(proxyConfig.getBlacklistRegex(), ruleMetrics));
+              new PointLineBlacklistRegexFilter(blacklist, ruleMetrics));
         }
         if (whitelist != null) {
           preprocessors.getSystemPreprocessor(strPort).forPointLine().addFilter(
@@ -155,34 +153,6 @@ public abstract class AbstractAgent {
   }
 
   private void postProcessConfig() {
-    runtimeProperties = ProxyRuntimeProperties.newBuilder().
-        setTaskQueueLevel(proxyConfig.getTaskQueueLevel()).
-        setSplitPushWhenRateLimited(proxyConfig.isSplitPushWhenRateLimited()).
-        setRetryBackoffBaseSeconds(proxyConfig.getRetryBackoffBaseSeconds()).
-        setPushRateLimitMaxBurstSeconds(proxyConfig.getPushRateLimitMaxBurstSeconds()).
-        setPushFlushInterval(proxyConfig.getPushFlushInterval()).
-        setItemsPerBatch(proxyConfig.getPushFlushMaxPoints()).
-        setItemsPerBatchHistograms(proxyConfig.getPushFlushMaxHistograms()).
-        setItemsPerBatchSourceTags(proxyConfig.getPushFlushMaxSourceTags()).
-        setItemsPerBatchSpans(proxyConfig.getPushFlushMaxSpans()).
-        setItemsPerBatchSpanLogs(proxyConfig.getPushFlushMaxSpanLogs()).
-        setItemsPerBatchEvents(proxyConfig.getPushFlushMaxEvents()).
-        setMinBatchSplitSize(DEFAULT_MIN_SPLIT_BATCH_SIZE).
-        setMemoryBufferLimit(proxyConfig.getPushMemoryBufferLimit()).
-        setMemoryBufferLimitSourceTags(16 * proxyConfig.getPushFlushMaxSourceTags()).
-        setMemoryBufferLimitEvents(16 * proxyConfig.getPushFlushMaxEvents()).
-        build();
-    entityWrapper = new EntityWrapper(runtimeProperties);
-    reportSettingAsGauge(runtimeProperties::getPushFlushInterval, "pushFlushInterval");
-    reportSettingAsGauge(runtimeProperties::getItemsPerBatch, "pushFlushMaxPoints");
-    reportSettingAsGauge(runtimeProperties::getItemsPerBatchHistograms, "pushFlushMaxHistograms");
-    reportSettingAsGauge(runtimeProperties::getItemsPerBatchSourceTags, "pushFlushMaxSourceTags");
-    reportSettingAsGauge(runtimeProperties::getItemsPerBatchSpans, "pushFlushMaxSpans");
-    reportSettingAsGauge(runtimeProperties::getItemsPerBatchSpanLogs, "pushFlushMaxSpanLogs");
-    reportSettingAsGauge(runtimeProperties::getItemsPerBatchEvents, "pushFlushMaxEvents");
-    reportSettingAsGauge(runtimeProperties::getRetryBackoffBaseSeconds, "retryBackoffBaseSeconds");
-    reportSettingAsGauge(runtimeProperties::getMemoryBufferLimit, "pushMemoryBufferLimit");
-
     System.setProperty("org.apache.commons.logging.Log",
         "org.apache.commons.logging.impl.SimpleLog");
     System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http", "warn");
@@ -354,7 +324,20 @@ public abstract class AbstractAgent {
     }
   }
 
+  /**
+   * Starts all listeners as configured.
+   */
   protected abstract void startListeners();
 
+  /**
+   * Stops all listeners before terminating the process.
+   */
   protected abstract void stopListeners();
+
+  /**
+   * Shut down specific listener pipeline.
+   *
+   * @param port port number.
+   */
+  protected abstract void stopListener(int port);
 }

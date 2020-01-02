@@ -54,19 +54,18 @@ public class ProxyCheckinScheduler {
   private final UUID proxyId;
   private final ProxyConfig proxyConfig;
   private final APIContainer apiContainer;
-  private final Runnable updateConfiguration;
-  private final Runnable updateAgentMetrics;
+  private final Consumer<AgentConfiguration> agentConfigurationConsumer;
 
   protected String serverEndpointUrl = null;
   private volatile JsonNode agentMetrics;
   private AtomicInteger retries = new AtomicInteger(0);
   private AtomicLong succesfulCheckins = new AtomicLong(0);
-  private volatile boolean retryCheckin = false;
+  private boolean retryImmediately = false;
 
   /**
    * Executors for support tasks.
    */
-  private final ScheduledExecutorService agentConfigurationExecutor = Executors.
+  private final ScheduledExecutorService executor = Executors.
       newScheduledThreadPool(2, new NamedThreadFactory("proxy-configuration"));
 
   /**
@@ -83,42 +82,13 @@ public class ProxyCheckinScheduler {
     this.proxyId = proxyId;
     this.proxyConfig = proxyConfig;
     this.apiContainer = apiContainer;
-    this.updateConfiguration = () -> {
-      boolean doShutDown = false;
-      try {
-        AgentConfiguration config = checkin();
-        if (config != null) {
-          agentConfigurationConsumer.accept(config);
-          doShutDown = config.getShutOffAgents();
-        }
-      } catch (Exception e) {
-        logger.log(Level.SEVERE, "Exception occurred during configuration update", e);
-      } finally {
-        if (doShutDown) {
-          logger.warning("Shutting down: Server side flag indicating proxy has to shut down.");
-          System.exit(1);
-        }
-      }
-    };
-    this.updateAgentMetrics = () -> {
-      try {
-        Map<String, String> pointTags = new HashMap<>(proxyConfig.getAgentMetricsPointTags());
-        pointTags.put("processId", processId);
-        synchronized (agentConfigurationExecutor) {
-          agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
-              true, true, true, pointTags, null);
-          retries.set(0);
-        }
-      } catch (Exception ex) {
-        logger.log(Level.SEVERE, "Could not generate proxy metrics", ex);
-      }
-    };
-    updateAgentMetrics.run();
+    this.agentConfigurationConsumer = agentConfigurationConsumer;
+    updateProxyMetrics();
     AgentConfiguration config = checkin();
-    if (config == null && retryCheckin) {
+    if (config == null && retryImmediately) {
       // immediately retry check-ins if we need to re-attempt
       // due to changing the server endpoint URL
-      updateAgentMetrics.run();
+      updateProxyMetrics();
       config = checkin();
     }
     if (config != null) {
@@ -133,8 +103,8 @@ public class ProxyCheckinScheduler {
    */
   public void scheduleCheckins() {
     logger.info("scheduling regular check-ins");
-    agentConfigurationExecutor.scheduleAtFixedRate(updateAgentMetrics, 10, 60, TimeUnit.SECONDS);
-    agentConfigurationExecutor.scheduleWithFixedDelay(updateConfiguration, 0, 1, TimeUnit.SECONDS);
+    executor.scheduleAtFixedRate(this::updateProxyMetrics, 10, 60, TimeUnit.SECONDS);
+    executor.scheduleWithFixedDelay(this::updateConfiguration, 0, 1, TimeUnit.SECONDS);
   }
 
   /**
@@ -150,7 +120,7 @@ public class ProxyCheckinScheduler {
    * Stops regular check-ins.
    */
   public void shutdown() {
-    agentConfigurationExecutor.shutdown();
+    executor.shutdown();
   }
 
   /**
@@ -161,7 +131,7 @@ public class ProxyCheckinScheduler {
   private AgentConfiguration checkin() {
     AgentConfiguration newConfig;
     JsonNode agentMetricsWorkingCopy;
-    synchronized(agentConfigurationExecutor) {
+    synchronized(executor) {
       if (agentMetrics == null) return null;
       agentMetricsWorkingCopy = agentMetrics;
       agentMetrics = null;
@@ -188,12 +158,12 @@ public class ProxyCheckinScheduler {
         case 404:
         case 405:
           String serverUrl = proxyConfig.getServer().replaceAll("/$", "");
-          if (succesfulCheckins.get() == 0 && !retryCheckin && !serverUrl.endsWith("/api")) {
+          if (succesfulCheckins.get() == 0 && !retryImmediately && !serverUrl.endsWith("/api")) {
             this.serverEndpointUrl = serverUrl + "/api/";
             checkinError("Possible server endpoint misconfiguration detected, attempting to use " +
                 serverEndpointUrl, null);
             apiContainer.updateServerEndpointURL(serverEndpointUrl);
-            retryCheckin = true;
+            retryImmediately = true;
             return null;
           }
           String secondaryMessage = serverUrl.endsWith("/api") ?
@@ -239,7 +209,7 @@ public class ProxyCheckinScheduler {
           proxyConfig.getServer() + ": " + Throwables.getRootCause(ex));
       return null;
     } finally {
-      synchronized(agentConfigurationExecutor) {
+      synchronized(executor) {
         // if check-in process failed (agentMetricsWorkingCopy is not null) and agent metrics have
         // not been updated yet, restore last known set of agent metrics to be retried
         if (agentMetricsWorkingCopy != null && agentMetrics == null) {
@@ -262,6 +232,38 @@ public class ProxyCheckinScheduler {
       return null;
     }
     return newConfig;
+  }
+
+  private void updateConfiguration() {
+    boolean doShutDown = false;
+    try {
+      AgentConfiguration config = checkin();
+      if (config != null) {
+        agentConfigurationConsumer.accept(config);
+        doShutDown = config.getShutOffAgents();
+      }
+    } catch (Exception e) {
+      logger.log(Level.SEVERE, "Exception occurred during configuration update", e);
+    } finally {
+      if (doShutDown) {
+        logger.warning("Shutting down: Server side flag indicating proxy has to shut down.");
+        System.exit(1);
+      }
+    }
+  }
+
+  private void updateProxyMetrics() {
+    try {
+      Map<String, String> pointTags = new HashMap<>(proxyConfig.getAgentMetricsPointTags());
+      pointTags.put("processId", processId);
+      synchronized (executor) {
+        agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
+            true, true, true, pointTags, null);
+        retries.set(0);
+      }
+    } catch (Exception ex) {
+      logger.log(Level.SEVERE, "Could not generate proxy metrics", ex);
+    }
   }
 
   private void checkinError(String errMsg, @Nullable String secondErrMsg) {

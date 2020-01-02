@@ -3,7 +3,6 @@ package com.wavefront.agent.data;
 import avro.shaded.com.google.common.base.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Throwables;
-import com.wavefront.agent.data.EntityWrapper.EntityProperties;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.common.MessageDedupingLogger;
 import com.wavefront.common.TaggedMetricName;

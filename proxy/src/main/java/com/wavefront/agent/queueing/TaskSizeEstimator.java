@@ -96,6 +96,10 @@ public class TaskSizeEstimator {
     return (long) (resultPostingSizes.mean() * resultPostingMeter.fifteenMinuteRate());
   }
 
+  public void shutdown() {
+    resultPostingSizerExecutorService.shutdown();
+  }
+
   private Runnable getPostingSizerTask(final DataSubmissionTask<?> task) {
     return () -> {
       try {
