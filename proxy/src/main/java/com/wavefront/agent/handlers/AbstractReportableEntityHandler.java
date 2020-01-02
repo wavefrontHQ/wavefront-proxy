@@ -100,7 +100,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     this.attemptedCounter = registry.newCounter(new MetricName(metricPrefix, "", "sent"));
     this.blockedCounter = registry.newCounter(new MetricName(metricPrefix, "", "blocked"));
     this.rejectedCounter = registry.newCounter(new MetricName(metricPrefix, "", "rejected"));
-    this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 1000);
+    this.receivedStats = new BurstRateTrackingCounter(receivedMetricName, registry, 100);
     this.deliveredStats = new BurstRateTrackingCounter(deliveredMetricName, registry, 1000);
     registry.newGauge(new MetricName(metricPrefix + ".received", "", "max-burst-rate"),
         new Gauge<Double>() {
