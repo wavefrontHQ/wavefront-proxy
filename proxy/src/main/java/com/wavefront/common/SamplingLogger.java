@@ -1,5 +1,6 @@
 package com.wavefront.common;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.wavefront.data.ReportableEntityType;
 
@@ -28,22 +29,23 @@ public class SamplingLogger extends Logger {
 
   /**
    * @param entityType   entity type (used in info messages only).
-   * @param loggerName   logger name.
+   * @param delegate     delegate logger name.
    * @param samplingRate sampling rate for logging [0..1].
    * @param alwaysActive whether this logger is always active regardless of currently set log level.
    */
   public SamplingLogger(ReportableEntityType entityType,
-                        String loggerName,
+                        Logger delegate,
                         double samplingRate,
                         boolean alwaysActive) {
-    super(loggerName, null);
+    super(delegate.getName(), null);
     Preconditions.checkArgument(samplingRate >= 0, "Sampling rate should be positive!");
     Preconditions.checkArgument(samplingRate <= 1, "Sampling rate should not be be > 1!");
-    this.delegate = Logger.getLogger(loggerName);
+    this.delegate = delegate;
     this.entityType = entityType;
     this.samplingRate = samplingRate;
     this.alwaysActive = alwaysActive;
-    new Timer("Timer-sampling-logger-" + loggerName).scheduleAtFixedRate(new TimerTask() {
+    refreshLoggerState();
+    new Timer("Timer-sampling-logger-" + delegate.getName()).scheduleAtFixedRate(new TimerTask() {
       @Override
       public void run() {
         refreshLoggerState();
@@ -114,7 +116,8 @@ public class SamplingLogger extends Logger {
     }
   }
 
-  private void refreshLoggerState() {
+  @VisibleForTesting
+  void refreshLoggerState() {
     if (loggingActive.get() != delegate.isLoggable(Level.FINEST)) {
       loggingActive.set(!loggingActive.get());
       logger.info("Valid " + entityType.toString() + " logging is now " + (loggingActive.get() ?

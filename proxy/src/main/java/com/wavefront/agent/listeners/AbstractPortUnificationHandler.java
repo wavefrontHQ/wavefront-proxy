@@ -11,11 +11,13 @@ import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 
 import org.apache.commons.lang.math.NumberUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -38,6 +40,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.util.CharsetUtil;
 
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.common.Utils.lazySupplier;
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
@@ -74,10 +77,11 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
    * @param healthCheckManager  shared health check endpoint handler.
    * @param handle              handle/port number.
    */
-  public AbstractPortUnificationHandler(@Nonnull TokenAuthenticator tokenAuthenticator,
+  public AbstractPortUnificationHandler(@Nullable final TokenAuthenticator tokenAuthenticator,
                                         @Nullable final HealthCheckManager healthCheckManager,
                                         @Nullable final String handle) {
-    this.tokenAuthenticator = tokenAuthenticator;
+    this.tokenAuthenticator = ObjectUtils.firstNonNull(tokenAuthenticator,
+        TokenAuthenticator.DUMMY_AUTHENTICATOR);
     this.healthCheck = healthCheckManager == null ?
         new NoopHealthCheckManager() : healthCheckManager;
     this.handle = firstNonNull(handle, "unknown");
@@ -107,9 +111,10 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
    *
    * @param ctx     Channel handler's context
    * @param request HTTP request to process
+   * @throws URISyntaxException in case of a malformed URL
    */
-  protected abstract void handleHttpMessage(final ChannelHandlerContext ctx,
-                                            final FullHttpRequest request);
+  protected abstract void handleHttpMessage(
+      final ChannelHandlerContext ctx, final FullHttpRequest request) throws URISyntaxException;
 
   /**
    * Process incoming plaintext string.
@@ -118,7 +123,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
    * @param message Plaintext message to process
    */
   protected abstract void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                                 final String message) throws Exception;
+                                                 final String message);
 
   @Override
   public void channelReadComplete(ChannelHandlerContext ctx) {
@@ -135,7 +140,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
     if (cause instanceof DecompressionException) {
       logWarning("Decompression error", cause, ctx);
       writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST,
-          "Decompression error: " + cause.getMessage());
+          "Decompression error: " + cause.getMessage(), false);
       return;
     }
     if (cause instanceof IOException && cause.getMessage().contains("Connection reset by peer")) {
@@ -146,9 +151,8 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
     logger.log(Level.WARNING, "Unexpected error: ", cause);
   }
 
-  protected String extractToken(final ChannelHandlerContext ctx, final FullHttpRequest request) {
-    URI requestUri = ChannelUtils.parseUri(ctx, request);
-    if (requestUri == null) return null;
+  protected String extractToken(final FullHttpRequest request) throws URISyntaxException {
+    URI requestUri = new URI(request.uri());
     String token = firstNonNull(request.headers().getAsString("X-AUTH-TOKEN"),
         request.headers().getAsString("Authorization"), "").replaceAll("^Bearer ", "").trim();
     Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(requestUri, CharsetUtil.UTF_8).
@@ -160,11 +164,12 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
     return token;
   }
 
-  protected boolean authorized(final ChannelHandlerContext ctx, final FullHttpRequest request) {
+  protected boolean authorized(final ChannelHandlerContext ctx, final FullHttpRequest request)
+      throws URISyntaxException {
     if (tokenAuthenticator.authRequired()) {
-      String token = extractToken(ctx, request);
+      String token = extractToken(request);
       if (!tokenAuthenticator.authorize(token)) { // 401 if no token or auth fails
-        writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, "401 Unauthorized\n");
+        writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, "401 Unauthorized\n", request);
         return false;
       }
     }
@@ -173,50 +178,56 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
 
   @Override
   protected void channelRead0(final ChannelHandlerContext ctx, final Object message) {
-    try {
-      if (message != null) {
-        if (message instanceof String) {
-          if (tokenAuthenticator.authRequired()) {
-            // plaintext is disabled with auth enabled
-            pointsDiscarded.get().inc();
-            logger.warning("Input discarded: plaintext protocol is not supported on port " +
-                handle + " (authentication enabled)");
-            return;
-          }
-          handlePlainTextMessage(ctx, (String) message);
-        } else if (message instanceof FullHttpRequest) {
-          FullHttpRequest request = (FullHttpRequest) message;
-          HttpResponse healthCheckResponse = healthCheck.getHealthCheckResponse(ctx, request);
-          if (healthCheckResponse != null) {
-            ctx.write(healthCheckResponse);
-            if (!HttpUtil.isKeepAlive(request)) {
-              ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
-            }
-            return;
-          }
-          if (!getHttpEnabled()) {
-            requestsDiscarded.get().inc();
-            logger.warning("Inbound HTTP request discarded: HTTP disabled on port " + handle);
-            return;
-          }
-          if (authorized(ctx, request)) {
-            httpRequestsInFlightGauge.get();
-            httpRequestsInFlight.incrementAndGet();
-            long startTime = System.nanoTime();
-            try {
-              handleHttpMessage(ctx, request);
-            } finally {
-              httpRequestsInFlight.decrementAndGet();
-            }
-            httpRequestHandleDuration.get().update(System.nanoTime() - startTime);
-          }
-        } else {
-          logWarning("Received unexpected message type " + message.getClass().getName(), null, ctx);
+    if (message instanceof String) {
+      try {
+        if (tokenAuthenticator.authRequired()) {
+          // plaintext is disabled with auth enabled
+          pointsDiscarded.get().inc();
+          logger.warning("Input discarded: plaintext protocol is not supported on port " +
+              handle + " (authentication enabled)");
+          return;
         }
+        handlePlainTextMessage(ctx, (String) message);
+      } catch (final Exception e) {
+        e.printStackTrace();
+        logWarning("Failed to handle message", e, ctx);
       }
-    } catch (final Exception e) {
-      e.printStackTrace();
-      logWarning("Failed to handle message", e, ctx);
+    } else if (message instanceof FullHttpRequest) {
+      FullHttpRequest request = (FullHttpRequest) message;
+      try {
+        HttpResponse healthCheckResponse = healthCheck.getHealthCheckResponse(ctx, request);
+        if (healthCheckResponse != null) {
+          writeHttpResponse(ctx, healthCheckResponse, request);
+          return;
+        }
+        if (!getHttpEnabled()) {
+          requestsDiscarded.get().inc();
+          logger.warning("Inbound HTTP request discarded: HTTP disabled on port " + handle);
+          return;
+        }
+        if (authorized(ctx, request)) {
+          httpRequestsInFlightGauge.get();
+          httpRequestsInFlight.incrementAndGet();
+          long startTime = System.nanoTime();
+          try {
+            handleHttpMessage(ctx, request);
+          } finally {
+            httpRequestsInFlight.decrementAndGet();
+          }
+          httpRequestHandleDuration.get().update(System.nanoTime() - startTime);
+        }
+      } catch (URISyntaxException e) {
+        writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, errorMessageWithRootCause(e),
+            request);
+        logger.warning(formatErrorMessage("WF-300: Request URI '" + request.uri() +
+            "' cannot be parsed", e, ctx));
+      } catch (final Exception e) {
+        e.printStackTrace();
+        logWarning("Failed to handle message", e, ctx);
+      }
+    } else {
+      logWarning("Received unexpected message type " +
+          (message == null ? "" : message.getClass().getName()), null, ctx);
     }
   }
 

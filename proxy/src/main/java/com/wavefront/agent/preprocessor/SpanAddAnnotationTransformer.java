@@ -36,9 +36,6 @@ public class SpanAddAnnotationTransformer implements Function<Span, Span> {
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations() == null) {
-      span.setAnnotations(Lists.newArrayList());
-    }
     span.getAnnotations().add(new Annotation(key, PreprocessorUtil.expandPlaceholders(value, span)));
     ruleMetrics.incrementRuleAppliedCounter();
     ruleMetrics.ruleEnd(startNanos);

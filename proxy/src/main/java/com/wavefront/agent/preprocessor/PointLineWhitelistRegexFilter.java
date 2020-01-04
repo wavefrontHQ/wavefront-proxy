@@ -18,12 +18,6 @@ public class PointLineWhitelistRegexFilter implements AnnotatedPredicate<String>
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  @Deprecated
-  public PointLineWhitelistRegexFilter(final String patternMatch,
-                                       @Nullable final Counter ruleAppliedCounter) {
-    this(patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public PointLineWhitelistRegexFilter(final String patternMatch,
                                        final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));

@@ -5,8 +5,10 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import org.apache.commons.lang3.StringUtils;
 
+import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 /**
@@ -16,12 +18,12 @@ import java.util.logging.Logger;
  * @author vasily@wavefront.com
  */
 public class IncompleteLineDetectingLineBasedFrameDecoder extends LineBasedFrameDecoder {
+  private final Consumer<String> warningMessageConsumer;
 
-  protected static final Logger logger = Logger.getLogger(
-      IncompleteLineDetectingLineBasedFrameDecoder.class.getName());
-
-  IncompleteLineDetectingLineBasedFrameDecoder(int maxLength) {
+  IncompleteLineDetectingLineBasedFrameDecoder(@Nonnull Consumer<String> warningMessageConsumer,
+                                               int maxLength) {
     super(maxLength, true, false);
+    this.warningMessageConsumer = warningMessageConsumer;
   }
 
   @Override
@@ -31,7 +33,7 @@ public class IncompleteLineDetectingLineBasedFrameDecoder extends LineBasedFrame
     if (readableBytes > 0) {
       String discardedData = in.readBytes(readableBytes).toString(StandardCharsets.UTF_8);
       if (StringUtils.isNotBlank(discardedData)) {
-        logger.warning("Client " + ChannelUtils.getRemoteName(ctx) +
+        warningMessageConsumer.accept("Client " + ChannelUtils.getRemoteName(ctx) +
             " disconnected, leaving unterminated string. Input (" + readableBytes +
             " bytes) discarded: \"" + discardedData + "\"");
       }

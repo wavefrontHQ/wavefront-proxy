@@ -26,10 +26,6 @@ public class ReportableConfig {
 
   private final Properties prop = new Properties();
 
-  public ReportableConfig(InputStream stream) throws IOException {
-    prop.load(stream);
-  }
-
   public ReportableConfig(String fileName) throws IOException {
     prop.load(new FileInputStream(fileName));
   }

@@ -24,15 +24,6 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  @Deprecated
-  public PointLineReplaceRegexTransformer(final String patternSearch,
-                                          final String patternReplace,
-                                          @Nullable final String patternMatch,
-                                          @Nullable final Integer maxIterations,
-                                          @Nullable final Counter ruleAppliedCounter) {
-    this(patternSearch, patternReplace, patternMatch, maxIterations, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public PointLineReplaceRegexTransformer(final String patternSearch,
                                           final String patternReplace,
                                           @Nullable final String patternMatch,

@@ -2,9 +2,9 @@ package com.wavefront.agent;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Resources;
-
+import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.data.QueueingReason;
+import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -12,12 +12,8 @@ import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.SenderTask;
 import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
-
 import junit.framework.AssertionFailedError;
-
 import net.jcip.annotations.NotThreadSafe;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
@@ -30,31 +26,6 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.Assert;
-
-import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.net.HttpURLConnection;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.URL;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.zip.GZIPOutputStream;
-
-import javax.annotation.Nonnull;
-import javax.net.SocketFactory;
-
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -64,6 +35,24 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
+import javax.annotation.Nonnull;
+import javax.net.SocketFactory;
+import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
+import java.net.Socket;
+import java.net.URL;
+import java.util.Collection;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
+
+import static com.wavefront.agent.TestUtils.findAvailablePort;
+import static com.wavefront.agent.TestUtils.getResource;
+import static com.wavefront.agent.TestUtils.gzippedHttpPost;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
@@ -122,24 +111,6 @@ public class PushAgentTest {
           mockTraceSpanLogsHandler);
   private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
 
-  private static int findAvailablePort(int startingPortNumber) {
-    int portNum = startingPortNumber;
-    ServerSocket socket;
-    while (portNum < startingPortNumber + 1000) {
-      try {
-        socket = new ServerSocket(portNum);
-        socket.close();
-        logger.log(Level.INFO, "Found available port: " + portNum);
-        return portNum;
-      } catch (IOException exc) {
-        logger.log(Level.WARNING, "Port " + portNum + " is not available:" + exc.getMessage());
-      }
-      portNum++;
-    }
-    throw new RuntimeException("Unable to find an available port in the [" + startingPortNumber + ";" +
-        (startingPortNumber + 1000) + ") range");
-  }
-
   @Before
   public void setup() throws Exception {
     port = findAvailablePort(2888);
@@ -147,17 +118,15 @@ public class PushAgentTest {
     ddPort = findAvailablePort(4888);
     deltaPort = findAvailablePort(5888);
     proxy = new PushAgent();
-    proxy.parseArguments(new String[] {
-        "--flushThreads", "2",
-        "--dataBackfillCutoffHours", "100000000",
-        "--pushListenerPorts", String.valueOf(port),
-        "--deltaCountersAggregationListenerPorts", String.valueOf(deltaPort),
-        "--traceListenerPorts", String.valueOf(tracePort),
-        "--dataDogJsonPorts", String.valueOf(ddPort),
-        "--dataDogProcessSystemMetrics", "false",
-        "--dataDogProcessServiceChecks", "true",
-        "--deltaCountersAggregationIntervalSeconds", "3"
-    });
+    proxy.proxyConfig.flushThreads = 2;
+    proxy.proxyConfig.dataBackfillCutoffHours = 100000000;
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
+    proxy.proxyConfig.traceListenerPorts = String.valueOf(tracePort);
+    proxy.proxyConfig.dataDogJsonPorts = String.valueOf(ddPort);
+    proxy.proxyConfig.dataDogProcessSystemMetrics = false;
+    proxy.proxyConfig.dataDogProcessServiceChecks = true;
+    proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 3;
     assertEquals(Integer.valueOf(2), proxy.proxyConfig.getFlushThreads());
     assertFalse(proxy.proxyConfig.isDataDogProcessSystemMetrics());
     assertTrue(proxy.proxyConfig.isDataDogProcessServiceChecks());
@@ -407,14 +376,12 @@ public class PushAgentTest {
   public void testDataDogUnifiedPortHandler() throws Exception {
     int ddPort2 = findAvailablePort(4988);
     PushAgent proxy2 = new PushAgent();
-    proxy2.parseArguments(new String[]{
-        "--flushThreads", "2",
-        "--dataBackfillCutoffHours", "100000000",
-        "--dataDogJsonPorts", String.valueOf(ddPort2),
-        "--dataDogProcessSystemMetrics", "true",
-        "--dataDogProcessServiceChecks", "false",
-        "--dataDogRequestRelayTarget", "http://relay-to:1234"
-    });
+    proxy2.proxyConfig.flushThreads = 2;
+    proxy2.proxyConfig.dataBackfillCutoffHours = 100000000;
+    proxy2.proxyConfig.dataDogJsonPorts = String.valueOf(ddPort2);
+    proxy2.proxyConfig.dataDogProcessSystemMetrics = true;
+    proxy2.proxyConfig.dataDogProcessServiceChecks = false;
+    proxy2.proxyConfig.dataDogRequestRelayTarget = "http://relay-to:1234";
     assertEquals(Integer.valueOf(2), proxy2.proxyConfig.getFlushThreads());
     assertTrue(proxy2.proxyConfig.isDataDogProcessSystemMetrics());
     assertFalse(proxy2.proxyConfig.isDataDogProcessServiceChecks());
@@ -538,29 +505,6 @@ public class PushAgentTest {
 
   }
 
-  private String getResource(String resourceName) throws Exception {
-    URL url = Resources.getResource("com.wavefront.agent/" + resourceName);
-    File myFile = new File(url.toURI());
-    return FileUtils.readFileToString(myFile, "UTF-8");
-  }
-
-  private void gzippedHttpPost(String postUrl, String payload) throws Exception {
-    URL url = new URL(postUrl);
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("POST");
-    connection.setDoOutput(true);
-    connection.setDoInput(true);
-    connection.setRequestProperty("Content-Encoding", "gzip");
-    ByteArrayOutputStream baos = new ByteArrayOutputStream(payload.length());
-    GZIPOutputStream gzip = new GZIPOutputStream(baos);
-    gzip.write(payload.getBytes("UTF-8"));
-    gzip.close();
-    connection.getOutputStream().write(baos.toByteArray());
-    connection.getOutputStream().flush();
-    logger.info("HTTP response code (gzipped content): " + connection.getResponseCode());
-  }
-
-
   @Test
   public void testDeltaCounterHandlerMixedData() throws Exception {
     reset(mockSenderTask);
@@ -625,4 +569,5 @@ public class PushAgentTest {
       pointInd += 1;
     }
   }
+
 }

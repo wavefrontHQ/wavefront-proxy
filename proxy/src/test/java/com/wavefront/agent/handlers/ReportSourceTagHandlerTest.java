@@ -62,20 +62,65 @@ public class ReportSourceTagHandlerTest {
 
   /**
    * This test will add 3 source tags and verify that the server side api is called properly.
-   *
    */
   @Test
   public void testSourceTagsSetting() throws Exception {
     String[] annotations = new String[]{"tag1", "tag2", "tag3"};
     ReportSourceTag sourceTag = new ReportSourceTag("SourceTag", "save", "dummy", "desc",
         Arrays.asList(annotations));
-    EasyMock.expect(mockAgentAPI.setTags("dummy", Arrays.asList(annotations))).andReturn(
-        Response.ok().build()).once();
-
+    EasyMock.expect(mockAgentAPI.setTags("dummy", Arrays.asList(annotations))).
+        andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
-
     sourceTagHandler.report(sourceTag);
-    TimeUnit.SECONDS.sleep(1);
+    TimeUnit.MILLISECONDS.sleep(250);
+    EasyMock.verify(mockAgentAPI);
+  }
+
+  @Test
+  public void testSourceTagAppend() throws Exception {
+    ReportSourceTag sourceTag = new ReportSourceTag("SourceTag", "add", "dummy", "desc",
+        ImmutableList.of("tag1"));
+    EasyMock.expect(mockAgentAPI.appendTag("dummy", "tag1")).
+        andReturn(Response.ok().build()).once();
+    EasyMock.replay(mockAgentAPI);
+    sourceTagHandler.report(sourceTag);
+    TimeUnit.MILLISECONDS.sleep(250);
+    EasyMock.verify(mockAgentAPI);
+  }
+
+  @Test
+  public void testSourceTagDelete() throws Exception {
+    ReportSourceTag sourceTag = new ReportSourceTag("SourceTag", "delete", "dummy", "desc",
+        ImmutableList.of("tag1"));
+    EasyMock.expect(mockAgentAPI.removeTag("dummy", "tag1")).
+        andReturn(Response.ok().build()).once();
+    EasyMock.replay(mockAgentAPI);
+    sourceTagHandler.report(sourceTag);
+    TimeUnit.MILLISECONDS.sleep(250);
+    EasyMock.verify(mockAgentAPI);
+  }
+
+  @Test
+  public void testSourceAddDescription() throws Exception {
+    ReportSourceTag sourceTag = new ReportSourceTag("SourceDescription", "set", "dummy",
+        "description", ImmutableList.of());
+    EasyMock.expect(mockAgentAPI.setDescription("dummy", "description")).
+        andReturn(Response.ok().build()).once();
+    EasyMock.replay(mockAgentAPI);
+    sourceTagHandler.report(sourceTag);
+    TimeUnit.MILLISECONDS.sleep(250);
+    EasyMock.verify(mockAgentAPI);
+  }
+
+  @Test
+  public void testSourceDeleteDescription() throws Exception {
+    ReportSourceTag sourceTag = new ReportSourceTag("SourceDescription", "delete", "dummy",
+        "description", ImmutableList.of());
+    EasyMock.expect(mockAgentAPI.removeDescription("dummy")).
+        andReturn(Response.ok().build()).once();
+    EasyMock.replay(mockAgentAPI);
+    sourceTagHandler.report(sourceTag);
+    TimeUnit.MILLISECONDS.sleep(250);
     EasyMock.verify(mockAgentAPI);
   }
 

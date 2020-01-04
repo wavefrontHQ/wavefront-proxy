@@ -29,6 +29,7 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +49,7 @@ import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
-import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.handlers.LineDelimitedUtils.splitPushData;
 import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.preprocessAndHandlePoint;
@@ -148,10 +149,9 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest request) {
+                                   final FullHttpRequest request) throws URISyntaxException {
     StringBuilder output = new StringBuilder();
-    URI uri = ChannelUtils.parseUri(ctx, request);
-    if (uri == null) return;
+    URI uri = new URI(request.uri());
     String path = uri.getPath();
     final boolean isDirectIngestion = path.startsWith("/report");
     if (path.endsWith("/checkin") && (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
@@ -237,7 +237,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
           status = hasSuccessfulPoints.get() ? okStatus : HttpResponseStatus.BAD_REQUEST;
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
-          writeExceptionText(e, output);
+          output.append(errorMessageWithRootCause(e));
           logWarning("WF-300: Failed to handle HTTP POST", e, ctx);
         }
         break;

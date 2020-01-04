@@ -4,6 +4,8 @@ import com.google.common.collect.ImmutableList;
 
 import com.wavefront.agent.TestUtils;
 
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.MetricName;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
@@ -11,14 +13,18 @@ import org.apache.http.message.BasicNameValuePair;
 import org.easymock.EasyMock;
 import org.junit.Test;
 
+import javax.annotation.concurrent.NotThreadSafe;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.wavefront.agent.TestUtils.httpEq;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+@NotThreadSafe
 public class Oauth2TokenIntrospectionAuthenticatorTest {
 
   @Test
@@ -80,7 +86,7 @@ public class Oauth2TokenIntrospectionAuthenticatorTest {
     HttpClient client = EasyMock.createMock(HttpClient.class);
     AtomicLong fakeClock = new AtomicLong(1_000_000);
     TokenAuthenticator authenticator = new Oauth2TokenIntrospectionAuthenticator(client,
-        "http://acme.corp/oauth", null, 300, 600, fakeClock::get);
+        "http://acme.corp/oauth", "Bearer: abcde12345", 300, 600, fakeClock::get);
 
     String uuid = UUID.randomUUID().toString();
 
@@ -109,5 +115,26 @@ public class Oauth2TokenIntrospectionAuthenticatorTest {
     assertFalse(authenticator.authorize(uuid)); // Should call http again - TTL expired
 
     EasyMock.verify(client);
+  }
+
+  @Test
+  public void testIntrospectionUrlInvalidResponseThrows() throws Exception {
+    HttpClient client = EasyMock.createMock(HttpClient.class);
+    AtomicLong fakeClock = new AtomicLong(1_000_000);
+    TokenAuthenticator authenticator = new Oauth2TokenIntrospectionAuthenticator(client,
+        "http://acme.corp/oauth", "Bearer: abcde12345", 300, 600, fakeClock::get);
+
+    String uuid = UUID.randomUUID().toString();
+
+    HttpPost request = new HttpPost("http://acme.corp/oauth");
+    request.setHeader("Content-Type", "application/x-www-form-urlencoded");
+    request.setHeader("Accept", "application/json");
+    request.setEntity(new UrlEncodedFormEntity(ImmutableList.of(new BasicNameValuePair("token", uuid))));
+
+    TestUtils.expectHttpResponse(client, request, "{\"inActive\": true}".getBytes(), 204);
+
+    long count = Metrics.newCounter(new MetricName("auth", "", "api-errors")).count();
+    authenticator.authorize(uuid); // should call http
+    assertEquals(1, Metrics.newCounter(new MetricName("auth", "", "api-errors")).count() - count);
   }
 }

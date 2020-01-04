@@ -1,5 +1,7 @@
 package com.wavefront.agent;
 
+import com.google.common.io.Resources;
+import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -10,8 +12,23 @@ import org.easymock.EasyMock;
 import org.easymock.IArgumentMatcher;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.ServerSocket;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
+/**
+ * @author vasily@wavefront.com
+ */
 public class TestUtils {
+  private static final Logger logger = Logger.getLogger(TestUtils.class.getCanonicalName());
+
   public static <T extends HttpRequestBase> T httpEq(HttpRequestBase request) {
     EasyMock.reportMatcher(new IArgumentMatcher() {
       @Override
@@ -50,5 +67,46 @@ public class TestUtils {
     EasyMock.expect(httpClient.execute(httpEq(req))).andReturn(response).once();
 
     EasyMock.replay(httpClient, response, entity, line);
+  }
+
+  public static int findAvailablePort(int startingPortNumber) {
+    int portNum = startingPortNumber;
+    ServerSocket socket;
+    while (portNum < startingPortNumber + 1000) {
+      try {
+        socket = new ServerSocket(portNum);
+        socket.close();
+        logger.log(Level.INFO, "Found available port: " + portNum);
+        return portNum;
+      } catch (IOException exc) {
+        logger.log(Level.WARNING, "Port " + portNum + " is not available:" + exc.getMessage());
+      }
+      portNum++;
+    }
+    throw new RuntimeException("Unable to find an available port in the [" + startingPortNumber +
+        ";" + (startingPortNumber + 1000) + ") range");
+  }
+
+  public static void gzippedHttpPost(String postUrl, String payload) throws Exception {
+    URL url = new URL(postUrl);
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("POST");
+    connection.setDoOutput(true);
+    connection.setDoInput(true);
+    connection.setRequestProperty("Content-Encoding", "gzip");
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    GZIPOutputStream gzip = new GZIPOutputStream(baos);
+    gzip.write(payload.getBytes(StandardCharsets.UTF_8));
+    gzip.close();
+    connection.getOutputStream().write(baos.toByteArray());
+    connection.getOutputStream().flush();
+    System.out.println("BAOS size: " + baos.toByteArray().length);
+    logger.info("HTTP response code (gzipped content): " + connection.getResponseCode());
+  }
+
+  public static String getResource(String resourceName) throws Exception {
+    URL url = Resources.getResource("com.wavefront.agent/" + resourceName);
+    File myFile = new File(url.toURI());
+    return FileUtils.readFileToString(myFile, "UTF-8");
   }
 }

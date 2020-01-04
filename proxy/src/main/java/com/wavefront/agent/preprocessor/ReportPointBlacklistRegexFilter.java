@@ -23,13 +23,6 @@ public class ReportPointBlacklistRegexFilter implements AnnotatedPredicate<Repor
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  @Deprecated
-  public ReportPointBlacklistRegexFilter(final String scope,
-                                         final String patternMatch,
-                                         @Nullable final Counter ruleAppliedCounter) {
-    this(scope, patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public ReportPointBlacklistRegexFilter(final String scope,
                                          final String patternMatch,
                                          final PreprocessorRuleMetrics ruleMetrics) {

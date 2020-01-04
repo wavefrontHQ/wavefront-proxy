@@ -2,6 +2,7 @@ package com.wavefront.agent.histogram;
 
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.ImmutableMap;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
@@ -19,7 +20,6 @@ public final class TestUtils {
     // final abstract...
   }
 
-
   public static long DEFAULT_TIME_MILLIS =
       TimeUnit.MINUTES.toMillis(TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis()));
   public static double DEFAULT_VALUE = 1D;
@@ -36,10 +36,13 @@ public final class TestUtils {
    */
   public static HistogramKey makeKey(String metric, Granularity granularity) {
     return Utils.makeKey(
-        ReportPoint.newBuilder().setMetric(metric).setTimestamp(DEFAULT_TIME_MILLIS).setValue(DEFAULT_VALUE).build(),
+        ReportPoint.newBuilder().
+            setMetric(metric).
+            setAnnotations(ImmutableMap.of("tagk", "tagv")).
+            setTimestamp(DEFAULT_TIME_MILLIS).
+            setValue(DEFAULT_VALUE).build(),
         granularity);
   }
-
 
   static void testKeyPointMatch(HistogramKey key, ReportPoint point) {
     assertThat(key).isNotNull();

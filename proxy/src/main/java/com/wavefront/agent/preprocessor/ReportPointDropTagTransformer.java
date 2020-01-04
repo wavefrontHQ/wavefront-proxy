@@ -3,12 +3,11 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
-import com.yammer.metrics.core.Counter;
-
 import java.util.Iterator;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
@@ -20,18 +19,11 @@ import wavefront.report.ReportPoint;
  */
 public class ReportPointDropTagTransformer implements Function<ReportPoint, ReportPoint> {
 
-  @Nullable
+  @Nonnull
   private final Pattern compiledTagPattern;
   @Nullable
   private final Pattern compiledValuePattern;
   private final PreprocessorRuleMetrics ruleMetrics;
-
-  @Deprecated
-  public ReportPointDropTagTransformer(final String tag,
-                                       @Nullable final String patternMatch,
-                                       @Nullable final Counter ruleAppliedCounter) {
-    this(tag, patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
 
   public ReportPointDropTagTransformer(final String tag,
                                        @Nullable final String patternMatch,
@@ -48,10 +40,6 @@ public class ReportPointDropTagTransformer implements Function<ReportPoint, Repo
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (reportPoint.getAnnotations() == null || compiledTagPattern == null) {
-      ruleMetrics.ruleEnd(startNanos);
-      return reportPoint;
-    }
     Iterator<Map.Entry<String, String>> iterator = reportPoint.getAnnotations().entrySet().iterator();
     while (iterator.hasNext()) {
       Map.Entry<String, String> entry = iterator.next();

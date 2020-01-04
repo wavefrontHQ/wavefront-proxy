@@ -15,13 +15,6 @@ import wavefront.report.ReportPoint;
  */
 public class ReportPointAddTagIfNotExistsTransformer extends ReportPointAddTagTransformer {
 
-  @Deprecated
-  public ReportPointAddTagIfNotExistsTransformer(final String tag,
-                                                 final String value,
-                                                 @Nullable final Counter ruleAppliedCounter) {
-    this(tag, value, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public ReportPointAddTagIfNotExistsTransformer(final String tag,
                                                  final String value,
                                                  final PreprocessorRuleMetrics ruleMetrics) {
@@ -33,9 +26,6 @@ public class ReportPointAddTagIfNotExistsTransformer extends ReportPointAddTagTr
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.newHashMap());
-    }
     if (reportPoint.getAnnotations().get(tag) == null) {
       reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
       ruleMetrics.incrementRuleAppliedCounter();

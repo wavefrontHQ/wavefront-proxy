@@ -21,13 +21,6 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
   protected final String value;
   protected final PreprocessorRuleMetrics ruleMetrics;
 
-  @Deprecated
-  public ReportPointAddTagTransformer(final String tag,
-                                      final String value,
-                                      @Nullable final Counter ruleAppliedCounter) {
-    this(tag, value, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public ReportPointAddTagTransformer(final String tag,
                                       final String value,
                                       final PreprocessorRuleMetrics ruleMetrics) {
@@ -44,9 +37,6 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.newHashMap());
-    }
     reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
     ruleMetrics.incrementRuleAppliedCounter();
     ruleMetrics.ruleEnd(startNanos);

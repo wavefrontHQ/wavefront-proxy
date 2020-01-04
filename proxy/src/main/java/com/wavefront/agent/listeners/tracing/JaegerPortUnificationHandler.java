@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -41,7 +42,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.tracing.JaegerThriftUtils.processBatch;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
@@ -158,21 +159,19 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest incomingRequest) {
-    URI uri = ChannelUtils.parseUri(ctx, incomingRequest);
-    if (uri == null) return;
-
+                                   final FullHttpRequest request) throws URISyntaxException {
+    URI uri = new URI(request.uri());
     String path = uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
 
     // Validate Uri Path and HTTP method of incoming Jaeger spans.
     if (!path.equals(JAEGER_VALID_PATH)) {
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported URL path.", incomingRequest);
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported URL path.", request);
       logWarning("WF-400: Requested URI path '" + path + "' is not supported.", null, ctx);
       return;
     }
-    if (!incomingRequest.method().toString().equalsIgnoreCase(JAEGER_VALID_HTTP_METHOD)) {
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported Http method.", incomingRequest);
-      logWarning("WF-400: Requested http method '" + incomingRequest.method().toString() +
+    if (!request.method().toString().equalsIgnoreCase(JAEGER_VALID_HTTP_METHOD)) {
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported Http method.", request);
+      logWarning("WF-400: Requested http method '" + request.method().toString() +
           "' is not supported.", null, ctx);
       return;
     }
@@ -181,8 +180,8 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
     StringBuilder output = new StringBuilder();
 
     try {
-      byte[] bytesArray = new byte[incomingRequest.content().nioBuffer().remaining()];
-      incomingRequest.content().nioBuffer().get(bytesArray, 0, bytesArray.length);
+      byte[] bytesArray = new byte[request.content().nioBuffer().remaining()];
+      request.content().nioBuffer().get(bytesArray, 0, bytesArray.length);
       Batch batch = new Batch();
       new TDeserializer().deserialize(batch, bytesArray);
 
@@ -194,11 +193,11 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
       processedBatches.inc();
     } catch (Exception e) {
       failedBatches.inc();
-      writeExceptionText(e, output);
+      output.append(errorMessageWithRootCause(e));
       status = HttpResponseStatus.BAD_REQUEST;
       logger.log(Level.WARNING, "Jaeger HTTP batch processing failed", Throwables.getRootCause(e));
     }
-    writeHttpResponse(ctx, status, output, incomingRequest);
+    writeHttpResponse(ctx, status, output, request);
   }
 
   @Override

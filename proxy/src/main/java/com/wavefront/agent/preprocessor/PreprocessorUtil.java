@@ -5,9 +5,12 @@ import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
+import org.apache.commons.lang3.ObjectUtils;
 import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
+
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 /**
  * Utility class for methods used by preprocessors.
@@ -45,11 +48,7 @@ public abstract class PreprocessorUtil {
             default:
               substitution = reportPoint.getAnnotations().get(placeholders.group(1));
           }
-          if (substitution != null) {
-            placeholders.appendReplacement(result, substitution);
-          } else {
-            placeholders.appendReplacement(result, placeholders.group(0));
-          }
+          placeholders.appendReplacement(result, firstNonNull(substitution, placeholders.group(0)));
         }
       }
       placeholders.appendTail(result);
@@ -84,14 +83,11 @@ public abstract class PreprocessorUtil {
               substitution = span.getSource();
               break;
             default:
-              substitution = span.getAnnotations().stream().filter(a -> a.getKey().equals(placeholders.group(1))).
+              substitution = span.getAnnotations().stream().
+                  filter(a -> a.getKey().equals(placeholders.group(1))).
                   map(Annotation::getValue).findFirst().orElse(null);
           }
-          if (substitution != null) {
-            placeholders.appendReplacement(result, substitution);
-          } else {
-            placeholders.appendReplacement(result, placeholders.group(0));
-          }
+          placeholders.appendReplacement(result, firstNonNull(substitution, placeholders.group(0)));
         }
       }
       placeholders.appendTail(result);

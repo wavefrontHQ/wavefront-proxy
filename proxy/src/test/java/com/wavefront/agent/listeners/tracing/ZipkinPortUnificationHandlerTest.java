@@ -44,7 +44,7 @@ public class ZipkinPortUnificationHandlerTest {
   private long startTime = System.currentTimeMillis();
 
   @Test
-  public void testZipkinHandler() {
+  public void testZipkinHandler() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
         () -> false, () -> false, null, new RateSampler(1.0D), false, "ProxyLevelAppTag", null);
@@ -231,7 +231,7 @@ public class ZipkinPortUnificationHandlerTest {
   }
 
   @Test
-  public void testZipkinDurationSampler() {
+  public void testZipkinDurationSampler() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
         () -> false, () -> false, null, new DurationSampler(5), false, null, null);
@@ -307,7 +307,7 @@ public class ZipkinPortUnificationHandlerTest {
   }
 
   @Test
-  public void testZipkinDebugOverride() {
+  public void testZipkinDebugOverride() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
         () -> false, () -> false, null, new DurationSampler(10), false, null, null);
@@ -458,7 +458,7 @@ public class ZipkinPortUnificationHandlerTest {
   }
 
   @Test
-  public void testZipkinCustomSource() {
+  public void testZipkinCustomSource() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
         () -> false, () -> false, null, new RateSampler(1.0D), false, null, null);

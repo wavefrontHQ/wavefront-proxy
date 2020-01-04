@@ -20,15 +20,15 @@ public class MessageDedupingLogger extends Logger {
   private final LoadingCache<String, RateLimiter> rateLimiterCache;
 
   /**
-   * @param loggerName   logger name.
+   * @param delegate     Delegate logger.
    * @param maximumSize  max number of unique messages that can exist in the cache
    * @param rateLimit    rate limit per message
    */
-  public MessageDedupingLogger(String loggerName,
+  public MessageDedupingLogger(Logger delegate,
                                long maximumSize,
                                double rateLimit) {
-    super(loggerName, null);
-    this.delegate = Logger.getLogger(loggerName);
+    super(delegate.getName(), null);
+    this.delegate = delegate;
     this.rateLimiterCache = Caffeine.newBuilder().
         expireAfterAccess((long)(2 / rateLimit), TimeUnit.SECONDS).
         maximumSize(maximumSize).

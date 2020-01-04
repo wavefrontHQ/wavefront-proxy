@@ -1,7 +1,9 @@
 package com.wavefront.common;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Splitter;
 import org.apache.commons.lang.StringUtils;
 
 import javax.annotation.Nonnull;
@@ -11,7 +13,9 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
@@ -85,6 +89,19 @@ public abstract class Utils {
   }
 
   /**
+   * Creates an iterator over values a comma-delimited string.
+   *
+   * @param inputString input string
+   * @return iterator
+   */
+  @Nonnull
+  public static Iterator<String> csvIterator(@Nullable String inputString) {
+    return inputString == null ?
+        Collections.emptyIterator() :
+        Splitter.on(",").omitEmptyStrings().trimResults().split(inputString).iterator();
+  }
+
+  /**
    * Attempts to retrieve build.version from system build properties.
    *
    * @return build version as string
@@ -154,6 +171,7 @@ public abstract class Utils {
     return false;
   }
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   private static class Status {
     @JsonProperty
     String message;

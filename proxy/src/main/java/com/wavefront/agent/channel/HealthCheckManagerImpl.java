@@ -71,15 +71,11 @@ public class HealthCheckManagerImpl implements HealthCheckManager {
 
   @Override
   public HttpResponse getHealthCheckResponse(ChannelHandlerContext ctx,
-                                             @Nonnull FullHttpRequest request) {
+                                             @Nonnull FullHttpRequest request)
+      throws URISyntaxException {
     int port = ((InetSocketAddress) ctx.channel().localAddress()).getPort();
     if (!enabledPorts.contains(port)) return null;
-    URI uri;
-    try {
-      uri = new URI(request.uri());
-    } catch (URISyntaxException e) {
-      return null;
-    }
+    URI uri = new URI(request.uri());
     if (!(this.path == null || this.path.equals(uri.getPath()))) return null;
     // it is a health check URL, now we need to determine current status and respond accordingly
     final boolean ok = isHealthy(port);

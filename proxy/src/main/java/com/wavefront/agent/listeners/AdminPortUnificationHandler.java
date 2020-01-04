@@ -9,6 +9,7 @@ import org.apache.commons.lang.math.NumberUtils;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -52,7 +53,7 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
    * @param healthCheckManager shared health check endpoint handler.
    * @param handle             handle/port number.
    */
-  public AdminPortUnificationHandler(@Nonnull TokenAuthenticator tokenAuthenticator,
+  public AdminPortUnificationHandler(@Nullable TokenAuthenticator tokenAuthenticator,
                                      @Nullable HealthCheckManager healthCheckManager,
                                      @Nullable String handle,
                                      @Nullable String remoteIpWhitelistRegex) {
@@ -62,7 +63,7 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest request) {
+                                   final FullHttpRequest request) throws URISyntaxException {
     StringBuilder output = new StringBuilder();
     String remoteIp = ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().
         getHostAddress();
@@ -73,8 +74,7 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
       writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, output, request);
       return;
     }
-    URI uri = ChannelUtils.parseUri(ctx, request);
-    if (uri == null) return;
+    URI uri = new URI(request.uri());
     HttpResponseStatus status;
     Matcher path = PATH.matcher(uri.getPath());
     if (path.matches()) {

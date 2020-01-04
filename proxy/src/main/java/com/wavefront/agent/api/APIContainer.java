@@ -5,7 +5,7 @@ import com.wavefront.agent.JsonNodeWriter;
 import com.wavefront.agent.SSLConnectionSocketFactoryImpl;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.channel.GZIPEncodingInterceptorWithVariableCompression;
-import com.wavefront.agent.config.ProxyConfig;
+import com.wavefront.agent.ProxyConfig;
 import com.wavefront.api.EventAPI;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.SourceTagAPI;

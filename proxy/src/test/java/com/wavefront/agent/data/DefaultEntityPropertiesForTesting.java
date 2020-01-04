@@ -45,7 +45,7 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
 
   @Override
   public int getPushFlushInterval() {
-    return DEFAULT_FLUSH_INTERVAL;
+    return 100;
   }
 
   @Override

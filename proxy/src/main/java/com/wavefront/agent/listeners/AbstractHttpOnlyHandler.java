@@ -3,6 +3,7 @@ package com.wavefront.agent.listeners;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 
+import java.net.URISyntaxException;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -29,14 +30,14 @@ public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHan
    * @param healthCheckManager shared health check endpoint handler.
    * @param handle             handle/port number.
    */
-  public AbstractHttpOnlyHandler(@Nonnull TokenAuthenticator tokenAuthenticator,
+  public AbstractHttpOnlyHandler(@Nullable final TokenAuthenticator tokenAuthenticator,
                                  @Nullable final HealthCheckManager healthCheckManager,
                                  @Nullable final String handle) {
     super(tokenAuthenticator, healthCheckManager, handle);
   }
 
-  protected abstract void handleHttpMessage(final ChannelHandlerContext ctx,
-                                            final FullHttpRequest request);
+  protected abstract void handleHttpMessage(
+      final ChannelHandlerContext ctx, final FullHttpRequest request) throws URISyntaxException;
 
   /**
    * Discards plaintext content.

@@ -58,18 +58,19 @@ public class PreprocessorConfigManager {
   int totalValidRules = 0;
 
   public PreprocessorConfigManager() {
-    this(null, null, System::currentTimeMillis);
+    this(null, null, System::currentTimeMillis, 5000);
   }
 
   public PreprocessorConfigManager(@Nullable String fileName) throws FileNotFoundException {
     this(fileName, fileName == null ? null : new FileInputStream(fileName),
-        System::currentTimeMillis);
+        System::currentTimeMillis, 5000);
   }
 
   @VisibleForTesting
   PreprocessorConfigManager(@Nullable String fileName,
                             @Nullable InputStream inputStream,
-                            @Nonnull Supplier<Long> timeSupplier) {
+                            @Nonnull Supplier<Long> timeSupplier,
+                            int fileCheckIntervalMillis) {
     this.timeSupplier = timeSupplier;
 
     if (inputStream != null) {
@@ -101,7 +102,7 @@ public class PreprocessorConfigManager {
             failedConfigReloads.inc();
           }
         }
-      }, 5, 5);
+      }, 0, fileCheckIntervalMillis);
     } else if (inputStream == null){
       userPreprocessorsTs = timeSupplier.get();
       userPreprocessors = Collections.emptyMap();
@@ -133,6 +134,7 @@ public class PreprocessorConfigManager {
     }
     return this.preprocessors.computeIfAbsent(key, x -> new ReportableEntityPreprocessor());
   }
+
   private void requireArguments(@Nonnull Map<String, String> rule, String... arguments) {
     if (rule.isEmpty())
       throw new IllegalArgumentException("Rule is empty");

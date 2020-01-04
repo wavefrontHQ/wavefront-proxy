@@ -1,6 +1,5 @@
 package com.wavefront.agent;
 
-import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
@@ -10,7 +9,6 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
-import com.wavefront.agent.config.ProxyConfig;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
@@ -166,32 +164,18 @@ public abstract class AbstractAgent {
   void parseArguments(String[] args) {
     // read build information and print version.
     String versionStr = "Wavefront Proxy version " + getBuildVersion();
-    JCommander jCommander = JCommander.newBuilder().
-        programName(this.getClass().getCanonicalName()).
-        addObject(proxyConfig).
-        allowParameterOverwriting(true).
-        build();
     try {
-      jCommander.parse(args);
-
-      if (proxyConfig.isVersion()) {
-        System.out.println(versionStr);
-        System.exit(0);
-      }
-      if (proxyConfig.isHelp()) {
-        System.out.println(versionStr);
-        jCommander.usage();
-        System.exit(0);
-      }
-      logger.info(versionStr);
-      logger.info("Arguments: " + IntStream.range(0, args.length).
-          mapToObj(i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i]).
-          collect(Collectors.joining(" ")));
-      proxyConfig.verifyAndInit();
+      proxyConfig.parseArguments(args, this.getClass().getCanonicalName());
     } catch (ParameterException e) {
+      logger.info(versionStr);
       logger.severe("Parameter exception: " + e.getMessage());
       System.exit(1);
     }
+    logger.info(versionStr);
+    logger.info("Arguments: " + IntStream.range(0, args.length).
+        mapToObj(i -> (i > 0 && PARAMETERS_TO_HIDE.contains(args[i - 1])) ? "<HIDDEN>" : args[i]).
+        collect(Collectors.joining(" ")));
+    proxyConfig.verifyAndInit();
   }
 
   /**

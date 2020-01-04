@@ -23,7 +23,7 @@ public class HttpGetTokenIntrospectionAuthenticatorTest {
     HttpClient client = EasyMock.createMock(HttpClient.class);
     AtomicLong fakeClock = new AtomicLong(1_000_000);
     TokenAuthenticator authenticator = new HttpGetTokenIntrospectionAuthenticator(client,
-        "http://acme.corp/{{token}}/something", null, 300, 600, fakeClock::get);
+        "http://acme.corp/{{token}}/something", "Bearer: abcde12345", 300, 600, fakeClock::get);
     assertTrue(authenticator.authRequired());
     assertFalse(authenticator.authorize(null));
 

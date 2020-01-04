@@ -25,13 +25,6 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  @Deprecated
-  public ReportPointForceLowercaseTransformer(final String scope,
-                                              @Nullable final String patternMatch,
-                                              @Nullable final Counter ruleAppliedCounter) {
-    this(scope, patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public ReportPointForceLowercaseTransformer(final String scope,
                                               @Nullable final String patternMatch,
                                               final PreprocessorRuleMetrics ruleMetrics) {

@@ -21,6 +21,7 @@ import com.wavefront.metrics.JsonMetricsParser;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -101,15 +102,15 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest incomingRequest) {
+                                   final FullHttpRequest request) throws URISyntaxException {
     StringBuilder output = new StringBuilder();
     try {
-      URI uri = Objects.requireNonNull(ChannelUtils.parseUri(ctx, incomingRequest));
+      URI uri = new URI(request.uri());
       Map<String, String> params = Arrays.stream(uri.getRawQuery().split("&")).
           map(x -> new Pair<>(x.split("=")[0].trim().toLowerCase(), x.split("=")[1])).
           collect(Collectors.toMap(k -> k._1, v -> v._2));
 
-      String requestBody = incomingRequest.content().toString(CharsetUtil.UTF_8);
+      String requestBody = request.content().toString(CharsetUtil.UTF_8);
 
       Map<String, String> tags = Maps.newHashMap();
       params.entrySet().stream().
@@ -138,7 +139,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
       String[] messageHolder = new String[1];
       JsonMetricsParser.report("dummy", prefix, metrics, points, host, timestamp);
       for (ReportPoint point : points) {
-        if (point.getAnnotations() == null || point.getAnnotations().isEmpty()) {
+        if (point.getAnnotations().isEmpty()) {
           point.setAnnotations(tags);
         } else {
           Map<String, String> newAnnotations = Maps.newHashMap(tags);
@@ -158,10 +159,10 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
         }
         pointHandler.report(point);
       }
-      writeHttpResponse(ctx, HttpResponseStatus.OK, output, incomingRequest);
+      writeHttpResponse(ctx, HttpResponseStatus.OK, output, request);
     } catch (IOException e) {
       logWarning("WF-300: Error processing incoming JSON request", e, ctx);
-      writeHttpResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, output, incomingRequest);
+      writeHttpResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, output, request);
     }
   }
 }

@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import com.google.common.util.concurrent.RecyclableRateLimiterWithMetrics;
-import com.wavefront.agent.config.ProxyConfig;
+import com.wavefront.agent.ProxyConfig;
 import com.wavefront.data.ReportableEntityType;
 import org.apache.commons.lang3.ObjectUtils;
 

@@ -18,10 +18,6 @@ public enum TaskQueueLevel {
     this.level = level;
   }
 
-  public boolean isGreaterThan(TaskQueueLevel other) {
-    return this.level > other.level;
-  }
-
   public boolean isLessThan(TaskQueueLevel other) {
     return this.level < other.level;
   }

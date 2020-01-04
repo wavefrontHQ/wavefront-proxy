@@ -31,17 +31,6 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   protected final String patternReplaceSource;
   protected final PreprocessorRuleMetrics ruleMetrics;
 
-  @Deprecated
-  public ReportPointExtractTagTransformer(final String tag,
-                                          final String source,
-                                          final String patternSearch,
-                                          final String patternReplace,
-                                          @Nullable final String patternMatch,
-                                          @Nullable final Counter ruleAppliedCounter) {
-    this(tag, source, patternSearch, patternReplace, null, patternMatch,
-        new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public ReportPointExtractTagTransformer(final String tag,
                                           final String source,
                                           final String patternSearch,
@@ -70,9 +59,6 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
     patternMatcher = compiledSearchPattern.matcher(extractFrom);
     if (!patternMatcher.find()) {
       return false;
-    }
-    if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.newHashMap());
     }
     String value = patternMatcher.replaceAll(PreprocessorUtil.expandPlaceholders(patternReplace, reportPoint));
     if (!value.isEmpty()) {
@@ -112,9 +98,6 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.newHashMap());
-    }
     internalApply(reportPoint);
     ruleMetrics.ruleEnd(startNanos);
     return reportPoint;

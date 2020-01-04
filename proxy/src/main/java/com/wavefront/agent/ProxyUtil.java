@@ -6,7 +6,6 @@ import com.google.common.io.Files;
 import com.wavefront.agent.channel.ConnectionTrackingHandler;
 import com.wavefront.agent.channel.IdleStateEventHandler;
 import com.wavefront.agent.channel.PlainTextOrHttpFrameDecoder;
-import com.wavefront.agent.config.ProxyConfig;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import io.netty.channel.ChannelHandler;
@@ -142,15 +141,15 @@ abstract class ProxyUtil {
    * Create a {@link ChannelInitializer} with a single {@link ChannelHandler},
    * wrapped in {@link PlainTextOrHttpFrameDecoder}.
    *
-   * @param channelHandler        handler .
-   * @param port                  port handle.
+   * @param channelHandler        handler
+   * @param port                  port number.
    * @param messageMaxLength      maximum line length for line-based protocols.
    * @param httpRequestBufferSize maximum request size for HTTP POST.
    * @param idleTimeout           idle timeout in seconds.
    * @return channel initializer
    */
   static ChannelInitializer<SocketChannel> createInitializer(ChannelHandler channelHandler,
-                                                             String port, int messageMaxLength,
+                                                             int port, int messageMaxLength,
                                                              int httpRequestBufferSize,
                                                              int idleTimeout) {
     return createInitializer(ImmutableList.of(() -> new PlainTextOrHttpFrameDecoder(channelHandler,
@@ -162,19 +161,20 @@ abstract class ProxyUtil {
    * {@link ChannelHandler} objects.
    *
    * @param channelHandlerSuppliers Suppliers of ChannelHandlers.
-   * @param port                    port handle.
+   * @param port                    port number.
    * @param idleTimeout             idle timeout in seconds.
    * @return channel initializer
    */
   static ChannelInitializer<SocketChannel> createInitializer(
-      Iterable<Supplier<ChannelHandler>> channelHandlerSuppliers, String port, int idleTimeout) {
+      Iterable<Supplier<ChannelHandler>> channelHandlerSuppliers, int port, int idleTimeout) {
+    String strPort = String.valueOf(port);
     ChannelHandler idleStateEventHandler = new IdleStateEventHandler(Metrics.newCounter(
-        new TaggedMetricName("listeners", "connections.idle.closed", "port", port)));
+        new TaggedMetricName("listeners", "connections.idle.closed", "port", strPort)));
     ChannelHandler connectionTracker = new ConnectionTrackingHandler(
         Metrics.newCounter(new TaggedMetricName("listeners", "connections.accepted", "port",
-            port)),
+            strPort)),
         Metrics.newCounter(new TaggedMetricName("listeners", "connections.active", "port",
-            port)));
+            strPort)));
     return new ChannelInitializer<SocketChannel>() {
       @Override
       public void initChannel(SocketChannel ch) {

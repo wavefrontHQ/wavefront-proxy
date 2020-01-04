@@ -29,9 +29,6 @@ public class SpanExtractAnnotationIfNotExistsTransformer extends SpanExtractAnno
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations() == null) {
-      span.setAnnotations(Lists.newArrayList());
-    }
     if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
       internalApply(span);
     }

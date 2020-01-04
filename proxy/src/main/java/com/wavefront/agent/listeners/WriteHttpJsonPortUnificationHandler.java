@@ -18,6 +18,7 @@ import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.ReportPointSerializer;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
@@ -33,7 +34,7 @@ import io.netty.util.CharsetUtil;
 
 import wavefront.report.ReportPoint;
 
-import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 
 /**
@@ -94,29 +95,24 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest incomingRequest) {
-    StringBuilder output = new StringBuilder();
-    URI uri = ChannelUtils.parseUri(ctx, incomingRequest);
-    if (uri == null) return;
-
+                                   final FullHttpRequest request) {
     HttpResponseStatus status = HttpResponseStatus.OK;
-    String requestBody = incomingRequest.content().toString(CharsetUtil.UTF_8);
+    String requestBody = request.content().toString(CharsetUtil.UTF_8);
     try {
       JsonNode metrics = jsonParser.readTree(requestBody);
       if (!metrics.isArray()) {
         logger.warning("metrics is not an array!");
         pointHandler.reject((ReportPoint) null, "[metrics] is not an array!");
         status = HttpResponseStatus.BAD_REQUEST;
-        writeHttpResponse(ctx, status, output, incomingRequest);
+        writeHttpResponse(ctx, status, "", request);
         return;
       }
       reportMetrics(metrics);
-      writeHttpResponse(ctx, status, output, incomingRequest);
+      writeHttpResponse(ctx, status, "", request);
     } catch (Exception e) {
       status = HttpResponseStatus.BAD_REQUEST;
-      writeExceptionText(e, output);
       logWarning("WF-300: Failed to handle incoming write_http request", e, ctx);
-      writeHttpResponse(ctx, status, output, incomingRequest);
+      writeHttpResponse(ctx, status, errorMessageWithRootCause(e), request);
     }
   }
 

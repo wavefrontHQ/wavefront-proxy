@@ -62,9 +62,6 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
     if (!patternMatcher.find()) {
       return false;
     }
-    if (span.getAnnotations() == null) {
-      span.setAnnotations(Lists.newArrayList());
-    }
     String value = patternMatcher.replaceAll(PreprocessorUtil.expandPlaceholders(patternReplace, span));
     if (!value.isEmpty()) {
       span.getAnnotations().add(new Annotation(key, value));
@@ -109,9 +106,6 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations() == null) {
-      span.setAnnotations(Lists.newArrayList());
-    }
     internalApply(span);
     ruleMetrics.ruleEnd(startNanos);
     return span;

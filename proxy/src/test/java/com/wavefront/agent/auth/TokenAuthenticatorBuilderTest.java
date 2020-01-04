@@ -4,6 +4,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.junit.Test;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class TokenAuthenticatorBuilderTest {
@@ -38,6 +39,8 @@ public class TokenAuthenticatorBuilderTest {
     assertTrue(TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.OAUTH2).
         setHttpClient(httpClient).setTokenIntrospectionServiceUrl("https://acme.corp/url").
         build() instanceof Oauth2TokenIntrospectionAuthenticator);
+
+    assertNull(TokenValidationMethod.fromString("random"));
   }
 
   @Test(expected = RuntimeException.class)
@@ -65,5 +68,10 @@ public class TokenAuthenticatorBuilderTest {
   public void testBuilderOauth2IncompleteArguments2Throws() {
     TokenAuthenticatorBuilder.create().setTokenValidationMethod(TokenValidationMethod.OAUTH2).
         setTokenIntrospectionServiceUrl("http://acme.corp").build();
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testBuilderInvalidMethodThrows() {
+    TokenAuthenticatorBuilder.create().setTokenValidationMethod(null).build();
   }
 }

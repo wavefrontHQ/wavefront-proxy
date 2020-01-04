@@ -37,9 +37,8 @@ import static com.wavefront.common.Utils.isWavefrontResponse;
  */
 abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     implements DataSubmissionTask<T> {
-  private static final Logger log =
-      new MessageDedupingLogger(AbstractDataSubmissionTask.class.getCanonicalName(), 1000, 1);
-      //Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName());
+  private static final Logger log = new MessageDedupingLogger(
+      Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName()), 1000, 1);
 
   @JsonProperty
   protected long enqueuedTimeMillis = Long.MAX_VALUE;

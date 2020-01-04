@@ -17,6 +17,7 @@ import com.wavefront.metrics.JsonMetricsParser;
 
 import java.net.InetAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -32,8 +33,8 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 import wavefront.report.ReportPoint;
 
-import static com.wavefront.agent.channel.CachingHostnameLookupResolver.getRemoteAddress;
-import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.getRemoteAddress;
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 
 /**
@@ -75,11 +76,9 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest request) {
+                                   final FullHttpRequest request) throws URISyntaxException {
     StringBuilder output = new StringBuilder();
-    URI uri = ChannelUtils.parseUri(ctx, request);
-    if (uri == null) return;
-
+    URI uri = new URI(request.uri());
     switch (uri.getPath()) {
       case "/api/put":
         final ObjectMapper jsonTree = new ObjectMapper();
@@ -102,7 +101,7 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
           }
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
-          writeExceptionText(e, output);
+          output.append(errorMessageWithRootCause(e));
           logWarning("WF-300: Failed to handle /api/put request", e, ctx);
         }
         writeHttpResponse(ctx, status, output, request);
@@ -124,14 +123,14 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
    * Handles an incoming plain text (string) message.
    */
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        String message) throws Exception {
+                                        String message) {
     if (message == null) {
       throw new IllegalArgumentException("Message cannot be null");
     }
     if (message.startsWith("version")) {
       ChannelFuture f = ctx.writeAndFlush("Wavefront OpenTSDB Endpoint\n");
       if (!f.isSuccess()) {
-        throw new Exception("Failed to write version response", f.cause());
+        throw new RuntimeException("Failed to write version response", f.cause());
       }
     } else {
       WavefrontPortUnificationHandler.preprocessAndHandlePoint(message, decoder, pointHandler,

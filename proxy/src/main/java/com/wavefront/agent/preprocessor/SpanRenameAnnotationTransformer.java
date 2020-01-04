@@ -47,10 +47,6 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations() == null) {
-      ruleMetrics.ruleEnd(startNanos);
-      return span;
-    }
 
     if (firstMatchOnly) {
       Optional<Annotation> annotation = span.getAnnotations().stream().

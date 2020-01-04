@@ -1,6 +1,7 @@
-package com.wavefront.agent.config;
+package com.wavefront.agent;
 
 import com.beust.jcommander.IStringConverter;
+import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.google.common.base.Joiner;
@@ -8,6 +9,8 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.wavefront.agent.auth.TokenValidationMethod;
+import com.wavefront.agent.config.Configuration;
+import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.data.TaskQueueLevel;
 import org.apache.commons.lang3.ObjectUtils;
 
@@ -41,636 +44,636 @@ import static com.wavefront.common.Utils.getBuildVersion;
  */
 @SuppressWarnings("CanBeFinal")
 public class ProxyConfig extends Configuration {
-  protected static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int GRAPHITE_LISTENING_PORT = 2878;
 
   @Parameter(names = {"--help"}, help = true)
-  private boolean help = false;
+  boolean help = false;
 
   @Parameter(names = {"--version"}, description = "Print version and exit.", order = 0)
-  private boolean version = false;
+  boolean version = false;
 
   @Parameter(names = {"-f", "--file"}, description =
       "Proxy configuration file", order = 1)
-  private String pushConfigFile = null;
+  String pushConfigFile = null;
 
   @Parameter(names = {"-p", "--prefix"}, description =
       "Prefix to prepend to all push metrics before reporting.")
-  private String prefix = null;
+  String prefix = null;
 
   @Parameter(names = {"-t", "--token"}, description =
       "Token to auto-register proxy with an account", order = 3)
-  private String token = null;
+  String token = null;
 
   @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
-  private boolean testLogs = false;
+  boolean testLogs = false;
 
   @Parameter(names = {"-h", "--host"}, description = "Server URL", order = 2)
-  private String server = "http://localhost:8080/api/";
+  String server = "http://localhost:8080/api/";
 
   @Parameter(names = {"--buffer"}, description = "File to use for buffering transmissions " +
       "to be retried. Defaults to /var/spool/wavefront-proxy/buffer.", order = 7)
-  private String bufferFile = "/var/spool/wavefront-proxy/buffer";
+  String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
   @Parameter(names = {"--taskQueueLevel"}, converter = TaskQueueLevelConverter.class,
       description = "Sets queueing strategy. Allowed values: MEMORY, PUSHBACK, ANY_ERROR. " +
           "Default: ANY_ERROR")
-  private TaskQueueLevel taskQueueLevel = TaskQueueLevel.ANY_ERROR;
+  TaskQueueLevel taskQueueLevel = TaskQueueLevel.ANY_ERROR;
 
   @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
       "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
       "small to the server and wasting connections. This setting is per listening port.", order = 5)
-  private Integer flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
+  Integer flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
 
   @Parameter(names = {"--purgeBuffer"}, description = "Whether to purge the retry buffer on start-up. Defaults to " +
       "false.", arity = 1)
-  private boolean purgeBuffer = false;
+  boolean purgeBuffer = false;
 
   @Parameter(names = {"--pushFlushInterval"}, description = "Milliseconds between batches. " +
       "Defaults to 1000 ms")
-  private int pushFlushInterval = DEFAULT_FLUSH_INTERVAL;
+  int pushFlushInterval = DEFAULT_FLUSH_INTERVAL;
 
   @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points " +
       "in a single flush. Defaults: 40000")
-  private int pushFlushMaxPoints = DEFAULT_BATCH_SIZE;
+  int pushFlushMaxPoints = DEFAULT_BATCH_SIZE;
 
   @Parameter(names = {"--pushFlushMaxHistograms"}, description = "Maximum allowed histograms " +
       "in a single flush. Default: 10000")
-  private int pushFlushMaxHistograms = DEFAULT_BATCH_SIZE_HISTOGRAMS;
+  int pushFlushMaxHistograms = DEFAULT_BATCH_SIZE_HISTOGRAMS;
 
   @Parameter(names = {"--pushFlushMaxSourceTags"}, description = "Maximum allowed source tags " +
       "in a single flush. Default: 50")
-  private int pushFlushMaxSourceTags = DEFAULT_BATCH_SIZE_SOURCE_TAGS;
+  int pushFlushMaxSourceTags = DEFAULT_BATCH_SIZE_SOURCE_TAGS;
 
   @Parameter(names = {"--pushFlushMaxSpans"}, description = "Maximum allowed spans " +
       "in a single flush. Default: 5000")
-  private int pushFlushMaxSpans = DEFAULT_BATCH_SIZE_SPANS;
+  int pushFlushMaxSpans = DEFAULT_BATCH_SIZE_SPANS;
 
   @Parameter(names = {"--pushFlushMaxSpanLogs"}, description = "Maximum allowed span logs " +
       "in a single flush. Default: 1000")
-  private int pushFlushMaxSpanLogs = DEFAULT_BATCH_SIZE_SPAN_LOGS;
+  int pushFlushMaxSpanLogs = DEFAULT_BATCH_SIZE_SPAN_LOGS;
 
   @Parameter(names = {"--pushFlushMaxEvents"}, description = "Maximum allowed events " +
       "in a single flush. Default: 50")
-  private int pushFlushMaxEvents = DEFAULT_BATCH_SIZE_EVENTS;
+  int pushFlushMaxEvents = DEFAULT_BATCH_SIZE_EVENTS;
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
-  private double pushRateLimit = NO_RATE_LIMIT;
+  double pushRateLimit = NO_RATE_LIMIT;
 
   @Parameter(names = {"--pushRateLimitHistograms"}, description = "Limit the outgoing histogram " +
       "rate at the proxy. Default: do not throttle.")
-  private double pushRateLimitHistograms = NO_RATE_LIMIT;
+  double pushRateLimitHistograms = NO_RATE_LIMIT;
 
   @Parameter(names = {"--pushRateLimitSourceTags"}, description = "Limit the outgoing rate " +
       "for source tags at the proxy. Default: 5 op/s")
-  private double pushRateLimitSourceTags = 5.0d;
+  double pushRateLimitSourceTags = 5.0d;
 
   @Parameter(names = {"--pushRateLimitSpans"}, description = "Limit the outgoing tracing spans " +
       "rate at the proxy. Default: do not throttle.")
-  private double pushRateLimitSpans = NO_RATE_LIMIT;
+  double pushRateLimitSpans = NO_RATE_LIMIT;
 
   @Parameter(names = {"--pushRateLimitSpanLogs"}, description = "Limit the outgoing span logs " +
       "rate at the proxy. Default: do not throttle.")
-  private double pushRateLimitSpanLogs = NO_RATE_LIMIT;
+  double pushRateLimitSpanLogs = NO_RATE_LIMIT;
 
   @Parameter(names = {"--pushRateLimitEvents"}, description = "Limit the outgoing rate " +
       "for events at the proxy. Default: 5 events/s")
-  private double pushRateLimitEvents = 5.0d;
+  double pushRateLimitEvents = 5.0d;
 
   @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
       "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
-  private Integer pushRateLimitMaxBurstSeconds = 10;
+  Integer pushRateLimitMaxBurstSeconds = 10;
 
   @Parameter(names = {"--pushMemoryBufferLimit"}, description = "Max number of points that can stay in memory buffers" +
       " before spooling to disk. Defaults to 16 * pushFlushMaxPoints, minimum size: pushFlushMaxPoints. Setting this " +
       " value lower than default reduces memory usage but will force the proxy to spool to disk more frequently if " +
       " you have points arriving at the proxy in short bursts")
-  private int pushMemoryBufferLimit = 16 * pushFlushMaxPoints;
+  int pushMemoryBufferLimit = 16 * pushFlushMaxPoints;
 
   @Parameter(names = {"--pushBlockedSamples"}, description = "Max number of blocked samples to print to log. Defaults" +
       " to 5.")
-  private Integer pushBlockedSamples = 5;
+  Integer pushBlockedSamples = 5;
 
   @Parameter(names = {"--blockedPointsLoggerName"}, description = "Logger Name for blocked " +
       "points. " + "Default: RawBlockedPoints")
-  private String blockedPointsLoggerName = "RawBlockedPoints";
+  String blockedPointsLoggerName = "RawBlockedPoints";
 
   @Parameter(names = {"--blockedHistogramsLoggerName"}, description = "Logger Name for blocked " +
       "histograms" + "Default: RawBlockedPoints")
-  private String blockedHistogramsLoggerName = "RawBlockedPoints";
+  String blockedHistogramsLoggerName = "RawBlockedPoints";
 
   @Parameter(names = {"--blockedSpansLoggerName"}, description =
       "Logger Name for blocked spans" + "Default: RawBlockedPoints")
-  private String blockedSpansLoggerName = "RawBlockedPoints";
+  String blockedSpansLoggerName = "RawBlockedPoints";
 
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
       "2878.", order = 4)
-  private String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
+  String pushListenerPorts = "" + GRAPHITE_LISTENING_PORT;
 
   @Parameter(names = {"--pushListenerMaxReceivedLength"}, description = "Maximum line length for received points in" +
       " plaintext format on Wavefront/OpenTSDB/Graphite ports. Default: 32768 (32KB)")
-  private Integer pushListenerMaxReceivedLength = 32768;
+  Integer pushListenerMaxReceivedLength = 32768;
 
   @Parameter(names = {"--pushListenerHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
       " incoming HTTP requests on Wavefront/OpenTSDB/Graphite ports (Default: 16MB)")
-  private Integer pushListenerHttpBufferSize = 16 * 1024 * 1024;
+  Integer pushListenerHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(names = {"--traceListenerMaxReceivedLength"}, description = "Maximum line length for received spans and" +
       " span logs (Default: 1MB)")
-  private Integer traceListenerMaxReceivedLength = 1024 * 1024;
+  Integer traceListenerMaxReceivedLength = 1024 * 1024;
 
   @Parameter(names = {"--traceListenerHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
       " incoming HTTP requests on tracing ports (Default: 16MB)")
-  private Integer traceListenerHttpBufferSize = 16 * 1024 * 1024;
+  Integer traceListenerHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(names = {"--listenerIdleConnectionTimeout"}, description = "Close idle inbound connections after " +
       " specified time in seconds. Default: 300")
-  private int listenerIdleConnectionTimeout = 300;
+  int listenerIdleConnectionTimeout = 300;
 
   @Parameter(names = {"--memGuardFlushThreshold"}, description = "If heap usage exceeds this threshold (in percent), " +
       "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 99")
-  private int memGuardFlushThreshold = 99;
+  int memGuardFlushThreshold = 99;
 
   @Parameter(names = {"--histogramStateDirectory"},
       description = "Directory for persistent proxy state, must be writable.")
-  private String histogramStateDirectory = "/var/spool/wavefront-proxy";
+  String histogramStateDirectory = "/var/spool/wavefront-proxy";
 
   @Parameter(names = {"--histogramAccumulatorResolveInterval"},
       description = "Interval to write-back accumulation changes from memory cache to disk in " +
           "millis (only applicable when memory cache is enabled")
-  private Long histogramAccumulatorResolveInterval = 5000L;
+  Long histogramAccumulatorResolveInterval = 5000L;
 
   @Parameter(names = {"--histogramAccumulatorFlushInterval"},
       description = "Interval to check for histograms to send to Wavefront in millis. " +
           "(Default: 10000)")
-  private Long histogramAccumulatorFlushInterval = 10000L;
+  Long histogramAccumulatorFlushInterval = 10000L;
 
   @Parameter(names = {"--histogramAccumulatorFlushMaxBatchSize"},
       description = "Max number of histograms to send to Wavefront in one flush " +
           "(Default: no limit)")
-  private Integer histogramAccumulatorFlushMaxBatchSize = -1;
+  Integer histogramAccumulatorFlushMaxBatchSize = -1;
 
   @Parameter(names = {"--histogramMaxReceivedLength"},
       description = "Maximum line length for received histogram data (Default: 65536)")
-  private Integer histogramMaxReceivedLength = 64 * 1024;
+  Integer histogramMaxReceivedLength = 64 * 1024;
 
   @Parameter(names = {"--histogramHttpBufferSize"},
       description = "Maximum allowed request size (in bytes) for incoming HTTP requests on " +
           "histogram ports (Default: 16MB)")
-  private Integer histogramHttpBufferSize = 16 * 1024 * 1024;
+  Integer histogramHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(names = {"--histogramMinuteListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
-  private String histogramMinuteListenerPorts = "";
+  String histogramMinuteListenerPorts = "";
 
   @Parameter(names = {"--histogramMinuteFlushSecs"},
       description = "Number of seconds to keep a minute granularity accumulator open for " +
           "new samples.")
-  private Integer histogramMinuteFlushSecs = 70;
+  Integer histogramMinuteFlushSecs = 70;
 
   @Parameter(names = {"--histogramMinuteCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  private Short histogramMinuteCompression = 32;
+  Short histogramMinuteCompression = 32;
 
   @Parameter(names = {"--histogramMinuteAvgKeyBytes"},
       description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
           "corresponds to a metric, source and tags concatenation.")
-  private Integer histogramMinuteAvgKeyBytes = 150;
+  Integer histogramMinuteAvgKeyBytes = 150;
 
   @Parameter(names = {"--histogramMinuteAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
-  private Integer histogramMinuteAvgDigestBytes = 500;
+  Integer histogramMinuteAvgDigestBytes = 500;
 
   @Parameter(names = {"--histogramMinuteAccumulatorSize"},
       description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
           "reporting bins")
-  private Long histogramMinuteAccumulatorSize = 100000L;
+  Long histogramMinuteAccumulatorSize = 100000L;
 
   @Parameter(names = {"--histogramMinuteAccumulatorPersisted"}, arity = 1,
       description = "Whether the accumulator should persist to disk")
-  private boolean histogramMinuteAccumulatorPersisted = false;
+  boolean histogramMinuteAccumulatorPersisted = false;
 
   @Parameter(names = {"--histogramMinuteMemoryCache"}, arity = 1,
       description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
           "frequency data (more than 1 point per second per time series). Default: false")
-  private boolean histogramMinuteMemoryCache = false;
+  boolean histogramMinuteMemoryCache = false;
 
   @Parameter(names = {"--histogramHourListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
-  private String histogramHourListenerPorts = "";
+  String histogramHourListenerPorts = "";
 
   @Parameter(names = {"--histogramHourFlushSecs"},
       description = "Number of seconds to keep an hour granularity accumulator open for " +
           "new samples.")
-  private Integer histogramHourFlushSecs = 4200;
+  Integer histogramHourFlushSecs = 4200;
 
   @Parameter(names = {"--histogramHourCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  private Short histogramHourCompression = 32;
+  Short histogramHourCompression = 32;
 
   @Parameter(names = {"--histogramHourAvgKeyBytes"},
       description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
           " corresponds to a metric, source and tags concatenation.")
-  private Integer histogramHourAvgKeyBytes = 150;
+  Integer histogramHourAvgKeyBytes = 150;
 
   @Parameter(names = {"--histogramHourAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
-  private Integer histogramHourAvgDigestBytes = 500;
+  Integer histogramHourAvgDigestBytes = 500;
 
   @Parameter(names = {"--histogramHourAccumulatorSize"},
       description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
           "reporting bins")
-  private Long histogramHourAccumulatorSize = 100000L;
+  Long histogramHourAccumulatorSize = 100000L;
 
   @Parameter(names = {"--histogramHourAccumulatorPersisted"}, arity = 1,
       description = "Whether the accumulator should persist to disk")
-  private boolean histogramHourAccumulatorPersisted = false;
+  boolean histogramHourAccumulatorPersisted = false;
 
   @Parameter(names = {"--histogramHourMemoryCache"}, arity = 1,
       description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
           "frequency data (more than 1 point per second per time series). Default: false")
-  private boolean histogramHourMemoryCache = false;
+  boolean histogramHourMemoryCache = false;
 
   @Parameter(names = {"--histogramDayListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
-  private String histogramDayListenerPorts = "";
+  String histogramDayListenerPorts = "";
 
   @Parameter(names = {"--histogramDayFlushSecs"},
       description = "Number of seconds to keep a day granularity accumulator open for new samples.")
-  private Integer histogramDayFlushSecs = 18000;
+  Integer histogramDayFlushSecs = 18000;
 
   @Parameter(names = {"--histogramDayCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  private Short histogramDayCompression = 32;
+  Short histogramDayCompression = 32;
 
   @Parameter(names = {"--histogramDayAvgKeyBytes"},
       description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
           "corresponds to a metric, source and tags concatenation.")
-  private Integer histogramDayAvgKeyBytes = 150;
+  Integer histogramDayAvgKeyBytes = 150;
 
   @Parameter(names = {"--histogramDayAvgHistogramDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
-  private Integer histogramDayAvgDigestBytes = 500;
+  Integer histogramDayAvgDigestBytes = 500;
 
   @Parameter(names = {"--histogramDayAccumulatorSize"},
       description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
           "reporting bins")
-  private Long histogramDayAccumulatorSize = 100000L;
+  Long histogramDayAccumulatorSize = 100000L;
 
   @Parameter(names = {"--histogramDayAccumulatorPersisted"}, arity = 1,
       description = "Whether the accumulator should persist to disk")
-  private boolean histogramDayAccumulatorPersisted = false;
+  boolean histogramDayAccumulatorPersisted = false;
 
   @Parameter(names = {"--histogramDayMemoryCache"}, arity = 1,
       description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
           "frequency data (more than 1 point per second per time series). Default: false")
-  private boolean histogramDayMemoryCache = false;
+  boolean histogramDayMemoryCache = false;
 
   @Parameter(names = {"--histogramDistListenerPorts"},
       description = "Comma-separated list of ports to listen on. Defaults to none.")
-  private String histogramDistListenerPorts = "";
+  String histogramDistListenerPorts = "";
 
   @Parameter(names = {"--histogramDistFlushSecs"},
       description = "Number of seconds to keep a new distribution bin open for new samples.")
-  private Integer histogramDistFlushSecs = 70;
+  Integer histogramDistFlushSecs = 70;
 
   @Parameter(names = {"--histogramDistCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000]")
-  private Short histogramDistCompression = 32;
+  Short histogramDistCompression = 32;
 
   @Parameter(names = {"--histogramDistAvgKeyBytes"},
       description = "Average number of bytes in a [UTF-8] encoded histogram key. Generally " +
           "corresponds to a metric, source and tags concatenation.")
-  private Integer histogramDistAvgKeyBytes = 150;
+  Integer histogramDistAvgKeyBytes = 150;
 
   @Parameter(names = {"--histogramDistAvgDigestBytes"},
       description = "Average number of bytes in a encoded histogram.")
-  private Integer histogramDistAvgDigestBytes = 500;
+  Integer histogramDistAvgDigestBytes = 500;
 
   @Parameter(names = {"--histogramDistAccumulatorSize"},
       description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
           "reporting bins")
-  private Long histogramDistAccumulatorSize = 100000L;
+  Long histogramDistAccumulatorSize = 100000L;
 
   @Parameter(names = {"--histogramDistAccumulatorPersisted"}, arity = 1,
       description = "Whether the accumulator should persist to disk")
-  private boolean histogramDistAccumulatorPersisted = false;
+  boolean histogramDistAccumulatorPersisted = false;
 
   @Parameter(names = {"--histogramDistMemoryCache"}, arity = 1,
       description = "Enabling memory cache reduces I/O load with fewer time series and higher " +
           "frequency data (more than 1 point per second per time series). Default: false")
-  private boolean histogramDistMemoryCache = false;
+  boolean histogramDistMemoryCache = false;
 
   @Parameter(names = {"--graphitePorts"}, description = "Comma-separated list of ports to listen on for graphite " +
       "data. Defaults to empty list.")
-  private String graphitePorts = "";
+  String graphitePorts = "";
 
   @Parameter(names = {"--graphiteFormat"}, description = "Comma-separated list of metric segments to extract and " +
       "reassemble as the hostname (1-based).")
-  private String graphiteFormat = "";
+  String graphiteFormat = "";
 
   @Parameter(names = {"--graphiteDelimiters"}, description = "Concatenated delimiters that should be replaced in the " +
       "extracted hostname with dots. Defaults to underscores (_).")
-  private String graphiteDelimiters = "_";
+  String graphiteDelimiters = "_";
 
   @Parameter(names = {"--graphiteFieldsToRemove"}, description = "Comma-separated list of metric segments to remove (1-based)")
-  private String graphiteFieldsToRemove;
+  String graphiteFieldsToRemove;
 
   @Parameter(names = {"--jsonListenerPorts", "--httpJsonPorts"}, description = "Comma-separated list of ports to " +
       "listen on for json metrics data. Binds, by default, to none.")
-  private String jsonListenerPorts = "";
+  String jsonListenerPorts = "";
 
   @Parameter(names = {"--dataDogJsonPorts"}, description = "Comma-separated list of ports to listen on for JSON " +
       "metrics data in DataDog format. Binds, by default, to none.")
-  private String dataDogJsonPorts = "";
+  String dataDogJsonPorts = "";
 
   @Parameter(names = {"--dataDogRequestRelayTarget"}, description = "HTTP/HTTPS target for relaying all incoming " +
       "requests on dataDogJsonPorts to. Defaults to none (do not relay incoming requests)")
-  private String dataDogRequestRelayTarget = null;
+  String dataDogRequestRelayTarget = null;
 
   @Parameter(names = {"--dataDogProcessSystemMetrics"}, description = "If true, handle system metrics as reported by " +
       "DataDog collection agent. Defaults to false.", arity = 1)
-  private boolean dataDogProcessSystemMetrics = false;
+  boolean dataDogProcessSystemMetrics = false;
 
   @Parameter(names = {"--dataDogProcessServiceChecks"}, description = "If true, convert service checks to metrics. " +
       "Defaults to true.", arity = 1)
-  private boolean dataDogProcessServiceChecks = true;
+  boolean dataDogProcessServiceChecks = true;
 
   @Parameter(names = {"--writeHttpJsonListenerPorts", "--writeHttpJsonPorts"}, description = "Comma-separated list " +
       "of ports to listen on for json metrics from collectd write_http json format data. Binds, by default, to none.")
-  private String writeHttpJsonListenerPorts = "";
+  String writeHttpJsonListenerPorts = "";
 
   // logs ingestion
   @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
-  private Integer filebeatPort = 0;
+  Integer filebeatPort = 0;
 
   @Parameter(names = {"--rawLogsPort"}, description = "Port on which to listen for raw logs data.")
-  private Integer rawLogsPort = 0;
+  Integer rawLogsPort = 0;
 
   @Parameter(names = {"--rawLogsMaxReceivedLength"}, description = "Maximum line length for received raw logs (Default: 4096)")
-  private Integer rawLogsMaxReceivedLength = 4096;
+  Integer rawLogsMaxReceivedLength = 4096;
 
   @Parameter(names = {"--rawLogsHttpBufferSize"}, description = "Maximum allowed request size (in bytes) for" +
       " incoming HTTP requests with raw logs (Default: 16MB)")
-  private Integer rawLogsHttpBufferSize = 16 * 1024 * 1024;
+  Integer rawLogsHttpBufferSize = 16 * 1024 * 1024;
 
   @Parameter(names = {"--logsIngestionConfigFile"}, description = "Location of logs ingestions config yaml file.")
-  private String logsIngestionConfigFile = "/etc/wavefront/wavefront-proxy/logsingestion.yaml";
+  String logsIngestionConfigFile = "/etc/wavefront/wavefront-proxy/logsingestion.yaml";
 
   @Parameter(names = {"--hostname"}, description = "Hostname for the proxy. Defaults to FQDN of machine.")
-  private String hostname = getLocalHostName();
+  String hostname = getLocalHostName();
 
   @Parameter(names = {"--idFile"}, description = "File to read proxy id from. Defaults to ~/.dshell/id." +
       "This property is ignored if ephemeral=true.")
-  private String idFile = null;
+  String idFile = null;
 
   @Parameter(names = {"--graphiteWhitelistRegex"}, description = "(DEPRECATED for whitelistRegex)", hidden = true)
-  private String graphiteWhitelistRegex;
+  String graphiteWhitelistRegex;
 
   @Parameter(names = {"--graphiteBlacklistRegex"}, description = "(DEPRECATED for blacklistRegex)", hidden = true)
-  private String graphiteBlacklistRegex;
+  String graphiteBlacklistRegex;
 
   @Parameter(names = {"--whitelistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must match to be accepted")
-  private String whitelistRegex;
+  String whitelistRegex;
 
   @Parameter(names = {"--blacklistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must NOT match to be accepted")
-  private String blacklistRegex;
+  String blacklistRegex;
 
   @Parameter(names = {"--opentsdbPorts"}, description = "Comma-separated list of ports to listen on for opentsdb data. " +
       "Binds, by default, to none.")
-  private String opentsdbPorts = "";
+  String opentsdbPorts = "";
 
   @Parameter(names = {"--opentsdbWhitelistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must match to be accepted")
-  private String opentsdbWhitelistRegex;
+  String opentsdbWhitelistRegex;
 
   @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
-  private String opentsdbBlacklistRegex;
+  String opentsdbBlacklistRegex;
 
   @Parameter(names = {"--picklePorts"}, description = "Comma-separated list of ports to listen on for pickle protocol " +
       "data. Defaults to none.")
-  private String picklePorts;
+  String picklePorts;
 
   @Parameter(names = {"--traceListenerPorts"}, description = "Comma-separated list of ports to listen on for trace " +
       "data. Defaults to none.")
-  private String traceListenerPorts;
+  String traceListenerPorts;
 
   @Parameter(names = {"--traceJaegerListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for jaeger thrift formatted data over TChannel protocol. Defaults to none.")
-  private String traceJaegerListenerPorts;
+  String traceJaegerListenerPorts;
 
   @Parameter(names = {"--traceJaegerHttpListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for jaeger thrift formatted data over HTTP. Defaults to none.")
-  protected String traceJaegerHttpListenerPorts;
+  String traceJaegerHttpListenerPorts;
 
   @Parameter(names = {"--traceJaegerApplicationName"}, description = "Application name for Jaeger. Defaults to Jaeger.")
-  private String traceJaegerApplicationName;
+  String traceJaegerApplicationName;
 
   @Parameter(names = {"--traceZipkinListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for zipkin trace data over HTTP. Defaults to none.")
-  private String traceZipkinListenerPorts;
+  String traceZipkinListenerPorts;
 
   @Parameter(names = {"--traceZipkinApplicationName"}, description = "Application name for Zipkin. Defaults to Zipkin.")
-  private String traceZipkinApplicationName;
+  String traceZipkinApplicationName;
 
   @Parameter(names = {"--traceSamplingRate"}, description = "Value between 0.0 and 1.0. " +
       "Defaults to 1.0 (allow all spans).")
-  private double traceSamplingRate = 1.0d;
+  double traceSamplingRate = 1.0d;
 
   @Parameter(names = {"--traceSamplingDuration"}, description = "Sample spans by duration in " +
       "milliseconds. " + "Defaults to 0 (ignore duration based sampling).")
-  private Integer traceSamplingDuration = 0;
+  Integer traceSamplingDuration = 0;
 
   @Parameter(names = {"--traceDerivedCustomTagKeys"}, description = "Comma-separated " +
       "list of custom tag keys for trace derived RED metrics.")
-  private String traceDerivedCustomTagKeys;
+  String traceDerivedCustomTagKeys;
 
   @Parameter(names = {"--traceAlwaysSampleErrors"}, description = "Always sample spans with error tag (set to true) " +
       "ignoring other sampling configuration. Defaults to true.", arity = 1)
-  private boolean traceAlwaysSampleErrors = true;
+  boolean traceAlwaysSampleErrors = true;
 
   @Parameter(names = {"--pushRelayListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for proxy chaining data. For internal use. Defaults to none.")
-  private String pushRelayListenerPorts;
+  String pushRelayListenerPorts;
 
   @Parameter(names = {"--pushRelayHistogramAggregator"}, description = "If true, aggregate " +
       "histogram distributions received on the relay port. Default: false", arity = 1)
-  private boolean pushRelayHistogramAggregator = false;
+  boolean pushRelayHistogramAggregator = false;
 
   @Parameter(names = {"--pushRelayHistogramAggregatorAccumulatorSize"},
       description = "Expected upper bound of concurrent accumulations, ~ #timeseries * #parallel " +
           "reporting bins")
-  private Long pushRelayHistogramAggregatorAccumulatorSize = 100000L;
+  Long pushRelayHistogramAggregatorAccumulatorSize = 100000L;
 
   @Parameter(names = {"--pushRelayHistogramAggregatorFlushSecs"},
       description = "Number of seconds to keep a day granularity accumulator open for new samples.")
-  private Integer pushRelayHistogramAggregatorFlushSecs = 70;
+  Integer pushRelayHistogramAggregatorFlushSecs = 70;
 
   @Parameter(names = {"--pushRelayHistogramAggregatorCompression"},
       description = "Controls allowable number of centroids per histogram. Must be in [20;1000] " +
           "range. Default: 32")
-  private Short pushRelayHistogramAggregatorCompression = 32;
+  Short pushRelayHistogramAggregatorCompression = 32;
 
   @Parameter(names = {"--splitPushWhenRateLimited"}, description = "Whether to split the push " +
       "batch size when the push is rejected by Wavefront due to rate limit.  Default false.",
       arity = 1)
-  private boolean splitPushWhenRateLimited = DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
+  boolean splitPushWhenRateLimited = DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
 
   @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff " +
       "when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
-  private double retryBackoffBaseSeconds = DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
+  double retryBackoffBaseSeconds = DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
 
   @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag " +
       "keys that should be treated as the source in Wavefront in the absence of a tag named " +
       "`source` or `host`. Default: fqdn")
-  private String customSourceTags = "fqdn";
+  String customSourceTags = "fqdn";
 
   @Parameter(names = {"--agentMetricsPointTags"}, description = "Additional point tags and their " +
       " respective values to be included into internal agent's metrics " +
       "(comma-separated list, ex: dc=west,env=prod). Default: none")
-  private String agentMetricsPointTags = null;
+  String agentMetricsPointTags = null;
 
   @Parameter(names = {"--ephemeral"}, arity = 1, description = "If true, this proxy is removed " +
       "from Wavefront after 24 hours of inactivity. Default: true")
-  private boolean ephemeral = true;
+  boolean ephemeral = true;
 
   @Parameter(names = {"--disableRdnsLookup"}, arity = 1, description = "When receiving" +
       " Wavefront-formatted data without source/host specified, use remote IP address as source " +
       "instead of trying to resolve the DNS name. Default false.")
-  private boolean disableRdnsLookup = false;
+  boolean disableRdnsLookup = false;
 
   @Parameter(names = {"--gzipCompression"}, arity = 1, description = "If true, enables gzip " +
       "compression for traffic sent to Wavefront (Default: true)")
-  private boolean gzipCompression = true;
+  boolean gzipCompression = true;
 
   @Parameter(names = {"--gzipCompressionLevel"}, description = "If gzipCompression is enabled, " +
       "sets compression level (1-9). Higher compression levels use more CPU. Default: 4")
-  private int gzipCompressionLevel = 4;
+  int gzipCompressionLevel = 4;
 
   @Parameter(names = {"--soLingerTime"}, description = "If provided, enables SO_LINGER with the specified linger time in seconds (default: SO_LINGER disabled)")
-  private Integer soLingerTime = -1;
+  Integer soLingerTime = -1;
 
   @Parameter(names = {"--proxyHost"}, description = "Proxy host for routing traffic through a http proxy")
-  private String proxyHost = null;
+  String proxyHost = null;
 
   @Parameter(names = {"--proxyPort"}, description = "Proxy port for routing traffic through a http proxy")
-  private Integer proxyPort = 0;
+  Integer proxyPort = 0;
 
   @Parameter(names = {"--proxyUser"}, description = "If proxy authentication is necessary, this is the username that will be passed along")
-  private String proxyUser = null;
+  String proxyUser = null;
 
   @Parameter(names = {"--proxyPassword"}, description = "If proxy authentication is necessary, this is the password that will be passed along")
-  private String proxyPassword = null;
+  String proxyPassword = null;
 
   @Parameter(names = {"--httpUserAgent"}, description = "Override User-Agent in request headers")
-  private String httpUserAgent = null;
+  String httpUserAgent = null;
 
   @Parameter(names = {"--httpConnectTimeout"}, description = "Connect timeout in milliseconds (default: 5000)")
-  private Integer httpConnectTimeout = 5000;
+  Integer httpConnectTimeout = 5000;
 
   @Parameter(names = {"--httpRequestTimeout"}, description = "Request timeout in milliseconds (default: 10000)")
-  private Integer httpRequestTimeout = 10000;
+  Integer httpRequestTimeout = 10000;
 
   @Parameter(names = {"--httpMaxConnTotal"}, description = "Max connections to keep open (default: 200)")
-  private Integer httpMaxConnTotal = 200;
+  Integer httpMaxConnTotal = 200;
 
   @Parameter(names = {"--httpMaxConnPerRoute"}, description = "Max connections per route to keep open (default: 100)")
-  private Integer httpMaxConnPerRoute = 100;
+  Integer httpMaxConnPerRoute = 100;
 
   @Parameter(names = {"--httpAutoRetries"}, description = "Number of times to retry http requests before queueing, set to 0 to disable (default: 3)")
-  private Integer httpAutoRetries = 3;
+  Integer httpAutoRetries = 3;
 
   @Parameter(names = {"--preprocessorConfigFile"}, description = "Optional YAML file with additional configuration options for filtering and pre-processing points")
-  private String preprocessorConfigFile = null;
+  String preprocessorConfigFile = null;
 
   @Parameter(names = {"--dataBackfillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for back-dated points. Default is 8760 (1 year)")
-  private int dataBackfillCutoffHours = 8760;
+  int dataBackfillCutoffHours = 8760;
 
   @Parameter(names = {"--dataPrefillCutoffHours"}, description = "The cut-off point for what is considered a valid timestamp for pre-dated points. Default is 24 (1 day)")
-  private int dataPrefillCutoffHours = 24;
+  int dataPrefillCutoffHours = 24;
 
   @Parameter(names = {"--authMethod"}, converter = TokenValidationMethodConverter.class,
       description = "Authenticate all incoming HTTP requests and disables TCP streams when set to a value " +
           "other than NONE. Allowed values are: NONE, STATIC_TOKEN, HTTP_GET, OAUTH2. Default: NONE")
-  private TokenValidationMethod authMethod = TokenValidationMethod.NONE;
+  TokenValidationMethod authMethod = TokenValidationMethod.NONE;
 
   @Parameter(names = {"--authTokenIntrospectionServiceUrl"}, description = "URL for the token introspection endpoint " +
       "used to validate tokens for incoming HTTP requests. Required for authMethod = OAUTH2 (endpoint must be " +
       "RFC7662-compliant) and authMethod = HTTP_GET (use {{token}} placeholder in the URL to pass token to the " +
       "service, endpoint must return any 2xx status for valid tokens, any other response code is a fail)")
-  private String authTokenIntrospectionServiceUrl = null;
+  String authTokenIntrospectionServiceUrl = null;
 
   @Parameter(names = {"--authTokenIntrospectionAuthorizationHeader"}, description = "Optional credentials for use " +
       "with the token introspection endpoint.")
-  private String authTokenIntrospectionAuthorizationHeader = null;
+  String authTokenIntrospectionAuthorizationHeader = null;
 
   @Parameter(names = {"--authResponseRefreshInterval"}, description = "Cache TTL (in seconds) for token validation " +
       "results (re-authenticate when expired). Default: 600 seconds")
-  private int authResponseRefreshInterval = 600;
+  int authResponseRefreshInterval = 600;
 
   @Parameter(names = {"--authResponseMaxTtl"}, description = "Maximum allowed cache TTL (in seconds) for token " +
       "validation results when token introspection service is unavailable. Default: 86400 seconds (1 day)")
-  private int authResponseMaxTtl = 86400;
+  int authResponseMaxTtl = 86400;
 
   @Parameter(names = {"--authStaticToken"}, description = "Static token that is considered valid " +
       "for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.")
-  private String authStaticToken = null;
+  String authStaticToken = null;
 
   @Parameter(names = {"--adminApiListenerPort"}, description = "Enables admin port to control " +
       "healthcheck status per port. Default: none")
-  private Integer adminApiListenerPort = 0;
+  Integer adminApiListenerPort = 0;
 
   @Parameter(names = {"--adminApiRemoteIpWhitelistRegex"}, description = "Remote IPs must match " +
       "this regex to access admin API")
-  private String adminApiRemoteIpWhitelistRegex = null;
+  String adminApiRemoteIpWhitelistRegex = null;
 
   @Parameter(names = {"--httpHealthCheckPorts"}, description = "Comma-delimited list of ports " +
       "to function as standalone healthchecks. May be used independently of " +
       "--httpHealthCheckAllPorts parameter. Default: none")
-  private String httpHealthCheckPorts = null;
+  String httpHealthCheckPorts = null;
 
   @Parameter(names = {"--httpHealthCheckAllPorts"}, description = "When true, all listeners that " +
       "support HTTP protocol also respond to healthcheck requests. May be used independently of " +
       "--httpHealthCheckPorts parameter. Default: false", arity = 1)
-  private boolean httpHealthCheckAllPorts = false;
+  boolean httpHealthCheckAllPorts = false;
 
   @Parameter(names = {"--httpHealthCheckPath"}, description = "Healthcheck's path, for example, " +
       "'/health'. Default: '/'")
-  private String httpHealthCheckPath = "/";
+  String httpHealthCheckPath = "/";
 
   @Parameter(names = {"--httpHealthCheckResponseContentType"}, description = "Optional " +
       "Content-Type to use in healthcheck response, for example, 'application/json'. Default: none")
-  private String httpHealthCheckResponseContentType = null;
+  String httpHealthCheckResponseContentType = null;
 
   @Parameter(names = {"--httpHealthCheckPassStatusCode"}, description = "HTTP status code for " +
       "'pass' health checks. Default: 200")
-  private int httpHealthCheckPassStatusCode = 200;
+  int httpHealthCheckPassStatusCode = 200;
 
   @Parameter(names = {"--httpHealthCheckPassResponseBody"}, description = "Optional response " +
       "body to return with 'pass' health checks. Default: none")
-  private String httpHealthCheckPassResponseBody = null;
+  String httpHealthCheckPassResponseBody = null;
 
   @Parameter(names = {"--httpHealthCheckFailStatusCode"}, description = "HTTP status code for " +
       "'fail' health checks. Default: 503")
-  private int httpHealthCheckFailStatusCode = 503;
+  int httpHealthCheckFailStatusCode = 503;
 
   @Parameter(names = {"--httpHealthCheckFailResponseBody"}, description = "Optional response " +
       "body to return with 'fail' health checks. Default: none")
-  private String httpHealthCheckFailResponseBody = null;
+  String httpHealthCheckFailResponseBody = null;
 
   @Parameter(names = {"--deltaCountersAggregationIntervalSeconds"},
       description = "Delay time for delta counter reporter. Defaults to 30 seconds.")
-  private long deltaCountersAggregationIntervalSeconds = 30;
+  long deltaCountersAggregationIntervalSeconds = 30;
 
   @Parameter(names = {"--deltaCountersAggregationListenerPorts"},
       description = "Comma-separated list of ports to listen on Wavefront-formatted delta " +
           "counters. Helps reduce outbound point rate by pre-aggregating delta counters at proxy." +
           " Defaults: none")
-  private String deltaCountersAggregationListenerPorts = "";
+  String deltaCountersAggregationListenerPorts = "";
 
   @Parameter()
-  private List<String> unparsed_params;
+  List<String> unparsed_params;
 
   public boolean isHelp() {
     return help;
@@ -1633,6 +1636,33 @@ public class ProxyConfig extends Configuration {
     }
     if (pushConfigFile != null) {
       logger.info("Loaded configuration file " + pushConfigFile);
+    }
+  }
+
+  /**
+   * Parse commandline arguments into {@link ProxyConfig} object.
+   *
+   * @param args        arguments to parse
+   * @param programName program name (to display help)
+   * @throws ParameterException if configuration parsing failed
+   */
+  public void parseArguments(String[] args, String programName)
+      throws ParameterException {
+    String versionStr = "Wavefront Proxy version " + getBuildVersion();
+    JCommander jCommander = JCommander.newBuilder().
+        programName(programName).
+        addObject(this).
+        allowParameterOverwriting(true).
+        build();
+    jCommander.parse(args);
+    if (this.isVersion()) {
+      System.out.println(versionStr);
+      System.exit(0);
+    }
+    if (this.isHelp()) {
+      System.out.println(versionStr);
+      jCommander.usage();
+      System.exit(0);
     }
   }
 
