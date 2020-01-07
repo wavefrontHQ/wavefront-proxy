@@ -51,7 +51,6 @@ public class PreprocessorRulesTest {
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
     Files.asCharSink(new File(path), Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
     config.loadFile(path);
-    config.setUpConfigFileMonitoring(path, 1000);
     ReportableEntityPreprocessor preprocessor = config.get("2878").get();
     assertEquals(1, preprocessor.forPointLine().getFilters().size());
     assertEquals(1, preprocessor.forPointLine().getTransformers().size());
@@ -69,6 +68,7 @@ public class PreprocessorRulesTest {
     Files.asCharSink(new File(path), Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
     config.loadFileIfModified(path); // reload should've happened
     preprocessor = config.get("2878").get();
+    config.setUpConfigFileMonitoring(path, 1000);
     assertEquals(0, preprocessor.forPointLine().getFilters().size());
     assertEquals(2, preprocessor.forPointLine().getTransformers().size());
     assertEquals(1, preprocessor.forReportPoint().getFilters().size());
