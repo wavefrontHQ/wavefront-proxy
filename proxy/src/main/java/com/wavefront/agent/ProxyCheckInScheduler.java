@@ -29,7 +29,6 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.wavefront.agent.ProxyUtil.getProcessId;
 import static com.wavefront.common.Utils.getBuildVersion;
 
 /**
@@ -38,27 +37,26 @@ import static com.wavefront.common.Utils.getBuildVersion;
  *
  * @author vasily@wavefront.com
  */
-public class ProxyCheckinScheduler {
+public class ProxyCheckInScheduler {
   private static final Logger logger = Logger.getLogger("proxy");
   private static final int MAX_CHECKIN_ATTEMPTS = 5;
 
   /**
-   * A unique process ID value (PID, when available, or a random hexadecimal string), assigned
-   * at proxy start-up, to be reported with all ~proxy metrics as a "processId" point tag to
-   * prevent potential ~proxy metrics collisions caused by users spinning up multiple proxies
-   * with duplicate names.
+   * A unique value (a random hexadecimal string), assigned at proxy start-up, to be reported
+   * with all ~proxy metrics as a "processId" point tag to prevent potential ~proxy metrics
+   * collisions caused by users spinning up multiple proxies with duplicate names.
    */
-  private static final String processId = getProcessId();
+  private static final String ID = Integer.toHexString((int) (Math.random() * Integer.MAX_VALUE));
 
   private final UUID proxyId;
   private final ProxyConfig proxyConfig;
   private final APIContainer apiContainer;
   private final Consumer<AgentConfiguration> agentConfigurationConsumer;
 
-  private  String serverEndpointUrl = null;
+  private String serverEndpointUrl = null;
   private volatile JsonNode agentMetrics;
   private final AtomicInteger retries = new AtomicInteger(0);
-  private final AtomicLong succesfulCheckins = new AtomicLong(0);
+  private final AtomicLong successfulCheckIns = new AtomicLong(0);
   private boolean retryImmediately = false;
 
   /**
@@ -74,7 +72,7 @@ public class ProxyCheckinScheduler {
    * @param agentConfigurationConsumer Configuration processor, invoked after each
    *                                   successful configuration fetch.
    */
-  public ProxyCheckinScheduler(UUID proxyId,
+  public ProxyCheckInScheduler(UUID proxyId,
                                ProxyConfig proxyConfig,
                                APIContainer apiContainer,
                                Consumer<AgentConfiguration> agentConfigurationConsumer) {
@@ -93,7 +91,7 @@ public class ProxyCheckinScheduler {
     if (config != null) {
       logger.info("initial configuration is available, setting up proxy");
       agentConfigurationConsumer.accept(config);
-      succesfulCheckins.incrementAndGet();
+      successfulCheckIns.incrementAndGet();
     }
   }
 
@@ -112,7 +110,7 @@ public class ProxyCheckinScheduler {
    * @return true if this proxy had at least one successful check-in.
    */
   public long getSuccessfulCheckinCount() {
-    return succesfulCheckins.get();
+    return successfulCheckIns.get();
   }
 
   /**
@@ -157,7 +155,7 @@ public class ProxyCheckinScheduler {
         case 404:
         case 405:
           String serverUrl = proxyConfig.getServer().replaceAll("/$", "");
-          if (succesfulCheckins.get() == 0 && !retryImmediately && !serverUrl.endsWith("/api")) {
+          if (successfulCheckIns.get() == 0 && !retryImmediately && !serverUrl.endsWith("/api")) {
             this.serverEndpointUrl = serverUrl + "/api/";
             checkinError("Possible server endpoint misconfiguration detected, attempting to use " +
                 serverEndpointUrl);
@@ -171,7 +169,7 @@ public class ProxyCheckinScheduler {
                   proxyConfig.getServer();
           checkinError("HTTP " + ex.getResponse().getStatus() + ": Misconfiguration detected, " +
               "please verify that your server setting is correct. " + secondaryMessage);
-          if (succesfulCheckins.get() == 0) {
+          if (successfulCheckIns.get() == 0) {
             logger.severe("Aborting start-up");
             System.exit(-5);
           }
@@ -180,7 +178,7 @@ public class ProxyCheckinScheduler {
           checkinError("HTTP 407 Proxy Authentication Required: Please verify that " +
               "proxyUser and proxyPassword settings are correct and make sure your HTTP proxy" +
               " is not rate limiting!");
-          if (succesfulCheckins.get() == 0) {
+          if (successfulCheckIns.get() == 0) {
             logger.severe("Aborting start-up");
             System.exit(-5);
           }
@@ -249,7 +247,7 @@ public class ProxyCheckinScheduler {
   void updateProxyMetrics() {
     try {
       Map<String, String> pointTags = new HashMap<>(proxyConfig.getAgentMetricsPointTags());
-      pointTags.put("processId", processId);
+      pointTags.put("processId", ID);
       synchronized (executor) {
         agentMetrics = JsonMetricsGenerator.generateJsonMetrics(Metrics.defaultRegistry(),
             true, true, true, pointTags, null);
@@ -261,8 +259,8 @@ public class ProxyCheckinScheduler {
   }
 
   private void checkinError(String errMsg) {
-    if (succesfulCheckins.get() == 0) logger.severe(Strings.repeat("*", errMsg.length()));
+    if (successfulCheckIns.get() == 0) logger.severe(Strings.repeat("*", errMsg.length()));
     logger.severe(errMsg);
-    if (succesfulCheckins.get() == 0) logger.severe(Strings.repeat("*", errMsg.length()));
+    if (successfulCheckIns.get() == 0) logger.severe(Strings.repeat("*", errMsg.length()));
   }
 }

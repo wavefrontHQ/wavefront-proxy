@@ -34,6 +34,7 @@ import java.util.function.Function;
 import static com.wavefront.agent.ProxyUtil.createInitializer;
 import static com.wavefront.agent.TestUtils.findAvailablePort;
 import static com.wavefront.agent.TestUtils.gzippedHttpPost;
+import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
 import static com.wavefront.agent.channel.ChannelUtils.makeResponse;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static org.junit.Assert.assertEquals;
@@ -83,7 +84,7 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.blacklistRegex = "^.*blacklist.*$";
     proxy.proxyConfig.gzipCompression = false;
     proxy.start(new String[]{});
-    Thread.sleep(500);
+    waitUntilListenerIsOnline(proxyPort);
 
     String payload =
         "metric.name 1 " + time + " source=metric.source tagk1=tagv1\n" +
@@ -162,7 +163,7 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.pushFlushInterval = 50;
     proxy.proxyConfig.bufferFile = buffer;
     proxy.start(new String[]{});
-    Thread.sleep(500);
+    waitUntilListenerIsOnline(proxyPort);
 
     String payloadEvents =
         "@Event " + time + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
@@ -238,7 +239,7 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.pushFlushInterval = 50;
     proxy.proxyConfig.bufferFile = buffer;
     proxy.start(new String[]{});
-    Thread.sleep(500);
+    waitUntilListenerIsOnline(proxyPort);
 
     String payloadSourceTags =
         "@SourceTag action=add source=testSource addTag1 addTag2 addTag3\n" +
@@ -369,7 +370,7 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.pushFlushInterval = 1500;
     proxy.proxyConfig.bufferFile = buffer;
     proxy.start(new String[]{});
-    Thread.sleep(500);
+    waitUntilListenerIsOnline(histDistPort);
 
     String payloadHistograms =
         "metric.name 1 " + time + " source=metric.source tagk1=tagv1\n" +
@@ -460,7 +461,7 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.pushFlushInterval = 50;
     proxy.proxyConfig.bufferFile = buffer;
     proxy.start(new String[]{});
-    Thread.sleep(500);
+    waitUntilListenerIsOnline(proxyPort);
 
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = time * 1000000 + 12345;

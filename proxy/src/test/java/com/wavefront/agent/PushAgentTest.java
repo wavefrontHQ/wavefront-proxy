@@ -54,6 +54,7 @@ import static com.wavefront.agent.TestUtils.getResource;
 import static com.wavefront.agent.TestUtils.gzippedHttpPost;
 import static com.wavefront.agent.TestUtils.httpGet;
 import static com.wavefront.agent.TestUtils.httpPost;
+import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.anyString;
 import static org.easymock.EasyMock.expect;
@@ -137,7 +138,7 @@ public class PushAgentTest {
     port = findAvailablePort(2888);
     proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
     proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(port);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
@@ -164,7 +165,7 @@ public class PushAgentTest {
     port = findAvailablePort(2888);
     proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
     proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(port);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric2.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
@@ -201,7 +202,7 @@ public class PushAgentTest {
 
     proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
     proxy.startHealthCheckListener(healthCheckPort);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(port);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric3.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
@@ -231,7 +232,7 @@ public class PushAgentTest {
     port = findAvailablePort(2888);
     proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
     proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(port);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric4.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
@@ -258,7 +259,7 @@ public class PushAgentTest {
     port = findAvailablePort(2888);
     proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
     proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(port);
     reset(mockHistogramHandler);
     mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test.histo").setHost("test1").setTimestamp(startTime * 1000).setValue(
@@ -298,7 +299,7 @@ public class PushAgentTest {
     port = findAvailablePort(2888);
     proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
     proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(port);
     reset(mockHistogramHandler);
     reset(mockPointHandler);
     reset(mockSourceTagHandler);
@@ -355,7 +356,7 @@ public class PushAgentTest {
     proxy.proxyConfig.traceListenerPorts = String.valueOf(tracePort);
     proxy.startTraceListener(proxy.proxyConfig.getTraceListenerPorts(), mockHandlerFactory,
         new RateSampler(1.0D));
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(tracePort);
     reset(mockTraceHandler);
     reset(mockTraceSpanLogsHandler);
     String traceId = UUID.randomUUID().toString();
@@ -424,7 +425,7 @@ public class PushAgentTest {
 
     proxy2.startDataDogListener(proxy2.proxyConfig.getDataDogJsonPorts(), mockHandlerFactory,
         mockHttpClient);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(ddPort2);
 
     // test 1: post to /intake with system metrics enabled and http relay enabled
     HttpResponse mockHttpResponse = EasyMock.createMock(HttpResponse.class);
@@ -549,7 +550,7 @@ public class PushAgentTest {
     proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 3;
     proxy.startDeltaCounterListener(proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
         null, mockSenderTaskFactory);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(deltaPort);
     reset(mockSenderTask);
     Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
     mockSenderTask.add(EasyMock.capture(capturedArgument));
@@ -587,7 +588,7 @@ public class PushAgentTest {
     proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 3;
     proxy.startDeltaCounterListener(proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
         null, mockSenderTaskFactory);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(deltaPort);
     reset(mockSenderTask);
     Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
     mockSenderTask.add(EasyMock.capture(capturedArgument));
@@ -624,7 +625,7 @@ public class PushAgentTest {
     port = findAvailablePort(4242);
     proxy.proxyConfig.opentsdbPorts = String.valueOf(port);
     proxy.startOpenTsdbListener(proxy.proxyConfig.getOpentsdbPorts(), mockHandlerFactory);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(port);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric4.test").setHost("test1").setTimestamp(startTime * 1000).
@@ -708,7 +709,7 @@ public class PushAgentTest {
     port = findAvailablePort(3878);
     proxy.proxyConfig.jsonListenerPorts = String.valueOf(port);
     proxy.startJsonListener(proxy.proxyConfig.jsonListenerPorts, mockHandlerFactory);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(port);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test").setHost("testSource").setTimestamp(startTime * 1000).
@@ -762,7 +763,7 @@ public class PushAgentTest {
     proxy.proxyConfig.hostname = "defaultLocalHost";
     proxy.startWriteHttpJsonListener(proxy.proxyConfig.writeHttpJsonListenerPorts,
         mockHandlerFactory);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(port);
     reset(mockPointHandler);
     mockPointHandler.reject((ReportPoint) EasyMock.eq(null), anyString());
     expectLastCall().times(2);
@@ -826,7 +827,7 @@ public class PushAgentTest {
     proxy.proxyConfig.pushRelayHistogramAggregatorFlushSecs = 1;
     proxy.startRelayListener(proxy.proxyConfig.getPushRelayListenerPorts(), mockHandlerFactory,
         null);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(port);
     reset(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler);
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = startTime * 1000000 + 12345;
@@ -928,7 +929,7 @@ public class PushAgentTest {
     proxy.startGraphiteListener(String.valueOf(port3), mockHandlerFactory, null);
     proxy.startGraphiteListener(String.valueOf(port4), mockHandlerFactory, null);
     proxy.startAdminListener(adminPort);
-    TimeUnit.MILLISECONDS.sleep(500);
+    waitUntilListenerIsOnline(adminPort);
     assertEquals(404, httpGet("http://localhost:" + adminPort + "/"));
     assertEquals(200, httpGet("http://localhost:" + port + "/health"));
     assertEquals(200, httpGet("http://localhost:" + port2 + "/health"));
@@ -994,5 +995,4 @@ public class PushAgentTest {
     assertEquals(200, httpGet("http://localhost:" + port3 + "/health"));
     assertEquals(200, httpGet("http://localhost:" + port4 + "/health"));
   }
-
 }

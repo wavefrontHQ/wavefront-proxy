@@ -85,10 +85,10 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>>
           logger.warning("Unable to restore persisted task - corrupted header, ignoring");
         }
       } else {
-        logger.warning("Unable to restore persisted task - corrupted header, ignoring");
+        logger.warning("Unable to restore persisted task - missing header, ignoring");
       }
     } else {
-      logger.warning("Unable to restore persisted task - no signature found, ignoring");
+      logger.warning("Unable to restore persisted task - invalid or missing header, ignoring");
     }
     errorCounter.inc();
     return null;

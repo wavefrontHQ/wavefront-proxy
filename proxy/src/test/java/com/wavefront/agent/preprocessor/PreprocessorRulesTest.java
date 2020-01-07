@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 import wavefront.report.ReportPoint;
 
@@ -48,31 +49,33 @@ public class PreprocessorRulesTest {
   public void testPreprocessorRulesHotReload() throws Exception {
     PreprocessorConfigManager config = new PreprocessorConfigManager();
     String path = File.createTempFile("proxyPreprocessorRulesFile", null).getPath();
+    File file = new File(path);
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
-    Files.asCharSink(new File(path), Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
+    Files.asCharSink(file, Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
     config.loadFile(path);
     ReportableEntityPreprocessor preprocessor = config.get("2878").get();
     assertEquals(1, preprocessor.forPointLine().getFilters().size());
     assertEquals(1, preprocessor.forPointLine().getTransformers().size());
     assertEquals(3, preprocessor.forReportPoint().getFilters().size());
     assertEquals(8, preprocessor.forReportPoint().getTransformers().size());
-
     config.loadFileIfModified(path); // should be no changes
     preprocessor = config.get("2878").get();
     assertEquals(1, preprocessor.forPointLine().getFilters().size());
     assertEquals(1, preprocessor.forPointLine().getTransformers().size());
     assertEquals(3, preprocessor.forReportPoint().getFilters().size());
     assertEquals(8, preprocessor.forReportPoint().getTransformers().size());
-
     stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_reload.yaml");
-    Files.asCharSink(new File(path), Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
+    Files.asCharSink(file, Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
+    // this is only needed for JDK8. JDK8 has second-level precision of lastModified,
+    // in JDK11 lastModified is in millis.
+    file.setLastModified((file.lastModified() / 1000 + 1) * 1000);
     config.loadFileIfModified(path); // reload should've happened
     preprocessor = config.get("2878").get();
-    config.setUpConfigFileMonitoring(path, 1000);
     assertEquals(0, preprocessor.forPointLine().getFilters().size());
     assertEquals(2, preprocessor.forPointLine().getTransformers().size());
     assertEquals(1, preprocessor.forReportPoint().getFilters().size());
     assertEquals(3, preprocessor.forReportPoint().getTransformers().size());
+    config.setUpConfigFileMonitoring(path, 1000);
   }
 
   @Test

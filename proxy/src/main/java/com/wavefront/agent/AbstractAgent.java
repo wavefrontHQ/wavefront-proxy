@@ -69,7 +69,7 @@ public abstract class AbstractAgent {
   protected final EntityPropertiesFactory entityProps =
       new EntityPropertiesFactoryImpl(proxyConfig);
   protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);
-  protected ProxyCheckinScheduler proxyCheckinScheduler;
+  protected ProxyCheckInScheduler proxyCheckinScheduler;
   protected UUID agentId;
 
   @Deprecated
@@ -213,7 +213,7 @@ public abstract class AbstractAgent {
       apiContainer = new APIContainer(proxyConfig);
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
-      proxyCheckinScheduler = new ProxyCheckinScheduler(agentId, proxyConfig, apiContainer,
+      proxyCheckinScheduler = new ProxyCheckInScheduler(agentId, proxyConfig, apiContainer,
           this::processConfiguration);
       proxyCheckinScheduler.scheduleCheckins();
 

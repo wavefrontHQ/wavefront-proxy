@@ -11,6 +11,7 @@ import org.apache.http.message.BasicHeader;
 import org.easymock.EasyMock;
 import org.easymock.IArgumentMatcher;
 
+import javax.net.SocketFactory;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -19,8 +20,10 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
@@ -87,6 +90,18 @@ public class TestUtils {
     }
     throw new RuntimeException("Unable to find an available port in the [" + startingPortNumber +
         ";" + (startingPortNumber + 1000) + ") range");
+  }
+
+  public static void waitUntilListenerIsOnline(int port) throws Exception {
+    for (int i = 0; i < 100; i++) {
+      try {
+        Socket socket = SocketFactory.getDefault().createSocket("localhost", port);
+        socket.close();
+        return;
+      } catch (IOException exc) {
+        TimeUnit.MILLISECONDS.sleep(50);
+      }
+    }
   }
 
   public static int gzippedHttpPost(String postUrl, String payload) throws Exception {

@@ -115,8 +115,7 @@ public abstract class ChannelUtils {
       response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
       ctx.write(response);
     } else {
-      ctx.write(response);
-      ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+      ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
     }
   }
 

@@ -83,7 +83,7 @@ public class PreprocessorConfigManager {
       public void run() {
         loadFileIfModified(fileName);
       }
-    }, 0, fileCheckIntervalMillis);
+    }, fileCheckIntervalMillis, fileCheckIntervalMillis);
   }
 
   public ReportableEntityPreprocessor getSystemPreprocessor(String key) {
@@ -135,6 +135,7 @@ public class PreprocessorConfigManager {
     try {
       File file = new File(fileName);
       long lastModified = file.lastModified();
+      logger.info("File last modified: " + lastModified + ", userPreprocessorsTs: " + userPreprocessorsTs);
       if (lastModified > userPreprocessorsTs) {
         logger.info("File " + file +
             " has been modified on disk, reloading preprocessor rules");
