@@ -6,9 +6,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -17,7 +14,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
@@ -34,7 +30,6 @@ import io.netty.util.CharsetUtil;
  * @author vasily@wavefront.com
  */
 public abstract class ChannelUtils {
-  private static final Logger logger = Logger.getLogger(ChannelUtils.class.getCanonicalName());
 
   /**
    * Create a detailed error message from an exception, including current handle (port).

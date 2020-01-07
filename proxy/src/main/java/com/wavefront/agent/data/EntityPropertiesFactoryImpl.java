@@ -45,6 +45,9 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
 
   private static final class GlobalProperties {
     private Double retryBackoffBaseSeconds = null;
+
+    GlobalProperties() {
+    }
   }
 
   /**
@@ -104,6 +107,11 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     abstract protected String getRateLimiterName();
+
+    @Override
+    public int getFlushThreads() {
+      return wrapped.getFlushThreads();
+    }
 
     @Override
     public int getPushFlushInterval() {
@@ -249,6 +257,11 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public int getMemoryBufferLimit() {
       return 16 * wrapped.getPushFlushMaxSourceTags();
     }
+
+    @Override
+    public int getFlushThreads() {
+      return wrapped.getFlushThreadsSourceTags();
+    }
   }
 
   /**
@@ -331,6 +344,11 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     @Override
     public int getMemoryBufferLimit() {
       return 16 * wrapped.getPushFlushMaxEvents();
+    }
+
+    @Override
+    public int getFlushThreads() {
+      return wrapped.getFlushThreadsEvents();
     }
   }
 }

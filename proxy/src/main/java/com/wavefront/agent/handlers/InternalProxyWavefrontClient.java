@@ -25,10 +25,6 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
   private final String clientId;
 
-  public InternalProxyWavefrontClient(ReportableEntityHandlerFactory handlerFactory) {
-    this(handlerFactory, "internal_client");
-  }
-
   public InternalProxyWavefrontClient(ReportableEntityHandlerFactory handlerFactory,
                                       String handle) {
     this.pointHandlerSupplier = lazySupplier(() ->

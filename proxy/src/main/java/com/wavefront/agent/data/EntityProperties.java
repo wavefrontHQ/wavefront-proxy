@@ -25,6 +25,8 @@ public interface EntityProperties {
   int DEFAULT_BATCH_SIZE_SPAN_LOGS = 1000;
   int DEFAULT_BATCH_SIZE_EVENTS = 50;
   int DEFAULT_MIN_SPLIT_BATCH_SIZE = 100;
+  int DEFAULT_FLUSH_THREADS_SOURCE_TAGS = 2;
+  int DEFAULT_FLUSH_THREADS_EVENTS = 2;
 
   /**
    * Get initially configured batch size.
@@ -74,6 +76,13 @@ public interface EntityProperties {
    * @return rate limiter
    */
   RecyclableRateLimiter getRateLimiter();
+
+  /**
+   * Get the number of worker threads.
+   *
+   * @return number of threads
+   */
+  int getFlushThreads();
 
   /**
    * Get interval between batches (in milliseconds)

@@ -85,12 +85,12 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   }
 
   @SuppressWarnings("unchecked")
-  public Collection<SenderTask<?>> createSenderTasks(@Nonnull HandlerKey handlerKey,
-                                                     final int numThreads) {
+  public Collection<SenderTask<?>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
+    ReportableEntityType entityType = handlerKey.getEntityType();
+    int numThreads = entityPropsFactory.get(entityType).getFlushThreads();
     List<SenderTask<?>> toReturn = new ArrayList<>(numThreads);
     TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getHandle());
     taskSizeEstimators.put(handlerKey, taskSizeEstimator);
-    ReportableEntityType entityType = handlerKey.getEntityType();
     for (int threadNo = 0; threadNo < numThreads; threadNo++) {
       SenderTask<?> senderTask;
       switch (entityType) {
@@ -106,7 +106,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
               taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case SOURCE_TAG:
-          senderTask = new ReportSourceTagSenderTask(handlerKey, apiContainer.getSourceTagAPI(),
+          senderTask = new SourceTagSenderTask(handlerKey, apiContainer.getSourceTagAPI(),
               threadNo, entityPropsFactory.get(entityType),
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;

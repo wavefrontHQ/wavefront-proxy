@@ -38,15 +38,11 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       ReportableEntityType.EVENT, Logger.getLogger("RawValidEvents"),
       getSystemPropertyAsDouble("wavefront.proxy.logevents.sample-rate"), false);
 
-  private static final int SOURCE_TAG_API_NUM_THREADS = 2;
-  private static final int EVENT_API_NUM_THREADS = 2;
-
   protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?, ?>>> handlers =
       new HashMap<>();
 
   private final SenderTaskFactory senderTaskFactory;
   private final int blockedItemsPerBatch;
-  private final int defaultFlushThreads;
   private final ValidationConfiguration validationConfig;
   private final Logger blockedPointsLogger;
   private final Logger blockedHistogramsLogger;
@@ -59,17 +55,14 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
    *                             for new handlers.
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
    *                             into the main log file.
-   * @param defaultFlushThreads  control fanout for SenderTasks.
    * @param validationConfig     validation configuration.
    */
   public ReportableEntityHandlerFactoryImpl(
       final SenderTaskFactory senderTaskFactory, final int blockedItemsPerBatch,
-      final int defaultFlushThreads, @Nonnull final ValidationConfiguration validationConfig,
-      final Logger blockedPointsLogger, final Logger blockedHistogramsLogger,
-      final Logger blockedSpansLogger) {
+      @Nonnull final ValidationConfiguration validationConfig, final Logger blockedPointsLogger,
+      final Logger blockedHistogramsLogger, final Logger blockedSpansLogger) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
-    this.defaultFlushThreads = defaultFlushThreads;
     this.validationConfig = validationConfig;
     this.blockedPointsLogger = blockedPointsLogger;
     this.blockedHistogramsLogger = blockedHistogramsLogger;
@@ -84,27 +77,27 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       switch (handlerKey.getEntityType()) {
         case POINT:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
+              senderTaskFactory.createSenderTasks(handlerKey),
               validationConfig, true, blockedPointsLogger, VALID_POINTS_LOGGER);
         case HISTOGRAM:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
+              senderTaskFactory.createSenderTasks(handlerKey),
               validationConfig, false, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER);
         case SOURCE_TAG:
           return new ReportSourceTagHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, SOURCE_TAG_API_NUM_THREADS),
+              senderTaskFactory.createSenderTasks(handlerKey),
               blockedPointsLogger);
         case TRACE:
           return new SpanHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
+              senderTaskFactory.createSenderTasks(handlerKey),
               validationConfig, blockedSpansLogger, VALID_SPANS_LOGGER);
         case TRACE_SPAN_LOGS:
           return new SpanLogsHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
+              senderTaskFactory.createSenderTasks(handlerKey),
               blockedSpansLogger, VALID_SPAN_LOGS_LOGGER);
         case EVENT:
           return new EventHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, EVENT_API_NUM_THREADS),
+              senderTaskFactory.createSenderTasks(handlerKey),
               blockedPointsLogger, VALID_EVENTS_LOGGER);
         default:
           throw new IllegalArgumentException("Unexpected entity type " +

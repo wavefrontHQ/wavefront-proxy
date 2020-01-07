@@ -11,10 +11,12 @@ import org.apache.http.message.BasicHeader;
 import org.easymock.EasyMock;
 import org.easymock.IArgumentMatcher;
 
+import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.URL;
@@ -87,7 +89,7 @@ public class TestUtils {
         ";" + (startingPortNumber + 1000) + ") range");
   }
 
-  public static void gzippedHttpPost(String postUrl, String payload) throws Exception {
+  public static int gzippedHttpPost(String postUrl, String payload) throws Exception {
     URL url = new URL(postUrl);
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
     connection.setRequestMethod("POST");
@@ -100,8 +102,35 @@ public class TestUtils {
     gzip.close();
     connection.getOutputStream().write(baos.toByteArray());
     connection.getOutputStream().flush();
-    System.out.println("BAOS size: " + baos.toByteArray().length);
-    logger.info("HTTP response code (gzipped content): " + connection.getResponseCode());
+    int response = connection.getResponseCode();
+    logger.info("HTTP response code (gzipped content): " + response);
+    return response;
+  }
+
+  public static int httpGet(String urlGet) throws Exception {
+    URL url = new URL(urlGet);
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("GET");
+    connection.setDoOutput(false);
+    connection.setDoInput(true);
+    int response = connection.getResponseCode();
+    logger.info("HTTP GET response code: " + response);
+    return response;
+  }
+
+  public static int httpPost(String urlGet, String payload) throws Exception {
+    URL url = new URL(urlGet);
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("POST");
+    connection.setDoOutput(true);
+    connection.setDoInput(true);
+    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream(), "UTF-8"));
+    writer.write(payload);
+    writer.flush();
+    writer.close();
+    int response = connection.getResponseCode();
+    logger.info("HTTP POST response code (plaintext content): " + response);
+    return response;
   }
 
   public static String getResource(String resourceName) throws Exception {

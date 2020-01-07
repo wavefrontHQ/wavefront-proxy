@@ -90,6 +90,10 @@ public class LineDelimitedDataSubmissionTask
     return ImmutableList.of(this);
   }
 
+  public List<String> payload() {
+    return payload;
+  }
+
   public void injectMembers(ProxyV2API api, UUID proxyId, EntityProperties properties,
                             TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
     this.api = api;

@@ -5,7 +5,6 @@ import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
-import org.apache.commons.lang3.ObjectUtils;
 import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;

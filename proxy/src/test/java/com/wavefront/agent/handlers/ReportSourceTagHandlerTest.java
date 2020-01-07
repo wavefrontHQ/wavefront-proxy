@@ -4,14 +4,13 @@ import com.google.common.collect.ImmutableList;
 
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.DefaultEntityPropertiesForTesting;
-import com.wavefront.agent.data.EntityPropertiesFactory;
-import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.data.ReportableEntityType;
 
+import com.wavefront.dto.SourceTag;
 import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
@@ -57,7 +56,7 @@ public class ReportSourceTagHandlerTest {
         newAgentId, taskQueueFactory, null, type -> new DefaultEntityPropertiesForTesting());
     HandlerKey handlerKey = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878");
     sourceTagHandler = new ReportSourceTagHandlerImpl(handlerKey, 10,
-            senderTaskFactory.createSenderTasks(handlerKey, 2), blockedLogger);
+            senderTaskFactory.createSenderTasks(handlerKey), blockedLogger);
   }
 
   /**
@@ -134,28 +133,28 @@ public class ReportSourceTagHandlerTest {
         ImmutableList.of("tag3"));
     ReportSourceTag sourceTag4 = new ReportSourceTag("SourceTag", "save", "dummy", "desc 4",
         ImmutableList.of("tag1", "tag4", "tag5"));
-    List<SenderTask<ReportSourceTag>> tasks = new ArrayList<>();
-    ReportSourceTagSenderTask task1 = EasyMock.createMock(ReportSourceTagSenderTask.class);
-    ReportSourceTagSenderTask task2 = EasyMock.createMock(ReportSourceTagSenderTask.class);
+    List<SenderTask<SourceTag>> tasks = new ArrayList<>();
+    SourceTagSenderTask task1 = EasyMock.createMock(SourceTagSenderTask.class);
+    SourceTagSenderTask task2 = EasyMock.createMock(SourceTagSenderTask.class);
     tasks.add(task1);
     tasks.add(task2);
     ReportSourceTagHandlerImpl sourceTagHandler = new ReportSourceTagHandlerImpl(
         HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"), 10, tasks, blockedLogger);
-    task1.add(sourceTag1);
+    task1.add(new SourceTag(sourceTag1));
     EasyMock.expectLastCall();
-    task1.add(sourceTag2);
+    task1.add(new SourceTag(sourceTag2));
     EasyMock.expectLastCall();
-    task2.add(sourceTag3);
+    task2.add(new SourceTag(sourceTag3));
     EasyMock.expectLastCall();
-    task1.add(sourceTag4);
+    task1.add(new SourceTag(sourceTag4));
     EasyMock.expectLastCall();
-    task1.add(sourceTag4);
+    task1.add(new SourceTag(sourceTag4));
     EasyMock.expectLastCall();
-    task2.add(sourceTag3);
+    task2.add(new SourceTag(sourceTag3));
     EasyMock.expectLastCall();
-    task1.add(sourceTag2);
+    task1.add(new SourceTag(sourceTag2));
     EasyMock.expectLastCall();
-    task1.add(sourceTag1);
+    task1.add(new SourceTag(sourceTag1));
     EasyMock.expectLastCall();
 
     EasyMock.replay(task1);

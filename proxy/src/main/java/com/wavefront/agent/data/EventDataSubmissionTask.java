@@ -1,6 +1,7 @@
 package com.wavefront.agent.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.queueing.TaskQueue;
@@ -26,6 +27,7 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
   private transient EventAPI api;
   private transient UUID proxyId;
 
+  @JsonProperty
   private List<Event> events;
 
   @SuppressWarnings("unused")
@@ -68,6 +70,10 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
       return result;
     }
     return ImmutableList.of(this);
+  }
+
+  public List<Event> payload() {
+    return events;
   }
 
   @Override

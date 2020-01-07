@@ -9,7 +9,6 @@ import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.logging.Logger;
 
 /**
  * Line-delimited decoder that has the ability of detecting when clients have disconnected while leaving some

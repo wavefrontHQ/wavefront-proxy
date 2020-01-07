@@ -22,7 +22,6 @@ import static com.wavefront.agent.TestUtils.httpEq;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 @NotThreadSafe
 public class Oauth2TokenIntrospectionAuthenticatorTest {

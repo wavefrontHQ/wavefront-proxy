@@ -1,7 +1,6 @@
 package com.wavefront.agent.listeners;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
-import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.common.TaggedMetricName;
@@ -24,11 +23,8 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -37,7 +33,6 @@ import io.netty.handler.codec.compression.DecompressionException;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
 import io.netty.util.CharsetUtil;
 
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;

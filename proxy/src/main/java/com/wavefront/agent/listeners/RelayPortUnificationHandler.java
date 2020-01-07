@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
-import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.formatter.DataFormat;
@@ -206,6 +205,10 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
             if (message.isEmpty()) return;
             DataFormat dataFormat = DataFormat.autodetect(message);
             switch (dataFormat) {
+              case EVENT:
+                wavefrontHandler.reject(message, "Relay port does not support " +
+                    "event-formatted data!");
+                break;
               case SOURCE_TAG:
                 wavefrontHandler.reject(message, "Relay port does not support " +
                     "sourceTag-formatted data!");

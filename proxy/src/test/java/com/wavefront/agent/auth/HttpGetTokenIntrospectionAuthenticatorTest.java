@@ -13,7 +13,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static com.wavefront.agent.TestUtils.httpEq;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class HttpGetTokenIntrospectionAuthenticatorTest {

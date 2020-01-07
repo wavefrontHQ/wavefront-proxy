@@ -11,6 +11,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.wavefront.dto.Event;
 import wavefront.report.ReportEvent;
 
 import javax.annotation.Nullable;
@@ -20,7 +21,7 @@ import javax.annotation.Nullable;
  *
  * @author vasily@wavefront.com
  */
-public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEvent, ReportEvent> {
+public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEvent, Event> {
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -45,7 +46,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
    * @param validEventsLogger    logger for valid events.
    */
   public EventHandlerImpl(final HandlerKey handlerKey, final int blockedItemsPerBatch,
-                          @Nullable final Collection<SenderTask<ReportEvent>> senderTasks,
+                          @Nullable final Collection<SenderTask<Event>> senderTasks,
                           @Nullable final Logger blockedEventsLogger,
                           @Nullable final Logger validEventsLogger) {
     super(handlerKey, blockedItemsPerBatch, EVENT_SERIALIZER, senderTasks, true,
@@ -58,7 +59,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
     if (!annotationKeysAreValid(event)) {
       throw new IllegalArgumentException("WF-401: Event annotation key has illegal characters.");
     }
-    getTask().add(event);
+    getTask().add(new Event(event));
     getReceivedCounter().inc();
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(EVENT_SERIALIZER.apply(event));

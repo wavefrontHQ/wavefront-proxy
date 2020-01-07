@@ -31,13 +31,13 @@ import wavefront.report.ReportPoint;
 public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]> {
   private static final Logger logger = Logger.getLogger(
       ChannelByteArrayHandler.class.getCanonicalName());
-  private static final Logger blockedPointsLogger = Logger.getLogger("RawBlockedPoints");
 
   private final ReportableEntityDecoder<byte[], ReportPoint> decoder;
   private final ReportableEntityHandler<ReportPoint, String> pointHandler;
 
   @Nullable
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
+  private final Logger blockedItemsLogger;
   private final GraphiteDecoder recoder;
 
   /**
@@ -46,10 +46,12 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
   public ChannelByteArrayHandler(
       final ReportableEntityDecoder<byte[], ReportPoint> decoder,
       final ReportableEntityHandler<ReportPoint, String> pointHandler,
-      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessorSupplier) {
+      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      final Logger blockedItemsLogger) {
     this.decoder = decoder;
     this.pointHandler = pointHandler;
     this.preprocessorSupplier = preprocessorSupplier;
+    this.blockedItemsLogger = blockedItemsLogger;
     this.recoder = new GraphiteDecoder(Collections.emptyList());
   }
 
@@ -103,9 +105,9 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     // backwards compatibility: apply "pointLine" rules to metric name
     if (!preprocessor.forPointLine().filter(point.getMetric(), messageHolder)) {
       if (messageHolder[0] != null) {
-        blockedPointsLogger.warning(ReportPointSerializer.pointToString(point));
+        blockedItemsLogger.warning(ReportPointSerializer.pointToString(point));
       } else {
-        blockedPointsLogger.info(ReportPointSerializer.pointToString(point));
+        blockedItemsLogger.info(ReportPointSerializer.pointToString(point));
       }
       pointHandler.block(point, messageHolder[0]);
       return;
@@ -113,9 +115,9 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     preprocessor.forReportPoint().transform(point);
     if (!preprocessor.forReportPoint().filter(point, messageHolder)) {
       if (messageHolder[0] != null) {
-        blockedPointsLogger.warning(ReportPointSerializer.pointToString(point));
+        blockedItemsLogger.warning(ReportPointSerializer.pointToString(point));
       } else {
-        blockedPointsLogger.info(ReportPointSerializer.pointToString(point));
+        blockedItemsLogger.info(ReportPointSerializer.pointToString(point));
       }
       pointHandler.block(point, messageHolder[0]);
       return;

@@ -7,7 +7,7 @@ import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
 import com.wavefront.data.ReportableEntityType;
-import wavefront.report.ReportSourceTag;
+import com.wavefront.dto.SourceTag;
 
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
@@ -29,7 +29,7 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
   private transient SourceTagAPI api;
 
   @JsonProperty
-  private ReportSourceTag sourceTag;
+  private SourceTag sourceTag;
 
   @SuppressWarnings("unused")
   SourceTagSubmissionTask() {
@@ -45,7 +45,7 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
    */
   public SourceTagSubmissionTask(SourceTagAPI api, EntityProperties properties,
                                  TaskQueue<SourceTagSubmissionTask> backlog, String handle,
-                                 ReportSourceTag sourceTag,
+                                 SourceTag sourceTag,
                                  @Nullable Supplier<Long> timeProvider) {
     super(properties, backlog, handle, ReportableEntityType.SOURCE_TAG, timeProvider);
     this.api = api;
@@ -76,6 +76,10 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
         throw new IllegalArgumentException("Invalid source tag command: " +
             sourceTag.getSourceTagLiteral());
     }
+  }
+
+  public SourceTag payload() {
+    return sourceTag;
   }
 
   @Override

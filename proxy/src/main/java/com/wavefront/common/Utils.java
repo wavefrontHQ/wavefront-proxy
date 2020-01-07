@@ -15,7 +15,7 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.Iterator;
+import java.util.List;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
@@ -95,10 +95,10 @@ public abstract class Utils {
    * @return iterator
    */
   @Nonnull
-  public static Iterator<String> csvIterator(@Nullable String inputString) {
+  public static List<String> csvToList(@Nullable String inputString) {
     return inputString == null ?
-        Collections.emptyIterator() :
-        Splitter.on(",").omitEmptyStrings().trimResults().split(inputString).iterator();
+        Collections.emptyList() :
+        Splitter.on(",").omitEmptyStrings().trimResults().splitToList(inputString);
   }
 
   /**

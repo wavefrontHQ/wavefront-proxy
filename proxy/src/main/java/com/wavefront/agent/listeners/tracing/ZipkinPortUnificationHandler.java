@@ -8,7 +8,6 @@ import com.google.common.util.concurrent.RateLimiter;
 
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
-import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -194,12 +193,12 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     // Validate Uri Path and HTTP method of incoming Zipkin spans.
     if (!ZIPKIN_VALID_PATHS.contains(path)) {
       writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported URL path.", request);
-      logWarning("WF-400: Requested URI path '" + path + "' is not supported.", null, ctx);
+      logWarning("Requested URI path '" + path + "' is not supported.", null, ctx);
       return;
     }
     if (!request.method().toString().equalsIgnoreCase(ZIPKIN_VALID_HTTP_METHOD)) {
       writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported Http method.", request);
-      logWarning("WF-400: Requested http method '" + request.method().toString() +
+      logWarning("Requested http method '" + request.method().toString() +
           "' is not supported.", null, ctx);
       return;
     }

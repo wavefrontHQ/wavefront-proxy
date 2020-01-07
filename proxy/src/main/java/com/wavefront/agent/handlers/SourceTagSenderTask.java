@@ -7,7 +7,7 @@ import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
-import wavefront.report.ReportSourceTag;
+import com.wavefront.dto.SourceTag;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -24,9 +24,9 @@ import java.util.logging.Logger;
  * @author Suranjan Pramanik (suranjan@wavefront.com)
  * @author vasily@wavefront.com
  */
-class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
+class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
   private static final Logger logger =
-      Logger.getLogger(ReportSourceTagSenderTask.class.getCanonicalName());
+      Logger.getLogger(SourceTagSenderTask.class.getCanonicalName());
 
   /**
    * Warn about exceeding the rate limit no more than once per 10 seconds (per thread)
@@ -46,9 +46,9 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
    * @param properties  container for mutable proxy settings.
    * @param backlog     backing queue
    */
-  ReportSourceTagSenderTask(HandlerKey handlerKey, SourceTagAPI proxyAPI,
-                            int threadId, EntityProperties properties,
-                            TaskQueue<SourceTagSubmissionTask> backlog) {
+  SourceTagSenderTask(HandlerKey handlerKey, SourceTagAPI proxyAPI,
+                      int threadId, EntityProperties properties,
+                      TaskQueue<SourceTagSubmissionTask> backlog) {
     super(handlerKey, threadId, properties);
     this.proxyAPI = proxyAPI;
     this.backlog = backlog;
@@ -56,7 +56,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
   }
 
   @Override
-  TaskResult processSingleBatch(List<ReportSourceTag> batch) {
+  TaskResult processSingleBatch(List<SourceTag> batch) {
     throw new UnsupportedOperationException("Not implemented");
   }
 
@@ -65,25 +65,25 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
     long nextRunMillis = properties.getPushFlushInterval();
     isSending = true;
     try {
-      List<ReportSourceTag> current = createBatch();
+      List<SourceTag> current = createBatch();
       if (current.size() == 0) return;
-      Iterator<ReportSourceTag> iterator = current.iterator();
+      Iterator<SourceTag> iterator = current.iterator();
       while (iterator.hasNext()) {
         if (rateLimiter == null || rateLimiter.tryAcquire()) {
-          ReportSourceTag tag = iterator.next();
+          SourceTag tag = iterator.next();
           SourceTagSubmissionTask task = new SourceTagSubmissionTask(proxyAPI, properties,
               backlog, handlerKey.getHandle(), tag, null);
           TaskResult result = task.execute();
           this.attemptedCounter.inc();
           switch (result) {
             case DELIVERED:
-              break;
+              continue;
             case PERSISTED:
             case PERSISTED_RETRY:
               if (rateLimiter != null) rateLimiter.recyclePermits(1);
-              break;
+              continue;
             case RETRY_LATER:
-              final List<ReportSourceTag> remainingItems = new ArrayList<>();
+              final List<SourceTag> remainingItems = new ArrayList<>();
               remainingItems.add(tag);
               iterator.forEachRemaining(remainingItems::add);
               undoBatch(remainingItems);
@@ -92,7 +92,7 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
             default:
           }
         } else {
-          final List<ReportSourceTag> remainingItems = new ArrayList<>();
+          final List<SourceTag> remainingItems = new ArrayList<>();
           iterator.forEachRemaining(remainingItems::add);
           undoBatch(remainingItems);
           // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
@@ -116,8 +116,8 @@ class ReportSourceTagSenderTask extends AbstractSenderTask<ReportSourceTag> {
   }
 
   @Override
-  void flushSingleBatch(List<ReportSourceTag> batch, @Nullable QueueingReason reason) {
-    for (ReportSourceTag tag : batch) {
+  void flushSingleBatch(List<SourceTag> batch, @Nullable QueueingReason reason) {
+    for (SourceTag tag : batch) {
       SourceTagSubmissionTask task = new SourceTagSubmissionTask(proxyAPI, properties, backlog,
           handlerKey.getHandle(), tag, null);
       task.enqueue(reason);

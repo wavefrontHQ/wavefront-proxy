@@ -2,15 +2,17 @@ package com.wavefront.agent;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.wavefront.agent.auth.TokenValidationMethod;
+import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.data.QueueingReason;
-import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.SenderTask;
 import com.wavefront.agent.handlers.SenderTaskFactory;
+import com.wavefront.data.ReportableEntityType;
+import com.wavefront.dto.Event;
+import com.wavefront.dto.SourceTag;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 import junit.framework.AssertionFailedError;
 import net.jcip.annotations.NotThreadSafe;
@@ -29,6 +31,7 @@ import org.junit.Test;
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
+import wavefront.report.ReportEvent;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.Span;
@@ -38,12 +41,8 @@ import wavefront.report.SpanLogs;
 import javax.annotation.Nonnull;
 import javax.net.SocketFactory;
 import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
-import java.io.OutputStreamWriter;
-import java.net.HttpURLConnection;
 import java.net.Socket;
-import java.net.URL;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +52,10 @@ import java.util.zip.GZIPOutputStream;
 import static com.wavefront.agent.TestUtils.findAvailablePort;
 import static com.wavefront.agent.TestUtils.getResource;
 import static com.wavefront.agent.TestUtils.gzippedHttpPost;
+import static com.wavefront.agent.TestUtils.httpGet;
+import static com.wavefront.agent.TestUtils.httpPost;
 import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.anyString;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
@@ -75,7 +77,7 @@ public class PushAgentTest {
   private int deltaPort;
   private ReportableEntityHandler<ReportPoint, String> mockPointHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
-  private ReportableEntityHandler<ReportSourceTag, ReportSourceTag> mockSourceTagHandler =
+  private ReportableEntityHandler<ReportSourceTag, SourceTag> mockSourceTagHandler =
       MockReportableEntityHandlerFactory.getMockSourceTagHandler();
   private ReportableEntityHandler<ReportPoint, String> mockHistogramHandler =
       MockReportableEntityHandlerFactory.getMockHistogramHandler();
@@ -83,12 +85,14 @@ public class PushAgentTest {
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
+  private ReportableEntityHandler<ReportEvent, Event> mockEventHandler =
+      MockReportableEntityHandlerFactory.getMockEventHandlerImpl();
   private SenderTask<String> mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
   private Collection<SenderTask<String>> mockSenderTasks = ImmutableList.of(mockSenderTask);
   private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
     @SuppressWarnings("unchecked")
     @Override
-    public Collection<SenderTask<String>> createSenderTasks(@NotNull HandlerKey handlerKey, int numThreads) {
+    public Collection<SenderTask<String>> createSenderTasks(@NotNull HandlerKey handlerKey) {
       return mockSenderTasks;
     }
 
@@ -108,36 +112,19 @@ public class PushAgentTest {
   private ReportableEntityHandlerFactory mockHandlerFactory =
       MockReportableEntityHandlerFactory.createMockHandlerFactory(mockPointHandler,
           mockSourceTagHandler, mockHistogramHandler, mockTraceHandler,
-          mockTraceSpanLogsHandler);
+          mockTraceSpanLogsHandler, mockEventHandler);
   private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
 
   @Before
   public void setup() throws Exception {
-    port = findAvailablePort(2888);
-    tracePort = findAvailablePort(3888);
-    ddPort = findAvailablePort(4888);
-    deltaPort = findAvailablePort(5888);
     proxy = new PushAgent();
     proxy.proxyConfig.flushThreads = 2;
     proxy.proxyConfig.dataBackfillCutoffHours = 100000000;
-    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
-    proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
-    proxy.proxyConfig.traceListenerPorts = String.valueOf(tracePort);
-    proxy.proxyConfig.dataDogJsonPorts = String.valueOf(ddPort);
     proxy.proxyConfig.dataDogProcessSystemMetrics = false;
     proxy.proxyConfig.dataDogProcessServiceChecks = true;
-    proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 3;
     assertEquals(Integer.valueOf(2), proxy.proxyConfig.getFlushThreads());
     assertFalse(proxy.proxyConfig.isDataDogProcessSystemMetrics());
     assertTrue(proxy.proxyConfig.isDataDogProcessServiceChecks());
-    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
-    proxy.startDeltaCounterListener(proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
-        null, mockSenderTaskFactory);
-    proxy.startTraceListener(proxy.proxyConfig.getTraceListenerPorts(), mockHandlerFactory,
-        new RateSampler(1.0D));
-    proxy.startDataDogListener(proxy.proxyConfig.getDataDogJsonPorts(), mockHandlerFactory,
-        mockHttpClient);
-    TimeUnit.MILLISECONDS.sleep(500);
   }
 
   @After
@@ -147,6 +134,10 @@ public class PushAgentTest {
 
   @Test
   public void testWavefrontUnifiedPortHandlerPlaintextUncompressed() throws Exception {
+    port = findAvailablePort(2888);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    TimeUnit.MILLISECONDS.sleep(500);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
@@ -170,6 +161,10 @@ public class PushAgentTest {
 
   @Test
   public void testWavefrontUnifiedPortHandlerGzippedPlaintextStream() throws Exception {
+    port = findAvailablePort(2888);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    TimeUnit.MILLISECONDS.sleep(500);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric2.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
@@ -196,6 +191,17 @@ public class PushAgentTest {
 
   @Test
   public void testWavefrontUnifiedPortHandlerPlaintextOverHttp() throws Exception {
+    port = findAvailablePort(2888);
+    int healthCheckPort = findAvailablePort(8881);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.proxyConfig.httpHealthCheckPath = "/health";
+    proxy.proxyConfig.httpHealthCheckPorts = String.valueOf(healthCheckPort);
+    proxy.proxyConfig.httpHealthCheckAllPorts = true;
+    proxy.healthCheckManager = new HealthCheckManagerImpl(proxy.proxyConfig);
+
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    proxy.startHealthCheckListener(healthCheckPort);
+    TimeUnit.MILLISECONDS.sleep(500);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric3.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
@@ -212,21 +218,20 @@ public class PushAgentTest {
     String payloadStr = "metric3.test 0 " + startTime + " source=test1\n" +
         "metric3.test 1 " + (startTime + 1) + " source=test2\n" +
         "metric3.test 2 " + (startTime + 2) + " source=test3"; // note the lack of newline at the end!
-    URL url = new URL("http://localhost:" + port);
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("POST");
-    connection.setDoOutput(true);
-    connection.setDoInput(true);
-    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream(), "UTF-8"));
-    writer.write(payloadStr);
-    writer.flush();
-    writer.close();
-    logger.info("HTTP response code (plaintext content): " + connection.getResponseCode());
+    assertEquals(202, httpPost("http://localhost:" + port, payloadStr));
+    assertEquals(200, httpGet("http://localhost:" + port + "/health"));
+    assertEquals(202, httpGet("http://localhost:" + port + "/health2"));
+    assertEquals(200, httpGet("http://localhost:" + healthCheckPort + "/health"));
+    assertEquals(404, httpGet("http://localhost:" + healthCheckPort + "/health2"));
     verify(mockPointHandler);
   }
 
   @Test
   public void testWavefrontUnifiedPortHandlerHttpGzipped() throws Exception {
+    port = findAvailablePort(2888);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    TimeUnit.MILLISECONDS.sleep(500);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric4.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
@@ -250,6 +255,10 @@ public class PushAgentTest {
   // test that histograms received on Wavefront port get routed to the correct handler
   @Test
   public void testHistogramDataOnWavefrontUnifiedPortHandlerPlaintextUncompressed() throws Exception {
+    port = findAvailablePort(2888);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    TimeUnit.MILLISECONDS.sleep(500);
     reset(mockHistogramHandler);
     mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test.histo").setHost("test1").setTimestamp(startTime * 1000).setValue(
@@ -286,9 +295,14 @@ public class PushAgentTest {
   // test Wavefront port handler with mixed payload: metrics, histograms, source tags
   @Test
   public void testWavefrontUnifiedPortHandlerPlaintextUncompressedMixedDataPayload() throws Exception {
+    port = findAvailablePort(2888);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    TimeUnit.MILLISECONDS.sleep(500);
     reset(mockHistogramHandler);
     reset(mockPointHandler);
     reset(mockSourceTagHandler);
+    reset(mockEventHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test.mixed").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(10d).build());
     mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
@@ -300,6 +314,15 @@ public class PushAgentTest {
             .setCounts(ImmutableList.of(5, 10))
             .build())
         .build());
+    mockEventHandler.report(ReportEvent.newBuilder().
+        setStartTime(startTime * 1000).
+        setEndTime(startTime * 1000 + 1).
+        setName("Event name for testing").
+        setHosts(ImmutableList.of("host1", "host2")).
+        setDimensions(ImmutableMap.of("multi", ImmutableList.of("bar", "baz"))).
+        setAnnotations(ImmutableMap.of("severity", "INFO")).
+        setTags(ImmutableList.of("tag1")).
+        build());
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test.mixed").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(9d).build());
     mockSourceTagHandler.report(ReportSourceTag.newBuilder().setSourceTagLiteral("SourceTag").setAction("save")
@@ -307,23 +330,32 @@ public class PushAgentTest {
     expectLastCall();
     replay(mockPointHandler);
     replay(mockHistogramHandler);
+    replay(mockEventHandler);
 
     Socket socket = SocketFactory.getDefault().createSocket("localhost", port);
     BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
     String payloadStr = "metric.test.mixed 10.0 " + (startTime + 1) + " source=test2\n" +
         "!M " + startTime + " #5 10.0 #10 100.0 metric.test.mixed source=test1\n" +
         "@SourceTag action=save source=testSource newtag1 newtag2\n" +
-        "metric.test.mixed 9.0 " + (startTime + 1) + " source=test2\n";
+        "metric.test.mixed 9.0 " + (startTime + 1) + " source=test2\n" +
+        "@Event " + startTime + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
+        "severity=INFO multi=bar multi=baz\n";
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
     TimeUnit.MILLISECONDS.sleep(500);
     verify(mockPointHandler);
     verify(mockHistogramHandler);
+    verify(mockEventHandler);
   }
 
   @Test
   public void testTraceUnifiedPortHandlerPlaintext() throws Exception {
+    tracePort = findAvailablePort(3888);
+    proxy.proxyConfig.traceListenerPorts = String.valueOf(tracePort);
+    proxy.startTraceListener(proxy.proxyConfig.getTraceListenerPorts(), mockHandlerFactory,
+        new RateSampler(1.0D));
+    TimeUnit.MILLISECONDS.sleep(500);
     reset(mockTraceHandler);
     reset(mockTraceSpanLogsHandler);
     String traceId = UUID.randomUUID().toString();
@@ -374,6 +406,10 @@ public class PushAgentTest {
 
   @Test(timeout = 30000)
   public void testDataDogUnifiedPortHandler() throws Exception {
+    ddPort = findAvailablePort(4888);
+    proxy.proxyConfig.dataDogJsonPorts = String.valueOf(ddPort);
+    proxy.startDataDogListener(proxy.proxyConfig.getDataDogJsonPorts(), mockHandlerFactory,
+        mockHttpClient);
     int ddPort2 = findAvailablePort(4988);
     PushAgent proxy2 = new PushAgent();
     proxy2.proxyConfig.flushThreads = 2;
@@ -466,6 +502,7 @@ public class PushAgentTest {
         setHost("testhost").
         setTimestamp(1531176936000L).
         setValue(0.0d).
+        setAnnotations(ImmutableMap.of("_source", "Launcher", "env", "prod", "type", "test")).
         build());
     expectLastCall().once();
     mockPointHandler.report(ReportPoint.newBuilder().
@@ -507,6 +544,12 @@ public class PushAgentTest {
 
   @Test
   public void testDeltaCounterHandlerMixedData() throws Exception {
+    deltaPort = findAvailablePort(5888);
+    proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
+    proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 3;
+    proxy.startDeltaCounterListener(proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
+        null, mockSenderTaskFactory);
+    TimeUnit.MILLISECONDS.sleep(500);
     reset(mockSenderTask);
     Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
     mockSenderTask.add(EasyMock.capture(capturedArgument));
@@ -539,6 +582,12 @@ public class PushAgentTest {
 
   @Test
   public void testDeltaCounterHandlerDataStream() throws Exception {
+    deltaPort = findAvailablePort(5888);
+    proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
+    proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 3;
+    proxy.startDeltaCounterListener(proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
+        null, mockSenderTaskFactory);
+    TimeUnit.MILLISECONDS.sleep(500);
     reset(mockSenderTask);
     Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
     mockSenderTask.add(EasyMock.capture(capturedArgument));
@@ -568,6 +617,382 @@ public class PushAgentTest {
       assertTrue(s.startsWith("\"∆test.mixed\" " + reportPoints[pointInd]));
       pointInd += 1;
     }
+  }
+
+  @Test
+  public void testOpenTSDBPortHandler() throws Exception {
+    port = findAvailablePort(4242);
+    proxy.proxyConfig.opentsdbPorts = String.valueOf(port);
+    proxy.startOpenTsdbListener(proxy.proxyConfig.getOpentsdbPorts(), mockHandlerFactory);
+    TimeUnit.MILLISECONDS.sleep(500);
+    reset(mockPointHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test1").setTimestamp(startTime * 1000).
+        setAnnotations(ImmutableMap.of("env", "prod")).setValue(0.0d).build());
+    expectLastCall().times(2);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test2").setTimestamp((startTime + 1) * 1000).
+        setAnnotations(ImmutableMap.of("env", "prod")).setValue(1.0d).build());
+    expectLastCall().times(2);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test3").setTimestamp((startTime + 2) * 1000).
+        setAnnotations(ImmutableMap.of("env", "prod")).setValue(2.0d).build());
+    expectLastCall().times(2);
+    mockPointHandler.reject((ReportPoint) EasyMock.eq(null), anyString());
+    expectLastCall().once();
+    replay(mockPointHandler);
+
+    String payloadStr = "[\n" +
+        "  {\n" +
+        "    \"metric\": \"metric4.test\",\n" +
+        "    \"timestamp\": " + startTime + ",\n" +
+        "    \"value\": 0.0,\n" +
+        "    \"tags\": {\n" +
+        "      \"host\": \"test1\",\n" +
+        "      \"env\": \"prod\"\n" +
+        "    }\n" +
+        "  },\n" +
+        "  {\n" +
+        "    \"metric\": \"metric4.test\",\n" +
+        "    \"timestamp\": " + (startTime + 1) + ",\n" +
+        "    \"value\": 1.0,\n" +
+        "    \"tags\": {\n" +
+        "      \"host\": \"test2\",\n" +
+        "      \"env\": \"prod\"\n" +
+        "    }\n" +
+        "  }\n" +
+        "]\n";
+    String payloadStr2 = "[\n" +
+        "  {\n" +
+        "    \"metric\": \"metric4.test\",\n" +
+        "    \"timestamp\": " + (startTime + 2) + ",\n" +
+        "    \"value\": 2.0,\n" +
+        "    \"tags\": {\n" +
+        "      \"host\": \"test3\",\n" +
+        "      \"env\": \"prod\"\n" +
+        "    }\n" +
+        "  },\n" +
+        "  {\n" +
+        "    \"metric\": \"metric4.test\",\n" +
+        "    \"timestamp\": " + startTime + ",\n" +
+        "    \"tags\": {\n" +
+        "      \"host\": \"test4\",\n" +
+        "      \"env\": \"prod\"\n" +
+        "    }\n" +
+        "  }]\n";
+
+    Socket socket = SocketFactory.getDefault().createSocket("localhost", port);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    String points = "version\n" +
+        "put metric4.test " + startTime + " 0 host=test1 env=prod\n" +
+        "put metric4.test " + (startTime + 1) + " 1 host=test2 env=prod\n" +
+        "put metric4.test " + (startTime + 2) + " 2 host=test3 env=prod\n";
+    stream.write(points.getBytes());
+    stream.flush();
+    socket.close();
+
+    // nonexistent path should return 400
+    assertEquals(400, gzippedHttpPost("http://localhost:" + port + "/api/nonexistent", ""));
+    assertEquals(200, gzippedHttpPost("http://localhost:" + port + "/api/version", ""));
+    // malformed json should return 400
+    assertEquals(400, gzippedHttpPost("http://localhost:" + port + "/api/put", "{]"));
+    assertEquals(204, gzippedHttpPost("http://localhost:" + port + "/api/put", payloadStr));
+    // 1 good, 1 invalid point - should return 400, but good point should still go through
+    assertEquals(400, gzippedHttpPost("http://localhost:" + port + "/api/put", payloadStr2));
+
+    verify(mockPointHandler);
+  }
+
+  @Test
+  public void testJsonMetricsPortHandler() throws Exception {
+    port = findAvailablePort(3878);
+    proxy.proxyConfig.jsonListenerPorts = String.valueOf(port);
+    proxy.startJsonListener(proxy.proxyConfig.jsonListenerPorts, mockHandlerFactory);
+    TimeUnit.MILLISECONDS.sleep(500);
+    reset(mockPointHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test").setHost("testSource").setTimestamp(startTime * 1000).
+        setAnnotations(ImmutableMap.of("env", "prod", "dc", "test1")).setValue(1.0d).build());
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.cpu.usage.idle").setHost("testSource").
+        setTimestamp(startTime * 1000).setValue(99.0d).build());
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.cpu.usage.user").setHost("testSource").
+        setTimestamp(startTime * 1000).setValue(0.5d).build());
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.cpu.usage.system").setHost("testSource").
+        setTimestamp(startTime * 1000).setValue(0.7d).build());
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.disk.free").setHost("testSource").
+        setTimestamp(startTime * 1000).setValue(0.0d).build());
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.mem.used").setHost("testSource").
+        setTimestamp(startTime * 1000).setValue(50.0d).build());
+    replay(mockPointHandler);
+
+    String payloadStr = "{\n" +
+        "  \"value\": 1.0,\n" +
+        "  \"tags\": {\n" +
+        "    \"dc\": \"test1\",\n" +
+        "    \"env\": \"prod\"\n" +
+        "  }\n" +
+        "}\n";
+    String payloadStr2 = "{\n" +
+        "  \"cpu.usage\": {\n" +
+        "    \"idle\": 99.0,\n" +
+       "    \"user\": 0.5,\n" +
+        "    \"system\": 0.7\n" +
+        "  },\n" +
+        "  \"disk.free\": 0.0,\n" +
+        "  \"mem\": {\n" +
+        "    \"used\": 50.0\n" +
+        "  }\n" +
+        "}\n";
+    assertEquals(200, gzippedHttpPost("http://localhost:" + port + "/?h=testSource&p=metric.test&" +
+        "d=" + startTime * 1000, payloadStr));
+    assertEquals(200, gzippedHttpPost("http://localhost:" + port + "/?h=testSource&p=metric.test&" +
+        "d=" + startTime * 1000, payloadStr2));
+    verify(mockPointHandler);
+  }
+
+  @Test
+  public void testWriteHttpJsonMetricsPortHandler() throws Exception {
+    port = findAvailablePort(4878);
+    proxy.proxyConfig.writeHttpJsonListenerPorts = String.valueOf(port);
+    proxy.proxyConfig.hostname = "defaultLocalHost";
+    proxy.startWriteHttpJsonListener(proxy.proxyConfig.writeHttpJsonListenerPorts,
+        mockHandlerFactory);
+    TimeUnit.MILLISECONDS.sleep(500);
+    reset(mockPointHandler);
+    mockPointHandler.reject((ReportPoint) EasyMock.eq(null), anyString());
+    expectLastCall().times(2);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("disk.sda.disk_octets.read").setHost("testSource").
+        setTimestamp(startTime * 1000).setValue(197141504).build());
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("disk.sda.disk_octets.write").setHost("testSource").
+        setTimestamp(startTime * 1000).setValue(175136768).build());
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("disk.sda.disk_octets.read").setHost("defaultLocalHost").
+        setTimestamp(startTime * 1000).setValue(297141504).build());
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("disk.sda.disk_octets.write").setHost("defaultLocalHost").
+        setTimestamp(startTime * 1000).setValue(275136768).build());
+    replay(mockPointHandler);
+    String payloadStr = "[{\n" +
+        "\"values\": [197141504, 175136768],\n" +
+        "\"dstypes\": [\"counter\", \"counter\"],\n" +
+        "\"dsnames\": [\"read\", \"write\"],\n" +
+        "\"time\": " + startTime + ",\n" +
+        "\"interval\": 10,\n" +
+        "\"host\": \"testSource\",\n" +
+        "\"plugin\": \"disk\",\n" +
+        "\"plugin_instance\": \"sda\",\n" +
+        "\"type\": \"disk_octets\",\n" +
+        "\"type_instance\": \"\"\n" +
+        "},{\n" +
+        "\"values\": [297141504, 275136768],\n" +
+        "\"dstypes\": [\"counter\", \"counter\"],\n" +
+        "\"dsnames\": [\"read\", \"write\"],\n" +
+        "\"time\": " + startTime + ",\n" +
+        "\"interval\": 10,\n" +
+        "\"plugin\": \"disk\",\n" +
+        "\"plugin_instance\": \"sda\",\n" +
+        "\"type\": \"disk_octets\",\n" +
+        "\"type_instance\": \"\"\n" +
+        "},{\n" +
+        "\"dstypes\": [\"counter\", \"counter\"],\n" +
+        "\"dsnames\": [\"read\", \"write\"],\n" +
+        "\"time\": " + startTime + ",\n" +
+        "\"interval\": 10,\n" +
+        "\"plugin\": \"disk\",\n" +
+        "\"plugin_instance\": \"sda\",\n" +
+        "\"type\": \"disk_octets\",\n" +
+        "\"type_instance\": \"\"\n" +
+        "}]\n";
+
+        // should be an array
+    assertEquals(400, gzippedHttpPost("http://localhost:" + port, "{}"));
+    assertEquals(200, gzippedHttpPost("http://localhost:" + port, payloadStr));
+    verify(mockPointHandler);
+  }
+
+  @Test
+  public void testRelayPortHandlerGzipped() throws Exception {
+    port = findAvailablePort(2888);
+    proxy.proxyConfig.pushRelayListenerPorts = String.valueOf(port);
+    proxy.proxyConfig.pushRelayHistogramAggregator = true;
+    proxy.proxyConfig.pushRelayHistogramAggregatorAccumulatorSize = 10L;
+    proxy.proxyConfig.pushRelayHistogramAggregatorFlushSecs = 1;
+    proxy.startRelayListener(proxy.proxyConfig.getPushRelayListenerPorts(), mockHandlerFactory,
+        null);
+    TimeUnit.MILLISECONDS.sleep(500);
+    reset(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler);
+    String traceId = UUID.randomUUID().toString();
+    long timestamp1 = startTime * 1000000 + 12345;
+    long timestamp2 = startTime * 1000000 + 23456;
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
+    expectLastCall();
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+    expectLastCall();
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test3").setTimestamp((startTime + 2) * 1000).setValue(2.0d).build());
+    expectLastCall();
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("dummy").
+        setTraceId(traceId).
+        setSpanId("testspanid").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(timestamp1).
+                setFields(ImmutableMap.of("key", "value", "key2", "value2")).
+                build(),
+            SpanLog.newBuilder().
+                setTimestamp(timestamp2).
+                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                build()
+        )).
+        build());
+    expectLastCall();
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
+        .setDuration(1000)
+        .setName("testSpanName")
+        .setSource("testsource")
+        .setSpanId("testspanid")
+        .setTraceId(traceId)
+        .setAnnotations(ImmutableList.of(new Annotation("parent", "parent1"), new Annotation("parent", "parent2")))
+        .build());
+    expectLastCall();
+    mockPointHandler.reject(anyString(), anyString());
+    expectLastCall().times(2);
+
+    replay(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler);
+
+    String payloadStr = "metric4.test 0 " + startTime + " source=test1\n" +
+        "metric4.test 1 " + (startTime + 1) + " source=test2\n" +
+        "metric4.test 2 " + (startTime + 2) + " source=test3"; // note the lack of newline at the end!
+    String histoData = "!M " + startTime + " #5 10.0 #10 100.0 metric.test.histo source=test1\n" +
+        "!M " + (startTime + 60) + " #5 20.0 #6 30.0 #7 40.0 metric.test.histo source=test2";
+    String spanData = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
+        "traceId=\"" + traceId + "\" parent=parent2 " + startTime + " " + (startTime + 1);
+    String spanLogData = "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId +
+        "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
+        timestamp2 + ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n";
+    String badData = "@SourceTag action=save source=testSource newtag1 newtag2\n" +
+        "@Event " + startTime + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
+        "severity=INFO multi=bar multi=baz\n" +
+        "!M " + (startTime + 60) + " #5 20.0 #6 30.0 #7 40.0 metric.test.histo source=test2";
+
+    assertEquals(200, gzippedHttpPost("http://localhost:" + port + "/api/v2/wfproxy/checkin",
+        "{}"));
+    assertEquals(200, gzippedHttpPost("http://localhost:" + port +
+        "/api/v2/wfproxy/report?format=wavefront", payloadStr));
+    assertEquals(200, gzippedHttpPost("http://localhost:" + port +
+        "/api/v2/wfproxy/report?format=histogram", histoData));
+    assertEquals(200, gzippedHttpPost("http://localhost:" + port +
+        "/api/v2/wfproxy/report?format=trace", spanData));
+    assertEquals(200, gzippedHttpPost("http://localhost:" + port +
+        "/api/v2/wfproxy/report?format=spanLogs", spanLogData));
+    proxy.entityProps.get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
+    assertEquals(403, gzippedHttpPost("http://localhost:" + port +
+        "/api/v2/wfproxy/report?format=histogram", histoData));
+    proxy.entityProps.get(ReportableEntityType.TRACE).setFeatureDisabled(true);
+    assertEquals(403, gzippedHttpPost("http://localhost:" + port +
+        "/api/v2/wfproxy/report?format=trace", spanData));
+    proxy.entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
+    assertEquals(403, gzippedHttpPost("http://localhost:" + port +
+        "/api/v2/wfproxy/report?format=spanLogs", spanLogData));
+    assertEquals(400, gzippedHttpPost("http://localhost:" + port +
+        "/api/v2/wfproxy/report?format=wavefront", badData));
+    verify(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler);
+  }
+
+  @Test
+  public void testHealthCheckAdminPorts() throws Exception {
+    port = findAvailablePort(2888);
+    int port2 = findAvailablePort(3888);
+    int port3 = findAvailablePort(4888);
+    int port4 = findAvailablePort(5888);
+    int adminPort = findAvailablePort(6888);
+    proxy.proxyConfig.pushListenerPorts = port + "," + port2 + "," + port3 + "," + port4;
+    proxy.proxyConfig.adminApiListenerPort = adminPort;
+    proxy.proxyConfig.httpHealthCheckPath = "/health";
+    proxy.proxyConfig.httpHealthCheckAllPorts = true;
+    proxy.proxyConfig.httpHealthCheckFailStatusCode = 403;
+    proxy.healthCheckManager = new HealthCheckManagerImpl(proxy.proxyConfig);
+    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null);
+    proxy.startGraphiteListener(String.valueOf(port2), mockHandlerFactory, null);
+    proxy.startGraphiteListener(String.valueOf(port3), mockHandlerFactory, null);
+    proxy.startGraphiteListener(String.valueOf(port4), mockHandlerFactory, null);
+    proxy.startAdminListener(adminPort);
+    TimeUnit.MILLISECONDS.sleep(500);
+    assertEquals(404, httpGet("http://localhost:" + adminPort + "/"));
+    assertEquals(200, httpGet("http://localhost:" + port + "/health"));
+    assertEquals(200, httpGet("http://localhost:" + port2 + "/health"));
+    assertEquals(200, httpGet("http://localhost:" + port3 + "/health"));
+    assertEquals(200, httpGet("http://localhost:" + port4 + "/health"));
+    assertEquals(202, httpGet("http://localhost:" + port + "/health2"));
+    assertEquals(400, httpGet("http://localhost:" + adminPort + "/status"));
+    assertEquals(405, httpPost("http://localhost:" + adminPort + "/status", ""));
+    assertEquals(404, httpGet("http://localhost:" + adminPort + "/status/somethingelse"));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port2));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port3));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port4));
+    assertEquals(405, httpGet("http://localhost:" + adminPort + "/disable"));
+    assertEquals(405, httpGet("http://localhost:" + adminPort + "/enable"));
+    assertEquals(405, httpGet("http://localhost:" + adminPort + "/disable/" + port));
+    assertEquals(405, httpGet("http://localhost:" + adminPort + "/enable/" + port));
+
+    // disabling port and port3
+    assertEquals(200, httpPost("http://localhost:" + adminPort + "/disable/" + port, ""));
+    assertEquals(200, httpPost("http://localhost:" + adminPort + "/disable/" + port3, ""));
+    assertEquals(503, httpGet("http://localhost:" + adminPort + "/status/" + port));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port2));
+    assertEquals(503, httpGet("http://localhost:" + adminPort + "/status/" + port3));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port4));
+    assertEquals(403, httpGet("http://localhost:" + port + "/health"));
+    assertEquals(200, httpGet("http://localhost:" + port2 + "/health"));
+    assertEquals(403, httpGet("http://localhost:" + port3 + "/health"));
+    assertEquals(200, httpGet("http://localhost:" + port4 + "/health"));
+
+    // disable all
+    assertEquals(200, httpPost("http://localhost:" + adminPort + "/disable", ""));
+    assertEquals(503, httpGet("http://localhost:" + adminPort + "/status/" + port));
+    assertEquals(503, httpGet("http://localhost:" + adminPort + "/status/" + port2));
+    assertEquals(503, httpGet("http://localhost:" + adminPort + "/status/" + port3));
+    assertEquals(503, httpGet("http://localhost:" + adminPort + "/status/" + port4));
+    assertEquals(403, httpGet("http://localhost:" + port + "/health"));
+    assertEquals(403, httpGet("http://localhost:" + port2 + "/health"));
+    assertEquals(403, httpGet("http://localhost:" + port3 + "/health"));
+    assertEquals(403, httpGet("http://localhost:" + port4 + "/health"));
+
+    // enable port3 and port4
+    assertEquals(200, httpPost("http://localhost:" + adminPort + "/enable/" + port3, ""));
+    assertEquals(200, httpPost("http://localhost:" + adminPort + "/enable/" + port4, ""));
+    assertEquals(503, httpGet("http://localhost:" + adminPort + "/status/" + port));
+    assertEquals(503, httpGet("http://localhost:" + adminPort + "/status/" + port2));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port3));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port4));
+    assertEquals(403, httpGet("http://localhost:" + port + "/health"));
+    assertEquals(403, httpGet("http://localhost:" + port2 + "/health"));
+    assertEquals(200, httpGet("http://localhost:" + port3 + "/health"));
+    assertEquals(200, httpGet("http://localhost:" + port4 + "/health"));
+
+    // enable all
+    // enable port3 and port4
+    assertEquals(200, httpPost("http://localhost:" + adminPort + "/enable", ""));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port2));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port3));
+    assertEquals(200, httpGet("http://localhost:" + adminPort + "/status/" + port4));
+    assertEquals(200, httpGet("http://localhost:" + port + "/health"));
+    assertEquals(200, httpGet("http://localhost:" + port2 + "/health"));
+    assertEquals(200, httpGet("http://localhost:" + port3 + "/health"));
+    assertEquals(200, httpGet("http://localhost:" + port4 + "/health"));
   }
 
 }

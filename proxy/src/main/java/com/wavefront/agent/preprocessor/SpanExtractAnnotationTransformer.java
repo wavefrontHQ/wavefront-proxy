@@ -2,7 +2,6 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

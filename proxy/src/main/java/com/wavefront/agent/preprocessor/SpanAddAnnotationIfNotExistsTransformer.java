@@ -1,7 +1,5 @@
 package com.wavefront.agent.preprocessor;
 
-import com.google.common.collect.Lists;
-
 import javax.annotation.Nullable;
 
 import wavefront.report.Annotation;

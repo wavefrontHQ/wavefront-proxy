@@ -12,6 +12,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
+import com.wavefront.dto.SourceTag;
 import com.wavefront.ingester.ReportableEntityDecoder;
 
 import java.util.List;
@@ -50,7 +51,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   private final ReportableEntityDecoder<String, ReportPoint> histogramDecoder;
   private final ReportableEntityHandler<ReportPoint, String> wavefrontHandler;
   private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<ReportSourceTag, ReportSourceTag>> sourceTagHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportSourceTag, SourceTag>> sourceTagHandlerSupplier;
   private final Supplier<ReportableEntityHandler<ReportEvent, ReportEvent>> eventHandlerSupplier;
 
   /**
@@ -103,7 +104,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
     DataFormat dataFormat = DataFormat.autodetect(message);
     switch (dataFormat) {
       case SOURCE_TAG:
-        ReportableEntityHandler<ReportSourceTag, ReportSourceTag> sourceTagHandler =
+        ReportableEntityHandler<ReportSourceTag, SourceTag> sourceTagHandler =
             sourceTagHandlerSupplier.get();
         if (sourceTagHandler == null || sourceTagDecoder == null) {
           wavefrontHandler.reject(message, "Port is not configured to accept " +
@@ -188,7 +189,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       return;
     }
 
-    for (ReportPoint object : output) {
+    for (int i = 0; i < output.size(); i++) {
+      ReportPoint object = output.get(i);
       if (preprocessor != null) {
         preprocessor.forReportPoint().transform(object);
         if (!preprocessor.forReportPoint().filter(object, messageHolder)) {

@@ -1,5 +1,7 @@
 package com.wavefront.agent.channel;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.wavefront.agent.ProxyConfig;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
@@ -49,6 +51,15 @@ public class HealthCheckManagerImpl implements HealthCheckManager {
   private final String failResponseBody;
 
   /**
+   * @param config Proxy configuration
+   */
+  public HealthCheckManagerImpl(@Nonnull ProxyConfig config) {
+    this(config.getHttpHealthCheckPath(), config.getHttpHealthCheckResponseContentType(),
+        config.getHttpHealthCheckPassStatusCode(), config.getHttpHealthCheckPassResponseBody(),
+        config.getHttpHealthCheckFailStatusCode(), config.getHttpHealthCheckFailResponseBody());
+  }
+
+  /**
    * @param path             Health check's path.
    * @param contentType      Optional content-type of health check's response.
    * @param passStatusCode   HTTP status code for 'pass' health checks.
@@ -56,7 +67,8 @@ public class HealthCheckManagerImpl implements HealthCheckManager {
    * @param failStatusCode   HTTP status code for 'fail' health checks.
    * @param failResponseBody Optional response body to return with 'fail' health checks.
    */
-  public HealthCheckManagerImpl(@Nullable String path, @Nullable String contentType,
+  @VisibleForTesting
+  HealthCheckManagerImpl(@Nullable String path, @Nullable String contentType,
                                 int passStatusCode, @Nullable String passResponseBody,
                                 int failStatusCode, @Nullable String failResponseBody) {
     this.statusMap = new HashMap<>();

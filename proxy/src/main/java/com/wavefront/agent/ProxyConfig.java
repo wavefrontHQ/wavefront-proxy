@@ -30,6 +30,8 @@ import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SOURC
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPANS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPAN_LOGS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_INTERVAL;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_THREADS_EVENTS;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_FLUSH_THREADS_SOURCE_TAGS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_MIN_SPLIT_BATCH_SIZE;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
@@ -85,6 +87,14 @@ public class ProxyConfig extends Configuration {
       "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
       "small to the server and wasting connections. This setting is per listening port.", order = 5)
   Integer flushThreads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
+
+  @Parameter(names = {"--flushThreadsSourceTags"}, description = "Number of threads that send " +
+      "source tags data to the server. Default: 2")
+  int flushThreadsSourceTags = DEFAULT_FLUSH_THREADS_SOURCE_TAGS;
+
+  @Parameter(names = {"--flushThreadsEvents"}, description = "Number of threads that send " +
+      "event data to the server. Default: 2")
+  int flushThreadsEvents = DEFAULT_FLUSH_THREADS_EVENTS;
 
   @Parameter(names = {"--purgeBuffer"}, description = "Whether to purge the retry buffer on start-up. Defaults to " +
       "false.", arity = 1)
@@ -709,6 +719,14 @@ public class ProxyConfig extends Configuration {
 
   public Integer getFlushThreads() {
     return flushThreads;
+  }
+
+  public int getFlushThreadsSourceTags() {
+    return flushThreadsSourceTags;
+  }
+
+  public int getFlushThreadsEvents() {
+    return flushThreadsEvents;
   }
 
   public boolean isPurgeBuffer() {
@@ -1465,6 +1483,8 @@ public class ProxyConfig extends Configuration {
           histogramDistMemoryCache);
 
       flushThreads = config.getInteger("flushThreads", flushThreads);
+      flushThreadsEvents = config.getInteger("flushThreadsEvents", flushThreadsEvents);
+      flushThreadsSourceTags = config.getInteger("flushThreadsSourceTags", flushThreadsSourceTags);
       jsonListenerPorts = config.getString("jsonListenerPorts", jsonListenerPorts);
       writeHttpJsonListenerPorts = config.getString("writeHttpJsonListenerPorts",
           writeHttpJsonListenerPorts);

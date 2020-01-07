@@ -60,7 +60,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
 
   @Override
   protected void reportInternal(SpanLogs spanLogs) {
-    String strSpanLogs = serializer.apply(spanLogs);
+    String strSpanLogs = SPAN_LOGS_SERIALIZER.apply(spanLogs);
     getTask().add(strSpanLogs);
     getReceivedCounter().inc();
     if (validItemsLogger != null) validItemsLogger.info(strSpanLogs);

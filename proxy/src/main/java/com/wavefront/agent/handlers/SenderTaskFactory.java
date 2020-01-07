@@ -18,11 +18,9 @@ public interface SenderTaskFactory {
    * Create a collection of {@link SenderTask objects} for a specified handler key.
    *
    * @param handlerKey unique identifier for the handler.
-   * @param numThreads create a specified number of threads.
    * @return created tasks.
    */
-  <T> Collection<SenderTask<T>> createSenderTasks(@Nonnull HandlerKey handlerKey,
-                                                  final int numThreads);
+  <T> Collection<SenderTask<T>> createSenderTasks(@Nonnull HandlerKey handlerKey);
 
   /**
    * Shut down all tasks.

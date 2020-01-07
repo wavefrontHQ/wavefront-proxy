@@ -44,6 +44,11 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   }
 
   @Override
+  public int getFlushThreads() {
+    return 2;
+  }
+
+  @Override
   public int getPushFlushInterval() {
     return 100;
   }

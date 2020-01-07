@@ -7,13 +7,11 @@ import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.EventAPI;
 import com.wavefront.dto.Event;
-import wavefront.report.ReportEvent;
 
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * This class is responsible for accumulating events and sending them batch. This
@@ -21,7 +19,7 @@ import java.util.stream.Collectors;
  *
  * @author vasily@wavefront.com
  */
-class EventSenderTask extends AbstractSenderTask<ReportEvent> {
+class EventSenderTask extends AbstractSenderTask<Event> {
 
   private final EventAPI proxyAPI;
   private final UUID proxyId;
@@ -45,18 +43,16 @@ class EventSenderTask extends AbstractSenderTask<ReportEvent> {
   }
 
   @Override
-  TaskResult processSingleBatch(List<ReportEvent> batch) {
+  TaskResult processSingleBatch(List<Event> batch) {
     EventDataSubmissionTask task = new EventDataSubmissionTask(proxyAPI, proxyId, properties,
-        backlog, handlerKey.getHandle(),
-        batch.stream().map(Event::new).collect(Collectors.toList()), null);
+        backlog, handlerKey.getHandle(), batch, null);
     return task.execute();
   }
 
   @Override
-  public void flushSingleBatch(List<ReportEvent> batch, @Nullable QueueingReason reason) {
+  public void flushSingleBatch(List<Event> batch, @Nullable QueueingReason reason) {
     EventDataSubmissionTask task = new EventDataSubmissionTask(proxyAPI, proxyId, properties,
-        backlog, handlerKey.getHandle(),
-        batch.stream().map(Event::new).collect(Collectors.toList()), null);
+        backlog, handlerKey.getHandle(), batch, null);
     task.enqueue(reason);
   }
 }

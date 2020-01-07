@@ -1,9 +1,5 @@
 package com.wavefront.agent.preprocessor;
 
-import com.google.common.collect.Maps;
-
-import com.yammer.metrics.core.Counter;
-
 import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;

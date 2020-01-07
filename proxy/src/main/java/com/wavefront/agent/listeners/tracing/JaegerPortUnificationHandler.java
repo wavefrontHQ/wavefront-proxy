@@ -3,7 +3,6 @@ package com.wavefront.agent.listeners.tracing;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.wavefront.agent.auth.TokenAuthenticator;
-import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -166,12 +165,12 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
     // Validate Uri Path and HTTP method of incoming Jaeger spans.
     if (!path.equals(JAEGER_VALID_PATH)) {
       writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported URL path.", request);
-      logWarning("WF-400: Requested URI path '" + path + "' is not supported.", null, ctx);
+      logWarning("Requested URI path '" + path + "' is not supported.", null, ctx);
       return;
     }
     if (!request.method().toString().equalsIgnoreCase(JAEGER_VALID_HTTP_METHOD)) {
       writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported Http method.", request);
-      logWarning("WF-400: Requested http method '" + request.method().toString() +
+      logWarning("Requested http method '" + request.method().toString() +
           "' is not supported.", null, ctx);
       return;
     }
