@@ -50,17 +50,24 @@ public class PreprocessorRulesTest {
     String path = File.createTempFile("proxyPreprocessorRulesFile", null).getPath();
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
     Files.asCharSink(new File(path), Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
-    config.setUpConfigFileMonitoring(path, 100);
-    Thread.sleep(100);
+    config.loadFile(path);
+    config.setUpConfigFileMonitoring(path, 1000);
     ReportableEntityPreprocessor preprocessor = config.get("2878").get();
     assertEquals(1, preprocessor.forPointLine().getFilters().size());
     assertEquals(1, preprocessor.forPointLine().getTransformers().size());
     assertEquals(3, preprocessor.forReportPoint().getFilters().size());
     assertEquals(8, preprocessor.forReportPoint().getTransformers().size());
+
+    config.loadFileIfModified(path); // should be no changes
+    preprocessor = config.get("2878").get();
+    assertEquals(1, preprocessor.forPointLine().getFilters().size());
+    assertEquals(1, preprocessor.forPointLine().getTransformers().size());
+    assertEquals(3, preprocessor.forReportPoint().getFilters().size());
+    assertEquals(8, preprocessor.forReportPoint().getTransformers().size());
+
     stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_reload.yaml");
     Files.asCharSink(new File(path), Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
-    Thread.sleep(200);
-    // reload should've happened
+    config.loadFileIfModified(path); // reload should've happened
     preprocessor = config.get("2878").get();
     assertEquals(0, preprocessor.forPointLine().getFilters().size());
     assertEquals(2, preprocessor.forPointLine().getTransformers().size());

@@ -81,19 +81,7 @@ public class PreprocessorConfigManager {
     new Timer("Timer-preprocessor-configmanager").schedule(new TimerTask() {
       @Override
       public void run() {
-        try {
-          File file = new File(fileName);
-          long lastModified = file.lastModified();
-          if (lastModified > userPreprocessorsTs) {
-            logger.info("File " + file +
-                " has been modified on disk, reloading preprocessor rules");
-            loadFromStream(new FileInputStream(file));
-            configReloads.inc();
-          }
-        } catch (Exception e) {
-          logger.log(Level.SEVERE, "Unable to load preprocessor rules", e);
-          failedConfigReloads.inc();
-        }
+        loadFileIfModified(fileName);
       }
     }, 0, fileCheckIntervalMillis);
   }
@@ -139,6 +127,23 @@ public class PreprocessorConfigManager {
     if (invalidArguments.size() > 0) {
       throw new IllegalArgumentException("Invalid or not applicable argument(s): " +
           StringUtils.join(invalidArguments, ","));
+    }
+  }
+
+  @VisibleForTesting
+  void loadFileIfModified(String fileName) {
+    try {
+      File file = new File(fileName);
+      long lastModified = file.lastModified();
+      if (lastModified > userPreprocessorsTs) {
+        logger.info("File " + file +
+            " has been modified on disk, reloading preprocessor rules");
+        loadFile(fileName);
+        configReloads.inc();
+      }
+    } catch (Exception e) {
+      logger.log(Level.SEVERE, "Unable to load preprocessor rules", e);
+      failedConfigReloads.inc();
     }
   }
 
