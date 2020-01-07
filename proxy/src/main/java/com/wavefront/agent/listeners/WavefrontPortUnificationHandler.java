@@ -189,8 +189,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       return;
     }
 
-    for (int i = 0; i < output.size(); i++) {
-      ReportPoint object = output.get(i);
+    for (ReportPoint object : output) {
       if (preprocessor != null) {
         preprocessor.forReportPoint().transform(object);
         if (!preprocessor.forReportPoint().filter(object, messageHolder)) {

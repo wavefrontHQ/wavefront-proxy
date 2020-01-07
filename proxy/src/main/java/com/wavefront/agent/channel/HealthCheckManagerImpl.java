@@ -69,8 +69,8 @@ public class HealthCheckManagerImpl implements HealthCheckManager {
    */
   @VisibleForTesting
   HealthCheckManagerImpl(@Nullable String path, @Nullable String contentType,
-                                int passStatusCode, @Nullable String passResponseBody,
-                                int failStatusCode, @Nullable String failResponseBody) {
+                         int passStatusCode, @Nullable String passResponseBody,
+                         int failStatusCode, @Nullable String failResponseBody) {
     this.statusMap = new HashMap<>();
     this.enabledPorts = new HashSet<>();
     this.path = path;

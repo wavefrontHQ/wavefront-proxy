@@ -84,29 +84,38 @@ public class PreprocessorConfigManager {
     }
     if (fileName != null) {
       // if there is a file name with preprocessor rules, load it and schedule periodic reloads
-      new Timer("Timer-preprocessor-configmanager").schedule(new TimerTask() {
-        @Override
-        public void run() {
-          try {
-            File file = new File(fileName);
-            long lastModified = file.lastModified();
-            if (lastModified > userPreprocessorsTs) {
-              logger.info("File " + file +
-                  " has been modified on disk, reloading preprocessor rules");
-              userPreprocessorsTs = timeSupplier.get();
-              userPreprocessors = loadFromStream(new FileInputStream(file));
-              configReloads.inc();
-            }
-          } catch (Exception e) {
-            logger.log(Level.SEVERE, "Unable to load preprocessor rules", e);
-            failedConfigReloads.inc();
-          }
-        }
-      }, 0, fileCheckIntervalMillis);
     } else if (inputStream == null){
       userPreprocessorsTs = timeSupplier.get();
       userPreprocessors = Collections.emptyMap();
     }
+  }
+
+  /**
+   * Schedules periodic checks for config file modification timestamp and performs hot-reload
+   *
+   * @param fileName                Path name of the file to be monitored
+   * @param fileCheckIntervalMillis
+   */
+  public void setUpConfigFileMonitoring(String fileName, int fileCheckIntervalMillis) {
+    new Timer("Timer-preprocessor-configmanager").schedule(new TimerTask() {
+      @Override
+      public void run() {
+        try {
+          File file = new File(fileName);
+          long lastModified = file.lastModified();
+          if (lastModified > userPreprocessorsTs) {
+            logger.info("File " + file +
+                " has been modified on disk, reloading preprocessor rules");
+            userPreprocessorsTs = timeSupplier.get();
+            userPreprocessors = loadFromStream(new FileInputStream(file));
+            configReloads.inc();
+          }
+        } catch (Exception e) {
+          logger.log(Level.SEVERE, "Unable to load preprocessor rules", e);
+          failedConfigReloads.inc();
+        }
+      }
+    }, 0, fileCheckIntervalMillis);
   }
 
   public ReportableEntityPreprocessor getSystemPreprocessor(String key) {
@@ -176,8 +185,8 @@ public class PreprocessorConfigManager {
           try {
             requireArguments(rule, "rule", "action");
             allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "tag",
-                "key", "newtag", "newkey", "value", "source", "input", "iterations", "replaceSource",
-                "replaceInput", "actionSubtype", "maxLength", "firstMatchOnly");
+                "key", "newtag", "newkey", "value", "source", "input", "iterations",
+                "replaceSource", "replaceInput", "actionSubtype", "maxLength", "firstMatchOnly");
             String ruleName = rule.get("rule").replaceAll("[^a-z0-9_-]", "");
             PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
                 Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,

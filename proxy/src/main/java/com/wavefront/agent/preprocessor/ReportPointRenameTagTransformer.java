@@ -40,15 +40,18 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    String tagValue = reportPoint.getAnnotations().get(tag);
-    if (tagValue == null || (compiledPattern != null && !compiledPattern.matcher(tagValue).matches())) {
-      ruleMetrics.ruleEnd(startNanos);
+    try {
+      String tagValue = reportPoint.getAnnotations().get(tag);
+      if (tagValue == null || (compiledPattern != null &&
+          !compiledPattern.matcher(tagValue).matches())) {
+        return reportPoint;
+      }
+      reportPoint.getAnnotations().remove(tag);
+      reportPoint.getAnnotations().put(newTag, tagValue);
+      ruleMetrics.incrementRuleAppliedCounter();
       return reportPoint;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    reportPoint.getAnnotations().remove(tag);
-    reportPoint.getAnnotations().put(newTag, tagValue);
-    ruleMetrics.incrementRuleAppliedCounter();
-    ruleMetrics.ruleEnd(startNanos);
-    return reportPoint;
   }
 }

@@ -27,12 +27,14 @@ public class PointLineBlacklistRegexFilter implements AnnotatedPredicate<String>
   @Override
   public boolean test(String pointLine, @Nullable String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
-    if (compiledPattern.matcher(pointLine).matches()) {
-      ruleMetrics.incrementRuleAppliedCounter();
+    try {
+      if (compiledPattern.matcher(pointLine).matches()) {
+        ruleMetrics.incrementRuleAppliedCounter();
+        return false;
+      }
+      return true;
+    } finally {
       ruleMetrics.ruleEnd(startNanos);
-      return false;
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return true;
   }
 }

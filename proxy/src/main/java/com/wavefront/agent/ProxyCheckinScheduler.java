@@ -172,7 +172,7 @@ public class ProxyCheckinScheduler {
           checkinError("HTTP " + ex.getResponse().getStatus() + ": Misconfiguration detected, " +
               "please verify that your server setting is correct. " + secondaryMessage);
           if (succesfulCheckins.get() == 0) {
-            logger.warning("Aborting start-up");
+            logger.severe("Aborting start-up");
             System.exit(-5);
           }
           break;
@@ -180,6 +180,10 @@ public class ProxyCheckinScheduler {
           checkinError("HTTP 407 Proxy Authentication Required: Please verify that " +
               "proxyUser and proxyPassword settings are correct and make sure your HTTP proxy" +
               " is not rate limiting!");
+          if (succesfulCheckins.get() == 0) {
+            logger.severe("Aborting start-up");
+            System.exit(-5);
+          }
           break;
         default:
           checkinError("HTTP " + ex.getResponse().getStatus() +

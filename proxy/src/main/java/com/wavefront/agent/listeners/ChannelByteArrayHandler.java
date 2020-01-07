@@ -65,14 +65,14 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
         null : preprocessorSupplier.get();
 
-    List<ReportPoint> points = Lists.newArrayListWithExpectedSize(1);
+    List<ReportPoint> points = Lists.newArrayListWithCapacity(1);
     try {
       decoder.decode(msg, points, "dummy");
-      for (ReportPoint point: points) {
+      for (ReportPoint point : points) {
         if (preprocessor != null && !preprocessor.forPointLine().getTransformers().isEmpty()) {
           String pointLine = ReportPointSerializer.pointToString(point);
           pointLine = preprocessor.forPointLine().transform(pointLine);
-          List<ReportPoint> parsedPoints = Lists.newArrayListWithExpectedSize(1);
+          List<ReportPoint> parsedPoints = Lists.newArrayListWithCapacity(1);
           recoder.decodeReportPoints(pointLine, parsedPoints, "dummy");
           parsedPoints.forEach(x -> preprocessAndReportPoint(x, preprocessor));
         } else {

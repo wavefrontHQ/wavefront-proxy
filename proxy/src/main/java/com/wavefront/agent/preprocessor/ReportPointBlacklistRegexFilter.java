@@ -35,34 +35,34 @@ public class ReportPointBlacklistRegexFilter implements AnnotatedPredicate<Repor
   @Override
   public boolean test(@Nonnull ReportPoint reportPoint, @Nullable String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
-    switch (scope) {
-      case "metricName":
-        if (compiledPattern.matcher(reportPoint.getMetric()).matches()) {
-          ruleMetrics.incrementRuleAppliedCounter();
-          ruleMetrics.ruleEnd(startNanos);
-          return false;
-        }
-        break;
-      case "sourceName":
-        if (compiledPattern.matcher(reportPoint.getHost()).matches()) {
-          ruleMetrics.incrementRuleAppliedCounter();
-          ruleMetrics.ruleEnd(startNanos);
-          return false;
-        }
-        break;
-      default:
-        if (reportPoint.getAnnotations() != null) {
-          String tagValue = reportPoint.getAnnotations().get(scope);
-          if (tagValue != null) {
-            if (compiledPattern.matcher(tagValue).matches()) {
-              ruleMetrics.incrementRuleAppliedCounter();
-              ruleMetrics.ruleEnd(startNanos);
-              return false;
+    try {
+      switch (scope) {
+        case "metricName":
+          if (compiledPattern.matcher(reportPoint.getMetric()).matches()) {
+            ruleMetrics.incrementRuleAppliedCounter();
+            return false;
+          }
+          break;
+        case "sourceName":
+          if (compiledPattern.matcher(reportPoint.getHost()).matches()) {
+            ruleMetrics.incrementRuleAppliedCounter();
+            return false;
+          }
+          break;
+        default:
+          if (reportPoint.getAnnotations() != null) {
+            String tagValue = reportPoint.getAnnotations().get(scope);
+            if (tagValue != null) {
+              if (compiledPattern.matcher(tagValue).matches()) {
+                ruleMetrics.incrementRuleAppliedCounter();
+                return false;
+              }
             }
           }
-        }
+      }
+      return true;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return true;
   }
 }

@@ -153,7 +153,7 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
         } else {
           builder.setValue(value.asLong());
         }
-        List<ReportPoint> parsedPoints = Lists.newArrayListWithExpectedSize(1);
+        List<ReportPoint> parsedPoints = Lists.newArrayListWithCapacity(1);
         ReportPoint point = builder.build();
         if (preprocessor != null && preprocessor.forPointLine().getTransformers().size() > 0) {
           //

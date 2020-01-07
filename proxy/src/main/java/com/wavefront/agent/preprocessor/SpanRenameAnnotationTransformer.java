@@ -3,8 +3,11 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -47,24 +50,23 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-
-    if (firstMatchOnly) {
-      Optional<Annotation> annotation = span.getAnnotations().stream().
-          filter(a -> a.getKey().equals(key) &&
-          (compiledPattern == null || compiledPattern.matcher(a.getValue()).matches())).findFirst();
-
-      annotation.ifPresent(value -> value.setKey(newKey));
-      ruleMetrics.incrementRuleAppliedCounter();
-      ruleMetrics.ruleEnd(startNanos);
+    try {
+      Stream<Annotation> stream = span.getAnnotations().stream().
+          filter(a -> a.getKey().equals(key) && (compiledPattern == null ||
+              compiledPattern.matcher(a.getValue()).matches()));
+      if (firstMatchOnly) {
+        stream.findFirst().ifPresent(value -> {
+          value.setKey(newKey);
+          ruleMetrics.incrementRuleAppliedCounter();
+        });
+      } else {
+        List<Annotation> annotations = stream.collect(Collectors.toList());
+        annotations.forEach(a -> a.setKey(newKey));
+        if (!annotations.isEmpty()) ruleMetrics.incrementRuleAppliedCounter();
+      }
       return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-
-    span.getAnnotations().stream().
-        filter(a -> a.getKey().equals(key) &&
-            (compiledPattern == null || compiledPattern.matcher(a.getValue()).matches())).
-        forEach(a -> a.setKey(newKey));
-    ruleMetrics.incrementRuleAppliedCounter();
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
   }
 }

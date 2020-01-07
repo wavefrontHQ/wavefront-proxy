@@ -219,7 +219,6 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
   public ChronicleMap<K, V> get(File f) {
     Preconditions.checkNotNull(f);
     try {
-      logger.warning("calling get for " + f.getPath());
       return maps.get(f);
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Failed loading map for " + f, e);

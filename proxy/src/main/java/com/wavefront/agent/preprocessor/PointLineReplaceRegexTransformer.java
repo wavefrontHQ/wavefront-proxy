@@ -40,31 +40,32 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
   @Override
   public String apply(String pointLine) {
     long startNanos = ruleMetrics.ruleStart();
-    if (compiledMatchPattern != null && !compiledMatchPattern.matcher(pointLine).matches()) {
-      ruleMetrics.ruleEnd(startNanos);
-      return pointLine;
-    }
-    Matcher patternMatcher = compiledSearchPattern.matcher(pointLine);
-
-    if (!patternMatcher.find()) {
-      ruleMetrics.ruleEnd(startNanos);
-      return pointLine;
-    }
-    ruleMetrics.incrementRuleAppliedCounter(); // count the rule only once regardless of the number of iterations
-
-    int currentIteration = 0;
-    while (true) {
-      pointLine = patternMatcher.replaceAll(patternReplace);
-      currentIteration++;
-      if (currentIteration >= maxIterations) {
-        break;
+    try {
+      if (compiledMatchPattern != null && !compiledMatchPattern.matcher(pointLine).matches()) {
+        return pointLine;
       }
-      patternMatcher = compiledSearchPattern.matcher(pointLine);
+      Matcher patternMatcher = compiledSearchPattern.matcher(pointLine);
+
       if (!patternMatcher.find()) {
-        break;
+        return pointLine;
       }
+      ruleMetrics.incrementRuleAppliedCounter(); // count the rule only once regardless of the number of iterations
+
+      int currentIteration = 0;
+      while (true) {
+        pointLine = patternMatcher.replaceAll(patternReplace);
+        currentIteration++;
+        if (currentIteration >= maxIterations) {
+          break;
+        }
+        patternMatcher = compiledSearchPattern.matcher(pointLine);
+        if (!patternMatcher.find()) {
+          break;
+        }
+      }
+      return pointLine;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return pointLine;
   }
 }

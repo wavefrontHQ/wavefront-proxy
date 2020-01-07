@@ -1,9 +1,12 @@
 package com.wavefront.agent.preprocessor;
 
+import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.util.HashMap;
 
 import wavefront.report.ReportPoint;
@@ -46,5 +49,12 @@ public class AgentConfigurationTest {
     ReportPoint point = new ReportPoint("foometric", System.currentTimeMillis(), 10L, "host", "table", new HashMap<>());
     config.get("2878").get().forReportPoint().transform(point);
     assertEquals("barFighters.barmetric", point.getMetric());
+  }
+
+  @Test
+  public void testEmptyRules() {
+    InputStream stream = new ByteArrayInputStream("".getBytes());
+    PreprocessorConfigManager config = new PreprocessorConfigManager();
+    config.loadFromStream(stream);
   }
 }
