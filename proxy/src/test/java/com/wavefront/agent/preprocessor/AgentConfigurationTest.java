@@ -42,8 +42,8 @@ public class AgentConfigurationTest {
   public void testPreprocessorRulesOrder() {
     // test that system rules kick in before user rules
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_order_test.yaml");
-    PreprocessorConfigManager config = new PreprocessorConfigManager(null, stream,
-        System::currentTimeMillis, 5000);
+    PreprocessorConfigManager config = new PreprocessorConfigManager();
+    config.loadFromStream(stream);
     config.getSystemPreprocessor("2878").forReportPoint().addTransformer(
         new ReportPointAddPrefixTransformer("fooFighters"));
     ReportPoint point = new ReportPoint("foometric", System.currentTimeMillis(), 10L, "host", "table", new HashMap<>());

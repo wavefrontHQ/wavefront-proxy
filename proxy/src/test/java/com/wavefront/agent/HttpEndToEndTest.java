@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
@@ -36,6 +37,7 @@ import static com.wavefront.agent.TestUtils.gzippedHttpPost;
 import static com.wavefront.agent.channel.ChannelUtils.makeResponse;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author vasily@wavefront.com
@@ -109,7 +111,7 @@ public class HttpEndToEndTest {
     server.update(req -> {
       //req.headers().entries().forEach(x -> System.out.println(x.getKey() + "=" + x.getValue()));
       String content = req.content().toString(CharsetUtil.UTF_8);
-      System.out.println(content);
+      //System.out.println(content);
       switch (testCounter.incrementAndGet()) {
         case 1:
           assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
@@ -182,7 +184,7 @@ public class HttpEndToEndTest {
         throw new RuntimeException(e);
       }
       String path = uri.getPath();
-      System.out.println(content);
+      //System.out.println(content);
       assertEquals(HttpMethod.POST, req.method());
       assertEquals("/api/v2/wfproxy/event", path);
       switch (testCounter.incrementAndGet()) {
@@ -254,7 +256,7 @@ public class HttpEndToEndTest {
         throw new RuntimeException(e);
       }
       String path = uri.getPath();
-      System.out.println(content);
+      //System.out.println(content);
       switch (testCounter.incrementAndGet()) {
         case 1:
           assertEquals(HttpMethod.PUT, req.method());
@@ -423,7 +425,7 @@ public class HttpEndToEndTest {
       String path = uri.getPath();
       assertEquals(HttpMethod.POST, req.method());
       assertEquals("/api/v2/wfproxy/report", path);
-      System.out.println(content);
+      //System.out.println(content);
       switch (testCounter.incrementAndGet()) {
         case 1:
           assertEquals(new HashSet<>(Arrays.asList(content.split("\n"))), expectedHistograms);
@@ -448,8 +450,6 @@ public class HttpEndToEndTest {
 
   @Test
   public void testEndToEndSpans() throws Exception {
-    AtomicInteger successfulSteps = new AtomicInteger(0);
-    AtomicInteger testCounter = new AtomicInteger(0);
     long time = Clock.now() / 1000;
     proxyPort = findAvailablePort(2898);
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
@@ -477,24 +477,19 @@ public class HttpEndToEndTest {
         "\":\"testspanid\",\"spanSecondaryId\":null,\"logs\":[{\"timestamp\":" + timestamp1 + "," +
         "\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 + "," +
         "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}";
+    AtomicBoolean gotSpan = new AtomicBoolean(false);
+    AtomicBoolean gotSpanLog = new AtomicBoolean(false);
     server.update(req -> {
       String content = req.content().toString(CharsetUtil.UTF_8);
-      System.out.println(content);
-      switch (testCounter.incrementAndGet()) {
-        case 1:
-          assertEquals(expectedSpan, content);
-          successfulSteps.incrementAndGet();
-          return makeResponse(HttpResponseStatus.OK, "");
-        case 2:
-          assertEquals(expectedSpanLog, content);
-          successfulSteps.incrementAndGet();
-          return makeResponse(HttpResponseStatus.OK, "");
-      }
+      //System.out.println(content);
+      if (content.equals(expectedSpan)) gotSpan.set(true);
+      if (content.equals(expectedSpanLog)) gotSpanLog.set(true);
       return makeResponse(HttpResponseStatus.OK, "");
     });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
     Thread.sleep(250);
-    assertEquals(2, successfulSteps.getAndSet(0));
+    assertTrue(gotSpan.get());
+    assertTrue(gotSpanLog.get());
   }
 
   private static class WrappingHttpHandler extends AbstractHttpOnlyHandler {
@@ -516,7 +511,7 @@ public class HttpEndToEndTest {
         throw new RuntimeException(e);
       }
       String path = uri.getPath();
-      System.out.println("Path: " + uri.getPath());
+      //System.out.println("Path: " + uri.getPath());
       if (path.endsWith("/checkin") &&
           (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
         // simulate checkin response for proxy chaining
@@ -530,7 +525,7 @@ public class HttpEndToEndTest {
         return;
       }
       HttpResponse response = func.apply(request);
-      System.out.println("Responding with HTTP " + response.status());
+      //System.out.println("Responding with HTTP " + response.status());
       writeHttpResponse(ctx, response, request);
     }
   }

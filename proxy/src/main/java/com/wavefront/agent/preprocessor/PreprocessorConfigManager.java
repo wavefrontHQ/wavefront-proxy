@@ -58,43 +58,24 @@ public class PreprocessorConfigManager {
   int totalValidRules = 0;
 
   public PreprocessorConfigManager() {
-    this(null, null, System::currentTimeMillis, 5000);
+    this(System::currentTimeMillis);
   }
 
-  public PreprocessorConfigManager(@Nullable String fileName) throws FileNotFoundException {
-    this(fileName, fileName == null ? null : new FileInputStream(fileName),
-        System::currentTimeMillis, 5000);
-  }
-
+  /**
+   * @param timeSupplier Supplier for current time (in millis).
+   */
   @VisibleForTesting
-  PreprocessorConfigManager(@Nullable String fileName,
-                            @Nullable InputStream inputStream,
-                            @Nonnull Supplier<Long> timeSupplier,
-                            int fileCheckIntervalMillis) {
+  PreprocessorConfigManager(@Nonnull Supplier<Long> timeSupplier) {
     this.timeSupplier = timeSupplier;
-
-    if (inputStream != null) {
-      // if input stream is specified, perform initial load from the stream
-      try {
-        userPreprocessorsTs = timeSupplier.get();
-        userPreprocessors = loadFromStream(inputStream);
-      } catch (RuntimeException ex) {
-        throw new RuntimeException(ex.getMessage() + " - aborting start-up");
-      }
-    }
-    if (fileName != null) {
-      // if there is a file name with preprocessor rules, load it and schedule periodic reloads
-    } else if (inputStream == null){
-      userPreprocessorsTs = timeSupplier.get();
-      userPreprocessors = Collections.emptyMap();
-    }
+    userPreprocessorsTs = timeSupplier.get();
+    userPreprocessors = Collections.emptyMap();
   }
 
   /**
    * Schedules periodic checks for config file modification timestamp and performs hot-reload
    *
-   * @param fileName                Path name of the file to be monitored
-   * @param fileCheckIntervalMillis
+   * @param fileName                Path name of the file to be monitored.
+   * @param fileCheckIntervalMillis Timestamp check interval.
    */
   public void setUpConfigFileMonitoring(String fileName, int fileCheckIntervalMillis) {
     new Timer("Timer-preprocessor-configmanager").schedule(new TimerTask() {
@@ -106,8 +87,7 @@ public class PreprocessorConfigManager {
           if (lastModified > userPreprocessorsTs) {
             logger.info("File " + file +
                 " has been modified on disk, reloading preprocessor rules");
-            userPreprocessorsTs = timeSupplier.get();
-            userPreprocessors = loadFromStream(new FileInputStream(file));
+            loadFromStream(new FileInputStream(file));
             configReloads.inc();
           }
         } catch (Exception e) {
@@ -162,8 +142,12 @@ public class PreprocessorConfigManager {
     }
   }
 
+  public void loadFile(String filename) throws FileNotFoundException {
+    loadFromStream(new FileInputStream(new File(filename)));
+  }
+
   @VisibleForTesting
-  Map<String, ReportableEntityPreprocessor> loadFromStream(InputStream stream) {
+  void loadFromStream(InputStream stream) {
     totalValidRules = 0;
     totalInvalidRules = 0;
     Yaml yaml = new Yaml();
@@ -174,7 +158,11 @@ public class PreprocessorConfigManager {
       if (rulesByPort == null) {
         logger.warning("Empty preprocessor rule file detected!");
         logger.info("Total 0 rules loaded");
-        return Collections.emptyMap();
+        synchronized (this) {
+          this.userPreprocessorsTs = timeSupplier.get();
+          this.userPreprocessors = Collections.emptyMap();
+        }
+        return;
       }
       for (String strPort : rulesByPort.keySet()) {
         portMap.put(strPort, new ReportableEntityPreprocessor());
@@ -415,6 +403,9 @@ public class PreprocessorConfigManager {
     } catch (ClassCastException e) {
       throw new RuntimeException("Can't parse preprocessor configuration");
     }
-    return portMap;
+    synchronized (this) {
+      this.userPreprocessorsTs = timeSupplier.get();
+      this.userPreprocessors = portMap;
+    }
   }
 }

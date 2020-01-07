@@ -64,7 +64,7 @@ public abstract class AbstractAgent {
   protected APIContainer apiContainer;
   protected final List<ExecutorService> managedExecutors = new ArrayList<>();
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
-  protected PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
+  protected final PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
   protected final ValidationConfiguration validationConfiguration = new ValidationConfiguration();
   protected final EntityPropertiesFactory entityProps =
       new EntityPropertiesFactoryImpl(proxyConfig);
@@ -105,15 +105,16 @@ public abstract class AbstractAgent {
   }
 
   private void initPreprocessors() {
-    try {
-      preprocessors = new PreprocessorConfigManager(proxyConfig.getPreprocessorConfigFile());
-    } catch (FileNotFoundException ex) {
-      throw new RuntimeException("Unable to load preprocessor rules - file does not exist: " +
-          proxyConfig.getPreprocessorConfigFile());
-    }
-    if (proxyConfig.getPreprocessorConfigFile() != null) {
-      logger.info("Preprocessor configuration loaded from " +
-          proxyConfig.getPreprocessorConfigFile());
+    String configFileName = proxyConfig.getPreprocessorConfigFile();
+    if (configFileName != null) {
+      try {
+        preprocessors.loadFile(configFileName);
+        preprocessors.setUpConfigFileMonitoring(configFileName, 5000); // check every 5s
+      } catch (FileNotFoundException ex) {
+        throw new RuntimeException("Unable to load preprocessor rules - file does not exist: " +
+            configFileName);
+      }
+      logger.info("Preprocessor configuration loaded from " + configFileName);
     }
 
     // convert blacklist/whitelist fields to filters for full backwards compatibility.

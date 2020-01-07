@@ -40,16 +40,17 @@ public class PreprocessorRulesTest {
   @BeforeClass
   public static void setup() throws IOException {
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
-    config = new PreprocessorConfigManager(null, stream, System::currentTimeMillis, 5000);
+    config = new PreprocessorConfigManager();
+    config.loadFromStream(stream);
   }
 
   @Test
   public void testPreprocessorRulesHotReload() throws Exception {
+    PreprocessorConfigManager config = new PreprocessorConfigManager();
     String path = File.createTempFile("proxyPreprocessorRulesFile", null).getPath();
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
     Files.asCharSink(new File(path), Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
-    PreprocessorConfigManager config = new PreprocessorConfigManager(path, null,
-        System::currentTimeMillis, 100);
+    config.setUpConfigFileMonitoring(path, 100);
     Thread.sleep(100);
     ReportableEntityPreprocessor preprocessor = config.get("2878").get();
     assertEquals(1, preprocessor.forPointLine().getFilters().size());
