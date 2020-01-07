@@ -177,8 +177,8 @@ public class CustomTracingPortUnificationHandler extends AbstractLineDelimitedHa
         handler.report(object);
 
         // report converted metrics/histograms from the span
-        String applicationName = "wfProxy";
-        String serviceName = "defaultService";
+        String applicationName = NULL_TAG_VAL;
+        String serviceName = NULL_TAG_VAL;
         String cluster = NULL_TAG_VAL;
         String shard = NULL_TAG_VAL;
         String componentTagValue = NULL_TAG_VAL;
@@ -206,6 +206,14 @@ public class CustomTracingPortUnificationHandler extends AbstractLineDelimitedHa
                 break;
             }
           }
+
+          if (applicationName.equals(NULL_TAG_VAL) || serviceName.equals(NULL_TAG_VAL)) {
+            logger.warning("Ingested spans discarded because span application/service name is " +
+                "missing.");
+            discardedSpans.inc();
+            return;
+          }
+
           discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
               object.getName(), applicationName, serviceName, cluster, shard, object.getSource(),
               componentTagValue, Boolean.parseBoolean(isError), object.getDuration(),  new HashSet<>(),
