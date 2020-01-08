@@ -174,13 +174,13 @@ public abstract class AbstractAgent {
   private boolean purgeBuffer = false;
 
   @Parameter(names = {"--pushFlushInterval"}, description = "Milliseconds between flushes to . Defaults to 1000 ms")
-  protected AtomicInteger pushFlushInterval = new AtomicInteger(1000);
   protected int pushFlushIntervalInitialValue = 1000; // store initially configured value to revert to
+  protected AtomicInteger pushFlushInterval = new AtomicInteger(1000);
 
   @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points in a single push flush. Defaults" +
       " to 40,000")
-  protected AtomicInteger pushFlushMaxPoints = new AtomicInteger(40000);
   protected int pushFlushMaxPointsInitialValue = 40000; // store initially configured value to revert to
+  protected AtomicInteger pushFlushMaxPoints = new AtomicInteger(40000);
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
@@ -194,6 +194,7 @@ public abstract class AbstractAgent {
       " before spooling to disk. Defaults to 16 * pushFlushMaxPoints, minimum size: pushFlushMaxPoints. Setting this " +
       " value lower than default reduces memory usage but will force the proxy to spool to disk more frequently if " +
       " you have points arriving at the proxy in short bursts")
+  protected int pushMemoryBufferLimitInitialValue = 16 * pushFlushMaxPoints.get();
   protected AtomicInteger pushMemoryBufferLimit = new AtomicInteger(16 * pushFlushMaxPoints.get());
 
   @Parameter(names = {"--pushBlockedSamples"}, description = "Max number of blocked samples to print to log. Defaults" +
@@ -529,8 +530,8 @@ public abstract class AbstractAgent {
   protected boolean splitPushWhenRateLimited = false;
 
   @Parameter(names = {"--retryBackoffBaseSeconds"}, description = "For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0")
-  protected AtomicDouble retryBackoffBaseSeconds = new AtomicDouble(2.0);
   protected double retryBackoffBaseSecondsInitialValue = 2.0d;
+  protected AtomicDouble retryBackoffBaseSeconds = new AtomicDouble(2.0);
 
   @Parameter(names = {"--customSourceTags"}, description = "Comma separated list of point tag keys that should be treated as the source in Wavefront in the absence of a tag named source or host")
   protected String customSourceTagsProperty = "fqdn";
@@ -1090,19 +1091,20 @@ public abstract class AbstractAgent {
 
       // track mutable settings
       pushFlushIntervalInitialValue = Integer.parseInt(config.getRawProperty("pushFlushInterval",
-          String.valueOf(pushFlushInterval.get())).trim());
+          String.valueOf(pushFlushIntervalInitialValue)).trim());
       pushFlushInterval.set(pushFlushIntervalInitialValue);
       config.reportSettingAsGauge(pushFlushInterval, "pushFlushInterval");
 
       pushFlushMaxPointsInitialValue = Integer.parseInt(config.getRawProperty("pushFlushMaxPoints",
-          String.valueOf(pushFlushMaxPoints.get())).trim());
+          String.valueOf(pushFlushMaxPointsInitialValue)).trim());
       // clamp values for pushFlushMaxPoints between 1..50000
       pushFlushMaxPointsInitialValue = Math.max(Math.min(pushFlushMaxPointsInitialValue, MAX_SPLIT_BATCH_SIZE), 1);
       pushFlushMaxPoints.set(pushFlushMaxPointsInitialValue);
       config.reportSettingAsGauge(pushFlushMaxPoints, "pushFlushMaxPoints");
 
-      retryBackoffBaseSecondsInitialValue = Double.parseDouble(config.getRawProperty("retryBackoffBaseSeconds",
-          String.valueOf(retryBackoffBaseSeconds.get())).trim());
+      retryBackoffBaseSecondsInitialValue = Double.parseDouble(
+          config.getRawProperty("retryBackoffBaseSeconds",
+          String.valueOf(retryBackoffBaseSecondsInitialValue)).trim());
       retryBackoffBaseSeconds.set(retryBackoffBaseSecondsInitialValue);
       config.reportSettingAsGauge(retryBackoffBaseSeconds, "retryBackoffBaseSeconds");
 
@@ -1118,8 +1120,10 @@ public abstract class AbstractAgent {
           Runtime.getRuntime().maxMemory() / (listeningPorts > 0 ? listeningPorts : 1) / 4 / flushThreads / 400),
           pushFlushMaxPoints.get());
       logger.fine("Calculated pushMemoryBufferLimit: " + calculatedMemoryBufferLimit);
-      pushMemoryBufferLimit.set(Integer.parseInt(
-          config.getRawProperty("pushMemoryBufferLimit", String.valueOf(pushMemoryBufferLimit.get())).trim()));
+      pushMemoryBufferLimitInitialValue = Integer.parseInt(
+          config.getRawProperty("pushMemoryBufferLimit",
+              String.valueOf(pushMemoryBufferLimitInitialValue)).trim());
+      pushMemoryBufferLimit.set(pushMemoryBufferLimitInitialValue);
       config.reportSettingAsGauge(pushMemoryBufferLimit, "pushMemoryBufferLimit");
       logger.fine("Configured pushMemoryBufferLimit: " + pushMemoryBufferLimit);
 
