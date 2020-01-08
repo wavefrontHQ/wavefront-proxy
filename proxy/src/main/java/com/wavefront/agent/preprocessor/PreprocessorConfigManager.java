@@ -135,7 +135,6 @@ public class PreprocessorConfigManager {
     try {
       File file = new File(fileName);
       long lastModified = file.lastModified();
-      logger.info("File last modified: " + lastModified + ", userPreprocessorsTs: " + userPreprocessorsTs);
       if (lastModified > userPreprocessorsTs) {
         logger.info("File " + file +
             " has been modified on disk, reloading preprocessor rules");
