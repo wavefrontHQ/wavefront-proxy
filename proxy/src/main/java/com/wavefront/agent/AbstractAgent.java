@@ -220,7 +220,9 @@ public abstract class AbstractAgent {
       // Start the listening endpoints
       startListeners();
 
-      new Timer("Timer-startup").schedule(
+      Timer startupTimer = new Timer("Timer-startup");
+      shutdownTasks.add(startupTimer::cancel);
+      startupTimer.schedule(
           new TimerTask() {
             @Override
             public void run() {

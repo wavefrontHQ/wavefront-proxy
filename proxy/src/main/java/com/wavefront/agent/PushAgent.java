@@ -104,6 +104,7 @@ import java.io.File;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -137,6 +138,8 @@ public class PushAgent extends AbstractAgent {
       new IdentityHashMap<>();
   protected ScheduledExecutorService histogramExecutor;
   protected ScheduledExecutorService histogramFlushExecutor;
+  @VisibleForTesting
+  protected List<Runnable> histogramFlushRunnables = new ArrayList<>();
   protected final Counter bindErrors = Metrics.newCounter(
       ExpectedAgentMetric.LISTENERS_BIND_ERRORS.metricName);
   protected TaskQueueFactory taskQueueFactory;
@@ -145,6 +148,7 @@ public class PushAgent extends AbstractAgent {
   protected SenderTaskFactory senderTaskFactory;
   protected QueueingFactory queueingFactory;
   protected ReportableEntityHandlerFactory handlerFactory;
+  protected ReportableEntityHandlerFactory deltaCounterHandlerFactory;
   protected HealthCheckManager healthCheckManager;
   protected TokenAuthenticator tokenAuthenticator = TokenAuthenticator.DUMMY_AUTHENTICATOR;
   protected final Supplier<Map<ReportableEntityType, ReportableEntityDecoder<?, ?>>>
@@ -627,7 +631,7 @@ public class PushAgent extends AbstractAgent {
     registerTimestampFilter(strPort);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
-    ReportableEntityHandlerFactory handlerFactory = new ReportableEntityHandlerFactory() {
+    deltaCounterHandlerFactory = new ReportableEntityHandlerFactory() {
       private final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
       @Override
       public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
@@ -648,7 +652,7 @@ public class PushAgent extends AbstractAgent {
 
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
         new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
-            decoderSupplier.get(), handlerFactory, hostAnnotator,
+            decoderSupplier.get(), deltaCounterHandlerFactory, hostAnnotator,
             preprocessors.get(strPort));
 
     startAsManagedThread(port,
@@ -684,7 +688,8 @@ public class PushAgent extends AbstractAgent {
                   create();
               AgentDigestFactory agentDigestFactory = new AgentDigestFactory(
                   proxyConfig.getPushRelayHistogramAggregatorCompression(),
-                  TimeUnit.SECONDS.toMillis(proxyConfig.getPushRelayHistogramAggregatorFlushSecs()));
+                  TimeUnit.SECONDS.toMillis(proxyConfig.getPushRelayHistogramAggregatorFlushSecs()),
+                  proxyConfig.getTimeProvider());
               AccumulationCache cachedAccumulator = new AccumulationCache(accumulator,
                   agentDigestFactory, 0, "histogram.accumulator.distributionRelay", null);
               //noinspection unchecked
@@ -838,7 +843,7 @@ public class PushAgent extends AbstractAgent {
         TimeUnit.SECONDS);
 
     AgentDigestFactory agentDigestFactory = new AgentDigestFactory(compression,
-        TimeUnit.SECONDS.toMillis(flushSecs));
+        TimeUnit.SECONDS.toMillis(flushSecs), proxyConfig.getTimeProvider());
     Accumulator cachedAccumulator = new AccumulationCache(accumulator, agentDigestFactory,
         (memoryCacheEnabled ? accumulatorSize : 0),
         "histogram.accumulator." + Utils.Granularity.granularityToString(granularity), null);
@@ -849,14 +854,18 @@ public class PushAgent extends AbstractAgent {
         proxyConfig.getHistogramAccumulatorResolveInterval(),
         proxyConfig.getHistogramAccumulatorResolveInterval(),
         TimeUnit.MILLISECONDS);
+    histogramFlushRunnables.add(cachedAccumulator::flush);
 
     PointHandlerDispatcher dispatcher = new PointHandlerDispatcher(cachedAccumulator, pointHandler,
+        proxyConfig.getTimeProvider(),
+        () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
         proxyConfig.getHistogramAccumulatorFlushMaxBatchSize() < 0 ? null :
             proxyConfig.getHistogramAccumulatorFlushMaxBatchSize(), granularity);
 
     histogramExecutor.scheduleWithFixedDelay(dispatcher,
         proxyConfig.getHistogramAccumulatorFlushInterval(),
         proxyConfig.getHistogramAccumulatorFlushInterval(), TimeUnit.MILLISECONDS);
+    histogramFlushRunnables.add(dispatcher);
 
     // gracefully shutdown persisted accumulator (ChronicleMap) on proxy exit
     shutdownTasks.add(() -> {

@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.common.Managed;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.EntityPropertiesFactory;
@@ -8,10 +9,12 @@ import com.wavefront.agent.queueing.QueueController;
 import com.wavefront.agent.queueing.QueueingFactory;
 import com.wavefront.agent.queueing.TaskSizeEstimator;
 import com.wavefront.agent.queueing.TaskQueueFactory;
+import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
+import io.jaegertracing.spi.Sender;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -38,6 +43,8 @@ import static com.wavefront.api.agent.Constants.PUSH_FORMAT_WAVEFRONT;
  */
 public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
+  private final Map<String, List<ReportableEntityType>> entityTypes = new HashMap<>();
+  private final Map<HandlerKey, ScheduledExecutorService> executors = new HashMap<>();
   private final Map<HandlerKey, List<SenderTask<?>>> managedTasks = new HashMap<>();
   private final Map<HandlerKey, Managed> managedServices = new HashMap<>();
 
@@ -91,38 +98,43 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     List<SenderTask<?>> toReturn = new ArrayList<>(numThreads);
     TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getHandle());
     taskSizeEstimators.put(handlerKey, taskSizeEstimator);
+
+    ScheduledExecutorService scheduler = executors.computeIfAbsent(handlerKey, x ->
+        Executors.newScheduledThreadPool(numThreads, new NamedThreadFactory("submitter-" +
+            handlerKey.getEntityType() + "-" + handlerKey.getHandle())));
+
     for (int threadNo = 0; threadNo < numThreads; threadNo++) {
       SenderTask<?> senderTask;
       switch (entityType) {
         case POINT:
         case DELTA_COUNTER:
           senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_WAVEFRONT,
-              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), threadNo,
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
+              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case HISTOGRAM:
           senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_HISTOGRAM,
-              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), threadNo,
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
+              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case SOURCE_TAG:
           senderTask = new SourceTagSenderTask(handlerKey, apiContainer.getSourceTagAPI(),
-              threadNo, entityPropsFactory.get(entityType),
+              threadNo, entityPropsFactory.get(entityType), scheduler,
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE:
           senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_TRACING,
-              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), threadNo,
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
+              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE_SPAN_LOGS:
           senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_TRACING_SPAN_LOGS,
-              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), threadNo,
-              taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
+              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case EVENT:
           senderTask = new EventSenderTask(handlerKey, apiContainer.getEventAPI(), proxyId,
-              threadNo, entityPropsFactory.get(entityType),
+              threadNo, entityPropsFactory.get(entityType), scheduler,
               taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         default:
@@ -130,6 +142,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
               handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());
       }
       toReturn.add(senderTask);
+      senderTask.start();
     }
     if (queueingFactory != null) {
       QueueController<?> controller = queueingFactory.getQueueController(handlerKey, numThreads);
@@ -137,43 +150,55 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       controller.start();
     }
     managedTasks.put(handlerKey, toReturn);
+    entityTypes.computeIfAbsent(handlerKey.getHandle(), x -> new ArrayList<>()).
+        add(handlerKey.getEntityType());
     return toReturn;
   }
 
   @Override
   public void shutdown() {
+    managedTasks.values().stream().flatMap(Collection::stream).forEach(Managed::stop);
     taskSizeEstimators.values().forEach(TaskSizeEstimator::shutdown);
     managedServices.values().forEach(Managed::stop);
-    managedTasks.values().stream().flatMap(Collection::stream).map(SenderTask::shutdown).
-        forEach(x -> {
-          try {
-            x.awaitTermination(1000, TimeUnit.MILLISECONDS);
-          } catch (InterruptedException e) {
-            // ignore
-          }
-        });
+    executors.values().forEach(x -> {
+      try {
+        x.shutdown();
+        x.awaitTermination(1000, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        // ignore
+      }
+    });
   }
 
   @Override
   public void shutdown(@Nonnull String handle) {
-    taskSizeEstimators.entrySet().stream().filter(x -> x.getKey().getHandle().equals(handle)).
-        collect(Collectors.toList()).forEach(x -> taskSizeEstimators.remove(x.getKey()).shutdown());
-    managedServices.entrySet().stream().filter(x -> x.getKey().getHandle().equals(handle)).
-        collect(Collectors.toList()).forEach(x -> managedServices.remove(x.getKey()).stop());
-    managedTasks.entrySet().stream().filter(x -> x.getKey().getHandle().equals(handle)).
-        collect(Collectors.toList()).forEach(x -> managedTasks.remove(x.getKey()).forEach(e -> {
-          try {
-            e.drainBuffersToQueue(null);
-            e.shutdown().awaitTermination(1000, TimeUnit.MILLISECONDS);
-          } catch (InterruptedException ex) {
-            // ignore
-          }
-    }));
+    List<ReportableEntityType> types = entityTypes.get(handle);
+    if (types == null) return;
+    try {
+      types.forEach(x -> taskSizeEstimators.remove(HandlerKey.of(x, handle)).shutdown());
+      types.forEach(x -> managedServices.remove(HandlerKey.of(x, handle)).stop());
+      types.forEach(x -> managedTasks.remove(HandlerKey.of(x, handle)).forEach(t -> {
+        t.stop();
+        t.drainBuffersToQueue(null);
+      }));
+      types.forEach(x -> executors.remove(HandlerKey.of(x, handle)).shutdown());
+    } finally {
+      entityTypes.remove(handle);
+    }
   }
 
   @Override
   public void drainBuffersToQueue(QueueingReason reason) {
     managedTasks.values().stream().flatMap(Collection::stream).
         forEach(x -> x.drainBuffersToQueue(reason));
+  }
+
+  @VisibleForTesting
+  public void flushNow(@Nonnull HandlerKey handlerKey) {
+    managedTasks.get(handlerKey).forEach(task -> {
+      if (task instanceof AbstractSenderTask) {
+        ((AbstractSenderTask<?>) task).run();
+      }
+    });
   }
 }

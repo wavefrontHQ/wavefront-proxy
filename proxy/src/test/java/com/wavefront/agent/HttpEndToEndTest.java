@@ -5,8 +5,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
+import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.agent.handlers.SenderTaskFactoryImpl;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
+import com.wavefront.agent.queueing.QueueingFactoryImpl;
 import com.wavefront.common.Clock;
+import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.TcpIngester;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -29,9 +33,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 import static com.wavefront.agent.ProxyUtil.createInitializer;
+import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
 import static com.wavefront.agent.TestUtils.findAvailablePort;
 import static com.wavefront.agent.TestUtils.gzippedHttpPost;
 import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
@@ -39,6 +45,7 @@ import static com.wavefront.agent.channel.ChannelUtils.makeResponse;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * @author vasily@wavefront.com
@@ -51,13 +58,14 @@ public class HttpEndToEndTest {
   private int proxyPort;
 
   @Before
-  public void setup() {
+  public void setup() throws Exception {
     backendPort = findAvailablePort(8081);
     ChannelHandler channelHandler = new WrappingHttpHandler(null, null,
         String.valueOf(backendPort), server);
     thread = new Thread(new TcpIngester(createInitializer(channelHandler,
         backendPort, 32768, 16 * 1024 * 1024, 5), backendPort));
     thread.start();
+    waitUntilListenerIsOnline(backendPort);
   }
 
   @After
@@ -85,6 +93,8 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.gzipCompression = false;
     proxy.start(new String[]{});
     waitUntilListenerIsOnline(proxyPort);
+    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
+    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String payload =
         "metric.name 1 " + time + " source=metric.source tagk1=tagv1\n" +
@@ -106,7 +116,8 @@ public class HttpEndToEndTest {
       return makeResponse(HttpResponseStatus.OK, "");
     });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
-    Thread.sleep(250);
+    HandlerKey key = HandlerKey.of(ReportableEntityType.POINT, String.valueOf(proxyPort));
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     assertEquals(1, successfulSteps.getAndSet(0));
 
     server.update(req -> {
@@ -142,9 +153,11 @@ public class HttpEndToEndTest {
       throw new IllegalStateException();
     });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
-    Thread.sleep(250);
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
+    ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
-    Thread.sleep(2000);
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
+    for (int i = 0; i < 3; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     assertEquals(6, successfulSteps.getAndSet(0));
   }
 
@@ -160,10 +173,13 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.flushThreadsEvents = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
-    proxy.proxyConfig.pushFlushInterval = 50;
+    proxy.proxyConfig.pushFlushInterval = 10000;
+    proxy.proxyConfig.pushRateLimitEvents = 100;
     proxy.proxyConfig.bufferFile = buffer;
     proxy.start(new String[]{});
     waitUntilListenerIsOnline(proxyPort);
+    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
+    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String payloadEvents =
         "@Event " + time + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
@@ -218,9 +234,12 @@ public class HttpEndToEndTest {
       return makeResponse(HttpResponseStatus.OK, "");
     });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadEvents);
-    Thread.sleep(250);
+    HandlerKey key = HandlerKey.of(ReportableEntityType.EVENT, String.valueOf(proxyPort));
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
+    ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadEvents);
-    Thread.sleep(2000);
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
+    for (int i = 0; i < 2; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     assertEquals(6, successfulSteps.getAndSet(0));
   }
 
@@ -236,16 +255,19 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.flushThreadsSourceTags = 1;
     proxy.proxyConfig.splitPushWhenRateLimited = true;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
-    proxy.proxyConfig.pushFlushInterval = 50;
+    proxy.proxyConfig.pushFlushInterval = 10000;
+    proxy.proxyConfig.pushRateLimitSourceTags = 100;
     proxy.proxyConfig.bufferFile = buffer;
     proxy.start(new String[]{});
     waitUntilListenerIsOnline(proxyPort);
+    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
+    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String payloadSourceTags =
         "@SourceTag action=add source=testSource addTag1 addTag2 addTag3\n" +
         "@SourceTag action=save source=testSource newtag1 newtag2\n" +
         "@SourceTag action=delete source=testSource deleteTag\n" +
-        "@SourceDescription action=save source=testSource description=\"Long Description\"\n" +
+        "@SourceDescription action=save source=testSource \"Long Description\"\n" +
         "@SourceDescription action=delete source=testSource";
 
     server.update(req -> {
@@ -325,7 +347,9 @@ public class HttpEndToEndTest {
       return makeResponse(HttpResponseStatus.OK, "");
     });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadSourceTags);
-    Thread.sleep(2000);
+    HandlerKey key = HandlerKey.of(ReportableEntityType.SOURCE_TAG, String.valueOf(proxyPort));
+    for (int i = 0; i < 2; i++) ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
+    for (int i = 0; i < 4; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     assertEquals(10, successfulSteps.getAndSet(0));
   }
 
@@ -334,6 +358,7 @@ public class HttpEndToEndTest {
     AtomicInteger successfulSteps = new AtomicInteger(0);
     AtomicInteger testCounter = new AtomicInteger(0);
     long time = (Clock.now() / 1000) / 60 * 60 + 30;
+    AtomicLong digestTime = new AtomicLong(System.currentTimeMillis());
     proxyPort = findAvailablePort(2898);
     int histMinPort = findAvailablePort(40001);
     int histHourPort = findAvailablePort(40002);
@@ -363,14 +388,17 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.histogramHourAccumulatorSize = 10L;
     proxy.proxyConfig.histogramDayAccumulatorSize = 10L;
     proxy.proxyConfig.histogramDistAccumulatorSize = 10L;
-    proxy.proxyConfig.histogramAccumulatorFlushInterval = 50L;
-    proxy.proxyConfig.histogramAccumulatorResolveInterval = 50L;
+    proxy.proxyConfig.histogramAccumulatorFlushInterval = 10000L;
+    proxy.proxyConfig.histogramAccumulatorResolveInterval = 10000L;
     proxy.proxyConfig.splitPushWhenRateLimited = true;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
-    proxy.proxyConfig.pushFlushInterval = 1500;
+    proxy.proxyConfig.pushFlushInterval = 10000;
     proxy.proxyConfig.bufferFile = buffer;
+    proxy.proxyConfig.timeProvider = digestTime::get;
     proxy.start(new String[]{});
     waitUntilListenerIsOnline(histDistPort);
+    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
+    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String payloadHistograms =
         "metric.name 1 " + time + " source=metric.source tagk1=tagv1\n" +
@@ -429,29 +457,39 @@ public class HttpEndToEndTest {
       //System.out.println(content);
       switch (testCounter.incrementAndGet()) {
         case 1:
-          assertEquals(new HashSet<>(Arrays.asList(content.split("\n"))), expectedHistograms);
+          assertEquals(expectedHistograms, new HashSet<>(Arrays.asList(content.split("\n"))));
           successfulSteps.incrementAndGet();
           return makeResponse(HttpResponseStatus.OK, "");
         case 2:
-          assertEquals(new HashSet<>(Arrays.asList(content.split("\n"))), expectedDists);
+          assertEquals(expectedDists, new HashSet<>(Arrays.asList(content.split("\n"))));
           successfulSteps.incrementAndGet();
           return makeResponse(HttpResponseStatus.OK, "");
       }
       return makeResponse(HttpResponseStatus.OK, "");
     });
+    digestTime.set(System.currentTimeMillis() - 1001);
     gzippedHttpPost("http://localhost:" + histMinPort + "/", payloadHistograms);
     gzippedHttpPost("http://localhost:" + histHourPort + "/", payloadHistograms);
     gzippedHttpPost("http://localhost:" + histDayPort + "/", payloadHistograms);
     gzippedHttpPost("http://localhost:" + histDistPort + "/", payloadHistograms); // should reject
-    Thread.sleep(2000);
-    gzippedHttpPost("http://localhost:" + histDistPort + "/", distPayload); // should reject
-    Thread.sleep(3000);
+    digestTime.set(System.currentTimeMillis());
+    proxy.histogramFlushRunnables.forEach(Runnable::run);
+    HandlerKey key = HandlerKey.of(ReportableEntityType.HISTOGRAM, "histogram_ports");
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
+    //for (int i = 0; i < 4; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
+
+    digestTime.set(System.currentTimeMillis() - 1001);
+    gzippedHttpPost("http://localhost:" + histDistPort + "/", distPayload);
+    digestTime.set(System.currentTimeMillis());
+    proxy.histogramFlushRunnables.forEach(Runnable::run);
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     assertEquals(2, successfulSteps.getAndSet(0));
   }
 
   @Test
   public void testEndToEndSpans() throws Exception {
     long time = Clock.now() / 1000;
+    proxyPort = findAvailablePort(2898);
     proxyPort = findAvailablePort(2898);
     String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
     proxy = new PushAgent();
@@ -462,6 +500,8 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.bufferFile = buffer;
     proxy.start(new String[]{});
     waitUntilListenerIsOnline(proxyPort);
+    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
+    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = time * 1000000 + 12345;
@@ -488,9 +528,12 @@ public class HttpEndToEndTest {
       return makeResponse(HttpResponseStatus.OK, "");
     });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
-    Thread.sleep(250);
-    assertTrue(gotSpan.get());
-    assertTrue(gotSpanLog.get());
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).
+        flushNow(HandlerKey.of(ReportableEntityType.TRACE, String.valueOf(proxyPort)));
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).
+        flushNow(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, String.valueOf(proxyPort)));
+    assertTrueWithTimeout(50, gotSpan::get);
+    assertTrueWithTimeout(50, gotSpanLog::get);
   }
 
   private static class WrappingHttpHandler extends AbstractHttpOnlyHandler {

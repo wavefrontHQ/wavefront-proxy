@@ -1,9 +1,8 @@
 package com.wavefront.agent.handlers;
 
-import com.google.common.util.concurrent.RateLimiter;
 import com.wavefront.agent.data.EntityProperties;
-import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.agent.data.QueueingReason;
+import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.SourceTagAPI;
@@ -13,6 +12,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,12 +28,6 @@ class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
   private static final Logger logger =
       Logger.getLogger(SourceTagSenderTask.class.getCanonicalName());
 
-  /**
-   * Warn about exceeding the rate limit no more than once per 10 seconds (per thread)
-   */
-  @SuppressWarnings("UnstableApiUsage")
-  private final RateLimiter warningMessageRateLimiter = RateLimiter.create(0.1);
-
   private final SourceTagAPI proxyAPI;
   private final TaskQueue<SourceTagSubmissionTask> backlog;
 
@@ -44,15 +38,16 @@ class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
    * @param handlerKey  metrics pipeline handler key.
    * @param threadId    thread number.
    * @param properties  container for mutable proxy settings.
+   * @param scheduler   executor service for this task
    * @param backlog     backing queue
    */
   SourceTagSenderTask(HandlerKey handlerKey, SourceTagAPI proxyAPI,
                       int threadId, EntityProperties properties,
+                      ScheduledExecutorService scheduler,
                       TaskQueue<SourceTagSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties);
+    super(handlerKey, threadId, properties, scheduler);
     this.proxyAPI = proxyAPI;
     this.backlog = backlog;
-    this.scheduler.schedule(this, properties.getPushFlushInterval(), TimeUnit.MILLISECONDS);
   }
 
   @Override
@@ -98,12 +93,9 @@ class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
           // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
           // to introduce some degree of fairness.
           nextRunMillis = (int) (1 + Math.random()) * nextRunMillis / 4;
-          //noinspection UnstableApiUsage
-          if (warningMessageRateLimiter.tryAcquire()) {
-            logger.info("[" + handlerKey.getHandle() + " thread " + threadId +
-                "]: WF-4 Proxy rate limiter " + "active (pending " + handlerKey.getEntityType() +
-                ": " + datum.size() + "), will retry in " + nextRunMillis + "ms");
-          }
+          throttledLogger.info("[" + handlerKey.getHandle() + " thread " + threadId +
+              "]: WF-4 Proxy rate limiter " + "active (pending " + handlerKey.getEntityType() +
+              ": " + datum.size() + "), will retry in " + nextRunMillis + "ms");
           return;
         }
       }

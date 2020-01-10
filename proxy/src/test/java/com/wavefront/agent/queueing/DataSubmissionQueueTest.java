@@ -18,6 +18,8 @@ import com.wavefront.dto.SourceTag;
 import org.junit.Test;
 import wavefront.report.ReportEvent;
 import wavefront.report.ReportSourceTag;
+import wavefront.report.SourceOperationType;
+import wavefront.report.SourceTagAction;
 
 import java.io.File;
 import java.util.UUID;
@@ -56,7 +58,6 @@ public class DataSubmissionQueueTest {
 
   @Test
   public void testSourceTagTask() throws Exception {
-    AtomicLong time = new AtomicLong(77777);
     for (RetryTaskConverter.CompressionType type : RetryTaskConverter.CompressionType.values()) {
       System.out.println("SourceTag task, compression type: " + type);
       File file = new File(File.createTempFile("proxyTestConverter", null).getPath() + ".queue");
@@ -66,10 +67,10 @@ public class DataSubmissionQueueTest {
       SourceTagSubmissionTask task = new SourceTagSubmissionTask(null,
           new DefaultEntityPropertiesForTesting(), queue, "2878",
           new SourceTag(
-              ReportSourceTag.newBuilder().setSourceTagLiteral("SourceTag").setAction("save").
-                  setSource("testSource").setAnnotations(ImmutableList.of("newtag1", "newtag2")).
-                  setDescription("").build()),
-          time::get);
+              ReportSourceTag.newBuilder().setOperation(SourceOperationType.SOURCE_TAG).
+                  setAction(SourceTagAction.SAVE).setSource("testSource").
+                  setAnnotations(ImmutableList.of("newtag1", "newtag2")).build()),
+          () -> 77777L);
       task.enqueue(QueueingReason.RETRY);
       queue.close();
       DataSubmissionQueue<SourceTagSubmissionTask> readQueue = getTaskQueue(file, type);

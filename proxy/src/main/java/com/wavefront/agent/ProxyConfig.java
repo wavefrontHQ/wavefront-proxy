@@ -4,6 +4,7 @@ import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -12,6 +13,7 @@ import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.data.TaskQueueLevel;
+import com.wavefront.common.TimeProvider;
 import org.apache.commons.lang3.ObjectUtils;
 
 import java.util.ArrayList;
@@ -685,6 +687,8 @@ public class ProxyConfig extends Configuration {
   @Parameter()
   List<String> unparsed_params;
 
+  TimeProvider timeProvider = System::currentTimeMillis;
+
   public boolean isHelp() {
     return help;
   }
@@ -1113,6 +1117,11 @@ public class ProxyConfig extends Configuration {
     return traceSamplingDuration;
   }
 
+  public Set<String> getTraceDerivedCustomTagKeys() {
+    return new HashSet<>(Splitter.on(",").trimResults().omitEmptyStrings().
+        splitToList(ObjectUtils.firstNonNull(traceDerivedCustomTagKeys, "")));
+  }
+
   public boolean isTraceAlwaysSampleErrors() {
     return traceAlwaysSampleErrors;
   }
@@ -1307,9 +1316,9 @@ public class ProxyConfig extends Configuration {
     return deltaCountersAggregationListenerPorts;
   }
 
-  public Set<String> getTraceDerivedCustomTagKeys() {
-    return new HashSet<>(Splitter.on(",").trimResults().omitEmptyStrings().
-        splitToList(ObjectUtils.firstNonNull(traceDerivedCustomTagKeys, "")));
+  @JsonIgnore
+  public TimeProvider getTimeProvider() {
+    return timeProvider;
   }
 
   @Override
@@ -1329,7 +1338,7 @@ public class ProxyConfig extends Configuration {
       prefix = Strings.emptyToNull(config.getString("prefix", prefix));
       // don't track token in proxy config metrics
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
-      server = config.getRawProperty("server", server).trim();
+      server = config.getString("server", server);
       hostname = config.getString("hostname", hostname);
       idFile = config.getString("idFile", idFile);
       pushRateLimit = config.getInteger("pushRateLimit", pushRateLimit);

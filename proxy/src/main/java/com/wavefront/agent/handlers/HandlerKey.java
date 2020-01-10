@@ -34,6 +34,11 @@ public class HandlerKey {
   }
 
   @Override
+  public int hashCode() {
+    return 31 * entityType.hashCode() + handle.hashCode();
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
@@ -47,5 +52,4 @@ public class HandlerKey {
   public String toString() {
     return this.entityType + "." + this.handle;
   }
-
 }

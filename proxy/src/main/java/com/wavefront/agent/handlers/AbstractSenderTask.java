@@ -7,6 +7,7 @@ import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.common.NamedThreadFactory;
+import com.wavefront.common.SharedRateLimitingLogger;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -16,7 +17,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
@@ -37,10 +37,9 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   private static final Logger logger = Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
 
   /**
-   * Warn about exceeding the rate limit no more than once per 10 seconds (per thread)
+   * Warn about exceeding the rate limit no more than once every 5 seconds
    */
-  @SuppressWarnings("UnstableApiUsage")
-  private final RateLimiter warningMessageRateLimiter = RateLimiter.create(0.1);
+  protected final Logger throttledLogger;
 
   List<T> datum = new ArrayList<>();
   final Object mutex = new Object();
@@ -58,6 +57,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   final Counter bufferFlushCounter;
   final Counter bufferCompletedFlushCounter;
 
+  private final AtomicBoolean isRunning = new AtomicBoolean(false);
   final AtomicBoolean isBuffering = new AtomicBoolean(false);
   volatile boolean isSending = false;
 
@@ -71,17 +71,19 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   /**
    * Base constructor.
    *
-   * @param handlerKey  pipeline handler key that dictates the data processing flow.
+   * @param handlerKey pipeline handler key that dictates the data processing flow.
    * @param threadId   thread number
    * @param properties runtime properties container
+   * @param scheduler  executor service for running this task
    */
-  AbstractSenderTask(HandlerKey handlerKey, int threadId, EntityProperties properties) {
+  AbstractSenderTask(HandlerKey handlerKey, int threadId, EntityProperties properties,
+                     ScheduledExecutorService scheduler) {
     this.handlerKey = handlerKey;
     this.threadId = threadId;
     this.properties = properties;
     this.rateLimiter = properties.getRateLimiter();
-    this.scheduler = Executors.newSingleThreadScheduledExecutor(
-        new NamedThreadFactory("submitter-" + handlerKey.toString() + "-" + threadId));
+    this.scheduler = scheduler;
+    this.throttledLogger = new SharedRateLimitingLogger(logger, "rateLimit-" + handlerKey, 0.2);
     this.flushExecutor = new ThreadPoolExecutor(1, 1, 60L, TimeUnit.MINUTES,
         new SynchronousQueue<>(), new NamedThreadFactory("flush-" + handlerKey.toString() +
         "-" + threadId));
@@ -99,6 +101,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
 
   @Override
   public void run() {
+    if (!isRunning.get()) return;
     long nextRunMillis = properties.getPushFlushInterval();
     isSending = true;
     try {
@@ -124,30 +127,32 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
         // to introduce some degree of fairness.
         nextRunMillis = nextRunMillis / 4 + (int) (Math.random() * nextRunMillis / 4);
-        //noinspection UnstableApiUsage
-        if (warningMessageRateLimiter.tryAcquire()) {
-          logger.info("[" + handlerKey.getHandle() + " thread " + threadId +
+        throttledLogger.info("[" + handlerKey.getHandle() + " thread " + threadId +
               "]: WF-4 Proxy rate limiter active (pending " + handlerKey.getEntityType() + ": " +
               datum.size() + "), will retry in " + nextRunMillis + "ms");
-        }
         undoBatch(current);
       }
     } catch (Throwable t) {
       logger.log(Level.SEVERE, "Unexpected error in flush loop", t);
     } finally {
       isSending = false;
-      scheduler.schedule(this, nextRunMillis, TimeUnit.MILLISECONDS);
+      if (isRunning.get()) {
+        scheduler.schedule(this, nextRunMillis, TimeUnit.MILLISECONDS);
+      }
     }
   }
 
-  /**
-   * Shut down the scheduler for this task (prevent future scheduled runs)
-   */
   @Override
-  public ExecutorService shutdown() {
+  public void start() {
+    if (isRunning.compareAndSet(false, true)) {
+      this.scheduler.schedule(this, properties.getPushFlushInterval(), TimeUnit.MILLISECONDS);
+    }
+  }
+
+  @Override
+  public void stop() {
+    isRunning.set(false);
     flushExecutor.shutdown();
-    scheduler.shutdownNow();
-    return scheduler;
   }
 
   @Override
@@ -166,7 +171,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     }
   }
 
-  List<T> createBatch() {
+  protected List<T> createBatch() {
     List<T> current;
     int blockSize;
     synchronized (mutex) {
@@ -183,7 +188,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     return current;
   }
 
-  void undoBatch(List<T> batch) {
+  protected void undoBatch(List<T> batch) {
     synchronized (mutex) {
       datum.addAll(0, batch);
     }

@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.data.QueueingReason;
+import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -34,6 +35,8 @@ import wavefront.report.HistogramType;
 import wavefront.report.ReportEvent;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
+import wavefront.report.SourceOperationType;
+import wavefront.report.SourceTagAction;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
@@ -54,6 +57,7 @@ import static com.wavefront.agent.TestUtils.getResource;
 import static com.wavefront.agent.TestUtils.gzippedHttpPost;
 import static com.wavefront.agent.TestUtils.httpGet;
 import static com.wavefront.agent.TestUtils.httpPost;
+import static com.wavefront.agent.TestUtils.verifyWithTimeout;
 import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.anyString;
@@ -65,6 +69,7 @@ import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @NotThreadSafe
 public class PushAgentTest {
@@ -156,8 +161,7 @@ public class PushAgentTest {
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
-    TimeUnit.MILLISECONDS.sleep(500);
-    verify(mockPointHandler);
+    verifyWithTimeout(500, mockPointHandler);
   }
 
   @Test
@@ -186,8 +190,7 @@ public class PushAgentTest {
     socket.getOutputStream().write(baos.toByteArray());
     socket.getOutputStream().flush();
     socket.close();
-    TimeUnit.MILLISECONDS.sleep(500);
-    verify(mockPointHandler);
+    verifyWithTimeout(500, mockPointHandler);
   }
 
   @Test
@@ -289,8 +292,7 @@ public class PushAgentTest {
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
-    TimeUnit.MILLISECONDS.sleep(500);
-    verify(mockHistogramHandler);
+    verifyWithTimeout(500, mockHistogramHandler);
   }
 
   // test Wavefront port handler with mixed payload: metrics, histograms, source tags
@@ -325,9 +327,11 @@ public class PushAgentTest {
         setTags(ImmutableList.of("tag1")).
         build());
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-        setMetric("metric.test.mixed").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(9d).build());
-    mockSourceTagHandler.report(ReportSourceTag.newBuilder().setSourceTagLiteral("SourceTag").setAction("save")
-        .setSource("testSource").setAnnotations(ImmutableList.of("newtag1", "newtag2")).setDescription("").build());
+        setMetric("metric.test.mixed").setHost("test2").setTimestamp((startTime + 1) * 1000).
+        setValue(9d).build());
+    mockSourceTagHandler.report(ReportSourceTag.newBuilder().
+        setOperation(SourceOperationType.SOURCE_TAG).setAction(SourceTagAction.SAVE).
+        setSource("testSource").setAnnotations(ImmutableList.of("newtag1", "newtag2")).build());
     expectLastCall();
     replay(mockPointHandler);
     replay(mockHistogramHandler);
@@ -344,10 +348,7 @@ public class PushAgentTest {
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
-    TimeUnit.MILLISECONDS.sleep(500);
-    verify(mockPointHandler);
-    verify(mockHistogramHandler);
-    verify(mockEventHandler);
+    verifyWithTimeout(500, mockPointHandler, mockHistogramHandler, mockEventHandler);
   }
 
   @Test
@@ -400,9 +401,7 @@ public class PushAgentTest {
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
-    TimeUnit.MILLISECONDS.sleep(500);
-    verify(mockTraceHandler);
-    verify(mockTraceSpanLogsHandler);
+    verifyWithTimeout(500, mockTraceHandler, mockTraceSpanLogsHandler);
   }
 
   @Test(timeout = 30000)
@@ -547,7 +546,8 @@ public class PushAgentTest {
   public void testDeltaCounterHandlerMixedData() throws Exception {
     deltaPort = findAvailablePort(5888);
     proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
-    proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 3;
+    proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 10;
+    proxy.proxyConfig.pushFlushInterval = 100;
     proxy.startDeltaCounterListener(proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
         null, mockSenderTaskFactory);
     waitUntilListenerIsOnline(deltaPort);
@@ -557,35 +557,29 @@ public class PushAgentTest {
     expectLastCall().atLeastOnce();
     replay(mockSenderTask);
 
-    Socket socket = SocketFactory.getDefault().createSocket("localhost", deltaPort);
-    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
     String payloadStr1 = "∆test.mixed1 1.0 source=test1\n";
     String payloadStr2 = "∆test.mixed2 2.0 source=test1\n";
     String payloadStr3 = "test.mixed3 3.0 source=test1\n";
     String payloadStr4 = "∆test.mixed3 3.0 source=test1\n";
-    stream.write(payloadStr1.getBytes());
-    stream.write(payloadStr2.getBytes());
-    stream.write(payloadStr3.getBytes());
-    stream.write(payloadStr4.getBytes());
-    stream.flush();
-    TimeUnit.MILLISECONDS.sleep(10000);
-    socket.close();
-    verify(mockSenderTask);
-    String[] reportPoints = { "1.0", "2.0", "3.0" };
-    int pointInd = 0;
-    for (String s : capturedArgument.getValues()) {
-      System.out.println(s);
-      assertTrue(s.startsWith("\"∆test.mixed" + Integer.toString(pointInd + 1) + "\" " +
-          reportPoints[pointInd]));
-      pointInd += 1;
+    assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr1 + payloadStr2 +
+        payloadStr2 + payloadStr3 + payloadStr4));
+    ReportableEntityHandler<?, ?> handler = proxy.deltaCounterHandlerFactory.
+        getHandler(HandlerKey.of(ReportableEntityType.POINT, String.valueOf(deltaPort)));
+    if (handler instanceof DeltaCounterAccumulationHandlerImpl) {
+      ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
     }
+    verify(mockSenderTask);
+    assertEquals(3, capturedArgument.getValues().size());
+    assertTrue(capturedArgument.getValues().get(0).startsWith("\"∆test.mixed1\" 1.0" ));
+    assertTrue(capturedArgument.getValues().get(1).startsWith("\"∆test.mixed2\" 4.0" ));
+    assertTrue(capturedArgument.getValues().get(2).startsWith("\"∆test.mixed3\" 3.0" ));
   }
 
   @Test
   public void testDeltaCounterHandlerDataStream() throws Exception {
     deltaPort = findAvailablePort(5888);
     proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
-    proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 3;
+    proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 10;
     proxy.startDeltaCounterListener(proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
         null, mockSenderTaskFactory);
     waitUntilListenerIsOnline(deltaPort);
@@ -595,29 +589,20 @@ public class PushAgentTest {
     expectLastCall().atLeastOnce();
     replay(mockSenderTask);
 
-    Socket socket = SocketFactory.getDefault().createSocket("localhost", deltaPort);
-    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
     String payloadStr = "∆test.mixed 1.0 " + startTime + " source=test1\n";
-    stream.write(payloadStr.getBytes());
-    stream.write(payloadStr.getBytes());
-    stream.flush();
-    TimeUnit.MILLISECONDS.sleep(6000);
-    stream.write(payloadStr.getBytes());
-    stream.flush();
-    TimeUnit.MILLISECONDS.sleep(1000);
-    stream.write(payloadStr.getBytes());
-    stream.write(payloadStr.getBytes());
-    stream.flush();
-    TimeUnit.MILLISECONDS.sleep(6000);
+    assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr + payloadStr));
+    ReportableEntityHandler<?, ?> handler = proxy.deltaCounterHandlerFactory.
+        getHandler(HandlerKey.of(ReportableEntityType.POINT, String.valueOf(deltaPort)));
+    if (!(handler instanceof DeltaCounterAccumulationHandlerImpl)) fail();
+    ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
 
-    socket.close();
+    assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr));
+    assertEquals(202, httpPost("http://localhost:" + deltaPort, payloadStr + payloadStr));
+    ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
     verify(mockSenderTask);
-    String[] reportPoints = { "2.0", "3.0" };
-    int pointInd = 0;
-    for (String s : capturedArgument.getValues()) {
-      assertTrue(s.startsWith("\"∆test.mixed\" " + reportPoints[pointInd]));
-      pointInd += 1;
-    }
+    assertEquals(2, capturedArgument.getValues().size());
+    assertTrue(capturedArgument.getValues().get(0).startsWith("\"∆test.mixed\" 2.0" ));
+    assertTrue(capturedArgument.getValues().get(1).startsWith("\"∆test.mixed\" 3.0" ));
   }
 
   @Test

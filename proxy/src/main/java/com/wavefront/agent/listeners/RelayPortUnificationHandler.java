@@ -1,12 +1,12 @@
 package com.wavefront.agent.listeners;
 
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RateLimiter;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.wavefront.common.MessageDedupingLogger;
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -67,6 +67,7 @@ import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.prep
 public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger = Logger.getLogger(
       RelayPortUnificationHandler.class.getCanonicalName());
+  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 3, 0.2);
   private static final String ERROR_HISTO_DISABLED = "Ingested point discarded because histogram " +
       "feature has not been enabled for your account";
   private static final String ERROR_SPAN_DISABLED = "Ingested span discarded because distributed " +
@@ -88,10 +89,6 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private final Supplier<Boolean> histogramDisabled;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
-
-  // log warnings every 5 seconds
-  @SuppressWarnings("UnstableApiUsage")
-  private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
 
   private final Supplier<Counter> discardedHistograms;
   private final Supplier<Counter> discardedSpans;
@@ -185,10 +182,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         if (histogramDisabled.get()) {
           discardedHistograms.get().inc(lines.length);
           status = HttpResponseStatus.FORBIDDEN;
-          //noinspection UnstableApiUsage
-          if (warningLoggerRateLimiter.tryAcquire()) {
-            logger.info(ERROR_HISTO_DISABLED);
-          }
+          featureDisabledLogger.info(ERROR_HISTO_DISABLED);
           output.append(ERROR_HISTO_DISABLED);
           break;
         }
@@ -216,10 +210,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
               case HISTOGRAM:
                 if (histogramDisabled.get()) {
                   discardedHistograms.get().inc(lines.length);
-                  //noinspection UnstableApiUsage
-                  if (warningLoggerRateLimiter.tryAcquire()) {
-                    logger.info(ERROR_HISTO_DISABLED);
-                  }
+                  featureDisabledLogger.info(ERROR_HISTO_DISABLED);
                   output.append(ERROR_HISTO_DISABLED);
                   break;
                 }
@@ -248,10 +239,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         if (traceDisabled.get()) {
           discardedSpans.get().inc(lines.length);
           status = HttpResponseStatus.FORBIDDEN;
-          //noinspection UnstableApiUsage
-          if (warningLoggerRateLimiter.tryAcquire()) {
-            logger.info(ERROR_SPAN_DISABLED);
-          }
+          featureDisabledLogger.info(ERROR_SPAN_DISABLED);
           output.append(ERROR_SPAN_DISABLED);
           break;
         }
@@ -275,10 +263,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         if (spanLogsDisabled.get()) {
           discardedSpanLogs.get().inc(lines.length);
           status = HttpResponseStatus.FORBIDDEN;
-          //noinspection UnstableApiUsage
-          if (warningLoggerRateLimiter.tryAcquire()) {
-            logger.info(ERROR_SPANLOGS_DISABLED);
-          }
+          featureDisabledLogger.info(ERROR_SPANLOGS_DISABLED);
           output.append(ERROR_SPANLOGS_DISABLED);
           break;
         }

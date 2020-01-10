@@ -13,6 +13,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.AbstractLineDelimitedHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.common.MessageDedupingLogger;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
@@ -49,6 +50,7 @@ import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERRO
 public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private static final Logger logger = Logger.getLogger(
       TracePortUnificationHandler.class.getCanonicalName());
+  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 2, 0.2);
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
@@ -61,8 +63,6 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private final boolean alwaysSampleErrors;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
-  @SuppressWarnings("UnstableApiUsage")
-  private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
 
   private final Counter discardedSpans;
   private final Counter discardedSpansBySampler;
@@ -111,21 +111,15 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   @Override
   protected void processLine(final ChannelHandlerContext ctx, @Nonnull String message) {
     if (traceDisabled.get()) {
-      //noinspection UnstableApiUsage
-      if (warningLoggerRateLimiter.tryAcquire()) {
-        logger.warning("Ingested spans discarded because tracing feature is not enabled on the " +
-            "server");
-      }
+      featureDisabledLogger.warning("Ingested spans discarded because tracing feature is not " +
+          "enabled on the server");
       discardedSpans.inc();
       return;
     }
     if (message.startsWith("{") && message.endsWith("}")) { // span logs
       if (spanLogsDisabled.get()) {
-        //noinspection UnstableApiUsage
-        if (warningLoggerRateLimiter.tryAcquire()) {
-          logger.warning("Ingested span logs discarded because the feature is not enabled on the " +
-              "server");
-        }
+        featureDisabledLogger.warning("Ingested span logs discarded because the feature is not " +
+            "enabled on the server");
         return;
       }
       try {

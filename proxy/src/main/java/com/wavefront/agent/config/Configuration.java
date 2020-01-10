@@ -22,7 +22,8 @@ public abstract class Configuration {
     try {
       return objectMapper.writeValueAsString(this);
     } catch (JsonProcessingException e) {
-      return super.toString();
+      throw new RuntimeException(e);
+      //return super.toString();
     }
   }
 

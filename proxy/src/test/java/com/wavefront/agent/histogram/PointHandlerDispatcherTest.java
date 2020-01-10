@@ -45,7 +45,8 @@ public class PointHandlerDispatcherTest {
   public void setup() {
     timeMillis = new AtomicLong(0L);
     backingStore = new ConcurrentHashMap<>();
-    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(COMPRESSION, 100L);
+    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(COMPRESSION, 100L,
+        timeMillis::get);
     in = new AccumulationCache(backingStore, agentDigestFactory, 0, "", timeMillis::get);
     pointOut = new LinkedList<>();
     debugLineOut = new LinkedList<>();
@@ -81,7 +82,7 @@ public class PointHandlerDispatcherTest {
       @Override
       public void shutdown() {
       }
-    }, timeMillis::get, null, null);
+    }, timeMillis::get, () -> false, null, null);
   }
 
   @Test

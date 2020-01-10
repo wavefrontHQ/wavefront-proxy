@@ -1,9 +1,9 @@
 package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.util.concurrent.RateLimiter;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.common.MessageDedupingLogger;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
@@ -53,15 +53,12 @@ import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 public abstract class JaegerThriftUtils {
   protected static final Logger logger =
       Logger.getLogger(JaegerThriftUtils.class.getCanonicalName());
+  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 2, 0.2);
 
   // TODO: support sampling
   private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
   private final static String FORCE_SAMPLED_KEY = "sampling.priority";
   private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
-
-  // log every 5 seconds
-  @SuppressWarnings("UnstableApiUsage")
-  private static final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
 
   private JaegerThriftUtils() {
   }
@@ -116,11 +113,8 @@ public abstract class JaegerThriftUtils {
       }
     }
     if (traceDisabled.get()) {
-      //noinspection UnstableApiUsage
-      if (warningLoggerRateLimiter.tryAcquire()) {
-        logger.info("Ingested spans discarded because tracing feature is not " +
+      featureDisabledLogger.info("Ingested spans discarded because tracing feature is not " +
             "enabled on the server");
-      }
       discardedBatches.inc();
       discardedTraces.inc(batch.getSpansSize());
       if (output != null) {
@@ -282,11 +276,8 @@ public abstract class JaegerThriftUtils {
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null && !span.getLogs().isEmpty()) {
         if (spanLogsDisabled.get()) {
-          //noinspection UnstableApiUsage
-          if (warningLoggerRateLimiter.tryAcquire()) {
-            logger.info("Span logs discarded because the feature is not " +
-                "enabled on the server!");
-          }
+          featureDisabledLogger.info("Span logs discarded because the feature is not " +
+              "enabled on the server!");
         } else {
           SpanLogs spanLogs = SpanLogs.newBuilder().
               setCustomer("default").

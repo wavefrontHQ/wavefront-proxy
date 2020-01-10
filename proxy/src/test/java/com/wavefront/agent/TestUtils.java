@@ -24,9 +24,12 @@ import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
+
+import static org.easymock.EasyMock.verify;
 
 /**
  * @author vasily@wavefront.com
@@ -152,5 +155,60 @@ public class TestUtils {
     URL url = Resources.getResource("com.wavefront.agent/" + resourceName);
     File myFile = new File(url.toURI());
     return FileUtils.readFileToString(myFile, "UTF-8");
+  }
+
+  /**
+   * Verify mocks with retries until specified timeout expires. A healthier alternative
+   * to putting Thread.sleep() before verify().
+   *
+   * @param timeout  Desired timeout in milliseconds
+   * @param mocks    Mock objects to verify (sequentially).
+   */
+  public static void verifyWithTimeout(int timeout, Object... mocks) {
+    int sleepIntervalMillis = 10;
+    for (Object mock : mocks) {
+      int millisLeft = timeout;
+      while (true) {
+        try {
+          EasyMock.verify(mock);
+          break;
+        } catch (AssertionError e) {
+          if (millisLeft <= 0) {
+            logger.warning("verify() failed after : " + (timeout - millisLeft) + "ms");
+            throw e;
+          }
+          try {
+            TimeUnit.MILLISECONDS.sleep(sleepIntervalMillis);
+          } catch (InterruptedException x) {
+            //
+          }
+          millisLeft -= sleepIntervalMillis;
+        }
+      }
+      long waitTime = timeout - millisLeft;
+      if (waitTime > 0) {
+        logger.info("verify() wait time: " + waitTime + "ms");
+      }
+    }
+  }
+
+  public static void assertTrueWithTimeout(int timeout, Supplier<Boolean> assertion) {
+    int sleepIntervalMillis = 10;
+    int millisLeft = timeout;
+    while (true) {
+      if (assertion.get()) break;
+      if (millisLeft <= 0)
+        throw new AssertionError("Assertion timed out (" + (timeout - millisLeft) + "ms)");
+      try {
+        TimeUnit.MILLISECONDS.sleep(sleepIntervalMillis);
+      } catch (InterruptedException x) {
+        //
+      }
+      millisLeft -= sleepIntervalMillis;
+    }
+    long waitTime = timeout - millisLeft;
+    if (waitTime > 0) {
+      logger.info("assertTrueWithTimeout() wait time: " + waitTime + "ms");
+    }
   }
 }

@@ -1,9 +1,9 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.QueueingReason;
+import com.wavefront.common.Managed;
 
 import javax.annotation.Nullable;
-import java.util.concurrent.ExecutorService;
 
 /**
  * Batch and ship valid items to Wavefront servers
@@ -12,7 +12,7 @@ import java.util.concurrent.ExecutorService;
  *
  * @param <T> the type of input objects handled.
  */
-public interface SenderTask<T> {
+public interface SenderTask<T> extends Managed {
 
   /**
    * Add valid item to the send queue (memory buffers).
@@ -35,11 +35,4 @@ public interface SenderTask<T> {
    * @param reason reason for queueing.
    */
   void drainBuffersToQueue(@Nullable QueueingReason reason);
-
-  /**
-   * Shut down the scheduler for this task (prevent future scheduled runs).
-   *
-   * @return executor service that is shutting down.
-   */
-  ExecutorService shutdown();
 }

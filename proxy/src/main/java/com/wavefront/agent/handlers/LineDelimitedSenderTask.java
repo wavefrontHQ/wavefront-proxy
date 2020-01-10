@@ -11,6 +11,7 @@ import com.wavefront.api.ProxyV2API;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -32,22 +33,23 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
    * @param proxyAPI          handles interaction with Wavefront servers as well as queueing.
    * @param proxyId           proxy ID.
    * @param properties        container for mutable proxy settings.
+   * @param scheduler         executor service for running this task
    * @param threadId          thread number.
    * @param taskSizeEstimator optional task size estimator used to calculate approximate
    *                          buffer fill rate.
    * @param backlog           backing queue.
    */
   LineDelimitedSenderTask(HandlerKey handlerKey, String pushFormat, ProxyV2API proxyAPI,
-                          UUID proxyId, final EntityProperties properties, int threadId,
+                          UUID proxyId, final EntityProperties properties,
+                          ScheduledExecutorService scheduler, int threadId,
                           @Nullable final TaskSizeEstimator taskSizeEstimator,
                           TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties);
+    super(handlerKey, threadId, properties, scheduler);
     this.pushFormat = pushFormat;
     this.proxyId = proxyId;
     this.proxyAPI = proxyAPI;
     this.taskSizeEstimator = taskSizeEstimator;
     this.backlog = backlog;
-    this.scheduler.schedule(this, properties.getPushFlushInterval(), TimeUnit.MILLISECONDS);
   }
 
   @Override

@@ -11,6 +11,7 @@ import com.wavefront.dto.Event;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -31,15 +32,16 @@ class EventSenderTask extends AbstractSenderTask<Event> {
    * @param proxyId      id of the proxy.
    * @param threadId     thread number.
    * @param properties   container for mutable proxy settings.
+   * @param scheduler    executor service for running this task
    * @param backlog      backing queue
    */
   EventSenderTask(HandlerKey handlerKey, EventAPI proxyAPI, UUID proxyId, int threadId,
-                  EntityProperties properties, TaskQueue<EventDataSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties);
+                  EntityProperties properties, ScheduledExecutorService scheduler,
+                  TaskQueue<EventDataSubmissionTask> backlog) {
+    super(handlerKey, threadId, properties, scheduler);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
     this.backlog = backlog;
-    this.scheduler.schedule(this, properties.getPushFlushInterval(), TimeUnit.MILLISECONDS);
   }
 
   @Override

@@ -4,8 +4,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.util.concurrent.RateLimiter;
 
+import com.wavefront.common.MessageDedupingLogger;
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -85,6 +85,8 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {
   private static final Logger logger = Logger.getLogger(
       ZipkinPortUnificationHandler.class.getCanonicalName());
+  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 2, 0.2);
+
   private final ReportableEntityHandler<Span, String> spanHandler;
   private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   @Nullable
@@ -96,8 +98,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
-  @SuppressWarnings("UnstableApiUsage")
-  private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
@@ -208,11 +208,8 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
 
     // Handle case when tracing is disabled, ignore reported spans.
     if (traceDisabled.get()) {
-      //noinspection UnstableApiUsage
-      if (warningLoggerRateLimiter.tryAcquire()) {
-        logger.info("Ingested spans discarded because tracing feature is not enabled on the " +
-            "server");
-      }
+      featureDisabledLogger.info("Ingested spans discarded because tracing feature is not " +
+          "enabled on the server");
       discardedBatches.inc();
       output.append("Ingested spans discarded because tracing feature is not enabled on the " +
           "server.");
@@ -395,11 +392,8 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
         if (spanLogsDisabled.get()) {
-          //noinspection UnstableApiUsage
-          if (warningLoggerRateLimiter.tryAcquire()) {
-            logger.info("Span logs discarded because the feature is not " +
-                "enabled on the server!");
-          }
+          featureDisabledLogger.info("Span logs discarded because the feature is not " +
+              "enabled on the server!");
         } else {
           SpanLogs spanLogs = SpanLogs.newBuilder().
               setCustomer("default").

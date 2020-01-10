@@ -19,13 +19,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.ws.rs.core.Response;
 
 import wavefront.report.ReportSourceTag;
+import wavefront.report.SourceOperationType;
+import wavefront.report.SourceTagAction;
 
 /**
  * This class tests the ReportSourceTagHandler.
@@ -39,6 +40,7 @@ public class ReportSourceTagHandlerTest {
   private SourceTagAPI mockAgentAPI;
   private TaskQueueFactory taskQueueFactory;
   private UUID newAgentId;
+  private HandlerKey handlerKey;
   private Logger blockedLogger = Logger.getLogger("RawBlockedPoints");
 
   @Before
@@ -54,7 +56,7 @@ public class ReportSourceTagHandlerTest {
     newAgentId = UUID.randomUUID();
     senderTaskFactory = new SenderTaskFactoryImpl(new APIContainer(null, mockAgentAPI, null),
         newAgentId, taskQueueFactory, null, type -> new DefaultEntityPropertiesForTesting());
-    HandlerKey handlerKey = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878");
+    handlerKey = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878");
     sourceTagHandler = new ReportSourceTagHandlerImpl(handlerKey, 10,
             senderTaskFactory.createSenderTasks(handlerKey), blockedLogger);
   }
@@ -63,76 +65,76 @@ public class ReportSourceTagHandlerTest {
    * This test will add 3 source tags and verify that the server side api is called properly.
    */
   @Test
-  public void testSourceTagsSetting() throws Exception {
+  public void testSourceTagsSetting() {
     String[] annotations = new String[]{"tag1", "tag2", "tag3"};
-    ReportSourceTag sourceTag = new ReportSourceTag("SourceTag", "save", "dummy", "desc",
-        Arrays.asList(annotations));
+    ReportSourceTag sourceTag = new ReportSourceTag(SourceOperationType.SOURCE_TAG,
+        SourceTagAction.SAVE, "dummy", Arrays.asList(annotations));
     EasyMock.expect(mockAgentAPI.setTags("dummy", Arrays.asList(annotations))).
         andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
     sourceTagHandler.report(sourceTag);
-    TimeUnit.MILLISECONDS.sleep(250);
+    ((SenderTaskFactoryImpl) senderTaskFactory).flushNow(handlerKey);
     EasyMock.verify(mockAgentAPI);
   }
 
   @Test
-  public void testSourceTagAppend() throws Exception {
-    ReportSourceTag sourceTag = new ReportSourceTag("SourceTag", "add", "dummy", "desc",
-        ImmutableList.of("tag1"));
+  public void testSourceTagAppend() {
+    ReportSourceTag sourceTag = new ReportSourceTag(SourceOperationType.SOURCE_TAG,
+        SourceTagAction.ADD, "dummy", ImmutableList.of("tag1"));
     EasyMock.expect(mockAgentAPI.appendTag("dummy", "tag1")).
         andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
     sourceTagHandler.report(sourceTag);
-    TimeUnit.MILLISECONDS.sleep(250);
+    ((SenderTaskFactoryImpl) senderTaskFactory).flushNow(handlerKey);
     EasyMock.verify(mockAgentAPI);
   }
 
   @Test
-  public void testSourceTagDelete() throws Exception {
-    ReportSourceTag sourceTag = new ReportSourceTag("SourceTag", "delete", "dummy", "desc",
-        ImmutableList.of("tag1"));
+  public void testSourceTagDelete() {
+    ReportSourceTag sourceTag = new ReportSourceTag(SourceOperationType.SOURCE_TAG,
+        SourceTagAction.DELETE, "dummy", ImmutableList.of("tag1"));
     EasyMock.expect(mockAgentAPI.removeTag("dummy", "tag1")).
         andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
     sourceTagHandler.report(sourceTag);
-    TimeUnit.MILLISECONDS.sleep(250);
+    ((SenderTaskFactoryImpl) senderTaskFactory).flushNow(handlerKey);
     EasyMock.verify(mockAgentAPI);
   }
 
   @Test
-  public void testSourceAddDescription() throws Exception {
-    ReportSourceTag sourceTag = new ReportSourceTag("SourceDescription", "set", "dummy",
-        "description", ImmutableList.of());
+  public void testSourceAddDescription() {
+    ReportSourceTag sourceTag = new ReportSourceTag(SourceOperationType.SOURCE_DESCRIPTION,
+        SourceTagAction.SAVE, "dummy", ImmutableList.of("description"));
     EasyMock.expect(mockAgentAPI.setDescription("dummy", "description")).
         andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
     sourceTagHandler.report(sourceTag);
-    TimeUnit.MILLISECONDS.sleep(250);
+    ((SenderTaskFactoryImpl) senderTaskFactory).flushNow(handlerKey);
     EasyMock.verify(mockAgentAPI);
   }
 
   @Test
-  public void testSourceDeleteDescription() throws Exception {
-    ReportSourceTag sourceTag = new ReportSourceTag("SourceDescription", "delete", "dummy",
-        "description", ImmutableList.of());
+  public void testSourceDeleteDescription() {
+    ReportSourceTag sourceTag = new ReportSourceTag(SourceOperationType.SOURCE_DESCRIPTION,
+        SourceTagAction.DELETE, "dummy", ImmutableList.of());
     EasyMock.expect(mockAgentAPI.removeDescription("dummy")).
         andReturn(Response.ok().build()).once();
     EasyMock.replay(mockAgentAPI);
     sourceTagHandler.report(sourceTag);
-    TimeUnit.MILLISECONDS.sleep(250);
+    ((SenderTaskFactoryImpl) senderTaskFactory).flushNow(handlerKey);
     EasyMock.verify(mockAgentAPI);
   }
 
   @Test
   public void testSourceTagsTaskAffinity() {
-    ReportSourceTag sourceTag1 = new ReportSourceTag("SourceTag", "save", "dummy", "desc",
-        ImmutableList.of("tag1", "tag2"));
-    ReportSourceTag sourceTag2 = new ReportSourceTag("SourceTag", "save", "dummy", "desc 2",
-        ImmutableList.of("tag2", "tag3"));
-    ReportSourceTag sourceTag3 = new ReportSourceTag("SourceTag", "save", "dummy-2", "desc 3",
-        ImmutableList.of("tag3"));
-    ReportSourceTag sourceTag4 = new ReportSourceTag("SourceTag", "save", "dummy", "desc 4",
-        ImmutableList.of("tag1", "tag4", "tag5"));
+    ReportSourceTag sourceTag1 = new ReportSourceTag(SourceOperationType.SOURCE_TAG,
+        SourceTagAction.SAVE, "dummy", ImmutableList.of("tag1", "tag2"));
+    ReportSourceTag sourceTag2 = new ReportSourceTag(SourceOperationType.SOURCE_TAG,
+        SourceTagAction.SAVE, "dummy", ImmutableList.of("tag2", "tag3"));
+    ReportSourceTag sourceTag3 = new ReportSourceTag(SourceOperationType.SOURCE_TAG,
+        SourceTagAction.SAVE, "dummy-2", ImmutableList.of("tag3"));
+    ReportSourceTag sourceTag4 = new ReportSourceTag(SourceOperationType.SOURCE_TAG,
+        SourceTagAction.SAVE, "dummy", ImmutableList.of("tag1", "tag4", "tag5"));
     List<SenderTask<SourceTag>> tasks = new ArrayList<>();
     SourceTagSenderTask task1 = EasyMock.createMock(SourceTagSenderTask.class);
     SourceTagSenderTask task2 = EasyMock.createMock(SourceTagSenderTask.class);

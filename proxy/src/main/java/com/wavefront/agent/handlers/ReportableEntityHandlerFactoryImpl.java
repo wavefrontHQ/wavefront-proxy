@@ -19,24 +19,25 @@ import javax.annotation.Nonnull;
  * @author vasily@wavefront.com
  */
 public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandlerFactory {
+  private static final Logger logger = Logger.getLogger("sampling");
 
   public static final Logger VALID_POINTS_LOGGER = new SamplingLogger(
       ReportableEntityType.POINT, Logger.getLogger("RawValidPoints"),
       getSystemPropertyAsDouble("wavefront.proxy.logpoints.sample-rate"),
-      "true".equalsIgnoreCase(System.getProperty("wavefront.proxy.logpoints")));
+      "true".equalsIgnoreCase(System.getProperty("wavefront.proxy.logpoints")), logger::info);
   public static final Logger VALID_HISTOGRAMS_LOGGER = new SamplingLogger(
       ReportableEntityType.HISTOGRAM, Logger.getLogger("RawValidHistograms"),
       getSystemPropertyAsDouble("wavefront.proxy.logpoints.sample-rate"),
-      "true".equalsIgnoreCase(System.getProperty("wavefront.proxy.logpoints")));
+      "true".equalsIgnoreCase(System.getProperty("wavefront.proxy.logpoints")), logger::info);
   private static final Logger VALID_SPANS_LOGGER = new SamplingLogger(
       ReportableEntityType.TRACE, Logger.getLogger("RawValidSpans"),
-      getSystemPropertyAsDouble("wavefront.proxy.logspans.sample-rate"), false);
+      getSystemPropertyAsDouble("wavefront.proxy.logspans.sample-rate"), false, logger::info);
   private static final Logger VALID_SPAN_LOGS_LOGGER = new SamplingLogger(
       ReportableEntityType.TRACE_SPAN_LOGS, Logger.getLogger("RawValidSpanLogs"),
-      getSystemPropertyAsDouble("wavefront.proxy.logspans.sample-rate"), false);
+      getSystemPropertyAsDouble("wavefront.proxy.logspans.sample-rate"), false, logger::info);
   private static final Logger VALID_EVENTS_LOGGER = new SamplingLogger(
       ReportableEntityType.EVENT, Logger.getLogger("RawValidEvents"),
-      getSystemPropertyAsDouble("wavefront.proxy.logevents.sample-rate"), false);
+      getSystemPropertyAsDouble("wavefront.proxy.logevents.sample-rate"), false, logger::info);
 
   protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?, ?>>> handlers =
       new HashMap<>();

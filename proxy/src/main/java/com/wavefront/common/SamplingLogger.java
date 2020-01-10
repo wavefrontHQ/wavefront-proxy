@@ -4,11 +4,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.wavefront.data.ReportableEntityType;
 
+import javax.annotation.Nullable;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 /**
@@ -17,14 +20,13 @@ import java.util.logging.Logger;
  *
  * @author vasily@wavefront.com
  */
-public class SamplingLogger extends Logger {
-  private static final Logger logger = Logger.getLogger(SamplingLogger.class.getCanonicalName());
+public class SamplingLogger extends DelegatingLogger {
   private static final Random RANDOM = new Random();
 
-  private final Logger delegate;
   private final ReportableEntityType entityType;
   private final double samplingRate;
   private final boolean alwaysActive;
+  private final Consumer<String> statusChangeConsumer;
   private final AtomicBoolean loggingActive = new AtomicBoolean(false);
 
   /**
@@ -36,56 +38,22 @@ public class SamplingLogger extends Logger {
   public SamplingLogger(ReportableEntityType entityType,
                         Logger delegate,
                         double samplingRate,
-                        boolean alwaysActive) {
-    super(delegate.getName(), null);
+                        boolean alwaysActive,
+                        @Nullable Consumer<String> statusChangeConsumer) {
+    super(delegate);
     Preconditions.checkArgument(samplingRate >= 0, "Sampling rate should be positive!");
     Preconditions.checkArgument(samplingRate <= 1, "Sampling rate should not be be > 1!");
-    this.delegate = delegate;
     this.entityType = entityType;
     this.samplingRate = samplingRate;
     this.alwaysActive = alwaysActive;
+    this.statusChangeConsumer = statusChangeConsumer;
     refreshLoggerState();
     new Timer("Timer-sampling-logger-" + delegate.getName()).scheduleAtFixedRate(new TimerTask() {
       @Override
       public void run() {
         refreshLoggerState();
       }
-    }, 1000, 1000);
-  }
-
-  @Override
-  public void severe(String msg) {
-    sampleAndLog(Level.SEVERE, msg);
-  }
-
-  @Override
-  public void warning(String msg) {
-    sampleAndLog(Level.WARNING, msg);
-  }
-
-  @Override
-  public void info(String msg) {
-    sampleAndLog(Level.INFO, msg);
-  }
-
-  @Override
-  public void config(String msg) {
-    sampleAndLog(Level.CONFIG, msg);
-  }
-
-  @Override
-  public void fine(String msg) {
-    sampleAndLog(Level.FINE, msg);
-  }
-
-  @Override
-  public void finer(String msg) {
-    sampleAndLog(Level.FINER, msg);
-  }
-
-  @Override
-  public void finest(String msg) {
-    sampleAndLog(Level.FINEST, msg);
+    }, 0, 1000);
   }
 
   @Override
@@ -109,10 +77,11 @@ public class SamplingLogger extends Logger {
    * @param level   log level.
    * @param message string to write to log.
    */
-  private void sampleAndLog(Level level, String message) {
+  @Override
+  public void log(Level level, String message) {
       if ((alwaysActive || loggingActive.get()) &&
         (samplingRate >= 1.0d || (samplingRate > 0.0d && RANDOM.nextDouble() < samplingRate))) {
-      delegate.log(level, message);
+      log(new LogRecord(level, message));
     }
   }
 
@@ -120,8 +89,12 @@ public class SamplingLogger extends Logger {
   void refreshLoggerState() {
     if (loggingActive.get() != delegate.isLoggable(Level.FINEST)) {
       loggingActive.set(!loggingActive.get());
-      logger.info("Valid " + entityType.toString() + " logging is now " + (loggingActive.get() ?
-          "enabled with " + (samplingRate * 100) + "% sampling" : "disabled"));
+      if (statusChangeConsumer != null) {
+        String status = loggingActive.get() ?
+            "enabled with " + (samplingRate * 100) + "% sampling" :
+            "disabled";
+        statusChangeConsumer.accept("Valid " + entityType.toString() + " logging is now " + status);
+      }
     }
   }
 }

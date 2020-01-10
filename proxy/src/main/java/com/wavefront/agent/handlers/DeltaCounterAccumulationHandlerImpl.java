@@ -3,6 +3,7 @@ package com.wavefront.agent.handlers;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalListener;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AtomicDouble;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
@@ -47,20 +48,20 @@ public class DeltaCounterAccumulationHandlerImpl
   private final ScheduledExecutorService reporter = Executors.newSingleThreadScheduledExecutor();
 
     /**
-   * @param handlerKey                              metrics pipeline key.
-   * @param blockedItemsPerBatch                    controls sample rate of how many blocked
-   *                                                points are written intothe main log file.
-   * @param senderTasks                             sender tasks.
-   * @param validationConfig                        validation configuration.
-   * @param deltaCountersAggregationIntervalSeconds aggregation interval for delta counters.
-   * @param blockedItemLogger                       logger for blocked items.
-   * @param validItemsLogger                        logger for valid items.
+   * @param handlerKey                 metrics pipeline key.
+   * @param blockedItemsPerBatch       controls sample rate of how many blocked
+   *                                   points are written into the main log file.
+   * @param senderTasks                sender tasks.
+   * @param validationConfig           validation configuration.
+   * @param aggregationIntervalSeconds aggregation interval for delta counters.
+   * @param blockedItemLogger          logger for blocked items.
+   * @param validItemsLogger           logger for valid items.
    */
   public DeltaCounterAccumulationHandlerImpl(
       final HandlerKey handlerKey, final int blockedItemsPerBatch,
       @Nullable final Collection<SenderTask<String>> senderTasks,
       @Nonnull final ValidationConfiguration validationConfig,
-      long deltaCountersAggregationIntervalSeconds, @Nullable final Logger blockedItemLogger,
+      long aggregationIntervalSeconds, @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
     super(handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), senderTasks, true,
         blockedItemLogger);
@@ -68,15 +69,15 @@ public class DeltaCounterAccumulationHandlerImpl
     this.validItemsLogger = validItemsLogger;
 
     this.aggregatedDeltas = Caffeine.newBuilder().
-        expireAfterAccess(5 * deltaCountersAggregationIntervalSeconds, TimeUnit.SECONDS).
+        expireAfterAccess(5 * aggregationIntervalSeconds, TimeUnit.SECONDS).
         removalListener((RemovalListener<HostMetricTagsPair, AtomicDouble>)
             (metric, value, reason) -> this.reportAggregatedDeltaValue(metric, value)).build();
 
     this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handlerKey.getHandle() +
         ".received", "", "lag"), false);
 
-    reporter.scheduleWithFixedDelay(this::reportCache, deltaCountersAggregationIntervalSeconds,
-        deltaCountersAggregationIntervalSeconds, TimeUnit.SECONDS);
+    reporter.scheduleWithFixedDelay(this::flushDeltaCounters, aggregationIntervalSeconds,
+        aggregationIntervalSeconds, TimeUnit.SECONDS);
 
     String metricPrefix = handlerKey.toString();
     this.reportedCounter = Metrics.newCounter(new MetricName(metricPrefix, "", "sent"));
@@ -88,7 +89,8 @@ public class DeltaCounterAccumulationHandlerImpl
     });
   }
 
-  private void reportCache() {
+  @VisibleForTesting
+  public void flushDeltaCounters() {
     this.aggregatedDeltas.asMap().forEach(this::reportAggregatedDeltaValue);
   }
 

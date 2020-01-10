@@ -1,5 +1,6 @@
 package com.wavefront.agent.queueing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.DataSubmissionTask;
@@ -110,5 +111,10 @@ public class QueueingFactoryImpl implements QueueingFactory {
       default:
         throw new IllegalArgumentException("Unexpected entity type: " + entityType);
     }
+  }
+
+  @VisibleForTesting
+  public void flushNow(@Nonnull HandlerKey handlerKey) {
+    queueProcessors.get(handlerKey).values().forEach(QueueProcessor::run);
   }
 }

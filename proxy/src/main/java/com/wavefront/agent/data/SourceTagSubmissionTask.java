@@ -14,10 +14,6 @@ import javax.ws.rs.core.Response;
 import java.util.List;
 import java.util.function.Supplier;
 
-import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_ADD;
-import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_DELETE;
-import static com.wavefront.ingester.ReportSourceTagIngesterFormatter.ACTION_SAVE;
-
 /**
  * A {@link DataSubmissionTask} that handles source tag payloads.
  *
@@ -54,27 +50,31 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
 
   @Nullable
   Response doExecute() {
-    switch (sourceTag.getSourceTagLiteral()) {
-      case "SourceDescription":
-        if (sourceTag.getAction().equals("delete")) {
-          return api.removeDescription(sourceTag.getSource());
-        } else {
-          return api.setDescription(sourceTag.getSource(), sourceTag.getDescription());
-        }
-      case "SourceTag":
+    switch (sourceTag.getOperation()) {
+      case SOURCE_DESCRIPTION:
         switch (sourceTag.getAction()) {
-          case ACTION_ADD:
+          case DELETE:
+            return api.removeDescription(sourceTag.getSource());
+          case SAVE:
+          case ADD:
+            return api.setDescription(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
+          default:
+            throw new IllegalArgumentException("Invalid acton: " + sourceTag.getAction());
+        }
+      case SOURCE_TAG:
+        switch (sourceTag.getAction()) {
+          case ADD:
             return api.appendTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
-          case ACTION_DELETE:
+          case DELETE:
             return api.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
-          case ACTION_SAVE:
+          case SAVE:
             return api.setTags(sourceTag.getSource(), sourceTag.getAnnotations());
           default:
             throw new IllegalArgumentException("Invalid acton: " + sourceTag.getAction());
         }
       default:
-        throw new IllegalArgumentException("Invalid source tag command: " +
-            sourceTag.getSourceTagLiteral());
+        throw new IllegalArgumentException("Invalid source tag operation: " +
+            sourceTag.getOperation());
     }
   }
 

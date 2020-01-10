@@ -83,7 +83,6 @@ public class MapLoaderTest {
     ChronicleMap<HistogramKey, AgentDigest> map = loader.get(file);
     map.put(key, digest);
     map.close();
-    Thread.sleep(1000);
     loader = new MapLoader<>(HistogramKey.class, AgentDigest.class, 100, 200, 1000,
         HistogramKeyMarshaller.get(), AgentDigestMarshaller.get(), true);
     map = loader.get(file);

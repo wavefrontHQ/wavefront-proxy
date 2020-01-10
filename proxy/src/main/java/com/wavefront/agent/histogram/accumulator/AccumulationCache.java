@@ -1,7 +1,6 @@
 package com.wavefront.agent.histogram.accumulator;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.RateLimiter;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.CacheWriter;
@@ -11,6 +10,7 @@ import com.github.benmanes.caffeine.cache.Ticker;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.TDigest;
 import com.wavefront.agent.SharedMetricsRegistry;
+import com.wavefront.common.SharedRateLimitingLogger;
 import com.wavefront.common.TimeProvider;
 import com.wavefront.agent.histogram.Utils;
 import com.yammer.metrics.Metrics;
@@ -269,7 +269,7 @@ public class AccumulationCache implements Accumulator {
       public boolean hasNext() {
         while (indexIterator.hasNext()) {
           Map.Entry<Utils.HistogramKey, Long> entry = indexIterator.next();
-          if (entry.getValue() < clock.millisSinceEpoch()) {
+          if (entry.getValue() < clock.currentTimeMillis()) {
             nextHistogramKey = entry.getKey();
             return true;
           }
@@ -339,11 +339,10 @@ public class AccumulationCache implements Accumulator {
     cache.invalidateAll();
   }
 
-  public static class AccumulationCacheMonitor implements Runnable {
-
+  private static class AccumulationCacheMonitor implements Runnable {
+    private final Logger throttledLogger = new SharedRateLimitingLogger(logger,
+        "accumulator-failure", 1.0d);
     private Counter failureCounter;
-    @SuppressWarnings("UnstableApiUsage")
-    private final RateLimiter failureMessageLimiter = RateLimiter.create(1);
 
     @Override
     public void run() {
@@ -351,12 +350,10 @@ public class AccumulationCache implements Accumulator {
         failureCounter = Metrics.newCounter(new MetricName("histogram.accumulator", "", "failure"));
       }
       failureCounter.inc();
-      //noinspection UnstableApiUsage
-      if (failureMessageLimiter.tryAcquire()) {
-        logger.severe("CRITICAL: Histogram accumulator overflow - losing histogram data!!! " +
-            "Accumulator size configuration setting is not appropriate for workload, please increase " +
-            "the value as appropriate and restart the proxy!");
-      }
+      throttledLogger.severe("CRITICAL: Histogram accumulator overflow - " +
+          "losing histogram data!!! Accumulator size configuration setting is " +
+          "not appropriate for the current workload, please increase the value " +
+          "as appropriate and restart the proxy!");
     }
   }
 }

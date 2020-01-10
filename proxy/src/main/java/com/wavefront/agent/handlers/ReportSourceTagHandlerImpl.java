@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.logging.Logger;
 
 import wavefront.report.ReportSourceTag;
+import wavefront.report.SourceOperationType;
 
 import javax.annotation.Nullable;
 
@@ -32,22 +33,16 @@ class ReportSourceTagHandlerImpl
 
   @Override
   protected void reportInternal(ReportSourceTag sourceTag) {
-    if (!annotationKeysAreValid(sourceTag)) {
+    if (!annotationsAreValid(sourceTag)) {
       throw new IllegalArgumentException("WF-401: SourceTag annotation key has illegal characters.");
     }
     getTask(sourceTag).add(new SourceTag(sourceTag));
   }
 
   @VisibleForTesting
-  static boolean annotationKeysAreValid(ReportSourceTag sourceTag) {
-    if (sourceTag.getAnnotations() != null) {
-      for (String key : sourceTag.getAnnotations()) {
-        if (!Validation.charactersAreValid(key)) {
-          return false;
-        }
-      }
-    }
-    return true;
+  static boolean annotationsAreValid(ReportSourceTag sourceTag) {
+    if (sourceTag.getOperation() == SourceOperationType.SOURCE_DESCRIPTION) return true;
+    return sourceTag.getAnnotations().stream().allMatch(Validation::charactersAreValid);
   }
 
   private SenderTask<SourceTag> getTask(ReportSourceTag sourceTag) {
