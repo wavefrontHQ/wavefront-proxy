@@ -5,11 +5,9 @@ import org.easymock.EasyMock;
 import org.junit.Test;
 
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
@@ -94,40 +92,4 @@ public class SamplingLoggerTest {
     }
     assertEquals(1000, count);
   }
-
-/*
-  @Test
-  public void testDelegateMethods() {
-    Logger mockLogger = EasyMock.createMock(Logger.class);
-    reset(mockLogger);
-    expect(mockLogger.getName()).andReturn("loggerName").anyTimes();
-    expect(mockLogger.isLoggable(anyObject())).andReturn(false).anyTimes();
-    replay(mockLogger);
-    SamplingLogger testLog1 = new SamplingLogger(ReportableEntityType.POINT, mockLogger, 1,
-        true, null);
-    reset(mockLogger);
-    mockLogger.log(Level.SEVERE, "severe");
-    expectLastCall().once();
-    mockLogger.log(Level.WARNING, "warning");
-    expectLastCall().once();
-    mockLogger.log(Level.INFO, "info");
-    expectLastCall().once();
-    mockLogger.log(Level.CONFIG, "config");
-    expectLastCall().once();
-    mockLogger.log(Level.FINE, "fine");
-    expectLastCall().once();
-    mockLogger.log(Level.FINER, "finer");
-    expectLastCall().once();
-    mockLogger.log(Level.FINEST, "finest");
-    expectLastCall().once();
-    replay(mockLogger);
-    testLog1.severe("severe");
-    testLog1.warning("warning");
-    testLog1.info("info");
-    testLog1.config("config");
-    testLog1.fine("fine");
-    testLog1.finer("finer");
-    testLog1.finest("finest");
-    verify(mockLogger);
-  } */
 }

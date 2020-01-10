@@ -137,7 +137,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
                 "received while sending data to Wavefront - please verify that your token is " +
                 "valid and has Proxy Management permissions!");
           } else {
-            log.warning("[" + handle + "] HTTP " + response.getStatus() + ": " +
+            log.warning("[" + handle + "] HTTP " + response.getStatus() + " " +
                 "received while sending data to Wavefront - please verify your network/HTTP proxy" +
                 " settings!");
           }

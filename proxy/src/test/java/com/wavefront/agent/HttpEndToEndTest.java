@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.logging.Logger;
 
 import static com.wavefront.agent.ProxyUtil.createInitializer;
 import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
@@ -51,6 +52,8 @@ import static org.junit.Assert.fail;
  * @author vasily@wavefront.com
  */
 public class HttpEndToEndTest {
+  private static final Logger logger = Logger.getLogger("test");
+
   private PushAgent proxy;
   private MutableFunc<FullHttpRequest, HttpResponse> server = new MutableFunc<>(x -> null);
   private Thread thread;
@@ -110,7 +113,7 @@ public class HttpEndToEndTest {
 
     server.update(req -> {
       String content = req.content().toString(CharsetUtil.UTF_8);
-      //System.out.println(content);
+      logger.fine("Content received: " + content);
       assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
       successfulSteps.incrementAndGet();
       return makeResponse(HttpResponseStatus.OK, "");
@@ -119,11 +122,11 @@ public class HttpEndToEndTest {
     HandlerKey key = HandlerKey.of(ReportableEntityType.POINT, String.valueOf(proxyPort));
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     assertEquals(1, successfulSteps.getAndSet(0));
-
+    AtomicBoolean part1 = new AtomicBoolean(false);
+    AtomicBoolean part2 = new AtomicBoolean(false);
     server.update(req -> {
-      //req.headers().entries().forEach(x -> System.out.println(x.getKey() + "=" + x.getValue()));
       String content = req.content().toString(CharsetUtil.UTF_8);
-      //System.out.println(content);
+      logger.fine("Content received: " + content);
       switch (testCounter.incrementAndGet()) {
         case 1:
           assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
@@ -142,11 +145,9 @@ public class HttpEndToEndTest {
           successfulSteps.incrementAndGet();
           return makeResponse(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, "");
         case 5:
-          assertEquals(expectedTest1part1, content);
-          successfulSteps.incrementAndGet();
-          return makeResponse(HttpResponseStatus.OK, "");
         case 6:
-          assertEquals(expectedTest1part2, content);
+          if (content.equals(expectedTest1part1)) part1.set(true);
+          if (content.equals(expectedTest1part2)) part2.set(true);
           successfulSteps.incrementAndGet();
           return makeResponse(HttpResponseStatus.OK, "");
       }
@@ -159,6 +160,8 @@ public class HttpEndToEndTest {
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
     for (int i = 0; i < 3; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
     assertEquals(6, successfulSteps.getAndSet(0));
+    assertTrue(part1.get());
+    assertTrue(part2.get());
   }
 
   @Test
@@ -201,7 +204,7 @@ public class HttpEndToEndTest {
         throw new RuntimeException(e);
       }
       String path = uri.getPath();
-      //System.out.println(content);
+      logger.fine("Content received: " + content);
       assertEquals(HttpMethod.POST, req.method());
       assertEquals("/api/v2/wfproxy/event", path);
       switch (testCounter.incrementAndGet()) {
@@ -230,7 +233,8 @@ public class HttpEndToEndTest {
           successfulSteps.incrementAndGet();
           return makeResponse(HttpResponseStatus.OK, "");
       }
-      System.out.println("Too many requests");
+      logger.warning("Too many requests");
+      successfulSteps.incrementAndGet(); // this will force the assert to fail
       return makeResponse(HttpResponseStatus.OK, "");
     });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadEvents);
@@ -279,7 +283,7 @@ public class HttpEndToEndTest {
         throw new RuntimeException(e);
       }
       String path = uri.getPath();
-      //System.out.println(content);
+      logger.fine("Content received: " + content);
       switch (testCounter.incrementAndGet()) {
         case 1:
           assertEquals(HttpMethod.PUT, req.method());
@@ -329,7 +333,6 @@ public class HttpEndToEndTest {
           assertEquals("[\"newtag1\",\"newtag2\"]", content);
           successfulSteps.incrementAndGet();
           return makeResponse(HttpResponseStatus.OK, "");
-          //assertEquals(expectedTest1part1 + "\n" + expectedTest1part2, content);
         case 9:
           assertEquals(HttpMethod.POST, req.method());
           assertEquals("/api/v2/source/testSource/description", path);
@@ -343,7 +346,8 @@ public class HttpEndToEndTest {
           successfulSteps.incrementAndGet();
           return makeResponse(HttpResponseStatus.OK, "");
       }
-      System.out.println("Too many requests");
+      logger.warning("Too many requests");
+      successfulSteps.incrementAndGet(); // this will force the assert to fail
       return makeResponse(HttpResponseStatus.OK, "");
     });
     gzippedHttpPost("http://localhost:" + proxyPort + "/", payloadSourceTags);
@@ -454,7 +458,7 @@ public class HttpEndToEndTest {
       String path = uri.getPath();
       assertEquals(HttpMethod.POST, req.method());
       assertEquals("/api/v2/wfproxy/report", path);
-      //System.out.println(content);
+      logger.fine("Content received: " + content);
       switch (testCounter.incrementAndGet()) {
         case 1:
           assertEquals(expectedHistograms, new HashSet<>(Arrays.asList(content.split("\n"))));
@@ -476,7 +480,6 @@ public class HttpEndToEndTest {
     proxy.histogramFlushRunnables.forEach(Runnable::run);
     HandlerKey key = HandlerKey.of(ReportableEntityType.HISTOGRAM, "histogram_ports");
     ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
-    //for (int i = 0; i < 4; i++) ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
 
     digestTime.set(System.currentTimeMillis() - 1001);
     gzippedHttpPost("http://localhost:" + histDistPort + "/", distPayload);
@@ -522,7 +525,7 @@ public class HttpEndToEndTest {
     AtomicBoolean gotSpanLog = new AtomicBoolean(false);
     server.update(req -> {
       String content = req.content().toString(CharsetUtil.UTF_8);
-      //System.out.println(content);
+      logger.fine("Content received: " + content);
       if (content.equals(expectedSpan)) gotSpan.set(true);
       if (content.equals(expectedSpanLog)) gotSpanLog.set(true);
       return makeResponse(HttpResponseStatus.OK, "");
@@ -555,7 +558,7 @@ public class HttpEndToEndTest {
         throw new RuntimeException(e);
       }
       String path = uri.getPath();
-      //System.out.println("Path: " + uri.getPath());
+      logger.fine("Incoming HTTP request: " + uri.getPath());
       if (path.endsWith("/checkin") &&
           (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
         // simulate checkin response for proxy chaining
@@ -569,7 +572,7 @@ public class HttpEndToEndTest {
         return;
       }
       HttpResponse response = func.apply(request);
-      //System.out.println("Responding with HTTP " + response.status());
+      logger.fine("Responding with HTTP " + response.status());
       writeHttpResponse(ctx, response, request);
     }
   }

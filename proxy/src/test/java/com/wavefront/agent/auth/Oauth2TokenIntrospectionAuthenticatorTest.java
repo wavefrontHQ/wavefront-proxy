@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.wavefront.agent.TestUtils.assertTrueWithTimeout;
 import static com.wavefront.agent.TestUtils.httpEq;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -46,37 +47,24 @@ public class Oauth2TokenIntrospectionAuthenticatorTest {
     TestUtils.expectHttpResponse(client, request, "{\"active\": false}".getBytes(), 200);
 
     assertFalse(authenticator.authorize(uuid)); // should call http
-    Thread.sleep(100);
-
     fakeClock.getAndAdd(60_000);
-
     assertFalse(authenticator.authorize(uuid)); // should be cached
-
     fakeClock.getAndAdd(300_000);
-
     EasyMock.verify(client);
     EasyMock.reset(client);
     TestUtils.expectHttpResponse(client, request, "{\"active\": true}".getBytes(), 200);
-
     assertFalse(authenticator.authorize(uuid)); // cache expired - should trigger a refresh
-    Thread.sleep(100);
-
-    assertTrue(authenticator.authorize(uuid)); // should call http and get an updated token
-
+    // should call http and get an updated token
+    assertTrueWithTimeout(100, () -> authenticator.authorize(uuid));
     fakeClock.getAndAdd(180_000);
-
     assertTrue(authenticator.authorize(uuid)); // should be cached
-
     fakeClock.getAndAdd(180_000);
-
     EasyMock.verify(client);
     EasyMock.reset(client);
     TestUtils.expectHttpResponse(client, request, "{\"active\": false}".getBytes(), 200);
-
     assertTrue(authenticator.authorize(uuid)); // cache expired - should trigger a refresh
-    Thread.sleep(100);
-    assertFalse(authenticator.authorize(uuid)); // should call http
-
+    //Thread.sleep(100);
+    assertTrueWithTimeout(100, () -> !authenticator.authorize(uuid)); // should call http
     EasyMock.verify(client);
   }
 

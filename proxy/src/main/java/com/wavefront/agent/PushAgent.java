@@ -631,24 +631,30 @@ public class PushAgent extends AbstractAgent {
     registerTimestampFilter(strPort);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
-    deltaCounterHandlerFactory = new ReportableEntityHandlerFactory() {
-      private final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
-      @Override
-      public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
-        //noinspection unchecked
-        return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey,
-            k -> new DeltaCounterAccumulationHandlerImpl(handlerKey,
-                proxyConfig.getPushBlockedSamples(),
-                senderTaskFactory.createSenderTasks(handlerKey),
-                validationConfiguration, proxyConfig.getDeltaCountersAggregationIntervalSeconds(),
-                blockedPointsLogger, VALID_POINTS_LOGGER));
-      }
+    if (this.deltaCounterHandlerFactory == null) {
+      this.deltaCounterHandlerFactory = new ReportableEntityHandlerFactory() {
+        private final Map<String, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
 
-      @Override
-      public void shutdown(@Nonnull String handle) {
-        handlers.values().forEach(ReportableEntityHandler::shutdown);
-      }
-    };
+        @Override
+        public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
+          //noinspection unchecked
+          return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey.getHandle(),
+              k -> new DeltaCounterAccumulationHandlerImpl(handlerKey,
+                  proxyConfig.getPushBlockedSamples(),
+                  senderTaskFactory.createSenderTasks(handlerKey),
+                  validationConfiguration, proxyConfig.getDeltaCountersAggregationIntervalSeconds(),
+                  blockedPointsLogger, VALID_POINTS_LOGGER));
+        }
+
+        @Override
+        public void shutdown(@Nonnull String handle) {
+          if (handlers.containsKey(handle)) {
+            handlers.values().forEach(ReportableEntityHandler::shutdown);
+          }
+        }
+      };
+    }
+    shutdownTasks.add(() -> deltaCounterHandlerFactory.shutdown(strPort));
 
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
         new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
