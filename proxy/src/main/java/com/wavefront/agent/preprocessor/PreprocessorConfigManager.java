@@ -8,6 +8,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.yaml.snakeyaml.Yaml;
 
@@ -407,6 +408,8 @@ public class PreprocessorConfigManager {
       }
     } catch (ClassCastException e) {
       throw new RuntimeException("Can't parse preprocessor configuration");
+    } finally {
+      IOUtils.closeQuietly(stream);
     }
     synchronized (this) {
       this.userPreprocessorsTs = timeSupplier.get();

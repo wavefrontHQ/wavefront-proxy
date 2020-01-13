@@ -213,10 +213,14 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
-    returnConfig.setPointsPerBatch(1234567L);
+    returnConfig.setPointsPerBatch(null);
     replay(proxyConfig);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(apiContainer.getProxyV2API()).andReturn(proxyV2API).anyTimes();
+    // we need to allow 1 successful checking to prevent early termination
+    expect(proxyV2API.proxyCheckin(eq(proxyId), eq(authHeader), eq("proxyHost"),
+        eq(getBuildVersion()), anyLong(), anyObject(), eq(true))).
+        andReturn(returnConfig).once();
     expect(proxyV2API.proxyCheckin(eq(proxyId), eq(authHeader), eq("proxyHost"),
         eq(getBuildVersion()), anyLong(), anyObject(), eq(true))).
         andThrow(new ClientErrorException(Response.status(401).build())).once();
@@ -239,6 +243,8 @@ public class ProxyCheckInSchedulerTest {
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
         x -> assertNull(x.getPointsPerBatch()));
+    scheduler.updateProxyMetrics();
+    scheduler.updateConfiguration();
     scheduler.updateProxyMetrics();
     scheduler.updateConfiguration();
     scheduler.updateProxyMetrics();
@@ -342,6 +348,37 @@ public class ProxyCheckInSchedulerTest {
       fail("We're not supposed to get here");
     } catch (SystemExitException e) {
       assertEquals(-5, e.exitCode);
+    }
+    verify(proxyConfig, proxyV2API, apiContainer);
+  }
+
+  @Test
+  public void testDontRetryCheckinOnBadCredentials() {
+    ProxyConfig proxyConfig = EasyMock.createMock(ProxyConfig.class);
+    ProxyV2API proxyV2API = EasyMock.createMock(ProxyV2API.class);
+    APIContainer apiContainer = EasyMock.createMock(APIContainer.class);
+    reset(proxyConfig, proxyV2API, proxyConfig);
+    expect(proxyConfig.getServer()).andReturn("https://acme.corp/api").anyTimes();
+    expect(proxyConfig.getToken()).andReturn("abcde12345").anyTimes();
+    expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
+    expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
+    expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
+    String authHeader = "Bearer abcde12345";
+    AgentConfiguration returnConfig = new AgentConfiguration();
+    returnConfig.setPointsPerBatch(1234567L);
+    replay(proxyConfig);
+    UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
+    expect(apiContainer.getProxyV2API()).andReturn(proxyV2API).anyTimes();
+    expect(proxyV2API.proxyCheckin(eq(proxyId), eq(authHeader), eq("proxyHost"),
+        eq(getBuildVersion()), anyLong(), anyObject(), eq(true))).
+        andThrow(new ClientErrorException(Response.status(401).build())).once();
+    replay(proxyV2API, apiContainer);
+    try {
+      ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
+          x -> fail("We are not supposed to get here"));
+      fail("We're not supposed to get here");
+    } catch (SystemExitException e) {
+      assertEquals(-2, e.exitCode);
     }
     verify(proxyConfig, proxyV2API, apiContainer);
   }

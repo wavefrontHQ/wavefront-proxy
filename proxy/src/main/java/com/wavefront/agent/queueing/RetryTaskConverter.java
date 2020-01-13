@@ -8,6 +8,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
+import org.apache.commons.io.IOUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -64,8 +65,8 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>>
       if (bytesToRead > 0) {
         byte[] format = new byte[bytesToRead];
         if (input.read(format, 0, bytesToRead) == bytesToRead) {
+          InputStream stream = null;
           try {
-            InputStream stream;
             if (Arrays.equals(format, FORMAT_LZ4)) { // LZ4 compression
               stream = new LZ4BlockInputStream(input);
             } else if (Arrays.equals(format, FORMAT_GZIP)) { // GZIP compression
@@ -80,6 +81,8 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>>
             return (T) objectMapper.readValue(stream, DataSubmissionTask.class);
           } catch (Throwable t) {
             logger.warning("Unable to restore persisted task: " + t);
+          } finally {
+            IOUtils.closeQuietly(stream);
           }
         } else {
           logger.warning("Unable to restore persisted task - corrupted header, ignoring");

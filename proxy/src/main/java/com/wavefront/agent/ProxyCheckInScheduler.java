@@ -147,10 +147,18 @@ public class ProxyCheckInScheduler {
         case 401:
           checkinError("HTTP 401 Unauthorized: Please verify that your server and token settings" +
               " are correct and that the token has Proxy Management permission!");
+          if (successfulCheckIns.get() == 0) {
+            logger.severe("Aborting start-up");
+            System.exit(-2);
+          }
           break;
         case 403:
           checkinError("HTTP 403 Forbidden: Please verify that your token has Proxy Management " +
               "permission!");
+          if (successfulCheckIns.get() == 0) {
+            logger.severe("Aborting start-up");
+            System.exit(-2);
+          }
           break;
         case 404:
         case 405:
@@ -180,7 +188,7 @@ public class ProxyCheckInScheduler {
               " is not rate limiting!");
           if (successfulCheckIns.get() == 0) {
             logger.severe("Aborting start-up");
-            System.exit(-5);
+            System.exit(-2);
           }
           break;
         default:
