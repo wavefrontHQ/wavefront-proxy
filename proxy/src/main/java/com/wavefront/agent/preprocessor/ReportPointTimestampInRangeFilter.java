@@ -1,16 +1,18 @@
 package com.wavefront.agent.preprocessor;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.common.Clock;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
-import org.apache.commons.lang.time.DateUtils;
-
 import javax.annotation.Nullable;
 import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
+
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Filter condition for valid timestamp - should be no more than 1 day in the future
@@ -25,30 +27,41 @@ public class ReportPointTimestampInRangeFilter implements AnnotatedPredicate<Rep
 
   private final int hoursInPastAllowed;
   private final int hoursInFutureAllowed;
+  private final Supplier<Long> timeSupplier;
 
   private final Counter outOfRangePointTimes;
 
-  public ReportPointTimestampInRangeFilter(final int hoursInPastAllowed, final int hoursInFutureAllowed) {
+  public ReportPointTimestampInRangeFilter(final int hoursInPastAllowed,
+                                           final int hoursInFutureAllowed) {
+    this(hoursInPastAllowed, hoursInFutureAllowed, Clock::now);
+  }
+
+  @VisibleForTesting
+  ReportPointTimestampInRangeFilter(final int hoursInPastAllowed,
+                                    final int hoursInFutureAllowed,
+                                    @Nonnull Supplier<Long> timeProvider) {
     this.hoursInPastAllowed = hoursInPastAllowed;
     this.hoursInFutureAllowed = hoursInFutureAllowed;
+    this.timeSupplier = timeProvider;
     this.outOfRangePointTimes = Metrics.newCounter(new MetricName("point", "", "badtime"));
   }
 
   @Override
   public boolean test(@Nonnull ReportPoint point, @Nullable String[] messageHolder) {
     long pointTime = point.getTimestamp();
-    long rightNow = Clock.now();
+    long rightNow = timeSupplier.get();
 
     // within <hoursInPastAllowed> ago and within <hoursInFutureAllowed>
-    boolean pointInRange = (pointTime > (rightNow - this.hoursInPastAllowed * DateUtils.MILLIS_PER_HOUR)) &&
-        (pointTime < (rightNow + (this.hoursInFutureAllowed * DateUtils.MILLIS_PER_HOUR)));
-    if (!pointInRange) {
+    if ((pointTime > (rightNow - TimeUnit.HOURS.toMillis(this.hoursInPastAllowed))) &&
+            (pointTime < (rightNow + TimeUnit.HOURS.toMillis(this.hoursInFutureAllowed)))) {
+      return true;
+    } else {
       outOfRangePointTimes.inc();
       if (messageHolder != null && messageHolder.length > 0) {
-        messageHolder[0] = "WF-402: Point outside of reasonable timeframe (" + point.toString() + ")";
+        messageHolder[0] = "WF-402: Point outside of reasonable timeframe (" +
+            point.toString() + ")";
       }
+      return false;
     }
-    return pointInRange;
   }
-
 }

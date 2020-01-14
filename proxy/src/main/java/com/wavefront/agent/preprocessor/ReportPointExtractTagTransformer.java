@@ -2,9 +2,6 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
-
-import com.yammer.metrics.core.Counter;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,17 +27,6 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   @Nullable
   protected final String patternReplaceSource;
   protected final PreprocessorRuleMetrics ruleMetrics;
-
-  @Deprecated
-  public ReportPointExtractTagTransformer(final String tag,
-                                          final String source,
-                                          final String patternSearch,
-                                          final String patternReplace,
-                                          @Nullable final String patternMatch,
-                                          @Nullable final Counter ruleAppliedCounter) {
-    this(tag, source, patternSearch, patternReplace, null, patternMatch,
-        new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
 
   public ReportPointExtractTagTransformer(final String tag,
                                           final String source,
@@ -70,9 +56,6 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
     patternMatcher = compiledSearchPattern.matcher(extractFrom);
     if (!patternMatcher.find()) {
       return false;
-    }
-    if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.<String, String>newHashMap());
     }
     String value = patternMatcher.replaceAll(PreprocessorUtil.expandPlaceholders(patternReplace, reportPoint));
     if (!value.isEmpty()) {
@@ -107,12 +90,11 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
     }
   }
 
+  @Nullable
   @Override
-  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nullable ReportPoint reportPoint) {
+    if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.<String, String>newHashMap());
-    }
     internalApply(reportPoint);
     ruleMetrics.ruleEnd(startNanos);
     return reportPoint;

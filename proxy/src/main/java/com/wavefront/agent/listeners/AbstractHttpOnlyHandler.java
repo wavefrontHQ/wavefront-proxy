@@ -3,9 +3,9 @@ package com.wavefront.agent.listeners;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 
+import java.net.URISyntaxException;
 import java.util.logging.Logger;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
@@ -29,21 +29,21 @@ public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHan
    * @param healthCheckManager shared health check endpoint handler.
    * @param handle             handle/port number.
    */
-  public AbstractHttpOnlyHandler(@Nonnull TokenAuthenticator tokenAuthenticator,
+  public AbstractHttpOnlyHandler(@Nullable final TokenAuthenticator tokenAuthenticator,
                                  @Nullable final HealthCheckManager healthCheckManager,
                                  @Nullable final String handle) {
     super(tokenAuthenticator, healthCheckManager, handle);
   }
 
-  protected abstract void handleHttpMessage(final ChannelHandlerContext ctx,
-                                            final FullHttpRequest request);
+  protected abstract void handleHttpMessage(
+      final ChannelHandlerContext ctx, final FullHttpRequest request) throws URISyntaxException;
 
   /**
    * Discards plaintext content.
    */
   @Override
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        final String message) throws Exception {
+                                        final String message) {
     pointsDiscarded.get().inc();
     logger.warning("Input discarded: plaintext protocol is not supported on port " + handle);
   }

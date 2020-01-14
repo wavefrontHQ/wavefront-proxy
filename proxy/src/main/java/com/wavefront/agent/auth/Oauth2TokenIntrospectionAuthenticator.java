@@ -16,10 +16,8 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -31,8 +29,6 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 class Oauth2TokenIntrospectionAuthenticator extends TokenIntrospectionAuthenticator {
-  private static final Logger logger = Logger.getLogger(Oauth2TokenIntrospectionAuthenticator.class.getCanonicalName());
-
   private final HttpClient httpClient;
   private final String tokenIntrospectionServiceUrl;
   private final String tokenIntrospectionAuthorizationHeader;
@@ -63,7 +59,7 @@ class Oauth2TokenIntrospectionAuthenticator extends TokenIntrospectionAuthentica
   }
 
   @Override
-  boolean callAuthService(@NotNull String token) throws Exception {
+  boolean callAuthService(@Nonnull String token) throws Exception {
     boolean result;
     HttpPost request = new HttpPost(tokenIntrospectionServiceUrl.replace("{{token}}", token));
     request.setHeader("Content-Type", "application/x-www-form-urlencoded");

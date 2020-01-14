@@ -14,9 +14,6 @@ import net.openhft.chronicle.hash.serialization.SizedWriter;
 import net.openhft.chronicle.wire.WireIn;
 import net.openhft.chronicle.wire.WireOut;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +23,9 @@ import java.util.List;
 
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * NOTE: This is a pruned and modified version of {@link MergingDigest}. It does not support queries (cdf/quantiles) or
@@ -85,13 +85,13 @@ public class AgentDigest extends AbstractTDigest {
   // this is the index of the next temporary centroid
   // this is a more Java-like convention than lastUsedCell uses
   private int tempUsed = 0;
-  private double[] tempWeight;
-  private double[] tempMean;
+  private final double[] tempWeight;
+  private final double[] tempMean;
   private List<List<Double>> tempData = null;
 
   // array used for sorting the temp centroids.  This is a field
   // to avoid allocations during operation
-  private int[] order;
+  private final int[] order;
 
   private long dispatchTimeMillis;
 
@@ -415,7 +415,8 @@ public class AgentDigest extends AbstractTDigest {
   /**
    * Stateless AgentDigest codec for chronicle maps
    */
-  public static class AgentDigestMarshaller implements SizedReader<AgentDigest>, SizedWriter<AgentDigest>, ReadResolvable<AgentDigestMarshaller> {
+  public static class AgentDigestMarshaller implements SizedReader<AgentDigest>,
+      SizedWriter<AgentDigest>, ReadResolvable<AgentDigestMarshaller> {
     private static final AgentDigestMarshaller INSTANCE = new AgentDigestMarshaller();
     private static final com.yammer.metrics.core.Histogram accumulatorValueSizes =
         Metrics.newHistogram(new MetricName("histogram", "", "accumulatorValueSize"));
@@ -428,7 +429,7 @@ public class AgentDigest extends AbstractTDigest {
       return INSTANCE;
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public AgentDigest read(Bytes in, long size, @Nullable AgentDigest using) {
       Preconditions.checkArgument(size >= FIXED_SIZE);
@@ -458,14 +459,14 @@ public class AgentDigest extends AbstractTDigest {
     }
 
     @Override
-    public long size(@NotNull AgentDigest toWrite) {
+    public long size(@Nonnull AgentDigest toWrite) {
       long size = toWrite.encodedSize();
       accumulatorValueSizes.update(size);
       return size;
     }
 
     @Override
-    public void write(Bytes out, long size, @NotNull AgentDigest toWrite) {
+    public void write(Bytes out, long size, @Nonnull AgentDigest toWrite) {
       // Merge in all buffered values
       int numCentroids = toWrite.centroidCount();
 
@@ -485,18 +486,19 @@ public class AgentDigest extends AbstractTDigest {
       }
     }
 
+    @Nonnull
     @Override
     public AgentDigestMarshaller readResolve() {
       return INSTANCE;
     }
 
     @Override
-    public void readMarshallable(@NotNull WireIn wire) throws IORuntimeException {
+    public void readMarshallable(@Nonnull WireIn wire) throws IORuntimeException {
       // ignore
     }
 
     @Override
-    public void writeMarshallable(@NotNull WireOut wire) {
+    public void writeMarshallable(@Nonnull WireOut wire) {
       // ignore
     }
   }

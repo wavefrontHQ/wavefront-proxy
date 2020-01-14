@@ -15,14 +15,15 @@ public abstract class Configuration {
 
   public abstract void verifyAndInit() throws ConfigurationException;
 
-  private static ObjectMapper objectMapper = new ObjectMapper();
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   @Override
   public String toString() {
     try {
       return objectMapper.writeValueAsString(this);
     } catch (JsonProcessingException e) {
-      return super.toString();
+      throw new RuntimeException(e);
+      //return super.toString();
     }
   }
 

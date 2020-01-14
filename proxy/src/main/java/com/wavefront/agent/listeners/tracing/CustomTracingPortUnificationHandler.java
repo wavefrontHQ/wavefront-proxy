@@ -60,7 +60,7 @@ public class CustomTracingPortUnificationHandler extends AbstractLineDelimitedHa
   private static final Logger logger = Logger.getLogger(
       CustomTracingPortUnificationHandler.class.getCanonicalName());
 
-  private final ReportableEntityHandler<Span> handler;
+  private final ReportableEntityHandler<Span, String> handler;
   @Nullable
   private final WavefrontSender wfSender;
   private final WavefrontInternalReporter wfInternalReporter;
@@ -95,7 +95,7 @@ public class CustomTracingPortUnificationHandler extends AbstractLineDelimitedHa
       @Nullable WavefrontSender wfSender,
       final ReportableEntityDecoder<String, Span> traceDecoder,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
-      final ReportableEntityHandler<Span> handler, final Sampler sampler,
+      final ReportableEntityHandler<Span, String> handler, final Sampler sampler,
       final boolean alwaysSampleErrors, final Supplier<Boolean> traceDisabled) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.decoder = traceDecoder;

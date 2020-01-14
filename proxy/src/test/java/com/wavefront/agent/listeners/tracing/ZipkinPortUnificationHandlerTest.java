@@ -37,14 +37,14 @@ import static org.easymock.EasyMock.verify;
 
 public class ZipkinPortUnificationHandlerTest {
   private final static String DEFAULT_SOURCE = "zipkin";
-  private ReportableEntityHandler<Span> mockTraceHandler =
+  private ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler =
+  private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private long startTime = System.currentTimeMillis();
 
   @Test
-  public void testZipkinHandler() {
+  public void testZipkinHandler() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
         () -> false, () -> false, null, new RateSampler(1.0D), false, "ProxyLevelAppTag", null);
@@ -125,8 +125,8 @@ public class ZipkinPortUnificationHandlerTest {
     EasyMock.replay(mockCtx);
   }
 
-  private void doMockLifecycle(ReportableEntityHandler<Span> mockTraceHandler,
-                               ReportableEntityHandler<SpanLogs> mockTraceSpanLogsHandler) {
+  private void doMockLifecycle(ReportableEntityHandler<Span, String> mockTraceHandler,
+                               ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler) {
     // Reset mock
     reset(mockTraceHandler, mockTraceSpanLogsHandler);
 
@@ -231,7 +231,7 @@ public class ZipkinPortUnificationHandlerTest {
   }
 
   @Test
-  public void testZipkinDurationSampler() {
+  public void testZipkinDurationSampler() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
         () -> false, () -> false, null, new DurationSampler(5), false, null, null);
@@ -307,7 +307,7 @@ public class ZipkinPortUnificationHandlerTest {
   }
 
   @Test
-  public void testZipkinDebugOverride() {
+  public void testZipkinDebugOverride() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
         () -> false, () -> false, null, new DurationSampler(10), false, null, null);
@@ -458,7 +458,7 @@ public class ZipkinPortUnificationHandlerTest {
   }
 
   @Test
-  public void testZipkinCustomSource() {
+  public void testZipkinCustomSource() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
         () -> false, () -> false, null, new RateSampler(1.0D), false, null, null);

@@ -8,7 +8,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import wavefront.report.Annotation;
@@ -21,7 +20,6 @@ import wavefront.report.Span;
  */
 public class SpanDropAnnotationTransformer implements Function<Span, Span> {
 
-  @Nullable
   private final Pattern compiledKeyPattern;
   @Nullable
   private final Pattern compiledValuePattern;
@@ -40,13 +38,11 @@ public class SpanDropAnnotationTransformer implements Function<Span, Span> {
     this.ruleMetrics = ruleMetrics;
   }
 
+  @Nullable
   @Override
-  public Span apply(@Nonnull Span span) {
+  public Span apply(@Nullable Span span) {
+    if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations() == null || compiledKeyPattern == null) {
-      ruleMetrics.ruleEnd(startNanos);
-      return span;
-    }
     List<Annotation> annotations = new ArrayList<>(span.getAnnotations());
     Iterator<Annotation> iterator = annotations.iterator();
     boolean changed = false;

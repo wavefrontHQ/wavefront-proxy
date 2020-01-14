@@ -53,9 +53,8 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   private final static String JAEGER_COMPONENT = "jaeger";
   private final static String DEFAULT_SOURCE = "jaeger";
 
-  private final String handle;
-  private final ReportableEntityHandler<Span> spanHandler;
-  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
+  private final ReportableEntityHandler<Span, String> spanHandler;
+  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   @Nullable
   private final WavefrontSender wfSender;
   @Nullable
@@ -76,7 +75,6 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
-  @SuppressWarnings("unchecked")
   public JaegerTChannelCollectorHandler(String handle,
                                         ReportableEntityHandlerFactory handlerFactory,
                                         @Nullable WavefrontSender wfSender,
@@ -94,8 +92,8 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   }
 
   public JaegerTChannelCollectorHandler(String handle,
-                                        ReportableEntityHandler<Span> spanHandler,
-                                        ReportableEntityHandler<SpanLogs> spanLogsHandler,
+                                        ReportableEntityHandler<Span, String> spanHandler,
+                                        ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
                                         @Nullable WavefrontSender wfSender,
                                         Supplier<Boolean> traceDisabled,
                                         Supplier<Boolean> spanLogsDisabled,
@@ -104,7 +102,6 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
                                         boolean alwaysSampleErrors,
                                         @Nullable String traceJaegerApplicationName,
                                         Set<String> traceDerivedCustomTagKeys) {
-    this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
@@ -173,7 +170,7 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     scheduledExecutorService.shutdownNow();
   }
 }

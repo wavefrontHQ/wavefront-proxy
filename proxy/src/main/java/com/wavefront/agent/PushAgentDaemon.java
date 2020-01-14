@@ -2,7 +2,6 @@ package com.wavefront.agent;
 
 import org.apache.commons.daemon.Daemon;
 import org.apache.commons.daemon.DaemonContext;
-import org.apache.commons.daemon.DaemonInitException;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -13,23 +12,22 @@ public class PushAgentDaemon implements Daemon {
     private DaemonContext daemonContext;
 
     @Override
-    public void init(DaemonContext daemonContext) throws DaemonInitException, Exception {
+    public void init(DaemonContext daemonContext) {
         this.daemonContext = daemonContext;
         agent = new PushAgent();
     }
 
     @Override
-    public void start() throws Exception {
+    public void start() {
         agent.start(daemonContext.getArguments());
     }
 
     @Override
-    public void stop() throws Exception {
+    public void stop() {
         agent.shutdown();
     }
 
     @Override
     public void destroy() {
-
     }
 }

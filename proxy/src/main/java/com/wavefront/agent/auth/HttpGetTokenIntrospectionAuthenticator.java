@@ -13,7 +13,6 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.util.EntityUtils;
 
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -25,8 +24,6 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 class HttpGetTokenIntrospectionAuthenticator extends TokenIntrospectionAuthenticator {
-  private static final Logger logger = Logger.getLogger(HttpGetTokenIntrospectionAuthenticator.class.getCanonicalName());
-
   private final HttpClient httpClient;
   private final String tokenIntrospectionServiceUrl;
   private final String tokenIntrospectionServiceAuthorizationHeader;

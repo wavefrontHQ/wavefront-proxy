@@ -1,15 +1,14 @@
 package com.wavefront.agent.listeners;
 
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RateLimiter;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.wavefront.agent.Utils;
+import com.wavefront.common.MessageDedupingLogger;
+import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
-import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.formatter.DataFormat;
@@ -29,6 +28,7 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +48,7 @@ import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
-import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.handlers.LineDelimitedUtils.splitPushData;
 import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.preprocessAndHandlePoint;
@@ -67,6 +67,7 @@ import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.prep
 public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger = Logger.getLogger(
       RelayPortUnificationHandler.class.getCanonicalName());
+  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 3, 0.2);
   private static final String ERROR_HISTO_DISABLED = "Ingested point discarded because histogram " +
       "feature has not been enabled for your account";
   private static final String ERROR_SPAN_DISABLED = "Ingested span discarded because distributed " +
@@ -76,21 +77,18 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
-  private final Map<ReportableEntityType, ReportableEntityDecoder> decoders;
+  private final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders;
   private final ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
-  private final ReportableEntityHandler<ReportPoint> wavefrontHandler;
-  private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<Span>> spanHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandlerSupplier;
+  private final ReportableEntityHandler<ReportPoint, String> wavefrontHandler;
+  private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<Span, String>> spanHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandlerSupplier;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final SharedGraphiteHostAnnotator annotator;
 
   private final Supplier<Boolean> histogramDisabled;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
-
-  // log warnings every 5 seconds
-  private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
 
   private final Supplier<Counter> discardedHistograms;
   private final Supplier<Counter> discardedSpans;
@@ -113,7 +111,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   public RelayPortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
-      final Map<ReportableEntityType, ReportableEntityDecoder> decoders,
+      final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders,
       final ReportableEntityHandlerFactory handlerFactory,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       @Nullable final SharedGraphiteHostAnnotator annotator,
@@ -121,7 +119,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       final Supplier<Boolean> spanLogsDisabled) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.decoders = decoders;
-    this.wavefrontDecoder = decoders.get(ReportableEntityType.POINT);
+    this.wavefrontDecoder = (ReportableEntityDecoder<String, ReportPoint>) decoders.
+        get(ReportableEntityType.POINT);
     this.wavefrontHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT,
         handle));
     this.histogramHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
@@ -146,10 +145,9 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest request) {
+                                   final FullHttpRequest request) throws URISyntaxException {
     StringBuilder output = new StringBuilder();
-    URI uri = ChannelUtils.parseUri(ctx, request);
-    if (uri == null) return;
+    URI uri = new URI(request.uri());
     String path = uri.getPath();
     final boolean isDirectIngestion = path.startsWith("/report");
     if (path.endsWith("/checkin") && (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
@@ -184,9 +182,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         if (histogramDisabled.get()) {
           discardedHistograms.get().inc(lines.length);
           status = HttpResponseStatus.FORBIDDEN;
-          if (warningLoggerRateLimiter.tryAcquire()) {
-            logger.info(ERROR_HISTO_DISABLED);
-          }
+          featureDisabledLogger.info(ERROR_HISTO_DISABLED);
           output.append(ERROR_HISTO_DISABLED);
           break;
         }
@@ -195,13 +191,18 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         AtomicBoolean hasSuccessfulPoints = new AtomicBoolean(false);
         try {
           //noinspection unchecked
-          ReportableEntityDecoder<String, ReportPoint> histogramDecoder = decoders.get(
-              ReportableEntityType.HISTOGRAM);
+          ReportableEntityDecoder<String, ReportPoint> histogramDecoder =
+              (ReportableEntityDecoder<String, ReportPoint>) decoders.
+                  get(ReportableEntityType.HISTOGRAM);
           Arrays.stream(lines).forEach(line -> {
             String message = line.trim();
             if (message.isEmpty()) return;
             DataFormat dataFormat = DataFormat.autodetect(message);
             switch (dataFormat) {
+              case EVENT:
+                wavefrontHandler.reject(message, "Relay port does not support " +
+                    "event-formatted data!");
+                break;
               case SOURCE_TAG:
                 wavefrontHandler.reject(message, "Relay port does not support " +
                     "sourceTag-formatted data!");
@@ -209,9 +210,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
               case HISTOGRAM:
                 if (histogramDisabled.get()) {
                   discardedHistograms.get().inc(lines.length);
-                  if (warningLoggerRateLimiter.tryAcquire()) {
-                    logger.info(ERROR_HISTO_DISABLED);
-                  }
+                  featureDisabledLogger.info(ERROR_HISTO_DISABLED);
                   output.append(ERROR_HISTO_DISABLED);
                   break;
                 }
@@ -232,7 +231,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
           status = hasSuccessfulPoints.get() ? okStatus : HttpResponseStatus.BAD_REQUEST;
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
-          writeExceptionText(e, output);
+          output.append(errorMessageWithRootCause(e));
           logWarning("WF-300: Failed to handle HTTP POST", e, ctx);
         }
         break;
@@ -240,17 +239,16 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         if (traceDisabled.get()) {
           discardedSpans.get().inc(lines.length);
           status = HttpResponseStatus.FORBIDDEN;
-          if (warningLoggerRateLimiter.tryAcquire()) {
-            logger.info(ERROR_SPAN_DISABLED);
-          }
+          featureDisabledLogger.info(ERROR_SPAN_DISABLED);
           output.append(ERROR_SPAN_DISABLED);
           break;
         }
         List<Span> spans = Lists.newArrayListWithCapacity(lines.length);
         //noinspection unchecked
-        ReportableEntityDecoder<String, Span> spanDecoder = decoders.get(
-            ReportableEntityType.TRACE);
-        ReportableEntityHandler<Span> spanHandler = spanHandlerSupplier.get();
+        ReportableEntityDecoder<String, Span> spanDecoder =
+            (ReportableEntityDecoder<String, Span>) decoders.
+                get(ReportableEntityType.TRACE);
+        ReportableEntityHandler<Span, String> spanHandler = spanHandlerSupplier.get();
         Arrays.stream(lines).forEach(line -> {
           try {
             spanDecoder.decode(line, spans, "dummy");
@@ -265,17 +263,16 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         if (spanLogsDisabled.get()) {
           discardedSpanLogs.get().inc(lines.length);
           status = HttpResponseStatus.FORBIDDEN;
-          if (warningLoggerRateLimiter.tryAcquire()) {
-            logger.info(ERROR_SPANLOGS_DISABLED);
-          }
+          featureDisabledLogger.info(ERROR_SPANLOGS_DISABLED);
           output.append(ERROR_SPANLOGS_DISABLED);
           break;
         }
         List<SpanLogs> spanLogs = Lists.newArrayListWithCapacity(lines.length);
         //noinspection unchecked
-        ReportableEntityDecoder<JsonNode, SpanLogs> spanLogDecoder = decoders.get(
-            ReportableEntityType.TRACE_SPAN_LOGS);
-        ReportableEntityHandler<SpanLogs> spanLogsHandler = spanLogsHandlerSupplier.get();
+        ReportableEntityDecoder<JsonNode, SpanLogs> spanLogDecoder =
+            (ReportableEntityDecoder<JsonNode, SpanLogs>) decoders.
+                get(ReportableEntityType.TRACE_SPAN_LOGS);
+        ReportableEntityHandler<SpanLogs, String> spanLogsHandler = spanLogsHandlerSupplier.get();
         Arrays.stream(lines).forEach(line -> {
           try {
             spanLogDecoder.decode(JSON_PARSER.readTree(line), spanLogs, "dummy");

@@ -28,7 +28,7 @@
                 <SizeBasedTriggeringPolicy size="100 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="10">
-                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                <Delete basePath="${log-path}" maxDepth="1">
                     <IfFileName glob="wavefront-2*.log" />
                     <IfLastModified age="31d" />
                 </Delete>
@@ -46,7 +46,7 @@
                 <SizeBasedTriggeringPolicy size="100 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="10">
-                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                <Delete basePath="${log-path}" maxDepth="1">
                     <IfFileName glob="wavefront-blocked*.log" />
                     <IfLastModified age="31d" />
                 </Delete>
@@ -65,7 +65,7 @@
                 <SizeBasedTriggeringPolicy size="1024 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="10">
-                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                <Delete basePath="${log-path}" maxDepth="1">
                     <IfFileName glob="wavefront-valid*.log" />
                     <IfLastModified age="7d" />
                 </Delete>
@@ -84,7 +84,7 @@
                 <SizeBasedTriggeringPolicy size="1024 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="10">
-                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                <Delete basePath="${log-path}" maxDepth="1">
                     <IfFileName glob="wavefront-jaeger*.log" />
                     <IfLastModified age="7d" />
                 </Delete>
@@ -103,7 +103,7 @@
                 <SizeBasedTriggeringPolicy size="1024 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="10">
-                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                <Delete basePath="${log-path}" maxDepth="1">
                     <IfFileName glob="wavefront-zipkin*.log" />
                     <IfLastModified age="7d" />
                 </Delete>

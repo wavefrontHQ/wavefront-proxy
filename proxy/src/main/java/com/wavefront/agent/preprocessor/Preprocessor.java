@@ -132,18 +132,4 @@ public class Preprocessor<T> {
   public void addFilter(int index, AnnotatedPredicate<T> filter) {
     filters.add(index, filter);
   }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj) return true;
-    if (obj == null || getClass() != obj.getClass()) return false;
-    Preprocessor that = (Preprocessor) obj;
-    return this.transformers.equals(that.transformers) &&
-        this.filters.equals(that.filters);
-  }
-
-  @Override
-  public int hashCode() {
-    return 31 * transformers.hashCode() + filters.hashCode();
-  }
 }

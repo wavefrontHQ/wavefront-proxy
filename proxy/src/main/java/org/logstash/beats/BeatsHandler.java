@@ -2,7 +2,7 @@ package org.logstash.beats;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.wavefront.agent.Utils;
+import com.wavefront.common.Utils;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;

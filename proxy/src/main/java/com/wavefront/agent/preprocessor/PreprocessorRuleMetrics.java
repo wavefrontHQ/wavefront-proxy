@@ -26,34 +26,12 @@ public class PreprocessorRuleMetrics {
     this.ruleCheckedCounter = ruleCheckedCounter;
   }
 
-  @Deprecated
-  public PreprocessorRuleMetrics(@Nullable Counter ruleAppliedCounter, @Nullable Counter ruleCpuTimeNanosCounter) {
-    this(ruleAppliedCounter, ruleCpuTimeNanosCounter, null);
-  }
-
-  @Deprecated
-  public PreprocessorRuleMetrics(@Nullable Counter ruleAppliedCounter) {
-    this(ruleAppliedCounter, null);
-  }
-
   /**
    * Increment ruleAppliedCounter (if available) by 1
    */
   public void incrementRuleAppliedCounter() {
     if (this.ruleAppliedCounter != null) {
       this.ruleAppliedCounter.inc();
-    }
-  }
-
-  /**
-   * Increment ruleCpuTimeNanosCounter (if available) by {@code n}
-   *
-   * @param n the amount by which the counter will be increased
-   */
-  @Deprecated
-  public void countCpuNanos(long n) {
-    if (this.ruleCpuTimeNanosCounter != null) {
-      this.ruleCpuTimeNanosCounter.inc(n);
     }
   }
 

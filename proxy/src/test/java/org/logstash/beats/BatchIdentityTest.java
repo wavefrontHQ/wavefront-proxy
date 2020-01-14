@@ -2,9 +2,9 @@ package org.logstash.beats;
 
 import com.google.common.collect.ImmutableMap;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import java.util.Collections;
 import java.util.Iterator;
 
@@ -97,7 +97,7 @@ public class BatchIdentityTest {
       public void release() {
       }
 
-      @NotNull
+      @Nonnull
       @Override
       public Iterator<Message> iterator() {
         return Collections.emptyIterator();

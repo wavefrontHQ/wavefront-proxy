@@ -84,6 +84,7 @@ import java.util.concurrent.TimeUnit;
  * @author Mori Bellamy (mori@wavefront.com)
  */
 
+@SuppressWarnings("CanBeFinal")
 public class LogsIngestionConfig extends Configuration {
   /**
    * How often metrics are aggregated and sent to wavefront. Histograms are cleared every time they are sent,

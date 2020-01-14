@@ -2,7 +2,7 @@ package com.wavefront.agent.channel;
 
 import com.yammer.metrics.core.Counter;
 
-import javax.validation.constraints.NotNull;
+import javax.annotation.Nonnull;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -19,8 +19,8 @@ public class ConnectionTrackingHandler extends ChannelInboundHandlerAdapter {
   private final Counter acceptedConnections;
   private final Counter activeConnections;
 
-  public ConnectionTrackingHandler(@NotNull Counter acceptedConnectionsCounter,
-                                   @NotNull Counter activeConnectionsCounter) {
+  public ConnectionTrackingHandler(@Nonnull Counter acceptedConnectionsCounter,
+                                   @Nonnull Counter activeConnectionsCounter) {
     this.acceptedConnections = acceptedConnectionsCounter;
     this.activeConnections = activeConnectionsCounter;
   }

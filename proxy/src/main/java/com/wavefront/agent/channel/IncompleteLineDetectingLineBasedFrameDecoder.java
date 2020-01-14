@@ -1,14 +1,14 @@
 package com.wavefront.agent.channel;
 
-import org.apache.commons.lang3.StringUtils;
-
-import java.nio.charset.Charset;
-import java.util.List;
-import java.util.logging.Logger;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.LineBasedFrameDecoder;
+import org.apache.commons.lang3.StringUtils;
+
+import javax.annotation.Nonnull;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Line-delimited decoder that has the ability of detecting when clients have disconnected while leaving some
@@ -17,12 +17,12 @@ import io.netty.handler.codec.LineBasedFrameDecoder;
  * @author vasily@wavefront.com
  */
 public class IncompleteLineDetectingLineBasedFrameDecoder extends LineBasedFrameDecoder {
+  private final Consumer<String> warningMessageConsumer;
 
-  protected static final Logger logger = Logger.getLogger(
-      IncompleteLineDetectingLineBasedFrameDecoder.class.getName());
-
-  IncompleteLineDetectingLineBasedFrameDecoder(int maxLength) {
+  IncompleteLineDetectingLineBasedFrameDecoder(@Nonnull Consumer<String> warningMessageConsumer,
+                                               int maxLength) {
     super(maxLength, true, false);
+    this.warningMessageConsumer = warningMessageConsumer;
   }
 
   @Override
@@ -30,9 +30,9 @@ public class IncompleteLineDetectingLineBasedFrameDecoder extends LineBasedFrame
     super.decodeLast(ctx, in, out);
     int readableBytes = in.readableBytes();
     if (readableBytes > 0) {
-      String discardedData = in.readBytes(readableBytes).toString(Charset.forName("UTF-8"));
+      String discardedData = in.readBytes(readableBytes).toString(StandardCharsets.UTF_8);
       if (StringUtils.isNotBlank(discardedData)) {
-        logger.warning("Client " + ChannelUtils.getRemoteName(ctx) +
+        warningMessageConsumer.accept("Client " + ChannelUtils.getRemoteName(ctx) +
             " disconnected, leaving unterminated string. Input (" + readableBytes +
             " bytes) discarded: \"" + discardedData + "\"");
       }

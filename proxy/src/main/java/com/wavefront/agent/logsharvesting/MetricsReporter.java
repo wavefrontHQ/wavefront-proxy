@@ -18,7 +18,7 @@ import java.util.logging.Logger;
 import wavefront.report.ReportPoint;
 import wavefront.report.TimeSeries;
 
-import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.common.Utils.lazySupplier;
 
 /**
  * @author Mori Bellamy (mori@wavefront.com)
@@ -27,11 +27,10 @@ public class MetricsReporter extends AbstractPollingReporter {
 
   protected static final Logger logger = Logger.getLogger(MetricsReporter.class.getCanonicalName());
   private final FlushProcessor flushProcessor;
-  private final Supplier<ReportableEntityHandler<ReportPoint>> pointHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportPoint, String>> pointHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
   private final String prefix;
 
-  @SuppressWarnings("unchecked")
   public MetricsReporter(MetricsRegistry metricsRegistry, FlushProcessor flushProcessor, String name,
                          ReportableEntityHandlerFactory handlerFactory, String prefix) {
     super(metricsRegistry, name);

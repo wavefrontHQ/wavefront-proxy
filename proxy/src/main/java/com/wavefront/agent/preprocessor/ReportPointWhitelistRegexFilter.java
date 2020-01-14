@@ -2,8 +2,6 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
 
-import com.yammer.metrics.core.Counter;
-
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -23,13 +21,6 @@ public class ReportPointWhitelistRegexFilter implements AnnotatedPredicate<Repor
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  @Deprecated
-  public ReportPointWhitelistRegexFilter(final String scope,
-                                         final String patternMatch,
-                                         @Nullable final Counter ruleAppliedCounter) {
-    this(scope, patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public ReportPointWhitelistRegexFilter(final String scope,
                                          final String patternMatch,
                                          final PreprocessorRuleMetrics ruleMetrics) {
@@ -44,34 +35,33 @@ public class ReportPointWhitelistRegexFilter implements AnnotatedPredicate<Repor
   @Override
   public boolean test(@Nonnull ReportPoint reportPoint, @Nullable String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
-    switch (scope) {
-      case "metricName":
-        if (!compiledPattern.matcher(reportPoint.getMetric()).matches()) {
-          ruleMetrics.incrementRuleAppliedCounter();
-          ruleMetrics.ruleEnd(startNanos);
-          return false;
-        }
-        break;
-      case "sourceName":
-        if (!compiledPattern.matcher(reportPoint.getHost()).matches()) {
-          ruleMetrics.incrementRuleAppliedCounter();
-          ruleMetrics.ruleEnd(startNanos);
-          return false;
-        }
-        break;
-      default:
-        if (reportPoint.getAnnotations() != null) {
-          String tagValue = reportPoint.getAnnotations().get(scope);
-          if (tagValue != null && compiledPattern.matcher(tagValue).matches()) {
-            ruleMetrics.ruleEnd(startNanos);
-            return true;
+    try {
+      switch (scope) {
+        case "metricName":
+          if (!compiledPattern.matcher(reportPoint.getMetric()).matches()) {
+            ruleMetrics.incrementRuleAppliedCounter();
+            return false;
           }
-        }
-        ruleMetrics.incrementRuleAppliedCounter();
-        ruleMetrics.ruleEnd(startNanos);
-        return false;
+          break;
+        case "sourceName":
+          if (!compiledPattern.matcher(reportPoint.getHost()).matches()) {
+            ruleMetrics.incrementRuleAppliedCounter();
+            return false;
+          }
+          break;
+        default:
+          if (reportPoint.getAnnotations() != null) {
+            String tagValue = reportPoint.getAnnotations().get(scope);
+            if (tagValue != null && compiledPattern.matcher(tagValue).matches()) {
+              return true;
+            }
+          }
+          ruleMetrics.incrementRuleAppliedCounter();
+          return false;
+      }
+      return true;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return true;
   }
 }

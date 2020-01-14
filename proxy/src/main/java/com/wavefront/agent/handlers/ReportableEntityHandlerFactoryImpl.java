@@ -1,13 +1,15 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.common.SamplingLogger;
 import com.wavefront.api.agent.ValidationConfiguration;
+import com.wavefront.data.ReportableEntityType;
+import org.apache.commons.lang.math.NumberUtils;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Supplier;
 import java.util.logging.Logger;
 
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 
 /**
  * Caching factory for {@link ReportableEntityHandler} objects. Makes sure there's only one handler
@@ -17,18 +19,32 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandlerFactory {
-  private static final Logger logger = Logger.getLogger(
-      ReportableEntityHandlerFactoryImpl.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger("sampling");
 
-  private static final int SOURCE_TAG_API_NUM_THREADS = 2;
-  private static final int EVENT_API_NUM_THREADS = 2;
+  public static final Logger VALID_POINTS_LOGGER = new SamplingLogger(
+      ReportableEntityType.POINT, Logger.getLogger("RawValidPoints"),
+      getSystemPropertyAsDouble("wavefront.proxy.logpoints.sample-rate"),
+      "true".equalsIgnoreCase(System.getProperty("wavefront.proxy.logpoints")), logger::info);
+  public static final Logger VALID_HISTOGRAMS_LOGGER = new SamplingLogger(
+      ReportableEntityType.HISTOGRAM, Logger.getLogger("RawValidHistograms"),
+      getSystemPropertyAsDouble("wavefront.proxy.logpoints.sample-rate"),
+      "true".equalsIgnoreCase(System.getProperty("wavefront.proxy.logpoints")), logger::info);
+  private static final Logger VALID_SPANS_LOGGER = new SamplingLogger(
+      ReportableEntityType.TRACE, Logger.getLogger("RawValidSpans"),
+      getSystemPropertyAsDouble("wavefront.proxy.logspans.sample-rate"), false, logger::info);
+  private static final Logger VALID_SPAN_LOGS_LOGGER = new SamplingLogger(
+      ReportableEntityType.TRACE_SPAN_LOGS, Logger.getLogger("RawValidSpanLogs"),
+      getSystemPropertyAsDouble("wavefront.proxy.logspans.sample-rate"), false, logger::info);
+  private static final Logger VALID_EVENTS_LOGGER = new SamplingLogger(
+      ReportableEntityType.EVENT, Logger.getLogger("RawValidEvents"),
+      getSystemPropertyAsDouble("wavefront.proxy.logevents.sample-rate"), false, logger::info);
 
-  protected final Map<HandlerKey, ReportableEntityHandler> handlers = new HashMap<>();
+  protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?, ?>>> handlers =
+      new HashMap<>();
 
   private final SenderTaskFactory senderTaskFactory;
   private final int blockedItemsPerBatch;
-  private final int defaultFlushThreads;
-  private final Supplier<ValidationConfiguration> validationConfig;
+  private final ValidationConfiguration validationConfig;
   private final Logger blockedPointsLogger;
   private final Logger blockedHistogramsLogger;
   private final Logger blockedSpansLogger;
@@ -40,52 +56,50 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
    *                             for new handlers.
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
    *                             into the main log file.
-   * @param defaultFlushThreads  control fanout for SenderTasks.
-   * @param validationConfig     Supplier for the ValidationConfiguration.
+   * @param validationConfig     validation configuration.
    */
   public ReportableEntityHandlerFactoryImpl(
       final SenderTaskFactory senderTaskFactory, final int blockedItemsPerBatch,
-      final int defaultFlushThreads,
-      @Nullable final Supplier<ValidationConfiguration> validationConfig,
-      final Logger blockedPointsLogger, final Logger blockedHistogramsLogger,
-      final Logger blockedSpansLogger) {
+      @Nonnull final ValidationConfiguration validationConfig, final Logger blockedPointsLogger,
+      final Logger blockedHistogramsLogger, final Logger blockedSpansLogger) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
-    this.defaultFlushThreads = defaultFlushThreads;
     this.validationConfig = validationConfig;
     this.blockedPointsLogger = blockedPointsLogger;
     this.blockedHistogramsLogger = blockedHistogramsLogger;
     this.blockedSpansLogger = blockedSpansLogger;
   }
 
+  @SuppressWarnings("unchecked")
   @Override
-  public ReportableEntityHandler getHandler(HandlerKey handlerKey) {
-    return  handlers.computeIfAbsent(handlerKey, k -> {
+  public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
+    return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey.getHandle(),
+        h -> new HashMap<>()).computeIfAbsent(handlerKey.getEntityType(), k -> {
       switch (handlerKey.getEntityType()) {
         case POINT:
-          return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
-              validationConfig, false, true, blockedPointsLogger);
+          return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
+              senderTaskFactory.createSenderTasks(handlerKey),
+              validationConfig, true, blockedPointsLogger, VALID_POINTS_LOGGER);
         case HISTOGRAM:
-          return new ReportPointHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
-              validationConfig, true, true, blockedHistogramsLogger);
+          return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
+              senderTaskFactory.createSenderTasks(handlerKey),
+              validationConfig, false, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER);
         case SOURCE_TAG:
-          return new ReportSourceTagHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, SOURCE_TAG_API_NUM_THREADS),
+          return new ReportSourceTagHandlerImpl(handlerKey, blockedItemsPerBatch,
+              senderTaskFactory.createSenderTasks(handlerKey),
               blockedPointsLogger);
         case TRACE:
-          return new SpanHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
-              validationConfig, blockedSpansLogger);
+          return new SpanHandlerImpl(handlerKey, blockedItemsPerBatch,
+              senderTaskFactory.createSenderTasks(handlerKey),
+              validationConfig, blockedSpansLogger, VALID_SPANS_LOGGER);
         case TRACE_SPAN_LOGS:
-          return new SpanLogsHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, defaultFlushThreads),
-              blockedSpansLogger);
+          return new SpanLogsHandlerImpl(handlerKey, blockedItemsPerBatch,
+              senderTaskFactory.createSenderTasks(handlerKey),
+              blockedSpansLogger, VALID_SPAN_LOGS_LOGGER);
         case EVENT:
-          return new EventHandlerImpl(handlerKey.getHandle(), blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey, EVENT_API_NUM_THREADS),
-              blockedPointsLogger);
+          return new EventHandlerImpl(handlerKey, blockedItemsPerBatch,
+              senderTaskFactory.createSenderTasks(handlerKey),
+              blockedPointsLogger, VALID_EVENTS_LOGGER);
         default:
           throw new IllegalArgumentException("Unexpected entity type " +
               handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());
@@ -94,7 +108,14 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   }
 
   @Override
-  public void shutdown() {
-    //
+  public void shutdown(@Nonnull String handle) {
+    if (handlers.containsKey(handle)) {
+      handlers.get(handle).values().forEach(ReportableEntityHandler::shutdown);
+    }
+  }
+
+  private static double getSystemPropertyAsDouble(String propertyName) {
+    String sampleRateProperty = propertyName == null ? null : System.getProperty(propertyName);
+    return NumberUtils.isNumber(sampleRateProperty) ? Double.parseDouble(sampleRateProperty) : 1.0d;
   }
 }

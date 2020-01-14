@@ -48,7 +48,8 @@ public class AccumulationCacheTest {
   public void setup() {
     backingStore = new ConcurrentHashMap<>();
     tickerTime = new AtomicLong(0L);
-    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(COMPRESSION, 100L);
+    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(COMPRESSION, 100,
+        tickerTime::get);
     ac = new AccumulationCache(backingStore, agentDigestFactory, CAPACITY, "", tickerTime::get);
     cache = ac.getCache();
 
@@ -108,7 +109,7 @@ public class AccumulationCacheTest {
         .create();
     AtomicBoolean hasFailed = new AtomicBoolean(false);
     AccumulationCache ac = new AccumulationCache(chronicleMap,
-        new AgentDigestFactory(COMPRESSION, 100L), 10, "", tickerTime::get,
+        new AgentDigestFactory(COMPRESSION, 100L, tickerTime::get), 10, "", tickerTime::get,
         () -> hasFailed.set(true));
 
     for (int i = 0; i < 1000; i++) {

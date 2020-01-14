@@ -2,7 +2,6 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -62,9 +61,6 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
     if (!patternMatcher.find()) {
       return false;
     }
-    if (span.getAnnotations() == null) {
-      span.setAnnotations(Lists.newArrayList());
-    }
     String value = patternMatcher.replaceAll(PreprocessorUtil.expandPlaceholders(patternReplace, span));
     if (!value.isEmpty()) {
       span.getAnnotations().add(new Annotation(key, value));
@@ -104,12 +100,11 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
     }
   }
 
+  @Nullable
   @Override
-  public Span apply(@Nonnull Span span) {
+  public Span apply(@Nullable Span span) {
+    if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations() == null) {
-      span.setAnnotations(Lists.newArrayList());
-    }
     internalApply(span);
     ruleMetrics.ruleEnd(startNanos);
     return span;
