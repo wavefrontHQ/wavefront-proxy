@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ConnectionHandler extends ChannelDuplexHandler {
   private final static Logger logger = LogManager.getLogger(ConnectionHandler.class);
 
-  public static AttributeKey<AtomicBoolean> CHANNEL_SEND_KEEP_ALIVE = AttributeKey.valueOf("channel-send-keep-alive");
+  public static final AttributeKey<AtomicBoolean> CHANNEL_SEND_KEEP_ALIVE = AttributeKey.valueOf("channel-send-keep-alive");
 
   @Override
   public void channelActive(final ChannelHandlerContext ctx) throws Exception {

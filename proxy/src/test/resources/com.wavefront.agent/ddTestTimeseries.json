@@ -22,7 +22,8 @@
           0.0
         ]
       ],
-      "host": "testHost"
+      "host": "testHost",
+      "tags": ["env:prod,type:test", "source:Launcher"]
     },
     {
       "type": "gauge",

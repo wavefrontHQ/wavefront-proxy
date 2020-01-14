@@ -1,8 +1,6 @@
 package com.wavefront.agent.preprocessor;
 
-import com.google.common.collect.Lists;
-
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import wavefront.report.Annotation;
 import wavefront.report.Span;
@@ -21,12 +19,11 @@ public class SpanAddAnnotationIfNotExistsTransformer extends SpanAddAnnotationTr
     super(key, value, ruleMetrics);
   }
 
+  @Nullable
   @Override
-  public Span apply(@Nonnull Span span) {
+  public Span apply(@Nullable Span span) {
+    if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations() == null) {
-      span.setAnnotations(Lists.newArrayList());
-    }
     if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
       span.getAnnotations().add(new Annotation(key, PreprocessorUtil.expandPlaceholders(value, span)));
       ruleMetrics.incrementRuleAppliedCounter();

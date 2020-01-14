@@ -8,6 +8,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.yaml.snakeyaml.Yaml;
 
@@ -28,7 +29,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Parses preprocessor rules (organized by listening port)
@@ -58,54 +58,32 @@ public class PreprocessorConfigManager {
   int totalValidRules = 0;
 
   public PreprocessorConfigManager() {
-    this(null, null, System::currentTimeMillis);
+    this(System::currentTimeMillis);
   }
 
-  public PreprocessorConfigManager(@Nullable String fileName) throws FileNotFoundException {
-    this(fileName, fileName == null ? null : new FileInputStream(fileName),
-        System::currentTimeMillis);
-  }
-
+  /**
+   * @param timeSupplier Supplier for current time (in millis).
+   */
   @VisibleForTesting
-  PreprocessorConfigManager(@Nullable String fileName,
-                            @Nullable InputStream inputStream,
-                            @Nonnull Supplier<Long> timeSupplier) {
+  PreprocessorConfigManager(@Nonnull Supplier<Long> timeSupplier) {
     this.timeSupplier = timeSupplier;
+    userPreprocessorsTs = timeSupplier.get();
+    userPreprocessors = Collections.emptyMap();
+  }
 
-    if (inputStream != null) {
-      // if input stream is specified, perform initial load from the stream
-      try {
-        userPreprocessorsTs = timeSupplier.get();
-        userPreprocessors = loadFromStream(inputStream);
-      } catch (RuntimeException ex) {
-        throw new RuntimeException(ex.getMessage() + " - aborting start-up");
+  /**
+   * Schedules periodic checks for config file modification timestamp and performs hot-reload
+   *
+   * @param fileName                Path name of the file to be monitored.
+   * @param fileCheckIntervalMillis Timestamp check interval.
+   */
+  public void setUpConfigFileMonitoring(String fileName, int fileCheckIntervalMillis) {
+    new Timer("Timer-preprocessor-configmanager").schedule(new TimerTask() {
+      @Override
+      public void run() {
+        loadFileIfModified(fileName);
       }
-    }
-    if (fileName != null) {
-      // if there is a file name with preprocessor rules, load it and schedule periodic reloads
-      new Timer().schedule(new TimerTask() {
-        @Override
-        public void run() {
-          try {
-            File file = new File(fileName);
-            long lastModified = file.lastModified();
-            if (lastModified > userPreprocessorsTs) {
-              logger.info("File " + file +
-                  " has been modified on disk, reloading preprocessor rules");
-              userPreprocessorsTs = timeSupplier.get();
-              userPreprocessors = loadFromStream(new FileInputStream(file));
-              configReloads.inc();
-            }
-          } catch (Exception e) {
-            logger.log(Level.SEVERE, "Unable to load preprocessor rules", e);
-            failedConfigReloads.inc();
-          }
-        }
-      }, 5, 5);
-    } else if (inputStream == null){
-      userPreprocessorsTs = timeSupplier.get();
-      userPreprocessors = Collections.emptyMap();
-    }
+    }, fileCheckIntervalMillis, fileCheckIntervalMillis);
   }
 
   public ReportableEntityPreprocessor getSystemPreprocessor(String key) {
@@ -133,8 +111,9 @@ public class PreprocessorConfigManager {
     }
     return this.preprocessors.computeIfAbsent(key, x -> new ReportableEntityPreprocessor());
   }
+
   private void requireArguments(@Nonnull Map<String, String> rule, String... arguments) {
-    if (rule == null)
+    if (rule.isEmpty())
       throw new IllegalArgumentException("Rule is empty");
     for (String argument : arguments) {
       if (rule.get(argument) == null || rule.get(argument).replaceAll("[^a-z0-9_-]", "").isEmpty())
@@ -152,7 +131,28 @@ public class PreprocessorConfigManager {
   }
 
   @VisibleForTesting
-  Map<String, ReportableEntityPreprocessor> loadFromStream(InputStream stream) {
+  void loadFileIfModified(String fileName) {
+    try {
+      File file = new File(fileName);
+      long lastModified = file.lastModified();
+      if (lastModified > userPreprocessorsTs) {
+        logger.info("File " + file +
+            " has been modified on disk, reloading preprocessor rules");
+        loadFile(fileName);
+        configReloads.inc();
+      }
+    } catch (Exception e) {
+      logger.log(Level.SEVERE, "Unable to load preprocessor rules", e);
+      failedConfigReloads.inc();
+    }
+  }
+
+  public void loadFile(String filename) throws FileNotFoundException {
+    loadFromStream(new FileInputStream(new File(filename)));
+  }
+
+  @VisibleForTesting
+  void loadFromStream(InputStream stream) {
     totalValidRules = 0;
     totalInvalidRules = 0;
     Yaml yaml = new Yaml();
@@ -163,7 +163,11 @@ public class PreprocessorConfigManager {
       if (rulesByPort == null) {
         logger.warning("Empty preprocessor rule file detected!");
         logger.info("Total 0 rules loaded");
-        return Collections.emptyMap();
+        synchronized (this) {
+          this.userPreprocessorsTs = timeSupplier.get();
+          this.userPreprocessors = Collections.emptyMap();
+        }
+        return;
       }
       for (String strPort : rulesByPort.keySet()) {
         portMap.put(strPort, new ReportableEntityPreprocessor());
@@ -174,8 +178,8 @@ public class PreprocessorConfigManager {
           try {
             requireArguments(rule, "rule", "action");
             allowArguments(rule, "rule", "action", "scope", "search", "replace", "match", "tag",
-                "key", "newtag", "newkey", "value", "source", "input", "iterations", "replaceSource",
-                "replaceInput", "actionSubtype", "maxLength", "firstMatchOnly");
+                "key", "newtag", "newkey", "value", "source", "input", "iterations",
+                "replaceSource", "replaceInput", "actionSubtype", "maxLength", "firstMatchOnly");
             String ruleName = rule.get("rule").replaceAll("[^a-z0-9_-]", "");
             PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
                 Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
@@ -403,7 +407,12 @@ public class PreprocessorConfigManager {
       }
     } catch (ClassCastException e) {
       throw new RuntimeException("Can't parse preprocessor configuration");
+    } finally {
+      IOUtils.closeQuietly(stream);
     }
-    return portMap;
+    synchronized (this) {
+      this.userPreprocessorsTs = timeSupplier.get();
+      this.userPreprocessors = portMap;
+    }
   }
 }

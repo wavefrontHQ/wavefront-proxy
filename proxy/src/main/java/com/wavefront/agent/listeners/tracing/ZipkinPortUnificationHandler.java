@@ -4,11 +4,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.util.concurrent.RateLimiter;
 
-import com.wavefront.agent.Utils;
+import com.wavefront.common.MessageDedupingLogger;
+import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
-import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -30,6 +29,7 @@ import org.apache.commons.lang.StringUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -59,7 +59,7 @@ import wavefront.report.SpanLogs;
 import zipkin2.SpanBytesDecoderDetector;
 import zipkin2.codec.BytesDecoder;
 
-import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
@@ -85,9 +85,10 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {
   private static final Logger logger = Logger.getLogger(
       ZipkinPortUnificationHandler.class.getCanonicalName());
-  private final String handle;
-  private final ReportableEntityHandler<Span> spanHandler;
-  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
+  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 2, 0.2);
+
+  private final ReportableEntityHandler<Span, String> spanHandler;
+  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   @Nullable
   private final WavefrontSender wfSender;
   @Nullable
@@ -97,7 +98,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Sampler sampler;
   private final boolean alwaysSampleErrors;
-  private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
@@ -117,7 +117,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
 
   private static final Logger ZIPKIN_DATA_LOGGER = Logger.getLogger("ZipkinDataLogger");
 
-  @SuppressWarnings("unchecked")
   public ZipkinPortUnificationHandler(String handle,
                                       final HealthCheckManager healthCheckManager,
                                       ReportableEntityHandlerFactory handlerFactory,
@@ -139,8 +138,8 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
   @VisibleForTesting
   ZipkinPortUnificationHandler(final String handle,
                                final HealthCheckManager healthCheckManager,
-                               ReportableEntityHandler<Span> spanHandler,
-                               ReportableEntityHandler<SpanLogs> spanLogsHandler,
+                               ReportableEntityHandler<Span, String> spanHandler,
+                               ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
                                @Nullable WavefrontSender wfSender,
                                Supplier<Boolean> traceDisabled,
                                Supplier<Boolean> spanLogsDisabled,
@@ -150,7 +149,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
                                @Nullable String traceZipkinApplicationName,
                                Set<String> traceDerivedCustomTagKeys) {
     super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, handle);
-    this.handle = handle;
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
@@ -188,21 +186,19 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest incomingRequest) {
-    URI uri = ChannelUtils.parseUri(ctx, incomingRequest);
-    if (uri == null) return;
-
+                                   final FullHttpRequest request) throws URISyntaxException {
+    URI uri = new URI(request.uri());
     String path = uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
 
     // Validate Uri Path and HTTP method of incoming Zipkin spans.
     if (!ZIPKIN_VALID_PATHS.contains(path)) {
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported URL path.", incomingRequest);
-      logWarning("WF-400: Requested URI path '" + path + "' is not supported.", null, ctx);
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported URL path.", request);
+      logWarning("Requested URI path '" + path + "' is not supported.", null, ctx);
       return;
     }
-    if (!incomingRequest.method().toString().equalsIgnoreCase(ZIPKIN_VALID_HTTP_METHOD)) {
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported Http method.", incomingRequest);
-      logWarning("WF-400: Requested http method '" + incomingRequest.method().toString() +
+    if (!request.method().toString().equalsIgnoreCase(ZIPKIN_VALID_HTTP_METHOD)) {
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported Http method.", request);
+      logWarning("Requested http method '" + request.method().toString() +
           "' is not supported.", null, ctx);
       return;
     }
@@ -212,21 +208,19 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
 
     // Handle case when tracing is disabled, ignore reported spans.
     if (traceDisabled.get()) {
-      if (warningLoggerRateLimiter.tryAcquire()) {
-        logger.info("Ingested spans discarded because tracing feature is not enabled on the " +
-            "server");
-      }
+      featureDisabledLogger.info("Ingested spans discarded because tracing feature is not " +
+          "enabled on the server");
       discardedBatches.inc();
       output.append("Ingested spans discarded because tracing feature is not enabled on the " +
           "server.");
       status = HttpResponseStatus.ACCEPTED;
-      writeHttpResponse(ctx, status, output, incomingRequest);
+      writeHttpResponse(ctx, status, output, request);
       return;
     }
 
     try {
-      byte[] bytesArray = new byte[incomingRequest.content().nioBuffer().remaining()];
-      incomingRequest.content().nioBuffer().get(bytesArray, 0, bytesArray.length);
+      byte[] bytesArray = new byte[request.content().nioBuffer().remaining()];
+      request.content().nioBuffer().get(bytesArray, 0, bytesArray.length);
       BytesDecoder<zipkin2.Span> decoder = SpanBytesDecoderDetector.decoderForListMessage(bytesArray);
       List<zipkin2.Span> zipkinSpanSink = new ArrayList<>();
       decoder.decodeList(bytesArray, zipkinSpanSink);
@@ -235,11 +229,11 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       processedBatches.inc();
     } catch (Exception e) {
       failedBatches.inc();
-      writeExceptionText(e, output);
+      output.append(errorMessageWithRootCause(e));
       status = HttpResponseStatus.BAD_REQUEST;
       logger.log(Level.WARNING, "Zipkin batch processing failed", Throwables.getRootCause(e));
     }
-    writeHttpResponse(ctx, status, output, incomingRequest);
+    writeHttpResponse(ctx, status, output, request);
   }
 
   private void processZipkinSpans(List<zipkin2.Span> zipkinSpans) {
@@ -341,7 +335,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       annotations.add(new Annotation("_spanLogs", "true"));
     }
 
-    /** Add source of the span following the below:
+    /* Add source of the span following the below:
      *    1. If "source" is provided by span tags , use it else
      *    2. Default "source" to "zipkin".
      */
@@ -398,10 +392,8 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
         if (spanLogsDisabled.get()) {
-          if (warningLoggerRateLimiter.tryAcquire()) {
-            logger.info("Span logs discarded because the feature is not " +
-                "enabled on the server!");
-          }
+          featureDisabledLogger.info("Span logs discarded because the feature is not " +
+              "enabled on the server!");
         } else {
           SpanLogs spanLogs = SpanLogs.newBuilder().
               setCustomer("default").
@@ -449,7 +441,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     scheduledExecutorService.shutdownNow();
   }
 }

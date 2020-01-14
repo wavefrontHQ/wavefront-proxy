@@ -1,0 +1,39 @@
+'2878':
+  - rule    : test-blacklist-sourcename
+    action  : blacklistRegex
+    scope   : sourceName
+    match   : "bar.*"
+
+  # replace bad characters ("&", "$", "!") with underscores in the entire point line string
+  - rule    : test-replace-badchars
+    action  : replaceRegex
+    scope   : pointLine
+    search  : "[&\\$#!]"
+    replace : "_"
+
+  - rule    : test-dupe-2
+    action  : replaceRegex
+    scope   : pointLine
+    search  : "a"
+    replace : "b"
+
+  # remove "metrictest." from the metric name
+  - rule    : test-replace-metric-name
+    action  : replaceRegex
+    scope   : metricName
+    search  : "metrictest\\."
+    replace : ""
+
+  # for "bar" point tag replace all "-" characters with dots
+  - rule    : test-replace-tag-dash
+    action  : replaceRegex
+    scope   : bar
+    search  : "-"
+    replace : "."
+
+  - rule    : example-extract-metric-prefix
+    action  : extractTag
+    source  : metricName
+    tag     : prefix
+    search  : "^(some).*"
+    replace : "$1"

@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
-import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -30,6 +29,7 @@ import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -48,7 +48,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 import wavefront.report.ReportPoint;
 
-import static com.wavefront.agent.channel.ChannelUtils.writeExceptionText;
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static io.netty.handler.codec.http.HttpMethod.POST;
 
@@ -66,13 +66,13 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Pattern INVALID_METRIC_CHARACTERS = Pattern.compile("[^-_\\.\\dA-Za-z]");
   private static final Pattern INVALID_TAG_CHARACTERS = Pattern.compile("[^-_:\\.\\\\/\\dA-Za-z]");
 
-  private volatile Histogram httpRequestSize;
+  private final Histogram httpRequestSize;
 
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and
    * retries, etc
    */
-  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
   private final boolean processSystemMetrics;
   private final boolean processServiceChecks;
   @Nullable
@@ -90,7 +90,6 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       maximumSize(100_000).
       build();
 
-  @SuppressWarnings("unchecked")
   public DataDogPortUnificationHandler(
       final String handle, final HealthCheckManager healthCheckManager,
       final ReportableEntityHandlerFactory handlerFactory, final boolean processSystemMetrics,
@@ -105,7 +104,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   @VisibleForTesting
   protected DataDogPortUnificationHandler(
       final String handle, final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandler<ReportPoint> pointHandler, final boolean processSystemMetrics,
+      final ReportableEntityHandler<ReportPoint, String> pointHandler, final boolean processSystemMetrics,
       final boolean processServiceChecks, @Nullable final HttpClient requestRelayClient,
       @Nullable final String requestRelayTarget,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
@@ -131,26 +130,23 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest incomingRequest) {
+                                   final FullHttpRequest request) throws URISyntaxException {
     StringBuilder output = new StringBuilder();
     AtomicInteger pointsPerRequest = new AtomicInteger();
-
-    URI uri = ChannelUtils.parseUri(ctx, incomingRequest);
-    if (uri == null) return;
-
+    URI uri = new URI(request.uri());
     HttpResponseStatus status = HttpResponseStatus.ACCEPTED;
-    String requestBody = incomingRequest.content().toString(CharsetUtil.UTF_8);
+    String requestBody = request.content().toString(CharsetUtil.UTF_8);
 
     if (requestRelayClient != null && requestRelayTarget != null &&
-        incomingRequest.method() == POST) {
+        request.method() == POST) {
       Histogram requestRelayDuration = Metrics.newHistogram(new TaggedMetricName("listeners",
           "http-relay.duration-nanos", "port", handle));
-      Long startNanos = System.nanoTime();
+      long startNanos = System.nanoTime();
       try {
-        String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + incomingRequest.uri();
+        String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + request.uri();
         HttpPost outgoingRequest = new HttpPost(outgoingUrl);
-        if (incomingRequest.headers().contains("Content-Type")) {
-          outgoingRequest.addHeader("Content-Type", incomingRequest.headers().get("Content-Type"));
+        if (request.headers().contains("Content-Type")) {
+          outgoingRequest.addHeader("Content-Type", request.headers().get("Content-Type"));
         }
         outgoingRequest.setEntity(new StringEntity(requestBody));
         logger.info("Relaying incoming HTTP request to " + outgoingUrl);
@@ -162,7 +158,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         if (httpStatusCode < 200 || httpStatusCode >= 300) {
           // anything that is not 2xx is relayed as is to the client, don't process the payload
           writeHttpResponse(ctx, HttpResponseStatus.valueOf(httpStatusCode),
-              EntityUtils.toString(response.getEntity(), "UTF-8"), incomingRequest);
+              EntityUtils.toString(response.getEntity(), "UTF-8"), request);
           return;
         }
         EntityUtils.consumeQuietly(response.getEntity());
@@ -172,7 +168,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.failed",
             "port", handle)).inc();
         writeHttpResponse(ctx, HttpResponseStatus.BAD_GATEWAY, "Unable to relay request: " +
-                e.getMessage(), incomingRequest);
+                e.getMessage(), request);
         return;
       } finally {
         requestRelayDuration.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos));
@@ -189,18 +185,18 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           }
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
-          writeExceptionText(e, output);
+          output.append(errorMessageWithRootCause(e));
           logWarning("WF-300: Failed to handle /api/v1/series request", e, ctx);
         }
         httpRequestSize.update(pointsPerRequest.intValue());
-        writeHttpResponse(ctx, status, output, incomingRequest);
+        writeHttpResponse(ctx, status, output, request);
         break;
 
       case "/api/v1/check_run/":
         if (!processServiceChecks) {
           Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port",
               handle)).inc();
-          writeHttpResponse(ctx, HttpResponseStatus.ACCEPTED, output, incomingRequest);
+          writeHttpResponse(ctx, HttpResponseStatus.ACCEPTED, output, request);
           return;
         }
         try {
@@ -209,21 +205,21 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           }
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
-          writeExceptionText(e, output);
+          output.append(errorMessageWithRootCause(e));
           logWarning("WF-300: Failed to handle /api/v1/check_run request", e, ctx);
         }
-        writeHttpResponse(ctx, status, output, incomingRequest);
+        writeHttpResponse(ctx, status, output, request);
         break;
 
       case "/api/v1/validate/":
-        writeHttpResponse(ctx, HttpResponseStatus.OK, output, incomingRequest);
+        writeHttpResponse(ctx, HttpResponseStatus.OK, output, request);
         break;
 
       case "/intake/":
         if (!processSystemMetrics) {
           Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port",
               handle)).inc();
-          writeHttpResponse(ctx, HttpResponseStatus.ACCEPTED, output, incomingRequest);
+          writeHttpResponse(ctx, HttpResponseStatus.ACCEPTED, output, request);
           return;
         }
         try {
@@ -232,16 +228,16 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           }
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
-          writeExceptionText(e, output);
+          output.append(errorMessageWithRootCause(e));
           logWarning("WF-300: Failed to handle /intake request", e, ctx);
         }
         httpRequestSize.update(pointsPerRequest.intValue());
-        writeHttpResponse(ctx, status, output, incomingRequest);
+        writeHttpResponse(ctx, status, output, request);
         break;
 
       default:
-        writeHttpResponse(ctx, HttpResponseStatus.NO_CONTENT, output, incomingRequest);
-        logWarning("WF-300: Unexpected path '" + incomingRequest.uri() + "', returning HTTP 204",
+        writeHttpResponse(ctx, HttpResponseStatus.NO_CONTENT, output, request);
+        logWarning("WF-300: Unexpected path '" + request.uri() + "', returning HTTP 204",
             null, ctx);
         break;
     }

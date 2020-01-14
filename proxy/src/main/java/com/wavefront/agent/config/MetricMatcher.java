@@ -27,6 +27,7 @@ import wavefront.report.TimeSeries;
  *
  * @author Mori Bellamy (mori@wavefront.com)
  */
+@SuppressWarnings("CanBeFinal")
 public class MetricMatcher extends Configuration {
   protected static final Logger logger = Logger.getLogger(MetricMatcher.class.getCanonicalName());
   private final Object grokLock = new Object();
@@ -198,7 +199,7 @@ public class MetricMatcher extends Configuration {
   }
 
   public boolean hasCapture(String label) {
-    return grok().getNamedRegexCollection().values().contains(label);
+    return grok().getNamedRegexCollection().containsValue(label);
   }
 
   @Override

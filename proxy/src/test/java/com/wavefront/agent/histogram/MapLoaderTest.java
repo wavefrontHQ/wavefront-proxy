@@ -5,6 +5,7 @@ import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.wavefront.agent.histogram.Utils.HistogramKey;
 import com.wavefront.agent.histogram.Utils.HistogramKeyMarshaller;
 
+import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.map.VanillaChronicleMap;
 
 import org.junit.After;
@@ -36,8 +37,8 @@ public class MapLoaderTest {
   @Before
   public void setup() {
     try {
-      file = File.createTempFile("test-file", ".tmp");
-      file.deleteOnExit();
+      file = new File(File.createTempFile("test-file-chronicle", null).getPath() + ".map");
+
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -67,22 +68,24 @@ public class MapLoaderTest {
   }
 
   @Test
-  public void testPersistence() {
-    ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
+  public void testReconfigureMap() {
+    ChronicleMap<HistogramKey, AgentDigest> map = loader.get(file);
     map.put(key, digest);
-
-    loader = new MapLoader<>(
-        HistogramKey.class,
-        AgentDigest.class,
-        100,
-        200,
-        1000,
-        HistogramKeyMarshaller.get(),
-        AgentDigestMarshaller.get(),
-        true);
-
+    map.close();
+    loader = new MapLoader<>(HistogramKey.class, AgentDigest.class, 50, 100, 500,
+        HistogramKeyMarshaller.get(), AgentDigestMarshaller.get(), true);
     map = loader.get(file);
+    assertThat(map).containsKey(key);
+  }
 
+  @Test
+  public void testPersistence() throws Exception {
+    ChronicleMap<HistogramKey, AgentDigest> map = loader.get(file);
+    map.put(key, digest);
+    map.close();
+    loader = new MapLoader<>(HistogramKey.class, AgentDigest.class, 100, 200, 1000,
+        HistogramKeyMarshaller.get(), AgentDigestMarshaller.get(), true);
+    map = loader.get(file);
     assertThat(map).containsKey(key);
   }
 

@@ -1,19 +1,19 @@
 package com.wavefront.agent.channel;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Streams;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.net.InetAddress;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-
-import static com.wavefront.agent.channel.CachingHostnameLookupResolver.getRemoteAddress;
+import static com.wavefront.agent.channel.ChannelUtils.getRemoteAddress;
 
 /**
  * Given a raw Graphite/Wavefront line, look for any host tag, and add it if implicit.
@@ -27,6 +27,8 @@ import static com.wavefront.agent.channel.CachingHostnameLookupResolver.getRemot
  */
 @ChannelHandler.Sharable
 public class SharedGraphiteHostAnnotator {
+  private static final List<String> DEFAULT_SOURCE_TAGS = ImmutableList.of("source",
+      "host", "\"source\"", "\"host\"");
 
   private final Function<InetAddress, String> hostnameResolver;
   private final List<String> sourceTags;
@@ -34,21 +36,18 @@ public class SharedGraphiteHostAnnotator {
   public SharedGraphiteHostAnnotator(@Nullable final List<String> customSourceTags,
                                      @Nonnull Function<InetAddress, String> hostnameResolver) {
     this.hostnameResolver = hostnameResolver;
-    this.sourceTags = Lists.newArrayListWithExpectedSize(customSourceTags == null ? 4 : customSourceTags.size() + 4);
-    this.sourceTags.add("source=");
-    this.sourceTags.add("source\"=");
-    this.sourceTags.add("host=");
-    this.sourceTags.add("host\"=");
-    if (customSourceTags != null) {
-      this.sourceTags.addAll(customSourceTags.stream().map(customTag -> customTag + "=").collect(Collectors.toList()));
-    }
+    this.sourceTags = Streams.concat(DEFAULT_SOURCE_TAGS.stream(),
+        customSourceTags == null ? Stream.empty() : customSourceTags.stream()).
+        map(customTag -> customTag + "=").collect(Collectors.toList());
   }
 
   public String apply(ChannelHandlerContext ctx, String msg) {
-    for (String tag : sourceTags) {
+    for (int i = 0; i < sourceTags.size(); i++) {
+      String tag = sourceTags.get(i);
       int strIndex = msg.indexOf(tag);
       // if a source tags is found and is followed by a non-whitespace tag value, add without change
-      if (strIndex > -1 && msg.length() - strIndex - tag.length() > 0 && msg.charAt(strIndex + tag.length()) > ' ') {
+      if (strIndex > -1 && msg.length() - strIndex - tag.length() > 0 &&
+          msg.charAt(strIndex + tag.length()) > ' ') {
         return msg;
       }
     }

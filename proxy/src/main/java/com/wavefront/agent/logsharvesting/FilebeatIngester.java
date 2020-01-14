@@ -19,10 +19,11 @@ import io.netty.channel.ChannelHandlerContext;
  */
 public class FilebeatIngester implements IMessageListener {
   protected static final Logger logger = Logger.getLogger(LogsIngester.class.getCanonicalName());
-  private LogsIngester logsIngester;
-  private Counter received, malformed;
-  private Histogram drift;
-  private Supplier<Long> currentMillis;
+  private final LogsIngester logsIngester;
+  private final Counter received;
+  private final Counter malformed;
+  private final Histogram drift;
+  private final Supplier<Long> currentMillis;
 
   public FilebeatIngester(LogsIngester logsIngester, Supplier<Long> currentMillis) {
     this.logsIngester = logsIngester;

@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
-import com.wavefront.agent.channel.ChannelUtils;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -21,13 +20,13 @@ import com.wavefront.metrics.JsonMetricsParser;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
@@ -55,7 +54,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
   /**
    * The point handler that takes report metrics one data point at a time and handles batching and retries, etc
    */
-  private final ReportableEntityHandler<ReportPoint> pointHandler;
+  private final ReportableEntityHandler<ReportPoint, String> pointHandler;
   private final String prefix;
   private final String defaultHost;
 
@@ -74,7 +73,6 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
    * @param defaultHost        default host name to use, if none specified.
    * @param preprocessor       preprocessor.
    */
-  @SuppressWarnings("unchecked")
   public JsonMetricsPortUnificationHandler(
       final String handle, final TokenAuthenticator authenticator,
       final HealthCheckManager healthCheckManager,
@@ -89,7 +87,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
   protected JsonMetricsPortUnificationHandler(
       final String handle, final TokenAuthenticator authenticator,
       final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandler<ReportPoint> pointHandler,
+      final ReportableEntityHandler<ReportPoint, String> pointHandler,
       final String prefix, final String defaultHost,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(authenticator, healthCheckManager, handle);
@@ -102,22 +100,22 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest incomingRequest) {
+                                   final FullHttpRequest request) throws URISyntaxException {
     StringBuilder output = new StringBuilder();
     try {
-      URI uri = ChannelUtils.parseUri(ctx, incomingRequest);
+      URI uri = new URI(request.uri());
       Map<String, String> params = Arrays.stream(uri.getRawQuery().split("&")).
           map(x -> new Pair<>(x.split("=")[0].trim().toLowerCase(), x.split("=")[1])).
           collect(Collectors.toMap(k -> k._1, v -> v._2));
 
-      String requestBody = incomingRequest.content().toString(CharsetUtil.UTF_8);
+      String requestBody = request.content().toString(CharsetUtil.UTF_8);
 
       Map<String, String> tags = Maps.newHashMap();
       params.entrySet().stream().
           filter(x -> !STANDARD_PARAMS.contains(x.getKey()) && x.getValue().length() > 0).
           forEach(x -> tags.put(x.getKey(), x.getValue()));
       List<ReportPoint> points = new ArrayList<>();
-      Long timestamp;
+      long timestamp;
       if (params.get("d") == null) {
         timestamp = Clock.now();
       } else {
@@ -139,7 +137,7 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
       String[] messageHolder = new String[1];
       JsonMetricsParser.report("dummy", prefix, metrics, points, host, timestamp);
       for (ReportPoint point : points) {
-        if (point.getAnnotations() == null || point.getAnnotations().isEmpty()) {
+        if (point.getAnnotations().isEmpty()) {
           point.setAnnotations(tags);
         } else {
           Map<String, String> newAnnotations = Maps.newHashMap(tags);
@@ -159,10 +157,10 @@ public class JsonMetricsPortUnificationHandler extends AbstractHttpOnlyHandler {
         }
         pointHandler.report(point);
       }
-      writeHttpResponse(ctx, HttpResponseStatus.OK, output, incomingRequest);
+      writeHttpResponse(ctx, HttpResponseStatus.OK, output, request);
     } catch (IOException e) {
       logWarning("WF-300: Error processing incoming JSON request", e, ctx);
-      writeHttpResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, output, incomingRequest);
+      writeHttpResponse(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, output, request);
     }
   }
 }

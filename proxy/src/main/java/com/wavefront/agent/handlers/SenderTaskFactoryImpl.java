@@ -1,20 +1,34 @@
 package com.wavefront.agent.handlers;
 
-import com.google.common.util.concurrent.RecyclableRateLimiter;
-
-import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
-import com.wavefront.agent.api.ForceQueueEnabledProxyAPI;
+import com.google.common.annotations.VisibleForTesting;
+import com.wavefront.common.Managed;
+import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.data.EntityPropertiesFactory;
+import com.wavefront.agent.data.QueueingReason;
+import com.wavefront.agent.queueing.QueueController;
+import com.wavefront.agent.queueing.QueueingFactory;
+import com.wavefront.agent.queueing.TaskSizeEstimator;
+import com.wavefront.agent.queueing.TaskQueueFactory;
+import com.wavefront.common.NamedThreadFactory;
+import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
 
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_HISTOGRAM;
 import static com.wavefront.api.agent.Constants.PUSH_FORMAT_TRACING;
@@ -28,98 +42,126 @@ import static com.wavefront.api.agent.Constants.PUSH_FORMAT_WAVEFRONT;
  */
 public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
-  private List<SenderTask> managedTasks = new ArrayList<>();
+  private final Map<String, List<ReportableEntityType>> entityTypes = new HashMap<>();
+  private final Map<HandlerKey, ScheduledExecutorService> executors = new HashMap<>();
+  private final Map<HandlerKey, List<SenderTask<?>>> managedTasks = new HashMap<>();
+  private final Map<HandlerKey, Managed> managedServices = new HashMap<>();
 
-  private final ForceQueueEnabledProxyAPI proxyAPI;
+  /**
+   * Keep track of all {@link TaskSizeEstimator} instances to calculate global buffer fill rate.
+   */
+  private final Map<HandlerKey, TaskSizeEstimator> taskSizeEstimators = new HashMap<>();
+
+  private final APIContainer apiContainer;
   private final UUID proxyId;
-  private final RecyclableRateLimiter globalRateLimiter;
-  private final AtomicInteger pushFlushInterval;
-  private final AtomicInteger pointsPerBatch;
-  private final AtomicInteger memoryBufferLimit;
-
-  // TODO: sync with backend
-  private static final RecyclableRateLimiter SOURCE_TAG_RATE_LIMITER =
-      RecyclableRateLimiterImpl.create(5, 10);
-  private static final RecyclableRateLimiter EVENT_RATE_LIMITER =
-      RecyclableRateLimiterImpl.create(5, 10);
+  private final TaskQueueFactory taskQueueFactory;
+  private final QueueingFactory queueingFactory;
+  private final EntityPropertiesFactory entityPropsFactory;
 
   /**
    * Create new instance.
    *
-   * @param proxyAPI          handles interaction with Wavefront servers as well as queueing.
-   * @param proxyId           proxy ID.
-   * @param globalRateLimiter rate limiter to control outbound point rate.
-   * @param pushFlushInterval interval between flushes.
-   * @param itemsPerBatch     max points per flush.
-   * @param memoryBufferLimit max points in task's memory buffer before queueing.
+   * @param apiContainer       handles interaction with Wavefront servers as well as queueing.
+   * @param proxyId            proxy ID.
+   * @param taskQueueFactory   factory for backing queues.
+   * @param queueingFactory    factory for queueing.
+   * @param entityPropsFactory factory for entity-specific wrappers for mutable proxy settings.
    */
-  public SenderTaskFactoryImpl(final ForceQueueEnabledProxyAPI proxyAPI,
+  public SenderTaskFactoryImpl(final APIContainer apiContainer,
                                final UUID proxyId,
-                               final RecyclableRateLimiter globalRateLimiter,
-                               final AtomicInteger pushFlushInterval,
-                               @Nullable final AtomicInteger itemsPerBatch,
-                               @Nullable final AtomicInteger memoryBufferLimit) {
-    this.proxyAPI = proxyAPI;
+                               final TaskQueueFactory taskQueueFactory,
+                               @Nullable final QueueingFactory queueingFactory,
+                               final EntityPropertiesFactory entityPropsFactory) {
+    this.apiContainer = apiContainer;
     this.proxyId = proxyId;
-    this.globalRateLimiter = globalRateLimiter;
-    this.pushFlushInterval = pushFlushInterval;
-    this.pointsPerBatch = itemsPerBatch;
-    this.memoryBufferLimit = memoryBufferLimit;
+    this.taskQueueFactory = taskQueueFactory;
+    this.queueingFactory = queueingFactory;
+    this.entityPropsFactory = entityPropsFactory;
+    // global `~proxy.buffer.fill-rate` metric aggregated from all task size estimators
+    Metrics.newGauge(new TaggedMetricName("buffer", "fill-rate"),
+        new Gauge<Long>() {
+          @Override
+          public Long value() {
+            List<Long> sizes = taskSizeEstimators.values().stream().
+                map(TaskSizeEstimator::getBytesPerMinute).filter(Objects::nonNull).
+                collect(Collectors.toList());
+            return sizes.size() == 0 ? null : sizes.stream().mapToLong(x -> x).sum();
+          }
+        });
   }
 
-  public Collection<SenderTask> createSenderTasks(@NotNull HandlerKey handlerKey,
-                                                  final int numThreads) {
-    List<SenderTask> toReturn = new ArrayList<>(numThreads);
+  @SuppressWarnings("unchecked")
+  public Collection<SenderTask<?>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
+    ReportableEntityType entityType = handlerKey.getEntityType();
+    int numThreads = entityPropsFactory.get(entityType).getFlushThreads();
+    List<SenderTask<?>> toReturn = new ArrayList<>(numThreads);
+    TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getHandle());
+    taskSizeEstimators.put(handlerKey, taskSizeEstimator);
+
+    ScheduledExecutorService scheduler = executors.computeIfAbsent(handlerKey, x ->
+        Executors.newScheduledThreadPool(numThreads, new NamedThreadFactory("submitter-" +
+            handlerKey.getEntityType() + "-" + handlerKey.getHandle())));
+
     for (int threadNo = 0; threadNo < numThreads; threadNo++) {
-      SenderTask senderTask;
-      switch (handlerKey.getEntityType()) {
+      SenderTask<?> senderTask;
+      switch (entityType) {
         case POINT:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.POINT.toString(),
-              PUSH_FORMAT_WAVEFRONT, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
-              globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
-          break;
         case DELTA_COUNTER:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.DELTA_COUNTER.toString(),
-              PUSH_FORMAT_WAVEFRONT, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
-              globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
+          senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_WAVEFRONT,
+              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
+              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case HISTOGRAM:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.HISTOGRAM.toString(),
-              PUSH_FORMAT_HISTOGRAM, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
-              globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
+          senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_HISTOGRAM,
+              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
+              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case SOURCE_TAG:
-          senderTask = new ReportSourceTagSenderTask(proxyAPI, handlerKey.getHandle(),
-              threadNo, pushFlushInterval, SOURCE_TAG_RATE_LIMITER, pointsPerBatch, memoryBufferLimit);
+          senderTask = new SourceTagSenderTask(handlerKey, apiContainer.getSourceTagAPI(),
+              threadNo, entityPropsFactory.get(entityType), scheduler,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE.toString(),
-              PUSH_FORMAT_TRACING, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
-              globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
+          senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_TRACING,
+              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
+              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE_SPAN_LOGS:
-          senderTask = new LineDelimitedSenderTask(ReportableEntityType.TRACE_SPAN_LOGS.toString(),
-              PUSH_FORMAT_TRACING_SPAN_LOGS, proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
-              globalRateLimiter, pushFlushInterval, pointsPerBatch, memoryBufferLimit);
+          senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_TRACING_SPAN_LOGS,
+              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
+              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case EVENT:
-          senderTask = new EventSenderTask(proxyAPI, proxyId, handlerKey.getHandle(), threadNo,
-              pushFlushInterval, EVENT_RATE_LIMITER, new AtomicInteger(25), memoryBufferLimit);
+          senderTask = new EventSenderTask(handlerKey, apiContainer.getEventAPI(), proxyId,
+              threadNo, entityPropsFactory.get(entityType), scheduler,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         default:
           throw new IllegalArgumentException("Unexpected entity type " +
               handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());
       }
       toReturn.add(senderTask);
-      managedTasks.add(senderTask);
+      senderTask.start();
     }
+    if (queueingFactory != null) {
+      QueueController<?> controller = queueingFactory.getQueueController(handlerKey, numThreads);
+      managedServices.put(handlerKey, controller);
+      controller.start();
+    }
+    managedTasks.put(handlerKey, toReturn);
+    entityTypes.computeIfAbsent(handlerKey.getHandle(), x -> new ArrayList<>()).
+        add(handlerKey.getEntityType());
     return toReturn;
   }
 
   @Override
   public void shutdown() {
-    managedTasks.stream().map(SenderTask::shutdown).forEach(x -> {
+    managedTasks.values().stream().flatMap(Collection::stream).forEach(Managed::stop);
+    taskSizeEstimators.values().forEach(TaskSizeEstimator::shutdown);
+    managedServices.values().forEach(Managed::stop);
+    executors.values().forEach(x -> {
       try {
+        x.shutdown();
         x.awaitTermination(1000, TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         // ignore
@@ -128,9 +170,34 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   }
 
   @Override
-  public void drainBuffersToQueue() {
-    for (SenderTask task : managedTasks) {
-      task.drainBuffersToQueue();
+  public void shutdown(@Nonnull String handle) {
+    List<ReportableEntityType> types = entityTypes.get(handle);
+    if (types == null) return;
+    try {
+      types.forEach(x -> taskSizeEstimators.remove(HandlerKey.of(x, handle)).shutdown());
+      types.forEach(x -> managedServices.remove(HandlerKey.of(x, handle)).stop());
+      types.forEach(x -> managedTasks.remove(HandlerKey.of(x, handle)).forEach(t -> {
+        t.stop();
+        t.drainBuffersToQueue(null);
+      }));
+      types.forEach(x -> executors.remove(HandlerKey.of(x, handle)).shutdown());
+    } finally {
+      entityTypes.remove(handle);
     }
+  }
+
+  @Override
+  public void drainBuffersToQueue(QueueingReason reason) {
+    managedTasks.values().stream().flatMap(Collection::stream).
+        forEach(x -> x.drainBuffersToQueue(reason));
+  }
+
+  @VisibleForTesting
+  public void flushNow(@Nonnull HandlerKey handlerKey) {
+    managedTasks.get(handlerKey).forEach(task -> {
+      if (task instanceof AbstractSenderTask) {
+        ((AbstractSenderTask<?>) task).run();
+      }
+    });
   }
 }

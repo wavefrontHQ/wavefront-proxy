@@ -1,7 +1,7 @@
 package com.wavefront.agent.formatter;
 
+import com.wavefront.ingester.AbstractIngesterFormatter;
 import com.wavefront.ingester.EventDecoder;
-import com.wavefront.ingester.ReportSourceTagDecoder;
 
 /**
  * Best-effort data format auto-detection.
@@ -16,8 +16,8 @@ public enum DataFormat {
     char firstChar = input.charAt(0);
     switch (firstChar) {
       case '@':
-        if (input.startsWith(ReportSourceTagDecoder.SOURCE_TAG) ||
-            input.startsWith(ReportSourceTagDecoder.SOURCE_DESCRIPTION)) {
+        if (input.startsWith(AbstractIngesterFormatter.SOURCE_TAG_LITERAL) ||
+            input.startsWith(AbstractIngesterFormatter.SOURCE_DESCRIPTION_LITERAL)) {
           return SOURCE_TAG;
         }
         if (input.startsWith(EventDecoder.EVENT)) return EVENT;

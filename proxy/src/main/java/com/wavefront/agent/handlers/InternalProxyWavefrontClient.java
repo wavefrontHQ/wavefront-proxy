@@ -6,8 +6,11 @@ import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.histograms.HistogramGranularity;
 import com.wavefront.sdk.entities.tracing.SpanLog;
+import wavefront.report.Histogram;
+import wavefront.report.HistogramType;
+import wavefront.report.ReportPoint;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,44 +18,24 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
-
-import wavefront.report.Histogram;
-import wavefront.report.HistogramType;
-import wavefront.report.ReportPoint;
-import wavefront.report.Span;
-import wavefront.report.SpanLogs;
-
-import static com.wavefront.agent.Utils.lazySupplier;
+import static com.wavefront.common.Utils.lazySupplier;
 
 public class InternalProxyWavefrontClient implements WavefrontSender {
-  private final ReportableEntityHandlerFactory handlerFactory;
-  private final Supplier<ReportableEntityHandler<ReportPoint>> pointHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<ReportPoint>> histogramHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<Span>> spanHandlerSupplier;
-  private final Supplier<ReportableEntityHandler<SpanLogs>> spanLogsHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportPoint, String>> pointHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
   private final String clientId;
 
-  public InternalProxyWavefrontClient(ReportableEntityHandlerFactory handlerFactory) {
-    this(handlerFactory, "internal_client");
-  }
-
-  @SuppressWarnings("unchecked")
-  public InternalProxyWavefrontClient(ReportableEntityHandlerFactory handlerFactory1, String handle) {
-    this.handlerFactory = handlerFactory1;
+  public InternalProxyWavefrontClient(ReportableEntityHandlerFactory handlerFactory,
+                                      String handle) {
     this.pointHandlerSupplier = lazySupplier(() ->
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)));
     this.histogramHandlerSupplier = lazySupplier(() ->
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)));
-    this.spanHandlerSupplier = lazySupplier(() ->
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)));
-    this.spanLogsHandlerSupplier = lazySupplier(() ->
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)));
     this.clientId = handle;
   }
 
   @Override
-  public void flush() throws IOException {
+  public void flush() {
     // noop
   }
 
@@ -63,8 +46,8 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
 
   @Override
   public void sendDistribution(String name, List<Pair<Double, Integer>> centroids,
-                               Set<HistogramGranularity> histogramGranularities, Long timestamp, String source,
-                               Map<String, String> tags) throws IOException {
+                               Set<HistogramGranularity> histogramGranularities, Long timestamp,
+                               String source, Map<String, String> tags) {
     final List<Double> bins = centroids.stream().map(x -> x._1).collect(Collectors.toList());
     final List<Integer> counts = centroids.stream().map(x -> x._2).collect(Collectors.toList());
     for (HistogramGranularity granularity : histogramGranularities) {
@@ -101,8 +84,8 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   }
 
   @Override
-  public void sendMetric(String name, double value, Long timestamp, String source, Map<String, String> tags)
-      throws IOException {
+  public void sendMetric(String name, double value, Long timestamp, String source,
+                         Map<String, String> tags) {
     // default to millis
     long timestampMillis = 0;
     timestamp = timestamp == null ? Clock.now() : timestamp;
@@ -131,20 +114,19 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
     pointHandlerSupplier.get().report(point);
   }
 
-  @Override
-  public void sendFormattedMetric(String s) throws IOException {
+  public void sendFormattedMetric(String s) {
     throw new UnsupportedOperationException("Not applicable");
   }
 
   @Override
   public void sendSpan(String name, long startMillis, long durationMillis, String source, UUID traceId, UUID spanId,
                        List<UUID> parents, List<UUID> followsFrom, List<Pair<String, String>> tags,
-                       @Nullable List<SpanLog> spanLogs) throws IOException {
+                       @Nullable List<SpanLog> spanLogs) {
     throw new UnsupportedOperationException("Not applicable");
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     // noop
   }
 

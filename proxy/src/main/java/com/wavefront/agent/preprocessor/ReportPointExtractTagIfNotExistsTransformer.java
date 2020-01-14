@@ -1,11 +1,6 @@
 package com.wavefront.agent.preprocessor;
 
-import com.google.common.collect.Maps;
-
-import com.yammer.metrics.core.Counter;
-
 import javax.annotation.Nullable;
-import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -18,17 +13,6 @@ import wavefront.report.ReportPoint;
  */
 public class ReportPointExtractTagIfNotExistsTransformer extends ReportPointExtractTagTransformer {
 
-  @Deprecated
-  public ReportPointExtractTagIfNotExistsTransformer(final String tag,
-                                                     final String source,
-                                                     final String patternSearch,
-                                                     final String patternReplace,
-                                                     @Nullable final String patternMatch,
-                                                     @Nullable final Counter ruleAppliedCounter) {
-    this(tag, source, patternSearch, patternReplace, null, patternMatch,
-        new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public ReportPointExtractTagIfNotExistsTransformer(final String tag,
                                                      final String source,
                                                      final String patternSearch,
@@ -39,12 +23,11 @@ public class ReportPointExtractTagIfNotExistsTransformer extends ReportPointExtr
     super(tag, source, patternSearch, patternReplace, replaceSource, patternMatch, ruleMetrics);
   }
 
+  @Nullable
   @Override
-  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nullable ReportPoint reportPoint) {
+    if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.<String, String>newHashMap());
-    }
     if (reportPoint.getAnnotations().get(tag) == null) {
       internalApply(reportPoint);
     }

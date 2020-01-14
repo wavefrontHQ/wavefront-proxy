@@ -2,8 +2,6 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
 
-import com.yammer.metrics.core.Counter;
-
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -18,12 +16,6 @@ public class PointLineBlacklistRegexFilter implements AnnotatedPredicate<String>
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  @Deprecated
-  public PointLineBlacklistRegexFilter(final String patternMatch,
-                                       @Nullable final Counter ruleAppliedCounter) {
-    this(patternMatch, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public PointLineBlacklistRegexFilter(final String patternMatch,
                                        final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
@@ -35,12 +27,14 @@ public class PointLineBlacklistRegexFilter implements AnnotatedPredicate<String>
   @Override
   public boolean test(String pointLine, @Nullable String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
-    if (compiledPattern.matcher(pointLine).matches()) {
-      ruleMetrics.incrementRuleAppliedCounter();
+    try {
+      if (compiledPattern.matcher(pointLine).matches()) {
+        ruleMetrics.incrementRuleAppliedCounter();
+        return false;
+      }
+      return true;
+    } finally {
       ruleMetrics.ruleEnd(startNanos);
-      return false;
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return true;
   }
 }

@@ -9,6 +9,8 @@ import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+
 /**
  * Utility class for methods used by preprocessors.
  *
@@ -16,6 +18,7 @@ import wavefront.report.Span;
  */
 public abstract class PreprocessorUtil {
 
+  private static final Pattern PLACEHOLDERS = Pattern.compile("\\{\\{(.*?)}}");
   /**
    * Substitute {{...}} placeholders with corresponding components of the point
    * {{metricName}} {{sourceName}} are replaced with the metric name and source respectively
@@ -28,7 +31,7 @@ public abstract class PreprocessorUtil {
   public static String expandPlaceholders(String input, @Nonnull ReportPoint reportPoint) {
     if (input.contains("{{")) {
       StringBuffer result = new StringBuffer();
-      Matcher placeholders = Pattern.compile("\\{\\{(.*?)}}").matcher(input);
+      Matcher placeholders = PLACEHOLDERS.matcher(input);
       while (placeholders.find()) {
         if (placeholders.group(1).isEmpty()) {
           placeholders.appendReplacement(result, placeholders.group(0));
@@ -44,11 +47,7 @@ public abstract class PreprocessorUtil {
             default:
               substitution = reportPoint.getAnnotations().get(placeholders.group(1));
           }
-          if (substitution != null) {
-            placeholders.appendReplacement(result, substitution);
-          } else {
-            placeholders.appendReplacement(result, placeholders.group(0));
-          }
+          placeholders.appendReplacement(result, firstNonNull(substitution, placeholders.group(0)));
         }
       }
       placeholders.appendTail(result);
@@ -69,7 +68,7 @@ public abstract class PreprocessorUtil {
   public static String expandPlaceholders(String input, @Nonnull Span span) {
     if (input.contains("{{")) {
       StringBuffer result = new StringBuffer();
-      Matcher placeholders = Pattern.compile("\\{\\{(.*?)}}").matcher(input);
+      Matcher placeholders = PLACEHOLDERS.matcher(input);
       while (placeholders.find()) {
         if (placeholders.group(1).isEmpty()) {
           placeholders.appendReplacement(result, placeholders.group(0));
@@ -83,14 +82,11 @@ public abstract class PreprocessorUtil {
               substitution = span.getSource();
               break;
             default:
-              substitution = span.getAnnotations().stream().filter(a -> a.getKey().equals(placeholders.group(1))).
+              substitution = span.getAnnotations().stream().
+                  filter(a -> a.getKey().equals(placeholders.group(1))).
                   map(Annotation::getValue).findFirst().orElse(null);
           }
-          if (substitution != null) {
-            placeholders.appendReplacement(result, substitution);
-          } else {
-            placeholders.appendReplacement(result, placeholders.group(0));
-          }
+          placeholders.appendReplacement(result, firstNonNull(substitution, placeholders.group(0)));
         }
       }
       placeholders.appendTail(result);
@@ -98,4 +94,24 @@ public abstract class PreprocessorUtil {
     }
     return input;
   }
+
+  /**
+   * Enforce string max length limit - either truncate or truncate with "..." at the end.
+   *
+   * @param input         Input string to truncate.
+   * @param maxLength     Truncate string at this length.
+   * @param actionSubtype TRUNCATE or TRUNCATE_WITH_ELLIPSIS.
+   * @return truncated string
+   */
+  public static String truncate(String input, int maxLength, LengthLimitActionType actionSubtype) {
+    switch (actionSubtype) {
+      case TRUNCATE:
+        return input.substring(0, maxLength);
+      case TRUNCATE_WITH_ELLIPSIS:
+        return input.substring(0, maxLength - 3) + "...";
+      default:
+        return input;
+    }
+  }
+
 }

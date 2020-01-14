@@ -1,8 +1,7 @@
 package com.wavefront.agent.histogram;
 
-import com.google.common.annotations.VisibleForTesting;
-
-import com.wavefront.agent.TimeProvider;
+import com.wavefront.common.MessageDedupingLogger;
+import com.wavefront.common.TimeProvider;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.Accumulator;
 import com.yammer.metrics.Metrics;
@@ -13,6 +12,7 @@ import com.yammer.metrics.core.MetricName;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -28,6 +28,7 @@ import wavefront.report.ReportPoint;
 public class PointHandlerDispatcher implements Runnable {
   private final static Logger logger = Logger.getLogger(
       PointHandlerDispatcher.class.getCanonicalName());
+  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 2, 0.2);
 
   private final Counter dispatchCounter;
   private final Counter dispatchErrorCounter;
@@ -35,26 +36,21 @@ public class PointHandlerDispatcher implements Runnable {
 
   private final Accumulator digests;
   private final AtomicLong digestsSize = new AtomicLong(0);
-  private final ReportableEntityHandler<ReportPoint> output;
+  private final ReportableEntityHandler<ReportPoint, String> output;
   private final TimeProvider clock;
+  private final Supplier<Boolean> histogramDisabled;
   private final Integer dispatchLimit;
 
   public PointHandlerDispatcher(Accumulator digests,
-                                ReportableEntityHandler<ReportPoint> output,
+                                ReportableEntityHandler<ReportPoint, String> output,
+                                TimeProvider clock,
+                                Supplier<Boolean> histogramDisabled,
                                 @Nullable Integer dispatchLimit,
                                 @Nullable Utils.Granularity granularity) {
-    this(digests, output, System::currentTimeMillis, dispatchLimit, granularity);
-  }
-
-  @VisibleForTesting
-  PointHandlerDispatcher(Accumulator digests,
-                         ReportableEntityHandler<ReportPoint> output,
-                         TimeProvider clock,
-                         @Nullable Integer dispatchLimit,
-                         @Nullable Utils.Granularity granularity) {
     this.digests = digests;
     this.output = output;
     this.clock = clock;
+    this.histogramDisabled = histogramDisabled;
     this.dispatchLimit = dispatchLimit;
 
     String prefix = "histogram.accumulator." + Utils.Granularity.granularityToString(granularity);
@@ -84,13 +80,18 @@ public class PointHandlerDispatcher implements Runnable {
             index.remove();
             return null;
           }
-          try {
-            ReportPoint out = Utils.pointFromKeyAndDigest(k, v);
-            output.report(out);
-            dispatchCounter.inc();
-          } catch (Exception e) {
+          if (histogramDisabled.get()) {
+            featureDisabledLogger.info("Histogram feature is not enabled on the server!");
             dispatchErrorCounter.inc();
-            logger.log(Level.SEVERE, "Failed dispatching entry " + k, e);
+          } else {
+            try {
+              ReportPoint out = Utils.pointFromKeyAndDigest(k, v);
+              output.report(out);
+              dispatchCounter.inc();
+            } catch (Exception e) {
+              dispatchErrorCounter.inc();
+              logger.log(Level.SEVERE, "Failed dispatching entry " + k, e);
+            }
           }
           index.remove();
           dispatchedCount.incrementAndGet();

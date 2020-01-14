@@ -14,6 +14,7 @@ import wavefront.report.Annotation;
 import wavefront.report.Span;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class PreprocessorSpanRulesTest {
@@ -460,13 +461,60 @@ public class PreprocessorSpanRulesTest {
     assertEquals(ImmutableList.of("https://localhost:50051/style/foo/make?id=REDACTED"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(URL)).map(Annotation::getValue).
             collect(Collectors.toList()));
+
+    rule = new SpanReplaceRegexTransformer("boo", "^.*$", "{{foo}}-{{spanName}}-{{sourceName}}{{}}",
+        null, null, false, metrics);
+    span = rule.apply(parseSpan(spanLine));
+    assertEquals("bar1-1234567890-testSpanName-spanSourceName{{}}", span.getAnnotations().stream().
+        filter(x -> x.getKey().equals("boo")).map(Annotation::getValue).findFirst().orElse("fail"));
+  }
+
+  @Test
+  public void testSpanWhitelistBlacklistRules() {
+    String spanLine = "testSpanName source=spanSourceName spanId=4217104a-690d-4927-baff-d9aa779414c2 " +
+        "traceId=d5355bf7-fc8d-48d1-b761-75b170f396e0 foo=bar1-1234567890 foo=bar2-2345678901 foo=bar2-3456789012 " +
+        "foo=bar boo=baz url=\"https://localhost:50051/style/foo/make?id=5145\" " +
+        "1532012145123 1532012146234";
+    SpanBlacklistRegexFilter blacklistRule;
+    SpanWhitelistRegexFilter whitelistRule;
+    Span span = parseSpan(spanLine);
+
+    blacklistRule = new SpanBlacklistRegexFilter(SPAN_NAME, "^test.*$", metrics);
+    whitelistRule = new SpanWhitelistRegexFilter(SPAN_NAME, "^test.*$", metrics);
+    assertFalse(blacklistRule.test(span));
+    assertTrue(whitelistRule.test(span));
+
+    blacklistRule = new SpanBlacklistRegexFilter(SPAN_NAME, "^ztest.*$", metrics);
+    whitelistRule = new SpanWhitelistRegexFilter(SPAN_NAME, "^ztest.*$", metrics);
+    assertTrue(blacklistRule.test(span));
+    assertFalse(whitelistRule.test(span));
+
+    blacklistRule = new SpanBlacklistRegexFilter(SOURCE_NAME, ".*ourceN.*", metrics);
+    whitelistRule = new SpanWhitelistRegexFilter(SOURCE_NAME, ".*ourceN.*", metrics);
+    assertFalse(blacklistRule.test(span));
+    assertTrue(whitelistRule.test(span));
+
+    blacklistRule = new SpanBlacklistRegexFilter(SOURCE_NAME, "ourceN.*", metrics);
+    whitelistRule = new SpanWhitelistRegexFilter(SOURCE_NAME, "ourceN.*", metrics);
+    assertTrue(blacklistRule.test(span));
+    assertFalse(whitelistRule.test(span));
+
+    blacklistRule = new SpanBlacklistRegexFilter("foo", "bar", metrics);
+    whitelistRule = new SpanWhitelistRegexFilter("foo", "bar", metrics);
+    assertFalse(blacklistRule.test(span));
+    assertTrue(whitelistRule.test(span));
+
+    blacklistRule = new SpanBlacklistRegexFilter("foo", "baz", metrics);
+    whitelistRule = new SpanWhitelistRegexFilter("foo", "baz", metrics);
+    assertTrue(blacklistRule.test(span));
+    assertFalse(whitelistRule.test(span));
   }
 
   @Test
   public void testSpanSanitizeTransformer() {
     Span span = Span.newBuilder().setCustomer("dummy").setStartMillis(System.currentTimeMillis())
         .setDuration(2345)
-        .setName(" HTTP GET\"\n? ")
+        .setName(" HTT*P GET\"\n? ")
         .setSource("'customJaegerSource'")
         .setSpanId("00000000-0000-0000-0000-00000023cace")
         .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
@@ -477,7 +525,7 @@ public class PreprocessorSpanRulesTest {
         .build();
     SpanSanitizeTransformer transformer = new SpanSanitizeTransformer(metrics);
     span = transformer.apply(span);
-    assertEquals("HTTP GET\"\\n?", span.getName());
+    assertEquals("HTT-P GET\"\\n?", span.getName());
     assertEquals("-customJaegerSource-", span.getSource());
     assertEquals(ImmutableList.of("''"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("special-tag-")).map(Annotation::getValue).

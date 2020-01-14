@@ -285,3 +285,28 @@
       key           : myDevice
       newkey        : device
       match         : "^\\d*$"
+
+    - rule          : test-spanreplaceregex
+      action        : spanReplaceRegex
+      scope         : fooBarBaz
+      search        : aaa
+      replace       : bbb
+
+    - rule          : test-spanforcelowecase
+      action        : spanForceLowercase
+      scope         : fooBarBaz
+
+    - rule          : test-spanaddtagifnotexists
+      action        : spanAddAnnotationIfNotExists
+      key           : testExtractTag
+      value         : "Oi! This should never happen!"
+
+    - rule          : test-spanBlacklistRegex
+      action        : spanBlacklistRegex
+      scope         : spanName
+      match         : "^badSpan.*$"
+
+    - rule          : test-spanWhitelistRegex
+      action        : spanWhitelistRegex
+      scope         : spanName
+      match         : "^spanName.*$"

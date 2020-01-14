@@ -3,12 +3,11 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
-import com.yammer.metrics.core.Counter;
-
-import java.util.Optional;
+import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import wavefront.report.Annotation;
@@ -45,33 +44,28 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
     this.ruleMetrics = ruleMetrics;
   }
 
+  @Nullable
   @Override
-  public Span apply(@Nonnull Span span) {
+  public Span apply(@Nullable Span span) {
+    if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations() == null) {
-      ruleMetrics.ruleEnd(startNanos);
-      return span;
-    }
-
-    if (firstMatchOnly) {
-      Optional<Annotation> annotation = span.getAnnotations().stream().
-          filter(a -> a.getKey().equals(key) &&
-          (compiledPattern == null || compiledPattern.matcher(a.getValue()).matches())).findFirst();
-
-      if (annotation.isPresent()) {
-        annotation.get().setKey(newKey);
+    try {
+      Stream<Annotation> stream = span.getAnnotations().stream().
+          filter(a -> a.getKey().equals(key) && (compiledPattern == null ||
+              compiledPattern.matcher(a.getValue()).matches()));
+      if (firstMatchOnly) {
+        stream.findFirst().ifPresent(value -> {
+          value.setKey(newKey);
+          ruleMetrics.incrementRuleAppliedCounter();
+        });
+      } else {
+        List<Annotation> annotations = stream.collect(Collectors.toList());
+        annotations.forEach(a -> a.setKey(newKey));
+        if (!annotations.isEmpty()) ruleMetrics.incrementRuleAppliedCounter();
       }
-      ruleMetrics.incrementRuleAppliedCounter();
-      ruleMetrics.ruleEnd(startNanos);
       return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-
-    span.getAnnotations().stream().
-        filter(a -> a.getKey().equals(key) &&
-            (compiledPattern == null || compiledPattern.matcher(a.getValue()).matches())).
-        forEach(a -> a.setKey(newKey));
-    ruleMetrics.incrementRuleAppliedCounter();
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
   }
 }

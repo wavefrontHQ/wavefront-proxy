@@ -2,18 +2,16 @@ package com.wavefront.agent.channel;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.google.common.annotations.VisibleForTesting;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.MetricName;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.function.Function;
-
-import javax.annotation.Nullable;
-
-import io.netty.channel.ChannelHandlerContext;
 
 /**
  * Convert {@link InetAddress} to {@link String}, either by performing reverse DNS lookups (cached, as
@@ -23,20 +21,9 @@ import io.netty.channel.ChannelHandlerContext;
  */
 public class CachingHostnameLookupResolver implements Function<InetAddress, String> {
 
+  private final Function<InetAddress, String> resolverFunc;
   private final LoadingCache<InetAddress, String> rdnsCache;
   private final boolean disableRdnsLookup;
-
-  /**
-   * Create a new instance with all default settings:
-   * - rDNS lookup enabled
-   * - no cache size metric
-   * - max 5000 elements in the cache
-   * - 5 minutes refresh TTL
-   * - 1 hour expiry TTL
-   */
-  public CachingHostnameLookupResolver() {
-    this(false, null);
-  }
 
   /**
    * Create a new instance with default cache settings:
@@ -56,15 +43,25 @@ public class CachingHostnameLookupResolver implements Function<InetAddress, Stri
    *
    * @param disableRdnsLookup if true, simply return a string representation of the IP address.
    * @param metricName        if specified, use this metric for the cache size gauge.
-   * @param maxSize           max cache size.
+   * @param cacheSize         max cache size.
    * @param cacheRefreshTtl   trigger cache refresh after specified duration
    * @param cacheExpiryTtl    expire items after specified duration
    */
   public CachingHostnameLookupResolver(boolean disableRdnsLookup, @Nullable MetricName metricName,
-                                       int maxSize, Duration cacheRefreshTtl, Duration cacheExpiryTtl) {
+                                       int cacheSize, Duration cacheRefreshTtl,
+                                       Duration cacheExpiryTtl) {
+    this(InetAddress::getHostAddress, disableRdnsLookup, metricName, cacheSize, cacheRefreshTtl,
+        cacheExpiryTtl);
+  }
+
+  @VisibleForTesting
+  CachingHostnameLookupResolver(@Nonnull Function<InetAddress, String> resolverFunc,
+                                boolean disableRdnsLookup, @Nullable MetricName metricName,
+                                int cacheSize, Duration cacheRefreshTtl, Duration cacheExpiryTtl) {
+    this.resolverFunc = resolverFunc;
     this.disableRdnsLookup = disableRdnsLookup;
     this.rdnsCache = disableRdnsLookup ? null : Caffeine.newBuilder().
-        maximumSize(maxSize).
+        maximumSize(cacheSize).
         refreshAfterWrite(cacheRefreshTtl).
         expireAfterAccess(cacheExpiryTtl).
         build(InetAddress::getHostName);
@@ -81,10 +78,6 @@ public class CachingHostnameLookupResolver implements Function<InetAddress, Stri
 
   @Override
   public String apply(InetAddress addr) {
-    return disableRdnsLookup ? addr.getHostAddress() : rdnsCache.get(addr);
-  }
-
-  public static InetAddress getRemoteAddress(ChannelHandlerContext ctx) {
-    return ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress();
+    return disableRdnsLookup ? resolverFunc.apply(addr) : rdnsCache.get(addr);
   }
 }

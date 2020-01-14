@@ -3,8 +3,6 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
-import com.yammer.metrics.core.Counter;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,16 +26,6 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   @Nullable
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
-
-  @Deprecated
-  public ReportPointReplaceRegexTransformer(final String scope,
-                                            final String patternSearch,
-                                            final String patternReplace,
-                                            @Nullable final String patternMatch,
-                                            @Nullable final Integer maxIterations,
-                                            @Nullable final Counter ruleAppliedCounter) {
-    this(scope, patternSearch, patternReplace, patternMatch, maxIterations, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
 
   public ReportPointReplaceRegexTransformer(final String scope,
                                             final String patternSearch,
@@ -79,8 +67,10 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     return content;
   }
 
+  @Nullable
   @Override
-  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nullable ReportPoint reportPoint) {
+    if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     switch (scope) {
       case "metricName":

@@ -1,7 +1,7 @@
 package com.wavefront.agent.histogram.accumulator;
 
 import com.tdunning.math.stats.AgentDigest;
-import com.wavefront.agent.TimeProvider;
+import com.wavefront.common.TimeProvider;
 import com.wavefront.agent.histogram.Utils;
 
 import java.util.Iterator;

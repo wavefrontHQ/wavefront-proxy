@@ -1,5 +1,7 @@
 package com.wavefront.agent.channel;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.wavefront.agent.ProxyConfig;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
@@ -49,6 +51,15 @@ public class HealthCheckManagerImpl implements HealthCheckManager {
   private final String failResponseBody;
 
   /**
+   * @param config Proxy configuration
+   */
+  public HealthCheckManagerImpl(@Nonnull ProxyConfig config) {
+    this(config.getHttpHealthCheckPath(), config.getHttpHealthCheckResponseContentType(),
+        config.getHttpHealthCheckPassStatusCode(), config.getHttpHealthCheckPassResponseBody(),
+        config.getHttpHealthCheckFailStatusCode(), config.getHttpHealthCheckFailResponseBody());
+  }
+
+  /**
    * @param path             Health check's path.
    * @param contentType      Optional content-type of health check's response.
    * @param passStatusCode   HTTP status code for 'pass' health checks.
@@ -56,9 +67,10 @@ public class HealthCheckManagerImpl implements HealthCheckManager {
    * @param failStatusCode   HTTP status code for 'fail' health checks.
    * @param failResponseBody Optional response body to return with 'fail' health checks.
    */
-  public HealthCheckManagerImpl(@Nullable String path, @Nullable String contentType,
-                                int passStatusCode, @Nullable String passResponseBody,
-                                int failStatusCode, @Nullable String failResponseBody) {
+  @VisibleForTesting
+  HealthCheckManagerImpl(@Nullable String path, @Nullable String contentType,
+                         int passStatusCode, @Nullable String passResponseBody,
+                         int failStatusCode, @Nullable String failResponseBody) {
     this.statusMap = new HashMap<>();
     this.enabledPorts = new HashSet<>();
     this.path = path;
@@ -71,15 +83,11 @@ public class HealthCheckManagerImpl implements HealthCheckManager {
 
   @Override
   public HttpResponse getHealthCheckResponse(ChannelHandlerContext ctx,
-                                             @Nonnull FullHttpRequest request) {
+                                             @Nonnull FullHttpRequest request)
+      throws URISyntaxException {
     int port = ((InetSocketAddress) ctx.channel().localAddress()).getPort();
     if (!enabledPorts.contains(port)) return null;
-    URI uri;
-    try {
-      uri = new URI(request.uri());
-    } catch (URISyntaxException e) {
-      return null;
-    }
+    URI uri = new URI(request.uri());
     if (!(this.path == null || this.path.equals(uri.getPath()))) return null;
     // it is a health check URL, now we need to determine current status and respond accordingly
     final boolean ok = isHealthy(port);

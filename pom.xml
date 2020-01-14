@@ -31,7 +31,7 @@
     <connection>scm:git:git@github.com:wavefronthq/java.git</connection>
     <developerConnection>scm:git:git@github.com:wavefronthq/java.git</developerConnection>
     <url>git@github.com:wavefronthq/java.git</url>
-    <tag>release-5.x</tag>
+    <tag>release-6.x</tag>
   </scm>
 
   <distributionManagement>
@@ -58,7 +58,7 @@
     <jackson.version>2.9.10</jackson.version>
     <jackson-databind.version>2.9.10.1</jackson-databind.version>
     <netty.version>4.1.41.Final</netty.version>
-    <java-lib.version>2019-12.1</java-lib.version>
+    <java-lib.version>2020-01.3</java-lib.version>
 
     <doclint>none</doclint>
   </properties>
@@ -104,7 +104,7 @@
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>26.0-jre</version>
+        <version>28.1-jre</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>

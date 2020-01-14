@@ -1,8 +1,5 @@
 package com.wavefront.agent.preprocessor;
 
-import com.google.common.collect.Lists;
-
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import wavefront.report.Span;
@@ -25,12 +22,11 @@ public class SpanExtractAnnotationIfNotExistsTransformer extends SpanExtractAnno
     super(key, input, patternSearch, patternReplace, replaceInput, patternMatch, firstMatchOnly, ruleMetrics);
   }
 
+  @Nullable
   @Override
-  public Span apply(@Nonnull Span span) {
+  public Span apply(@Nullable Span span) {
+    if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations() == null) {
-      span.setAnnotations(Lists.newArrayList());
-    }
     if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
       internalApply(span);
     }

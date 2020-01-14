@@ -2,12 +2,8 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
-
-import com.yammer.metrics.core.Counter;
 
 import javax.annotation.Nullable;
-import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
@@ -22,13 +18,6 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
   protected final String value;
   protected final PreprocessorRuleMetrics ruleMetrics;
 
-  @Deprecated
-  public ReportPointAddTagTransformer(final String tag,
-                                      final String value,
-                                      @Nullable final Counter ruleAppliedCounter) {
-    this(tag, value, new PreprocessorRuleMetrics(ruleAppliedCounter));
-  }
-
   public ReportPointAddTagTransformer(final String tag,
                                       final String value,
                                       final PreprocessorRuleMetrics ruleMetrics) {
@@ -40,12 +29,11 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
     this.ruleMetrics = ruleMetrics;
   }
 
+  @Nullable
   @Override
-  public ReportPoint apply(@Nonnull ReportPoint reportPoint) {
+  public ReportPoint apply(@Nullable ReportPoint reportPoint) {
+    if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (reportPoint.getAnnotations() == null) {
-      reportPoint.setAnnotations(Maps.<String, String>newHashMap());
-    }
     reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
     ruleMetrics.incrementRuleAppliedCounter();
     ruleMetrics.ruleEnd(startNanos);

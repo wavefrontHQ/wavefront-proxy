@@ -1,7 +1,6 @@
 package com.wavefront.agent.histogram;
 
 import com.tdunning.math.stats.AgentDigest;
-import com.wavefront.agent.PointHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 
@@ -14,8 +13,8 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
@@ -46,22 +45,18 @@ public class PointHandlerDispatcherTest {
   public void setup() {
     timeMillis = new AtomicLong(0L);
     backingStore = new ConcurrentHashMap<>();
-    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(COMPRESSION, 100L);
+    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(COMPRESSION, 100L,
+        timeMillis::get);
     in = new AccumulationCache(backingStore, agentDigestFactory, 0, "", timeMillis::get);
     pointOut = new LinkedList<>();
     debugLineOut = new LinkedList<>();
     blockedOut = new LinkedList<>();
     digestA = new AgentDigest(COMPRESSION, 100L);
     digestB = new AgentDigest(COMPRESSION, 1000L);
-    subject = new PointHandlerDispatcher(in, new ReportableEntityHandler<ReportPoint>() {
+    subject = new PointHandlerDispatcher(in, new ReportableEntityHandler<ReportPoint, String>() {
 
       @Override
       public void report(ReportPoint reportPoint) {
-        pointOut.add(reportPoint);
-      }
-
-      @Override
-      public void report(ReportPoint reportPoint, @Nullable Object messageObject, Function<Object, String> messageSerializer) {
         pointOut.add(reportPoint);
       }
 
@@ -76,20 +71,18 @@ public class PointHandlerDispatcherTest {
       }
 
       @Override
-      public void reject(ReportPoint reportPoint) {
-        blockedOut.add(reportPoint);
-      }
-
-      @Override
       public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
         blockedOut.add(reportPoint);
       }
 
       @Override
-      public void reject(String t, @Nullable String message) {
+      public void reject(@Nonnull String t, @Nullable String message) {
       }
 
-    }, timeMillis::get, null, null);
+      @Override
+      public void shutdown() {
+      }
+    }, timeMillis::get, () -> false, null, null);
   }
 
   @Test

@@ -2,7 +2,6 @@ package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RateLimiter;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +12,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.AbstractLineDelimitedHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.common.MessageDedupingLogger;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
@@ -49,11 +49,12 @@ import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERRO
 public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private static final Logger logger = Logger.getLogger(
       TracePortUnificationHandler.class.getCanonicalName());
+  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 2, 0.2);
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
-  private final ReportableEntityHandler<Span> handler;
-  private final ReportableEntityHandler<SpanLogs> spanLogsHandler;
+  private final ReportableEntityHandler<Span, String> handler;
+  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   private final ReportableEntityDecoder<String, Span> decoder;
   private final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
@@ -61,12 +62,10 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private final boolean alwaysSampleErrors;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
-  private final RateLimiter warningLoggerRateLimiter = RateLimiter.create(0.2);
 
   private final Counter discardedSpans;
   private final Counter discardedSpansBySampler;
 
-  @SuppressWarnings("unchecked")
   public TracePortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
       final HealthCheckManager healthCheckManager,
@@ -89,8 +88,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       final ReportableEntityDecoder<String, Span> traceDecoder,
       final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
-      final ReportableEntityHandler<Span> handler,
-      final ReportableEntityHandler<SpanLogs> spanLogsHandler, final Sampler sampler,
+      final ReportableEntityHandler<Span, String> handler,
+      final ReportableEntityHandler<SpanLogs, String> spanLogsHandler, final Sampler sampler,
       final boolean alwaysSampleErrors, final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {
     super(tokenAuthenticator, healthCheckManager, handle);
@@ -111,19 +110,15 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   @Override
   protected void processLine(final ChannelHandlerContext ctx, @Nonnull String message) {
     if (traceDisabled.get()) {
-      if (warningLoggerRateLimiter.tryAcquire()) {
-        logger.warning("Ingested spans discarded because tracing feature is not enabled on the " +
-            "server");
-      }
+      featureDisabledLogger.warning("Ingested spans discarded because tracing feature is not " +
+          "enabled on the server");
       discardedSpans.inc();
       return;
     }
     if (message.startsWith("{") && message.endsWith("}")) { // span logs
       if (spanLogsDisabled.get()) {
-        if (warningLoggerRateLimiter.tryAcquire()) {
-          logger.warning("Ingested span logs discarded because the feature is not enabled on the " +
-              "server");
-        }
+        featureDisabledLogger.warning("Ingested span logs discarded because the feature is not " +
+            "enabled on the server");
         return;
       }
       try {
