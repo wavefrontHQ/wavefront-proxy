@@ -2,7 +2,6 @@ package com.wavefront.agent.formatter;
 
 import com.wavefront.ingester.AbstractIngesterFormatter;
 import com.wavefront.ingester.EventDecoder;
-import com.wavefront.ingester.ReportSourceTagDecoder;
 
 /**
  * Best-effort data format auto-detection.

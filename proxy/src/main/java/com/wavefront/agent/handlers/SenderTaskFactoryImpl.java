@@ -14,7 +14,6 @@ import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
-import io.jaegertracing.spi.Sender;
 
 import java.util.ArrayList;
 import java.util.Collection;

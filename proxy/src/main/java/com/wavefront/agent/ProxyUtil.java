@@ -17,7 +17,6 @@ import io.netty.handler.timeout.IdleStateHandler;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
