@@ -59,7 +59,6 @@ import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 public class CustomTracingPortUnificationHandler extends AbstractLineDelimitedHandler {
   private static final Logger logger = Logger.getLogger(
       CustomTracingPortUnificationHandler.class.getCanonicalName());
-
   private final ReportableEntityHandler<Span, String> handler;
   @Nullable
   private final WavefrontSender wfSender;
