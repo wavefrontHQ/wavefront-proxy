@@ -1673,9 +1673,10 @@ public class ProxyConfig extends Configuration {
    *
    * @param args        arguments to parse
    * @param programName program name (to display help)
+   * @return true if proxy should continue, false if proxy should terminate.
    * @throws ParameterException if configuration parsing failed
    */
-  public void parseArguments(String[] args, String programName)
+  public boolean parseArguments(String[] args, String programName)
       throws ParameterException {
     String versionStr = "Wavefront Proxy version " + getBuildVersion();
     JCommander jCommander = JCommander.newBuilder().
@@ -1686,13 +1687,14 @@ public class ProxyConfig extends Configuration {
     jCommander.parse(args);
     if (this.isVersion()) {
       System.out.println(versionStr);
-      System.exit(0);
+      return false;
     }
     if (this.isHelp()) {
       System.out.println(versionStr);
       jCommander.usage();
-      System.exit(0);
+      return false;
     }
+    return true;
   }
 
   public static class TokenValidationMethodConverter

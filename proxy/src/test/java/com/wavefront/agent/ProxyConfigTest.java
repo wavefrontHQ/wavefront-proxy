@@ -6,12 +6,21 @@ import com.wavefront.agent.data.TaskQueueLevel;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
  * @author vasily@wavefront.com
  */
 public class ProxyConfigTest {
+
+  @Test
+  public void testVersionOrHelpReturnFalse() {
+    assertFalse(new ProxyConfig().parseArguments(new String[]{"--version"}, "PushAgentTest"));
+    assertFalse(new ProxyConfig().parseArguments(new String[]{"--help"}, "PushAgentTest"));
+    assertTrue(new ProxyConfig().parseArguments(new String[]{"--host", "host"}, "PushAgentTest"));
+  }
 
   @Test
   public void testTokenValidationMethodParsing() {

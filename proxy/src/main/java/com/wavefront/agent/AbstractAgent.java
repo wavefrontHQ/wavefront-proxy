@@ -166,7 +166,9 @@ public abstract class AbstractAgent {
     // read build information and print version.
     String versionStr = "Wavefront Proxy version " + getBuildVersion();
     try {
-      proxyConfig.parseArguments(args, this.getClass().getCanonicalName());
+      if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
+        System.exit(0);
+      }
     } catch (ParameterException e) {
       logger.info(versionStr);
       logger.severe("Parameter exception: " + e.getMessage());
@@ -209,17 +211,15 @@ public abstract class AbstractAgent {
       }
 
       // 2. Read or create the unique Id for the daemon running on this machine.
-      try {
-        agentId = getOrCreateProxyId(proxyConfig);
-      } catch (RuntimeException e) {
-        logger.severe(e.getMessage());
-        System.exit(1);
-      }
+      agentId = getOrCreateProxyId(proxyConfig);
       apiContainer = new APIContainer(proxyConfig);
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       proxyCheckinScheduler = new ProxyCheckInScheduler(agentId, proxyConfig, apiContainer,
-          this::processConfiguration);
+          this::processConfiguration, () -> {
+        logger.warning("Shutting down: Server side flag indicating proxy has to shut down.");
+        System.exit(1);
+      });
       proxyCheckinScheduler.scheduleCheckins();
 
       // Start the listening endpoints
@@ -252,8 +252,8 @@ public abstract class AbstractAgent {
           },
           5000
       );
-    } catch (Throwable t) {
-      logger.log(Level.SEVERE, "Aborting start-up", t);
+    } catch (Exception e) {
+      logger.severe(e.getMessage());
       System.exit(1);
     }
   }
@@ -315,7 +315,7 @@ public abstract class AbstractAgent {
   /**
    * Starts all listeners as configured.
    */
-  protected abstract void startListeners();
+  protected abstract void startListeners() throws Exception;
 
   /**
    * Stops all listeners before terminating the process.

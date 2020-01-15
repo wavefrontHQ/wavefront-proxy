@@ -180,7 +180,7 @@ public class PushAgent extends AbstractAgent {
   }
 
   @Override
-  protected void startListeners() {
+  protected void startListeners() throws Exception {
     blockedPointsLogger = Logger.getLogger(proxyConfig.getBlockedPointsLoggerName());
     blockedHistogramsLogger = Logger.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
     blockedSpansLogger = Logger.getLogger(proxyConfig.getBlockedSpansLoggerName());
@@ -800,7 +800,8 @@ public class PushAgent extends AbstractAgent {
                                          @Nullable Utils.Granularity granularity,
                                          int flushSecs, boolean memoryCacheEnabled,
                                          File baseDirectory, Long accumulatorSize, int avgKeyBytes,
-                                         int avgDigestBytes, short compression, boolean persist) {
+                                         int avgDigestBytes, short compression, boolean persist)
+      throws Exception {
     if (ports.size() == 0) return;
     String listenerBinType = Utils.Granularity.granularityToString(granularity);
     // Accumulator

@@ -4,8 +4,6 @@ import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.agent.AgentConfiguration;
 import org.easymock.EasyMock;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import javax.ws.rs.ClientErrorException;
@@ -15,9 +13,9 @@ import javax.ws.rs.core.Response;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.security.Permission;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.wavefront.common.Utils.getBuildVersion;
 import static org.easymock.EasyMock.anyLong;
@@ -30,36 +28,13 @@ import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
  * @author vasily@wavefront.com
  */
 public class ProxyCheckInSchedulerTest {
-
-  @BeforeClass
-  public static void setup() {
-    System.setSecurityManager(new SecurityManager() {
-      @Override
-      public void checkExit(int status) {
-        super.checkExit(status);
-        throw new SystemExitException(status);
-      }
-
-      @Override
-      public void checkPermission(Permission perm) {
-      }
-
-      @Override
-      public void checkPermission(Permission perm, Object context) {
-      }
-    });
-  }
-
-  @AfterClass
-  public static void teardown() {
-    System.setSecurityManager(null);
-  }
 
   @Test
   public void testNormalCheckin() {
@@ -84,7 +59,7 @@ public class ProxyCheckInSchedulerTest {
     expect(apiContainer.getProxyV2API()).andReturn(proxyV2API).anyTimes();
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
-        x -> assertEquals(1234567L, x.getPointsPerBatch().longValue()));
+        x -> assertEquals(1234567L, x.getPointsPerBatch().longValue()), () -> {});
     scheduler.scheduleCheckins();
     verify(proxyConfig, proxyV2API, apiContainer);
     assertEquals(1, scheduler.getSuccessfulCheckinCount());
@@ -112,16 +87,13 @@ public class ProxyCheckInSchedulerTest {
         andReturn(returnConfig).anyTimes();
     expect(apiContainer.getProxyV2API()).andReturn(proxyV2API).anyTimes();
     replay(proxyV2API, apiContainer);
-    try {
-      ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
-          x -> {});
-      scheduler.updateProxyMetrics();;
-      scheduler.updateConfiguration();
-      verify(proxyConfig, proxyV2API, apiContainer);
-      fail("We're not supposed to get here");
-    } catch (SystemExitException e) {
-      assertEquals(1, e.exitCode);
-    }
+    AtomicBoolean shutdown = new AtomicBoolean(false);
+    ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
+        x -> {}, () -> shutdown.set(true));
+    scheduler.updateProxyMetrics();
+    scheduler.updateConfiguration();
+    verify(proxyConfig, proxyV2API, apiContainer);
+    assertTrue(shutdown.get());
   }
 
   @Test
@@ -145,17 +117,16 @@ public class ProxyCheckInSchedulerTest {
     expect(apiContainer.getProxyV2API()).andReturn(proxyV2API).anyTimes();
     replay(proxyV2API, apiContainer);
     try {
-      ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
-          x -> { throw new NullPointerException("gotcha!"); });
+      ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig,
+          apiContainer, x -> { throw new NullPointerException("gotcha!"); }, () -> {});
       scheduler.updateProxyMetrics();;
       scheduler.updateConfiguration();
       verify(proxyConfig, proxyV2API, apiContainer);
       fail("We're not supposed to get here");
     } catch (NullPointerException e) {
-      System.out.println("NPE caught, we're good");
+      // NPE caught, we're good
     }
   }
-
 
   @Test
   public void testNetworkErrors() {
@@ -192,7 +163,7 @@ public class ProxyCheckInSchedulerTest {
 
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
-        x -> fail("We are not supposed to get here"));
+        x -> fail("We are not supposed to get here"), () -> {});
     scheduler.updateConfiguration();
     scheduler.updateConfiguration();
     scheduler.updateConfiguration();
@@ -242,7 +213,7 @@ public class ProxyCheckInSchedulerTest {
 
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
-        x -> assertNull(x.getPointsPerBatch()));
+        x -> assertNull(x.getPointsPerBatch()), () -> {});
     scheduler.updateProxyMetrics();
     scheduler.updateConfiguration();
     scheduler.updateProxyMetrics();
@@ -284,7 +255,7 @@ public class ProxyCheckInSchedulerTest {
         eq(getBuildVersion()), anyLong(), anyObject(), eq(true))).andReturn(returnConfig).once();
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
-        x -> assertEquals(1234567L, x.getPointsPerBatch().longValue()));
+        x -> assertEquals(1234567L, x.getPointsPerBatch().longValue()), () -> {});
     verify(proxyConfig, proxyV2API, apiContainer);
   }
 
@@ -312,11 +283,11 @@ public class ProxyCheckInSchedulerTest {
     expectLastCall().once();
     replay(proxyV2API, apiContainer);
     try {
-      ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
-          x -> fail("We are not supposed to get here"));
-      fail("We're not supposed to get here");
-    } catch (SystemExitException e) {
-      assertEquals(-5, e.exitCode);
+      ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig,
+          apiContainer, x -> fail("We are not supposed to get here"), () -> {});
+      fail();
+    } catch (RuntimeException e) {
+      //
     }
     verify(proxyConfig, proxyV2API, apiContainer);
   }
@@ -343,11 +314,11 @@ public class ProxyCheckInSchedulerTest {
         andThrow(new ClientErrorException(Response.status(404).build())).once();
     replay(proxyV2API, apiContainer);
     try {
-      ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
-          x -> fail("We are not supposed to get here"));
-      fail("We're not supposed to get here");
-    } catch (SystemExitException e) {
-      assertEquals(-5, e.exitCode);
+      ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig,
+          apiContainer, x -> fail("We are not supposed to get here"), () -> {});
+      fail();
+    } catch (RuntimeException e) {
+      //
     }
     verify(proxyConfig, proxyV2API, apiContainer);
   }
@@ -374,21 +345,12 @@ public class ProxyCheckInSchedulerTest {
         andThrow(new ClientErrorException(Response.status(401).build())).once();
     replay(proxyV2API, apiContainer);
     try {
-      ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
-          x -> fail("We are not supposed to get here"));
+      ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig,
+          apiContainer, x -> fail("We are not supposed to get here"), () -> {});
       fail("We're not supposed to get here");
-    } catch (SystemExitException e) {
-      assertEquals(-2, e.exitCode);
+    } catch (RuntimeException e) {
+      //
     }
     verify(proxyConfig, proxyV2API, apiContainer);
-  }
-
-  private static class SystemExitException extends SecurityException {
-    public final int exitCode;
-    public SystemExitException(int exitCode)
-    {
-      super("System.exit() intercepted!");
-      this.exitCode = exitCode;
-    }
   }
 }

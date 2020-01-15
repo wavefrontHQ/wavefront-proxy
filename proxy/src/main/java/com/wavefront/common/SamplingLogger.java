@@ -53,7 +53,7 @@ public class SamplingLogger extends DelegatingLogger {
       public void run() {
         refreshLoggerState();
       }
-    }, 0, 1000);
+    }, 1000, 1000);
   }
 
   @Override
@@ -87,8 +87,8 @@ public class SamplingLogger extends DelegatingLogger {
 
   @VisibleForTesting
   void refreshLoggerState() {
-    if (loggingActive.get() != delegate.isLoggable(Level.FINEST)) {
-      loggingActive.set(!loggingActive.get());
+    boolean finestLoggable = delegate.isLoggable(Level.FINEST);
+    if (loggingActive.compareAndSet(!finestLoggable, finestLoggable)) {
       if (statusChangeConsumer != null) {
         String status = loggingActive.get() ?
             "enabled with " + (samplingRate * 100) + "% sampling" :
