@@ -189,7 +189,6 @@ public class ProxyCheckInScheduler {
               "proxyUser and proxyPassword settings are correct and make sure your HTTP proxy" +
               " is not rate limiting!");
           if (successfulCheckIns.get() == 0) {
-            logger.severe("Aborting start-up");
             throw new RuntimeException("Aborting start-up");
           }
           break;
