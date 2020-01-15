@@ -535,7 +535,6 @@ public class PreprocessorRulesTest {
     } catch (IllegalArgumentException e) {
       // ok
     }
-
   }
 
   private boolean applyAllFilters(String pointLine, String strPort) {
