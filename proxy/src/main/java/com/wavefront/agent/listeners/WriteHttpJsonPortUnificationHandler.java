@@ -1,7 +1,6 @@
 package com.wavefront.agent.listeners;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +15,7 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.ReportPointSerializer;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
@@ -153,7 +153,7 @@ public class WriteHttpJsonPortUnificationHandler extends AbstractHttpOnlyHandler
         } else {
           builder.setValue(value.asLong());
         }
-        List<ReportPoint> parsedPoints = Lists.newArrayListWithCapacity(1);
+        List<ReportPoint> parsedPoints = new ArrayList<>(1);
         ReportPoint point = builder.build();
         if (preprocessor != null && preprocessor.forPointLine().getTransformers().size() > 0) {
           //

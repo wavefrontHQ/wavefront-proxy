@@ -209,7 +209,12 @@ public abstract class AbstractAgent {
       }
 
       // 2. Read or create the unique Id for the daemon running on this machine.
-      agentId = getOrCreateProxyId(proxyConfig);
+      try {
+        agentId = getOrCreateProxyId(proxyConfig);
+      } catch (RuntimeException e) {
+        logger.severe(e.getMessage());
+        System.exit(1);
+      }
       apiContainer = new APIContainer(proxyConfig);
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)

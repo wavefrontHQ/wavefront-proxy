@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.RateLimiter;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -34,8 +35,25 @@ public class SharedRateLimitingLogger extends DelegatingLogger {
    */
   @Override
   public void log(Level level, String message) {
+    if (!delegate.isLoggable(level)) {
+      return;
+    }
     if (rateLimiter.tryAcquire()) {
       log(new LogRecord(level, message));
+    }
+  }
+
+  /**
+   * @param level           Log level.
+   * @param messageSupplier A function, which when called, produces the desired log message.
+   */
+  @Override
+  public void log(Level level, Supplier<String> messageSupplier) {
+    if (!delegate.isLoggable(level)) {
+      return;
+    }
+    if (rateLimiter.tryAcquire()) {
+      log(new LogRecord(level, messageSupplier.get()));
     }
   }
 }

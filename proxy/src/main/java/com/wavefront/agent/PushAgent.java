@@ -988,11 +988,11 @@ public class PushAgent extends AbstractAgent {
             entityProps.get(ReportableEntityType.POINT).getRetryBackoffBaseSeconds());
       }
       entityProps.get(ReportableEntityType.HISTOGRAM).
-          setFeatureDisabled(config.getHistogramDisabled());
+          setFeatureDisabled(BooleanUtils.isTrue(config.getHistogramDisabled()));
       entityProps.get(ReportableEntityType.TRACE).
-          setFeatureDisabled(config.getTraceDisabled());
+          setFeatureDisabled(BooleanUtils.isTrue(config.getTraceDisabled()));
       entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).
-          setFeatureDisabled(config.getSpanLogsDisabled());
+          setFeatureDisabled(BooleanUtils.isTrue(config.getSpanLogsDisabled()));
       validationConfiguration.updateFrom(config.getValidationConfiguration());
       super.processConfiguration(config);
     } catch (RuntimeException e) {

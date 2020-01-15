@@ -1,7 +1,5 @@
 package com.wavefront.agent.listeners;
 
-import com.google.common.collect.Lists;
-
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -15,6 +13,7 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.SourceTag;
 import com.wavefront.ingester.ReportableEntityDecoder;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -111,7 +110,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
               "sourceTag-formatted data!");
           return;
         }
-        List<ReportSourceTag> output = Lists.newArrayListWithCapacity(1);
+        List<ReportSourceTag> output = new ArrayList<>(1);
         try {
           sourceTagDecoder.decode(message, output, "dummy");
           for (ReportSourceTag tag : output) {
@@ -128,7 +127,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
           wavefrontHandler.reject(message, "Port is not configured to accept event data!");
           return;
         }
-        List<ReportEvent> events = Lists.newArrayListWithCapacity(1);
+        List<ReportEvent> events = new ArrayList<>(1);
         try {
           eventDecoder.decode(message, events, "dummy");
           for (ReportEvent event : events) {
@@ -180,7 +179,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       }
     }
 
-    List<ReportPoint> output = Lists.newArrayListWithCapacity(1);
+    List<ReportPoint> output = new ArrayList<>(1);
     try {
       decoder.decode(message, output, "dummy");
     } catch (Exception e) {

@@ -141,7 +141,7 @@ public interface EntityProperties {
   /**
    * Sets the flag value for "feature disabled" flag.
    *
-   * @param featureDisabled if "true", data flow is disabled. if null or "false", enabled.
+   * @param featureDisabled if "true", data flow for this entity type is disabled.
    */
-  void setFeatureDisabled(@Nullable Boolean featureDisabled);
+  void setFeatureDisabled(boolean featureDisabled);
 }

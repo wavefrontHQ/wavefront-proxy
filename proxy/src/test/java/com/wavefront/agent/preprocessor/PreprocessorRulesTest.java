@@ -27,6 +27,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class PreprocessorRulesTest {
 
@@ -524,11 +525,17 @@ public class PreprocessorRulesTest {
 
   @Test
   public void testPreprocessorUtil() {
-    assertEquals("input", PreprocessorUtil.truncate("input", 1, LengthLimitActionType.DROP));
     assertEquals("input...", PreprocessorUtil.truncate("inputInput", 8,
         LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS));
     assertEquals("inputI", PreprocessorUtil.truncate("inputInput", 6,
         LengthLimitActionType.TRUNCATE));
+    try {
+      PreprocessorUtil.truncate("input", 1, LengthLimitActionType.DROP);
+      fail();
+    } catch (IllegalArgumentException e) {
+      // ok
+    }
+
   }
 
   private boolean applyAllFilters(String pointLine, String strPort) {

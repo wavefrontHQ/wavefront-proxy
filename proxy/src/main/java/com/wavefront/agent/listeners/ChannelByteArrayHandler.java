@@ -1,7 +1,6 @@
 package com.wavefront.agent.listeners;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
@@ -10,6 +9,7 @@ import com.wavefront.ingester.ReportPointSerializer;
 import com.wavefront.ingester.ReportableEntityDecoder;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
@@ -65,14 +65,14 @@ public class ChannelByteArrayHandler extends SimpleChannelInboundHandler<byte[]>
     ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
         null : preprocessorSupplier.get();
 
-    List<ReportPoint> points = Lists.newArrayListWithCapacity(1);
+    List<ReportPoint> points = new ArrayList<>(1);
     try {
       decoder.decode(msg, points, "dummy");
       for (ReportPoint point : points) {
         if (preprocessor != null && !preprocessor.forPointLine().getTransformers().isEmpty()) {
           String pointLine = ReportPointSerializer.pointToString(point);
           pointLine = preprocessor.forPointLine().transform(pointLine);
-          List<ReportPoint> parsedPoints = Lists.newArrayListWithCapacity(1);
+          List<ReportPoint> parsedPoints = new ArrayList<>(1);
           recoder.decodeReportPoints(pointLine, parsedPoints, "dummy");
           parsedPoints.forEach(x -> preprocessAndReportPoint(x, preprocessor));
         } else {
