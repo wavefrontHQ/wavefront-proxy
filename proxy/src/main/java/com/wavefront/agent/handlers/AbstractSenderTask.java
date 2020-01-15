@@ -127,10 +127,10 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
         // to introduce some degree of fairness.
         nextRunMillis = nextRunMillis / 4 + (int) (Math.random() * nextRunMillis / 4);
-        final long nextRunMillisOutput = nextRunMillis;
+        final long willRetryIn = nextRunMillis;
         throttledLogger.log(Level.INFO, () -> "[" + handlerKey.getHandle() + " thread " + threadId +
               "]: WF-4 Proxy rate limiter active (pending " + handlerKey.getEntityType() + ": " +
-              datum.size() + "), will retry in " + nextRunMillisOutput + "ms");
+              datum.size() + "), will retry in " + willRetryIn + "ms");
         undoBatch(current);
       }
     } catch (Throwable t) {

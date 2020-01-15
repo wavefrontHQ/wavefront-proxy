@@ -83,7 +83,6 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   }
 
   @Override
-  public void setFeatureDisabled(@Nullable Boolean featureDisabled) {
-
+  public void setFeatureDisabled(boolean featureDisabled) {
   }
 }
