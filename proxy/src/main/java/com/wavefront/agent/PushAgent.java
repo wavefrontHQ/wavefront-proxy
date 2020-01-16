@@ -539,9 +539,11 @@ public class PushAgent extends AbstractAgent {
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler = new CustomTracingPortUnificationHandler(strPort, tokenAuthenticator,
-        healthCheckManager, wfSender, new SpanDecoder("unknown"), preprocessors.get(strPort),
-        handlerFactory, sampler, proxyConfig.isTraceAlwaysSampleErrors(),
-        () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled());
+        healthCheckManager, new SpanDecoder("unknown"), new SpanLogsDecoder(),
+        preprocessors.get(strPort), handlerFactory, sampler, proxyConfig.isTraceAlwaysSampleErrors(),
+        () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
+        () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
+        wfSender, proxyConfig.getTraceDerivedCustomTagKeys());
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getTraceListenerMaxReceivedLength(), proxyConfig.getTraceListenerHttpBufferSize(),

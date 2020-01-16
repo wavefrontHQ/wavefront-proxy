@@ -53,17 +53,17 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
-  private final ReportableEntityHandler<Span, String> handler;
+  protected final ReportableEntityHandler<Span, String> handler;
   private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   private final ReportableEntityDecoder<String, Span> decoder;
   private final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Sampler sampler;
-  private final boolean alwaysSampleErrors;
+  protected final boolean alwaysSampleErrors;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
 
-  private final Counter discardedSpans;
+  protected final Counter discardedSpans;
   private final Counter discardedSpansBySampler;
 
   public TracePortUnificationHandler(
@@ -174,13 +174,17 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       // check whether error span tag exists.
       boolean sampleError = alwaysSampleErrors && object.getAnnotations().stream().anyMatch(
           t -> t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
-      if (sampleError || sample(object)) {
-        handler.report(object);
-      }
+      report(object, sampleError);
     }
   }
 
-  private boolean sample(Span object) {
+  protected void report(Span object, boolean sampleError) {
+    if (sampleError || sample(object)) {
+      handler.report(object);
+    }
+  }
+
+  protected boolean sample(Span object) {
     if (sampler.sample(object.getName(),
         UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
       return true;
