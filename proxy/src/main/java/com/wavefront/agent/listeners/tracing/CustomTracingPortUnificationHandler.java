@@ -147,6 +147,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
             break;
         }
       }
+
       if (applicationName.equals(NULL_TAG_VAL) || serviceName.equals(NULL_TAG_VAL)) {
         logger.warning("Ingested spans discarded because span application/service name is " +
             "missing.");
