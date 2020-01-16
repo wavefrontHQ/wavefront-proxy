@@ -22,8 +22,8 @@ public class SpanWhitelistRegexFilter implements AnnotatedPredicate<Span> {
   private final PreprocessorRuleMetrics ruleMetrics;
 
   public SpanWhitelistRegexFilter(final String scope,
-                                         final String patternMatch,
-                                         final PreprocessorRuleMetrics ruleMetrics) {
+                                  final String patternMatch,
+                                  final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch,
         "[match] can't be null"));
     Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");

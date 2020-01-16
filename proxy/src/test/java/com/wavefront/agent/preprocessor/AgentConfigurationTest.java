@@ -1,15 +1,12 @@
 package com.wavefront.agent.preprocessor;
 
-import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Test;
+import wavefront.report.ReportPoint;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.io.StringReader;
 import java.util.HashMap;
-
-import wavefront.report.ReportPoint;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -35,7 +32,7 @@ public class AgentConfigurationTest {
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
     config.loadFromStream(stream);
     Assert.assertEquals(0, config.totalInvalidRules);
-    Assert.assertEquals(49, config.totalValidRules);
+    Assert.assertEquals(51, config.totalValidRules);
   }
 
   @Test

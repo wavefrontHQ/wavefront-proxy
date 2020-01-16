@@ -106,7 +106,7 @@
     - rule    : example-tag-all-metrics
       action  : addTag
       tag     : newtagkey
-      value   : "1"
+      value   : 1
 
     # remove "dc1" and "dc2" point tags
     - rule    : example-drop-dc12
@@ -310,3 +310,21 @@
       action        : spanWhitelistRegex
       scope         : spanName
       match         : "^spanName.*$"
+
+'30124':
+  - rule: test-spanWhitelistAnnotations
+    action: spanWhitelistAnnotation
+    whitelist:
+      - key1
+      - key2
+      - foo
+      - application
+      - shard
+
+'30125':
+  - rule: test-spanWhitelistAnnotations
+    action: spanWhitelistAnnotation
+    whitelist:
+      application: "[a-zA-Z]{0,10}"
+      key2: "bar[0-9]{1,3}"
+      version: "[0-9\\.]{1,10}"
