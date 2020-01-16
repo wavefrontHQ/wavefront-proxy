@@ -5,6 +5,7 @@ import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.wavefront.agent.histogram.Utils.HistogramKey;
 import com.wavefront.agent.histogram.Utils.HistogramKeyMarshaller;
 
+import net.openhft.chronicle.hash.ChronicleHashRecoveryFailedException;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.map.VanillaChronicleMap;
 
@@ -20,6 +21,8 @@ import java.util.concurrent.ConcurrentMap;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.wavefront.agent.histogram.TestUtils.makeKey;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Unit tests around {@link MapLoader}.
@@ -68,7 +71,7 @@ public class MapLoaderTest {
   }
 
   @Test
-  public void testReconfigureMap() {
+  public void testReconfigureMap() throws Exception {
     ChronicleMap<HistogramKey, AgentDigest> map = loader.get(file);
     map.put(key, digest);
     map.close();
@@ -90,7 +93,7 @@ public class MapLoaderTest {
   }
 
   @Test
-  public void testFileDoesNotExist() throws IOException {
+  public void testFileDoesNotExist() throws Exception {
     file.delete();
     ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
     assertThat(((VanillaChronicleMap)map).file()).isNotNull();
@@ -98,7 +101,7 @@ public class MapLoaderTest {
   }
 
   @Test
-  public void testDoNotPersist() throws IOException {
+  public void testDoNotPersist() throws Exception {
     loader = new MapLoader<>(
         HistogramKey.class,
         AgentDigest.class,
@@ -114,18 +117,18 @@ public class MapLoaderTest {
     testPutRemove(map);
   }
 
-
-  // NOTE: Chronicle's repair attempt takes >1min for whatever reason.
-  @Ignore
   @Test
-  public void testCorruptedFileFallsBackToInMemory() throws IOException {
-    FileOutputStream fos = new FileOutputStream(file);
-    fos.write("Nonsense".getBytes());
-    fos.flush();
-
-    ConcurrentMap<HistogramKey, AgentDigest> map = loader.get(file);
-    assertThat(((VanillaChronicleMap)map).file()).isNull();
-
-    testPutRemove(map);
+  public void testCorruptedFileThrows() throws Exception {
+    try (FileOutputStream fos = new FileOutputStream(file)) {
+      // fake broken ChronicleMap header so it doesn't wait 1 minute for file sync
+      fos.write(new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 127, 127, 127, 127});
+      fos.flush();
+    }
+    try {
+      loader.get(file);
+      fail();
+    } catch (RuntimeException e) {
+      assertTrue(e.getCause().getCause() instanceof ChronicleHashRecoveryFailedException);
+    }
   }
 }

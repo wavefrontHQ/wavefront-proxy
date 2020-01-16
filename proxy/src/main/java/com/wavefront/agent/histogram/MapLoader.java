@@ -84,12 +84,10 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
         }
 
         @Override
-        public ChronicleMap<K, V> load(@Nonnull File file) {
+        public ChronicleMap<K, V> load(@Nonnull File file) throws Exception {
           if (!doPersist) {
-            logger.log(
-                Level.WARNING,
-                "Accumulator persistence is disabled, unflushed histograms will be lost on proxy shutdown."
-            );
+            logger.log(Level.WARNING, "Accumulator persistence is disabled, unflushed histograms " +
+                "will be lost on proxy shutdown.");
             return newInMemoryMap();
           }
 
@@ -175,13 +173,9 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
               return newPersistedMap(file);
             }
           } catch (Exception e) {
-            logger.log(
-                Level.SEVERE,
-                "Failed to load/create map from '" + file.getAbsolutePath() +
-                    "'. Please move or delete the file and restart the proxy! Reason: ",
-                e);
-            System.exit(-1);
-            return null;
+            logger.log(Level.SEVERE, "Failed to load/create map from '" + file.getAbsolutePath() +
+                    "'. Please move or delete the file and restart the proxy! Reason: ", e);
+            throw new RuntimeException(e);
           }
         }
       });
@@ -216,14 +210,9 @@ public class MapLoader<K, V, KM extends BytesReader<K> & BytesWriter<K>, VM exte
     this.doPersist = doPersist;
   }
 
-  public ChronicleMap<K, V> get(File f) {
+  public ChronicleMap<K, V> get(File f) throws Exception {
     Preconditions.checkNotNull(f);
-    try {
-      return maps.get(f);
-    } catch (Exception e) {
-      logger.log(Level.SEVERE, "Failed loading map for " + f, e);
-      return null;
-    }
+    return maps.get(f);
   }
 
   @Override

@@ -52,7 +52,8 @@ public interface EntityProperties {
   /**
    * Sets base in seconds for retry thread exponential backoff.
    *
-   * @param retryBackoffBaseSeconds new value for exponential backoff base value
+   * @param retryBackoffBaseSeconds new value for exponential backoff base value.
+   *                                if null is provided, reverts to originally configured value.
    */
   void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds);
 
@@ -101,7 +102,7 @@ public interface EntityProperties {
   /**
    * Sets the maximum allowed number of items per single flush.
    *
-   * @param itemsPerBatch batch size.
+   * @param itemsPerBatch batch size. if null is provided, reverts to originally configured value.
    */
   void setItemsPerBatch(@Nullable Integer itemsPerBatch);
 
@@ -141,7 +142,7 @@ public interface EntityProperties {
   /**
    * Sets the flag value for "feature disabled" flag.
    *
-   * @param featureDisabled if "true", data flow is disabled. if null or "false", enabled.
+   * @param featureDisabled if "true", data flow for this entity type is disabled.
    */
-  void setFeatureDisabled(@Nullable Boolean featureDisabled);
+  void setFeatureDisabled(boolean featureDisabled);
 }

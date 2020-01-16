@@ -89,10 +89,10 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
             // fail if tryLock() returns null (lock couldn't be acquired)
             Preconditions.checkNotNull(channel.tryLock());
           } catch (Exception e) {
-            logger.severe("WF-005: Error requesting exclusive access to the buffer lock file " +
-                lockFileName + " - please make sure that no other processes access this file " +
-                "and restart the proxy");
-            System.exit(-1);
+            logger.severe("WF-005: Error requesting exclusive access to the buffer " +
+                "lock file " + lockFileName + " - please make sure that no other processes " +
+                "access this file and restart the proxy");
+            return new TaskQueueStub<>();
           }
           try {
             File buffer = new File(spoolFileName);
@@ -108,10 +108,10 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
                     RetryTaskConverter.CompressionType.LZ4)),
                 handlerKey.getHandle(), handlerKey.getEntityType());
           } catch (Exception e) {
-            logger.severe("WF-006: Unable to open or create queue file " + spoolFileName);
-            System.exit(-1);
+            logger.severe("WF-006: Unable to open or create queue file " + spoolFileName + ": " +
+                e.getMessage());
+            return new TaskQueueStub<>();
           }
-          return null;
         });
   }
 }

@@ -180,7 +180,7 @@ public class PushAgent extends AbstractAgent {
   }
 
   @Override
-  protected void startListeners() {
+  protected void startListeners() throws Exception {
     blockedPointsLogger = Logger.getLogger(proxyConfig.getBlockedPointsLoggerName());
     blockedHistogramsLogger = Logger.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
     blockedSpansLogger = Logger.getLogger(proxyConfig.getBlockedSpansLoggerName());
@@ -800,7 +800,8 @@ public class PushAgent extends AbstractAgent {
                                          @Nullable Utils.Granularity granularity,
                                          int flushSecs, boolean memoryCacheEnabled,
                                          File baseDirectory, Long accumulatorSize, int avgKeyBytes,
-                                         int avgDigestBytes, short compression, boolean persist) {
+                                         int avgDigestBytes, short compression, boolean persist)
+      throws Exception {
     if (ports.size() == 0) return;
     String listenerBinType = Utils.Granularity.granularityToString(granularity);
     // Accumulator
@@ -988,11 +989,11 @@ public class PushAgent extends AbstractAgent {
             entityProps.get(ReportableEntityType.POINT).getRetryBackoffBaseSeconds());
       }
       entityProps.get(ReportableEntityType.HISTOGRAM).
-          setFeatureDisabled(config.getHistogramDisabled());
+          setFeatureDisabled(BooleanUtils.isTrue(config.getHistogramDisabled()));
       entityProps.get(ReportableEntityType.TRACE).
-          setFeatureDisabled(config.getTraceDisabled());
+          setFeatureDisabled(BooleanUtils.isTrue(config.getTraceDisabled()));
       entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).
-          setFeatureDisabled(config.getSpanLogsDisabled());
+          setFeatureDisabled(BooleanUtils.isTrue(config.getSpanLogsDisabled()));
       validationConfiguration.updateFrom(config.getValidationConfiguration());
       super.processConfiguration(config);
     } catch (RuntimeException e) {

@@ -52,6 +52,7 @@ public class ProxyCheckInScheduler {
   private final ProxyConfig proxyConfig;
   private final APIContainer apiContainer;
   private final Consumer<AgentConfiguration> agentConfigurationConsumer;
+  private final Runnable shutdownHook;
 
   private String serverEndpointUrl = null;
   private volatile JsonNode agentMetrics;
@@ -71,15 +72,19 @@ public class ProxyCheckInScheduler {
    * @param apiContainer               API container object.
    * @param agentConfigurationConsumer Configuration processor, invoked after each
    *                                   successful configuration fetch.
+   * @param shutdownHook               Invoked when proxy receives a shutdown directive
+   *                                   from the back-end.
    */
   public ProxyCheckInScheduler(UUID proxyId,
                                ProxyConfig proxyConfig,
                                APIContainer apiContainer,
-                               Consumer<AgentConfiguration> agentConfigurationConsumer) {
+                               Consumer<AgentConfiguration> agentConfigurationConsumer,
+                               Runnable shutdownHook) {
     this.proxyId = proxyId;
     this.proxyConfig = proxyConfig;
     this.apiContainer = apiContainer;
     this.agentConfigurationConsumer = agentConfigurationConsumer;
+    this.shutdownHook = shutdownHook;
     updateProxyMetrics();
     AgentConfiguration config = checkin();
     if (config == null && retryImmediately) {
@@ -148,16 +153,14 @@ public class ProxyCheckInScheduler {
           checkinError("HTTP 401 Unauthorized: Please verify that your server and token settings" +
               " are correct and that the token has Proxy Management permission!");
           if (successfulCheckIns.get() == 0) {
-            logger.severe("Aborting start-up");
-            System.exit(-2);
+            throw new RuntimeException("Aborting start-up");
           }
           break;
         case 403:
           checkinError("HTTP 403 Forbidden: Please verify that your token has Proxy Management " +
               "permission!");
           if (successfulCheckIns.get() == 0) {
-            logger.severe("Aborting start-up");
-            System.exit(-2);
+            throw new RuntimeException("Aborting start-up");
           }
           break;
         case 404:
@@ -178,8 +181,7 @@ public class ProxyCheckInScheduler {
           checkinError("HTTP " + ex.getResponse().getStatus() + ": Misconfiguration detected, " +
               "please verify that your server setting is correct. " + secondaryMessage);
           if (successfulCheckIns.get() == 0) {
-            logger.severe("Aborting start-up");
-            System.exit(-5);
+            throw new RuntimeException("Aborting start-up");
           }
           break;
         case 407:
@@ -187,8 +189,7 @@ public class ProxyCheckInScheduler {
               "proxyUser and proxyPassword settings are correct and make sure your HTTP proxy" +
               " is not rate limiting!");
           if (successfulCheckIns.get() == 0) {
-            logger.severe("Aborting start-up");
-            System.exit(-2);
+            throw new RuntimeException("Aborting start-up");
           }
           break;
         default:
@@ -245,8 +246,7 @@ public class ProxyCheckInScheduler {
       logger.log(Level.SEVERE, "Exception occurred during configuration update", e);
     } finally {
       if (doShutDown) {
-        logger.warning("Shutting down: Server side flag indicating proxy has to shut down.");
-        System.exit(1);
+        shutdownHook.run();
       }
     }
   }

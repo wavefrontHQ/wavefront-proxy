@@ -148,7 +148,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public void setFeatureDisabled(@Nullable Boolean featureDisabledFlag) {
+    public void setFeatureDisabled(boolean featureDisabledFlag) {
       throw new UnsupportedOperationException("Can't disable this feature");
     }
   }
@@ -158,7 +158,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
    * remotely.
    */
   private static abstract class SubscriptionBasedEntityProperties extends AbstractEntityProperties {
-    private Boolean featureDisabled = null;
+    private boolean featureDisabled = false;
 
     public SubscriptionBasedEntityProperties(ProxyConfig wrapped,
                                              GlobalProperties globalProperties) {
@@ -167,11 +167,11 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
 
     @Override
     public boolean isFeatureDisabled() {
-      return Boolean.TRUE.equals(featureDisabled);
+      return featureDisabled;
     }
 
     @Override
-    public void setFeatureDisabled(@Nullable Boolean featureDisabledFlag) {
+    public void setFeatureDisabled(boolean featureDisabledFlag) {
       this.featureDisabled = featureDisabledFlag;
     }
   }

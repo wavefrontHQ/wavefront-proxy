@@ -93,9 +93,11 @@ class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
           // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
           // to introduce some degree of fairness.
           nextRunMillis = (int) (1 + Math.random()) * nextRunMillis / 4;
-          throttledLogger.info("[" + handlerKey.getHandle() + " thread " + threadId +
-              "]: WF-4 Proxy rate limiter " + "active (pending " + handlerKey.getEntityType() +
-              ": " + datum.size() + "), will retry in " + nextRunMillis + "ms");
+          final long willRetryIn = nextRunMillis;
+          throttledLogger.log(Level.INFO, () -> "[" + handlerKey.getHandle() + " thread " +
+              threadId + "]: WF-4 Proxy rate limiter " + "active (pending " +
+              handlerKey.getEntityType() + ": " + datum.size() + "), will retry in " +
+              willRetryIn + "ms");
           return;
         }
       }

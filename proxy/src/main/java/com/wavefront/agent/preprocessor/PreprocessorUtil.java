@@ -110,8 +110,7 @@ public abstract class PreprocessorUtil {
       case TRUNCATE_WITH_ELLIPSIS:
         return input.substring(0, maxLength - 3) + "...";
       default:
-        return input;
+        throw new IllegalArgumentException(actionSubtype + " action is not allowed!");
     }
   }
-
 }

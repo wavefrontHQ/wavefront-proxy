@@ -11,7 +11,6 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.wavefront.agent.channel.ChannelUtils.getRemoteAddress;
 
@@ -33,11 +32,13 @@ public class SharedGraphiteHostAnnotator {
   private final Function<InetAddress, String> hostnameResolver;
   private final List<String> sourceTags;
 
-  public SharedGraphiteHostAnnotator(@Nullable final List<String> customSourceTags,
+  public SharedGraphiteHostAnnotator(@Nullable List<String> customSourceTags,
                                      @Nonnull Function<InetAddress, String> hostnameResolver) {
+    if (customSourceTags == null) {
+      customSourceTags = ImmutableList.of();
+    }
     this.hostnameResolver = hostnameResolver;
-    this.sourceTags = Streams.concat(DEFAULT_SOURCE_TAGS.stream(),
-        customSourceTags == null ? Stream.empty() : customSourceTags.stream()).
+    this.sourceTags = Streams.concat(DEFAULT_SOURCE_TAGS.stream(), customSourceTags.stream()).
         map(customTag -> customTag + "=").collect(Collectors.toList());
   }
 

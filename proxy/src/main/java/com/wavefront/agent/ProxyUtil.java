@@ -65,19 +65,16 @@ abstract class ProxyUtil {
     } else {
       File userHome = new File(System.getProperty("user.home"));
       if (!userHome.exists() || !userHome.isDirectory()) {
-        logger.severe("Cannot read from user.home, quitting");
-        System.exit(1);
+        throw new RuntimeException("Cannot read from user.home, quitting");
       }
       File configDirectory = new File(userHome, ".dshell");
       if (configDirectory.exists()) {
         if (!configDirectory.isDirectory()) {
-          logger.severe(configDirectory + " must be a directory!");
-          System.exit(1);
+          throw new RuntimeException(configDirectory + " must be a directory!");
         }
       } else {
         if (!configDirectory.mkdir()) {
-          logger.severe("Cannot create .dshell directory under " + userHome);
-          System.exit(1);
+          throw new RuntimeException("Cannot create .dshell directory under " + userHome);
         }
       }
       proxyIdFile = new File(configDirectory, "id");
@@ -89,24 +86,20 @@ abstract class ProxyUtil {
               Charsets.UTF_8).readFirstLine()));
           logger.info("Proxy Id read from file: " + proxyId);
         } catch (IllegalArgumentException ex) {
-          logger.severe("Cannot read proxy id from " + proxyIdFile +
+          throw new RuntimeException("Cannot read proxy id from " + proxyIdFile +
               ", content is malformed");
-          System.exit(1);
         } catch (IOException e) {
-          logger.log(Level.SEVERE, "Cannot read from " + proxyIdFile, e);
-          System.exit(1);
+          throw new RuntimeException("Cannot read from " + proxyIdFile, e);
         }
       } else {
-        logger.severe(proxyIdFile + " is not a file!");
-        System.exit(1);
+        throw new RuntimeException(proxyIdFile + " is not a file!");
       }
     } else {
       logger.info("Proxy Id created: " + proxyId);
       try {
         Files.asCharSink(proxyIdFile, Charsets.UTF_8).write(proxyId.toString());
       } catch (IOException e) {
-        logger.severe("Cannot write to " + proxyIdFile);
-        System.exit(1);
+        throw new RuntimeException("Cannot write to " + proxyIdFile);
       }
     }
     return proxyId;

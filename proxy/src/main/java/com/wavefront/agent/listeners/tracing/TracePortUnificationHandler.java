@@ -1,7 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +19,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -122,7 +122,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         return;
       }
       try {
-        List<SpanLogs> output = Lists.newArrayListWithCapacity(1);
+        List<SpanLogs> output = new ArrayList<>(1);
         spanLogsDecoder.decode(JSON_PARSER.readTree(message), output, "dummy");
         for (SpanLogs object : output) {
           spanLogsHandler.report(object);
@@ -150,8 +150,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         return;
       }
     }
-
-    List<Span> output = Lists.newArrayListWithCapacity(1);
+    List<Span> output = new ArrayList<>(1);
     try {
       decoder.decode(message, output, "dummy");
     } catch (Exception e) {
