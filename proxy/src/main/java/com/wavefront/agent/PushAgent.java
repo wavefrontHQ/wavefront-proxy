@@ -47,6 +47,7 @@ import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
+import com.wavefront.agent.listeners.tracing.CustomTracingPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.JaegerPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.JaegerTChannelCollectorHandler;
 import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
@@ -77,6 +78,7 @@ import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.ingester.SpanDecoder;
 import com.wavefront.ingester.SpanLogsDecoder;
 import com.wavefront.ingester.TcpIngester;
+import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.CompositeSampler;
@@ -332,6 +334,9 @@ public class PushAgent extends AbstractAgent {
 
     csvToList(proxyConfig.getTraceListenerPorts()).forEach(strPort ->
         startTraceListener(strPort, handlerFactory, compositeSampler));
+    csvToList(proxyConfig.getCustomTracingListenerPorts()).forEach(strPort ->
+        startCustomTracingListener(strPort, handlerFactory,
+            new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler));
     csvToList(proxyConfig.getTraceJaegerListenerPorts()).forEach(strPort -> {
       PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
           Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
@@ -522,6 +527,38 @@ public class PushAgent extends AbstractAgent {
         proxyConfig.getListenerIdleConnectionTimeout()), port).
         withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
     logger.info("listening on port: " + strPort + " for trace data");
+  }
+
+  @VisibleForTesting
+  protected void startCustomTracingListener(final String strPort,
+                                            ReportableEntityHandlerFactory handlerFactory,
+                                            @Nullable WavefrontSender wfSender,
+                                            Sampler sampler) {
+    final int port = Integer.parseInt(strPort);
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
+    if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
+    WavefrontInternalReporter wfInternalReporter = null;
+    if (wfSender != null) {
+      wfInternalReporter = new WavefrontInternalReporter.Builder().
+          prefixedWith("tracing.derived").withSource("custom_tracing").reportMinuteDistribution().
+          build(wfSender);
+      // Start the reporter
+      wfInternalReporter.start(1, TimeUnit.MINUTES);
+    }
+
+    ChannelHandler channelHandler = new CustomTracingPortUnificationHandler(strPort, tokenAuthenticator,
+        healthCheckManager, new SpanDecoder("unknown"), new SpanLogsDecoder(),
+        preprocessors.get(strPort), handlerFactory, sampler, proxyConfig.isTraceAlwaysSampleErrors(),
+        () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
+        () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
+        wfSender, wfInternalReporter, proxyConfig.getTraceDerivedCustomTagKeys());
+
+    startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
+        proxyConfig.getTraceListenerMaxReceivedLength(), proxyConfig.getTraceListenerHttpBufferSize(),
+        proxyConfig.getListenerIdleConnectionTimeout()),
+        port).withChildChannelOptions(childChannelOptions), "listener-custom-trace-" + port);
+    logger.info("listening on port: " + strPort + " for custom trace data");
   }
 
   protected void startTraceJaegerListener(String strPort,

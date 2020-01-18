@@ -684,6 +684,12 @@ public class ProxyConfig extends Configuration {
           " Defaults: none")
   String deltaCountersAggregationListenerPorts = "";
 
+  @Parameter(names = {"--customTracingListenerPorts"},
+      description = "Comma-separated list of ports to listen on spans from level 1 SDK. Helps " +
+          "derive RED metrics and for the span and heartbeat for corresponding application at proxy." +
+          " Defaults: none")
+  protected String customTracingListenerPorts = "";
+
   @Parameter()
   List<String> unparsed_params;
 
@@ -1316,6 +1322,10 @@ public class ProxyConfig extends Configuration {
     return deltaCountersAggregationListenerPorts;
   }
 
+  public String getCustomTracingListenerPorts() {
+    return customTracingListenerPorts;
+  }
+
   @JsonIgnore
   public TimeProvider getTimeProvider() {
     return timeProvider;
@@ -1392,6 +1402,9 @@ public class ProxyConfig extends Configuration {
       deltaCountersAggregationIntervalSeconds =
           config.getLong("deltaCountersAggregationIntervalSeconds",
               deltaCountersAggregationIntervalSeconds);
+
+      customTracingListenerPorts =
+          config.getString("customTracingListenerPorts", customTracingListenerPorts);
 
       // Histogram: deprecated settings - fall back for backwards compatibility
       if (config.isDefined("avgHistogramKeyBytes")) {
