@@ -34,13 +34,6 @@ public class MessageDedupingLoggerTest {
     Capture<LogRecord> logs = Capture.newInstance(CaptureType.ALL);
     mockLogger.log(capture(logs));
     expectLastCall().times(4);
-    /*
-    mockLogger.log(Level.WARNING, "msg2");
-    expectLastCall().once();
-    mockLogger.log(Level.INFO, "msg3");
-    expectLastCall().once();
-    mockLogger.log(Level.SEVERE, "msg4");
-    expectLastCall().once(); */
     replay(mockLogger);
     log.severe("msg1");
     log.severe("msg1");

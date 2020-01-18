@@ -10,6 +10,7 @@ import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.data.ReportableEntityType;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 import java.util.ArrayList;
@@ -54,7 +55,7 @@ public class LineDelimitedDataSubmissionTask
   public LineDelimitedDataSubmissionTask(ProxyV2API api, UUID proxyId, EntityProperties properties,
                                          TaskQueue<LineDelimitedDataSubmissionTask> backlog,
                                          String format, ReportableEntityType entityType,
-                                         String handle, List<String> payload,
+                                         String handle, @Nonnull List<String> payload,
                                          @Nullable Supplier<Long> timeProvider) {
     super(properties, backlog, handle, entityType, timeProvider);
     this.api = api;

@@ -1,20 +1,15 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.data.Validation;
-
-import java.util.Collection;
-import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import com.wavefront.dto.Event;
 import wavefront.report.ReportEvent;
 
 import javax.annotation.Nullable;
+import java.util.Collection;
+import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * This class will validate parsed events and distribute them among SenderTask threads.
@@ -24,15 +19,8 @@ import javax.annotation.Nullable;
 public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEvent, Event> {
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final Function<ReportEvent, String> EVENT_SERIALIZER = value -> {
-    try {
-      return OBJECT_MAPPER.writeValueAsString(value);
-    } catch (JsonProcessingException e) {
-      logger.warning("Serialization error!");
-      return null;
-    }
-  };
+  private static final Function<ReportEvent, String> EVENT_SERIALIZER = value ->
+      new Event(value).toString();
 
   private final Logger validItemsLogger;
 

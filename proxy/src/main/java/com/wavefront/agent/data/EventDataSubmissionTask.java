@@ -9,6 +9,7 @@ import com.wavefront.api.EventAPI;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 import java.util.ArrayList;
@@ -45,7 +46,8 @@ public class EventDataSubmissionTask extends AbstractDataSubmissionTask<EventDat
    */
   public EventDataSubmissionTask(EventAPI api, UUID proxyId, EntityProperties properties,
                                  TaskQueue<EventDataSubmissionTask> backlog, String handle,
-                                 List<Event> events, @Nullable Supplier<Long> timeProvider) {
+                                 @Nonnull List<Event> events,
+                                 @Nullable Supplier<Long> timeProvider) {
     super(properties, backlog, handle, ReportableEntityType.EVENT, timeProvider);
     this.api = api;
     this.proxyId = proxyId;

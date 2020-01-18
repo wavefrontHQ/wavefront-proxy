@@ -10,8 +10,6 @@ import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
-import com.wavefront.agent.queueing.DataSubmissionQueue;
-import com.wavefront.agent.queueing.RetryTaskConverter;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 import com.wavefront.dto.SourceTag;
