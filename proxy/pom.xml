@@ -328,14 +328,14 @@
                 <!-- Ensure minimum lines covered at project level for some projects. mvn artifactid is used to identify project -->
                 <rule>
                   <includes>
-                    <include>proxy</include>
+                    <include>com.wavefront.*</include>
                   </includes>
                   <element>BUNDLE</element>
                   <limits>
                     <limit>
                       <counter>LINE</counter>
                       <value>COVEREDRATIO</value>
-                      <minimum>0.73</minimum>
+                      <minimum>0.8</minimum>
                     </limit>
                   </limits>
                 </rule>
