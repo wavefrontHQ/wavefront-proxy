@@ -282,23 +282,74 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.19</version>
+        <version>3.0.0-M4</version>
         <configuration>
           <forkCount>4</forkCount>
-          <reuseForks>false</reuseForks>
-          <argLine>-Xmx4G -Duser.country=US</argLine>
+          <reuseForks>true</reuseForks>
+          <argLine>${jacocoArgLine} -Xmx512m --illegal-access=permit -Duser.country=US</argLine>
           <rerunFailingTestsCount>3</rerunFailingTestsCount>
           <systemProperties>
             <property>
               <name>java.util.logging.manager</name>
               <value>org.apache.logging.log4j.jul.LogManager</value>
-              </property>
+            </property>
             <property>
               <name>log4j.configurationFile</name>
               <value>src/test/resources/log4j2-dev.xml</value>
             </property>
           </systemProperties>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.3</version>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+            <configuration>
+              <propertyName>jacocoArgLine</propertyName>
+              <includes>
+                <include>com.wavefront.*</include>
+              </includes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>check</id>
+            <phase>test</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <!-- Ensure minimum lines covered at project level for some projects. mvn artifactid is used to identify project -->
+                <rule>
+                  <includes>
+                    <include>proxy</include>
+                  </includes>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.73</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+          <execution>
+            <id>coverage-report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
