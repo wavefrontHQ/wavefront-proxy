@@ -174,14 +174,19 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       // check whether error span tag exists.
       boolean sampleError = alwaysSampleErrors && object.getAnnotations().stream().anyMatch(
           t -> t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
-      report(object, sampleError);
+      if (sampleError || sample(object)) {
+        report(object);
+      }
     }
   }
 
-  protected void report(Span object, boolean sampleError) {
-    if (sampleError || sample(object)) {
-      handler.report(object);
-    }
+  /**
+   * Report span and derived metrics if needed.
+   *
+   * @param object     span.
+   */
+  protected void report(Span object) {
+    handler.report(object);
   }
 
   protected boolean sample(Span object) {

@@ -14,6 +14,7 @@ import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 import com.wavefront.dto.SourceTag;
+import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 import junit.framework.AssertionFailedError;
 import net.jcip.annotations.NotThreadSafe;
@@ -47,8 +48,8 @@ import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
@@ -59,8 +60,13 @@ import static com.wavefront.agent.TestUtils.httpGet;
 import static com.wavefront.agent.TestUtils.httpPost;
 import static com.wavefront.agent.TestUtils.verifyWithTimeout;
 import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
+import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
+import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static org.easymock.EasyMock.anyLong;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.anyString;
+import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
@@ -79,6 +85,7 @@ public class PushAgentTest {
   private long startTime = System.currentTimeMillis() / 1000 / 60 * 60;
   private int port;
   private int tracePort;
+  private int customTracePort;
   private int ddPort;
   private int deltaPort;
   private ReportableEntityHandler<ReportPoint, String> mockPointHandler =
@@ -93,6 +100,7 @@ public class PushAgentTest {
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
   private ReportableEntityHandler<ReportEvent, Event> mockEventHandler =
       MockReportableEntityHandlerFactory.getMockEventHandlerImpl();
+  private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private SenderTask<String> mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
   private Collection<SenderTask<String>> mockSenderTasks = ImmutableList.of(mockSenderTask);
   private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
@@ -404,6 +412,65 @@ public class PushAgentTest {
     verifyWithTimeout(500, mockTraceHandler, mockTraceSpanLogsHandler);
   }
 
+  @Test
+  public void testCustomTraceUnifiedPortHandlerPlaintext() throws Exception {
+    customTracePort = findAvailablePort(50000);
+    proxy.proxyConfig.customTracingListenerPorts = String.valueOf(customTracePort);
+    proxy.startCustomTracingListener(proxy.proxyConfig.getCustomTracingListenerPorts(),
+        mockHandlerFactory, mockWavefrontSender, new RateSampler(1.0D));
+    waitUntilListenerIsOnline(customTracePort);
+    reset(mockTraceHandler);
+    reset(mockTraceSpanLogsHandler);
+    reset(mockWavefrontSender);
+    String traceId = UUID.randomUUID().toString();
+    long timestamp1 = startTime * 1000000 + 12345;
+    long timestamp2 = startTime * 1000000 + 23456;
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("dummy").
+        setTraceId(traceId).
+        setSpanId("testspanid").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(timestamp1).
+                setFields(ImmutableMap.of("key", "value", "key2", "value2")).
+                build(),
+            SpanLog.newBuilder().
+                setTimestamp(timestamp2).
+                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                build()
+        )).
+        build());
+    expectLastCall();
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
+        .setDuration(1000)
+        .setName("testSpanName")
+        .setSource("testsource")
+        .setSpanId("testspanid")
+        .setTraceId(traceId)
+        .setAnnotations(ImmutableList.of(new Annotation("application", "application1"),
+            new Annotation("service", "service1"))).build());
+    expectLastCall();
+    Capture<HashMap<String, String>> tagsCapture = EasyMock.newCapture();
+    mockWavefrontSender.sendMetric(eq(HEART_BEAT_METRIC), eq(1.0), anyLong(),
+        eq("testsource"), EasyMock.capture(tagsCapture));
+    EasyMock.expectLastCall();
+    replay(mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender);
+    Socket socket = SocketFactory.getDefault().createSocket("localhost", customTracePort);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    String payloadStr = "testSpanName source=testsource spanId=testspanid " +
+        "traceId=\"" + traceId + "\" application=application1 service=service1 " + startTime + " " + (startTime + 1) + "\n" +
+        "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId + "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 +
+        ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n";
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+    verifyWithTimeout(500, mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender);
+    HashMap<String, String> tagsReturned = tagsCapture.getValue();
+    assertEquals("application1", tagsReturned.get(APPLICATION_TAG_KEY));
+    assertEquals("service1", tagsReturned.get(SERVICE_TAG_KEY));
+  }
+
   @Test(timeout = 30000)
   public void testDataDogUnifiedPortHandler() throws Exception {
     ddPort = findAvailablePort(4888);
@@ -624,7 +691,7 @@ public class PushAgentTest {
         setMetric("metric4.test").setHost("test3").setTimestamp((startTime + 2) * 1000).
         setAnnotations(ImmutableMap.of("env", "prod")).setValue(2.0d).build());
     expectLastCall().times(2);
-    mockPointHandler.reject((ReportPoint) EasyMock.eq(null), anyString());
+    mockPointHandler.reject((ReportPoint) eq(null), anyString());
     expectLastCall().once();
     replay(mockPointHandler);
 
@@ -750,7 +817,7 @@ public class PushAgentTest {
         mockHandlerFactory);
     waitUntilListenerIsOnline(port);
     reset(mockPointHandler);
-    mockPointHandler.reject((ReportPoint) EasyMock.eq(null), anyString());
+    mockPointHandler.reject((ReportPoint) eq(null), anyString());
     expectLastCall().times(2);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("disk.sda.disk_octets.read").setHost("testSource").

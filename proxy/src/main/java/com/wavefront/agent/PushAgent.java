@@ -78,6 +78,7 @@ import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.ingester.SpanDecoder;
 import com.wavefront.ingester.SpanLogsDecoder;
 import com.wavefront.ingester.TcpIngester;
+import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.CompositeSampler;
@@ -537,13 +538,21 @@ public class PushAgent extends AbstractAgent {
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
+    WavefrontInternalReporter wfInternalReporter = null;
+    if (wfSender != null) {
+      wfInternalReporter = new WavefrontInternalReporter.Builder().
+          prefixedWith("tracing.derived").withSource("custom_tracing").reportMinuteDistribution().
+          build(wfSender);
+      // Start the reporter
+      wfInternalReporter.start(1, TimeUnit.MINUTES);
+    }
 
     ChannelHandler channelHandler = new CustomTracingPortUnificationHandler(strPort, tokenAuthenticator,
         healthCheckManager, new SpanDecoder("unknown"), new SpanLogsDecoder(),
         preprocessors.get(strPort), handlerFactory, sampler, proxyConfig.isTraceAlwaysSampleErrors(),
         () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
         () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
-        wfSender, proxyConfig.getTraceDerivedCustomTagKeys());
+        wfSender, wfInternalReporter, proxyConfig.getTraceDerivedCustomTagKeys());
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getTraceListenerMaxReceivedLength(), proxyConfig.getTraceListenerHttpBufferSize(),

@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -79,11 +78,12 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
       ReportableEntityHandlerFactory handlerFactory, Sampler sampler, boolean alwaysSampleErrors,
       Supplier<Boolean> traceDisabled, Supplier<Boolean> spanLogsDisabled,
-      @Nullable WavefrontSender wfSender, Set<String> traceDerivedCustomTagKeys) {
+      @Nullable WavefrontSender wfSender, @Nullable WavefrontInternalReporter wfInternalReporter,
+      Set<String> traceDerivedCustomTagKeys) {
     this(handle, tokenAuthenticator, healthCheckManager, traceDecoder, spanLogsDecoder,
         preprocessor, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        sampler, alwaysSampleErrors, traceDisabled, spanLogsDisabled, wfSender,
+        sampler, alwaysSampleErrors, traceDisabled, spanLogsDisabled, wfSender, wfInternalReporter,
         traceDerivedCustomTagKeys);
   }
 
@@ -97,26 +97,18 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       final ReportableEntityHandler<SpanLogs, String> spanLogsHandler, Sampler sampler,
       boolean alwaysSampleErrors, Supplier<Boolean> traceDisabled,
       Supplier<Boolean> spanLogsDisabled, @Nullable WavefrontSender wfSender,
+      @Nullable WavefrontInternalReporter wfInternalReporter,
       Set<String> traceDerivedCustomTagKeys) {
     super(handle, tokenAuthenticator, healthCheckManager, traceDecoder, spanLogsDecoder,
         preprocessor, handler, spanLogsHandler, sampler, alwaysSampleErrors, traceDisabled, spanLogsDisabled);
     this.wfSender = wfSender;
+    this.wfInternalReporter = wfInternalReporter;
     this.discoveredHeartbeatMetrics = new ConcurrentHashMap<>();
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
-
-    if (wfSender != null) {
-      wfInternalReporter = new WavefrontInternalReporter.Builder().
-          prefixedWith("tracing.derived").withSource("custom_tracing").reportMinuteDistribution().
-          build(wfSender);
-      // Start the reporter
-      wfInternalReporter.start(1, TimeUnit.MINUTES);
-    } else {
-      wfInternalReporter = null;
-    }
   }
 
   @Override
-  protected void report(Span object, boolean sampleError) {
+  protected void report(Span object) {
     // report converted metrics/histograms from the span
     String applicationName = NULL_TAG_VAL;
     String serviceName = NULL_TAG_VAL;
@@ -124,41 +116,37 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
     String shard = NULL_TAG_VAL;
     String componentTagValue = NULL_TAG_VAL;
     String isError = "false";
+    List<Annotation> annotations = object.getAnnotations();
+    for (Annotation annotation : annotations) {
+      switch (annotation.getKey()) {
+        case APPLICATION_TAG_KEY:
+          applicationName = annotation.getValue();
+          continue;
+        case SERVICE_TAG_KEY:
+          serviceName = annotation.getValue();
+        case CLUSTER_TAG_KEY:
+          cluster = annotation.getValue();
+          continue;
+        case SHARD_TAG_KEY:
+          shard = annotation.getValue();
+          continue;
+        case COMPONENT_TAG_KEY:
+          componentTagValue = annotation.getValue();
+          break;
+        case ERROR_SPAN_TAG_KEY:
+          isError = annotation.getValue();
+          break;
+      }
+    }
+    if (applicationName.equals(NULL_TAG_VAL) || serviceName.equals(NULL_TAG_VAL)) {
+      logger.warning("Ingested spans discarded because span application/service name is " +
+          "missing.");
+      discardedSpans.inc();
+      return;
+    }
+    handler.report(object);
+
     if (wfInternalReporter != null) {
-      List<Annotation> annotations = object.getAnnotations();
-      for (Annotation annotation : annotations) {
-        switch (annotation.getKey()) {
-          case APPLICATION_TAG_KEY:
-            applicationName = annotation.getValue();
-            continue;
-          case SERVICE_TAG_KEY:
-            serviceName = annotation.getValue();
-          case CLUSTER_TAG_KEY:
-            cluster = annotation.getValue();
-            continue;
-          case SHARD_TAG_KEY:
-            shard = annotation.getValue();
-            continue;
-          case COMPONENT_TAG_KEY:
-            componentTagValue = annotation.getValue();
-            break;
-          case ERROR_SPAN_TAG_KEY:
-            isError = annotation.getValue();
-            break;
-        }
-      }
-
-      if (applicationName.equals(NULL_TAG_VAL) || serviceName.equals(NULL_TAG_VAL)) {
-        logger.warning("Ingested spans discarded because span application/service name is " +
-            "missing.");
-        discardedSpans.inc();
-        return;
-      }
-
-      if (sampleError || sample(object)) {
-        handler.report(object);
-      }
-
       discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
           object.getName(), applicationName, serviceName, cluster, shard, object.getSource(),
           componentTagValue, Boolean.parseBoolean(isError), object.getDuration(),
