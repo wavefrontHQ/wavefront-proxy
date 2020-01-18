@@ -1,9 +1,11 @@
 package com.wavefront.agent.preprocessor;
 
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
@@ -112,5 +114,30 @@ public abstract class PreprocessorUtil {
       default:
         throw new IllegalArgumentException(actionSubtype + " action is not allowed!");
     }
+  }
+
+  @Nullable
+  public static String getString(Map<String, Object> ruleMap, String key) {
+    Object value = ruleMap.get(key);
+    if (value == null) return null;
+    if (value instanceof String) return (String) value;
+    if (value instanceof Number) return String.valueOf(value);
+    return (String) ruleMap.get(key);
+  }
+
+  public static boolean getBoolean(Map<String, Object> ruleMap, String key, boolean defaultValue) {
+    Object value = ruleMap.get(key);
+    if (value == null) return defaultValue;
+    if (value instanceof Boolean) return (Boolean) value;
+    if (value instanceof String) return Boolean.parseBoolean((String) value);
+    throw new IllegalArgumentException();
+  }
+
+  public static int getInteger(Map<String, Object> ruleMap, String key, int defaultValue) {
+    Object value = ruleMap.get(key);
+    if (value == null) return defaultValue;
+    if (value instanceof Number) return ((Number) value).intValue();
+    if (value instanceof String) return Integer.parseInt((String) value);
+    throw new IllegalArgumentException();
   }
 }

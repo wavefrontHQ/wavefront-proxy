@@ -5,8 +5,12 @@ import com.google.common.collect.Lists;
 
 import com.wavefront.ingester.SpanDecoder;
 
+import com.wavefront.ingester.SpanSerializer;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,6 +28,39 @@ public class PreprocessorSpanRulesTest {
   private static final String SOURCE_NAME = "sourceName";
   private static final String SPAN_NAME = "spanName";
   private final PreprocessorRuleMetrics metrics = new PreprocessorRuleMetrics(null, null, null);
+  private static PreprocessorConfigManager config;
+
+  @BeforeClass
+  public static void setup() throws IOException {
+    InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
+    config = new PreprocessorConfigManager();
+    config.loadFromStream(stream);
+  }
+
+  @Test
+  public void testSpanWhitelistAnnotation() {
+    String spanLine = "\"testSpanName\" \"source\"=\"spanSourceName\" " +
+        "\"spanId\"=\"4217104a-690d-4927-baff-d9aa779414c2\" " +
+        "\"traceId\"=\"d5355bf7-fc8d-48d1-b761-75b170f396e0\" " +
+        "\"application\"=\"app\" \"foo\"=\"bar1\" \"foo\"=\"bar2\" " +
+        "\"key2\"=\"bar2\" \"bar\"=\"baz\" \"service\"=\"svc\" 1532012145123 1532012146234";
+
+    Span span = parseSpan(spanLine);
+    config.get("30124").get().forSpan().transform(span);
+    assertEquals(5, span.getAnnotations().size());
+    assertTrue(span.getAnnotations().contains(new Annotation("application", "app")));
+    assertTrue(span.getAnnotations().contains(new Annotation("foo", "bar1")));
+    assertTrue(span.getAnnotations().contains(new Annotation("foo", "bar2")));
+    assertTrue(span.getAnnotations().contains(new Annotation("key2", "bar2")));
+    assertTrue(span.getAnnotations().contains(new Annotation("service", "svc")));
+
+    span = parseSpan(spanLine);
+    config.get("30125").get().forSpan().transform(span);
+    assertEquals(3, span.getAnnotations().size());
+    assertTrue(span.getAnnotations().contains(new Annotation("application", "app")));
+    assertTrue(span.getAnnotations().contains(new Annotation("key2", "bar2")));
+    assertTrue(span.getAnnotations().contains(new Annotation("service", "svc")));
+  }
 
   @Test(expected = IllegalArgumentException.class)
   public void testSpanLimitRuleDropSpanNameThrows() {
