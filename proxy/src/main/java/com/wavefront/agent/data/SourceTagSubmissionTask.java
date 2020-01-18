@@ -9,6 +9,7 @@ import com.wavefront.api.SourceTagAPI;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.SourceTag;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.ws.rs.core.Response;
 import java.util.List;
@@ -41,7 +42,7 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
    */
   public SourceTagSubmissionTask(SourceTagAPI api, EntityProperties properties,
                                  TaskQueue<SourceTagSubmissionTask> backlog, String handle,
-                                 SourceTag sourceTag,
+                                 @Nonnull SourceTag sourceTag,
                                  @Nullable Supplier<Long> timeProvider) {
     super(properties, backlog, handle, ReportableEntityType.SOURCE_TAG, timeProvider);
     this.api = api;

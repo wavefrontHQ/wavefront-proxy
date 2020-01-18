@@ -513,10 +513,10 @@ public class LogsIngesterTest {
             PointMatchers.almostMatches(100.0, "myHisto.max", ImmutableMap.of()),
             PointMatchers.almostMatches(50.5, "myHisto.mean", ImmutableMap.of()),
             PointMatchers.almostMatches(50.5, "myHisto.median", ImmutableMap.of()),
-            PointMatchers.almostMatches(75.25, "myHisto.p75", ImmutableMap.of()),
-            PointMatchers.almostMatches(95.05, "myHisto.p95", ImmutableMap.of()),
-            PointMatchers.almostMatches(99.01, "myHisto.p99", ImmutableMap.of()),
-            PointMatchers.almostMatches(99.901, "myHisto.p999", ImmutableMap.of())
+            PointMatchers.almostMatches(75.5, "myHisto.p75", ImmutableMap.of()),
+            PointMatchers.almostMatches(95.5, "myHisto.p95", ImmutableMap.of()),
+            PointMatchers.almostMatches(99.5, "myHisto.p99", ImmutableMap.of()),
+            PointMatchers.almostMatches(100, "myHisto.p999", ImmutableMap.of())
         ))
     );
   }
@@ -537,7 +537,7 @@ public class LogsIngesterTest {
     logs.add("histo 100");
     logs.add("histo 100");
     logs.add("histo 100");
-    logs.add("histo 1");
+    for (int i = 0; i < 10; i++) logs.add("histo 1");
     for (int i = 0; i < 1000; i++) {
       logs.add("histo 75");
     }
@@ -554,9 +554,8 @@ public class LogsIngesterTest {
     ReportPoint reportPoint = getPoints(mockHistogramHandler, 1, 0, this::receiveLog, logs.toArray(new String[0])).get(0);
     assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
     Histogram wavefrontHistogram = (Histogram) reportPoint.getValue();
-    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(11114));
-    assertThat(wavefrontHistogram.getBins().size(), greaterThan(300));
-    assertThat(wavefrontHistogram.getBins().size(), lessThan(600));
+    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(11123));
+    assertThat(wavefrontHistogram.getBins().size(), lessThan(110));
     assertThat(wavefrontHistogram.getBins().get(0), equalTo(1.0));
     assertThat(wavefrontHistogram.getBins().get(wavefrontHistogram.getBins().size() - 1), equalTo(100.0));
   }
@@ -572,18 +571,21 @@ public class LogsIngesterTest {
     ReportPoint reportPoint = reportPoints.get(0);
     assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
     Histogram wavefrontHistogram = (Histogram) reportPoint.getValue();
-    assertThat(wavefrontHistogram.getBins(), hasSize(120));
-    assertThat(wavefrontHistogram.getCounts(), hasSize(120));
-    assertThat(wavefrontHistogram.getBins().stream().reduce(Double::sum).get(), equalTo(7260.0));
+    double sum = 0;
+    for (int i = 0; i < wavefrontHistogram.getBins().size(); i++) {
+      sum += wavefrontHistogram.getBins().get(i) * wavefrontHistogram.getCounts().get(i);
+    }
+    assertThat(sum, equalTo(7260.0));
     assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(120));
     reportPoint = reportPoints.get(1);
     assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
     wavefrontHistogram = (Histogram) reportPoint.getValue();
-    assertThat(wavefrontHistogram.getBins(), hasSize(120));
-    assertThat(wavefrontHistogram.getCounts(), hasSize(120));
-    assertThat(wavefrontHistogram.getBins().stream().reduce(Double::sum).get(), equalTo(21660.0));
+    sum = 0;
+    for (int i = 0; i < wavefrontHistogram.getBins().size(); i++) {
+      sum += wavefrontHistogram.getBins().get(i) * wavefrontHistogram.getCounts().get(i);
+    }
+    assertThat(sum, equalTo(21660.0));
     assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(120));
-
   }
 
   @Test(expected = ConfigurationException.class)

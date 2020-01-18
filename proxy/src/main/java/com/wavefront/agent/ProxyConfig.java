@@ -85,6 +85,19 @@ public class ProxyConfig extends Configuration {
           "Default: ANY_ERROR")
   TaskQueueLevel taskQueueLevel = TaskQueueLevel.ANY_ERROR;
 
+  @Parameter(names = {"--exportQueuePorts"}, description = "Export queued data in plaintext " +
+      "format for specified ports (comma-delimited list) and exit. Set to 'all' to export " +
+      "everything. Default: none")
+  String exportQueuePorts = null;
+
+  @Parameter(names = {"--exportQueueOutputFile"}, description = "Export queued data in plaintext " +
+      "format for specified ports (comma-delimited list) and exit. Default: none")
+  String exportQueueOutputFile = null;
+
+  @Parameter(names = {"--exportQueueRetainData"}, description = "Whether to retain data in the " +
+      "queue during export. Defaults to true.", arity = 1)
+  boolean exportQueueRetainData = true;
+
   @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
       "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
       "small to the server and wasting connections. This setting is per listening port.", order = 5)
@@ -725,6 +738,18 @@ public class ProxyConfig extends Configuration {
 
   public TaskQueueLevel getTaskQueueLevel() {
     return taskQueueLevel;
+  }
+
+  public String getExportQueuePorts() {
+    return exportQueuePorts;
+  }
+
+  public String getExportQueueOutputFile() {
+    return exportQueueOutputFile;
+  }
+
+  public boolean isExportQueueRetainData() {
+    return exportQueueRetainData;
   }
 
   public Integer getFlushThreads() {
@@ -1504,6 +1529,9 @@ public class ProxyConfig extends Configuration {
       histogramDistMemoryCache = config.getBoolean("histogramDistMemoryCache",
           histogramDistMemoryCache);
 
+      exportQueuePorts = config.getString("exportQueuePorts", exportQueuePorts);
+      exportQueueOutputFile = config.getString("exportQueueOutputFile", exportQueueOutputFile);
+      exportQueueRetainData = config.getBoolean("exportQueueRetainData", exportQueueRetainData);
       flushThreads = config.getInteger("flushThreads", flushThreads);
       flushThreadsEvents = config.getInteger("flushThreadsEvents", flushThreadsEvents);
       flushThreadsSourceTags = config.getInteger("flushThreadsSourceTags", flushThreadsSourceTags);

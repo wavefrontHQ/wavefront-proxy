@@ -418,19 +418,19 @@ public class HttpEndToEndTest {
     long hourBin = time / 3600 * 3600;
     long dayBin = time / 86400 * 86400;
     Set<String> expectedHistograms = ImmutableSet.of(
-        "!M " + minuteBin + " #1 1.0 #1 1.0 #1 2.0 #1 2.0 \"metric.name\" " +
+        "!M " + minuteBin + " #2 1.0 #2 2.0 \"metric.name\" " +
             "source=\"metric.source\" \"tagk1\"=\"tagv1\"",
         "!M " + minuteBin + " #1 3.0 #1 4.0 \"metric.name\" source=\"metric.source\" " +
             "\"tagk1\"=\"tagv2\"",
         "!M " + (minuteBin + 60) +" #1 5.0 #1 6.0 \"metric.name\" source=\"metric.source\" " +
             "\"tagk1\"=\"tagv1\"",
-        "!H " + hourBin + " #1 1.0 #1 1.0 #1 2.0 #1 2.0 #1 5.0 #1 6.0 \"metric.name\" " +
+        "!H " + hourBin + " #2 1.0 #2 2.0 #1 5.0 #1 6.0 \"metric.name\" " +
             "source=\"metric.source\" \"tagk1\"=\"tagv1\"",
         "!H " + hourBin + " #1 3.0 #1 4.0 \"metric.name\" source=\"metric.source\" " +
             "\"tagk1\"=\"tagv2\"",
         "!D " + dayBin + " #1 3.0 #1 4.0 \"metric.name\" source=\"metric.source\" " +
             "\"tagk1\"=\"tagv2\"",
-        "!D " + dayBin + " #1 1.0 #1 1.0 #1 2.0 #1 2.0 #1 5.0 #1 6.0 \"metric.name\" " +
+        "!D " + dayBin + " #2 1.0 #2 2.0 #1 5.0 #1 6.0 \"metric.name\" " +
             "source=\"metric.source\" \"tagk1\"=\"tagv1\"");
 
     String distPayload =
@@ -442,9 +442,9 @@ public class HttpEndToEndTest {
         "source=\"metric.source\" \"tagk1\"=\"tagv1\"\n";
 
     Set<String> expectedDists = ImmutableSet.of(
-        "!M " + minuteBin + " #1 1.0 #1 1.0 #1 1.0 #1 1.0 #1 2.0 #1 2.0 #1 2.0 #1 2.0 " +
+        "!M " + minuteBin + " #4 1.0 #4 2.0 " +
         "\"metric.name\" source=\"metric.source\" \"tagk1\"=\"tagv1\"",
-        "!H " + hourBin + " #1 1.0 #1 1.0 #1 2.0 #1 2.0 \"metric.name\" " +
+        "!H " + hourBin + " #2 1.0 #2 2.0 \"metric.name\" " +
         "source=\"metric.source\" \"tagk1\"=\"tagv1\"");
 
     server.update(req -> {

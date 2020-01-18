@@ -146,6 +146,16 @@ public class AgentDigest extends AbstractTDigest {
     add(x, w, (List<Double>) null);
   }
 
+  @Override
+  public void add(List<? extends TDigest> others) {
+    for (TDigest other : others) {
+      setMinMax(Math.min(min, other.getMin()), Math.max(max, other.getMax()));
+      for (Centroid centroid : other.centroids()) {
+        add(centroid.mean(), centroid.count(), recordAllData ? centroid.data() : null);
+      }
+    }
+  }
+
   public void add(double x, int w, List<Double> history) {
     if (Double.isNaN(x)) {
       throw new IllegalArgumentException("Cannot add NaN to t-digest");

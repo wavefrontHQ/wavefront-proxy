@@ -1,7 +1,7 @@
 package com.wavefront.agent.data;
 
-import avro.shaded.com.google.common.base.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.common.MessageDedupingLogger;
@@ -73,7 +73,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     this.backlog = backlog;
     this.handle = handle;
     this.entityType = entityType;
-    this.timeProvider = Objects.firstNonNull(timeProvider, System::currentTimeMillis);
+    this.timeProvider = MoreObjects.firstNonNull(timeProvider, System::currentTimeMillis);
   }
 
   @Override

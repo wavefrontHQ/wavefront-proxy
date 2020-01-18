@@ -16,6 +16,9 @@ import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
 import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
+import com.wavefront.agent.queueing.QueueExporter;
+import com.wavefront.agent.queueing.TaskQueueFactory;
+import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.TaggedMetricName;
@@ -207,6 +210,18 @@ public abstract class AbstractAgent {
         while (interactiveLogsTester.interactiveTest()) {
           // empty
         }
+        System.exit(0);
+      }
+
+      // If we are exporting data from the queue, run export and exit
+      if (proxyConfig.getExportQueueOutputFile() != null &&
+          proxyConfig.getExportQueuePorts() != null) {
+        TaskQueueFactory tqFactory = new TaskQueueFactoryImpl(proxyConfig.getBufferFile(), false);
+        EntityPropertiesFactory epFactory = new EntityPropertiesFactoryImpl(proxyConfig);
+        QueueExporter queueExporter = new QueueExporter(proxyConfig, tqFactory, epFactory);
+        logger.info("Starting queue export for ports: " + proxyConfig.getExportQueuePorts());
+        queueExporter.export();
+        logger.info("Done");
         System.exit(0);
       }
 
