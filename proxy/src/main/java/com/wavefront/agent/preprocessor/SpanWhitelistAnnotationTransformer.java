@@ -41,17 +41,19 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     List<Annotation> annotations = span.getAnnotations().stream().
-        filter(x -> {
-          if (!whitelistedKeys.containsKey(x.getKey())) return false;
-          Pattern pattern = whitelistedKeys.get(x.getKey());
-          return pattern == null || pattern.matcher(x.getValue()).matches();
-        }).collect(Collectors.toList());
+        filter(x -> whitelistedKeys.containsKey(x.getKey())).
+        filter(x -> isPatternNullOrMatches(whitelistedKeys.get(x.getKey()), x.getValue())).
+        collect(Collectors.toList());
     if (annotations.size() < span.getAnnotations().size()) {
       span.setAnnotations(annotations);
       ruleMetrics.incrementRuleAppliedCounter();
     }
     ruleMetrics.ruleEnd(startNanos);
     return span;
+  }
+
+  private static boolean isPatternNullOrMatches(@Nullable Pattern pattern, String string) {
+    return pattern == null || pattern.matcher(string).matches();
   }
 
   /**
