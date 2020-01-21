@@ -1,8 +1,6 @@
 package com.wavefront.agent.histogram;
 
 import com.google.common.collect.ImmutableList;
-import com.wavefront.agent.data.DefaultEntityPropertiesForTesting;
-import com.wavefront.agent.data.EntityProperties;
 import org.junit.Test;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -20,9 +18,7 @@ public class HistogramRecompressorTest {
 
   @Test
   public void testHistogramRecompressor() {
-    EntityProperties.GlobalProperties globalProperties =
-        new DefaultEntityPropertiesForTesting().getGlobalProperties();
-    HistogramRecompressor recompressor = new HistogramRecompressor(globalProperties);
+    HistogramRecompressor recompressor = new HistogramRecompressor(() -> (short) 32);
     Histogram testHistogram = Histogram.newBuilder().
         setType(HistogramType.TDIGEST).
         setDuration(60000).

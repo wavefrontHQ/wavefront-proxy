@@ -152,7 +152,7 @@ public class PushAgent extends AbstractAgent {
   protected Function<InetAddress, String> hostnameResolver;
   protected SenderTaskFactory senderTaskFactory;
   protected QueueingFactory queueingFactory;
-  protected Function<Histogram, Histogram> histogramRecompressor;
+  protected Function<Histogram, Histogram> histogramRecompressor = null;
   protected ReportableEntityHandlerFactory handlerFactory;
   protected ReportableEntityHandlerFactory deltaCounterHandlerFactory;
   protected HealthCheckManager healthCheckManager;
@@ -203,9 +203,10 @@ public class PushAgent extends AbstractAgent {
     queueingFactory = new QueueingFactoryImpl(apiContainer, agentId, taskQueueFactory, entityProps);
     senderTaskFactory = new SenderTaskFactoryImpl(apiContainer, agentId, taskQueueFactory,
         queueingFactory, entityProps);
-    histogramRecompressor = proxyConfig.isHistogramPassthroughRecompression() ?
-            new HistogramRecompressor(entityProps.getGlobalProperties()) :
-            null;
+    if (proxyConfig.isHistogramPassthroughRecompression()) {
+      histogramRecompressor = new HistogramRecompressor(() ->
+          entityProps.getGlobalProperties().getHistogramStorageAccuracy());
+    }
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory,
         proxyConfig.getPushBlockedSamples(), validationConfiguration, blockedPointsLogger,
         blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor);

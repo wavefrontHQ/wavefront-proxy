@@ -2,7 +2,6 @@ package com.wavefront.agent.histogram;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.tdunning.math.stats.AgentDigest;
-import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.common.Utils;
 import com.yammer.metrics.Metrics;
@@ -25,26 +24,31 @@ import static com.wavefront.agent.histogram.HistogramUtils.mergeHistogram;
  * @author vasily@wavefront.com
  */
 public class HistogramRecompressor implements Function<Histogram, Histogram> {
-  private final EntityProperties.GlobalProperties globalProperties;
+  private final Supplier<Short> storageAccuracySupplier;
   private final Supplier<Counter> histogramsCompacted = Utils.lazySupplier(() ->
       Metrics.newCounter(new TaggedMetricName("histogram", "histograms_compacted")));
   private final Supplier<Counter> histogramsRecompressed = Utils.lazySupplier(() ->
       Metrics.newCounter(new TaggedMetricName("histogram", "histograms_recompressed")));
 
-  public HistogramRecompressor(EntityProperties.GlobalProperties globalProperties) {
-    this.globalProperties = globalProperties;
+  /**
+   * @param storageAccuracySupplier Supplier for histogram storage accuracy
+   */
+  public HistogramRecompressor(Supplier<Short> storageAccuracySupplier) {
+    this.storageAccuracySupplier = storageAccuracySupplier;
   }
 
   @Override
   public Histogram apply(Histogram input) {
     Histogram result = input;
     if (hasDuplicateCentroids(input)) {
+      // merge centroids with identical values first, and if we get the number of centroids
+      // low enough, we might not need to incur recompression overhead after all.
       result = compactCentroids(input);
       histogramsCompacted.get().inc();
     }
-    if (input.getBins().size() > 2 * globalProperties.getHistogramStorageAccuracy()) {
-      AgentDigest digest = new AgentDigest(globalProperties.getHistogramStorageAccuracy(), 0);
-      mergeHistogram(digest, input);
+    if (result.getBins().size() > 2 * storageAccuracySupplier.get()) {
+      AgentDigest digest = new AgentDigest(storageAccuracySupplier.get(), 0);
+      mergeHistogram(digest, result);
       digest.compress();
       result = digest.toHistogram(input.getDuration());
       histogramsRecompressed.get().inc();

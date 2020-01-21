@@ -33,7 +33,8 @@ public final class HistogramUtils {
   }
 
   /**
-   * Generates a {@link HistogramKey} according a prototype {@link ReportPoint} and {@link Granularity}.
+   * Generates a {@link HistogramKey} according a prototype {@link ReportPoint} and
+   * {@link Granularity}.
    */
   public static HistogramKey makeKey(ReportPoint point, Granularity granularity) {
     Preconditions.checkNotNull(point);
@@ -66,7 +67,8 @@ public final class HistogramUtils {
    * @param agentDigest  the digest defining the centroids
    * @return the corresponding point
    */
-  public static ReportPoint pointFromKeyAndDigest(HistogramKey histogramKey, AgentDigest agentDigest) {
+  public static ReportPoint pointFromKeyAndDigest(HistogramKey histogramKey,
+                                                  AgentDigest agentDigest) {
     return ReportPoint.newBuilder()
         .setTimestamp(histogramKey.getBinTimeMillis())
         .setMetric(histogramKey.getMetric())
@@ -115,10 +117,11 @@ public final class HistogramUtils {
   /**
    * (For now, a rather trivial) encoding of {@link HistogramKey} the form short length and bytes
    *
-   * Consider using chronicle-values or making this stateful with a local byte[]  / Stringbuffers to be a little more
-   * efficient about encodings.
+   * Consider using chronicle-values or making this stateful with a local
+   * byte[] / Stringbuffers to be a little more efficient about encodings.
    */
-  public static class HistogramKeyMarshaller implements BytesReader<HistogramKey>, BytesWriter<HistogramKey>, ReadResolvable<HistogramKeyMarshaller> {
+  public static class HistogramKeyMarshaller implements BytesReader<HistogramKey>,
+      BytesWriter<HistogramKey>, ReadResolvable<HistogramKeyMarshaller> {
     private static final HistogramKeyMarshaller INSTANCE = new HistogramKeyMarshaller();
 
     private static final Histogram accumulatorKeySizes =
