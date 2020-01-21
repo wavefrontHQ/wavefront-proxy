@@ -10,9 +10,10 @@ import com.github.benmanes.caffeine.cache.Ticker;
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.TDigest;
 import com.wavefront.agent.SharedMetricsRegistry;
+import com.wavefront.agent.histogram.HistogramKey;
 import com.wavefront.common.SharedRateLimitingLogger;
 import com.wavefront.common.TimeProvider;
-import com.wavefront.agent.histogram.Utils;
+import com.wavefront.agent.histogram.HistogramUtils;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -31,7 +32,7 @@ import javax.annotation.Nullable;
 import com.yammer.metrics.core.MetricsRegistry;
 import wavefront.report.Histogram;
 
-import static com.wavefront.agent.histogram.Utils.HistogramKey;
+import static com.wavefront.agent.histogram.HistogramUtils.mergeHistogram;
 
 /**
  * Expose a local cache of limited size along with a task to flush that cache to the backing store.
@@ -268,7 +269,7 @@ public class AccumulationCache implements Accumulator {
       @Override
       public boolean hasNext() {
         while (indexIterator.hasNext()) {
-          Map.Entry<Utils.HistogramKey, Long> entry = indexIterator.next();
+          Map.Entry<HistogramKey, Long> entry = indexIterator.next();
           if (entry.getValue() < clock.currentTimeMillis()) {
             nextHistogramKey = entry.getKey();
             return true;
@@ -311,24 +312,6 @@ public class AccumulationCache implements Accumulator {
   @Override
   public long size() {
     return backingStore.size();
-  }
-
-  private static void mergeHistogram(final TDigest target, final Histogram source) {
-    List<Double> means = source.getBins();
-    List<Integer> counts = source.getCounts();
-
-    if (means != null && counts != null) {
-      int len = Math.min(means.size(), counts.size());
-
-      for (int i = 0; i < len; ++i) {
-        Integer count = counts.get(i);
-        Double mean = means.get(i);
-
-        if (count != null && count > 0 && mean != null && Double.isFinite(mean)) {
-          target.add(mean, count);
-        }
-      }
-    }
   }
 
   /**

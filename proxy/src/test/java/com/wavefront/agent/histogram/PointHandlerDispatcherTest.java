@@ -28,15 +28,15 @@ public class PointHandlerDispatcherTest {
   private final static short COMPRESSION = 100;
 
   private AccumulationCache in;
-  private ConcurrentMap<Utils.HistogramKey, AgentDigest> backingStore;
+  private ConcurrentMap<HistogramKey, AgentDigest> backingStore;
   private List<ReportPoint> pointOut;
   private List<String> debugLineOut;
   private List<ReportPoint> blockedOut;
   private AtomicLong timeMillis;
   private PointHandlerDispatcher subject;
 
-  private Utils.HistogramKey keyA = TestUtils.makeKey("keyA");
-  private Utils.HistogramKey keyB = TestUtils.makeKey("keyB");
+  private HistogramKey keyA = TestUtils.makeKey("keyA");
+  private HistogramKey keyB = TestUtils.makeKey("keyB");
   private AgentDigest digestA;
   private AgentDigest digestB;
 
@@ -45,7 +45,7 @@ public class PointHandlerDispatcherTest {
   public void setup() {
     timeMillis = new AtomicLong(0L);
     backingStore = new ConcurrentHashMap<>();
-    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(COMPRESSION, 100L,
+    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(() -> COMPRESSION, 100L,
         timeMillis::get);
     in = new AccumulationCache(backingStore, agentDigestFactory, 0, "", timeMillis::get);
     pointOut = new LinkedList<>();

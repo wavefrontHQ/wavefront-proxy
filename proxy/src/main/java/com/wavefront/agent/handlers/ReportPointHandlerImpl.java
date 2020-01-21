@@ -4,14 +4,15 @@ import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.ingester.ReportPointSerializer;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
+import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 import static com.wavefront.data.Validation.validatePoint;
@@ -26,7 +27,8 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
 
   final Logger validItemsLogger;
   final ValidationConfiguration validationConfig;
-  final Histogram receivedPointLag;
+  final Function<Histogram, Histogram> recompressor;
+  final com.yammer.metrics.core.Histogram receivedPointLag;
 
   /**
    * Creates a new instance that handles either histograms or points.
@@ -39,6 +41,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    * @param setupMetrics         Whether we should report counter metrics.
    * @param blockedItemLogger    logger for blocked items (optional).
    * @param validItemsLogger     sampling logger for valid items (optional).
+   * @param recompressor         histogram recompressor (optional)
    */
   ReportPointHandlerImpl(final HandlerKey handlerKey,
                          final int blockedItemsPerBatch,
@@ -46,11 +49,13 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
                          @Nonnull final ValidationConfiguration validationConfig,
                          final boolean setupMetrics,
                          @Nullable final Logger blockedItemLogger,
-                         @Nullable final Logger validItemsLogger) {
-    super(handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), senderTasks, setupMetrics,
-        blockedItemLogger);
+                         @Nullable final Logger validItemsLogger,
+                         @Nullable final Function<Histogram, Histogram> recompressor) {
+    super(handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), senderTasks,
+        setupMetrics, blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
+    this.recompressor = recompressor;
     MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
     this.receivedPointLag = registry.newHistogram(new MetricName(handlerKey.getEntityType() + "." +
         handlerKey.getHandle() + ".received", "", "lag"), false);
@@ -60,6 +65,10 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   void reportInternal(ReportPoint point) {
     validatePoint(point, validationConfig);
     receivedPointLag.update(Clock.now() - point.getTimestamp());
+    if (point.getValue() instanceof Histogram && recompressor != null) {
+      Histogram histogram = (Histogram) point.getValue();
+      point.setValue(recompressor.apply(histogram));
+    }
     final String strPoint = serializer.apply(point);
     getTask().add(strPoint);
     getReceivedCounter().inc();

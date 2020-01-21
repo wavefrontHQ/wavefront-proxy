@@ -129,8 +129,8 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
           backoffExponent = 1;
         }
         nextFlush = (long) ((Math.random() + 1.0) * runtimeProperties.getPushFlushInterval() *
-            Math.pow(runtimeProperties.getRetryBackoffBaseSeconds(), backoffExponent) *
-            schedulerTimingFactor);
+            Math.pow(runtimeProperties.getGlobalProperties().getRetryBackoffBaseSeconds(),
+                backoffExponent) * schedulerTimingFactor);
         logger.fine("[" + handlerKey.getHandle() + "] Next run scheduled in " + nextFlush + "ms");
       }
       if (isRunning.get()) {

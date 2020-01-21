@@ -46,14 +46,14 @@ public class PointHandlerDispatcher implements Runnable {
                                 TimeProvider clock,
                                 Supplier<Boolean> histogramDisabled,
                                 @Nullable Integer dispatchLimit,
-                                @Nullable Utils.Granularity granularity) {
+                                @Nullable Granularity granularity) {
     this.digests = digests;
     this.output = output;
     this.clock = clock;
     this.histogramDisabled = histogramDisabled;
     this.dispatchLimit = dispatchLimit;
 
-    String prefix = "histogram.accumulator." + Utils.Granularity.granularityToString(granularity);
+    String prefix = "histogram.accumulator." + HistogramUtils.granularityToString(granularity);
     this.dispatchCounter = Metrics.newCounter(new MetricName(prefix, "", "dispatched"));
     this.dispatchErrorCounter = Metrics.newCounter(new MetricName(prefix, "", "dispatch_errors"));
     Metrics.newGauge(new MetricName(prefix, "", "size"), new Gauge<Long>() {
@@ -73,7 +73,7 @@ public class PointHandlerDispatcher implements Runnable {
 
       long startMillis = System.currentTimeMillis();
       digestsSize.set(digests.size()); // update size before flushing, so we show a higher value
-      Iterator<Utils.HistogramKey> index = digests.getRipeDigestsIterator(this.clock);
+      Iterator<HistogramKey> index = digests.getRipeDigestsIterator(this.clock);
       while (index.hasNext()) {
         digests.compute(index.next(), (k, v) -> {
           if (v == null) {
@@ -85,7 +85,7 @@ public class PointHandlerDispatcher implements Runnable {
             dispatchErrorCounter.inc();
           } else {
             try {
-              ReportPoint out = Utils.pointFromKeyAndDigest(k, v);
+              ReportPoint out = HistogramUtils.pointFromKeyAndDigest(k, v);
               output.report(out);
               dispatchCounter.inc();
             } catch (Exception e) {

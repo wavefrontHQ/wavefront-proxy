@@ -7,8 +7,6 @@ import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.wavefront.agent.histogram.Utils.Granularity;
-import static com.wavefront.agent.histogram.Utils.HistogramKey;
 
 /**
  * Shared test helpers around histograms
@@ -35,7 +33,7 @@ public final class TestUtils {
    * Creates a histogram accumulation key for a given metric and granularity around DEFAULT_TIME_MILLIS
    */
   public static HistogramKey makeKey(String metric, Granularity granularity) {
-    return Utils.makeKey(
+    return HistogramUtils.makeKey(
         ReportPoint.newBuilder().
             setMetric(metric).
             setAnnotations(ImmutableMap.of("tagk", "tagv")).

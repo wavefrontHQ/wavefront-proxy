@@ -2,8 +2,7 @@ package com.wavefront.agent.histogram;
 
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
-import com.wavefront.agent.histogram.Utils.HistogramKey;
-import com.wavefront.agent.histogram.Utils.HistogramKeyMarshaller;
+import com.wavefront.agent.histogram.HistogramUtils.HistogramKeyMarshaller;
 
 import net.openhft.chronicle.hash.ChronicleHashRecoveryFailedException;
 import net.openhft.chronicle.map.ChronicleMap;
@@ -11,7 +10,6 @@ import net.openhft.chronicle.map.VanillaChronicleMap;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;

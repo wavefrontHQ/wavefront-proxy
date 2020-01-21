@@ -4,12 +4,15 @@ import com.wavefront.common.SamplingLogger;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.data.ReportableEntityType;
 import org.apache.commons.lang.math.NumberUtils;
+import wavefront.report.Histogram;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Caching factory for {@link ReportableEntityHandler} objects. Makes sure there's only one handler
@@ -48,6 +51,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final Logger blockedPointsLogger;
   private final Logger blockedHistogramsLogger;
   private final Logger blockedSpansLogger;
+  private final Function<Histogram, Histogram> histogramRecompressor;
 
   /**
    * Create new instance.
@@ -61,13 +65,15 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   public ReportableEntityHandlerFactoryImpl(
       final SenderTaskFactory senderTaskFactory, final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig, final Logger blockedPointsLogger,
-      final Logger blockedHistogramsLogger, final Logger blockedSpansLogger) {
+      final Logger blockedHistogramsLogger, final Logger blockedSpansLogger,
+      @Nullable Function<Histogram, Histogram> histogramRecompressor) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.validationConfig = validationConfig;
     this.blockedPointsLogger = blockedPointsLogger;
     this.blockedHistogramsLogger = blockedHistogramsLogger;
     this.blockedSpansLogger = blockedSpansLogger;
+    this.histogramRecompressor = histogramRecompressor;
   }
 
   @SuppressWarnings("unchecked")
@@ -79,11 +85,12 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
         case POINT:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey),
-              validationConfig, true, blockedPointsLogger, VALID_POINTS_LOGGER);
+              validationConfig, true, blockedPointsLogger, VALID_POINTS_LOGGER, null);
         case HISTOGRAM:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey),
-              validationConfig, false, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER);
+              validationConfig, false, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER,
+              histogramRecompressor);
         case SOURCE_TAG:
           return new ReportSourceTagHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey),

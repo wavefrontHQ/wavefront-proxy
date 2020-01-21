@@ -1,6 +1,8 @@
 package com.wavefront.agent.handlers;
 
-import com.wavefront.agent.histogram.Utils;
+import com.wavefront.agent.histogram.Granularity;
+import com.wavefront.agent.histogram.HistogramKey;
+import com.wavefront.agent.histogram.HistogramUtils;
 import com.wavefront.agent.histogram.accumulator.Accumulator;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.yammer.metrics.Metrics;
@@ -15,9 +17,8 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static com.wavefront.agent.histogram.HistogramUtils.granularityToString;
 import static com.wavefront.common.Utils.lazySupplier;
-import static com.wavefront.agent.histogram.Utils.Granularity.fromMillis;
-import static com.wavefront.agent.histogram.Utils.Granularity.granularityToString;
 import static com.wavefront.data.Validation.validatePoint;
 
 /**
@@ -28,7 +29,7 @@ import static com.wavefront.data.Validation.validatePoint;
  */
 public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
   private final Accumulator digests;
-  private final Utils.Granularity granularity;
+  private final Granularity granularity;
   // Metrics
   private final Supplier<Counter> pointCounter;
   private final Supplier<Counter> pointRejectedCounter;
@@ -51,13 +52,13 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
   public HistogramAccumulationHandlerImpl(final HandlerKey handlerKey,
                                           final Accumulator digests,
                                           final int blockedItemsPerBatch,
-                                          @Nullable Utils.Granularity granularity,
+                                          @Nullable Granularity granularity,
                                           @Nonnull final ValidationConfiguration validationConfig,
                                           boolean isHistogramInput,
                                           @Nullable final Logger blockedItemLogger,
                                           @Nullable final Logger validItemsLogger) {
     super(handlerKey, blockedItemsPerBatch, null, validationConfig, !isHistogramInput,
-        blockedItemLogger, validItemsLogger);
+        blockedItemLogger, validItemsLogger, null);
     this.digests = digests;
     this.granularity = granularity;
     String metricNamespace = "histogram.accumulator." + granularityToString(granularity);
@@ -86,7 +87,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
         return;
       }
       // Get key
-      Utils.HistogramKey histogramKey = Utils.makeKey(point, granularity);
+      HistogramKey histogramKey = HistogramUtils.makeKey(point, granularity);
       double value = (Double) point.getValue();
       pointCounter.get().inc();
 
@@ -94,7 +95,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       digests.put(histogramKey, value);
     } else if (point.getValue() instanceof Histogram) {
       Histogram value = (Histogram) point.getValue();
-      Utils.Granularity pointGranularity = fromMillis(value.getDuration());
+      Granularity pointGranularity = Granularity.fromMillis(value.getDuration());
       if (granularity != null && pointGranularity.getInMillis() > granularity.getInMillis()) {
         reject(point, "Attempting to send coarser granularity (" +
             granularityToString(pointGranularity) + ") distribution to a finer granularity (" +
@@ -107,7 +108,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
       histogramSampleCount.get().update(value.getCounts().stream().mapToLong(x -> x).sum());
 
       // Key
-      Utils.HistogramKey histogramKey = Utils.makeKey(point,
+      HistogramKey histogramKey = HistogramUtils.makeKey(point,
           granularity == null ? pointGranularity : granularity);
       histogramCounter.get().inc();
 
