@@ -43,21 +43,6 @@ public interface EntityProperties {
   boolean isSplitPushWhenRateLimited();
 
   /**
-   * Get base in seconds for retry thread exponential backoff.
-   *
-   * @return exponential backoff base value
-   */
-  double getRetryBackoffBaseSeconds();
-
-  /**
-   * Sets base in seconds for retry thread exponential backoff.
-   *
-   * @param retryBackoffBaseSeconds new value for exponential backoff base value.
-   *                                if null is provided, reverts to originally configured value.
-   */
-  void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds);
-
-  /**
    * Get initially configured rate limit (per second).
    *
    * @return rate limit
@@ -145,4 +130,42 @@ public interface EntityProperties {
    * @param featureDisabled if "true", data flow for this entity type is disabled.
    */
   void setFeatureDisabled(boolean featureDisabled);
+
+  /**
+   * Accesses a container with properties shared across all entity types
+   *
+   * @return global properties container
+   */
+  EntityProperties.GlobalProperties getGlobalProperties();
+
+  interface GlobalProperties {
+    /**
+     * Get base in seconds for retry thread exponential backoff.
+     *
+     * @return exponential backoff base value
+     */
+    double getRetryBackoffBaseSeconds();
+
+    /**
+     * Sets base in seconds for retry thread exponential backoff.
+     *
+     * @param retryBackoffBaseSeconds new value for exponential backoff base value.
+     *                                if null is provided, reverts to originally configured value.
+     */
+    void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds);
+
+    /**
+     * Get histogram storage accuracy, as specified by the back-end.
+     *
+     * @return histogram storage accuracy
+     */
+    short getHistogramStorageAccuracy();
+
+    /**
+     * Sets histogram storage accuracy.
+     *
+     * @param histogramStorageAccuracy storage accuracy
+     */
+    void setHistogramStorageAccuracy(short histogramStorageAccuracy);
+  }
 }

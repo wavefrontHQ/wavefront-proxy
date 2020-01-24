@@ -16,4 +16,11 @@ public interface EntityPropertiesFactory {
    * @return EntityProperties wrapper
    */
   EntityProperties get(ReportableEntityType entityType);
+
+  /**
+   * Returns a container with properties shared across all entity types
+   *
+   * @return global properties container
+   */
+  EntityProperties.GlobalProperties getGlobalProperties();
 }

@@ -9,6 +9,8 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 public class DefaultEntityPropertiesForTesting implements EntityProperties {
+  private final GlobalProperties global = new GlobalPropertiesForTestingImpl();
+
   @Override
   public int getItemsPerBatchOriginal() {
     return DEFAULT_BATCH_SIZE;
@@ -17,15 +19,6 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   @Override
   public boolean isSplitPushWhenRateLimited() {
     return DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
-  }
-
-  @Override
-  public double getRetryBackoffBaseSeconds() {
-    return DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-  }
-
-  @Override
-  public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {
   }
 
   @Override
@@ -84,5 +77,31 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
 
   @Override
   public void setFeatureDisabled(boolean featureDisabled) {
+  }
+
+  @Override
+  public GlobalProperties getGlobalProperties() {
+    return global;
+  }
+
+  private static class GlobalPropertiesForTestingImpl implements GlobalProperties {
+
+    @Override
+    public double getRetryBackoffBaseSeconds() {
+      return DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
+    }
+
+    @Override
+    public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {
+    }
+
+    @Override
+    public short getHistogramStorageAccuracy() {
+      return 32;
+    }
+
+    @Override
+    public void setHistogramStorageAccuracy(short histogramStorageAccuracy) {
+    }
   }
 }

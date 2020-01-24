@@ -10,7 +10,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author vasily@wavefront.com
  */
-public class UtilsTest {
+public class HistogramUtilsTest {
 
   @Test
   public void testIsWavefrontResponse() {

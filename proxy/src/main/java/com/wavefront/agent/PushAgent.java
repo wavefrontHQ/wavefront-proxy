@@ -29,11 +29,13 @@ import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.wavefront.agent.handlers.SenderTaskFactoryImpl;
+import com.wavefront.agent.histogram.Granularity;
+import com.wavefront.agent.histogram.HistogramKey;
+import com.wavefront.agent.histogram.HistogramRecompressor;
+import com.wavefront.agent.histogram.HistogramUtils;
+import com.wavefront.agent.histogram.HistogramUtils.HistogramKeyMarshaller;
 import com.wavefront.agent.histogram.MapLoader;
 import com.wavefront.agent.histogram.PointHandlerDispatcher;
-import com.wavefront.agent.histogram.Utils;
-import com.wavefront.agent.histogram.Utils.HistogramKey;
-import com.wavefront.agent.histogram.Utils.HistogramKeyMarshaller;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.Accumulator;
 import com.wavefront.agent.histogram.accumulator.AgentDigestFactory;
@@ -98,6 +100,7 @@ import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.logstash.beats.Server;
+import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 import javax.annotation.Nonnull;
@@ -149,6 +152,7 @@ public class PushAgent extends AbstractAgent {
   protected Function<InetAddress, String> hostnameResolver;
   protected SenderTaskFactory senderTaskFactory;
   protected QueueingFactory queueingFactory;
+  protected Function<Histogram, Histogram> histogramRecompressor = null;
   protected ReportableEntityHandlerFactory handlerFactory;
   protected ReportableEntityHandlerFactory deltaCounterHandlerFactory;
   protected HealthCheckManager healthCheckManager;
@@ -199,9 +203,13 @@ public class PushAgent extends AbstractAgent {
     queueingFactory = new QueueingFactoryImpl(apiContainer, agentId, taskQueueFactory, entityProps);
     senderTaskFactory = new SenderTaskFactoryImpl(apiContainer, agentId, taskQueueFactory,
         queueingFactory, entityProps);
+    if (proxyConfig.isHistogramPassthroughRecompression()) {
+      histogramRecompressor = new HistogramRecompressor(() ->
+          entityProps.getGlobalProperties().getHistogramStorageAccuracy());
+    }
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory,
         proxyConfig.getPushBlockedSamples(), validationConfiguration, blockedPointsLogger,
-        blockedHistogramsLogger, blockedSpansLogger);
+        blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor);
     healthCheckManager = new HealthCheckManagerImpl(proxyConfig);
     tokenAuthenticator = configureTokenAuthenticator();
 
@@ -251,7 +259,7 @@ public class PushAgent extends AbstractAgent {
             HandlerKey.of(ReportableEntityType.HISTOGRAM, "histogram_ports"));
 
         startHistogramListeners(histMinPorts, pointHandler, remoteHostAnnotator,
-            Utils.Granularity.MINUTE, proxyConfig.getHistogramMinuteFlushSecs(),
+            Granularity.MINUTE, proxyConfig.getHistogramMinuteFlushSecs(),
             proxyConfig.isHistogramMinuteMemoryCache(), baseDirectory,
             proxyConfig.getHistogramMinuteAccumulatorSize(),
             proxyConfig.getHistogramMinuteAvgKeyBytes(),
@@ -259,7 +267,7 @@ public class PushAgent extends AbstractAgent {
             proxyConfig.getHistogramMinuteCompression(),
             proxyConfig.isHistogramMinuteAccumulatorPersisted());
         startHistogramListeners(histHourPorts, pointHandler, remoteHostAnnotator,
-            Utils.Granularity.HOUR, proxyConfig.getHistogramHourFlushSecs(),
+            Granularity.HOUR, proxyConfig.getHistogramHourFlushSecs(),
             proxyConfig.isHistogramHourMemoryCache(), baseDirectory,
             proxyConfig.getHistogramHourAccumulatorSize(),
             proxyConfig.getHistogramHourAvgKeyBytes(),
@@ -267,7 +275,7 @@ public class PushAgent extends AbstractAgent {
             proxyConfig.getHistogramHourCompression(),
             proxyConfig.isHistogramHourAccumulatorPersisted());
         startHistogramListeners(histDayPorts, pointHandler, remoteHostAnnotator,
-            Utils.Granularity.DAY, proxyConfig.getHistogramDayFlushSecs(),
+            Granularity.DAY, proxyConfig.getHistogramDayFlushSecs(),
             proxyConfig.isHistogramDayMemoryCache(), baseDirectory,
             proxyConfig.getHistogramDayAccumulatorSize(),
             proxyConfig.getHistogramDayAvgKeyBytes(),
@@ -729,8 +737,9 @@ public class PushAgent extends AbstractAgent {
                   averageValueSize(proxyConfig.getHistogramDistAvgDigestBytes()).
                   maxBloatFactor(1000).
                   create();
-              AgentDigestFactory agentDigestFactory = new AgentDigestFactory(
-                  proxyConfig.getPushRelayHistogramAggregatorCompression(),
+              AgentDigestFactory agentDigestFactory = new AgentDigestFactory(() ->
+                  (short) Math.min(proxyConfig.getPushRelayHistogramAggregatorCompression(),
+                      entityProps.getGlobalProperties().getHistogramStorageAccuracy()),
                   TimeUnit.SECONDS.toMillis(proxyConfig.getPushRelayHistogramAggregatorFlushSecs()),
                   proxyConfig.getTimeProvider());
               AccumulationCache cachedAccumulator = new AccumulationCache(accumulator,
@@ -834,13 +843,13 @@ public class PushAgent extends AbstractAgent {
   protected void startHistogramListeners(List<String> ports,
                                          ReportableEntityHandler<ReportPoint, String> pointHandler,
                                          SharedGraphiteHostAnnotator hostAnnotator,
-                                         @Nullable Utils.Granularity granularity,
+                                         @Nullable Granularity granularity,
                                          int flushSecs, boolean memoryCacheEnabled,
                                          File baseDirectory, Long accumulatorSize, int avgKeyBytes,
                                          int avgDigestBytes, short compression, boolean persist)
       throws Exception {
     if (ports.size() == 0) return;
-    String listenerBinType = Utils.Granularity.granularityToString(granularity);
+    String listenerBinType = HistogramUtils.granularityToString(granularity);
     // Accumulator
     if (persist) {
       // Check directory
@@ -886,11 +895,12 @@ public class PushAgent extends AbstractAgent {
         10,
         TimeUnit.SECONDS);
 
-    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(compression,
+    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(() -> (short) Math.min(
+        compression, entityProps.getGlobalProperties().getHistogramStorageAccuracy()),
         TimeUnit.SECONDS.toMillis(flushSecs), proxyConfig.getTimeProvider());
     Accumulator cachedAccumulator = new AccumulationCache(accumulator, agentDigestFactory,
         (memoryCacheEnabled ? accumulatorSize : 0),
-        "histogram.accumulator." + Utils.Granularity.granularityToString(granularity), null);
+        "histogram.accumulator." + HistogramUtils.granularityToString(granularity), null);
 
     // Schedule write-backs
     histogramExecutor.scheduleWithFixedDelay(
@@ -997,6 +1007,10 @@ public class PushAgent extends AbstractAgent {
         logger.fine("Proxy push batch set to (locally) " +
             entityProps.get(ReportableEntityType.POINT).getItemsPerBatch());
       }
+      if (config.getHistogramStorageAccuracy() != null) {
+        entityProps.getGlobalProperties().
+            setHistogramStorageAccuracy(config.getHistogramStorageAccuracy().shortValue());
+      }
 
       updateRateLimiter(ReportableEntityType.POINT, config.getCollectorSetsRateLimit(),
           config.getCollectorRateLimit(), config.getGlobalCollectorRateLimit());
@@ -1014,16 +1028,16 @@ public class PushAgent extends AbstractAgent {
       if (BooleanUtils.isTrue(config.getCollectorSetsRetryBackoff())) {
         if (config.getRetryBackoffBaseSeconds() != null) {
           // if the collector is in charge and it provided a setting, use it
-          entityProps.get(ReportableEntityType.POINT).
+          entityProps.getGlobalProperties().
               setRetryBackoffBaseSeconds(config.getRetryBackoffBaseSeconds());
           logger.fine("Proxy backoff base set to (remotely) " +
               config.getRetryBackoffBaseSeconds());
         } // otherwise don't change the setting
       } else {
         // restores the agent setting
-        entityProps.get(ReportableEntityType.POINT).setRetryBackoffBaseSeconds(null);
+        entityProps.getGlobalProperties().setRetryBackoffBaseSeconds(null);
         logger.fine("Proxy backoff base set to (locally) " +
-            entityProps.get(ReportableEntityType.POINT).getRetryBackoffBaseSeconds());
+            entityProps.getGlobalProperties().getRetryBackoffBaseSeconds());
       }
       entityProps.get(ReportableEntityType.HISTOGRAM).
           setFeatureDisabled(BooleanUtils.isTrue(config.getHistogramDisabled()));

@@ -6,12 +6,12 @@ import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import com.google.common.util.concurrent.RecyclableRateLimiterWithMetrics;
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.data.ReportableEntityType;
-import org.apache.commons.lang3.ObjectUtils;
 
 import javax.annotation.Nullable;
 import java.util.Map;
 
 import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 /**
  * Generates entity-specific wrappers for dynamic proxy settings.
@@ -21,12 +21,13 @@ import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
 public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
 
   private final Map<ReportableEntityType, EntityProperties> wrappers;
+  private final EntityProperties.GlobalProperties global;
 
   /**
    * @param proxyConfig proxy settings container
    */
   public EntityPropertiesFactoryImpl(ProxyConfig proxyConfig) {
-    GlobalProperties global = new GlobalProperties();
+    global = new GlobalPropertiesImpl(proxyConfig);
     EntityProperties pointProperties = new PointsProperties(proxyConfig, global);
     wrappers = ImmutableMap.<ReportableEntityType, EntityProperties>builder().
         put(ReportableEntityType.POINT, pointProperties).
@@ -43,10 +44,39 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     return wrappers.get(entityType);
   }
 
-  private static final class GlobalProperties {
-    private Double retryBackoffBaseSeconds = null;
+  @Override
+  public EntityProperties.GlobalProperties getGlobalProperties() {
+    return global;
+  }
 
-    GlobalProperties() {
+  private static final class GlobalPropertiesImpl implements EntityProperties.GlobalProperties {
+    private final ProxyConfig wrapped;
+    private Double retryBackoffBaseSeconds = null;
+    private short histogramStorageAccuracy = 32;
+
+    GlobalPropertiesImpl(ProxyConfig wrapped) {
+      this.wrapped = wrapped;
+      reportSettingAsGauge(this::getRetryBackoffBaseSeconds, "dynamic.retryBackoffBaseSeconds");
+    }
+
+    @Override
+    public double getRetryBackoffBaseSeconds() {
+      return firstNonNull(retryBackoffBaseSeconds, wrapped.getRetryBackoffBaseSeconds());
+    }
+
+    @Override
+    public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {
+      this.retryBackoffBaseSeconds = retryBackoffBaseSeconds;
+    }
+
+    @Override
+    public short getHistogramStorageAccuracy() {
+      return histogramStorageAccuracy;
+    }
+
+    @Override
+    public void setHistogramStorageAccuracy(short histogramStorageAccuracy) {
+      this.histogramStorageAccuracy = histogramStorageAccuracy;
     }
   }
 
@@ -67,12 +97,11 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
               getRateLimit(), getRateLimitMaxBurstSeconds()), getRateLimiterName()) :
           null;
       reportSettingAsGauge(this::getPushFlushInterval, "dynamic.pushFlushInterval");
-      reportSettingAsGauge(this::getRetryBackoffBaseSeconds, "dynamic.retryBackoffBaseSeconds");
     }
 
     @Override
     public int getItemsPerBatch() {
-      return ObjectUtils.firstNonNull(itemsPerBatch, getItemsPerBatchOriginal());
+      return firstNonNull(itemsPerBatch, getItemsPerBatchOriginal());
     }
 
     @Override
@@ -86,14 +115,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public double getRetryBackoffBaseSeconds() {
-      return ObjectUtils.firstNonNull(globalProperties.retryBackoffBaseSeconds,
-          wrapped.getRetryBackoffBaseSeconds());
-    }
-
-    @Override
-    public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {
-      globalProperties.retryBackoffBaseSeconds = retryBackoffBaseSeconds;
+    public GlobalProperties getGlobalProperties() {
+      return globalProperties;
     }
 
     @Override

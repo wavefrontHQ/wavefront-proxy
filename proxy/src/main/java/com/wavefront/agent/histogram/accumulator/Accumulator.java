@@ -1,8 +1,8 @@
 package com.wavefront.agent.histogram.accumulator;
 
 import com.tdunning.math.stats.AgentDigest;
+import com.wavefront.agent.histogram.HistogramKey;
 import com.wavefront.common.TimeProvider;
-import com.wavefront.agent.histogram.Utils;
 
 import java.util.Iterator;
 import java.util.function.BiFunction;
@@ -24,7 +24,7 @@ public interface Accumulator {
    * @param key   histogram key
    * @param value {@code AgentDigest} to be merged
    */
-  void put(Utils.HistogramKey key, @Nonnull AgentDigest value);
+  void put(HistogramKey key, @Nonnull AgentDigest value);
 
   /**
    * Update {@link AgentDigest} in the cache with a double value. If such {@code AgentDigest} does
@@ -33,7 +33,7 @@ public interface Accumulator {
    * @param key histogram key
    * @param value value to be merged into the {@code AgentDigest}
    */
-  void put(Utils.HistogramKey key, double value);
+  void put(HistogramKey key, double value);
 
   /**
    * Update {@link AgentDigest} in the cache with a {@code Histogram} value. If such
@@ -43,7 +43,7 @@ public interface Accumulator {
    * @param key histogram key
    * @param value a {@code Histogram} to be merged into the {@code AgentDigest}
    */
-  void put(Utils.HistogramKey key, Histogram value);
+  void put(HistogramKey key, Histogram value);
 
   /**
    * Attempts to compute a mapping for the specified key and its current mapped value
@@ -53,7 +53,7 @@ public interface Accumulator {
    * @param remappingFunction the function to compute a value
    * @return                  the new value associated with the specified key, or null if none
    */
-  AgentDigest compute(Utils.HistogramKey key, BiFunction<? super Utils.HistogramKey,
+  AgentDigest compute(HistogramKey key, BiFunction<? super HistogramKey,
       ? super AgentDigest, ? extends AgentDigest> remappingFunction);
 
   /**
@@ -62,7 +62,7 @@ public interface Accumulator {
    * @param clock a millisecond-precision epoch time source
    * @return an iterator over "ripe" digests ready to be shipped
    */
-  Iterator<Utils.HistogramKey> getRipeDigestsIterator(TimeProvider clock);
+  Iterator<HistogramKey> getRipeDigestsIterator(TimeProvider clock);
 
   /**
    * Returns the number of items in the storage behind the cache

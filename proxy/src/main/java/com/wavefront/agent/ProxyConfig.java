@@ -221,6 +221,11 @@ public class ProxyConfig extends Configuration {
       "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 99")
   int memGuardFlushThreshold = 99;
 
+  @Parameter(names = {"--histogramPassthroughRecompression"},
+      description = "Whether we should recompress histograms received on pushListenerPorts. " +
+          "Default: true ")
+  boolean histogramPassthroughRecompression = true;
+
   @Parameter(names = {"--histogramStateDirectory"},
       description = "Directory for persistent proxy state, must be writable.")
   String histogramStateDirectory = "/var/spool/wavefront-proxy";
@@ -872,6 +877,10 @@ public class ProxyConfig extends Configuration {
     return memGuardFlushThreshold;
   }
 
+  public boolean isHistogramPassthroughRecompression() {
+    return histogramPassthroughRecompression;
+  }
+
   public String getHistogramStateDirectory() {
     return histogramStateDirectory;
   }
@@ -1407,6 +1416,8 @@ public class ProxyConfig extends Configuration {
       memGuardFlushThreshold = config.getInteger("memGuardFlushThreshold", memGuardFlushThreshold);
 
       // Histogram: global settings
+      histogramPassthroughRecompression = config.getBoolean("histogramPassthroughRecompression",
+          histogramPassthroughRecompression);
       histogramStateDirectory = config.getString("histogramStateDirectory",
           histogramStateDirectory);
       histogramAccumulatorResolveInterval = config.getLong("histogramAccumulatorResolveInterval",
