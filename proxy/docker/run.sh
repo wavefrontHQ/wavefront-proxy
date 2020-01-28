@@ -12,7 +12,7 @@ ulimit -Hn 65536
 
 java_heap_usage=${JAVA_HEAP_USAGE:-4G}
 jvm_initial_ram_percentage=${JVM_INITIAL_RAM_PERCENTAGE:-50.0}
-jvm_max_ram_percentage=${JVM_MAX_RAM_PERCENTAGE:-50.0}
+jvm_max_ram_percentage=${JVM_MAX_RAM_PERCENTAGE:-85.0}
 
 # Use cgroup opts - Note that -XX:UseContainerSupport=true since Java 8u191.
 # https://bugs.openjdk.java.net/browse/JDK-8146115
