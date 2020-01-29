@@ -1,7 +1,6 @@
 package com.wavefront.agent.formatter;
 
 import com.wavefront.ingester.AbstractIngesterFormatter;
-import com.wavefront.ingester.EventDecoder;
 
 /**
  * Best-effort data format auto-detection.
@@ -20,7 +19,7 @@ public enum DataFormat {
             input.startsWith(AbstractIngesterFormatter.SOURCE_DESCRIPTION_LITERAL)) {
           return SOURCE_TAG;
         }
-        if (input.startsWith(EventDecoder.EVENT)) return EVENT;
+        if (input.startsWith(AbstractIngesterFormatter.EVENT_LITERAL)) return EVENT;
         break;
       case '{':
         if (input.charAt(input.length() - 1) == '}') return JSON_STRING;
