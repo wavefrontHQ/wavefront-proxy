@@ -3,6 +3,8 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -52,7 +54,8 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
     this.ruleMetrics = ruleMetrics;
   }
 
-  protected boolean extractAnnotation(@Nonnull Span span, final String extractFrom) {
+  protected boolean extractAnnotation(@Nonnull Span span, final String extractFrom,
+                                      List<Annotation> annotationBuffer) {
     Matcher patternMatcher;
     if (extractFrom == null || (compiledMatchPattern != null && !compiledMatchPattern.matcher(extractFrom).matches())) {
       return false;
@@ -63,22 +66,23 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
     }
     String value = patternMatcher.replaceAll(PreprocessorUtil.expandPlaceholders(patternReplace, span));
     if (!value.isEmpty()) {
-      span.getAnnotations().add(new Annotation(key, value));
+      annotationBuffer.add(new Annotation(key, value));
       ruleMetrics.incrementRuleAppliedCounter();
     }
     return true;
   }
 
   protected void internalApply(@Nonnull Span span) {
+    List<Annotation> buffer = new ArrayList<>();
     switch (input) {
       case "spanName":
-        if (extractAnnotation(span, span.getName()) && patternReplaceInput != null) {
+        if (extractAnnotation(span, span.getName(), buffer) && patternReplaceInput != null) {
           span.setName(compiledSearchPattern.matcher(span.getName()).
               replaceAll(PreprocessorUtil.expandPlaceholders(patternReplaceInput, span)));
         }
         break;
       case "sourceName":
-        if (extractAnnotation(span, span.getSource()) && patternReplaceInput != null) {
+        if (extractAnnotation(span, span.getSource(), buffer) && patternReplaceInput != null) {
           span.setSource(compiledSearchPattern.matcher(span.getSource()).
               replaceAll(PreprocessorUtil.expandPlaceholders(patternReplaceInput, span)));
         }
@@ -86,7 +90,7 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
       default:
         for (Annotation a : span.getAnnotations()) {
           if (a.getKey().equals(input)) {
-            if (extractAnnotation(span, a.getValue())) {
+            if (extractAnnotation(span, a.getValue(), buffer)) {
               if (patternReplaceInput != null) {
                 a.setValue(compiledSearchPattern.matcher(a.getValue()).
                     replaceAll(PreprocessorUtil.expandPlaceholders(patternReplaceInput, span)));
@@ -98,6 +102,7 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
           }
         }
     }
+    span.getAnnotations().addAll(buffer);
   }
 
   @Nullable
