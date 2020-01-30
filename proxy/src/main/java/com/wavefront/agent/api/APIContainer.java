@@ -158,9 +158,10 @@ public class APIContainer {
     }
     factory.register(AcceptEncodingGZIPFilter.class);
     factory.register((ClientRequestFilter) context -> {
-          if (context.getUri().getPath().contains("/v2/wfproxy") ||
+          if ((context.getUri().getPath().contains("/v2/wfproxy") ||
               context.getUri().getPath().contains("/v2/source") ||
-              context.getUri().getPath().contains("/event")) {
+              context.getUri().getPath().contains("/event")) &&
+              !context.getUri().getPath().endsWith("checkin")) {
             context.getHeaders().add("Authorization", "Bearer " + proxyConfig.getToken());
           }
         });
