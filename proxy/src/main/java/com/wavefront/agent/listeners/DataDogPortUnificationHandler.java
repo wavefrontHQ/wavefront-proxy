@@ -302,6 +302,10 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         tags.putAll(systemTags);
       }
       extractTags(tagsNode, tags); // tags sent with the data override system host-level tags
+      JsonNode deviceNode = metric.get("device"); // Include a device= tag on the data if that property exists
+      if (deviceNode != null) {
+        tags.put("device", deviceNode.textValue());
+      }
       JsonNode pointsNode = metric.get("points");
       if (pointsNode == null) {
         pointHandler.reject((ReportPoint) null, "Skipping - 'points' field missing.");

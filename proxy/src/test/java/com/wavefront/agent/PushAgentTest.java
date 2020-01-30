@@ -578,6 +578,7 @@ public class PushAgentTest {
         setHost("testhost").
         setTimestamp(1531176936000L).
         setValue(12.052631578947368d).
+        setAnnotations(ImmutableMap.of("device", "eth0")).                    
         build());
     expectLastCall().once();
     replay(mockPointHandler);
