@@ -140,24 +140,6 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         alwaysSampleErrors, this::sample);
   }
 
-  /**
-   * Report span and derived metrics if needed.
-   *
-   * @param object     span.
-   */
-  protected void report(Span object) {
-    handler.report(object);
-  }
-
-  protected boolean sample(Span object) {
-    if (sampler.sample(object.getName(),
-        UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
-      return true;
-    }
-    discardedSpansBySampler.inc();
-    return false;
-  }
-
   public static void preprocessAndHandleSpan(
       String message, ReportableEntityDecoder<String, Span> decoder,
       ReportableEntityHandler<Span, String> handler, Consumer<Span> spanReporter,
@@ -207,5 +189,23 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         spanReporter.accept(object);
       }
     }
+  }
+
+  /**
+   * Report span and derived metrics if needed.
+   *
+   * @param object     span.
+   */
+  protected void report(Span object) {
+    handler.report(object);
+  }
+
+  protected boolean sample(Span object) {
+    if (sampler.sample(object.getName(),
+        UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
+      return true;
+    }
+    discardedSpansBySampler.inc();
+    return false;
   }
 }
