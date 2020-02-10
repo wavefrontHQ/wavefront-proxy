@@ -22,6 +22,8 @@ import com.yammer.metrics.core.MetricName;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
@@ -30,6 +32,7 @@ import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
@@ -133,8 +136,35 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       return;
     }
 
-    ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
-        null : preprocessorSupplier.get();
+    preprocessAndHandleSpan(message, decoder, handler, this::report, preprocessorSupplier, ctx,
+        alwaysSampleErrors, this::sample);
+  }
+
+  /**
+   * Report span and derived metrics if needed.
+   *
+   * @param object     span.
+   */
+  protected void report(Span object) {
+    handler.report(object);
+  }
+
+  protected boolean sample(Span object) {
+    if (sampler.sample(object.getName(),
+        UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
+      return true;
+    }
+    discardedSpansBySampler.inc();
+    return false;
+  }
+
+  public static void preprocessAndHandleSpan(
+      String message, ReportableEntityDecoder<String, Span> decoder,
+      ReportableEntityHandler<Span, String> handler, Consumer<Span> spanReporter,
+      @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      @Nullable ChannelHandlerContext ctx, boolean alwaysSampleErrors,
+      Function<Span, Boolean> samplerFunc) {
+    ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ? null : preprocessorSupplier.get();
     String[] messageHolder = new String[1];
 
     // transform the line if needed
@@ -171,29 +201,11 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         }
       }
       // check whether error span tag exists.
-      boolean sampleError = alwaysSampleErrors && object.getAnnotations().stream().anyMatch(
-          t -> t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
-      if (sampleError || sample(object)) {
-        report(object);
+      boolean sampleError = alwaysSampleErrors && object.getAnnotations().stream().anyMatch(t ->
+          t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
+      if (sampleError || samplerFunc.apply(object)) {
+        spanReporter.accept(object);
       }
     }
-  }
-
-  /**
-   * Report span and derived metrics if needed.
-   *
-   * @param object     span.
-   */
-  protected void report(Span object) {
-    handler.report(object);
-  }
-
-  protected boolean sample(Span object) {
-    if (sampler.sample(object.getName(),
-        UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
-      return true;
-    }
-    discardedSpansBySampler.inc();
-    return false;
   }
 }

@@ -74,6 +74,7 @@ import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.HistogramDecoder;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.ingester.PickleProtocolDecoder;
+import com.wavefront.ingester.ReportPointDecoder;
 import com.wavefront.ingester.ReportPointDecoderWrapper;
 import com.wavefront.ingester.ReportSourceTagDecoder;
 import com.wavefront.ingester.ReportableEntityDecoder;
@@ -160,8 +161,8 @@ public class PushAgent extends AbstractAgent {
   protected final Supplier<Map<ReportableEntityType, ReportableEntityDecoder<?, ?>>>
       decoderSupplier = lazySupplier(() ->
       ImmutableMap.<ReportableEntityType, ReportableEntityDecoder<?, ?>>builder().
-          put(ReportableEntityType.POINT, new ReportPointDecoderWrapper(
-              new GraphiteDecoder("unknown", proxyConfig.getCustomSourceTags()))).
+          put(ReportableEntityType.POINT, new ReportPointDecoder(() -> "unknown",
+              proxyConfig.getCustomSourceTags())).
           put(ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder()).
           put(ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(
               new HistogramDecoder("unknown"))).
