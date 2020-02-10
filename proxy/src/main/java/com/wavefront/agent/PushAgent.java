@@ -70,7 +70,6 @@ import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.EventDecoder;
-import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.HistogramDecoder;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.ingester.PickleProtocolDecoder;
