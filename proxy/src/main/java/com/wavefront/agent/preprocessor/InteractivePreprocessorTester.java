@@ -84,17 +84,17 @@ public class InteractivePreprocessorTester implements InteractiveTester {
 
         @Override
         public void block(ReportPoint reportPoint) {
-          System.out.println("Blocked: " + reportPoint);
+          System.out.println("Blocked: " + ReportPointSerializer.pointToString(reportPoint));
         }
 
         @Override
         public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
-          System.out.println("Blocked: " + reportPoint);
+          System.out.println("Blocked: " + ReportPointSerializer.pointToString(reportPoint));
         }
 
         @Override
         public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
-          System.out.println("Rejected: " + reportPoint);
+          System.out.println("Rejected: " + ReportPointSerializer.pointToString(reportPoint));
         }
 
         @Override
