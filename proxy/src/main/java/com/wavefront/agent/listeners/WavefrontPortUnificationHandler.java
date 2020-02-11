@@ -156,7 +156,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
     }
   }
 
-  static void preprocessAndHandlePoint(
+  public static void preprocessAndHandlePoint(
       String message, ReportableEntityDecoder<String, ReportPoint> decoder,
       ReportableEntityHandler<ReportPoint, String> handler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,

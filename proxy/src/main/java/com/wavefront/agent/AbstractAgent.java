@@ -12,6 +12,7 @@ import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
+import com.wavefront.agent.preprocessor.InteractivePreprocessorTester;
 import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
 import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
 import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
@@ -22,6 +23,7 @@ import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.TaggedMetricName;
+import com.wavefront.data.ReportableEntityType;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -201,13 +203,30 @@ public abstract class AbstractAgent {
       postProcessConfig();
       initPreprocessors();
 
-      // Conditionally enter an interactive debugging session for logsIngestionConfig.yaml
-      if (proxyConfig.isTestLogs()) {
-        InteractiveLogsTester interactiveLogsTester = new InteractiveLogsTester(
-            this::loadLogsIngestionConfig, proxyConfig.getPrefix());
-        logger.info("Reading line-by-line sample log messages from STDIN");
+      if (proxyConfig.isTestLogs() || proxyConfig.getTestPreprocessorForPort() != null ||
+          proxyConfig.getTestSpanPreprocessorForPort() != null) {
+        InteractiveTester interactiveTester;
+        if (proxyConfig.isTestLogs()) {
+          logger.info("Reading line-by-line sample log messages from STDIN");
+          interactiveTester = new InteractiveLogsTester(this::loadLogsIngestionConfig,
+              proxyConfig.getPrefix());
+        } else if (proxyConfig.getTestPreprocessorForPort() != null) {
+          logger.info("Reading line-by-line points from STDIN");
+          interactiveTester = new InteractivePreprocessorTester(
+              preprocessors.get(proxyConfig.getTestPreprocessorForPort()),
+              ReportableEntityType.POINT, proxyConfig.getTestPreprocessorForPort(),
+              proxyConfig.getCustomSourceTags());
+        } else if (proxyConfig.getTestSpanPreprocessorForPort() != null) {
+          logger.info("Reading line-by-line spans from STDIN");
+          interactiveTester = new InteractivePreprocessorTester(
+              preprocessors.get(String.valueOf(proxyConfig.getTestPreprocessorForPort())),
+              ReportableEntityType.TRACE, proxyConfig.getTestPreprocessorForPort(),
+              proxyConfig.getCustomSourceTags());
+        } else {
+          throw new IllegalStateException();
+        }
         //noinspection StatementWithEmptyBody
-        while (interactiveLogsTester.interactiveTest()) {
+        while (interactiveTester.interactiveTest()) {
           // empty
         }
         System.exit(0);
