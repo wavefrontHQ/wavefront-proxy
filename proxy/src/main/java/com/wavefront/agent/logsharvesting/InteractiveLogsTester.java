@@ -1,5 +1,6 @@
 package com.wavefront.agent.logsharvesting;
 
+import com.wavefront.agent.InteractiveTester;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -21,7 +22,7 @@ import wavefront.report.ReportPoint;
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
-public class InteractiveLogsTester {
+public class InteractiveLogsTester implements InteractiveTester {
 
   private final Supplier<LogsIngestionConfig> logsIngestionConfigSupplier;
   private final String prefix;
@@ -36,6 +37,7 @@ public class InteractiveLogsTester {
   /**
    * Read one line of stdin and print a message to stdout.
    */
+  @Override
   public boolean interactiveTest() throws ConfigurationException {
     final AtomicBoolean reported = new AtomicBoolean(false);
 
