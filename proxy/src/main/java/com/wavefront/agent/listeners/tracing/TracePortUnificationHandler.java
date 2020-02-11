@@ -146,7 +146,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       @Nullable ChannelHandlerContext ctx, boolean alwaysSampleErrors,
       Function<Span, Boolean> samplerFunc) {
-    ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ? null : preprocessorSupplier.get();
+    ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
+        null : preprocessorSupplier.get();
     String[] messageHolder = new String[1];
 
     // transform the line if needed
