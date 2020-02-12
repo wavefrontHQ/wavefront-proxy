@@ -152,7 +152,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
           componentTagValue, Boolean.parseBoolean(isError), object.getDuration(),
           traceDerivedCustomTagKeys, annotations), true);
       try {
-        reportHeartbeats("customTracing", wfSender, discoveredHeartbeatMetrics);
+        reportHeartbeats("wavefront-generated", wfSender, discoveredHeartbeatMetrics);
       } catch (IOException e) {
         logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
       }
