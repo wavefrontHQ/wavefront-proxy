@@ -17,11 +17,11 @@ import com.yammer.metrics.core.Gauge;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -42,15 +42,15 @@ import static com.wavefront.api.agent.Constants.PUSH_FORMAT_WAVEFRONT;
  */
 public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
-  private final Map<String, List<ReportableEntityType>> entityTypes = new HashMap<>();
-  private final Map<HandlerKey, ScheduledExecutorService> executors = new HashMap<>();
-  private final Map<HandlerKey, List<SenderTask<?>>> managedTasks = new HashMap<>();
-  private final Map<HandlerKey, Managed> managedServices = new HashMap<>();
+  private final Map<String, List<ReportableEntityType>> entityTypes = new ConcurrentHashMap<>();
+  private final Map<HandlerKey, ScheduledExecutorService> executors = new ConcurrentHashMap<>();
+  private final Map<HandlerKey, List<SenderTask<?>>> managedTasks = new ConcurrentHashMap<>();
+  private final Map<HandlerKey, Managed> managedServices = new ConcurrentHashMap<>();
 
   /**
    * Keep track of all {@link TaskSizeEstimator} instances to calculate global buffer fill rate.
    */
-  private final Map<HandlerKey, TaskSizeEstimator> taskSizeEstimators = new HashMap<>();
+  private final Map<HandlerKey, TaskSizeEstimator> taskSizeEstimators = new ConcurrentHashMap<>();
 
   private final APIContainer apiContainer;
   private final UUID proxyId;

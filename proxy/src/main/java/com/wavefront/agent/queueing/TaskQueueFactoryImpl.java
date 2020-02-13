@@ -13,10 +13,10 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
@@ -27,7 +27,7 @@ import java.util.logging.Logger;
 public class TaskQueueFactoryImpl implements TaskQueueFactory {
   private static final Logger logger =
       Logger.getLogger(TaskQueueFactoryImpl.class.getCanonicalName());
-  private final Map<HandlerKey, Map<Integer, TaskQueue<?>>> taskQueues = new HashMap<>();
+  private final Map<HandlerKey, Map<Integer, TaskQueue<?>>> taskQueues = new ConcurrentHashMap<>();
 
   private final String bufferFile;
   private final boolean purgeBuffer;

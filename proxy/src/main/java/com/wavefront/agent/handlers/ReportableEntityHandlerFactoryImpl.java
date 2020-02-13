@@ -6,8 +6,8 @@ import com.wavefront.data.ReportableEntityType;
 import org.apache.commons.lang.math.NumberUtils;
 import wavefront.report.Histogram;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.logging.Logger;
 
@@ -43,7 +43,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       getSystemPropertyAsDouble("wavefront.proxy.logevents.sample-rate"), false, logger::info);
 
   protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?, ?>>> handlers =
-      new HashMap<>();
+      new ConcurrentHashMap<>();
 
   private final SenderTaskFactory senderTaskFactory;
   private final int blockedItemsPerBatch;
@@ -80,7 +80,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   @Override
   public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
     return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey.getHandle(),
-        h -> new HashMap<>()).computeIfAbsent(handlerKey.getEntityType(), k -> {
+        h -> new ConcurrentHashMap<>()).computeIfAbsent(handlerKey.getEntityType(), k -> {
       switch (handlerKey.getEntityType()) {
         case POINT:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
