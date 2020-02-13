@@ -2,8 +2,7 @@ package com.wavefront.common;
 
 import com.google.common.util.concurrent.RateLimiter;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -15,7 +14,8 @@ import java.util.logging.Logger;
  */
 @SuppressWarnings("UnstableApiUsage")
 public class SharedRateLimitingLogger extends DelegatingLogger {
-  private static final Map<String, RateLimiter> SHARED_CACHE = new HashMap<>();
+  private static final ConcurrentHashMap<String, RateLimiter> SHARED_CACHE =
+      new ConcurrentHashMap<>();
 
   private final RateLimiter rateLimiter;
 

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
@@ -32,7 +33,8 @@ public class QueueingFactoryImpl implements QueueingFactory {
 
   private final Map<HandlerKey, ScheduledExecutorService> executors = new HashMap<>();
   private final Map<HandlerKey, Map<Integer, QueueProcessor<?>>> queueProcessors = new HashMap<>();
-  private final Map<HandlerKey, QueueController<?>> queueControllers = new HashMap<>();
+  private final ConcurrentHashMap<HandlerKey, QueueController<?>> queueControllers =
+      new ConcurrentHashMap<>();
   private final TaskQueueFactory taskQueueFactory;
   private final APIContainer apiContainer;
   private final UUID proxyId;
