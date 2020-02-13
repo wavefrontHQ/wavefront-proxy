@@ -114,6 +114,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -678,7 +679,8 @@ public class PushAgent extends AbstractAgent {
 
     if (this.deltaCounterHandlerFactory == null) {
       this.deltaCounterHandlerFactory = new ReportableEntityHandlerFactory() {
-        private final Map<String, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
+        private final Map<String, ReportableEntityHandler<?, ?>> handlers =
+            new ConcurrentHashMap<>();
 
         @Override
         public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
@@ -935,7 +937,8 @@ public class PushAgent extends AbstractAgent {
     });
 
     ReportableEntityHandlerFactory histogramHandlerFactory = new ReportableEntityHandlerFactory() {
-      private final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
+      private final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers =
+          new ConcurrentHashMap<>();
       @SuppressWarnings("unchecked")
       @Override
       public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
