@@ -6,7 +6,6 @@ import com.wavefront.data.ReportableEntityType;
 import org.apache.commons.lang.math.NumberUtils;
 import wavefront.report.Histogram;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -43,8 +42,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       ReportableEntityType.EVENT, Logger.getLogger("RawValidEvents"),
       getSystemPropertyAsDouble("wavefront.proxy.logevents.sample-rate"), false, logger::info);
 
-  protected final Map<String, ConcurrentHashMap<ReportableEntityType,
-      ReportableEntityHandler<?, ?>>> handlers = new HashMap<>();
+  protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?, ?>>> handlers =
+      new ConcurrentHashMap<>();
 
   private final SenderTaskFactory senderTaskFactory;
   private final int blockedItemsPerBatch;
