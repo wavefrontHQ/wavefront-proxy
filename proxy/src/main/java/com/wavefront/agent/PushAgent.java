@@ -320,6 +320,8 @@ public class PushAgent extends AbstractAgent {
           useSystemProperties().
           setUserAgent(proxyConfig.getHttpUserAgent()).
           setConnectionTimeToLive(1, TimeUnit.MINUTES).
+          setMaxConnPerRoute(100).
+          setMaxConnTotal(100).
           setRetryHandler(new DefaultHttpRequestRetryHandler(proxyConfig.getHttpAutoRetries(),
               true)).
           setDefaultRequestConfig(
@@ -477,7 +479,9 @@ public class PushAgent extends AbstractAgent {
     if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler = new DataDogPortUnificationHandler(strPort, healthCheckManager,
-        handlerFactory, proxyConfig.isDataDogProcessSystemMetrics(),
+        handlerFactory, proxyConfig.getDataDogRequestRelayAsyncThreads(),
+        proxyConfig.isDataDogRequestRelaySyncMode(),
+        proxyConfig.isDataDogProcessSystemMetrics(),
         proxyConfig.isDataDogProcessServiceChecks(), httpClient,
         proxyConfig.getDataDogRequestRelayTarget(), preprocessors.get(strPort));
 

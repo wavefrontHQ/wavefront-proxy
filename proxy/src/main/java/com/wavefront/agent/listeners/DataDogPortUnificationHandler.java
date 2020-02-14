@@ -14,6 +14,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.Clock;
+import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportPointSerializer;
@@ -32,6 +33,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -73,6 +75,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
    * retries, etc
    */
   private final ReportableEntityHandler<ReportPoint, String> pointHandler;
+  private final boolean synchronousMode;
   private final boolean processSystemMetrics;
   private final boolean processServiceChecks;
   @Nullable
@@ -89,27 +92,32 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       expireAfterWrite(6, TimeUnit.HOURS).
       maximumSize(100_000).
       build();
+  private final ScheduledThreadPoolExecutor threadpool;
 
   public DataDogPortUnificationHandler(
       final String handle, final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandlerFactory handlerFactory, final boolean processSystemMetrics,
-      final boolean processServiceChecks, @Nullable final HttpClient requestRelayClient,
-      @Nullable final String requestRelayTarget,
+      final ReportableEntityHandlerFactory handlerFactory, final int fanout,
+      final boolean synchronousMode, final boolean processSystemMetrics,
+      final boolean processServiceChecks,
+      @Nullable final HttpClient requestRelayClient, @Nullable final String requestRelayTarget,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     this(handle, healthCheckManager, handlerFactory.getHandler(HandlerKey.of(
-        ReportableEntityType.POINT, handle)), processSystemMetrics, processServiceChecks,
-        requestRelayClient, requestRelayTarget, preprocessor);
+        ReportableEntityType.POINT, handle)), fanout, synchronousMode, processSystemMetrics,
+        processServiceChecks, requestRelayClient, requestRelayTarget, preprocessor);
   }
 
   @VisibleForTesting
   protected DataDogPortUnificationHandler(
       final String handle, final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandler<ReportPoint, String> pointHandler, final boolean processSystemMetrics,
+      final ReportableEntityHandler<ReportPoint, String> pointHandler, final int fanout,
+      final boolean synchronousMode, final boolean processSystemMetrics,
       final boolean processServiceChecks, @Nullable final HttpClient requestRelayClient,
       @Nullable final String requestRelayTarget,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, handle);
     this.pointHandler = pointHandler;
+    this.threadpool = new ScheduledThreadPoolExecutor(fanout, new NamedThreadFactory("dd-relay"));
+    this.synchronousMode = synchronousMode;
     this.processSystemMetrics = processSystemMetrics;
     this.processServiceChecks = processServiceChecks;
     this.requestRelayClient = requestRelayClient;
@@ -124,6 +132,13 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       @Override
       public Long value() {
         return tagsCache.estimatedSize();
+      }
+    });
+    Metrics.newGauge(new TaggedMetricName("listeners", "http-relay.threadpool.queue-size",
+        "port", handle), new Gauge<Integer>() {
+      @Override
+      public Integer value() {
+        return threadpool.getQueue().size();
       }
     });
   }
@@ -149,20 +164,36 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           outgoingRequest.addHeader("Content-Type", request.headers().get("Content-Type"));
         }
         outgoingRequest.setEntity(new StringEntity(requestBody));
-        logger.info("Relaying incoming HTTP request to " + outgoingUrl);
-        HttpResponse response = requestRelayClient.execute(outgoingRequest);
-        int httpStatusCode = response.getStatusLine().getStatusCode();
-        Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.status." + httpStatusCode +
-            ".count", "port", handle)).inc();
+        if (synchronousMode) {
+          logger.info("Relaying incoming HTTP request to " + outgoingUrl);
+          HttpResponse response = requestRelayClient.execute(outgoingRequest);
+          int httpStatusCode = response.getStatusLine().getStatusCode();
+          Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.status." +
+              httpStatusCode + ".count", "port", handle)).inc();
 
-        if (httpStatusCode < 200 || httpStatusCode >= 300) {
-          // anything that is not 2xx is relayed as is to the client, don't process the payload
-          writeHttpResponse(ctx, HttpResponseStatus.valueOf(httpStatusCode),
-              EntityUtils.toString(response.getEntity(), "UTF-8"), request);
-          return;
+          if (httpStatusCode < 200 || httpStatusCode >= 300) {
+            // anything that is not 2xx is relayed as is to the client, don't process the payload
+            writeHttpResponse(ctx, HttpResponseStatus.valueOf(httpStatusCode),
+                EntityUtils.toString(response.getEntity(), "UTF-8"), request);
+            return;
+          }
+        } else {
+          threadpool.submit(() -> {
+            try {
+              logger.info("Relaying incoming HTTP request (async) to " + outgoingUrl);
+              HttpResponse response = requestRelayClient.execute(outgoingRequest);
+              int httpStatusCode = response.getStatusLine().getStatusCode();
+              Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.status." +
+                  httpStatusCode + ".count", "port", handle)).inc();
+              EntityUtils.consumeQuietly(response.getEntity());
+            } catch (IOException e) {
+              logger.warning("Unable to relay request to " + requestRelayTarget + ": " +
+                  e.getMessage());
+              Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.failed",
+                  "port", handle)).inc();
+            }
+          });
         }
-        EntityUtils.consumeQuietly(response.getEntity());
-
       } catch (IOException e) {
         logger.warning("Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
         Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.failed",
