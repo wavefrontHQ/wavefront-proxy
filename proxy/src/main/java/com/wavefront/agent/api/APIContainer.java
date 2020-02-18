@@ -157,10 +157,14 @@ public class APIContainer {
       factory.register(DisableGZIPEncodingInterceptor.class);
     }
     factory.register(AcceptEncodingGZIPFilter.class);
+    // add authorization header for all proxy endpoints, except for /checkin - since it's also
+    // passed as a parameter, it's creating duplicate headers that cause the entire request to be
+    // rejected by nginx. unfortunately, RESTeasy is not smart enough to handle that automatically.
     factory.register((ClientRequestFilter) context -> {
-          if (context.getUri().getPath().contains("/v2/wfproxy") ||
+          if ((context.getUri().getPath().contains("/v2/wfproxy") ||
               context.getUri().getPath().contains("/v2/source") ||
-              context.getUri().getPath().contains("/event")) {
+              context.getUri().getPath().contains("/event")) &&
+              !context.getUri().getPath().endsWith("checkin")) {
             context.getHeaders().add("Authorization", "Bearer " + proxyConfig.getToken());
           }
         });

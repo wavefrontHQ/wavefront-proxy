@@ -70,10 +70,10 @@ import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.EventDecoder;
-import com.wavefront.ingester.GraphiteDecoder;
 import com.wavefront.ingester.HistogramDecoder;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.ingester.PickleProtocolDecoder;
+import com.wavefront.ingester.ReportPointDecoder;
 import com.wavefront.ingester.ReportPointDecoderWrapper;
 import com.wavefront.ingester.ReportSourceTagDecoder;
 import com.wavefront.ingester.ReportableEntityDecoder;
@@ -114,6 +114,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -160,8 +161,8 @@ public class PushAgent extends AbstractAgent {
   protected final Supplier<Map<ReportableEntityType, ReportableEntityDecoder<?, ?>>>
       decoderSupplier = lazySupplier(() ->
       ImmutableMap.<ReportableEntityType, ReportableEntityDecoder<?, ?>>builder().
-          put(ReportableEntityType.POINT, new ReportPointDecoderWrapper(
-              new GraphiteDecoder("unknown", proxyConfig.getCustomSourceTags()))).
+          put(ReportableEntityType.POINT, new ReportPointDecoder(() -> "unknown",
+              proxyConfig.getCustomSourceTags())).
           put(ReportableEntityType.SOURCE_TAG, new ReportSourceTagDecoder()).
           put(ReportableEntityType.HISTOGRAM, new ReportPointDecoderWrapper(
               new HistogramDecoder("unknown"))).
@@ -678,7 +679,8 @@ public class PushAgent extends AbstractAgent {
 
     if (this.deltaCounterHandlerFactory == null) {
       this.deltaCounterHandlerFactory = new ReportableEntityHandlerFactory() {
-        private final Map<String, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
+        private final Map<String, ReportableEntityHandler<?, ?>> handlers =
+            new ConcurrentHashMap<>();
 
         @Override
         public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
@@ -935,7 +937,8 @@ public class PushAgent extends AbstractAgent {
     });
 
     ReportableEntityHandlerFactory histogramHandlerFactory = new ReportableEntityHandlerFactory() {
-      private final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers = new HashMap<>();
+      private final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers =
+          new ConcurrentHashMap<>();
       @SuppressWarnings("unchecked")
       @Override
       public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
