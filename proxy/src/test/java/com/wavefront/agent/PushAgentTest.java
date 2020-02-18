@@ -581,6 +581,14 @@ public class PushAgentTest {
         setAnnotations(ImmutableMap.of("device", "eth0")).                    
         build());
     expectLastCall().once();
+    mockPointHandler.report(ReportPoint.newBuilder().
+            setTable("dummy").
+            setMetric("test.metric").
+            setHost("testhost").
+            setTimestamp(1531176936000L).
+            setValue(400.0d).
+            build());
+    expectLastCall().once();
     replay(mockPointHandler);
     gzippedHttpPost("http://localhost:" + ddPort + "/api/v1/series", getResource("ddTestTimeseries.json"));
     verify(mockPointHandler);
