@@ -73,6 +73,14 @@ public class ProxyConfig extends Configuration {
   @Parameter(names = {"--testLogs"}, description = "Run interactive session for crafting logsIngestionConfig.yaml")
   boolean testLogs = false;
 
+  @Parameter(names = {"--testPreprocessorForPort"}, description = "Run interactive session for " +
+      "testing preprocessor rules for specified port")
+  String testPreprocessorForPort = null;
+
+  @Parameter(names = {"--testSpanPreprocessorForPort"}, description = "Run interactive session " +
+      "for testing preprocessor span rules for specifierd port")
+  String testSpanPreprocessorForPort = null;
+
   @Parameter(names = {"-h", "--host"}, description = "Server URL", order = 2)
   String server = "http://localhost:8080/api/";
 
@@ -731,6 +739,14 @@ public class ProxyConfig extends Configuration {
 
   public boolean isTestLogs() {
     return testLogs;
+  }
+
+  public String getTestPreprocessorForPort() {
+    return testPreprocessorForPort;
+  }
+
+  public String getTestSpanPreprocessorForPort() {
+    return testSpanPreprocessorForPort;
   }
 
   public String getServer() {
