@@ -310,7 +310,10 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       JsonNode type = metric.get("type");
       if (type != null) {
         if (type.textValue().equals("rate")) {
-          interval = metric.get("interval") == null ? 1 : metric.get("interval").intValue();
+          JsonNode jsonInterval = metric.get("interval");
+          if (jsonInterval != null && jsonInterval.isNumber()) {
+            interval = jsonInterval.intValue();
+          }
         }
       }
       JsonNode pointsNode = metric.get("points");
