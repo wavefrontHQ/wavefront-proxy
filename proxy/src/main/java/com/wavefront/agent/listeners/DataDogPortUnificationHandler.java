@@ -306,6 +306,16 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       if (deviceNode != null) {
         tags.put("device", deviceNode.textValue());
       }
+      int interval = 1; // If the metric is of type rate its value needs to be multiplied by the specified interval
+      JsonNode type = metric.get("type");
+      if (type != null) {
+        if (type.textValue().equals("rate")) {
+          JsonNode jsonInterval = metric.get("interval");
+          if (jsonInterval != null && jsonInterval.isNumber()) {
+            interval = jsonInterval.intValue();
+          }
+        }
+      }
       JsonNode pointsNode = metric.get("points");
       if (pointsNode == null) {
         pointHandler.reject((ReportPoint) null, "Skipping - 'points' field missing.");
@@ -314,7 +324,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       for (JsonNode node : pointsNode) {
         if (node.size() == 2) {
           reportValue(metricName, hostName, tags, node.get(1), node.get(0).longValue() * 1000,
-              pointCounter);
+              pointCounter, interval);
         } else {
           pointHandler.reject((ReportPoint) null,
               "WF-300: Inconsistent point value size (expected: 2)");
@@ -460,6 +470,11 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   private void reportValue(String metricName, String hostName, Map<String, String> tags,
                            JsonNode valueNode, long timestamp, AtomicInteger pointCounter) {
+    reportValue(metricName, hostName, tags, valueNode, timestamp, pointCounter, 1);
+  }
+
+  private void reportValue(String metricName, String hostName, Map<String, String> tags,
+                           JsonNode valueNode, long timestamp, AtomicInteger pointCounter, int interval) {
     if (valueNode == null || valueNode.isNull()) return;
     double value;
     if (valueNode.isTextual()) {
@@ -475,6 +490,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     } else {
       value = valueNode.asLong();
     }
+
+    value = value * interval; // interval will normally be 1 unless the metric was a rate type with a specified interval
 
     ReportPoint point = ReportPoint.newBuilder().
         setTable("dummy").
