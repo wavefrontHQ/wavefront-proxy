@@ -41,6 +41,8 @@ import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
 import static com.wavefront.common.Utils.getLocalHostName;
 import static com.wavefront.common.Utils.getBuildVersion;
 
+import static io.opentracing.tag.Tags.SPAN_KIND;
+
 /**
  * Proxy configuration (refactored from {@link com.wavefront.agent.AbstractAgent}).
  *
@@ -51,6 +53,7 @@ public class ProxyConfig extends Configuration {
   private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int GRAPHITE_LISTENING_PORT = 2878;
+
 
   @Parameter(names = {"--help"}, help = true)
   boolean help = false;
@@ -1174,8 +1177,10 @@ public class ProxyConfig extends Configuration {
   }
 
   public Set<String> getTraceDerivedCustomTagKeys() {
-    return new HashSet<>(Splitter.on(",").trimResults().omitEmptyStrings().
-        splitToList(ObjectUtils.firstNonNull(traceDerivedCustomTagKeys, "")));
+    Set<String> customTagKeys = new HashSet<>(Splitter.on(",").trimResults().omitEmptyStrings().
+            splitToList(ObjectUtils.firstNonNull(traceDerivedCustomTagKeys, "")));
+    customTagKeys.add(SPAN_KIND.getKey());  // add span.kind tag by default
+    return customTagKeys;
   }
 
   public boolean isTraceAlwaysSampleErrors() {

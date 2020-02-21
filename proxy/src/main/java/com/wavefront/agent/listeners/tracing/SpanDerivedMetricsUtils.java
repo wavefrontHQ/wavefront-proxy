@@ -21,7 +21,10 @@ import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
+import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Utils.sanitizeWithoutQuotes;
+
+import static io.opentracing.tag.Tags.SPAN_KIND;
 
 /**
  * Util methods to generate data (metrics/histograms/heartbeats) from tracing spans
@@ -140,15 +143,17 @@ public class SpanDerivedMetricsUtils {
     Iterator<HeartbeatMetricKey> iter = discoveredHeartbeatMetrics.keySet().iterator();
     while (iter.hasNext()) {
       HeartbeatMetricKey key = iter.next();
-      wavefrontSender.sendMetric(HEART_BEAT_METRIC, 1.0, Clock.now(),
-          key.getSource(), new HashMap<String, String>() {{
+      Map<String, String> tags = new HashMap<String, String>() {{
         put(APPLICATION_TAG_KEY, key.getApplication());
         put(SERVICE_TAG_KEY, key.getService());
         put(CLUSTER_TAG_KEY, key.getCluster());
         put(SHARD_TAG_KEY, key.getShard());
         put(COMPONENT_TAG_KEY, component);
         putAll(key.getCustomTags());
-      }});
+      }};
+      tags.putIfAbsent(SPAN_KIND.getKey(), NULL_TAG_VAL);
+      wavefrontSender.sendMetric(HEART_BEAT_METRIC, 1.0, Clock.now(),
+          key.getSource(), tags);
       // remove from discovered list so that it is only reported on subsequent discovery
       discoveredHeartbeatMetrics.remove(key);
     }
