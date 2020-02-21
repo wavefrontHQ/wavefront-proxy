@@ -89,7 +89,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
         case HISTOGRAM:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey),
-              validationConfig, false, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER,
+              validationConfig, true, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER,
               histogramRecompressor);
         case SOURCE_TAG:
           return new ReportSourceTagHandlerImpl(handlerKey, blockedItemsPerBatch,
