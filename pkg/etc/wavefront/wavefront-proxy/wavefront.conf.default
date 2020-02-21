@@ -28,6 +28,13 @@ pushListenerPorts=2878
 ## Maximum request size (in bytes) for incoming HTTP requests on Wavefront/OpenTSDB/Graphite ports. Default: 16MB
 #pushListenerHttpBufferSize=16777216
 
+## Delta counter pre-aggregation settings.
+## Comma-separated list of ports to listen on for Wavefront-formatted delta counters. Helps reduce
+## outbound point rate by pre-aggregating delta counters at proxy. Default: none
+#deltaCountersAggregationListenerPorts=12878
+## Interval between flushing aggregating delta counters to Wavefront. Defaults to 30 seconds.
+#deltaCountersAggregationIntervalSeconds=60
+
 ## Graphite input settings.
 ## If you enable either `graphitePorts` or `picklePorts`, make sure to uncomment and set `graphiteFormat` as well.
 ## Comma-separated list of ports to listen on for collectd/Graphite formatted data (Default: none)
@@ -46,6 +53,9 @@ pushListenerPorts=2878
 ## endpoint (from direct data ingestion clients and/or other proxies) to Wavefront servers.
 ## This setting is a comma-separated list of ports. (Default: none)
 #pushRelayListenerPorts=2978
+## If true, aggregate histogram distributions received on the relay port.
+## Please refer to histogram settings section below for more configuration options. Default: false
+#pushRelayHistogramAggregator=false
 
 ## Comma-separated list of ports to listen on for OpenTSDB formatted data (Default: none)
 #opentsdbPorts=4242
@@ -87,13 +97,27 @@ customSourceTags=fqdn, hostname
 ## number of processors (min 4). Setting this value too large will result in sending batches that are
 ## too small to the server and wasting connections. This setting is per listening port.
 #flushThreads=4
-## Max points per flush. Typically 40000.
+## Max points per single flush. Default: 40000.
 #pushFlushMaxPoints=40000
+## Max histograms per single flush. Default: 10000.
+#pushFlushMaxHistograms=10000
+## Max spans per single flush. Default: 5000.
+#pushFlushMaxSpans=5000
+## Max span logs per single flush. Default: 1000.
+#pushFlushMaxSpanLogs=1000
+
 ## Milliseconds between flushes to the Wavefront servers. Typically 1000.
 #pushFlushInterval=1000
 
-## Limit outbound pps rate at the proxy. Default: do not throttle
+## Limit outbound points per second rate at the proxy. Default: do not throttle
 #pushRateLimit=20000
+## Limit outbound histograms per second rate at the proxy. Default: do not throttle
+#pushRateLimitHistograms=2000
+## Limit outbound spans per second rate at the proxy. Default: do not throttle
+#pushRateLimitSpans=1000
+## Limit outbound span logs per second rate at the proxy. Default: do not throttle
+#pushRateLimitSpanLogs=1000
+
 ## Max number of burst seconds to allow when rate limiting to smooth out uneven traffic.
 ## Set to 1 when doing data backfills. Default: 10
 #pushRateLimitMaxBurstSeconds=10
@@ -122,6 +146,9 @@ customSourceTags=fqdn, hostname
 ## HTTP client settings
 ## Control whether metrics traffic from the proxy to the Wavefront endpoint is gzip-compressed. Default: true
 #gzipCompression=true
+## If gzipCompression is enabled, sets compression level (1-9). Higher compression levels slightly reduce
+## the volume of traffic between the proxy and Wavefront, but use more CPU. Default: 4
+#gzipCompressionLevel=4
 ## Connect timeout (in milliseconds). Default: 5000 (5s)
 #httpConnectTimeout=5000
 ## Request timeout (in milliseconds). Default: 10000 (10s)
@@ -142,8 +169,18 @@ customSourceTags=fqdn, hostname
 ## the proxy to spool to disk more frequently if you have points arriving at the proxy in short bursts.
 #pushMemoryBufferLimit=640000
 
-## If there are blocked points, how many lines to print to the log every 10 flushes. Typically 5.
+## If there are blocked points, a small sampling of them can be written into the main log file.
+## This setting how many lines to print to the log every 10 seconds. Typically 5.
 #pushBlockedSamples=5
+## When logging blocked points is enabled (see https://docs.wavefront.com/proxies_configuring.html#blocked-point-log
+## for more details), by default all blocked points/histograms/spans etc are logged into the same `RawBlockedPoints`
+## logger. Settings below allow finer control over these loggers:
+## Logger name for blocked points. Default: RawBlockedPoints.
+#blockedPointsLoggerName=RawBlockedPoints
+## Logger name for blocked histograms. Default: RawBlockedPoints.
+#blockedHistogramsLoggerName=RawBlockedPoints
+## Logger name for blocked spans. Default: RawBlockedPoints.
+#blockedSpansLoggerName=RawBlockedPoints
 
 ## Settings for incoming HTTP request authentication. Authentication is done by a token, proxy is looking for
 ## tokens in the querystring ("token=" and "api_key=" parameters) and in request headers ("X-AUTH-TOKEN: ",
@@ -182,8 +219,11 @@ customSourceTags=fqdn, hostname
 #logsIngestionConfigFile=/etc/wavefront/wavefront-proxy/logsingestion.yaml
 
 ########################################### DISTRIBUTED TRACING SETTINGS ###############################################
-## Comma-separated list of ports to listen on for Wavefront trace data. Defaults to none.
+## Comma-separated list of ports to listen on for spans in Wavefront format. Defaults to none.
 #traceListenerPorts=30000
+## Comma-separated list of ports to listen on for spans from SDKs that send raw data. Unlike
+## `traceListenerPorts` setting, also derives RED metrics based on received spans. Defaults to none.
+#customTracingListenerPorts=30001
 ## Maximum line length for received spans and span logs (Default: 1MB)
 #traceListenerMaxReceivedLength=1048576
 ## Maximum allowed request size (in bytes) for incoming HTTP requests on tracing ports (Default: 16MB)
@@ -205,7 +245,8 @@ customSourceTags=fqdn, hostname
 ## The following settings are used to configure trace data sampling:
 ## The rate for traces to be sampled. Can be from 0.0 to 1.0. Defaults to 1.0
 #traceSamplingRate=1.0
-## The duration in milliseconds for the spans to be sampled. Spans above the given duration are reported. Defaults to 0.
+## The minimum duration threshold (in milliseconds) for the spans to be sampled.
+## Spans above the given duration are reported. Defaults to 0 (include everything).
 #traceSamplingDuration=0
 ## Always sample spans with an error tag (set to true) ignoring other sampling configuration. Defaults to true.
 #traceAlwaysSampleErrors=false
@@ -305,3 +346,13 @@ customSourceTags=fqdn, hostname
 ## disabled, or every histogramAccumulatorResolveInterval seconds if memory cache is enabled.
 ## If accumulator is not persisted, up to histogramDistFlushSecs seconds worth of histograms may be lost on proxy shutdown.
 #histogramDistAccumulatorPersisted=true
+
+## Histogram accumulation for relay ports (only applicable if pushRelayHistogramAggregator is true):
+## Time-to-live in seconds for the accumulator (before the intermediary is shipped to WF). Default: 70
+#pushRelayHistogramAggregatorFlushSecs=70
+## Bounds the number of centroids per histogram. Must be between 20 and 1000, default: 32
+#pushRelayHistogramAggregatorCompression=32
+## Expected upper bound of concurrent accumulations. Should be approximately the number of timeseries * 2 (use a higher
+## multiplier if out-of-order points more than 1 bin apart are expected). Setting this value too high will cause
+## excessive disk space usage, setting this value too low may cause severe performance issues.
+#pushRelayHistogramAggregatorAccumulatorSize=1000000

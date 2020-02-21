@@ -219,11 +219,11 @@ public class ProxyConfig extends Configuration {
 
   @Parameter(names = {"--memGuardFlushThreshold"}, description = "If heap usage exceeds this threshold (in percent), " +
       "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 99")
-  int memGuardFlushThreshold = 99;
+  int memGuardFlushThreshold = 98;
 
   @Parameter(names = {"--histogramPassthroughRecompression"},
       description = "Whether we should recompress histograms received on pushListenerPorts. " +
-          "Default: true ")
+          "Default: true", arity = 1)
   boolean histogramPassthroughRecompression = true;
 
   @Parameter(names = {"--histogramStateDirectory"},
@@ -537,7 +537,7 @@ public class ProxyConfig extends Configuration {
   Long pushRelayHistogramAggregatorAccumulatorSize = 100000L;
 
   @Parameter(names = {"--pushRelayHistogramAggregatorFlushSecs"},
-      description = "Number of seconds to keep a day granularity accumulator open for new samples.")
+      description = "Number of seconds to keep accumulator open for new samples.")
   Integer pushRelayHistogramAggregatorFlushSecs = 70;
 
   @Parameter(names = {"--pushRelayHistogramAggregatorCompression"},
