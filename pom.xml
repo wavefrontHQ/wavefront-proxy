@@ -57,7 +57,7 @@
     <log4j.version>2.12.1</log4j.version>
     <jackson.version>2.9.10</jackson.version>
     <jackson-databind.version>2.9.10.1</jackson-databind.version>
-    <netty.version>4.1.41.Final</netty.version>
+    <netty.version>4.1.45.Final</netty.version>
     <java-lib.version>2020-01.8</java-lib.version>
 
     <doclint>none</doclint>
