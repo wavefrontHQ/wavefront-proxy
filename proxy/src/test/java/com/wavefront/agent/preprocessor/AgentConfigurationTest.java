@@ -32,7 +32,7 @@ public class AgentConfigurationTest {
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
     config.loadFromStream(stream);
     Assert.assertEquals(0, config.totalInvalidRules);
-    Assert.assertEquals(51, config.totalValidRules);
+    Assert.assertEquals(55, config.totalValidRules);
   }
 
   @Test
@@ -46,6 +46,26 @@ public class AgentConfigurationTest {
     ReportPoint point = new ReportPoint("foometric", System.currentTimeMillis(), 10L, "host", "table", new HashMap<>());
     config.get("2878").get().forReportPoint().transform(point);
     assertEquals("barFighters.barmetric", point.getMetric());
+  }
+
+  @Test
+  public void testMultiPortPreprocessorRules() {
+    // test that preprocessor rules kick in before user rules
+    InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_multiport.yaml");
+    PreprocessorConfigManager config = new PreprocessorConfigManager();
+    config.loadFromStream(stream);
+    ReportPoint point = new ReportPoint("foometric", System.currentTimeMillis(), 10L, "host", "table", new HashMap<>());
+    config.get("2879").get().forReportPoint().transform(point);
+    assertEquals("bar1metric", point.getMetric());
+    assertEquals(1, point.getAnnotations().size());
+    assertEquals("multiTagVal", point.getAnnotations().get("multiPortTagKey"));
+
+    ReportPoint point1 = new ReportPoint("foometric", System.currentTimeMillis(), 10L, "host",
+        "table", new HashMap<>());
+    config.get("1111").get().forReportPoint().transform(point1);
+    assertEquals("foometric", point1.getMetric());
+    assertEquals(1, point1.getAnnotations().size());
+    assertEquals("multiTagVal", point1.getAnnotations().get("multiPortTagKey"));
   }
 
   @Test

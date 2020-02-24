@@ -1,0 +1,20 @@
+'2879':
+  - rule    : test-replace-foobar
+    action  : replaceRegex
+    scope   : metricName
+    search  : "foo"
+    replace : "bar"
+
+
+'2879, 1111':
+  - rule    : test-replace-foobar
+    action  : replaceRegex
+    scope   : metricName
+    search  : "bar"
+    replace : "bar1"
+
+'global':
+  - rule    : example-tag-all-metrics
+    action  : addTag
+    tag     : multiPortTagKey
+    value   : multiTagVal
