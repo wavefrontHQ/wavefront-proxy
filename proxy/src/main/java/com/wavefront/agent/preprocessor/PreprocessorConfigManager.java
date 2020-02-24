@@ -206,15 +206,14 @@ public class PreprocessorConfigManager {
                   "replaceInput", "actionSubtype", "maxLength", "firstMatchOnly", "whitelist");
               String ruleName = Objects.requireNonNull(getString(rule, "rule")).
                   replaceAll("[^a-z0-9_-]", "");
-              preprocessorRuleMetricsMap.putIfAbsent(strPort, new PreprocessorRuleMetrics(
+              PreprocessorRuleMetrics ruleMetrics = preprocessorRuleMetricsMap.computeIfAbsent(
+                  strPort, k -> new PreprocessorRuleMetrics(
                       Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
                       "count", "port", strPort)),
                       Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
                       "cpu_nanos", "port", strPort)),
                       Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
                       "checked-count", "port", strPort))));
-              PreprocessorRuleMetrics ruleMetrics = preprocessorRuleMetricsMap.get(strPort);
-
               if ("pointLine".equals(getString(rule, "scope"))) {
                 switch (Objects.requireNonNull(getString(rule, "action"))) {
                   case "replaceRegex":
