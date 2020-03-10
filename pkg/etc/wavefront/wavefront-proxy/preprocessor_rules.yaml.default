@@ -238,3 +238,25 @@
     scope         : "db.statement"
     actionSubtype : truncateWithEllipsis
     maxLength     : "128"
+
+
+# Multiport preprocessor rules
+
+'2878, 4242':
+  # Add k8s cluster name point tag for all points across multiple ports.
+  - rule    : example-renametag-k8s-cluster
+    action  : addTag
+    tag     : k8scluster
+    value   : eks-dev
+
+'global':
+  # Rename k8s cluster name point tag for all points across all ports.
+  - rule    : example-renametag-k8s-cluster
+    action  : renameTag
+    tag     : k8sclustername
+    value   : k8scluster
+
+  - rule    : example-span-renametag-k8s-cluster
+    action  : spanRenameTag
+    key     : k8sclustername
+    newkey  : k8scluster

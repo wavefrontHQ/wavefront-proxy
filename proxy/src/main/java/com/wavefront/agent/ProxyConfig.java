@@ -41,6 +41,8 @@ import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
 import static com.wavefront.common.Utils.getLocalHostName;
 import static com.wavefront.common.Utils.getBuildVersion;
 
+import static io.opentracing.tag.Tags.SPAN_KIND;
+
 /**
  * Proxy configuration (refactored from {@link com.wavefront.agent.AbstractAgent}).
  *
@@ -51,6 +53,7 @@ public class ProxyConfig extends Configuration {
   private static final Logger logger = Logger.getLogger(ProxyConfig.class.getCanonicalName());
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int GRAPHITE_LISTENING_PORT = 2878;
+
 
   @Parameter(names = {"--help"}, help = true)
   boolean help = false;
@@ -227,11 +230,11 @@ public class ProxyConfig extends Configuration {
 
   @Parameter(names = {"--memGuardFlushThreshold"}, description = "If heap usage exceeds this threshold (in percent), " +
       "flush pending points to disk as an additional OoM protection measure. Set to 0 to disable. Default: 99")
-  int memGuardFlushThreshold = 99;
+  int memGuardFlushThreshold = 98;
 
   @Parameter(names = {"--histogramPassthroughRecompression"},
       description = "Whether we should recompress histograms received on pushListenerPorts. " +
-          "Default: true ")
+          "Default: true", arity = 1)
   boolean histogramPassthroughRecompression = true;
 
   @Parameter(names = {"--histogramStateDirectory"},
@@ -545,7 +548,7 @@ public class ProxyConfig extends Configuration {
   Long pushRelayHistogramAggregatorAccumulatorSize = 100000L;
 
   @Parameter(names = {"--pushRelayHistogramAggregatorFlushSecs"},
-      description = "Number of seconds to keep a day granularity accumulator open for new samples.")
+      description = "Number of seconds to keep accumulator open for new samples.")
   Integer pushRelayHistogramAggregatorFlushSecs = 70;
 
   @Parameter(names = {"--pushRelayHistogramAggregatorCompression"},
@@ -1174,8 +1177,10 @@ public class ProxyConfig extends Configuration {
   }
 
   public Set<String> getTraceDerivedCustomTagKeys() {
-    return new HashSet<>(Splitter.on(",").trimResults().omitEmptyStrings().
-        splitToList(ObjectUtils.firstNonNull(traceDerivedCustomTagKeys, "")));
+    Set<String> customTagKeys = new HashSet<>(Splitter.on(",").trimResults().omitEmptyStrings().
+            splitToList(ObjectUtils.firstNonNull(traceDerivedCustomTagKeys, "")));
+    customTagKeys.add(SPAN_KIND.getKey());  // add span.kind tag by default
+    return customTagKeys;
   }
 
   public boolean isTraceAlwaysSampleErrors() {
