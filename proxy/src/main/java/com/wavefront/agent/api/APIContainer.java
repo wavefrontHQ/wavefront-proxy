@@ -42,20 +42,28 @@ public class APIContainer {
   private final ProxyConfig proxyConfig;
   private final ResteasyProviderFactory resteasyProviderFactory;
   private final ClientHttpEngine clientHttpEngine;
+  private final boolean discardData;
   private ProxyV2API proxyV2API;
   private SourceTagAPI sourceTagAPI;
   private EventAPI eventAPI;
 
   /**
    * @param proxyConfig proxy configuration settings
+   * @param discardData run proxy in test mode (don't actually send the data)
    */
-  public APIContainer(ProxyConfig proxyConfig) {
+  public APIContainer(ProxyConfig proxyConfig, boolean discardData) {
     this.proxyConfig = proxyConfig;
     this.resteasyProviderFactory = createProviderFactory();
     this.clientHttpEngine = createHttpEngine();
+    this.discardData = discardData;
     this.proxyV2API = createService(proxyConfig.getServer(), ProxyV2API.class);
     this.sourceTagAPI = createService(proxyConfig.getServer(), SourceTagAPI.class);
     this.eventAPI = createService(proxyConfig.getServer(), EventAPI.class);
+    if (discardData) {
+      this.proxyV2API = new NoopProxyV2API(proxyV2API);
+      this.sourceTagAPI = new NoopSourceTagAPI();
+      this.eventAPI = new NoopEventAPI();
+    }
     configureHttpProxy();
   }
 
@@ -71,6 +79,7 @@ public class APIContainer {
     this.proxyConfig = null;
     this.resteasyProviderFactory = null;
     this.clientHttpEngine = null;
+    this.discardData = false;
     this.proxyV2API = proxyV2API;
     this.sourceTagAPI = sourceTagAPI;
     this.eventAPI = eventAPI;
@@ -115,6 +124,11 @@ public class APIContainer {
     this.proxyV2API = createService(serverEndpointUrl, ProxyV2API.class);
     this.sourceTagAPI = createService(serverEndpointUrl, SourceTagAPI.class);
     this.eventAPI = createService(serverEndpointUrl, EventAPI.class);
+    if (discardData) {
+      this.proxyV2API = new NoopProxyV2API(proxyV2API);
+      this.sourceTagAPI = new NoopSourceTagAPI();
+      this.eventAPI = new NoopEventAPI();
+    }
   }
 
   private void configureHttpProxy() {

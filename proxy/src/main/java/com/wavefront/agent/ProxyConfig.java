@@ -109,6 +109,10 @@ public class ProxyConfig extends Configuration {
       "queue during export. Defaults to true.", arity = 1)
   boolean exportQueueRetainData = true;
 
+  @Parameter(names = {"--useNoopSender"}, description = "Run proxy in debug/performance test " +
+      "mode and discard all received data. Default: false", arity = 1)
+  boolean useNoopSender = false;
+
   @Parameter(names = {"--flushThreads"}, description = "Number of threads that flush data to the server. Defaults to" +
       "the number of processors (min. 4). Setting this value too large will result in sending batches that are too " +
       "small to the server and wasting connections. This setting is per listening port.", order = 5)
@@ -774,6 +778,10 @@ public class ProxyConfig extends Configuration {
 
   public boolean isExportQueueRetainData() {
     return exportQueueRetainData;
+  }
+
+  public boolean isUseNoopSender() {
+    return useNoopSender;
   }
 
   public Integer getFlushThreads() {
@@ -1564,6 +1572,7 @@ public class ProxyConfig extends Configuration {
       exportQueuePorts = config.getString("exportQueuePorts", exportQueuePorts);
       exportQueueOutputFile = config.getString("exportQueueOutputFile", exportQueueOutputFile);
       exportQueueRetainData = config.getBoolean("exportQueueRetainData", exportQueueRetainData);
+      useNoopSender = config.getBoolean("useNoopSender", useNoopSender);
       flushThreads = config.getInteger("flushThreads", flushThreads);
       flushThreadsEvents = config.getInteger("flushThreadsEvents", flushThreadsEvents);
       flushThreadsSourceTags = config.getInteger("flushThreadsSourceTags", flushThreadsSourceTags);
