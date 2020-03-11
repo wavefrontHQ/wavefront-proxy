@@ -246,7 +246,7 @@ public abstract class AbstractAgent {
 
       // 2. Read or create the unique Id for the daemon running on this machine.
       agentId = getOrCreateProxyId(proxyConfig);
-      apiContainer = new APIContainer(proxyConfig);
+      apiContainer = new APIContainer(proxyConfig, proxyConfig.isUseNoopSender());
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       proxyCheckinScheduler = new ProxyCheckInScheduler(agentId, proxyConfig, apiContainer,
