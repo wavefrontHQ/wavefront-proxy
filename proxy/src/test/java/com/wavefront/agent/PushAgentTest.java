@@ -493,6 +493,19 @@ public class PushAgentTest {
         mockHttpClient);
     waitUntilListenerIsOnline(ddPort2);
 
+    int ddPort3 = findAvailablePort(4990);
+    PushAgent proxy3 = new PushAgent();
+    proxy3.proxyConfig.dataBackfillCutoffHours = 100000000;
+    proxy3.proxyConfig.dataDogJsonPorts = String.valueOf(ddPort3);
+    proxy3.proxyConfig.dataDogProcessSystemMetrics = true;
+    proxy3.proxyConfig.dataDogProcessServiceChecks = true;
+    assertTrue(proxy3.proxyConfig.isDataDogProcessSystemMetrics());
+    assertTrue(proxy3.proxyConfig.isDataDogProcessServiceChecks());
+
+    proxy3.startDataDogListener(proxy3.proxyConfig.getDataDogJsonPorts(), mockHandlerFactory,
+            mockHttpClient);
+    waitUntilListenerIsOnline(ddPort3);
+
     // test 1: post to /intake with system metrics enabled and http relay enabled
     HttpResponse mockHttpResponse = EasyMock.createMock(HttpResponse.class);
     StatusLine mockStatusLine = EasyMock.createMock(StatusLine.class);
@@ -553,7 +566,7 @@ public class PushAgentTest {
     gzippedHttpPost("http://localhost:" + ddPort + "/api/v1/check_run", getResource("ddTestServiceCheck.json"));
     verify(mockPointHandler);
 
-    // test 6: post to /api/v1/series
+    // test 6: post to /api/v1/series including a /api/v1/intake call to ensure system host-tags are propogated
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().
         setTable("dummy").
@@ -561,6 +574,7 @@ public class PushAgentTest {
         setHost("testhost").
         setTimestamp(1531176936000L).
         setValue(0.0d).
+        setAnnotations(ImmutableMap.of("app", "closedstack", "role", "control")).
         build());
     expectLastCall().once();
     mockPointHandler.report(ReportPoint.newBuilder().
@@ -569,7 +583,8 @@ public class PushAgentTest {
         setHost("testhost").
         setTimestamp(1531176936000L).
         setValue(0.0d).
-        setAnnotations(ImmutableMap.of("_source", "Launcher", "env", "prod", "type", "test")).
+        setAnnotations(ImmutableMap.of("_source", "Launcher", "env", "prod",
+                "app", "openstack", "role", "control")).
         build());
     expectLastCall().once();
     mockPointHandler.report(ReportPoint.newBuilder().
@@ -578,7 +593,7 @@ public class PushAgentTest {
         setHost("testhost").
         setTimestamp(1531176936000L).
         setValue(12.052631578947368d).
-        setAnnotations(ImmutableMap.of("device", "eth0")).                    
+        setAnnotations(ImmutableMap.of("device", "eth0", "app", "closedstack", "role", "control")).
         build());
     expectLastCall().once();
     mockPointHandler.report(ReportPoint.newBuilder().
@@ -587,10 +602,12 @@ public class PushAgentTest {
             setHost("testhost").
             setTimestamp(1531176936000L).
             setValue(400.0d).
+            setAnnotations(ImmutableMap.of("app", "closedstack", "role", "control")).
             build());
     expectLastCall().once();
     replay(mockPointHandler);
-    gzippedHttpPost("http://localhost:" + ddPort + "/api/v1/series", getResource("ddTestTimeseries.json"));
+    gzippedHttpPost("http://localhost:" + ddPort3 + "/intake", getResource("ddTestSystemMetadataOnly.json"));
+    gzippedHttpPost("http://localhost:" + ddPort3 + "/api/v1/series", getResource("ddTestTimeseries.json"));
     verify(mockPointHandler);
 
     // test 7: post multiple checks to /api/v1/check_run with service checks enabled

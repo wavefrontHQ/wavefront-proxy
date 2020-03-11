@@ -23,7 +23,7 @@
         ]
       ],
       "host": "testHost",
-      "tags": ["env:prod,type:test", "source:Launcher"]
+      "tags": ["env:prod,app:openstack", "source:Launcher"]
     },
     {
       "type": "gauge",

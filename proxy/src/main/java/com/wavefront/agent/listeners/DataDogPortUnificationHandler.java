@@ -392,16 +392,12 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   private boolean reportSystemMetrics(final JsonNode metrics,
                                       @Nullable final AtomicInteger pointCounter) {
-    if (metrics == null || !metrics.isObject() || !metrics.has("collection_timestamp")) {
-      pointHandler.reject((ReportPoint) null,
-          "WF-300: Payload missing 'collection_timestamp' field");
-      return false;
-    }
-    long timestamp = metrics.get("collection_timestamp").asLong() * 1000;
-    if (!metrics.has("internalHostname")) {
+    if (metrics == null || !metrics.isObject() || !metrics.has("internalHostname")) {
       pointHandler.reject((ReportPoint) null, "WF-300: Payload missing 'internalHostname' field");
       return false;
     }
+
+    // Some /api/v1/intake requests only contain host-tag metadata so process it first
     String hostName = metrics.get("internalHostname").textValue().toLowerCase();
     Map<String, String> systemTags = new HashMap<>();
     if (metrics.has("host-tags") && metrics.get("host-tags").get("system") != null) {
@@ -416,55 +412,59 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       }
     }
 
-    // Report "system.io." metrics
-    JsonNode ioStats = metrics.get("ioStats");
-    if (ioStats != null && ioStats.isObject()) {
-      ioStats.fields().forEachRemaining(entry -> {
-        Map<String, String> deviceTags = ImmutableMap.<String, String>builder().
-            putAll(systemTags).
-            put("device", entry.getKey()).
-            build();
-        if (entry.getValue() != null && entry.getValue().isObject()) {
-          entry.getValue().fields().forEachRemaining(metricEntry -> {
-            String metric = "system.io." + metricEntry.getKey().replace('%', ' ').
-                replace('/', '_').trim();
-            reportValue(metric, hostName, deviceTags, metricEntry.getValue(), timestamp,
-                pointCounter);
-          });
+    if (metrics.has("collection_timestamp")) {
+      long timestamp = metrics.get("collection_timestamp").asLong() * 1000;
+
+      // Report "system.io." metrics
+      JsonNode ioStats = metrics.get("ioStats");
+      if (ioStats != null && ioStats.isObject()) {
+        ioStats.fields().forEachRemaining(entry -> {
+          Map<String, String> deviceTags = ImmutableMap.<String, String>builder().
+                  putAll(systemTags).
+                  put("device", entry.getKey()).
+                  build();
+          if (entry.getValue() != null && entry.getValue().isObject()) {
+            entry.getValue().fields().forEachRemaining(metricEntry -> {
+              String metric = "system.io." + metricEntry.getKey().replace('%', ' ').
+                      replace('/', '_').trim();
+              reportValue(metric, hostName, deviceTags, metricEntry.getValue(), timestamp,
+                      pointCounter);
+            });
+          }
+        });
+      }
+
+      // Report all metrics that already start with "system."
+      metrics.fields().forEachRemaining(entry -> {
+        if (entry.getKey().startsWith("system.")) {
+          reportValue(entry.getKey(), hostName, systemTags, entry.getValue(), timestamp,
+                  pointCounter);
         }
       });
+
+      // Report CPU and memory metrics
+      reportValue("system.cpu.guest", hostName, systemTags, metrics.get("cpuGuest"), timestamp, pointCounter);
+      reportValue("system.cpu.idle", hostName, systemTags, metrics.get("cpuIdle"), timestamp, pointCounter);
+      reportValue("system.cpu.stolen", hostName, systemTags, metrics.get("cpuStolen"), timestamp, pointCounter);
+      reportValue("system.cpu.system", hostName, systemTags, metrics.get("cpuSystem"), timestamp, pointCounter);
+      reportValue("system.cpu.user", hostName, systemTags, metrics.get("cpuUser"), timestamp, pointCounter);
+      reportValue("system.cpu.wait", hostName, systemTags, metrics.get("cpuWait"), timestamp, pointCounter);
+      reportValue("system.mem.buffers", hostName, systemTags, metrics.get("memBuffers"), timestamp, pointCounter);
+      reportValue("system.mem.cached", hostName, systemTags, metrics.get("memCached"), timestamp, pointCounter);
+      reportValue("system.mem.page_tables", hostName, systemTags, metrics.get("memPageTables"), timestamp, pointCounter);
+      reportValue("system.mem.shared", hostName, systemTags, metrics.get("memShared"), timestamp, pointCounter);
+      reportValue("system.mem.slab", hostName, systemTags, metrics.get("memSlab"), timestamp, pointCounter);
+      reportValue("system.mem.free", hostName, systemTags, metrics.get("memPhysFree"), timestamp, pointCounter);
+      reportValue("system.mem.pct_usable", hostName, systemTags, metrics.get("memPhysPctUsable"), timestamp, pointCounter);
+      reportValue("system.mem.total", hostName, systemTags, metrics.get("memPhysTotal"), timestamp, pointCounter);
+      reportValue("system.mem.usable", hostName, systemTags, metrics.get("memPhysUsable"), timestamp, pointCounter);
+      reportValue("system.mem.used", hostName, systemTags, metrics.get("memPhysUsed"), timestamp, pointCounter);
+      reportValue("system.swap.cached", hostName, systemTags, metrics.get("memSwapCached"), timestamp, pointCounter);
+      reportValue("system.swap.free", hostName, systemTags, metrics.get("memSwapFree"), timestamp, pointCounter);
+      reportValue("system.swap.pct_free", hostName, systemTags, metrics.get("memSwapPctFree"), timestamp, pointCounter);
+      reportValue("system.swap.total", hostName, systemTags, metrics.get("memSwapTotal"), timestamp, pointCounter);
+      reportValue("system.swap.used", hostName, systemTags, metrics.get("memSwapUsed"), timestamp, pointCounter);
     }
-
-    // Report all metrics that already start with "system."
-    metrics.fields().forEachRemaining(entry -> {
-      if (entry.getKey().startsWith("system.")) {
-        reportValue(entry.getKey(), hostName, systemTags, entry.getValue(), timestamp,
-            pointCounter);
-      }
-    });
-
-    // Report CPU and memory metrics
-    reportValue("system.cpu.guest", hostName, systemTags, metrics.get("cpuGuest"), timestamp, pointCounter);
-    reportValue("system.cpu.idle", hostName, systemTags, metrics.get("cpuIdle"), timestamp, pointCounter);
-    reportValue("system.cpu.stolen", hostName, systemTags, metrics.get("cpuStolen"), timestamp, pointCounter);
-    reportValue("system.cpu.system", hostName, systemTags, metrics.get("cpuSystem"), timestamp, pointCounter);
-    reportValue("system.cpu.user", hostName, systemTags, metrics.get("cpuUser"), timestamp, pointCounter);
-    reportValue("system.cpu.wait", hostName, systemTags, metrics.get("cpuWait"), timestamp, pointCounter);
-    reportValue("system.mem.buffers", hostName, systemTags, metrics.get("memBuffers"), timestamp, pointCounter);
-    reportValue("system.mem.cached", hostName, systemTags, metrics.get("memCached"), timestamp, pointCounter);
-    reportValue("system.mem.page_tables", hostName, systemTags, metrics.get("memPageTables"), timestamp, pointCounter);
-    reportValue("system.mem.shared", hostName, systemTags, metrics.get("memShared"), timestamp, pointCounter);
-    reportValue("system.mem.slab", hostName, systemTags, metrics.get("memSlab"), timestamp, pointCounter);
-    reportValue("system.mem.free", hostName, systemTags, metrics.get("memPhysFree"), timestamp, pointCounter);
-    reportValue("system.mem.pct_usable", hostName, systemTags, metrics.get("memPhysPctUsable"), timestamp, pointCounter);
-    reportValue("system.mem.total", hostName, systemTags, metrics.get("memPhysTotal"), timestamp, pointCounter);
-    reportValue("system.mem.usable", hostName, systemTags, metrics.get("memPhysUsable"), timestamp, pointCounter);
-    reportValue("system.mem.used", hostName, systemTags, metrics.get("memPhysUsed"), timestamp, pointCounter);
-    reportValue("system.swap.cached", hostName, systemTags, metrics.get("memSwapCached"), timestamp, pointCounter);
-    reportValue("system.swap.free", hostName, systemTags, metrics.get("memSwapFree"), timestamp, pointCounter);
-    reportValue("system.swap.pct_free", hostName, systemTags, metrics.get("memSwapPctFree"), timestamp, pointCounter);
-    reportValue("system.swap.total", hostName, systemTags, metrics.get("memSwapTotal"), timestamp, pointCounter);
-    reportValue("system.swap.used", hostName, systemTags, metrics.get("memSwapUsed"), timestamp, pointCounter);
     return true;
   }
 
