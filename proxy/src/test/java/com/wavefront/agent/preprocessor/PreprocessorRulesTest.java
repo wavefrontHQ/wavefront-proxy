@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
 
 import wavefront.report.ReportPoint;
 
@@ -186,25 +185,26 @@ public class PreprocessorRulesTest {
   @Test(expected = NullPointerException.class)
   public void testPointBlacklistRegexNullScopeThrows() {
     // try to create a blacklist rule with a null scope
-    ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter(null, FOO, metrics);
+    ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter(null, FOO,null, metrics);
   }
 
   @Test(expected = NullPointerException.class)
   public void testPointBlacklistRegexNullMatchThrows() {
     // try to create a blacklist rule with a null pattern
-    ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter(FOO, null, metrics);
+    ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter(FOO, null,
+        null, metrics);
   }
 
   @Test(expected = NullPointerException.class)
   public void testPointWhitelistRegexNullScopeThrows() {
     // try to create a whitelist rule with a null scope
-    ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter(null, FOO, metrics);
+    ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter(null, FOO, null, metrics);
   }
 
   @Test(expected = NullPointerException.class)
   public void testPointWhitelistRegexNullMatchThrows() {
     // try to create a blacklist rule with a null pattern
-    ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter(FOO, null, metrics);
+    ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter(FOO, null, null, metrics);
   }
 
   @Test
@@ -243,62 +243,62 @@ public class PreprocessorRulesTest {
     ReportPoint point = parsePointLine(pointLine);
 
     // lowercase a point tag value with no match - shouldn't change anything
-    new ReportPointForceLowercaseTransformer("boo", "nomatch.*", metrics).apply(point);
+    new ReportPointForceLowercaseTransformer("boo", "nomatch.*", null, metrics).apply(point);
     assertEquals(pointLine, referencePointToStringImpl(point));
 
     // lowercase a point tag value - shouldn't affect metric name or source
-    new ReportPointForceLowercaseTransformer("boo", null, metrics).apply(point);
+    new ReportPointForceLowercaseTransformer("boo", null, null, metrics).apply(point);
     String expectedPoint1a = "\"Some Metric\" 10.0 1469751813 source=\"Host\" \"boo\"=\"baz\" \"foo\"=\"bar\"";
     assertEquals(expectedPoint1a, referencePointToStringImpl(point));
 
     // lowercase a metric name - shouldn't affect remaining source
-    new ReportPointForceLowercaseTransformer(METRIC_NAME, null, metrics).apply(point);
+    new ReportPointForceLowercaseTransformer(METRIC_NAME, null, null, metrics).apply(point);
     String expectedPoint1b = "\"some metric\" 10.0 1469751813 source=\"Host\" \"boo\"=\"baz\" \"foo\"=\"bar\"";
     assertEquals(expectedPoint1b, referencePointToStringImpl(point));
 
     // lowercase source
-    new ReportPointForceLowercaseTransformer(SOURCE_NAME, null, metrics).apply(point);
+    new ReportPointForceLowercaseTransformer(SOURCE_NAME, null, null, metrics).apply(point);
     assertEquals(pointLine.toLowerCase(), referencePointToStringImpl(point));
 
     // try to remove a point tag when value doesn't match the regex - shouldn't change
-    new ReportPointDropTagTransformer(FOO, "bar(never|match)", metrics).apply(point);
+    new ReportPointDropTagTransformer(FOO, "bar(never|match)", null, metrics).apply(point);
     assertEquals(pointLine.toLowerCase(), referencePointToStringImpl(point));
 
     // try to remove a point tag when value does match the regex - should work
-    new ReportPointDropTagTransformer(FOO, "ba.", metrics).apply(point);
+    new ReportPointDropTagTransformer(FOO, "ba.", null, metrics).apply(point);
     String expectedPoint1 = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\"";
     assertEquals(expectedPoint1, referencePointToStringImpl(point));
 
     // try to remove a point tag without a regex specified - should work
-    new ReportPointDropTagTransformer("boo", null, metrics).apply(point);
+    new ReportPointDropTagTransformer("boo", null, null, metrics).apply(point);
     String expectedPoint2 = "\"some metric\" 10.0 1469751813 source=\"host\"";
     assertEquals(expectedPoint2, referencePointToStringImpl(point));
 
     // add a point tag back
-    new ReportPointAddTagTransformer("boo", "baz", metrics).apply(point);
+    new ReportPointAddTagTransformer("boo", "baz", null, metrics).apply(point);
     String expectedPoint3 = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\"";
     assertEquals(expectedPoint3, referencePointToStringImpl(point));
 
     // try to add a duplicate point tag - shouldn't change
-    new ReportPointAddTagIfNotExistsTransformer("boo", "bar", metrics).apply(point);
+    new ReportPointAddTagIfNotExistsTransformer("boo", "bar", null, metrics).apply(point);
     assertEquals(expectedPoint3, referencePointToStringImpl(point));
 
     // add another point tag back - should work this time
-    new ReportPointAddTagIfNotExistsTransformer(FOO, "bar", metrics).apply(point);
+    new ReportPointAddTagIfNotExistsTransformer(FOO, "bar", null, metrics).apply(point);
     assertEquals(pointLine.toLowerCase(), referencePointToStringImpl(point));
 
     // rename a point tag - should work
-    new ReportPointRenameTagTransformer(FOO, "qux", null, metrics).apply(point);
+    new ReportPointRenameTagTransformer(FOO, "qux", null, null, metrics).apply(point);
     String expectedPoint4 = "\"some metric\" 10.0 1469751813 source=\"host\" \"boo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint4, referencePointToStringImpl(point));
 
     // rename a point tag matching the regex - should work
-    new ReportPointRenameTagTransformer("boo", FOO, "b[a-z]z", metrics).apply(point);
+    new ReportPointRenameTagTransformer("boo", FOO, "b[a-z]z", null, metrics).apply(point);
     String expectedPoint5 = "\"some metric\" 10.0 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint5, referencePointToStringImpl(point));
 
     // try to rename a point tag that doesn't match the regex - shouldn't change
-    new ReportPointRenameTagTransformer(FOO, "boo", "wat", metrics).apply(point);
+    new ReportPointRenameTagTransformer(FOO, "boo", "wat", null, metrics).apply(point);
     assertEquals(expectedPoint5, referencePointToStringImpl(point));
 
     // add null metrics prefix - shouldn't change
@@ -315,33 +315,33 @@ public class PreprocessorRulesTest {
     assertEquals(expectedPoint6, referencePointToStringImpl(point));
 
     // replace regex in metric name, no matches - shouldn't change
-    new ReportPointReplaceRegexTransformer(METRIC_NAME, "Z", "", null, null, metrics).apply(point);
+    new ReportPointReplaceRegexTransformer(METRIC_NAME, "Z", "", null, null, null, metrics).apply(point);
     assertEquals(expectedPoint6, referencePointToStringImpl(point));
 
     // replace regex in metric name - shouldn't affect anything else
-    new ReportPointReplaceRegexTransformer(METRIC_NAME, "o", "0", null, null, metrics).apply(point);
+    new ReportPointReplaceRegexTransformer(METRIC_NAME, "o", "0", null, null, null, metrics).apply(point);
     String expectedPoint7 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"host\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint7, referencePointToStringImpl(point));
 
     // replace regex in source name - shouldn't affect anything else
-    new ReportPointReplaceRegexTransformer(SOURCE_NAME, "o", "0", null, null, metrics).apply(point);
+    new ReportPointReplaceRegexTransformer(SOURCE_NAME, "o", "0", null, null, null, metrics).apply(point);
     String expectedPoint8 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"baz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint8, referencePointToStringImpl(point));
 
     // replace regex in a point tag value - shouldn't affect anything else
-    new ReportPointReplaceRegexTransformer(FOO, "b", "z", null, null, metrics).apply(point);
+    new ReportPointReplaceRegexTransformer(FOO, "b", "z", null, null, null, metrics).apply(point);
     String expectedPoint9 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"bar\"";
     assertEquals(expectedPoint9, referencePointToStringImpl(point));
 
     // replace regex in a point tag value with matching groups
-    new ReportPointReplaceRegexTransformer("qux", "([a-c][a-c]).", "$1z", null, null, metrics).apply(point);
+    new ReportPointReplaceRegexTransformer("qux", "([a-c][a-c]).", "$1z", null, null, null, metrics).apply(point);
     String expectedPoint10 = "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" \"qux\"=\"baz\"";
     assertEquals(expectedPoint10, referencePointToStringImpl(point));
 
     // replace regex in a point tag value with placeholders
     // try to substitute sourceName, a point tag value and a non-existent point tag
     new ReportPointReplaceRegexTransformer("qux", "az",
-        "{{foo}}-{{no_match}}-g{{sourceName}}-{{metricName}}-{{}}", null, null, metrics).apply(point);
+        "{{foo}}-{{no_match}}-g{{sourceName}}-{{metricName}}-{{}}", null, null, null, metrics).apply(point);
     String expectedPoint11 =
         "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" " +
             "\"qux\"=\"bzaz-{{no_match}}-gh0st-prefix.s0me metric-{{}}\"";
@@ -439,17 +439,17 @@ public class PreprocessorRulesTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testReportPointLimitRuleDropMetricNameThrows() {
-    new ReportPointLimitLengthTransformer(METRIC_NAME, 10, LengthLimitActionType.DROP, null, metrics);
+    new ReportPointLimitLengthTransformer(METRIC_NAME, 10, LengthLimitActionType.DROP, null, null, metrics);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testReportPointLimitRuleDropSourceNameThrows() {
-    new ReportPointLimitLengthTransformer(SOURCE_NAME, 10, LengthLimitActionType.DROP, null, metrics);
+    new ReportPointLimitLengthTransformer(SOURCE_NAME, 10, LengthLimitActionType.DROP, null, null, metrics);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testReportPointLimitRuleTruncateWithEllipsisMaxLengthLessThan3Throws() {
-    new ReportPointLimitLengthTransformer("tagK", 2, LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS, null, metrics);
+    new ReportPointLimitLengthTransformer("tagK", 2, LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS, null, null, metrics);
   }
 
   @Test
@@ -460,65 +460,65 @@ public class PreprocessorRulesTest {
 
     // ** metric name
     // no regex, metric gets truncated
-    rule = new ReportPointLimitLengthTransformer(METRIC_NAME, 6, LengthLimitActionType.TRUNCATE, null, metrics);
+    rule = new ReportPointLimitLengthTransformer(METRIC_NAME, 6, LengthLimitActionType.TRUNCATE, null, null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertEquals(6, point.getMetric().length());
 
     // metric name matches, gets truncated
     rule = new ReportPointLimitLengthTransformer(METRIC_NAME, 6, LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS,
-        "^metric.*", metrics);
+        "^metric.*", null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertEquals(6, point.getMetric().length());
     assertTrue(point.getMetric().endsWith("..."));
 
     // metric name does not match, no change
-    rule = new ReportPointLimitLengthTransformer(METRIC_NAME, 6, LengthLimitActionType.TRUNCATE, "nope.*", metrics);
+    rule = new ReportPointLimitLengthTransformer(METRIC_NAME, 6, LengthLimitActionType.TRUNCATE, "nope.*", null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertEquals("metric.name.1234567", point.getMetric());
 
     // ** source name
     // no regex, source gets truncated
-    rule = new ReportPointLimitLengthTransformer(SOURCE_NAME, 11, LengthLimitActionType.TRUNCATE, null, metrics);
+    rule = new ReportPointLimitLengthTransformer(SOURCE_NAME, 11, LengthLimitActionType.TRUNCATE, null, null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertEquals(11, point.getHost().length());
 
     // source name matches, gets truncated
     rule = new ReportPointLimitLengthTransformer(SOURCE_NAME, 11, LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS,
-        "^source.*", metrics);
+        "^source.*", null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertEquals(11, point.getHost().length());
     assertTrue(point.getHost().endsWith("..."));
 
     // source name does not match, no change
-    rule = new ReportPointLimitLengthTransformer(SOURCE_NAME, 11, LengthLimitActionType.TRUNCATE, "nope.*", metrics);
+    rule = new ReportPointLimitLengthTransformer(SOURCE_NAME, 11, LengthLimitActionType.TRUNCATE, "nope.*", null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertEquals("source.name.test", point.getHost());
 
     // ** tags
     // no regex, point tag gets truncated
-    rule = new ReportPointLimitLengthTransformer("bar", 10, LengthLimitActionType.TRUNCATE, null, metrics);
+    rule = new ReportPointLimitLengthTransformer("bar", 10, LengthLimitActionType.TRUNCATE, null, null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertEquals(10, point.getAnnotations().get("bar").length());
 
     // point tag matches, gets truncated
-    rule = new ReportPointLimitLengthTransformer("bar", 10, LengthLimitActionType.TRUNCATE, ".*456.*", metrics);
+    rule = new ReportPointLimitLengthTransformer("bar", 10, LengthLimitActionType.TRUNCATE, ".*456.*", null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertEquals(10, point.getAnnotations().get("bar").length());
 
     // point tag does not match, no change
-    rule = new ReportPointLimitLengthTransformer("bar", 10, LengthLimitActionType.TRUNCATE, ".*nope.*", metrics);
+    rule = new ReportPointLimitLengthTransformer("bar", 10, LengthLimitActionType.TRUNCATE, ".*nope.*", null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertEquals("bar1234567890", point.getAnnotations().get("bar"));
 
     // no regex, truncate with ellipsis
     rule = new ReportPointLimitLengthTransformer("bar", 10, LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS, null,
-        metrics);
+        null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertEquals(10, point.getAnnotations().get("bar").length());
     assertTrue(point.getAnnotations().get("bar").endsWith("..."));
 
     // point tag matches, gets dropped
-    rule = new ReportPointLimitLengthTransformer("bar", 10, LengthLimitActionType.DROP, ".*456.*", metrics);
+    rule = new ReportPointLimitLengthTransformer("bar", 10, LengthLimitActionType.DROP, ".*456.*", null, metrics);
     point = rule.apply(parsePointLine(pointLine));
     assertNull(point.getAnnotations().get("bar"));
   }

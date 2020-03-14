@@ -3,6 +3,7 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -23,10 +24,14 @@ public class SpanForceLowercaseTransformer implements Function<Span, Span> {
   private final Pattern compiledMatchPattern;
   private final boolean firstMatchOnly;
   private final PreprocessorRuleMetrics ruleMetrics;
+  @Nullable
+  private final Map<String, Object> v2Predicate;
+
 
   public SpanForceLowercaseTransformer(final String scope,
                                        @Nullable final String patternMatch,
                                        final boolean firstMatchOnly,
+                                       @Nullable final Map<String, Object> v2Predicate,
                                        final PreprocessorRuleMetrics ruleMetrics) {
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
@@ -34,6 +39,7 @@ public class SpanForceLowercaseTransformer implements Function<Span, Span> {
     this.firstMatchOnly = firstMatchOnly;
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
+    this.v2Predicate = v2Predicate;
   }
 
   @Nullable
@@ -41,6 +47,8 @@ public class SpanForceLowercaseTransformer implements Function<Span, Span> {
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, span)) return span;
+
     switch (scope) {
       case "spanName":
         if (compiledMatchPattern != null && !compiledMatchPattern.matcher(span.getName()).matches()) {

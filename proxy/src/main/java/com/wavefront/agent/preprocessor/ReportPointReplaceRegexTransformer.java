@@ -3,6 +3,7 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,12 +27,15 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   @Nullable
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
+  @Nullable
+  private final Map<String, Object> v2Predicate;
 
   public ReportPointReplaceRegexTransformer(final String scope,
                                             final String patternSearch,
                                             final String patternReplace,
                                             @Nullable final String patternMatch,
                                             @Nullable final Integer maxIterations,
+                                            @Nullable final Map<String, Object> v2Predicate,
                                             final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
     Preconditions.checkArgument(!patternSearch.isEmpty(), "[search] can't be blank");
@@ -43,6 +47,8 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     Preconditions.checkArgument(this.maxIterations > 0, "[iterations] must be > 0");
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
+    this.v2Predicate = v2Predicate;
+
   }
 
   private String replaceString(@Nonnull ReportPoint reportPoint, String content) {
@@ -72,6 +78,9 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    // Test for preprocessor v2 predicate.
+    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, reportPoint)) return reportPoint;
+
     switch (scope) {
       case "metricName":
         if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getMetric()).matches()) {

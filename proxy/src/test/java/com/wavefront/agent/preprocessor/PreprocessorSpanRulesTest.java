@@ -5,7 +5,6 @@ import com.google.common.collect.Lists;
 
 import com.wavefront.ingester.SpanDecoder;
 
-import com.wavefront.ingester.SpanSerializer;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -64,17 +63,17 @@ public class PreprocessorSpanRulesTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testSpanLimitRuleDropSpanNameThrows() {
-    new SpanLimitLengthTransformer(SPAN_NAME, 10, LengthLimitActionType.DROP, null, false, metrics);
+    new SpanLimitLengthTransformer(SPAN_NAME, 10, LengthLimitActionType.DROP, null, false, null, metrics);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testSpanLimitRuleDropSourceNameThrows() {
-    new SpanLimitLengthTransformer(SOURCE_NAME, 10, LengthLimitActionType.DROP, null, false, metrics);
+    new SpanLimitLengthTransformer(SOURCE_NAME, 10, LengthLimitActionType.DROP, null, false, null, metrics);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testSpanLimitRuleTruncateWithEllipsisMaxLengthLessThan3Throws() {
-    new SpanLimitLengthTransformer("parent", 1, LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS, null, false, metrics);
+    new SpanLimitLengthTransformer("parent", 1, LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS, null, false, null, metrics);
   }
 
   @Test
@@ -88,50 +87,50 @@ public class PreprocessorSpanRulesTest {
 
     // ** span name
     // no regex, name gets truncated
-    rule = new SpanLimitLengthTransformer(SPAN_NAME, 8, LengthLimitActionType.TRUNCATE, null, false, metrics);
+    rule = new SpanLimitLengthTransformer(SPAN_NAME, 8, LengthLimitActionType.TRUNCATE, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("testSpan", span.getName());
 
     // span name matches, gets truncated
     rule = new SpanLimitLengthTransformer(SPAN_NAME, 8, LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS,
-        "^test.*", false, metrics);
+        "^test.*", false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(8, span.getName().length());
     assertTrue(span.getName().endsWith("..."));
 
     // span name does not match, no change
-    rule = new SpanLimitLengthTransformer(SPAN_NAME, 8, LengthLimitActionType.TRUNCATE, "nope.*", false, metrics);
+    rule = new SpanLimitLengthTransformer(SPAN_NAME, 8, LengthLimitActionType.TRUNCATE, "nope.*", false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("testSpanName", span.getName());
 
     // ** source name
     // no regex, source gets truncated
-    rule = new SpanLimitLengthTransformer(SOURCE_NAME, 10, LengthLimitActionType.TRUNCATE, null, false, metrics);
+    rule = new SpanLimitLengthTransformer(SOURCE_NAME, 10, LengthLimitActionType.TRUNCATE, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(10, span.getSource().length());
 
     // source name matches, gets truncated
     rule = new SpanLimitLengthTransformer(SOURCE_NAME, 10, LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS,
-        "^spanS.*", false, metrics);
+        "^spanS.*", false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(10, span.getSource().length());
     assertTrue(span.getSource().endsWith("..."));
 
     // source name does not match, no change
-    rule = new SpanLimitLengthTransformer(SOURCE_NAME, 10, LengthLimitActionType.TRUNCATE, "nope.*", false, metrics);
+    rule = new SpanLimitLengthTransformer(SOURCE_NAME, 10, LengthLimitActionType.TRUNCATE, "nope.*", false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("spanSourceName", span.getSource());
 
     // ** annotations
     // no regex, annotation gets truncated
-    rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.TRUNCATE, null, false, metrics);
+    rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.TRUNCATE, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1", "bar2", "bar2", "baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
     // no regex, annotations exceeding length limit get dropped
-    rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.DROP, null, false, metrics);
+    rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.DROP, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
@@ -139,28 +138,28 @@ public class PreprocessorSpanRulesTest {
 
     // annotation has matches, which get truncated
     rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.TRUNCATE_WITH_ELLIPSIS, "bar2-.*", false,
-        metrics);
+        null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "b...", "b...", "baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
     // annotation has matches, only first one gets truncated
-    rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.TRUNCATE, "bar2-.*", true, metrics);
+    rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.TRUNCATE, "bar2-.*", true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "bar2", "bar2-2345678901", "baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
     // annotation has matches, only first one gets dropped
-    rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.DROP, "bar2-.*", true, metrics);
+    rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.DROP, "bar2-.*", true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "bar2-2345678901", "baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
     // annotation has no matches, no changes
-    rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.TRUNCATE, ".*nope.*", false, metrics);
+    rule = new SpanLimitLengthTransformer(FOO, 4, LengthLimitActionType.TRUNCATE, ".*nope.*", false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "bar2-1234567890", "bar2-2345678901", "baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
@@ -176,7 +175,7 @@ public class PreprocessorSpanRulesTest {
     SpanAddAnnotationTransformer rule;
     Span span;
 
-    rule = new SpanAddAnnotationTransformer(FOO, "baz2", metrics);
+    rule = new SpanAddAnnotationTransformer(FOO, "baz2", null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "bar2-1234567890", "bar2-2345678901", "baz", "baz2"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
@@ -192,13 +191,13 @@ public class PreprocessorSpanRulesTest {
     SpanAddAnnotationTransformer rule;
     Span span;
 
-    rule = new SpanAddAnnotationIfNotExistsTransformer(FOO, "baz2", metrics);
+    rule = new SpanAddAnnotationIfNotExistsTransformer(FOO, "baz2", null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "bar2-1234567890", "bar2-2345678901", "baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
-    rule = new SpanAddAnnotationIfNotExistsTransformer("foo2", "bar2", metrics);
+    rule = new SpanAddAnnotationIfNotExistsTransformer("foo2", "bar2", null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(5, span.getAnnotations().size());
     assertEquals(new Annotation("foo2", "bar2"), span.getAnnotations().get(4));
@@ -214,28 +213,28 @@ public class PreprocessorSpanRulesTest {
     Span span;
 
     // drop first annotation with key = "foo"
-    rule = new SpanDropAnnotationTransformer(FOO, null, true, metrics);
+    rule = new SpanDropAnnotationTransformer(FOO, null, true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar2-1234567890", "bar2-2345678901", "baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
     // drop all annotations with key = "foo"
-    rule = new SpanDropAnnotationTransformer(FOO, null, false, metrics);
+    rule = new SpanDropAnnotationTransformer(FOO, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of(),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
     // drop all annotations with key = "foo" and value matching bar2.*
-    rule = new SpanDropAnnotationTransformer(FOO, "bar2.*", false, metrics);
+    rule = new SpanDropAnnotationTransformer(FOO, "bar2.*", false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
     // drop first annotation with key = "foo" and value matching bar2.*
-    rule = new SpanDropAnnotationTransformer(FOO, "bar2.*", true, metrics);
+    rule = new SpanDropAnnotationTransformer(FOO, "bar2.*", true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "bar2-2345678901", "baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
@@ -251,7 +250,7 @@ public class PreprocessorSpanRulesTest {
     Span span;
 
     // extract annotation for first value
-    rule = new SpanExtractAnnotationTransformer("boo", FOO, "(....)-(.*)$", "$2", "$1", null, true, metrics);
+    rule = new SpanExtractAnnotationTransformer("boo", FOO, "(....)-(.*)$", "$2", "$1", null, true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("baz", "1234567890"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("boo")).map(Annotation::getValue).
@@ -261,7 +260,7 @@ public class PreprocessorSpanRulesTest {
             collect(Collectors.toList()));
 
     // extract annotation for first value matching "bar2.*"
-    rule = new SpanExtractAnnotationTransformer("boo", FOO, "(....)-(.*)$", "$2", "$1", "bar2.*", true, metrics);
+    rule = new SpanExtractAnnotationTransformer("boo", FOO, "(....)-(.*)$", "$2", "$1", "bar2.*", true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("baz", "2345678901"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("boo")).map(Annotation::getValue).
@@ -271,7 +270,7 @@ public class PreprocessorSpanRulesTest {
             collect(Collectors.toList()));
 
     // extract annotation for all values
-    rule = new SpanExtractAnnotationTransformer("boo", FOO, "(....)-(.*)$", "$2", "$1", null, false, metrics);
+    rule = new SpanExtractAnnotationTransformer("boo", FOO, "(....)-(.*)$", "$2", "$1", null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("baz", "1234567890", "2345678901", "3456789012"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("boo")).map(Annotation::getValue).
@@ -290,7 +289,7 @@ public class PreprocessorSpanRulesTest {
     Span span;
 
     // extract annotation for first value
-    rule = new SpanExtractAnnotationIfNotExistsTransformer("baz", FOO, "(....)-(.*)$", "$2", "$1", null, true, metrics);
+    rule = new SpanExtractAnnotationIfNotExistsTransformer("baz", FOO, "(....)-(.*)$", "$2", "$1", null, true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("1234567890"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("baz")).map(Annotation::getValue).
@@ -301,7 +300,7 @@ public class PreprocessorSpanRulesTest {
 
     // extract annotation for first value matching "bar2.*
     rule = new SpanExtractAnnotationIfNotExistsTransformer("baz", FOO, "(....)-(.*)$", "$2", "$1", "bar2.*", true,
-        metrics);
+        null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("2345678901"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("baz")).map(Annotation::getValue).
@@ -312,7 +311,7 @@ public class PreprocessorSpanRulesTest {
 
     // extract annotation for all values
     rule = new SpanExtractAnnotationIfNotExistsTransformer("baz", FOO, "(....)-(.*)$", "$2", "$1", null, false,
-        metrics);
+        null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("1234567890", "2345678901", "3456789012"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("baz")).map(Annotation::getValue).
@@ -322,7 +321,7 @@ public class PreprocessorSpanRulesTest {
             collect(Collectors.toList()));
 
     // annotation key already exists, should remain unchanged
-    rule = new SpanExtractAnnotationIfNotExistsTransformer("boo", FOO, "(....)-(.*)$", "$2", "$1", null, true, metrics);
+    rule = new SpanExtractAnnotationIfNotExistsTransformer("boo", FOO, "(....)-(.*)$", "$2", "$1", null, true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("boo")).map(Annotation::getValue).
@@ -333,7 +332,7 @@ public class PreprocessorSpanRulesTest {
 
     // annotation key already exists, should remain unchanged
     rule = new SpanExtractAnnotationIfNotExistsTransformer("boo", FOO, "(....)-(.*)$", "$2", "$1", "bar2.*", true,
-        metrics);
+        null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("boo")).map(Annotation::getValue).
@@ -344,7 +343,7 @@ public class PreprocessorSpanRulesTest {
 
     // annotation key already exists, should remain unchanged
     rule = new SpanExtractAnnotationIfNotExistsTransformer("boo", FOO, "(....)-(.*)$", "$2", "$1", null, false,
-        metrics);
+        null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("baz"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("boo")).map(Annotation::getValue).
@@ -364,14 +363,14 @@ public class PreprocessorSpanRulesTest {
 
     // rename all annotations with key = "foo"
     rule = new SpanRenameAnnotationTransformer(FOO, "foo1", null,
-        false,  metrics);
+        false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("foo1", "foo1", "foo1", "foo1", "boo"), span.getAnnotations().
         stream().map(Annotation::getKey).collect(Collectors.toList()));
 
     // rename all annotations with key = "foo" and value matching bar2.*
     rule = new SpanRenameAnnotationTransformer(FOO, "foo1", "bar2.*",
-        false, metrics);
+        false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of(FOO, "foo1", "foo1", FOO, "boo"), span.getAnnotations().stream().
         map(Annotation::getKey).
@@ -379,7 +378,7 @@ public class PreprocessorSpanRulesTest {
 
     // rename only first annotations with key = "foo" and value matching bar2.*
     rule = new SpanRenameAnnotationTransformer(FOO, "foo1", "bar2.*",
-        true, metrics);
+        true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of(FOO, "foo1", FOO, FOO, "boo"), span.getAnnotations().stream().
         map(Annotation::getKey).
@@ -387,7 +386,7 @@ public class PreprocessorSpanRulesTest {
 
     // try to rename a annotation whose value doesn't match the regex - shouldn't change
     rule = new SpanRenameAnnotationTransformer(FOO, "foo1", "bar9.*",
-        false, metrics);
+        false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of(FOO, FOO, FOO, FOO, "boo"), span.getAnnotations().stream().
         map(Annotation::getKey).
@@ -402,41 +401,41 @@ public class PreprocessorSpanRulesTest {
     SpanForceLowercaseTransformer rule;
     Span span;
 
-    rule = new SpanForceLowercaseTransformer(SOURCE_NAME, null, false, metrics);
+    rule = new SpanForceLowercaseTransformer(SOURCE_NAME, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("spansourcename", span.getSource());
 
-    rule = new SpanForceLowercaseTransformer(SPAN_NAME, null, false, metrics);
+    rule = new SpanForceLowercaseTransformer(SPAN_NAME, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("testspanname", span.getName());
 
-    rule = new SpanForceLowercaseTransformer(SPAN_NAME, "test.*", false, metrics);
+    rule = new SpanForceLowercaseTransformer(SPAN_NAME, "test.*", false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("testspanname", span.getName());
 
-    rule = new SpanForceLowercaseTransformer(SPAN_NAME, "nomatch", false, metrics);
+    rule = new SpanForceLowercaseTransformer(SPAN_NAME, "nomatch", false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("testSpanName", span.getName());
 
-    rule = new SpanForceLowercaseTransformer(FOO, null, false, metrics);
+    rule = new SpanForceLowercaseTransformer(FOO, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "bar2-2345678901", "bar2-3456789012", "bar"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
-    rule = new SpanForceLowercaseTransformer(FOO, null, true, metrics);
+    rule = new SpanForceLowercaseTransformer(FOO, null, true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "BAR2-2345678901", "bAr2-3456789012", "baR"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
-    rule = new SpanForceLowercaseTransformer(FOO, "BAR.*", false, metrics);
+    rule = new SpanForceLowercaseTransformer(FOO, "BAR.*", false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "bar2-2345678901", "bAr2-3456789012", "baR"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
-    rule = new SpanForceLowercaseTransformer(FOO, "no_match", false, metrics);
+    rule = new SpanForceLowercaseTransformer(FOO, "no_match", false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("BAR1-1234567890", "BAR2-2345678901", "bAr2-3456789012", "baR"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
@@ -452,55 +451,55 @@ public class PreprocessorSpanRulesTest {
     SpanReplaceRegexTransformer rule;
     Span span;
 
-    rule = new SpanReplaceRegexTransformer(SPAN_NAME, "test", "", null, null, false, metrics);
+    rule = new SpanReplaceRegexTransformer(SPAN_NAME, "test", "", null, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("SpanName", span.getName());
 
-    rule = new SpanReplaceRegexTransformer(SOURCE_NAME, "Name", "Z", null, null, false, metrics);
+    rule = new SpanReplaceRegexTransformer(SOURCE_NAME, "Name", "Z", null, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("spanSourceZ", span.getSource());
 
-    rule = new SpanReplaceRegexTransformer(SOURCE_NAME, "Name", "Z", "span.*", null, false, metrics);
+    rule = new SpanReplaceRegexTransformer(SOURCE_NAME, "Name", "Z", "span.*", null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("spanSourceZ", span.getSource());
 
-    rule = new SpanReplaceRegexTransformer(SOURCE_NAME, "Name", "Z", "no_match", null, false, metrics);
+    rule = new SpanReplaceRegexTransformer(SOURCE_NAME, "Name", "Z", "no_match", null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("spanSourceName", span.getSource());
 
-    rule = new SpanReplaceRegexTransformer(FOO, "234", "zzz", null, null, false, metrics);
+    rule = new SpanReplaceRegexTransformer(FOO, "234", "zzz", null, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1zzz567890", "bar2-zzz5678901", "bar2-3456789012", "bar"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
-    rule = new SpanReplaceRegexTransformer(FOO, "901", "zzz", null, null, true, metrics);
+    rule = new SpanReplaceRegexTransformer(FOO, "901", "zzz", null, null, true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar1-1234567890", "bar2-2345678zzz", "bar2-3456789012", "bar"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
-    rule = new SpanReplaceRegexTransformer(FOO, "\\d-\\d", "@", null, null, false, metrics);
+    rule = new SpanReplaceRegexTransformer(FOO, "\\d-\\d", "@", null, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar@234567890", "bar@345678901", "bar@456789012", "bar"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
-    rule = new SpanReplaceRegexTransformer(FOO, "\\d-\\d", "@", null, null, true, metrics);
+    rule = new SpanReplaceRegexTransformer(FOO, "\\d-\\d", "@", null, null, true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("bar@234567890", "bar2-2345678901", "bar2-3456789012", "bar"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(FOO)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
     rule = new SpanReplaceRegexTransformer(URL, "(https:\\/\\/.+\\/style\\/foo\\/make\\?id=)(.*)",
-        "$1REDACTED", null, null, true, metrics);
+        "$1REDACTED", null, null, true, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals(ImmutableList.of("https://localhost:50051/style/foo/make?id=REDACTED"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals(URL)).map(Annotation::getValue).
             collect(Collectors.toList()));
 
     rule = new SpanReplaceRegexTransformer("boo", "^.*$", "{{foo}}-{{spanName}}-{{sourceName}}{{}}",
-        null, null, false, metrics);
+        null, null, false, null, metrics);
     span = rule.apply(parseSpan(spanLine));
     assertEquals("bar1-1234567890-testSpanName-spanSourceName{{}}", span.getAnnotations().stream().
         filter(x -> x.getKey().equals("boo")).map(Annotation::getValue).findFirst().orElse("fail"));
@@ -516,33 +515,33 @@ public class PreprocessorSpanRulesTest {
     SpanWhitelistRegexFilter whitelistRule;
     Span span = parseSpan(spanLine);
 
-    blacklistRule = new SpanBlacklistRegexFilter(SPAN_NAME, "^test.*$", metrics);
-    whitelistRule = new SpanWhitelistRegexFilter(SPAN_NAME, "^test.*$", metrics);
+    blacklistRule = new SpanBlacklistRegexFilter(SPAN_NAME, "^test.*$", null, metrics);
+    whitelistRule = new SpanWhitelistRegexFilter(SPAN_NAME, "^test.*$", null, metrics);
     assertFalse(blacklistRule.test(span));
     assertTrue(whitelistRule.test(span));
 
-    blacklistRule = new SpanBlacklistRegexFilter(SPAN_NAME, "^ztest.*$", metrics);
-    whitelistRule = new SpanWhitelistRegexFilter(SPAN_NAME, "^ztest.*$", metrics);
+    blacklistRule = new SpanBlacklistRegexFilter(SPAN_NAME, "^ztest.*$", null, metrics);
+    whitelistRule = new SpanWhitelistRegexFilter(SPAN_NAME, "^ztest.*$", null, metrics);
     assertTrue(blacklistRule.test(span));
     assertFalse(whitelistRule.test(span));
 
-    blacklistRule = new SpanBlacklistRegexFilter(SOURCE_NAME, ".*ourceN.*", metrics);
-    whitelistRule = new SpanWhitelistRegexFilter(SOURCE_NAME, ".*ourceN.*", metrics);
+    blacklistRule = new SpanBlacklistRegexFilter(SOURCE_NAME, ".*ourceN.*", null, metrics);
+    whitelistRule = new SpanWhitelistRegexFilter(SOURCE_NAME, ".*ourceN.*", null, metrics);
     assertFalse(blacklistRule.test(span));
     assertTrue(whitelistRule.test(span));
 
-    blacklistRule = new SpanBlacklistRegexFilter(SOURCE_NAME, "ourceN.*", metrics);
-    whitelistRule = new SpanWhitelistRegexFilter(SOURCE_NAME, "ourceN.*", metrics);
+    blacklistRule = new SpanBlacklistRegexFilter(SOURCE_NAME, "ourceN.*", null, metrics);
+    whitelistRule = new SpanWhitelistRegexFilter(SOURCE_NAME, "ourceN.*", null, metrics);
     assertTrue(blacklistRule.test(span));
     assertFalse(whitelistRule.test(span));
 
-    blacklistRule = new SpanBlacklistRegexFilter("foo", "bar", metrics);
-    whitelistRule = new SpanWhitelistRegexFilter("foo", "bar", metrics);
+    blacklistRule = new SpanBlacklistRegexFilter("foo", "bar", null, metrics);
+    whitelistRule = new SpanWhitelistRegexFilter("foo", "bar", null, metrics);
     assertFalse(blacklistRule.test(span));
     assertTrue(whitelistRule.test(span));
 
-    blacklistRule = new SpanBlacklistRegexFilter("foo", "baz", metrics);
-    whitelistRule = new SpanWhitelistRegexFilter("foo", "baz", metrics);
+    blacklistRule = new SpanBlacklistRegexFilter("foo", "baz", null, metrics);
+    whitelistRule = new SpanWhitelistRegexFilter("foo", "baz", null, metrics);
     assertTrue(blacklistRule.test(span));
     assertFalse(whitelistRule.test(span));
   }

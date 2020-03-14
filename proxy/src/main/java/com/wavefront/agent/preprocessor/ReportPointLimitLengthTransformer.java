@@ -3,6 +3,7 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
@@ -19,6 +20,8 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
   private final LengthLimitActionType actionSubtype;
   @Nullable
   private final Pattern compiledMatchPattern;
+  @Nullable
+  private final Map<String, Object> v2Predicate;
 
   private final PreprocessorRuleMetrics ruleMetrics;
 
@@ -26,6 +29,7 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
                                            final int maxLength,
                                            @Nonnull final LengthLimitActionType actionSubtype,
                                            @Nullable final String patternMatch,
+                                           @Nullable final Map<String, Object> v2Predicate,
                                            @Nonnull final PreprocessorRuleMetrics ruleMetrics) {
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
@@ -40,6 +44,7 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
     this.actionSubtype = actionSubtype;
     this.compiledMatchPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     this.ruleMetrics = ruleMetrics;
+    this.v2Predicate = v2Predicate;
   }
 
   @Nullable
@@ -47,6 +52,9 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    // Test for preprocessor v2 predicate.
+    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, reportPoint)) return reportPoint;
+
     switch (scope) {
       case "metricName":
         if (reportPoint.getMetric().length() > maxLength && (compiledMatchPattern == null ||

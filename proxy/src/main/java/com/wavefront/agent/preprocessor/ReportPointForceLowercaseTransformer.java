@@ -3,6 +3,7 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -22,15 +23,19 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
   @Nullable
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
+  @Nullable
+  private final Map<String, Object> v2Predicate;
+
 
   public ReportPointForceLowercaseTransformer(final String scope,
                                               @Nullable final String patternMatch,
-                                              final PreprocessorRuleMetrics ruleMetrics) {
+                                              Map<String, Object> v2Predicate, final PreprocessorRuleMetrics ruleMetrics) {
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
     this.compiledMatchPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
+    this.v2Predicate = v2Predicate;
   }
 
   @Nullable
@@ -38,6 +43,9 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    // Test for preprocessor v2 predicate.
+    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, reportPoint)) return reportPoint;
+
     switch (scope) {
       case "metricName":
         if (compiledMatchPattern != null && !compiledMatchPattern.matcher(

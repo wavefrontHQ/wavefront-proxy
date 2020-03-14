@@ -25,14 +25,19 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
 
   private final Map<String, Pattern> whitelistedKeys;
   private final PreprocessorRuleMetrics ruleMetrics;
+  @Nullable
+  private final Map<String, Object> v2Predicate;
+
 
   SpanWhitelistAnnotationTransformer(final Map<String, String> keys,
+                                     @Nullable final Map<String, Object> v2Predicate,
                                      final PreprocessorRuleMetrics ruleMetrics) {
     this.whitelistedKeys = new HashMap<>(keys.size() + SYSTEM_TAGS.size());
     SYSTEM_TAGS.forEach(x -> whitelistedKeys.put(x, null));
     keys.forEach((k, v) -> whitelistedKeys.put(k, v == null ? null : Pattern.compile(v)));
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
+    this.v2Predicate = v2Predicate;
   }
 
   @Nullable
@@ -40,6 +45,8 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, span)) return span;
+
     List<Annotation> annotations = span.getAnnotations().stream().
         filter(x -> whitelistedKeys.containsKey(x.getKey())).
         filter(x -> isPatternNullOrMatches(whitelistedKeys.get(x.getKey()), x.getValue())).
@@ -63,17 +70,18 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
    * @param ruleMetrics metrics container
    * @return SpanWhitelistAnnotationTransformer instance
    */
-  public static SpanWhitelistAnnotationTransformer create(
-      Map<String, Object> ruleMap, final PreprocessorRuleMetrics ruleMetrics) {
+  public static SpanWhitelistAnnotationTransformer create(Map<String, Object> ruleMap,
+                                                          @Nullable final Map<String, Object> v2Predicate,
+                                                          final PreprocessorRuleMetrics ruleMetrics) {
     Object keys = ruleMap.get("whitelist");
     if (keys instanceof Map) {
       //noinspection unchecked
-      return new SpanWhitelistAnnotationTransformer((Map<String, String>) keys, ruleMetrics);
+      return new SpanWhitelistAnnotationTransformer((Map<String, String>) keys, v2Predicate, ruleMetrics);
     } else if (keys instanceof List) {
       Map<String, String> map = new HashMap<>();
       //noinspection unchecked
       ((List<String>) keys).forEach(x -> map.put(x, null));
-      return new SpanWhitelistAnnotationTransformer(map, ruleMetrics);
+      return new SpanWhitelistAnnotationTransformer(map, null, ruleMetrics);
     }
     throw new IllegalArgumentException("[whitelist] is not a list or a map");
   }

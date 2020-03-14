@@ -3,6 +3,8 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
+import java.util.Map;
+
 import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
@@ -17,9 +19,12 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
   protected final String tag;
   protected final String value;
   protected final PreprocessorRuleMetrics ruleMetrics;
+  @Nullable
+  private final Map<String, Object> v2Predicate;
 
   public ReportPointAddTagTransformer(final String tag,
                                       final String value,
+                                      @Nullable final Map<String, Object> v2Predicate,
                                       final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.value = Preconditions.checkNotNull(value, "[value] can't be null");
@@ -27,6 +32,7 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
     Preconditions.checkArgument(!value.isEmpty(), "[value] can't be blank");
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
+    this.v2Predicate = v2Predicate;
   }
 
   @Nullable
@@ -34,6 +40,9 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    // Test for preprocessor v2 predicate.
+    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, reportPoint)) return reportPoint;
+
     reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
     ruleMetrics.incrementRuleAppliedCounter();
     ruleMetrics.ruleEnd(startNanos);
