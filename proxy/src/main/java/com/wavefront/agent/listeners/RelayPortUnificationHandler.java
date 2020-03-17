@@ -167,7 +167,6 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       okStatus = HttpResponseStatus.NO_CONTENT;
     }
 
-    String payload = request.content().toString(CharsetUtil.UTF_8);
     HttpResponseStatus status;
     switch (format) {
       case Constants.PUSH_FORMAT_HISTOGRAM:
@@ -184,6 +183,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
           ReportableEntityDecoder<String, ReportPoint> histogramDecoder =
               (ReportableEntityDecoder<String, ReportPoint>) decoders.
                   get(ReportableEntityType.HISTOGRAM);
+          String payload = request.content().toString(CharsetUtil.UTF_8);
           splitStringIterator(payload, '\n').forEachRemaining(line -> {
             String message = line.trim();
             if (message.isEmpty()) return;
@@ -235,6 +235,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
             (ReportableEntityDecoder<String, Span>) decoders.
                 get(ReportableEntityType.TRACE);
         ReportableEntityHandler<Span, String> spanHandler = spanHandlerSupplier.get();
+        String payload = request.content().toString(CharsetUtil.UTF_8);
         splitStringIterator(payload, '\n').forEachRemaining(line -> {
           try {
             spanDecoder.decode(line, spans, "dummy");
@@ -257,7 +258,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
             (ReportableEntityDecoder<JsonNode, SpanLogs>) decoders.
                 get(ReportableEntityType.TRACE_SPAN_LOGS);
         ReportableEntityHandler<SpanLogs, String> spanLogsHandler = spanLogsHandlerSupplier.get();
-        splitStringIterator(payload, '\n').forEachRemaining(line -> {
+        String spanLogsPayload = request.content().toString(CharsetUtil.UTF_8);
+        splitStringIterator(spanLogsPayload, '\n').forEachRemaining(line -> {
           try {
             spanLogDecoder.decode(JSON_PARSER.readTree(line), spanLogs, "dummy");
           } catch (Exception e) {
