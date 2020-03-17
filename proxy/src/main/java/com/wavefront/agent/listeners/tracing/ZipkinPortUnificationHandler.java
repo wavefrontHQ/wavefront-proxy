@@ -5,7 +5,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import com.wavefront.common.MessageDedupingLogger;
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -61,6 +60,9 @@ import zipkin2.codec.BytesDecoder;
 
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
@@ -85,7 +87,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     implements Runnable, Closeable {
   private static final Logger logger = Logger.getLogger(
       ZipkinPortUnificationHandler.class.getCanonicalName());
-  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 2, 0.2);
 
   private final ReportableEntityHandler<Span, String> spanHandler;
   private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
@@ -207,12 +208,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     StringBuilder output = new StringBuilder();
 
     // Handle case when tracing is disabled, ignore reported spans.
-    if (traceDisabled.get()) {
-      featureDisabledLogger.info("Ingested spans discarded because tracing feature is not " +
-          "enabled on the server");
-      discardedBatches.inc();
-      output.append("Ingested spans discarded because tracing feature is not enabled on the " +
-          "server.");
+    if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedBatches, output)) {
       status = HttpResponseStatus.ACCEPTED;
       writeHttpResponse(ctx, status, output, request);
       return;
@@ -390,26 +386,22 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     if (isDebugSpanTag || isDebug || (alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
       spanHandler.report(wavefrontSpan);
 
-      if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty()) {
-        if (spanLogsDisabled.get()) {
-          featureDisabledLogger.info("Span logs discarded because the feature is not " +
-              "enabled on the server!");
-        } else {
-          SpanLogs spanLogs = SpanLogs.newBuilder().
-              setCustomer("default").
-              setTraceId(wavefrontSpan.getTraceId()).
-              setSpanId(wavefrontSpan.getSpanId()).
-              setSpanSecondaryId(zipkinSpan.kind() != null ?
-                  zipkinSpan.kind().toString().toLowerCase() : null).
-              setLogs(zipkinSpan.annotations().stream().map(
-                  x -> SpanLog.newBuilder().
-                      setTimestamp(x.timestamp()).
-                      setFields(ImmutableMap.of("annotation", x.value())).
-                      build()).
-                  collect(Collectors.toList())).
-              build();
-          spanLogsHandler.report(spanLogs);
-        }
+      if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty() &&
+          !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
+        SpanLogs spanLogs = SpanLogs.newBuilder().
+            setCustomer("default").
+            setTraceId(wavefrontSpan.getTraceId()).
+            setSpanId(wavefrontSpan.getSpanId()).
+            setSpanSecondaryId(zipkinSpan.kind() != null ?
+                zipkinSpan.kind().toString().toLowerCase() : null).
+            setLogs(zipkinSpan.annotations().stream().map(
+                x -> SpanLog.newBuilder().
+                    setTimestamp(x.timestamp()).
+                    setFields(ImmutableMap.of("annotation", x.value())).
+                    build()).
+                collect(Collectors.toList())).
+            build();
+        spanLogsHandler.report(spanLogs);
       }
     }
     // report stats irrespective of span sampling.

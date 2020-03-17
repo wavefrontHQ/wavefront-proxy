@@ -663,7 +663,10 @@ public class PushAgent extends AbstractAgent {
 
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
         new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
-            decoderSupplier.get(), handlerFactory, hostAnnotator, preprocessors.get(strPort));
+            decoderSupplier.get(), handlerFactory, hostAnnotator, preprocessors.get(strPort),
+            () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
+            () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
+            () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled());
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -710,7 +713,7 @@ public class PushAgent extends AbstractAgent {
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
         new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
             decoderSupplier.get(), deltaCounterHandlerFactory, hostAnnotator,
-            preprocessors.get(strPort));
+            preprocessors.get(strPort), () -> false, () -> false, () -> false);
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -968,7 +971,10 @@ public class PushAgent extends AbstractAgent {
       WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
           new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
               decoderSupplier.get(), histogramHandlerFactory, hostAnnotator,
-              preprocessors.get(strPort));
+              preprocessors.get(strPort),
+              () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
+              () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
+              () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled());
       startAsManagedThread(port,
           new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
           proxyConfig.getHistogramMaxReceivedLength(), proxyConfig.getHistogramHttpBufferSize(),

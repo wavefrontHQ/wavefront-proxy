@@ -261,11 +261,6 @@
       <artifactId>jafama</artifactId>
       <version>2.1.0</version>
     </dependency>
-    <dependency>
-      <groupId>com.google.re2j</groupId>
-      <artifactId>re2j</artifactId>
-      <version>1.3</version>
-    </dependency>
   </dependencies>
 
   <build>
@@ -312,9 +307,10 @@
             </goals>
             <configuration>
               <propertyName>jacocoArgLine</propertyName>
-              <includes>
-                <include>com.wavefront.*</include>
-              </includes>
+              <excludes>
+                <exclude>com.tdunning.math.*</exclude>
+                <exclude>org.logstash.*</exclude>
+              </excludes>
             </configuration>
           </execution>
           <execution>
@@ -325,11 +321,7 @@
             </goals>
             <configuration>
               <rules>
-                <!-- Ensure minimum lines covered at project level for some projects. mvn artifactid is used to identify project -->
                 <rule>
-                  <includes>
-                    <include>com.wavefront.*</include>
-                  </includes>
                   <element>BUNDLE</element>
                   <limits>
                     <limit>
@@ -339,7 +331,37 @@
                     </limit>
                   </limits>
                 </rule>
+                <rule>
+                  <element>PACKAGE</element>
+                  <includes>
+                    <include>com.wavefront.agent.preprocessor</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.91</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <rule>
+                  <element>PACKAGE</element>
+                  <includes>
+                    <include>com.wavefront.agent.histogram</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.93</minimum>
+                    </limit>
+                  </limits>
+                </rule>
               </rules>
+              <excludes>
+                <exclude>com/tdunning/**</exclude>
+                <exclude>org/logstash/**</exclude>
+              </excludes>
             </configuration>
           </execution>
           <execution>
@@ -348,6 +370,12 @@
             <goals>
               <goal>report</goal>
             </goals>
+            <configuration>
+              <excludes>
+                <exclude>com/tdunning/**</exclude>
+                <exclude>org/logstash/**</exclude>
+              </excludes>
+            </configuration>
           </execution>
         </executions>
       </plugin>

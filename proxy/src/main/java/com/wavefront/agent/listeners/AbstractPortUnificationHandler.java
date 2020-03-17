@@ -15,7 +15,6 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -146,11 +145,10 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
     logger.log(Level.WARNING, "Unexpected error: ", cause);
   }
 
-  protected String extractToken(final FullHttpRequest request) throws URISyntaxException {
-    URI requestUri = new URI(request.uri());
+  protected String extractToken(final FullHttpRequest request) {
     String token = firstNonNull(request.headers().getAsString("X-AUTH-TOKEN"),
         request.headers().getAsString("Authorization"), "").replaceAll("^Bearer ", "").trim();
-    Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(requestUri, CharsetUtil.UTF_8).
+    Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(request.uri(), CharsetUtil.UTF_8).
         stream().filter(x -> x.getName().equals("t") || x.getName().equals("token") ||
         x.getName().equals("api_key")).findFirst();
     if (tokenParam.isPresent()) {
@@ -159,8 +157,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
     return token;
   }
 
-  protected boolean authorized(final ChannelHandlerContext ctx, final FullHttpRequest request)
-      throws URISyntaxException {
+  protected boolean authorized(final ChannelHandlerContext ctx, final FullHttpRequest request) {
     if (tokenAuthenticator.authRequired()) {
       String token = extractToken(request);
       if (!tokenAuthenticator.authorize(token)) { // 401 if no token or auth fails

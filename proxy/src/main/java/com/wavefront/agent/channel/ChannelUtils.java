@@ -3,12 +3,17 @@ package com.wavefront.agent.channel;
 import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -192,5 +197,28 @@ public abstract class ChannelUtils {
   public static InetAddress getRemoteAddress(@Nonnull ChannelHandlerContext ctx) {
     InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
     return remoteAddress == null ? null : remoteAddress.getAddress();
+  }
+
+  /**
+   * Get path from the URI (i.e. discard everything after "?").
+   *
+   * @param uri URI to get path from
+   * @return path
+   */
+  public static String getPath(String uri) {
+    int paramsDelimiter = uri.indexOf('?');
+    return paramsDelimiter == -1 ? uri : uri.substring(0, paramsDelimiter);
+  }
+
+  /**
+   * Parse query params into name/value pairs.
+   *
+   * @param uri URI to get query params from
+   * @return list of {@link NameValuePair}
+   */
+  public static List<NameValuePair> getQueryParams(String uri) {
+    int paramsDelimiter = uri.indexOf('?');
+    return paramsDelimiter == -1 ? ImmutableList.of() :
+        URLEncodedUtils.parse(uri.substring(paramsDelimiter + 1), CharsetUtil.UTF_8);
   }
 }

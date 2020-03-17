@@ -1,5 +1,7 @@
 package com.wavefront.agent.listeners;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -12,21 +14,41 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.SourceTag;
 import com.wavefront.ingester.ReportableEntityDecoder;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import org.apache.http.NameValuePair;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import wavefront.report.ReportEvent;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
+import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
+import static com.wavefront.agent.channel.ChannelUtils.getQueryParams;
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+import static com.wavefront.agent.formatter.DataFormat.HISTOGRAM;
+import static com.wavefront.agent.formatter.DataFormat.SPAN;
+import static com.wavefront.agent.formatter.DataFormat.SPAN_LOG;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.preprocessAndHandleSpan;
 
 /**
  * Process incoming Wavefront-formatted data. Also allows sourceTag formatted data and
@@ -39,6 +61,7 @@ import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
  */
 @ChannelHandler.Sharable
 public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandler {
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   @Nullable
   private final SharedGraphiteHostAnnotator annotator;
@@ -48,11 +71,22 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   private final ReportableEntityDecoder<String, ReportSourceTag> sourceTagDecoder;
   private final ReportableEntityDecoder<String, ReportEvent> eventDecoder;
   private final ReportableEntityDecoder<String, ReportPoint> histogramDecoder;
+  private final ReportableEntityDecoder<String, Span> spanDecoder;
+  private final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder;
   private final ReportableEntityHandler<ReportPoint, String> wavefrontHandler;
   private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
   private final Supplier<ReportableEntityHandler<ReportSourceTag, SourceTag>> sourceTagHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<Span, String>> spanHandlerSupplier;
+  private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandlerSupplier;
   private final Supplier<ReportableEntityHandler<ReportEvent, ReportEvent>> eventHandlerSupplier;
 
+  private final Supplier<Boolean> histogramDisabled;
+  private final Supplier<Boolean> traceDisabled;
+  private final Supplier<Boolean> spanLogsDisabled;
+
+  private final Supplier<Counter> discardedHistograms;
+  private final Supplier<Counter> discardedSpans;
+  private final Supplier<Counter> discardedSpanLogs;
   /**
    * Create new instance with lazy initialization for handlers.
    *
@@ -62,7 +96,10 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
    * @param decoders            decoders.
    * @param handlerFactory      factory for ReportableEntityHandler objects.
    * @param annotator           hostAnnotator that makes sure all points have a source= tag.
-   * @param preprocessor        preprocessor.
+   * @param preprocessor        preprocessor supplier.
+   * @param histogramDisabled   supplier for backend-controlled feature flag for histograms.
+   * @param traceDisabled       supplier for backend-controlled feature flag for spans.
+   * @param spanLogsDisabled    supplier for backend-controlled feature flag for span logs.
    */
   @SuppressWarnings("unchecked")
   public WavefrontPortUnificationHandler(
@@ -71,7 +108,9 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders,
       final ReportableEntityHandlerFactory handlerFactory,
       @Nullable final SharedGraphiteHostAnnotator annotator,
-      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
+      @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
+      final Supplier<Boolean> histogramDisabled, final Supplier<Boolean> traceDisabled,
+      final Supplier<Boolean> spanLogsDisabled) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.wavefrontDecoder = (ReportableEntityDecoder<String, ReportPoint>) decoders.
         get(ReportableEntityType.POINT);
@@ -82,14 +121,54 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         get(ReportableEntityType.HISTOGRAM);
     this.sourceTagDecoder = (ReportableEntityDecoder<String, ReportSourceTag>) decoders.
         get(ReportableEntityType.SOURCE_TAG);
+    this.spanDecoder = (ReportableEntityDecoder<String, Span>) decoders.
+        get(ReportableEntityType.TRACE);
+    this.spanLogsDecoder = (ReportableEntityDecoder<JsonNode, SpanLogs>) decoders.
+        get(ReportableEntityType.TRACE_SPAN_LOGS);
     this.eventDecoder = (ReportableEntityDecoder<String, ReportEvent>) decoders.
         get(ReportableEntityType.EVENT);
     this.histogramHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
         HandlerKey.of(ReportableEntityType.HISTOGRAM, handle)));
     this.sourceTagHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
         HandlerKey.of(ReportableEntityType.SOURCE_TAG, handle)));
+    this.spanHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
+        HandlerKey.of(ReportableEntityType.TRACE, handle)));
+    this.spanLogsHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
+        HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)));
     this.eventHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
         HandlerKey.of(ReportableEntityType.EVENT, handle)));
+    this.histogramDisabled = histogramDisabled;
+    this.traceDisabled = traceDisabled;
+    this.spanLogsDisabled = spanLogsDisabled;
+    this.discardedHistograms = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
+        "histogram", "", "discarded_points")));
+    this.discardedSpans = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
+        "spans." + handle, "", "discarded")));
+    this.discardedSpanLogs = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
+        "spanLogs." + handle, "", "discarded")));
+  }
+
+  @Override
+  protected DataFormat getFormat(FullHttpRequest httpRequest) {
+    return DataFormat.parse(getQueryParams(httpRequest.uri()).stream().
+        filter(x -> x.getName().equals("format") || x.getName().equals("f")).
+        map(NameValuePair::getValue).findFirst().orElse(null));
+  }
+
+  @Override
+  protected void handleHttpMessage(ChannelHandlerContext ctx, FullHttpRequest request) {
+    StringBuilder out = new StringBuilder();
+    DataFormat format = getFormat(request);
+    if ((format == HISTOGRAM && isFeatureDisabled(histogramDisabled, HISTO_DISABLED,
+            discardedHistograms.get(), out, request)) ||
+        (format == SPAN && isFeatureDisabled(traceDisabled, SPAN_DISABLED,
+            discardedSpans.get(), out, request)) ||
+        (format == SPAN_LOG && isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED,
+            discardedSpanLogs.get(), out, request))) {
+      writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
+      return;
+    }
+    super.handleHttpMessage(ctx, request);
   }
 
   /**
@@ -98,9 +177,9 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
    * @param message  line being processed
    */
   @Override
-  protected void processLine(final ChannelHandlerContext ctx, String message) {
-    if (message.isEmpty()) return;
-    DataFormat dataFormat = DataFormat.autodetect(message);
+  protected void processLine(final ChannelHandlerContext ctx, @Nonnull String message,
+                             @Nullable DataFormat format) {
+    DataFormat dataFormat = format == null ? DataFormat.autodetect(message) : format;
     switch (dataFormat) {
       case SOURCE_TAG:
         ReportableEntityHandler<ReportSourceTag, SourceTag> sourceTagHandler =
@@ -138,7 +217,37 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
               "\"", e, ctx));
         }
         return;
+      case SPAN:
+        ReportableEntityHandler<Span, String> spanHandler = spanHandlerSupplier.get();
+        if (spanHandler == null || spanDecoder == null) {
+          wavefrontHandler.reject(message, "Port is not configured to accept " +
+              "tracing data (spans)!");
+          return;
+        }
+        message = annotator == null ? message : annotator.apply(ctx, message);
+        preprocessAndHandleSpan(message, spanDecoder, spanHandler, spanHandler::report,
+            preprocessorSupplier, ctx, true, x -> true);
+        return;
+      case SPAN_LOG:
+        if (isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, discardedSpanLogs.get())) return;
+        ReportableEntityHandler<SpanLogs, String> spanLogsHandler = spanLogsHandlerSupplier.get();
+        if (spanLogsHandler == null || spanLogsDecoder == null) {
+          wavefrontHandler.reject(message, "Port is not configured to accept " +
+              "tracing data (span logs)!");
+          return;
+        }
+        try {
+          List<SpanLogs> spanLogs = new ArrayList<>(1);
+          spanLogsDecoder.decode(OBJECT_MAPPER.readTree(message), spanLogs, "dummy");
+          for (SpanLogs object : spanLogs) {
+            spanLogsHandler.report(object);
+          }
+        } catch (Exception e) {
+          spanLogsHandler.reject(message, formatErrorMessage(message, e, ctx));
+        }
+        return;
       case HISTOGRAM:
+        if (isFeatureDisabled(histogramDisabled, HISTO_DISABLED, discardedHistograms.get())) return;
         ReportableEntityHandler<ReportPoint, String> histogramHandler = histogramHandlerSupplier.get();
         if (histogramHandler == null || histogramDecoder == null) {
           wavefrontHandler.reject(message, "Port is not configured to accept " +
