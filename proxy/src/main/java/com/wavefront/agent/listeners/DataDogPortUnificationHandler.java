@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners;
 
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 
@@ -19,6 +20,7 @@ import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportPointSerializer;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 
@@ -92,6 +94,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       expireAfterWrite(6, TimeUnit.HOURS).
       maximumSize(100_000).
       build();
+  private final LoadingCache<Integer, Counter> httpStatusCounterCache;
   private final ScheduledThreadPoolExecutor threadpool;
 
   public DataDogPortUnificationHandler(
@@ -126,7 +129,9 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     this.jsonParser = new ObjectMapper();
     this.httpRequestSize = Metrics.newHistogram(new TaggedMetricName("listeners",
         "http-requests.payload-points", "port", handle));
-
+    this.httpStatusCounterCache = Caffeine.newBuilder().build(status ->
+        Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.status." + status +
+            ".count", "port", handle)));
     Metrics.newGauge(new TaggedMetricName("listeners", "tags-cache-size",
         "port", handle), new Gauge<Long>() {
       @Override
@@ -165,11 +170,12 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         }
         outgoingRequest.setEntity(new StringEntity(requestBody));
         if (synchronousMode) {
-          logger.info("Relaying incoming HTTP request to " + outgoingUrl);
+          if (logger.isLoggable(Level.FINE)) {
+            logger.fine("Relaying incoming HTTP request to " + outgoingUrl);
+          }
           HttpResponse response = requestRelayClient.execute(outgoingRequest);
           int httpStatusCode = response.getStatusLine().getStatusCode();
-          Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.status." +
-              httpStatusCode + ".count", "port", handle)).inc();
+          httpStatusCounterCache.get(httpStatusCode).inc();
 
           if (httpStatusCode < 200 || httpStatusCode >= 300) {
             // anything that is not 2xx is relayed as is to the client, don't process the payload
@@ -180,11 +186,12 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         } else {
           threadpool.submit(() -> {
             try {
-              logger.info("Relaying incoming HTTP request (async) to " + outgoingUrl);
+              if (logger.isLoggable(Level.FINE)) {
+                logger.fine("Relaying incoming HTTP request (async) to " + outgoingUrl);
+              }
               HttpResponse response = requestRelayClient.execute(outgoingRequest);
               int httpStatusCode = response.getStatusLine().getStatusCode();
-              Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.status." +
-                  httpStatusCode + ".count", "port", handle)).inc();
+              httpStatusCounterCache.get(httpStatusCode).inc();
               EntityUtils.consumeQuietly(response.getEntity());
             } catch (IOException e) {
               logger.warning("Unable to relay request to " + requestRelayTarget + ": " +
@@ -333,11 +340,13 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         tags.putAll(systemTags);
       }
       extractTags(tagsNode, tags); // tags sent with the data override system host-level tags
-      JsonNode deviceNode = metric.get("device"); // Include a device= tag on the data if that property exists
+      // Include a device= tag on the data if that property exists
+      JsonNode deviceNode = metric.get("device");
       if (deviceNode != null) {
         tags.put("device", deviceNode.textValue());
       }
-      int interval = 1; // If the metric is of type rate its value needs to be multiplied by the specified interval
+      // If the metric is of type rate its value needs to be multiplied by the specified interval
+      int interval = 1;
       JsonNode type = metric.get("type");
       if (type != null) {
         if (type.textValue().equals("rate")) {
