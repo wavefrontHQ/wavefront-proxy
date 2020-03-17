@@ -1,5 +1,7 @@
 package com.wavefront.agent.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
@@ -27,6 +29,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.wavefront.common.Utils.isWavefrontResponse;
+import static java.lang.Boolean.TRUE;
 
 /**
  * A base class for data submission tasks.
@@ -35,8 +38,11 @@ import static com.wavefront.common.Utils.isWavefrontResponse;
  *
  * @author vasily@wavefront.com.
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     implements DataSubmissionTask<T> {
+  private static final int MAX_RETRIES = 15;
   private static final Logger log = new MessageDedupingLogger(
       Logger.getLogger(AbstractDataSubmissionTask.class.getCanonicalName()), 1000, 1);
 
@@ -45,9 +51,13 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
   @JsonProperty
   protected int attempts = 0;
   @JsonProperty
+  protected int serverErrors = 0;
+  @JsonProperty
   protected String handle;
   @JsonProperty
   protected ReportableEntityType entityType;
+  @JsonProperty
+  protected Boolean limitRetries = null;
 
   protected transient Histogram timeSpentInQueue;
   protected transient Supplier<Long> timeProvider;
@@ -86,7 +96,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
     return entityType;
   }
 
-  abstract Response doExecute();
+  abstract Response doExecute() throws DataSubmissionException;
 
   public TaskResult execute() {
     if (enqueuedTimeMillis < Long.MAX_VALUE) {
@@ -148,10 +158,25 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
                   QueueingReason.SPLIT : null));
           return TaskResult.PERSISTED_RETRY;
         default:
-          log.info("[" + handle + "] HTTP " + response.getStatus() + " received while sending " +
-              "data to Wavefront, retrying");
-          return checkStatusAndQueue(QueueingReason.RETRY, true);
+          serverErrors += 1;
+          if (serverErrors > MAX_RETRIES && TRUE.equals(limitRetries)) {
+            log.info("[" + handle + "] HTTP " + response.getStatus() + " received while sending " +
+                "data to Wavefront, max retries reached");
+            return TaskResult.DELIVERED;
+          } else {
+            log.info("[" + handle + "] HTTP " + response.getStatus() + " received while sending " +
+                "data to Wavefront, retrying");
+            return checkStatusAndQueue(QueueingReason.RETRY, true);
+          }
       }
+    } catch (DataSubmissionException ex) {
+      if (ex instanceof IgnoreStatusCodeException) {
+        Metrics.newCounter(new TaggedMetricName("push", handle + ".http.404.count")).inc();
+        Metrics.newCounter(new MetricName(entityType + "." + handle, "", "delivered")).
+            inc(this.weight());
+        return TaskResult.DELIVERED;
+      }
+      throw new RuntimeException("Unhandled DataSubmissionException", ex);
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);
       if (rootCause instanceof UnknownHostException) {
