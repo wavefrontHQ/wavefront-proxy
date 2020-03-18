@@ -20,7 +20,6 @@ import java.util.function.Supplier;
  *
  * @author vasily@wavefront.com
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__CLASS")
 public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTagSubmissionTask> {
   private transient SourceTagAPI api;
@@ -47,15 +46,21 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
     super(properties, backlog, handle, ReportableEntityType.SOURCE_TAG, timeProvider);
     this.api = api;
     this.sourceTag = sourceTag;
+    this.limitRetries = true;
   }
 
   @Nullable
-  Response doExecute() {
+  Response doExecute() throws DataSubmissionException {
     switch (sourceTag.getOperation()) {
       case SOURCE_DESCRIPTION:
         switch (sourceTag.getAction()) {
           case DELETE:
-            return api.removeDescription(sourceTag.getSource());
+            Response resp = api.removeDescription(sourceTag.getSource());
+            if (resp.getStatus() == 404) {
+              throw new IgnoreStatusCodeException("Attempting to delete description for " +
+                  "a non-existent source  " + sourceTag.getSource() + ", ignoring");
+            }
+            return resp;
           case SAVE:
           case ADD:
             return api.setDescription(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
@@ -67,7 +72,13 @@ public class SourceTagSubmissionTask extends AbstractDataSubmissionTask<SourceTa
           case ADD:
             return api.appendTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
           case DELETE:
-            return api.removeTag(sourceTag.getSource(), sourceTag.getAnnotations().get(0));
+            String tag = sourceTag.getAnnotations().get(0);
+            Response resp = api.removeTag(sourceTag.getSource(), tag);
+            if (resp.getStatus() == 404) {
+              throw new IgnoreStatusCodeException("Attempting to delete non-existing tag " +
+                  tag + " for source " + sourceTag.getSource() + ", ignoring");
+            }
+            return resp;
           case SAVE:
             return api.setTags(sourceTag.getSource(), sourceTag.getAnnotations());
           default:
