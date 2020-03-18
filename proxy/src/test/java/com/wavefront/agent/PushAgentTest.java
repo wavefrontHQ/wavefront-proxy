@@ -134,6 +134,7 @@ public class PushAgentTest {
     proxy = new PushAgent();
     proxy.proxyConfig.flushThreads = 2;
     proxy.proxyConfig.dataBackfillCutoffHours = 100000000;
+    proxy.proxyConfig.dataDogRequestRelaySyncMode = true;
     proxy.proxyConfig.dataDogProcessSystemMetrics = false;
     proxy.proxyConfig.dataDogProcessServiceChecks = true;
     assertEquals(Integer.valueOf(2), proxy.proxyConfig.getFlushThreads());
@@ -482,6 +483,7 @@ public class PushAgentTest {
     proxy2.proxyConfig.flushThreads = 2;
     proxy2.proxyConfig.dataBackfillCutoffHours = 100000000;
     proxy2.proxyConfig.dataDogJsonPorts = String.valueOf(ddPort2);
+    proxy2.proxyConfig.dataDogRequestRelaySyncMode = true;
     proxy2.proxyConfig.dataDogProcessSystemMetrics = true;
     proxy2.proxyConfig.dataDogProcessServiceChecks = false;
     proxy2.proxyConfig.dataDogRequestRelayTarget = "http://relay-to:1234";

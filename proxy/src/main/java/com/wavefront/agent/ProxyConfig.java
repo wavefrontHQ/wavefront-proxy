@@ -438,6 +438,14 @@ public class ProxyConfig extends Configuration {
       "requests on dataDogJsonPorts to. Defaults to none (do not relay incoming requests)")
   String dataDogRequestRelayTarget = null;
 
+  @Parameter(names = {"--dataDogRequestRelayAsyncThreads"}, description = "Max number of " +
+      "in-flight HTTP requests being relayed to dataDogRequestRelayTarget. Default: 32")
+  int dataDogRequestRelayAsyncThreads = 32;
+
+  @Parameter(names = {"--dataDogRequestRelaySyncMode"}, description = "Whether we should wait " +
+      "until request is relayed successfully before processing metrics. Default: false")
+  boolean dataDogRequestRelaySyncMode = false;
+
   @Parameter(names = {"--dataDogProcessSystemMetrics"}, description = "If true, handle system metrics as reported by " +
       "DataDog collection agent. Defaults to false.", arity = 1)
   boolean dataDogProcessSystemMetrics = false;
@@ -1088,6 +1096,14 @@ public class ProxyConfig extends Configuration {
     return dataDogRequestRelayTarget;
   }
 
+  public int getDataDogRequestRelayAsyncThreads() {
+    return dataDogRequestRelayAsyncThreads;
+  }
+
+  public boolean isDataDogRequestRelaySyncMode() {
+    return dataDogRequestRelaySyncMode;
+  }
+
   public boolean isDataDogProcessSystemMetrics() {
     return dataDogProcessSystemMetrics;
   }
@@ -1582,6 +1598,10 @@ public class ProxyConfig extends Configuration {
       dataDogJsonPorts = config.getString("dataDogJsonPorts", dataDogJsonPorts);
       dataDogRequestRelayTarget = config.getString("dataDogRequestRelayTarget",
           dataDogRequestRelayTarget);
+      dataDogRequestRelayAsyncThreads = config.getInteger("dataDogRequestRelayAsyncThreads",
+          dataDogRequestRelayAsyncThreads);
+      dataDogRequestRelaySyncMode = config.getBoolean("dataDogRequestRelaySyncMode",
+          dataDogRequestRelaySyncMode);
       dataDogProcessSystemMetrics = config.getBoolean("dataDogProcessSystemMetrics",
           dataDogProcessSystemMetrics);
       dataDogProcessServiceChecks = config.getBoolean("dataDogProcessServiceChecks",
