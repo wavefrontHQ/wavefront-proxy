@@ -8,8 +8,6 @@ import com.wavefront.agent.formatter.DataFormat;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.jetbrains.annotations.NotNull;
-
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -67,7 +65,7 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
    */
   @Override
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        @NotNull final String message) {
+                                        @Nonnull final String message) {
     String trimmedMessage = message.trim();
     if (trimmedMessage.isEmpty()) return;
     processLine(ctx, trimmedMessage, null);

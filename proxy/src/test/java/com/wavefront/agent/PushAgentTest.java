@@ -26,7 +26,6 @@ import org.apache.http.entity.StringEntity;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
-import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -107,7 +106,7 @@ public class PushAgentTest {
   private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
     @SuppressWarnings("unchecked")
     @Override
-    public Collection<SenderTask<String>> createSenderTasks(@NotNull HandlerKey handlerKey) {
+    public Collection<SenderTask<String>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
       return mockSenderTasks;
     }
 
