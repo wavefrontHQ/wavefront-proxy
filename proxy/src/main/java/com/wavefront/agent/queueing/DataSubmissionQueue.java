@@ -55,7 +55,6 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
   private final Counter tasksRemovedCounter;
   private final Counter itemsRemovedCounter;
 
-
   // maintain a fair lock on the queue
   private final ReentrantLock queueLock = new ReentrantLock(true);
 
