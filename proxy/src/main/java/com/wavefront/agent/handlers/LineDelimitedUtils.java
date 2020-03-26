@@ -3,8 +3,6 @@ package com.wavefront.agent.handlers;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.Collection;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 /**
  * A collection of helper methods around plaintext newline-delimited payloads.
@@ -26,61 +24,6 @@ public class LineDelimitedUtils {
   @Deprecated
   public static String[] splitPushData(String pushData) {
     return StringUtils.split(pushData, PUSH_DATA_DELIMETER);
-  }
-
-  /**
-   * Iterate over individual strings in a newline-delimited string. Skips empty strings.
-   *
-   * @param input payload to split.
-   * @return string iterator
-   */
-  public static Iterator<String> splitStringIterator(String input, char delimiter) {
-    return new Iterator<String>() {
-      int currentPos = 0;
-      int indexOfDelimiter = input.indexOf(delimiter);
-      String peek = null;
-
-      @Override
-      public boolean hasNext() {
-        if (peek == null) peek = advance();
-        return peek != null;
-      }
-
-      @Override
-      public String next() {
-        try {
-          if (peek == null) peek = advance();
-          if (peek == null) throw new NoSuchElementException();
-          return peek;
-        } finally {
-          peek = null;
-        }
-      }
-
-      private String advance() {
-        String result = "";
-        while ("".equals(result)) {
-          result = internalNext();
-        }
-        return result;
-      }
-
-      private String internalNext() {
-        if (indexOfDelimiter >= 0) {
-          try {
-            return input.substring(currentPos, indexOfDelimiter);
-          } finally {
-            currentPos = indexOfDelimiter + 1;
-            indexOfDelimiter = input.indexOf(delimiter, currentPos);
-          }
-        } else if (indexOfDelimiter == -1) {
-          indexOfDelimiter = Integer.MIN_VALUE;
-          return input.substring(currentPos);
-        } else {
-          return null;
-        }
-      }
-    };
   }
 
   /**

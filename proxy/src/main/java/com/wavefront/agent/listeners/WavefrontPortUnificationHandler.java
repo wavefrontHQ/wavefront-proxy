@@ -18,6 +18,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,11 +28,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.util.CharsetUtil;
 import wavefront.report.ReportEvent;
 import wavefront.report.ReportPoint;
 import wavefront.report.ReportSourceTag;
@@ -39,7 +42,6 @@ import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
-import static com.wavefront.agent.channel.ChannelUtils.getQueryParams;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.formatter.DataFormat.HISTOGRAM;
 import static com.wavefront.agent.formatter.DataFormat.SPAN;
@@ -150,8 +152,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
 
   @Override
   protected DataFormat getFormat(FullHttpRequest httpRequest) {
-    return DataFormat.parse(getQueryParams(httpRequest.uri()).stream().
-        filter(x -> x.getName().equals("format") || x.getName().equals("f")).
+    return DataFormat.parse(URLEncodedUtils.parse(URI.create(httpRequest.uri()), CharsetUtil.UTF_8).
+        stream().filter(x -> x.getName().equals("format") || x.getName().equals("f")).
         map(NameValuePair::getValue).findFirst().orElse(null));
   }
 

@@ -8,6 +8,8 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
+import org.jetbrains.annotations.NotNull;
+
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -43,7 +45,7 @@ public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHan
    */
   @Override
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        final String message) {
+                                        @NotNull final String message) {
     pointsDiscarded.get().inc();
     logger.warning("Input discarded: plaintext protocol is not supported on port " + handle);
   }

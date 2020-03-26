@@ -19,6 +19,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -119,8 +120,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   @Nullable
   @Override
   protected DataFormat getFormat(FullHttpRequest httpRequest) {
-    return DataFormat.parse(URLEncodedUtils.parse(httpRequest.uri(), CharsetUtil.UTF_8).stream().
-        filter(x -> x.getName().equals("format") || x.getName().equals("f")).
+    return DataFormat.parse(URLEncodedUtils.parse(URI.create(httpRequest.uri()), CharsetUtil.UTF_8).
+        stream().filter(x -> x.getName().equals("format") || x.getName().equals("f")).
         map(NameValuePair::getValue).findFirst().orElse(null));
   }
 

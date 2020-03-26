@@ -95,7 +95,7 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
           addLast("decoder", new HttpRequestDecoder()).
           addLast("inflater", new HttpContentDecompressor()).
           addLast("encoder", new HttpResponseEncoder()).
-          addLast("aggregator", new HttpObjectAggregator(maxLengthHttp)).
+          addLast("aggregator", new StatusTrackingHttpObjectAggregator(maxLengthHttp)).
           addLast("handler", this.handler);
     } else {
       logger.fine("Switching to plaintext TCP protocol");

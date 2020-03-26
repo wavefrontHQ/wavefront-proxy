@@ -1,11 +1,14 @@
 package com.wavefront.agent.listeners;
 
+import com.google.common.base.Splitter;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.formatter.DataFormat;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import org.jetbrains.annotations.NotNull;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -15,7 +18,6 @@ import io.netty.util.CharsetUtil;
 
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.handlers.LineDelimitedUtils.splitStringIterator;
 
 /**
  * Base class for all line-based protocols. Supports TCP line protocol as well as HTTP POST
@@ -47,8 +49,9 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
     HttpResponseStatus status;
     try {
       DataFormat format = getFormat(request);
-      splitStringIterator(request.content().toString(CharsetUtil.UTF_8), '\n').
-          forEachRemaining(line -> processLine(ctx, line.trim(), format));
+      Splitter.on('\n').trimResults().omitEmptyStrings().
+          split(request.content().toString(CharsetUtil.UTF_8)).
+          forEach(line -> processLine(ctx, line, format));
       status = HttpResponseStatus.ACCEPTED;
     } catch (Exception e) {
       status = HttpResponseStatus.BAD_REQUEST;
@@ -64,10 +67,7 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
    */
   @Override
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        final String message) {
-    if (message == null) {
-      throw new IllegalArgumentException("Message cannot be null");
-    }
+                                        @NotNull final String message) {
     String trimmedMessage = message.trim();
     if (trimmedMessage.isEmpty()) return;
     processLine(ctx, trimmedMessage, null);

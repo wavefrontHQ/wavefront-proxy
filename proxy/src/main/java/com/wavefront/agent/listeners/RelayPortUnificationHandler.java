@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Splitter;
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -21,9 +22,10 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -44,10 +46,7 @@ import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
-import static com.wavefront.agent.channel.ChannelUtils.getPath;
-import static com.wavefront.agent.channel.ChannelUtils.getQueryParams;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.handlers.LineDelimitedUtils.splitStringIterator;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
@@ -140,8 +139,9 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
                                    final FullHttpRequest request) {
+    URI uri = URI.create(request.uri());
     StringBuilder output = new StringBuilder();
-    String path = getPath(request.uri());
+    String path = uri.getPath();
     final boolean isDirectIngestion = path.startsWith("/report");
     if (path.endsWith("/checkin") && (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
       // simulate checkin response for proxy chaining
@@ -151,7 +151,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       writeHttpResponse(ctx, HttpResponseStatus.OK, jsonResponse, request);
       return;
     }
-    String format = getQueryParams(request.uri()).stream().
+    String format = URLEncodedUtils.parse(uri, CharsetUtil.UTF_8).stream().
         filter(x -> x.getName().equals("format") || x.getName().equals("f")).
         map(NameValuePair::getValue).findFirst().orElse(Constants.PUSH_FORMAT_WAVEFRONT);
 
@@ -183,10 +183,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
           ReportableEntityDecoder<String, ReportPoint> histogramDecoder =
               (ReportableEntityDecoder<String, ReportPoint>) decoders.
                   get(ReportableEntityType.HISTOGRAM);
-          String payload = request.content().toString(CharsetUtil.UTF_8);
-          splitStringIterator(payload, '\n').forEachRemaining(line -> {
-            String message = line.trim();
-            if (message.isEmpty()) return;
+          Splitter.on('\n').trimResults().omitEmptyStrings().
+              split(request.content().toString(CharsetUtil.UTF_8)).forEach(message -> {
             DataFormat dataFormat = DataFormat.autodetect(message);
             switch (dataFormat) {
               case EVENT:
@@ -235,8 +233,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
             (ReportableEntityDecoder<String, Span>) decoders.
                 get(ReportableEntityType.TRACE);
         ReportableEntityHandler<Span, String> spanHandler = spanHandlerSupplier.get();
-        String payload = request.content().toString(CharsetUtil.UTF_8);
-        splitStringIterator(payload, '\n').forEachRemaining(line -> {
+        Splitter.on('\n').trimResults().omitEmptyStrings().
+            split(request.content().toString(CharsetUtil.UTF_8)).forEach(line -> {
           try {
             spanDecoder.decode(line, spans, "dummy");
           } catch (Exception e) {
@@ -258,8 +256,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
             (ReportableEntityDecoder<JsonNode, SpanLogs>) decoders.
                 get(ReportableEntityType.TRACE_SPAN_LOGS);
         ReportableEntityHandler<SpanLogs, String> spanLogsHandler = spanLogsHandlerSupplier.get();
-        String spanLogsPayload = request.content().toString(CharsetUtil.UTF_8);
-        splitStringIterator(spanLogsPayload, '\n').forEachRemaining(line -> {
+        Splitter.on('\n').trimResults().omitEmptyStrings().
+            split(request.content().toString(CharsetUtil.UTF_8)).forEach(line -> {
           try {
             spanLogDecoder.decode(JSON_PARSER.readTree(line), spanLogs, "dummy");
           } catch (Exception e) {
