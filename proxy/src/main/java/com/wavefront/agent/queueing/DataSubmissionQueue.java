@@ -7,6 +7,7 @@ import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -49,6 +50,11 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
   private final String handle;
   private final String entityName;
 
+  private final Counter tasksAddedCounter;
+  private final Counter itemsAddedCounter;
+  private final Counter tasksRemovedCounter;
+  private final Counter itemsRemovedCounter;
+
   // maintain a fair lock on the queue
   private final ReentrantLock queueLock = new ReentrantLock(true);
 
@@ -66,6 +72,14 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
     if (delegate.isEmpty()) {
       initializeTracking();
     }
+    this.tasksAddedCounter = Metrics.newCounter(new TaggedMetricName("buffer", "task-added",
+        "port", handle));
+    this.itemsAddedCounter = Metrics.newCounter(new TaggedMetricName("buffer", entityName +
+        "-added", "port", handle));
+    this.tasksRemovedCounter = Metrics.newCounter(new TaggedMetricName("buffer", "task-removed",
+        "port", handle));
+    this.itemsRemovedCounter = Metrics.newCounter(new TaggedMetricName("buffer", entityName +
+        "-removed", "port", handle));
   }
 
   @Override
@@ -107,11 +121,10 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
       if (currentWeight != null) {
         currentWeight.addAndGet(t.weight());
       }
+      tasksAddedCounter.inc();
+      itemsAddedCounter.inc(t.weight());
     } finally {
       queueLock.unlock();
-      Metrics.newCounter(new TaggedMetricName("buffer", "task-added", "port", handle)).inc();
-      Metrics.newCounter(new TaggedMetricName("buffer", entityName + "-added", "port", handle)).
-          inc(t.weight());
     }
   }
 
@@ -146,14 +159,13 @@ public class DataSubmissionQueue<T extends DataSubmissionTask<T>> extends Object
       if (delegate.isEmpty()) {
         initializeTracking();
       }
+      tasksRemovedCounter.inc();
+      itemsRemovedCounter.inc(taskSize);
     } catch (IOException e) {
       Metrics.newCounter(new TaggedMetricName("buffer", "failures", "port", handle)).inc();
       log.severe("I/O error removing task from the queue: " + e.getMessage());
     } finally {
       queueLock.unlock();
-      Metrics.newCounter(new TaggedMetricName("buffer", "task-removed", "port", handle)).inc();
-      Metrics.newCounter(new TaggedMetricName("buffer", entityName + "-removed", "port", handle)).
-          inc(taskSize);
     }
   }
 

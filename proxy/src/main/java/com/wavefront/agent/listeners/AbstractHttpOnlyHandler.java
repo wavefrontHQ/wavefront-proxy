@@ -6,6 +6,7 @@ import com.wavefront.agent.channel.HealthCheckManager;
 import java.net.URISyntaxException;
 import java.util.logging.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
@@ -43,7 +44,7 @@ public abstract class AbstractHttpOnlyHandler extends AbstractPortUnificationHan
    */
   @Override
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        final String message) {
+                                        @Nonnull final String message) {
     pointsDiscarded.get().inc();
     logger.warning("Input discarded: plaintext protocol is not supported on port " + handle);
   }

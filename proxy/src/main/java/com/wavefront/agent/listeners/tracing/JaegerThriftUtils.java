@@ -3,7 +3,6 @@ package com.wavefront.agent.listeners.tracing;
 import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
-import com.wavefront.common.MessageDedupingLogger;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
@@ -33,6 +32,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
@@ -53,7 +55,6 @@ import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 public abstract class JaegerThriftUtils {
   protected static final Logger logger =
       Logger.getLogger(JaegerThriftUtils.class.getCanonicalName());
-  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 2, 0.2);
 
   // TODO: support sampling
   private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
@@ -112,15 +113,8 @@ public abstract class JaegerThriftUtils {
         }
       }
     }
-    if (traceDisabled.get()) {
-      featureDisabledLogger.info("Ingested spans discarded because tracing feature is not " +
-            "enabled on the server");
-      discardedBatches.inc();
+    if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedBatches, output)) {
       discardedTraces.inc(batch.getSpansSize());
-      if (output != null) {
-        output.append("Ingested spans discarded because tracing feature is not enabled on the " +
-            "server.");
-      }
       return;
     }
     for (io.jaegertracing.thriftjava.Span span : batch.getSpans()) {
@@ -274,43 +268,39 @@ public abstract class JaegerThriftUtils {
     if (isForceSampled || isDebugSpanTag || (alwaysSampleErrors && isError) ||
         sample(wavefrontSpan, sampler, discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
-      if (span.getLogs() != null && !span.getLogs().isEmpty()) {
-        if (spanLogsDisabled.get()) {
-          featureDisabledLogger.info("Span logs discarded because the feature is not " +
-              "enabled on the server!");
-        } else {
-          SpanLogs spanLogs = SpanLogs.newBuilder().
-              setCustomer("default").
-              setTraceId(wavefrontSpan.getTraceId()).
-              setSpanId(wavefrontSpan.getSpanId()).
-              setLogs(span.getLogs().stream().map(x -> {
-                Map<String, String> fields = new HashMap<>(x.fields.size());
-                x.fields.forEach(t -> {
-                  switch (t.vType) {
-                    case STRING:
-                      fields.put(t.getKey(), t.getVStr());
-                      break;
-                    case BOOL:
-                      fields.put(t.getKey(), String.valueOf(t.isVBool()));
-                      break;
-                    case LONG:
-                      fields.put(t.getKey(), String.valueOf(t.getVLong()));
-                      break;
-                    case DOUBLE:
-                      fields.put(t.getKey(), String.valueOf(t.getVDouble()));
-                      break;
-                    case BINARY:
-                      // ignore
-                    default:
-                  }
-                });
-                return SpanLog.newBuilder().
-                    setTimestamp(x.timestamp).
-                    setFields(fields).
-                    build();
-              }).collect(Collectors.toList())).build();
-          spanLogsHandler.report(spanLogs);
-        }
+      if (span.getLogs() != null && !span.getLogs().isEmpty() &&
+          !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
+        SpanLogs spanLogs = SpanLogs.newBuilder().
+            setCustomer("default").
+            setTraceId(wavefrontSpan.getTraceId()).
+            setSpanId(wavefrontSpan.getSpanId()).
+            setLogs(span.getLogs().stream().map(x -> {
+              Map<String, String> fields = new HashMap<>(x.fields.size());
+              x.fields.forEach(t -> {
+                switch (t.vType) {
+                  case STRING:
+                    fields.put(t.getKey(), t.getVStr());
+                    break;
+                  case BOOL:
+                    fields.put(t.getKey(), String.valueOf(t.isVBool()));
+                    break;
+                  case LONG:
+                    fields.put(t.getKey(), String.valueOf(t.getVLong()));
+                    break;
+                  case DOUBLE:
+                    fields.put(t.getKey(), String.valueOf(t.getVDouble()));
+                    break;
+                  case BINARY:
+                    // ignore
+                  default:
+                }
+              });
+              return SpanLog.newBuilder().
+                  setTimestamp(x.timestamp).
+                  setFields(fields).
+                  build();
+            }).collect(Collectors.toList())).build();
+        spanLogsHandler.report(spanLogs);
       }
     }
     // report stats irrespective of span sampling.

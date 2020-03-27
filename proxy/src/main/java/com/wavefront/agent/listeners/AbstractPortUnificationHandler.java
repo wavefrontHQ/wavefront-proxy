@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
@@ -118,7 +119,7 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
    * @param message Plaintext message to process
    */
   protected abstract void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                                 final String message);
+                                                 @Nonnull final String message);
 
   @Override
   public void channelReadComplete(ChannelHandlerContext ctx) {
@@ -146,21 +147,19 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
     logger.log(Level.WARNING, "Unexpected error: ", cause);
   }
 
-  protected String extractToken(final FullHttpRequest request) throws URISyntaxException {
-    URI requestUri = new URI(request.uri());
+  protected String extractToken(final FullHttpRequest request) {
     String token = firstNonNull(request.headers().getAsString("X-AUTH-TOKEN"),
         request.headers().getAsString("Authorization"), "").replaceAll("^Bearer ", "").trim();
-    Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(requestUri, CharsetUtil.UTF_8).
-        stream().filter(x -> x.getName().equals("t") || x.getName().equals("token") ||
-        x.getName().equals("api_key")).findFirst();
+    Optional<NameValuePair> tokenParam = URLEncodedUtils.parse(URI.create(request.uri()),
+        CharsetUtil.UTF_8).stream().filter(x -> x.getName().equals("t") ||
+        x.getName().equals("token") || x.getName().equals("api_key")).findFirst();
     if (tokenParam.isPresent()) {
       token = tokenParam.get().getValue();
     }
     return token;
   }
 
-  protected boolean authorized(final ChannelHandlerContext ctx, final FullHttpRequest request)
-      throws URISyntaxException {
+  protected boolean authorized(final ChannelHandlerContext ctx, final FullHttpRequest request) {
     if (tokenAuthenticator.authRequired()) {
       String token = extractToken(request);
       if (!tokenAuthenticator.authorize(token)) { // 401 if no token or auth fails
