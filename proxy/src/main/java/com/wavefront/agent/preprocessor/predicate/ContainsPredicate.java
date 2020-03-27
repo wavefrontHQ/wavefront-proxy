@@ -8,6 +8,8 @@ import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
 /**
+ * Predicate mimicking {@link String#contains(java.lang.CharSequence)} for Wavefront reportable entities.
+ *
  * @author Anil Kodali (akodali@vmware.com).
  */
 public class ContainsPredicate<T> extends ComparisonPredicate<T>{

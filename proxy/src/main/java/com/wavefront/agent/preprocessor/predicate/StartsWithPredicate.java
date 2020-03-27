@@ -8,6 +8,8 @@ import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
 /**
+ * Predicate mimicking {@link String#startsWith(String)} for Wavefront reportable entities.
+ *
  * @author Anil Kodali (akodali@vmware.com).
  */
 public class StartsWithPredicate<T> extends ComparisonPredicate<T>{

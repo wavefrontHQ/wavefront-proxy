@@ -10,6 +10,8 @@ import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
 /**
+ * An Extension of {@link EqualsPredicate} that takes in a range of comma separated values to check.
+ *
  * @author Anil Kodali (akodali@vmware.com).
  */
 public class InPredicate<T> extends ComparisonPredicate<T>{

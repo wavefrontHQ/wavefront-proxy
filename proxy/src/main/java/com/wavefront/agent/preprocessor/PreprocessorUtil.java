@@ -171,6 +171,12 @@ public abstract class PreprocessorUtil {
     return v2PredicateMap;
   }
 
+  /**
+   * Parses the entire v2 Predicate tree into a Predicate.
+   *
+   * @param v2Predicate the predicate tree
+   * @return Predicate
+   */
   public static Predicate parsePredicate(Map<String, Object> v2Predicate) {
     if(v2Predicate != null && !v2Predicate.isEmpty()) {
       return processLogicalOp(v2Predicate);
@@ -180,8 +186,8 @@ public abstract class PreprocessorUtil {
 
   public static Predicate processLogicalOp(Map<String, Object> element) {
     if (element.size() != 1) {
-      throw new IllegalArgumentException("Argument [if] can have only 1 top level predicate, but " +
-          "found :: " + element.size() + ".");
+      throw new IllegalArgumentException("Argument [" + V2_PREDICATE_KEY + "] can have only 1 top" +
+          " level predicate, but " + "found :: " + element.size() + ".");
     }
     Predicate finalPred;
     for (Map.Entry<String, Object> tlEntry : element.entrySet()) {

@@ -8,6 +8,8 @@ import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
 /**
+ * Predicate mimicking {@link String#equals(Object)} for Wavefront reportable entities.
+ *
  * @author Anil Kodali (akodali@vmware.com).
  */
 public class EqualsPredicate<T> extends ComparisonPredicate<T>{

@@ -9,6 +9,8 @@ import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
 /**
+ * Predicate to perform a regexMatch for Wavefront reportable entities.
+ *
  * @author Anil Kodali (akodali@vmware.com).
  */
 public class RegexMatchPredicate<T> extends ComparisonPredicate<T>{
