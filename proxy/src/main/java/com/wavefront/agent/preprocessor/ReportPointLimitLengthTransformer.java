@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
@@ -20,8 +21,7 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
   private final LengthLimitActionType actionSubtype;
   @Nullable
   private final Pattern compiledMatchPattern;
-  @Nullable
-  private final Map<String, Object> v2Predicate;
+  private final Predicate v2Predicate;
 
   private final PreprocessorRuleMetrics ruleMetrics;
 
@@ -44,7 +44,7 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
     this.actionSubtype = actionSubtype;
     this.compiledMatchPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = v2Predicate;
+    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
   }
 
   @Nullable
@@ -52,8 +52,8 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    // Test for preprocessor v2 predicate.
-    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, reportPoint)) return reportPoint;
+
+    if (!v2Predicate.test(reportPoint)) return reportPoint;
 
     switch (scope) {
       case "metricName":

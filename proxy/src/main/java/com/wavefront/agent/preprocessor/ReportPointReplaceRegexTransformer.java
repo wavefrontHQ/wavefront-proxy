@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,8 +28,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   @Nullable
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
-  @Nullable
-  private final Map<String, Object> v2Predicate;
+  private final Predicate v2Predicate;
 
   public ReportPointReplaceRegexTransformer(final String scope,
                                             final String patternSearch,
@@ -47,7 +47,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     Preconditions.checkArgument(this.maxIterations > 0, "[iterations] must be > 0");
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = v2Predicate;
+    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
 
   }
 
@@ -78,8 +78,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    // Test for preprocessor v2 predicate.
-    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, reportPoint)) return reportPoint;
+    if (!v2Predicate.test(reportPoint)) return reportPoint;
 
     switch (scope) {
       case "metricName":

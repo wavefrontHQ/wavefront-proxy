@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 import java.util.Map;
+import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -19,8 +20,7 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
   protected final String tag;
   protected final String value;
   protected final PreprocessorRuleMetrics ruleMetrics;
-  @Nullable
-  private final Map<String, Object> v2Predicate;
+  protected final Predicate v2Predicate;
 
   public ReportPointAddTagTransformer(final String tag,
                                       final String value,
@@ -32,7 +32,7 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
     Preconditions.checkArgument(!value.isEmpty(), "[value] can't be blank");
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = v2Predicate;
+    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
   }
 
   @Nullable
@@ -40,8 +40,8 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    // Test for preprocessor v2 predicate.
-    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, reportPoint)) return reportPoint;
+
+    if (!v2Predicate.test(reportPoint)) return reportPoint;
 
     reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
     ruleMetrics.incrementRuleAppliedCounter();

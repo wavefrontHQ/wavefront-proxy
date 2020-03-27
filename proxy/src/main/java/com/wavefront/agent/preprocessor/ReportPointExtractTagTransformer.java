@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,8 +29,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   @Nullable
   protected final String patternReplaceSource;
   protected final PreprocessorRuleMetrics ruleMetrics;
-  @Nullable
-  private final Map<String, Object> v2Predicate;
+  protected final Predicate v2Predicate;
 
   public ReportPointExtractTagTransformer(final String tag,
                                           final String source,
@@ -50,7 +50,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
     this.patternReplaceSource = replaceSource;
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = v2Predicate;
+    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
   }
 
   protected boolean extractTag(@Nonnull ReportPoint reportPoint, final String extractFrom) {
@@ -100,8 +100,8 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    // Test for preprocessor v2 predicate.
-    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, reportPoint)) return reportPoint;
+
+    if (!v2Predicate.test(reportPoint)) return reportPoint;
 
     internalApply(reportPoint);
     ruleMetrics.ruleEnd(startNanos);

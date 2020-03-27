@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -25,8 +26,7 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
 
   private final Map<String, Pattern> whitelistedKeys;
   private final PreprocessorRuleMetrics ruleMetrics;
-  @Nullable
-  private final Map<String, Object> v2Predicate;
+  private final Predicate v2Predicate;
 
 
   SpanWhitelistAnnotationTransformer(final Map<String, String> keys,
@@ -37,7 +37,7 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
     keys.forEach((k, v) -> whitelistedKeys.put(k, v == null ? null : Pattern.compile(v)));
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = v2Predicate;
+    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
   }
 
   @Nullable
@@ -45,7 +45,7 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, span)) return span;
+    if (!v2Predicate.test(span)) return span;
 
     List<Annotation> annotations = span.getAnnotations().stream().
         filter(x -> whitelistedKeys.containsKey(x.getKey())).

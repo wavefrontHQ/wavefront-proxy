@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 import java.util.Map;
+import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -20,8 +21,7 @@ public class SpanAddAnnotationTransformer implements Function<Span, Span> {
   protected final String key;
   protected final String value;
   protected final PreprocessorRuleMetrics ruleMetrics;
-  @Nullable
-  private final Map<String, Object> v2Predicate;
+  protected final Predicate v2Predicate;
 
 
   public SpanAddAnnotationTransformer(final String key,
@@ -34,7 +34,7 @@ public class SpanAddAnnotationTransformer implements Function<Span, Span> {
     Preconditions.checkArgument(!value.isEmpty(), "[value] can't be blank");
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = v2Predicate;
+    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
   }
 
   @Nullable
@@ -42,7 +42,7 @@ public class SpanAddAnnotationTransformer implements Function<Span, Span> {
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, span)) return span;
+    if (!v2Predicate.test(span)) return span;
 
     span.getAnnotations().add(new Annotation(key, PreprocessorUtil.expandPlaceholders(value, span)));
     ruleMetrics.incrementRuleAppliedCounter();

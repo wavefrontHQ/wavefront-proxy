@@ -1,11 +1,19 @@
 package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
+
+import com.wavefront.agent.preprocessor.predicate.ContainsPredicate;
+import com.wavefront.agent.preprocessor.predicate.EndsWithPredicate;
+import com.wavefront.agent.preprocessor.predicate.EqualsPredicate;
+import com.wavefront.agent.preprocessor.predicate.InPredicate;
+import com.wavefront.agent.preprocessor.predicate.RegexMatchPredicate;
+import com.wavefront.agent.preprocessor.predicate.StartsWithPredicate;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -27,8 +35,7 @@ import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 public abstract class PreprocessorUtil {
 
   private static final Pattern PLACEHOLDERS = Pattern.compile("\\{\\{(.*?)}}");
-  private static final String[] logicalOps = {"all", "any", "none", "noop"};
-  private static final String[] comparisonOps = {"startsWith", "regexMatch", "equals", "In"};
+  public static final String[] LOGICAL_OPS = {"all", "any", "none", "noop"};
   public static final String v2PredicateKey = "if";
 
   /**
@@ -164,122 +171,97 @@ public abstract class PreprocessorUtil {
     return v2PredicateMap;
   }
 
-  public static boolean isRuleApplicable(Map<String, Object> v2Predicate,
-                                         ReportPoint reportPoint) {
-    if( v2Predicate != null && !v2Predicate.isEmpty()) {
-      return processLogicalOp(v2Predicate, reportPoint);
+  public static Predicate parsePredicate(Map<String, Object> v2Predicate) {
+    if(v2Predicate != null && !v2Predicate.isEmpty()) {
+      return processLogicalOp(v2Predicate);
     }
-    return true;
+    return x -> true;
   }
 
-  public static boolean isRuleApplicable(Map<String, Object> v2Predicate,
-                                         Span span) {
-    if( v2Predicate != null && !v2Predicate.isEmpty()) {
-      return processLogicalOp(v2Predicate, span);
+  public static Predicate processLogicalOp(Map<String, Object> element) {
+    if (element.size() != 1) {
+      throw new IllegalArgumentException("Argument [if] can have only 1 top level predicate, but " +
+          "found :: " + element.size() + ".");
     }
-    return true;
-  }
-
-
-  public static boolean processLogicalOp(Map<String, Object> element, Object reportableEntity) {
-    boolean acceptRule = false;
+    Predicate finalPred;
     for (Map.Entry<String, Object> tlEntry : element.entrySet()) {
       switch (tlEntry.getKey()) {
         case "all":
+          finalPred =  x -> true;
           for (Map<String, Object> tlValue : (List<Map<String, Object>>) tlEntry.getValue()) { //
-            // any
             for (Map.Entry<String, Object> tlValueEntry : tlValue.entrySet()) {
-              if (Arrays.stream(logicalOps).parallel().anyMatch(tlValueEntry.getKey()::equals)) {
-                acceptRule = processLogicalOp(tlValue, reportableEntity);
+              if (Arrays.stream(LOGICAL_OPS).parallel().anyMatch(tlValueEntry.getKey()::equals)) {
+                finalPred = finalPred.and(processLogicalOp(tlValue));
               } else {
-                acceptRule = processComparisonOp(tlValueEntry, reportableEntity);
+                finalPred = finalPred.and(processComparisonOp(tlValueEntry));
               }
             }
-            // If any comparison fails, we return false.
-            if (!acceptRule) {
-              return false;
-            }
           }
-          // If all comparisons pass, we return true;
-          return true;
+          return finalPred;
         case "any":
+          finalPred =  x -> false;
           for (Map<String, Object> tlValue : (List<Map<String, Object>>) tlEntry.getValue()) { //
-            // any
             for (Map.Entry<String, Object> tlValueEntry : tlValue.entrySet()) {
 
-              if (Arrays.stream(logicalOps).parallel().anyMatch(tlValueEntry.getKey()::equals)) {
-                acceptRule = processLogicalOp(tlValue, reportableEntity);
+              if (Arrays.stream(LOGICAL_OPS).parallel().anyMatch(tlValueEntry.getKey()::equals)) {
+                finalPred = finalPred.or(processLogicalOp(tlValue));
               } else {
-                acceptRule = processComparisonOp(tlValueEntry, reportableEntity);
+                finalPred = finalPred.or(processComparisonOp(tlValueEntry));
               }
             }
-            // If any comparison function is true, we return true.
-            if (acceptRule) {
-              return true;
-            }
           }
-          // If all comparisons fail, we return false;
-          return false;
+          return finalPred;
         case "none":
+          finalPred = x -> true;
           for (Map<String, Object> tlValue : (List<Map<String, Object>>) tlEntry.getValue()) { //
-            // any
             for (Map.Entry<String, Object> tlValueEntry : tlValue.entrySet()) {
-              if (Arrays.stream(logicalOps).parallel().anyMatch(tlValueEntry.getKey()::equals)) {
-                acceptRule = processLogicalOp(tlValue, reportableEntity);
+              if (Arrays.stream(LOGICAL_OPS).parallel().anyMatch(tlValueEntry.getKey()::equals)) {
+                finalPred = finalPred.and(processLogicalOp(tlValue).negate());
               } else {
-                acceptRule = processComparisonOp(tlValueEntry, reportableEntity);
+                finalPred = finalPred.and(processComparisonOp(tlValueEntry).negate());
               }
             }
-            // If any comparison function is true, we return false.
-            if (acceptRule) {
-              return false;
-            }
           }
-          // If all comparisons fail, we return true.
-          return true;
+          return finalPred;
         case "noop":
-          // Ignore evaluating the comparison functions.
-          return true;
+          // Always return true.
+          return Predicates.alwaysTrue();
         default:
-          return processComparisonOp(tlEntry, reportableEntity);
+          return processComparisonOp(tlEntry);
       }
     }
-    return false;
+    return Predicates.alwaysFalse();
   }
 
-  public static boolean processComparisonOp(Map.Entry<String,Object> subElement,
-                                            Object reportableEntity) {
-    if (reportableEntity instanceof ReportPoint) {
-      return processComparisonOp(subElement, (ReportPoint) reportableEntity);
-    } else if (reportableEntity instanceof Span) {
-      return processComparisonOp(subElement, (Span) reportableEntity);
-    }
-    throw new IllegalArgumentException("Invalid Reportable Entity");
-  }
-
-  public static boolean processComparisonOp(Map.Entry<String,Object> subElement, ReportPoint point) {
-    // TODO: check if size of svpair is > 2, if so throw invalid rule exception ?
+  private static Predicate processComparisonOp(Map.Entry<String,Object> subElement) {
     Map<String, Object> svpair = (Map<String, Object>) subElement.getValue();
-    String pointVal = getReportableEntityComparableValue(svpair.get("scope"), point);
-    String ruleVal = (String) svpair.get("value");
-    if (pointVal != null && ruleVal != null) {
-      switch (subElement.getKey()) {
-        case "equals":
-          return pointVal.equals(ruleVal);
-        case "startsWith":
-          return pointVal.startsWith(ruleVal);
-        case "regexMatch":
-          return Pattern.compile(ruleVal).matcher(pointVal).matches();
-        case "In":
-          String[] ruleValArray = ruleVal.trim().split("\\s*,\\s*");
-          return Arrays.asList(ruleValArray).contains(pointVal);
-        default:
-          throw new IllegalArgumentException("Unsupported comparison value :: " +
-              subElement.getKey() + ", valid values :: " + comparisonOps.toString());
-      }
+    if (svpair.size() != 2) {
+      throw new IllegalArgumentException("Argument [ + " + subElement.getKey() + "] can have only" +
+          " 2 elements, but found :: " + svpair.size() + ".");
     }
-
-    return false;
+    String ruleVal = (String) svpair.get("value");
+    String scope = (String) svpair.get("scope");
+    if (scope == null) {
+      throw new IllegalArgumentException("Argument [scope] can't be null/blank.");
+    } else if (ruleVal == null) {
+      throw new IllegalArgumentException("Argument [value] can't be null/blank.");
+    }
+    switch (subElement.getKey()) {
+      case "equals":
+        return new EqualsPredicate(scope, ruleVal);
+      case "startsWith":
+        return new StartsWithPredicate(scope, ruleVal);
+      case "contains":
+        return new ContainsPredicate(scope, ruleVal);
+      case "endsWith":
+        return new EndsWithPredicate(scope, ruleVal);
+      case "regexMatch":
+        return new RegexMatchPredicate(scope, ruleVal);
+      case "in":
+        return new InPredicate(scope, ruleVal);
+      default:
+        throw new IllegalArgumentException("UnSupported comparison argument [" + subElement.getKey() + "].");
+    }
   }
 
   public static String getReportableEntityComparableValue(Object scope, ReportPoint point) {
@@ -288,29 +270,6 @@ public abstract class PreprocessorUtil {
       case "sourceName": return point.getHost();
       default: return point.getAnnotations().get(scope);
     }
-  }
-
-  public static boolean processComparisonOp(Map.Entry<String,Object> subElement, Span span) {
-    // TODO: check if size of svpair is > 2, if so throw invalid rule exception ?
-    Map<String, Object> svpair = (Map<String, Object>) subElement.getValue();
-    // if scope is spanAnnotationKey, then we can have multiple span annotation values.
-    List<String> spanVal = getReportableEntityComparableValue(svpair.get("scope"), span);
-    String ruleVal = (String) svpair.get("value");
-    if (spanVal != null && ruleVal != null) {
-      switch (subElement.getKey()) {
-        case "equals":
-          return spanVal.contains(ruleVal);
-        case "startsWith":
-          return spanVal.stream().anyMatch(v -> v.startsWith(ruleVal));
-        case "regexMatch":
-          return spanVal.stream().anyMatch(v -> Pattern.compile(ruleVal).matcher(v).matches());
-        case "In":
-          String[] ruleValArray = ruleVal.trim().split("\\s*,\\s*");
-          return !Collections.disjoint(spanVal, Arrays.asList(ruleValArray));
-      }
-    }
-
-    return false;
   }
 
   public static List<String> getReportableEntityComparableValue(Object scope, Span span) {
@@ -323,5 +282,4 @@ public abstract class PreprocessorUtil {
           collect(Collectors.toList());
     }
   }
-
 }

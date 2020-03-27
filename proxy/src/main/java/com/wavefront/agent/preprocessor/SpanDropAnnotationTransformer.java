@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -26,8 +27,7 @@ public class SpanDropAnnotationTransformer implements Function<Span, Span> {
   private final Pattern compiledValuePattern;
   private final boolean firstMatchOnly;
   private final PreprocessorRuleMetrics ruleMetrics;
-  @Nullable
-  private final Map<String, Object> v2Predicate;
+  private final Predicate v2Predicate;
 
 
   public SpanDropAnnotationTransformer(final String key,
@@ -41,7 +41,7 @@ public class SpanDropAnnotationTransformer implements Function<Span, Span> {
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.firstMatchOnly = firstMatchOnly;
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = v2Predicate;
+    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
   }
 
   @Nullable
@@ -49,7 +49,7 @@ public class SpanDropAnnotationTransformer implements Function<Span, Span> {
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (!PreprocessorUtil.isRuleApplicable(v2Predicate, span)) return span;
+    if (!v2Predicate.test(span)) return span;
 
     List<Annotation> annotations = new ArrayList<>(span.getAnnotations());
     Iterator<Annotation> iterator = annotations.iterator();

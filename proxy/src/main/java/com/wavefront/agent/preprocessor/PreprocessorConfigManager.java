@@ -220,7 +220,7 @@ public class PreprocessorConfigManager {
               if ("pointLine".equals(getString(rule, "scope"))) {
                 if (getPredicate(rule, v2PredicateKey) != null) {
                   throw new IllegalArgumentException("Argument ["+v2PredicateKey+"] is not " +
-                      "allowed in [scope] = pointline.");
+                      "allowed in [scope] = pointLine.");
                 }
                 switch (Objects.requireNonNull(getString(rule, "action"))) {
                   case "replaceRegex":

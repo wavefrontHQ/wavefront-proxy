@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
@@ -23,8 +24,7 @@ public class SpanWhitelistRegexFilter implements AnnotatedPredicate<Span> {
   private final String scope;
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
-  @Nullable
-  private final Map<String, Object> v2Predicate;
+  private final Predicate v2Predicate;
   private boolean isV1PredicatePresent = false;
 
   public SpanWhitelistRegexFilter(final String scope,
@@ -33,7 +33,7 @@ public class SpanWhitelistRegexFilter implements AnnotatedPredicate<Span> {
                                   final PreprocessorRuleMetrics ruleMetrics) {
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = v2Predicate;
+    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
 
     // If v2 predicate is null, v1 predicate becomes mandatory.
     // v1 predicates = [scope, match]
@@ -70,8 +70,7 @@ public class SpanWhitelistRegexFilter implements AnnotatedPredicate<Span> {
   public boolean test(@Nonnull Span span, String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
     try {
-      // Test for preprocessor v2 predicate.
-      if (!PreprocessorUtil.isRuleApplicable(v2Predicate, span)) return false;
+      if (!v2Predicate.test(span)) return false;
       if (!isV1PredicatePresent) {
         ruleMetrics.incrementRuleAppliedCounter();
         return true;
