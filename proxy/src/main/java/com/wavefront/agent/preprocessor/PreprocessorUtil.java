@@ -36,7 +36,7 @@ public abstract class PreprocessorUtil {
 
   private static final Pattern PLACEHOLDERS = Pattern.compile("\\{\\{(.*?)}}");
   public static final String[] LOGICAL_OPS = {"all", "any", "none", "noop"};
-  public static final String v2PredicateKey = "if";
+  public static final String V2_PREDICATE_KEY = "if";
 
   /**
    * Substitute {{...}} placeholders with corresponding components of the point
@@ -163,10 +163,10 @@ public abstract class PreprocessorUtil {
     Object value = ruleMap.get(key);
     if (value == null) return null;
     Map<String, Object> v2PredicateMap = null;
-    if (key.equals(v2PredicateKey)) {
+    if (key.equals(V2_PREDICATE_KEY)) {
       v2PredicateMap = (Map<String, Object>) ruleMap.get(key);
       Preconditions.checkArgument(v2PredicateMap.size() == 1,
-          "Argument ["+v2PredicateKey+"] can have only one mapping.");
+          "Argument ["+ V2_PREDICATE_KEY +"] can have only one mapping.");
     }
     return v2PredicateMap;
   }
