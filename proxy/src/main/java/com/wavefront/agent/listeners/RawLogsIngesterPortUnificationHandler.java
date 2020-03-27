@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
+import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.logsharvesting.LogsMessage;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
@@ -25,6 +26,7 @@ import javax.annotation.Nullable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.TooLongFrameException;
+import io.netty.handler.codec.http.FullHttpRequest;
 
 import static com.wavefront.agent.channel.ChannelUtils.getRemoteAddress;
 
@@ -80,10 +82,16 @@ public class RawLogsIngesterPortUnificationHandler extends AbstractLineDelimited
     super.exceptionCaught(ctx, cause);
   }
 
+  @Nullable
+  @Override
+  protected DataFormat getFormat(FullHttpRequest httpRequest) {
+    return null;
+  }
+
   @VisibleForTesting
   @Override
-  public void processLine(final ChannelHandlerContext ctx, String message) {
-    if (message.isEmpty()) return;
+  public void processLine(final ChannelHandlerContext ctx, @Nonnull String message,
+                          @Nullable DataFormat format) {
     received.inc();
     ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
         null : preprocessorSupplier.get();

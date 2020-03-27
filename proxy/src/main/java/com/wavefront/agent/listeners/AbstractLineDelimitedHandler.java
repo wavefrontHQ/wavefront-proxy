@@ -1,8 +1,11 @@
 package com.wavefront.agent.listeners;
 
+import com.google.common.base.Splitter;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
+import com.wavefront.agent.formatter.DataFormat;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
@@ -13,7 +16,6 @@ import io.netty.util.CharsetUtil;
 
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.handlers.LineDelimitedUtils.splitPushData;
 
 /**
  * Base class for all line-based protocols. Supports TCP line protocol as well as HTTP POST
@@ -44,9 +46,10 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
     StringBuilder output = new StringBuilder();
     HttpResponseStatus status;
     try {
-      for (String line : splitPushData(request.content().toString(CharsetUtil.UTF_8))) {
-        processLine(ctx, line.trim());
-      }
+      DataFormat format = getFormat(request);
+      Splitter.on('\n').trimResults().omitEmptyStrings().
+          split(request.content().toString(CharsetUtil.UTF_8)).
+          forEach(line -> processLine(ctx, line, format));
       status = HttpResponseStatus.ACCEPTED;
     } catch (Exception e) {
       status = HttpResponseStatus.BAD_REQUEST;
@@ -58,22 +61,33 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
 
   /**
    * Handles an incoming plain text (string) message. By default simply passes a string to
-   * {@link #processLine(ChannelHandlerContext, String)} method.
+   * {@link #processLine(ChannelHandlerContext, String, DataFormat)} method.
    */
   @Override
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        final String message) {
-    if (message == null) {
-      throw new IllegalArgumentException("Message cannot be null");
-    }
-    processLine(ctx, message.trim());
+                                        @Nonnull final String message) {
+    String trimmedMessage = message.trim();
+    if (trimmedMessage.isEmpty()) return;
+    processLine(ctx, trimmedMessage, null);
   }
+
+  /**
+   * Detect data format for an incoming HTTP request, if possible.
+   *
+   * @param httpRequest http request.
+   * @return Detected data format or null if unknown.
+   */
+  @Nullable
+  protected abstract DataFormat getFormat(FullHttpRequest httpRequest);
 
   /**
    * Process a single line for a line-based stream.
    *
    * @param ctx     Channel handler context.
    * @param message Message to process.
+   * @param format  Data format, if known
    */
-  protected abstract void processLine(final ChannelHandlerContext ctx, final String message);
+  protected abstract void processLine(final ChannelHandlerContext ctx,
+                                      @Nonnull final String message,
+                                      @Nullable DataFormat format);
 }

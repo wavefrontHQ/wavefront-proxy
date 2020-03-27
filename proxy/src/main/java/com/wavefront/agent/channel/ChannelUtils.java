@@ -1,11 +1,20 @@
 package com.wavefront.agent.channel;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.wavefront.agent.SharedMetricsRegistry;
+import com.wavefront.common.TaggedMetricName;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,6 +39,9 @@ import io.netty.util.CharsetUtil;
  * @author vasily@wavefront.com
  */
 public abstract class ChannelUtils {
+
+  private static final Map<Integer, LoadingCache<Integer, Counter>> RESPONSE_STATUS_CACHES =
+      new ConcurrentHashMap<>();
 
   /**
    * Create a detailed error message from an exception, including current handle (port).
@@ -108,6 +120,7 @@ public abstract class ChannelUtils {
   public static void writeHttpResponse(final ChannelHandlerContext ctx,
                                        final HttpResponse response,
                                        boolean keepAlive) {
+    getHttpStatusCounter(ctx, response.status().code()).inc();
     // Decide whether to close the connection or not.
     if (keepAlive) {
       // Add keep alive header as per:
@@ -192,5 +205,26 @@ public abstract class ChannelUtils {
   public static InetAddress getRemoteAddress(@Nonnull ChannelHandlerContext ctx) {
     InetSocketAddress remoteAddress = (InetSocketAddress) ctx.channel().remoteAddress();
     return remoteAddress == null ? null : remoteAddress.getAddress();
+  }
+
+  /**
+   * Get a counter for ~proxy.listeners.http-requests.status.###.count metric for a specific
+   * status code, with port= point tag for added context.
+   *
+   * @param ctx    channel handler context where a response is being sent.
+   * @param status response status code.
+   */
+  public static Counter getHttpStatusCounter(ChannelHandlerContext ctx, int status) {
+    if (ctx != null && ctx.channel() != null) {
+      InetSocketAddress localAddress = (InetSocketAddress) ctx.channel().localAddress();
+      if (localAddress != null) {
+        return RESPONSE_STATUS_CACHES.computeIfAbsent(localAddress.getPort(),
+            port -> Caffeine.newBuilder().build(statusCode -> Metrics.newCounter(
+                new TaggedMetricName("listeners", "http-requests.status." + statusCode + ".count",
+                    "port", String.valueOf(port))))).get(status);
+      }
+    }
+    // return a non-reportable counter otherwise
+    return SharedMetricsRegistry.getInstance().newCounter(new MetricName("", "", "dummy"));
   }
 }

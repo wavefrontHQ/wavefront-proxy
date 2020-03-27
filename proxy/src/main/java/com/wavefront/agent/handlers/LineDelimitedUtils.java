@@ -21,6 +21,7 @@ public class LineDelimitedUtils {
    * @param pushData payload to split.
    * @return string array
    */
+  @Deprecated
   public static String[] splitPushData(String pushData) {
     return StringUtils.split(pushData, PUSH_DATA_DELIMETER);
   }

@@ -1,12 +1,10 @@
 package com.wavefront.agent.listeners;
 
-import com.google.common.collect.Lists;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.wavefront.common.MessageDedupingLogger;
+import com.google.common.base.Splitter;
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -28,8 +26,7 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,7 +47,10 @@ import wavefront.report.SpanLogs;
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static com.wavefront.agent.handlers.LineDelimitedUtils.splitPushData;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.preprocessAndHandlePoint;
 
 /**
@@ -67,13 +67,6 @@ import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.prep
 public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Logger logger = Logger.getLogger(
       RelayPortUnificationHandler.class.getCanonicalName());
-  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 3, 0.2);
-  private static final String ERROR_HISTO_DISABLED = "Ingested point discarded because histogram " +
-      "feature has not been enabled for your account";
-  private static final String ERROR_SPAN_DISABLED = "Ingested span discarded because distributed " +
-      "tracing feature has not been enabled for your account.";
-  private static final String ERROR_SPANLOGS_DISABLED = "Ingested span log discarded because " +
-      "this feature has not been enabled for your account.";
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
@@ -145,9 +138,9 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   @Override
   protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest request) throws URISyntaxException {
+                                   final FullHttpRequest request) {
+    URI uri = URI.create(request.uri());
     StringBuilder output = new StringBuilder();
-    URI uri = new URI(request.uri());
     String path = uri.getPath();
     final boolean isDirectIngestion = path.startsWith("/report");
     if (path.endsWith("/checkin") && (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
@@ -158,6 +151,9 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       writeHttpResponse(ctx, HttpResponseStatus.OK, jsonResponse, request);
       return;
     }
+    String format = URLEncodedUtils.parse(uri, CharsetUtil.UTF_8).stream().
+        filter(x -> x.getName().equals("format") || x.getName().equals("f")).
+        map(NameValuePair::getValue).findFirst().orElse(Constants.PUSH_FORMAT_WAVEFRONT);
 
     // Return HTTP 200 (OK) for payloads received on the proxy endpoint
     // Return HTTP 202 (ACCEPTED) for payloads received on the DDI endpoint
@@ -170,20 +166,13 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
     } else {
       okStatus = HttpResponseStatus.NO_CONTENT;
     }
-    String format = URLEncodedUtils.parse(uri, CharsetUtil.UTF_8).stream().
-        filter(x -> x.getName().equals("format") || x.getName().equals("f")).
-        map(NameValuePair::getValue).findFirst().orElse(Constants.PUSH_FORMAT_WAVEFRONT);
 
-    String[] lines = splitPushData(request.content().toString(CharsetUtil.UTF_8));
     HttpResponseStatus status;
-
     switch (format) {
       case Constants.PUSH_FORMAT_HISTOGRAM:
-        if (histogramDisabled.get()) {
-          discardedHistograms.get().inc(lines.length);
+        if (isFeatureDisabled(histogramDisabled, HISTO_DISABLED, discardedHistograms.get(),
+            output, request)) {
           status = HttpResponseStatus.FORBIDDEN;
-          featureDisabledLogger.info(ERROR_HISTO_DISABLED);
-          output.append(ERROR_HISTO_DISABLED);
           break;
         }
       case Constants.PUSH_FORMAT_WAVEFRONT:
@@ -194,9 +183,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
           ReportableEntityDecoder<String, ReportPoint> histogramDecoder =
               (ReportableEntityDecoder<String, ReportPoint>) decoders.
                   get(ReportableEntityType.HISTOGRAM);
-          Arrays.stream(lines).forEach(line -> {
-            String message = line.trim();
-            if (message.isEmpty()) return;
+          Splitter.on('\n').trimResults().omitEmptyStrings().
+              split(request.content().toString(CharsetUtil.UTF_8)).forEach(message -> {
             DataFormat dataFormat = DataFormat.autodetect(message);
             switch (dataFormat) {
               case EVENT:
@@ -208,10 +196,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
                     "sourceTag-formatted data!");
                 break;
               case HISTOGRAM:
-                if (histogramDisabled.get()) {
-                  discardedHistograms.get().inc(lines.length);
-                  featureDisabledLogger.info(ERROR_HISTO_DISABLED);
-                  output.append(ERROR_HISTO_DISABLED);
+                if (isFeatureDisabled(histogramDisabled, HISTO_DISABLED,
+                    discardedHistograms.get(), output)) {
                   break;
                 }
                 preprocessAndHandlePoint(message, histogramDecoder, histogramHandlerSupplier.get(),
@@ -236,20 +222,19 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         }
         break;
       case Constants.PUSH_FORMAT_TRACING:
-        if (traceDisabled.get()) {
-          discardedSpans.get().inc(lines.length);
+        if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedSpans.get(), output,
+            request)) {
           status = HttpResponseStatus.FORBIDDEN;
-          featureDisabledLogger.info(ERROR_SPAN_DISABLED);
-          output.append(ERROR_SPAN_DISABLED);
           break;
         }
-        List<Span> spans = Lists.newArrayListWithCapacity(lines.length);
+        List<Span> spans = new ArrayList<>();
         //noinspection unchecked
         ReportableEntityDecoder<String, Span> spanDecoder =
             (ReportableEntityDecoder<String, Span>) decoders.
                 get(ReportableEntityType.TRACE);
         ReportableEntityHandler<Span, String> spanHandler = spanHandlerSupplier.get();
-        Arrays.stream(lines).forEach(line -> {
+        Splitter.on('\n').trimResults().omitEmptyStrings().
+            split(request.content().toString(CharsetUtil.UTF_8)).forEach(line -> {
           try {
             spanDecoder.decode(line, spans, "dummy");
           } catch (Exception e) {
@@ -260,20 +245,19 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         status = okStatus;
         break;
       case Constants.PUSH_FORMAT_TRACING_SPAN_LOGS:
-        if (spanLogsDisabled.get()) {
-          discardedSpanLogs.get().inc(lines.length);
+        if (isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, discardedSpanLogs.get(),
+            output, request)) {
           status = HttpResponseStatus.FORBIDDEN;
-          featureDisabledLogger.info(ERROR_SPANLOGS_DISABLED);
-          output.append(ERROR_SPANLOGS_DISABLED);
           break;
         }
-        List<SpanLogs> spanLogs = Lists.newArrayListWithCapacity(lines.length);
+        List<SpanLogs> spanLogs = new ArrayList<>();
         //noinspection unchecked
         ReportableEntityDecoder<JsonNode, SpanLogs> spanLogDecoder =
             (ReportableEntityDecoder<JsonNode, SpanLogs>) decoders.
                 get(ReportableEntityType.TRACE_SPAN_LOGS);
         ReportableEntityHandler<SpanLogs, String> spanLogsHandler = spanLogsHandlerSupplier.get();
-        Arrays.stream(lines).forEach(line -> {
+        Splitter.on('\n').trimResults().omitEmptyStrings().
+            split(request.content().toString(CharsetUtil.UTF_8)).forEach(line -> {
           try {
             spanLogDecoder.decode(JSON_PARSER.readTree(line), spanLogs, "dummy");
           } catch (Exception e) {

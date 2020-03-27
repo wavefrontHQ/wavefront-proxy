@@ -23,6 +23,7 @@ import java.util.ResourceBundle;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelFuture;
@@ -122,10 +123,7 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
    * Handles an incoming plain text (string) message.
    */
   protected void handlePlainTextMessage(final ChannelHandlerContext ctx,
-                                        String message) {
-    if (message == null) {
-      throw new IllegalArgumentException("Message cannot be null");
-    }
+                                        @Nonnull String message) {
     if (message.startsWith("version")) {
       ChannelFuture f = ctx.writeAndFlush("Wavefront OpenTSDB Endpoint\n");
       if (!f.isSuccess()) {

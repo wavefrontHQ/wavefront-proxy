@@ -107,7 +107,7 @@ public class LogsIngesterTest {
     InetSocketAddress addr = InetSocketAddress.createUnresolved("testHost", 1234);
     EasyMock.expect(channel.remoteAddress()).andReturn(addr);
     EasyMock.replay(ctx, channel);
-    rawLogsIngesterUnderTest.processLine(ctx, log);
+    rawLogsIngesterUnderTest.processLine(ctx, log, null);
     EasyMock.verify(ctx, channel);
   }
 

@@ -6,12 +6,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
+import com.wavefront.agent.formatter.DataFormat;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.AbstractLineDelimitedHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
-import com.wavefront.common.MessageDedupingLogger;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
@@ -19,6 +19,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -30,13 +31,20 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
+
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import wavefront.report.ReportPoint;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.util.CharsetUtil;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 
@@ -52,7 +60,6 @@ import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERRO
 public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private static final Logger logger = Logger.getLogger(
       TracePortUnificationHandler.class.getCanonicalName());
-  private static final Logger featureDisabledLogger = new MessageDedupingLogger(logger, 2, 0.2);
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
 
@@ -110,20 +117,20 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         "sampler.discarded"));
   }
 
+  @Nullable
   @Override
-  protected void processLine(final ChannelHandlerContext ctx, @Nonnull String message) {
-    if (traceDisabled.get()) {
-      featureDisabledLogger.warning("Ingested spans discarded because tracing feature is not " +
-          "enabled on the server");
-      discardedSpans.inc();
-      return;
-    }
-    if (message.startsWith("{") && message.endsWith("}")) { // span logs
-      if (spanLogsDisabled.get()) {
-        featureDisabledLogger.warning("Ingested span logs discarded because the feature is not " +
-            "enabled on the server");
-        return;
-      }
+  protected DataFormat getFormat(FullHttpRequest httpRequest) {
+    return DataFormat.parse(URLEncodedUtils.parse(URI.create(httpRequest.uri()), CharsetUtil.UTF_8).
+        stream().filter(x -> x.getName().equals("format") || x.getName().equals("f")).
+        map(NameValuePair::getValue).findFirst().orElse(null));
+  }
+
+  @Override
+  protected void processLine(final ChannelHandlerContext ctx, @Nonnull String message,
+                             @Nullable DataFormat format) {
+    if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedSpans)) return;
+    if (format == DataFormat.SPAN_LOG || (message.startsWith("{") && message.endsWith("}"))) {
+      if (isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) return;
       try {
         List<SpanLogs> output = new ArrayList<>(1);
         spanLogsDecoder.decode(JSON_PARSER.readTree(message), output, "dummy");

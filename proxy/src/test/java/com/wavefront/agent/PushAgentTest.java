@@ -26,7 +26,6 @@ import org.apache.http.entity.StringEntity;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMock;
-import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -71,6 +70,7 @@ import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.startsWith;
 import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -106,7 +106,7 @@ public class PushAgentTest {
   private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
     @SuppressWarnings("unchecked")
     @Override
-    public Collection<SenderTask<String>> createSenderTasks(@NotNull HandlerKey handlerKey) {
+    public Collection<SenderTask<String>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
       return mockSenderTasks;
     }
 
@@ -357,6 +357,197 @@ public class PushAgentTest {
     stream.flush();
     socket.close();
     verifyWithTimeout(500, mockPointHandler, mockHistogramHandler, mockEventHandler);
+  }
+
+  @Test
+  public void testWavefrontHandlerAsDDIEndpoint() throws Exception {
+    port = findAvailablePort(2978);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.proxyConfig.dataBackfillCutoffHours = 8640;
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory,
+        null);
+    waitUntilListenerIsOnline(port);
+    String traceId = UUID.randomUUID().toString();
+    long timestamp1 = startTime * 1000000 + 12345;
+    long timestamp2 = startTime * 1000000 + 23456;
+
+    String payloadStr = "metric4.test 0 " + startTime + " source=test1\n" +
+        "metric4.test 1 " + (startTime + 1) + " source=test2\n" +
+        "metric4.test 2 " + (startTime + 2) + " source=test3"; // note the lack of newline at the end!
+    String histoData = "!M " + startTime + " #5 10.0 #10 100.0 metric.test.histo source=test1\n" +
+        "!M " + (startTime + 60) + " #5 20.0 #6 30.0 #7 40.0 metric.test.histo source=test2";
+    String spanData = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
+        "traceId=\"" + traceId + "\" parent=parent2 " + startTime + " " + (startTime + 1);
+    String spanLogData = "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId +
+        "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
+        timestamp2 + ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n";
+    String mixedData = "@SourceTag action=save source=testSource newtag1 newtag2\n" +
+        "@Event " + startTime + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
+        "severity=INFO multi=bar multi=baz\n" +
+        "!M " + (startTime + 60) + " #5 20.0 #6 30.0 #7 40.0 metric.test.histo source=test2\n" +
+        "metric4.test 0 " + startTime + " source=test1\n" + spanLogData;
+
+    String invalidData = "{\"spanId\"}\n@SourceTag\n@Event\n!M #5\nmetric.name\n" +
+        "metric5.test 0 1234567890 source=test1\n";
+
+
+    reset(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test1").setTimestamp(startTime * 1000).
+        setValue(0.0d).build());
+    expectLastCall().times(2);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test2").setTimestamp((startTime + 1) * 1000).
+        setValue(1.0d).build());
+    expectLastCall().times(2);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test3").setTimestamp((startTime + 2) * 1000).
+        setValue(2.0d).build());
+    expectLastCall().times(2);
+    replay(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+
+    assertEquals(202, gzippedHttpPost("http://localhost:" + port + "/report", payloadStr));
+    assertEquals(202, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=wavefront", payloadStr));
+    verify(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+
+    reset(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+    mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.histo").setHost("test1").setTimestamp(startTime * 1000).setValue(
+        Histogram.newBuilder()
+            .setType(HistogramType.TDIGEST)
+            .setDuration(60000)
+            .setBins(ImmutableList.of(10.0d, 100.0d))
+            .setCounts(ImmutableList.of(5, 10))
+            .build())
+        .build());
+    expectLastCall();
+    mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.histo").setHost("test2").setTimestamp((startTime + 60) * 1000).
+        setValue(Histogram.newBuilder()
+            .setType(HistogramType.TDIGEST)
+            .setDuration(60000)
+            .setBins(ImmutableList.of(20.0d, 30.0d, 40.0d))
+            .setCounts(ImmutableList.of(5, 6, 7))
+            .build())
+        .build());
+    expectLastCall();
+    replay(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+
+    assertEquals(202, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=histogram", histoData));
+    verify(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+
+    reset(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("dummy").
+        setTraceId(traceId).
+        setSpanId("testspanid").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(timestamp1).
+                setFields(ImmutableMap.of("key", "value", "key2", "value2")).
+                build(),
+            SpanLog.newBuilder().
+                setTimestamp(timestamp2).
+                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                build()
+        )).
+        build());
+    expectLastCall();
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
+        .setDuration(1000)
+        .setName("testSpanName")
+        .setSource("testsource")
+        .setSpanId("testspanid")
+        .setTraceId(traceId)
+        .setAnnotations(ImmutableList.of(new Annotation("parent", "parent1"),
+            new Annotation("parent", "parent2")))
+        .build());
+    expectLastCall();
+    replay(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+
+    assertEquals(202, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=trace", spanData));
+    assertEquals(202, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=spanLogs", spanLogData));
+    verify(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+
+    reset(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+    mockSourceTagHandler.report(ReportSourceTag.newBuilder().
+        setOperation(SourceOperationType.SOURCE_TAG).setAction(SourceTagAction.SAVE).
+        setSource("testSource").setAnnotations(ImmutableList.of("newtag1", "newtag2")).build());
+    expectLastCall();
+    mockEventHandler.report(ReportEvent.newBuilder().setStartTime(startTime * 1000).
+        setEndTime(startTime * 1000 + 1).setName("Event name for testing").
+        setHosts(ImmutableList.of("host1", "host2")).setTags(ImmutableList.of("tag1")).
+        setAnnotations(ImmutableMap.of("severity", "INFO")).
+        setDimensions(ImmutableMap.of("multi", ImmutableList.of("bar", "baz"))).build());
+    expectLastCall();
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric4.test").setHost("test1").setTimestamp(startTime * 1000).
+        setValue(0.0d).build());
+    expectLastCall();
+    replay(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+
+    proxy.entityProps.get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
+    assertEquals(403, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=histogram", histoData));
+    proxy.entityProps.get(ReportableEntityType.TRACE).setFeatureDisabled(true);
+    assertEquals(403, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=trace", spanData));
+    proxy.entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
+    assertEquals(403, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=spanLogs", spanLogData));
+    assertEquals(202, gzippedHttpPost("http://localhost:" + port + "/report", mixedData));
+    verify(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+
+    reset(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+    mockSourceTagHandler.report(ReportSourceTag.newBuilder().
+        setOperation(SourceOperationType.SOURCE_TAG).setAction(SourceTagAction.SAVE).
+        setSource("testSource").setAnnotations(ImmutableList.of("newtag1", "newtag2")).build());
+    expectLastCall();
+    mockEventHandler.report(ReportEvent.newBuilder().setStartTime(startTime * 1000).
+        setEndTime(startTime * 1000 + 1).setName("Event name for testing").
+        setHosts(ImmutableList.of("host1", "host2")).setTags(ImmutableList.of("tag1")).
+        setAnnotations(ImmutableMap.of("severity", "INFO")).
+        setDimensions(ImmutableMap.of("multi", ImmutableList.of("bar", "baz"))).build());
+    expectLastCall();
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").setMetric("metric4.test").
+        setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
+    expectLastCall();
+    mockSourceTagHandler.reject(eq("@SourceTag"), anyString());
+    expectLastCall();
+    mockEventHandler.reject(eq("@Event"), anyString());
+    expectLastCall();
+    mockPointHandler.reject(eq("metric.name"), anyString());
+    expectLastCall();
+    mockPointHandler.reject(eq(ReportPoint.newBuilder().setTable("dummy").setMetric("metric5.test").
+        setHost("test1").setTimestamp(1234567890000L).setValue(0.0d).build()),
+        startsWith("WF-402: Point outside of reasonable timeframe"));
+    expectLastCall();
+    replay(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
+
+    assertEquals(202, gzippedHttpPost("http://localhost:" + port + "/report",
+        mixedData + "\n" + invalidData));
+
+    verify(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
+        mockSourceTagHandler, mockEventHandler);
   }
 
   @Test
