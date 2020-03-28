@@ -99,11 +99,13 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    try {
+      if (!v2Predicate.test(reportPoint)) return reportPoint;
 
-    if (!v2Predicate.test(reportPoint)) return reportPoint;
-
-    internalApply(reportPoint);
-    ruleMetrics.ruleEnd(startNanos);
-    return reportPoint;
+      internalApply(reportPoint);
+      return reportPoint;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
+    }
   }
 }

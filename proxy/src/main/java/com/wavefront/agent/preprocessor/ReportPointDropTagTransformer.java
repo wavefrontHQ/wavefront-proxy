@@ -44,20 +44,22 @@ public class ReportPointDropTagTransformer implements Function<ReportPoint, Repo
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    try {
+      if (!v2Predicate.test(reportPoint)) return reportPoint;
 
-    if (!v2Predicate.test(reportPoint)) return reportPoint;
-
-    Iterator<Map.Entry<String, String>> iterator = reportPoint.getAnnotations().entrySet().iterator();
-    while (iterator.hasNext()) {
-      Map.Entry<String, String> entry = iterator.next();
-      if (compiledTagPattern.matcher(entry.getKey()).matches()) {
-        if (compiledValuePattern == null || compiledValuePattern.matcher(entry.getValue()).matches()) {
-          iterator.remove();
-          ruleMetrics.incrementRuleAppliedCounter();
+      Iterator<Map.Entry<String, String>> iterator = reportPoint.getAnnotations().entrySet().iterator();
+      while (iterator.hasNext()) {
+        Map.Entry<String, String> entry = iterator.next();
+        if (compiledTagPattern.matcher(entry.getKey()).matches()) {
+          if (compiledValuePattern == null || compiledValuePattern.matcher(entry.getValue()).matches()) {
+            iterator.remove();
+            ruleMetrics.incrementRuleAppliedCounter();
+          }
         }
       }
+      return reportPoint;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return reportPoint;
   }
 }

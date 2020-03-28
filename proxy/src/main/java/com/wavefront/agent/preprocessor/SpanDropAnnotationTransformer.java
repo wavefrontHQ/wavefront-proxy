@@ -48,27 +48,30 @@ public class SpanDropAnnotationTransformer implements Function<Span, Span> {
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (!v2Predicate.test(span)) return span;
+    try {
+      if (!v2Predicate.test(span)) return span;
 
-    List<Annotation> annotations = new ArrayList<>(span.getAnnotations());
-    Iterator<Annotation> iterator = annotations.iterator();
-    boolean changed = false;
-    while (iterator.hasNext()) {
-      Annotation entry = iterator.next();
-      if (compiledKeyPattern.matcher(entry.getKey()).matches() && (compiledValuePattern == null ||
-          compiledValuePattern.matcher(entry.getValue()).matches())) {
-        changed = true;
-        iterator.remove();
-        ruleMetrics.incrementRuleAppliedCounter();
-        if (firstMatchOnly) {
-          break;
+      List<Annotation> annotations = new ArrayList<>(span.getAnnotations());
+      Iterator<Annotation> iterator = annotations.iterator();
+      boolean changed = false;
+      while (iterator.hasNext()) {
+        Annotation entry = iterator.next();
+        if (compiledKeyPattern.matcher(entry.getKey()).matches() && (compiledValuePattern == null ||
+            compiledValuePattern.matcher(entry.getValue()).matches())) {
+          changed = true;
+          iterator.remove();
+          ruleMetrics.incrementRuleAppliedCounter();
+          if (firstMatchOnly) {
+            break;
+          }
         }
       }
+      if (changed) {
+        span.setAnnotations(annotations);
+      }
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    if (changed) {
-      span.setAnnotations(annotations);
-    }
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
   }
 }

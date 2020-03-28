@@ -57,50 +57,52 @@ public class SpanLimitLengthTransformer implements Function<Span, Span> {
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    try {
+      if (!v2Predicate.test(span)) return span;
 
-    if (!v2Predicate.test(span)) return span;
-
-    switch (scope) {
-      case "spanName":
-        if (span.getName().length() > maxLength && (compiledMatchPattern == null ||
-            compiledMatchPattern.matcher(span.getName()).matches())) {
-          span.setName(truncate(span.getName(), maxLength, actionSubtype));
-          ruleMetrics.incrementRuleAppliedCounter();
-        }
-        break;
-      case "sourceName":
-        if (span.getName().length() > maxLength && (compiledMatchPattern == null ||
-            compiledMatchPattern.matcher(span.getSource()).matches())) {
-          span.setSource(truncate(span.getSource(), maxLength, actionSubtype));
-          ruleMetrics.incrementRuleAppliedCounter();
-        }
-        break;
-      default:
-        List<Annotation> annotations = new ArrayList<>(span.getAnnotations());
-        Iterator<Annotation> iterator = annotations.iterator();
-        boolean changed = false;
-        while (iterator.hasNext()) {
-          Annotation entry = iterator.next();
-          if (entry.getKey().equals(scope) && entry.getValue().length() > maxLength) {
-            if (compiledMatchPattern == null || compiledMatchPattern.matcher(entry.getValue()).matches()) {
-              changed = true;
-              if (actionSubtype == LengthLimitActionType.DROP) {
-                iterator.remove();
-              } else {
-                entry.setValue(truncate(entry.getValue(), maxLength, actionSubtype));
-              }
-              ruleMetrics.incrementRuleAppliedCounter();
-              if (firstMatchOnly) {
-                break;
+      switch (scope) {
+        case "spanName":
+          if (span.getName().length() > maxLength && (compiledMatchPattern == null ||
+              compiledMatchPattern.matcher(span.getName()).matches())) {
+            span.setName(truncate(span.getName(), maxLength, actionSubtype));
+            ruleMetrics.incrementRuleAppliedCounter();
+          }
+          break;
+        case "sourceName":
+          if (span.getName().length() > maxLength && (compiledMatchPattern == null ||
+              compiledMatchPattern.matcher(span.getSource()).matches())) {
+            span.setSource(truncate(span.getSource(), maxLength, actionSubtype));
+            ruleMetrics.incrementRuleAppliedCounter();
+          }
+          break;
+        default:
+          List<Annotation> annotations = new ArrayList<>(span.getAnnotations());
+          Iterator<Annotation> iterator = annotations.iterator();
+          boolean changed = false;
+          while (iterator.hasNext()) {
+            Annotation entry = iterator.next();
+            if (entry.getKey().equals(scope) && entry.getValue().length() > maxLength) {
+              if (compiledMatchPattern == null || compiledMatchPattern.matcher(entry.getValue()).matches()) {
+                changed = true;
+                if (actionSubtype == LengthLimitActionType.DROP) {
+                  iterator.remove();
+                } else {
+                  entry.setValue(truncate(entry.getValue(), maxLength, actionSubtype));
+                }
+                ruleMetrics.incrementRuleAppliedCounter();
+                if (firstMatchOnly) {
+                  break;
+                }
               }
             }
           }
-        }
-        if (changed) {
-          span.setAnnotations(annotations);
-        }
+          if (changed) {
+            span.setAnnotations(annotations);
+          }
+      }
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
   }
 }

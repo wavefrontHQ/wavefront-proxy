@@ -43,39 +43,41 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    try {
+      if (!v2Predicate.test(reportPoint)) return reportPoint;
 
-    if (!v2Predicate.test(reportPoint)) return reportPoint;
-
-    switch (scope) {
-      case "metricName":
-        if (compiledMatchPattern != null && !compiledMatchPattern.matcher(
-            reportPoint.getMetric()).matches()) {
-          break;
-        }
-        reportPoint.setMetric(reportPoint.getMetric().toLowerCase());
-        ruleMetrics.incrementRuleAppliedCounter();
-        break;
-      case "sourceName": // source name is not case sensitive in Wavefront, but we'll do it anyway
-        if (compiledMatchPattern != null && !compiledMatchPattern.matcher(
-            reportPoint.getHost()).matches()) {
-          break;
-        }
-        reportPoint.setHost(reportPoint.getHost().toLowerCase());
-        ruleMetrics.incrementRuleAppliedCounter();
-        break;
-      default:
-        if (reportPoint.getAnnotations() != null) {
-          String tagValue = reportPoint.getAnnotations().get(scope);
-          if (tagValue != null) {
-            if (compiledMatchPattern != null && !compiledMatchPattern.matcher(tagValue).matches()) {
-              break;
-            }
-            reportPoint.getAnnotations().put(scope, tagValue.toLowerCase());
-            ruleMetrics.incrementRuleAppliedCounter();
+      switch (scope) {
+        case "metricName":
+          if (compiledMatchPattern != null && !compiledMatchPattern.matcher(
+              reportPoint.getMetric()).matches()) {
+            break;
           }
-        }
+          reportPoint.setMetric(reportPoint.getMetric().toLowerCase());
+          ruleMetrics.incrementRuleAppliedCounter();
+          break;
+        case "sourceName": // source name is not case sensitive in Wavefront, but we'll do it anyway
+          if (compiledMatchPattern != null && !compiledMatchPattern.matcher(
+              reportPoint.getHost()).matches()) {
+            break;
+          }
+          reportPoint.setHost(reportPoint.getHost().toLowerCase());
+          ruleMetrics.incrementRuleAppliedCounter();
+          break;
+        default:
+          if (reportPoint.getAnnotations() != null) {
+            String tagValue = reportPoint.getAnnotations().get(scope);
+            if (tagValue != null) {
+              if (compiledMatchPattern != null && !compiledMatchPattern.matcher(tagValue).matches()) {
+                break;
+              }
+              reportPoint.getAnnotations().put(scope, tagValue.toLowerCase());
+              ruleMetrics.incrementRuleAppliedCounter();
+            }
+          }
+      }
+      return reportPoint;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return reportPoint;
   }
 }

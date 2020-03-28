@@ -46,36 +46,39 @@ public class SpanForceLowercaseTransformer implements Function<Span, Span> {
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (!v2Predicate.test(span)) return span;
+    try {
+      if (!v2Predicate.test(span)) return span;
 
-    switch (scope) {
-      case "spanName":
-        if (compiledMatchPattern != null && !compiledMatchPattern.matcher(span.getName()).matches()) {
+      switch (scope) {
+        case "spanName":
+          if (compiledMatchPattern != null && !compiledMatchPattern.matcher(span.getName()).matches()) {
+            break;
+          }
+          span.setName(span.getName().toLowerCase());
+          ruleMetrics.incrementRuleAppliedCounter();
           break;
-        }
-        span.setName(span.getName().toLowerCase());
-        ruleMetrics.incrementRuleAppliedCounter();
-        break;
-      case "sourceName": // source name is not case sensitive in Wavefront, but we'll do it anyway
-        if (compiledMatchPattern != null && !compiledMatchPattern.matcher(span.getSource()).matches()) {
+        case "sourceName": // source name is not case sensitive in Wavefront, but we'll do it anyway
+          if (compiledMatchPattern != null && !compiledMatchPattern.matcher(span.getSource()).matches()) {
+            break;
+          }
+          span.setSource(span.getSource().toLowerCase());
+          ruleMetrics.incrementRuleAppliedCounter();
           break;
-        }
-        span.setSource(span.getSource().toLowerCase());
-        ruleMetrics.incrementRuleAppliedCounter();
-        break;
-      default:
-        for (Annotation x : span.getAnnotations()) {
-          if (x.getKey().equals(scope) && (compiledMatchPattern == null ||
-              compiledMatchPattern.matcher(x.getValue()).matches())) {
-            x.setValue(x.getValue().toLowerCase());
-            ruleMetrics.incrementRuleAppliedCounter();
-            if (firstMatchOnly) {
-              break;
+        default:
+          for (Annotation x : span.getAnnotations()) {
+            if (x.getKey().equals(scope) && (compiledMatchPattern == null ||
+                compiledMatchPattern.matcher(x.getValue()).matches())) {
+              x.setValue(x.getValue().toLowerCase());
+              ruleMetrics.incrementRuleAppliedCounter();
+              if (firstMatchOnly) {
+                break;
+              }
             }
           }
-        }
+      }
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
   }
 }

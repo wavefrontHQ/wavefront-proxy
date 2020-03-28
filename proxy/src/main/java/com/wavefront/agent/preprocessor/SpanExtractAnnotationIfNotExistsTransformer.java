@@ -31,12 +31,15 @@ public class SpanExtractAnnotationIfNotExistsTransformer extends SpanExtractAnno
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (!v2Predicate.test(span)) return span;
+    try {
+      if (!v2Predicate.test(span)) return span;
 
-    if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
-      internalApply(span);
+      if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
+        internalApply(span);
+      }
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
   }
 }

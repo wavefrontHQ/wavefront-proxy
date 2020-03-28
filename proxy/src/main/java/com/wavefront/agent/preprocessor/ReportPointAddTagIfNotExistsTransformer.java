@@ -26,14 +26,16 @@ public class ReportPointAddTagIfNotExistsTransformer extends ReportPointAddTagTr
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    try {
+      if (!v2Predicate.test(reportPoint)) return reportPoint;
 
-    if (!v2Predicate.test(reportPoint)) return reportPoint;
-
-    if (reportPoint.getAnnotations().get(tag) == null) {
-      reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
-      ruleMetrics.incrementRuleAppliedCounter();
+      if (reportPoint.getAnnotations().get(tag) == null) {
+        reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
+        ruleMetrics.incrementRuleAppliedCounter();
+      }
+      return reportPoint;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return reportPoint;
   }
 }

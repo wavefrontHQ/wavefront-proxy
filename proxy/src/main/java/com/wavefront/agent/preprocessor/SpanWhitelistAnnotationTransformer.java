@@ -45,18 +45,21 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (!v2Predicate.test(span)) return span;
+    try {
+      if (!v2Predicate.test(span)) return span;
 
-    List<Annotation> annotations = span.getAnnotations().stream().
-        filter(x -> whitelistedKeys.containsKey(x.getKey())).
-        filter(x -> isPatternNullOrMatches(whitelistedKeys.get(x.getKey()), x.getValue())).
-        collect(Collectors.toList());
-    if (annotations.size() < span.getAnnotations().size()) {
-      span.setAnnotations(annotations);
-      ruleMetrics.incrementRuleAppliedCounter();
+      List<Annotation> annotations = span.getAnnotations().stream().
+          filter(x -> whitelistedKeys.containsKey(x.getKey())).
+          filter(x -> isPatternNullOrMatches(whitelistedKeys.get(x.getKey()), x.getValue())).
+          collect(Collectors.toList());
+      if (annotations.size() < span.getAnnotations().size()) {
+        span.setAnnotations(annotations);
+        ruleMetrics.incrementRuleAppliedCounter();
+      }
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
   }
 
   private static boolean isPatternNullOrMatches(@Nullable Pattern pattern, String string) {

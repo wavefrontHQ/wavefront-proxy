@@ -31,13 +31,15 @@ public class ReportPointExtractTagIfNotExistsTransformer extends ReportPointExtr
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    try {
+      if (!v2Predicate.test(reportPoint)) return reportPoint;
 
-    if (!v2Predicate.test(reportPoint)) return reportPoint;
-
-    if (reportPoint.getAnnotations().get(tag) == null) {
-      internalApply(reportPoint);
+      if (reportPoint.getAnnotations().get(tag) == null) {
+        internalApply(reportPoint);
+      }
+      return reportPoint;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return reportPoint;
   }
 }

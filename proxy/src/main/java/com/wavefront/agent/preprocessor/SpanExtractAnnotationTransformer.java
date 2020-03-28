@@ -114,10 +114,13 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (!v2Predicate.test(span)) return span;
+    try {
+      if (!v2Predicate.test(span)) return span;
 
-    internalApply(span);
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
+      internalApply(span);
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
+    }
   }
 }

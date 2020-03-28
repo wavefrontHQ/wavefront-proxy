@@ -51,42 +51,44 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
+    try {
+      if (!v2Predicate.test(reportPoint)) return reportPoint;
 
-    if (!v2Predicate.test(reportPoint)) return reportPoint;
-
-    switch (scope) {
-      case "metricName":
-        if (reportPoint.getMetric().length() > maxLength && (compiledMatchPattern == null ||
-            compiledMatchPattern.matcher(reportPoint.getMetric()).matches())) {
-          reportPoint.setMetric(truncate(reportPoint.getMetric(), maxLength, actionSubtype));
-          ruleMetrics.incrementRuleAppliedCounter();
-        }
-        break;
-      case "sourceName":
-        if (reportPoint.getHost().length() > maxLength && (compiledMatchPattern == null ||
-            compiledMatchPattern.matcher(reportPoint.getHost()).matches())) {
-          reportPoint.setHost(truncate(reportPoint.getHost(), maxLength, actionSubtype));
-          ruleMetrics.incrementRuleAppliedCounter();
-        }
-        break;
-      default:
-        if (reportPoint.getAnnotations() != null) {
-          String tagValue = reportPoint.getAnnotations().get(scope);
-          if (tagValue != null && tagValue.length() > maxLength) {
-            if (actionSubtype == LengthLimitActionType.DROP) {
-              reportPoint.getAnnotations().remove(scope);
-              ruleMetrics.incrementRuleAppliedCounter();
-            } else {
-              if (compiledMatchPattern == null || compiledMatchPattern.matcher(tagValue).matches()) {
-                reportPoint.getAnnotations().put(scope, truncate(tagValue, maxLength,
-                    actionSubtype));
+      switch (scope) {
+        case "metricName":
+          if (reportPoint.getMetric().length() > maxLength && (compiledMatchPattern == null ||
+              compiledMatchPattern.matcher(reportPoint.getMetric()).matches())) {
+            reportPoint.setMetric(truncate(reportPoint.getMetric(), maxLength, actionSubtype));
+            ruleMetrics.incrementRuleAppliedCounter();
+          }
+          break;
+        case "sourceName":
+          if (reportPoint.getHost().length() > maxLength && (compiledMatchPattern == null ||
+              compiledMatchPattern.matcher(reportPoint.getHost()).matches())) {
+            reportPoint.setHost(truncate(reportPoint.getHost(), maxLength, actionSubtype));
+            ruleMetrics.incrementRuleAppliedCounter();
+          }
+          break;
+        default:
+          if (reportPoint.getAnnotations() != null) {
+            String tagValue = reportPoint.getAnnotations().get(scope);
+            if (tagValue != null && tagValue.length() > maxLength) {
+              if (actionSubtype == LengthLimitActionType.DROP) {
+                reportPoint.getAnnotations().remove(scope);
                 ruleMetrics.incrementRuleAppliedCounter();
+              } else {
+                if (compiledMatchPattern == null || compiledMatchPattern.matcher(tagValue).matches()) {
+                  reportPoint.getAnnotations().put(scope, truncate(tagValue, maxLength,
+                      actionSubtype));
+                  ruleMetrics.incrementRuleAppliedCounter();
+                }
               }
             }
           }
-        }
+      }
+      return reportPoint;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return reportPoint;
   }
 }

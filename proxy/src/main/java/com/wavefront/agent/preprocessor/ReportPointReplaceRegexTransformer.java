@@ -77,33 +77,36 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (!v2Predicate.test(reportPoint)) return reportPoint;
+    try {
+      if (!v2Predicate.test(reportPoint)) return reportPoint;
 
-    switch (scope) {
-      case "metricName":
-        if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getMetric()).matches()) {
-          break;
-        }
-        reportPoint.setMetric(replaceString(reportPoint, reportPoint.getMetric()));
-        break;
-      case "sourceName":
-        if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getHost()).matches()) {
-          break;
-        }
-        reportPoint.setHost(replaceString(reportPoint, reportPoint.getHost()));
-        break;
-      default:
-        if (reportPoint.getAnnotations() != null) {
-          String tagValue = reportPoint.getAnnotations().get(scope);
-          if (tagValue != null) {
-            if (compiledMatchPattern != null && !compiledMatchPattern.matcher(tagValue).matches()) {
-              break;
-            }
-           reportPoint.getAnnotations().put(scope, replaceString(reportPoint, tagValue));
+      switch (scope) {
+        case "metricName":
+          if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getMetric()).matches()) {
+            break;
           }
-        }
+          reportPoint.setMetric(replaceString(reportPoint, reportPoint.getMetric()));
+          break;
+        case "sourceName":
+          if (compiledMatchPattern != null && !compiledMatchPattern.matcher(reportPoint.getHost()).matches()) {
+            break;
+          }
+          reportPoint.setHost(replaceString(reportPoint, reportPoint.getHost()));
+          break;
+        default:
+          if (reportPoint.getAnnotations() != null) {
+            String tagValue = reportPoint.getAnnotations().get(scope);
+            if (tagValue != null) {
+              if (compiledMatchPattern != null && !compiledMatchPattern.matcher(tagValue).matches()) {
+                break;
+              }
+              reportPoint.getAnnotations().put(scope, replaceString(reportPoint, tagValue));
+            }
+          }
+      }
+      return reportPoint;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return reportPoint;
   }
 }

@@ -27,13 +27,16 @@ public class SpanAddAnnotationIfNotExistsTransformer extends SpanAddAnnotationTr
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (!v2Predicate.test(span)) return span;
+    try {
+      if (!v2Predicate.test(span)) return span;
 
-    if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
-      span.getAnnotations().add(new Annotation(key, PreprocessorUtil.expandPlaceholders(value, span)));
-      ruleMetrics.incrementRuleAppliedCounter();
+      if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
+        span.getAnnotations().add(new Annotation(key, PreprocessorUtil.expandPlaceholders(value, span)));
+        ruleMetrics.incrementRuleAppliedCounter();
+      }
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
   }
 }
