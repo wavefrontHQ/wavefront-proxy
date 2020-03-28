@@ -273,7 +273,7 @@ public abstract class PreprocessorUtil {
         case "in":
           return new ReportPointInPredicate(scope, ruleVal);
         default:
-          throw new IllegalArgumentException("UnSupported comparison argument [" + subElement.getKey() + "].");
+          throw new IllegalArgumentException("Unsupported comparison argument [" + subElement.getKey() + "].");
       }
     } else if (reportableEntity == Span.class) {
       switch (subElement.getKey()) {
@@ -290,7 +290,7 @@ public abstract class PreprocessorUtil {
         case "in":
           return new SpanInPredicate(scope, ruleVal);
         default:
-          throw new IllegalArgumentException("UnSupported comparison argument [" + subElement.getKey() + "].");
+          throw new IllegalArgumentException("Unsupported comparison argument [" + subElement.getKey() + "].");
       }
     }
     return Predicates.alwaysFalse();
