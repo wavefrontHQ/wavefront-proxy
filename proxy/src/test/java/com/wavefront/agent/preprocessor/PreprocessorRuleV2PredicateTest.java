@@ -39,8 +39,7 @@ public class PreprocessorRuleV2PredicateTest {
       switch (comparisonOp) {
         case "equals":
           point = new ReportPoint("foometric.1", System.currentTimeMillis(), 10L,
-              "host",
-              "table", null);
+              "host", "table", null);
           Assert.assertTrue("Expected [equals-reportpoint] rule to return :: true , Actual :: " +
                   "false",
               v2Predicate.test(point));
