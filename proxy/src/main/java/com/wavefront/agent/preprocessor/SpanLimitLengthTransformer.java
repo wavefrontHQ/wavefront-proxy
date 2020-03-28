@@ -6,7 +6,6 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -34,7 +33,7 @@ public class SpanLimitLengthTransformer implements Function<Span, Span> {
                                     @Nonnull final LengthLimitActionType actionSubtype,
                                     @Nullable final String patternMatch,
                                     final boolean firstMatchOnly,
-                                    @Nullable final Map<String, Object> v2Predicate,
+                                    @Nullable final Predicate v2Predicate,
                                     @Nonnull final PreprocessorRuleMetrics ruleMetrics) {
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
@@ -50,7 +49,7 @@ public class SpanLimitLengthTransformer implements Function<Span, Span> {
     this.compiledMatchPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     this.firstMatchOnly = firstMatchOnly;
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   @Nullable

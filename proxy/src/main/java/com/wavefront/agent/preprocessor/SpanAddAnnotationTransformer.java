@@ -3,7 +3,6 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
-import java.util.Map;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
@@ -26,7 +25,7 @@ public class SpanAddAnnotationTransformer implements Function<Span, Span> {
 
   public SpanAddAnnotationTransformer(final String key,
                                       final String value,
-                                      @Nullable final Map<String, Object> v2Predicate,
+                                      @Nullable final Predicate v2Predicate,
                                       final PreprocessorRuleMetrics ruleMetrics) {
     this.key = Preconditions.checkNotNull(key, "[key] can't be null");
     this.value = Preconditions.checkNotNull(value, "[value] can't be null");
@@ -34,7 +33,7 @@ public class SpanAddAnnotationTransformer implements Function<Span, Span> {
     Preconditions.checkArgument(!value.isEmpty(), "[value] can't be blank");
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   @Nullable

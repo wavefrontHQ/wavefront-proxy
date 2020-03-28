@@ -1,6 +1,5 @@
 package com.wavefront.agent.preprocessor;
 
-import java.util.Map;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
@@ -21,7 +20,7 @@ public class SpanExtractAnnotationIfNotExistsTransformer extends SpanExtractAnno
                                                      @Nullable final String replaceInput,
                                                      @Nullable final String patternMatch,
                                                      final boolean firstMatchOnly,
-                                                     @Nullable final Map<String, Object> v2Predicate,
+                                                     @Nullable final Predicate v2Predicate,
                                                      final PreprocessorRuleMetrics ruleMetrics) {
     super(key, input, patternSearch, patternReplace, replaceInput, patternMatch, firstMatchOnly,
         v2Predicate, ruleMetrics);

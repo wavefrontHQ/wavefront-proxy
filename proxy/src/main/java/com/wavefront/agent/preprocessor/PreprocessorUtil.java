@@ -2,13 +2,20 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 
-import com.wavefront.agent.preprocessor.predicate.ContainsPredicate;
-import com.wavefront.agent.preprocessor.predicate.EndsWithPredicate;
-import com.wavefront.agent.preprocessor.predicate.EqualsPredicate;
-import com.wavefront.agent.preprocessor.predicate.InPredicate;
-import com.wavefront.agent.preprocessor.predicate.RegexMatchPredicate;
-import com.wavefront.agent.preprocessor.predicate.StartsWithPredicate;
+import com.wavefront.agent.preprocessor.predicate.ReportPointContainsPredicate;
+import com.wavefront.agent.preprocessor.predicate.ReportPointEndsWithPredicate;
+import com.wavefront.agent.preprocessor.predicate.ReportPointEqualsPredicate;
+import com.wavefront.agent.preprocessor.predicate.ReportPointInPredicate;
+import com.wavefront.agent.preprocessor.predicate.ReportPointRegexMatchPredicate;
+import com.wavefront.agent.preprocessor.predicate.ReportPointStartsWithPredicate;
+import com.wavefront.agent.preprocessor.predicate.SpanContainsPredicate;
+import com.wavefront.agent.preprocessor.predicate.SpanEndsWithPredicate;
+import com.wavefront.agent.preprocessor.predicate.SpanEqualsPredicate;
+import com.wavefront.agent.preprocessor.predicate.SpanInPredicate;
+import com.wavefront.agent.preprocessor.predicate.SpanRegexMatchPredicate;
+import com.wavefront.agent.preprocessor.predicate.SpanStartsWithPredicate;
 
 import java.util.Arrays;
 import java.util.List;
@@ -159,36 +166,34 @@ public abstract class PreprocessorUtil {
   }
 
   @Nullable
-  public static Map<String, Object> getPredicate(Map<String, Object> ruleMap, String key) {
+  public static Predicate getPredicate(Map<String, Object> ruleMap, String key, Class<?> reportableEntity) {
     Object value = ruleMap.get(key);
     if (value == null) return null;
     Map<String, Object> v2PredicateMap = null;
     if (key.equals(V2_PREDICATE_KEY)) {
       v2PredicateMap = (Map<String, Object>) ruleMap.get(key);
       Preconditions.checkArgument(v2PredicateMap.size() == 1,
-          "Argument ["+ V2_PREDICATE_KEY +"] can have only one mapping.");
+          "Argument [" + V2_PREDICATE_KEY + "] can have only 1 top level predicate, but found :: " +
+               v2PredicateMap.size() + ".");
     }
-    return v2PredicateMap;
+    return parsePredicate(v2PredicateMap, reportableEntity);
   }
 
   /**
    * Parses the entire v2 Predicate tree into a Predicate.
    *
    * @param v2Predicate the predicate tree
+   * @param reportableEntity
    * @return Predicate
    */
-  public static Predicate parsePredicate(Map<String, Object> v2Predicate) {
+  public static Predicate parsePredicate(Map<String, Object> v2Predicate, Class<?> reportableEntity) {
     if(v2Predicate != null && !v2Predicate.isEmpty()) {
-      return processLogicalOp(v2Predicate);
+      return processLogicalOp(v2Predicate, reportableEntity);
     }
     return x -> true;
   }
 
-  public static Predicate processLogicalOp(Map<String, Object> element) {
-    if (element.size() != 1) {
-      throw new IllegalArgumentException("Argument [" + V2_PREDICATE_KEY + "] can have only 1 top" +
-          " level predicate, but " + "found :: " + element.size() + ".");
-    }
+  public static Predicate processLogicalOp(Map<String, Object> element, Class<?> reportableEntity) {
     Predicate finalPred;
     for (Map.Entry<String, Object> tlEntry : element.entrySet()) {
       switch (tlEntry.getKey()) {
@@ -197,9 +202,9 @@ public abstract class PreprocessorUtil {
           for (Map<String, Object> tlValue : (List<Map<String, Object>>) tlEntry.getValue()) { //
             for (Map.Entry<String, Object> tlValueEntry : tlValue.entrySet()) {
               if (Arrays.stream(LOGICAL_OPS).parallel().anyMatch(tlValueEntry.getKey()::equals)) {
-                finalPred = finalPred.and(processLogicalOp(tlValue));
+                finalPred = finalPred.and(processLogicalOp(tlValue, reportableEntity));
               } else {
-                finalPred = finalPred.and(processComparisonOp(tlValueEntry));
+                finalPred = finalPred.and(processComparisonOp(tlValueEntry, reportableEntity));
               }
             }
           }
@@ -210,9 +215,9 @@ public abstract class PreprocessorUtil {
             for (Map.Entry<String, Object> tlValueEntry : tlValue.entrySet()) {
 
               if (Arrays.stream(LOGICAL_OPS).parallel().anyMatch(tlValueEntry.getKey()::equals)) {
-                finalPred = finalPred.or(processLogicalOp(tlValue));
+                finalPred = finalPred.or(processLogicalOp(tlValue, reportableEntity));
               } else {
-                finalPred = finalPred.or(processComparisonOp(tlValueEntry));
+                finalPred = finalPred.or(processComparisonOp(tlValueEntry, reportableEntity));
               }
             }
           }
@@ -222,9 +227,9 @@ public abstract class PreprocessorUtil {
           for (Map<String, Object> tlValue : (List<Map<String, Object>>) tlEntry.getValue()) { //
             for (Map.Entry<String, Object> tlValueEntry : tlValue.entrySet()) {
               if (Arrays.stream(LOGICAL_OPS).parallel().anyMatch(tlValueEntry.getKey()::equals)) {
-                finalPred = finalPred.and(processLogicalOp(tlValue).negate());
+                finalPred = finalPred.and(processLogicalOp(tlValue, reportableEntity).negate());
               } else {
-                finalPred = finalPred.and(processComparisonOp(tlValueEntry).negate());
+                finalPred = finalPred.and(processComparisonOp(tlValueEntry, reportableEntity).negate());
               }
             }
           }
@@ -233,13 +238,13 @@ public abstract class PreprocessorUtil {
           // Always return true.
           return Predicates.alwaysTrue();
         default:
-          return processComparisonOp(tlEntry);
+          return processComparisonOp(tlEntry, reportableEntity);
       }
     }
     return Predicates.alwaysFalse();
   }
 
-  private static Predicate processComparisonOp(Map.Entry<String,Object> subElement) {
+  private static Predicate processComparisonOp(Map.Entry<String, Object> subElement, Class<?> reportableEntity) {
     Map<String, Object> svpair = (Map<String, Object>) subElement.getValue();
     if (svpair.size() != 2) {
       throw new IllegalArgumentException("Argument [ + " + subElement.getKey() + "] can have only" +
@@ -252,36 +257,57 @@ public abstract class PreprocessorUtil {
     } else if (ruleVal == null) {
       throw new IllegalArgumentException("Argument [value] can't be null/blank.");
     }
-    switch (subElement.getKey()) {
-      case "equals":
-        return new EqualsPredicate(scope, ruleVal);
-      case "startsWith":
-        return new StartsWithPredicate(scope, ruleVal);
-      case "contains":
-        return new ContainsPredicate(scope, ruleVal);
-      case "endsWith":
-        return new EndsWithPredicate(scope, ruleVal);
-      case "regexMatch":
-        return new RegexMatchPredicate(scope, ruleVal);
-      case "in":
-        return new InPredicate(scope, ruleVal);
-      default:
-        throw new IllegalArgumentException("UnSupported comparison argument [" + subElement.getKey() + "].");
+
+    if (reportableEntity == ReportPoint.class) {
+      switch (subElement.getKey()) {
+        case "equals":
+          return new ReportPointEqualsPredicate(scope, ruleVal);
+        case "startsWith":
+          return new ReportPointStartsWithPredicate(scope, ruleVal);
+        case "contains":
+          return new ReportPointContainsPredicate(scope, ruleVal);
+        case "endsWith":
+          return new ReportPointEndsWithPredicate(scope, ruleVal);
+        case "regexMatch":
+          return new ReportPointRegexMatchPredicate(scope, ruleVal);
+        case "in":
+          return new ReportPointInPredicate(scope, ruleVal);
+        default:
+          throw new IllegalArgumentException("UnSupported comparison argument [" + subElement.getKey() + "].");
+      }
+    } else if (reportableEntity == Span.class) {
+      switch (subElement.getKey()) {
+        case "equals":
+          return new SpanEqualsPredicate(scope, ruleVal);
+        case "startsWith":
+          return new SpanStartsWithPredicate(scope, ruleVal);
+        case "contains":
+          return new SpanContainsPredicate(scope, ruleVal);
+        case "endsWith":
+          return new SpanEndsWithPredicate(scope, ruleVal);
+        case "regexMatch":
+          return new SpanRegexMatchPredicate(scope, ruleVal);
+        case "in":
+          return new SpanInPredicate(scope, ruleVal);
+        default:
+          throw new IllegalArgumentException("UnSupported comparison argument [" + subElement.getKey() + "].");
+      }
     }
+    return Predicates.alwaysFalse();
   }
 
-  public static String getReportableEntityComparableValue(Object scope, ReportPoint point) {
-    switch ((String) scope) {
+  public static String getReportableEntityComparableValue(String scope, ReportPoint point) {
+    switch (scope) {
       case "metricName": return point.getMetric();
       case "sourceName": return point.getHost();
       default: return point.getAnnotations().get(scope);
     }
   }
 
-  public static List<String> getReportableEntityComparableValue(Object scope, Span span) {
-    switch ((String) scope) {
-      case "spanName": return Arrays.asList(span.getName());
-      case "sourceName": return Arrays.asList(span.getSource());
+  public static List<String> getReportableEntityComparableValue(String scope, Span span) {
+    switch (scope) {
+      case "spanName": return ImmutableList.of(span.getName());
+      case "sourceName": return ImmutableList.of(span.getSource());
       default: return span.getAnnotations().stream().
           filter(a -> a.getKey().equals(scope)).
           map(Annotation::getValue).

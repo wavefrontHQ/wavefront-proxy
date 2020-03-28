@@ -5,7 +5,6 @@ import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -42,7 +41,8 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
                                           @Nullable final String replaceInput,
                                           @Nullable final String patternMatch,
                                           final boolean firstMatchOnly,
-                                          Map<String, Object> v2Predicate, final PreprocessorRuleMetrics ruleMetrics) {
+                                          @Nullable Predicate v2Predicate,
+                                          final PreprocessorRuleMetrics ruleMetrics) {
     this.key = Preconditions.checkNotNull(key, "[key] can't be null");
     this.input = Preconditions.checkNotNull(input, "[input] can't be null");
     this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
@@ -55,7 +55,7 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
     this.firstMatchOnly = firstMatchOnly;
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   protected boolean extractAnnotation(@Nonnull Span span, final String extractFrom,

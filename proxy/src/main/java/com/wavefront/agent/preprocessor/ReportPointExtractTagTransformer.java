@@ -3,7 +3,6 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
-import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,7 +36,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
                                           final String patternReplace,
                                           @Nullable final String replaceSource,
                                           @Nullable final String patternMatch,
-                                          @Nullable final Map<String, Object> v2Predicate,
+                                          @Nullable final Predicate v2Predicate,
                                           final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.source = Preconditions.checkNotNull(source, "[source] can't be null");
@@ -50,7 +49,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
     this.patternReplaceSource = replaceSource;
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   protected boolean extractTag(@Nonnull ReportPoint reportPoint, final String extractFrom) {

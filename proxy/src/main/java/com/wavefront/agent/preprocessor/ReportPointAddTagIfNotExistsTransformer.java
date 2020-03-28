@@ -1,6 +1,5 @@
 package com.wavefront.agent.preprocessor;
 
-import java.util.Map;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
@@ -17,7 +16,7 @@ public class ReportPointAddTagIfNotExistsTransformer extends ReportPointAddTagTr
 
   public ReportPointAddTagIfNotExistsTransformer(final String tag,
                                                  final String value,
-                                                 @Nullable final Map<String, Object> v2Predicate,
+                                                 @Nullable final Predicate v2Predicate,
                                                  final PreprocessorRuleMetrics ruleMetrics) {
     super(tag, value, v2Predicate, ruleMetrics);
   }

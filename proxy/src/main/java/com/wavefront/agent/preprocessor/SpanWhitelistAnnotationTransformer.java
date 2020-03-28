@@ -30,14 +30,14 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
 
 
   SpanWhitelistAnnotationTransformer(final Map<String, String> keys,
-                                     @Nullable final Map<String, Object> v2Predicate,
+                                     @Nullable final Predicate v2Predicate,
                                      final PreprocessorRuleMetrics ruleMetrics) {
     this.whitelistedKeys = new HashMap<>(keys.size() + SYSTEM_TAGS.size());
     SYSTEM_TAGS.forEach(x -> whitelistedKeys.put(x, null));
     keys.forEach((k, v) -> whitelistedKeys.put(k, v == null ? null : Pattern.compile(v)));
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   @Nullable
@@ -67,11 +67,12 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
    * Create an instance based on loaded yaml fragment.
    *
    * @param ruleMap     yaml map
+   * @param v2Predicate the v2 predicate
    * @param ruleMetrics metrics container
    * @return SpanWhitelistAnnotationTransformer instance
    */
   public static SpanWhitelistAnnotationTransformer create(Map<String, Object> ruleMap,
-                                                          @Nullable final Map<String, Object> v2Predicate,
+                                                          @Nullable final Predicate v2Predicate,
                                                           final PreprocessorRuleMetrics ruleMetrics) {
     Object keys = ruleMap.get("whitelist");
     if (keys instanceof Map) {

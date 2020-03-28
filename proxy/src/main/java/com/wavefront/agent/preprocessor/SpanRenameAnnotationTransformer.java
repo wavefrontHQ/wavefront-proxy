@@ -4,7 +4,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 import java.util.List;
-import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -37,7 +36,7 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
                                          final String newKey,
                                          @Nullable final String patternMatch,
                                          final boolean firstMatchOnly,
-                                         @Nullable final Map<String, Object> v2Predicate,
+                                         @Nullable final Predicate v2Predicate,
                                          final PreprocessorRuleMetrics ruleMetrics) {
     this.key = Preconditions.checkNotNull(key, "[key] can't be null");
     this.newKey = Preconditions.checkNotNull(newKey, "[newkey] can't be null");
@@ -47,7 +46,7 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.firstMatchOnly = firstMatchOnly;
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   @Nullable

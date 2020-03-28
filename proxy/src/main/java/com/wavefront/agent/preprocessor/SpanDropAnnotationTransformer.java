@@ -6,7 +6,6 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -33,7 +32,7 @@ public class SpanDropAnnotationTransformer implements Function<Span, Span> {
   public SpanDropAnnotationTransformer(final String key,
                                        @Nullable final String patternMatch,
                                        final boolean firstMatchOnly,
-                                       @Nullable final Map<String, Object> v2Predicate,
+                                       @Nullable final Predicate v2Predicate,
                                        final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledKeyPattern = Pattern.compile(Preconditions.checkNotNull(key, "[key] can't be null"));
     Preconditions.checkArgument(!key.isEmpty(), "[key] can't be blank");
@@ -41,7 +40,7 @@ public class SpanDropAnnotationTransformer implements Function<Span, Span> {
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.firstMatchOnly = firstMatchOnly;
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   @Nullable

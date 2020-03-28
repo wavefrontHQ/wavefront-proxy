@@ -1,6 +1,5 @@
 package com.wavefront.agent.preprocessor;
 
-import java.util.Map;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
@@ -22,7 +21,7 @@ public class ReportPointExtractTagIfNotExistsTransformer extends ReportPointExtr
                                                      final String patternReplace,
                                                      @Nullable final String replaceSource,
                                                      @Nullable final String patternMatch,
-                                                     @Nullable final Map<String, Object> v2Predicate,
+                                                     @Nullable final Predicate v2Predicate,
                                                      final PreprocessorRuleMetrics ruleMetrics) {
     super(tag, source, patternSearch, patternReplace, replaceSource, patternMatch, v2Predicate, ruleMetrics);
   }

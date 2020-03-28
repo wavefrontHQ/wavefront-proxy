@@ -3,7 +3,6 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
-import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -35,7 +34,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
                                             final String patternReplace,
                                             @Nullable final String patternMatch,
                                             @Nullable final Integer maxIterations,
-                                            @Nullable final Map<String, Object> v2Predicate,
+                                            @Nullable final Predicate v2Predicate,
                                             final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
     Preconditions.checkArgument(!patternSearch.isEmpty(), "[search] can't be blank");
@@ -47,7 +46,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     Preconditions.checkArgument(this.maxIterations > 0, "[iterations] must be > 0");
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
 
   }
 

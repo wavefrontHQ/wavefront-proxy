@@ -571,7 +571,7 @@ public class PreprocessorSpanRulesTest {
             collect(Collectors.toList()));
   }
 
-  private Span parseSpan(String line) {
+  static Span parseSpan(String line) {
     List<Span> out = Lists.newArrayListWithExpectedSize(1);
     new SpanDecoder("unknown").decode(line, out, "dummy");
     return out.get(0);

@@ -1,6 +1,5 @@
 package com.wavefront.agent.preprocessor;
 
-import java.util.Map;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
@@ -18,7 +17,7 @@ public class SpanAddAnnotationIfNotExistsTransformer extends SpanAddAnnotationTr
 
   public SpanAddAnnotationIfNotExistsTransformer(final String key,
                                                  final String value,
-                                                 @Nullable final Map<String, Object> v2Predicate,
+                                                 @Nullable final Predicate v2Predicate,
                                                  final PreprocessorRuleMetrics ruleMetrics) {
     super(key, value, v2Predicate, ruleMetrics);
   }

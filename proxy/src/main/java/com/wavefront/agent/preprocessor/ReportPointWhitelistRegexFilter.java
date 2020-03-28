@@ -3,7 +3,6 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
-import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -28,15 +27,13 @@ public class ReportPointWhitelistRegexFilter implements AnnotatedPredicate<Repor
 
   public ReportPointWhitelistRegexFilter(final String scope,
                                          final String patternMatch,
-                                         @Nullable final Map<String, Object> v2Predicate,
+                                         @Nullable final Predicate v2Predicate,
                                          final PreprocessorRuleMetrics ruleMetrics) {
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
-    this.v2Predicate = PreprocessorUtil.parsePredicate(v2Predicate);
-
     // If v2 predicate is null, v1 predicate becomes mandatory.
     // v1 predicates = [scope, match]
-    if (v2Predicate == null || v2Predicate.isEmpty()) {
+    if (v2Predicate == null) {
       Preconditions.checkNotNull(scope, "[scope] can't be null");
       Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
       Preconditions.checkNotNull(patternMatch, "[match] can't be null");
@@ -63,6 +60,7 @@ public class ReportPointWhitelistRegexFilter implements AnnotatedPredicate<Repor
       this.compiledPattern = null;
       this.scope = null;
     }
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   @Override
@@ -101,8 +99,7 @@ public class ReportPointWhitelistRegexFilter implements AnnotatedPredicate<Repor
           return false;
       }
       return true;
-    }
-    finally {
+    } finally {
       ruleMetrics.ruleEnd(startNanos);
     }
   }
