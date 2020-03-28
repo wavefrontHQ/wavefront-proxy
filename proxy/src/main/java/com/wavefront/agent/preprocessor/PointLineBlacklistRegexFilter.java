@@ -2,6 +2,7 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
 
+import java.util.List;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;

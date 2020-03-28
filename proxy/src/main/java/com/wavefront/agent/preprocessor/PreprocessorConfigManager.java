@@ -35,9 +35,14 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
 
+import wavefront.report.ReportPoint;
+import wavefront.report.Span;
+
 import static com.wavefront.agent.preprocessor.PreprocessorUtil.getBoolean;
 import static com.wavefront.agent.preprocessor.PreprocessorUtil.getInteger;
+import static com.wavefront.agent.preprocessor.PreprocessorUtil.getPredicate;
 import static com.wavefront.agent.preprocessor.PreprocessorUtil.getString;
+import static com.wavefront.agent.preprocessor.PreprocessorUtil.V2_PREDICATE_KEY;
 
 /**
  * Parses preprocessor rules (organized by listening port)
@@ -64,6 +69,7 @@ public class PreprocessorConfigManager {
   private volatile long systemPreprocessorsTs = Long.MIN_VALUE;
   private volatile long userPreprocessorsTs;
   private volatile long lastBuild = Long.MIN_VALUE;
+
 
   @VisibleForTesting
   int totalInvalidRules = 0;
@@ -203,7 +209,7 @@ public class PreprocessorConfigManager {
               requireArguments(rule, "rule", "action");
               allowArguments(rule, "scope", "search", "replace", "match", "tag", "key", "newtag",
                   "newkey", "value", "source", "input", "iterations", "replaceSource",
-                  "replaceInput", "actionSubtype", "maxLength", "firstMatchOnly", "whitelist");
+                  "replaceInput", "actionSubtype", "maxLength", "firstMatchOnly", "whitelist", V2_PREDICATE_KEY);
               String ruleName = Objects.requireNonNull(getString(rule, "rule")).
                   replaceAll("[^a-z0-9_-]", "");
               PreprocessorRuleMetrics ruleMetrics = preprocessorRuleMetricsMap.computeIfAbsent(
@@ -215,6 +221,10 @@ public class PreprocessorConfigManager {
                       Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
                       "checked-count", "port", strPort))));
               if ("pointLine".equals(getString(rule, "scope"))) {
+                if (getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class) != null) {
+                  throw new IllegalArgumentException("Argument [" + V2_PREDICATE_KEY + "] is not " +
+                      "allowed in [scope] = pointLine.");
+                }
                 switch (Objects.requireNonNull(getString(rule, "action"))) {
                   case "replaceRegex":
                     allowArguments(rule, "scope", "search", "replace", "match", "iterations");
@@ -224,7 +234,7 @@ public class PreprocessorConfigManager {
                             getInteger(rule, "iterations", 1), ruleMetrics));
                     break;
                   case "blacklistRegex":
-                    allowArguments(rule, "scope", "match");
+                    allowArguments(rule, "scope", "match", V2_PREDICATE_KEY);
                     portMap.get(strPort).forPointLine().addFilter(
                         new PointLineBlacklistRegexFilter(getString(rule, "match"), ruleMetrics));
                     break;
@@ -242,184 +252,195 @@ public class PreprocessorConfigManager {
 
                   // Rules for ReportPoint objects
                   case "replaceRegex":
-                    allowArguments(rule, "scope", "search", "replace", "match", "iterations");
+                    allowArguments(rule, "scope", "search", "replace", "match", "iterations", V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addTransformer(
                         new ReportPointReplaceRegexTransformer(getString(rule, "scope"),
                             getString(rule, "search"), getString(rule, "replace"),
                             getString(rule, "match"), getInteger(rule, "iterations", 1),
-                            ruleMetrics));
+                            getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class), ruleMetrics));
                     break;
                   case "forceLowercase":
-                    allowArguments(rule, "scope", "match");
+                    allowArguments(rule, "scope", "match", V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addTransformer(
                         new ReportPointForceLowercaseTransformer(getString(rule, "scope"),
-                            getString(rule, "match"), ruleMetrics));
+                            getString(rule, "match"), getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class),
+                            ruleMetrics));
                     break;
                   case "addTag":
-                    allowArguments(rule, "tag", "value");
+                    allowArguments(rule, "tag", "value", V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addTransformer(
                         new ReportPointAddTagTransformer(getString(rule, "tag"),
-                            getString(rule, "value"), ruleMetrics));
+                            getString(rule, "value"), getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class),
+                            ruleMetrics));
                     break;
                   case "addTagIfNotExists":
-                    allowArguments(rule, "tag", "value");
+                    allowArguments(rule, "tag", "value", V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addTransformer(
                         new ReportPointAddTagIfNotExistsTransformer(getString(rule, "tag"),
-                            getString(rule, "value"), ruleMetrics));
+                            getString(rule, "value"), getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class),
+                            ruleMetrics));
                     break;
                   case "dropTag":
-                    allowArguments(rule, "tag", "match");
+                    allowArguments(rule, "tag", "match", V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addTransformer(
                         new ReportPointDropTagTransformer(getString(rule, "tag"),
-                            getString(rule, "match"), ruleMetrics));
+                            getString(rule, "match"), getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class), ruleMetrics));
                     break;
                   case "extractTag":
                     allowArguments(rule, "tag", "source", "search", "replace", "replaceSource",
-                        "replaceInput", "match");
+                        "replaceInput", "match", V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addTransformer(
                         new ReportPointExtractTagTransformer(getString(rule, "tag"),
                             getString(rule, "source"), getString(rule, "search"),
                             getString(rule, "replace"),
                             (String) rule.getOrDefault("replaceInput", rule.get("replaceSource")),
-                            getString(rule, "match"), ruleMetrics));
+                            getString(rule, "match"), getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class), ruleMetrics));
                     break;
                   case "extractTagIfNotExists":
                     allowArguments(rule, "tag", "source", "search", "replace", "replaceSource",
-                        "replaceInput", "match");
+                        "replaceInput", "match", V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addTransformer(
                         new ReportPointExtractTagIfNotExistsTransformer(getString(rule, "tag"),
                             getString(rule, "source"), getString(rule, "search"),
                             getString(rule, "replace"),
                             (String) rule.getOrDefault("replaceInput", rule.get("replaceSource")),
-                            getString(rule, "match"), ruleMetrics));
+                            getString(rule, "match"), getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class), ruleMetrics));
                     break;
                   case "renameTag":
-                    allowArguments(rule, "tag", "newtag", "match");
+                    allowArguments(rule, "tag", "newtag", "match", V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addTransformer(
                         new ReportPointRenameTagTransformer(getString(rule, "tag"),
-                            getString(rule, "newtag"), getString(rule, "match"), ruleMetrics));
+                            getString(rule, "newtag"), getString(rule, "match"),
+                            getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class), ruleMetrics));
                     break;
                   case "limitLength":
-                    allowArguments(rule, "scope", "actionSubtype", "maxLength", "match");
+                    allowArguments(rule, "scope", "actionSubtype", "maxLength", "match",
+                        V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addTransformer(
                         new ReportPointLimitLengthTransformer(
                             Objects.requireNonNull(getString(rule, "scope")),
                             getInteger(rule, "maxLength", 0),
                             LengthLimitActionType.fromString(getString(rule, "actionSubtype")),
-                            getString(rule, "match"), ruleMetrics));
+                            getString(rule, "match"), getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class),
+                            ruleMetrics));
                     break;
                   case "blacklistRegex":
-                    allowArguments(rule, "scope", "match");
+                    allowArguments(rule, "scope", "match", V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addFilter(
                         new ReportPointBlacklistRegexFilter(getString(rule, "scope"),
-                            getString(rule, "match"), ruleMetrics));
+                            getString(rule, "match"), getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class),
+                            ruleMetrics));
                     break;
                   case "whitelistRegex":
-                    allowArguments(rule, "scope", "match");
+                    allowArguments(rule, "scope", "match", V2_PREDICATE_KEY);
                     portMap.get(strPort).forReportPoint().addFilter(
                         new ReportPointWhitelistRegexFilter(getString(rule, "scope"),
-                            getString(rule, "match"), ruleMetrics));
+                            getString(rule, "match"), getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class), ruleMetrics));
                     break;
 
                   // Rules for Span objects
                   case "spanReplaceRegex":
                     allowArguments(rule, "scope", "search", "replace", "match", "iterations",
-                        "firstMatchOnly");
+                        "firstMatchOnly", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addTransformer(
                         new SpanReplaceRegexTransformer(getString(rule, "scope"),
                             getString(rule, "search"), getString(rule, "replace"),
                             getString(rule, "match"), getInteger(rule, "iterations", 1),
-                            getBoolean(rule, "firstMatchOnly", false), ruleMetrics));
+                            getBoolean(rule, "firstMatchOnly", false),
+                            getPredicate(rule, V2_PREDICATE_KEY, Span.class), ruleMetrics));
                     break;
                   case "spanForceLowercase":
-                    allowArguments(rule, "scope", "match", "firstMatchOnly");
+                    allowArguments(rule, "scope", "match", "firstMatchOnly", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addTransformer(
                         new SpanForceLowercaseTransformer(getString(rule, "scope"),
                             getString(rule, "match"), getBoolean(rule, "firstMatchOnly", false),
-                            ruleMetrics));
+                            getPredicate(rule, V2_PREDICATE_KEY, Span.class), ruleMetrics));
                     break;
                   case "spanAddAnnotation":
                   case "spanAddTag":
-                    allowArguments(rule, "key", "value");
+                    allowArguments(rule, "key", "value", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addTransformer(
                         new SpanAddAnnotationTransformer(getString(rule, "key"),
-                            getString(rule, "value"), ruleMetrics));
+                            getString(rule, "value"), getPredicate(rule, V2_PREDICATE_KEY, Span.class),
+                            ruleMetrics));
                     break;
                   case "spanAddAnnotationIfNotExists":
                   case "spanAddTagIfNotExists":
-                    allowArguments(rule, "key", "value");
+                    allowArguments(rule, "key", "value", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addTransformer(
                         new SpanAddAnnotationIfNotExistsTransformer(getString(rule, "key"),
-                            getString(rule, "value"), ruleMetrics));
+                            getString(rule, "value"), getPredicate(rule, V2_PREDICATE_KEY, Span.class),
+                            ruleMetrics));
                     break;
                   case "spanDropAnnotation":
                   case "spanDropTag":
-                    allowArguments(rule, "key", "match", "firstMatchOnly");
+                    allowArguments(rule, "key", "match", "firstMatchOnly", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addTransformer(
                         new SpanDropAnnotationTransformer(getString(rule, "key"),
                             getString(rule, "match"), getBoolean(rule, "firstMatchOnly", false),
-                            ruleMetrics));
+                            getPredicate(rule, V2_PREDICATE_KEY, Span.class), ruleMetrics));
                     break;
                   case "spanWhitelistAnnotation":
                   case "spanWhitelistTag":
-                    allowArguments(rule, "whitelist");
+                    allowArguments(rule, "whitelist", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addTransformer(
-                        SpanWhitelistAnnotationTransformer.create(rule, ruleMetrics));
+                        SpanWhitelistAnnotationTransformer.create(rule,
+                            getPredicate(rule, V2_PREDICATE_KEY, Span.class), ruleMetrics));
                     break;
                   case "spanExtractAnnotation":
                   case "spanExtractTag":
                     allowArguments(rule, "key", "input", "search", "replace", "replaceInput", "match",
-                        "firstMatchOnly");
+                        "firstMatchOnly", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addTransformer(
                         new SpanExtractAnnotationTransformer(getString(rule, "key"),
                             getString(rule, "input"), getString(rule, "search"),
                             getString(rule, "replace"), getString(rule, "replaceInput"),
                             getString(rule, "match"), getBoolean(rule, "firstMatchOnly", false),
-                            ruleMetrics));
+                            getPredicate(rule, V2_PREDICATE_KEY, Span.class), ruleMetrics));
                     break;
                   case "spanExtractAnnotationIfNotExists":
                   case "spanExtractTagIfNotExists":
                     allowArguments(rule, "key", "input", "search", "replace", "replaceInput", "match",
-                        "firstMatchOnly");
+                        "firstMatchOnly", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addTransformer(
                         new SpanExtractAnnotationIfNotExistsTransformer(getString(rule, "key"),
                             getString(rule, "input"), getString(rule, "search"),
                             getString(rule, "replace"), getString(rule, "replaceInput"),
                             getString(rule, "match"), getBoolean(rule, "firstMatchOnly", false),
-                            ruleMetrics));
+                            getPredicate(rule, V2_PREDICATE_KEY, Span.class), ruleMetrics));
                     break;
                   case "spanRenameAnnotation":
                   case "spanRenameTag":
-                    allowArguments(rule, "key", "newkey", "match", "firstMatchOnly");
+                    allowArguments(rule, "key", "newkey", "match", "firstMatchOnly", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addTransformer(
                         new SpanRenameAnnotationTransformer(
                             getString(rule, "key"), getString(rule, "newkey"),
                             getString(rule, "match"), getBoolean(rule, "firstMatchOnly", false),
-                            ruleMetrics));
+                            getPredicate(rule, V2_PREDICATE_KEY, Span.class), ruleMetrics));
                     break;
                   case "spanLimitLength":
                     allowArguments(rule, "scope", "actionSubtype", "maxLength", "match",
-                        "firstMatchOnly");
+                        "firstMatchOnly", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addTransformer(
                         new SpanLimitLengthTransformer(
                             Objects.requireNonNull(getString(rule, "scope")),
                             getInteger(rule, "maxLength", 0),
                             LengthLimitActionType.fromString(getString(rule, "actionSubtype")),
                             getString(rule, "match"), getBoolean(rule, "firstMatchOnly", false),
-                            ruleMetrics));
+                            getPredicate(rule, V2_PREDICATE_KEY, Span.class), ruleMetrics));
                     break;
                   case "spanBlacklistRegex":
-                    allowArguments(rule, "scope", "match");
+                    allowArguments(rule, "scope", "match", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addFilter(
                         new SpanBlacklistRegexFilter(
-                            Objects.requireNonNull(getString(rule, "scope")),
-                            Objects.requireNonNull(getString(rule, "match")), ruleMetrics));
+                            getString(rule, "scope"),
+                            getString(rule, "match"), getPredicate(rule, V2_PREDICATE_KEY, Span.class), ruleMetrics));
                     break;
                   case "spanWhitelistRegex":
-                    allowArguments(rule, "scope", "match");
+                    allowArguments(rule, "scope", "match", V2_PREDICATE_KEY);
                     portMap.get(strPort).forSpan().addFilter(
                         new SpanWhitelistRegexFilter(getString(rule, "scope"),
-                            getString(rule, "match"), ruleMetrics));
+                            getString(rule, "match"), getPredicate(rule, V2_PREDICATE_KEY, Span.class), ruleMetrics));
                     break;
                   default:
                     throw new IllegalArgumentException("Action '" + getString(rule, "action") +

@@ -1,5 +1,7 @@
 package com.wavefront.agent.preprocessor;
 
+import java.util.function.Predicate;
+
 import javax.annotation.Nullable;
 
 import wavefront.report.Annotation;
@@ -15,8 +17,9 @@ public class SpanAddAnnotationIfNotExistsTransformer extends SpanAddAnnotationTr
 
   public SpanAddAnnotationIfNotExistsTransformer(final String key,
                                                  final String value,
+                                                 @Nullable final Predicate v2Predicate,
                                                  final PreprocessorRuleMetrics ruleMetrics) {
-    super(key, value, ruleMetrics);
+    super(key, value, v2Predicate, ruleMetrics);
   }
 
   @Nullable
@@ -24,11 +27,16 @@ public class SpanAddAnnotationIfNotExistsTransformer extends SpanAddAnnotationTr
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
-      span.getAnnotations().add(new Annotation(key, PreprocessorUtil.expandPlaceholders(value, span)));
-      ruleMetrics.incrementRuleAppliedCounter();
+    try {
+      if (!v2Predicate.test(span)) return span;
+
+      if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
+        span.getAnnotations().add(new Annotation(key, PreprocessorUtil.expandPlaceholders(value, span)));
+        ruleMetrics.incrementRuleAppliedCounter();
+      }
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
   }
 }

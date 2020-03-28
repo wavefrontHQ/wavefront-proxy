@@ -1,5 +1,7 @@
 package com.wavefront.agent.preprocessor;
 
+import java.util.function.Predicate;
+
 import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
@@ -11,10 +13,12 @@ import wavefront.report.ReportPoint;
  */
 public class ReportPointAddTagIfNotExistsTransformer extends ReportPointAddTagTransformer {
 
+
   public ReportPointAddTagIfNotExistsTransformer(final String tag,
                                                  final String value,
+                                                 @Nullable final Predicate v2Predicate,
                                                  final PreprocessorRuleMetrics ruleMetrics) {
-    super(tag, value, ruleMetrics);
+    super(tag, value, v2Predicate, ruleMetrics);
   }
 
   @Nullable
@@ -22,11 +26,16 @@ public class ReportPointAddTagIfNotExistsTransformer extends ReportPointAddTagTr
   public ReportPoint apply(@Nullable ReportPoint reportPoint) {
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (reportPoint.getAnnotations().get(tag) == null) {
-      reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
-      ruleMetrics.incrementRuleAppliedCounter();
+    try {
+      if (!v2Predicate.test(reportPoint)) return reportPoint;
+
+      if (reportPoint.getAnnotations().get(tag) == null) {
+        reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
+        ruleMetrics.incrementRuleAppliedCounter();
+      }
+      return reportPoint;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return reportPoint;
   }
 }

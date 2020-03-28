@@ -3,6 +3,7 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -21,10 +22,13 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
   @Nullable
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
+  private final Predicate v2Predicate;
+
 
   public ReportPointRenameTagTransformer(final String tag,
                                          final String newTag,
                                          @Nullable final String patternMatch,
+                                         @Nullable final Predicate v2Predicate,
                                          final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.newTag = Preconditions.checkNotNull(newTag, "[newtag] can't be null");
@@ -33,6 +37,7 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
     this.compiledPattern = patternMatch != null ? Pattern.compile(patternMatch) : null;
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   @Nullable
@@ -41,6 +46,8 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
     if (reportPoint == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     try {
+      if (!v2Predicate.test(reportPoint)) return reportPoint;
+
       String tagValue = reportPoint.getAnnotations().get(tag);
       if (tagValue == null || (compiledPattern != null &&
           !compiledPattern.matcher(tagValue).matches())) {

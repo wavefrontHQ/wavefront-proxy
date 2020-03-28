@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -28,11 +29,14 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
   private final Pattern compiledPattern;
   private final boolean firstMatchOnly;
   private final PreprocessorRuleMetrics ruleMetrics;
+  private final Predicate v2Predicate;
+
 
   public SpanRenameAnnotationTransformer(final String key,
                                          final String newKey,
                                          @Nullable final String patternMatch,
                                          final boolean firstMatchOnly,
+                                         @Nullable final Predicate v2Predicate,
                                          final PreprocessorRuleMetrics ruleMetrics) {
     this.key = Preconditions.checkNotNull(key, "[key] can't be null");
     this.newKey = Preconditions.checkNotNull(newKey, "[newkey] can't be null");
@@ -42,6 +46,7 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.firstMatchOnly = firstMatchOnly;
     this.ruleMetrics = ruleMetrics;
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   @Nullable
@@ -50,6 +55,8 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
     try {
+      if (!v2Predicate.test(span)) return span;
+
       Stream<Annotation> stream = span.getAnnotations().stream().
           filter(a -> a.getKey().equals(key) && (compiledPattern == null ||
               compiledPattern.matcher(a.getValue()).matches()));

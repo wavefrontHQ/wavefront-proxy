@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,6 +32,7 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
   protected final String patternReplaceInput;
   protected final boolean firstMatchOnly;
   protected final PreprocessorRuleMetrics ruleMetrics;
+  protected final Predicate v2Predicate;
 
   public SpanExtractAnnotationTransformer(final String key,
                                           final String input,
@@ -39,6 +41,7 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
                                           @Nullable final String replaceInput,
                                           @Nullable final String patternMatch,
                                           final boolean firstMatchOnly,
+                                          @Nullable Predicate v2Predicate,
                                           final PreprocessorRuleMetrics ruleMetrics) {
     this.key = Preconditions.checkNotNull(key, "[key] can't be null");
     this.input = Preconditions.checkNotNull(input, "[input] can't be null");
@@ -52,6 +55,7 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
     this.firstMatchOnly = firstMatchOnly;
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
+    this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
   protected boolean extractAnnotation(@Nonnull Span span, final String extractFrom,
@@ -110,8 +114,13 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    internalApply(span);
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
+    try {
+      if (!v2Predicate.test(span)) return span;
+
+      internalApply(span);
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
+    }
   }
 }

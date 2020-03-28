@@ -1,0 +1,130 @@
+# Comparison Operator predicates.
+'equals-reportpoint':
+  - if:
+      equals:
+        scope: metricName
+        value: "foometric.1"
+
+'startsWith-reportpoint':
+  - if:
+      startsWith:
+        scope: metricName
+        value: "foometric."
+
+'endsWith-reportpoint':
+  - if:
+      endsWith:
+        scope: sourceName
+        value: "prod"
+
+'regexMatch-reportpoint':
+  - if:
+      regexMatch:
+        scope: sourceName
+        value: "^host$"
+
+'contains-reportpoint':
+  - if:
+      contains:
+        scope: sourceName
+        value: "prod"
+
+'in-reportpoint':
+  - if:
+      in:
+        scope: key1
+        value: "val1, val2, val3"
+
+'equals-span':
+  - if:
+      equals:
+        scope: spanName
+        value: "testSpanName.1"
+
+'startsWith-span':
+  - if:
+      startsWith:
+        scope: spanName
+        value: "testSpanName."
+
+'endsWith-span':
+  - if:
+      endsWith:
+        scope: sourceName
+        value: "prod"
+
+'regexMatch-span':
+  - if:
+      regexMatch:
+        scope: sourceName
+        value: "^host$"
+
+'contains-span':
+  - if:
+      contains:
+        scope: sourceName
+        value: "prod"
+
+'in-span':
+  - if:
+      in:
+        scope: key1
+        value: "val1, val2, val3"
+
+# Logical Operator predicates.
+
+'logicalop-reportpoint':
+  - if:
+      all:
+        - any:
+          - startsWith:
+              scope: metricName
+              value: "foometric."
+          - endsWith:
+              scope: key1
+              value: "val11"
+        - none:
+          - contains:
+              scope: debug
+              value: "true"
+          - equals:
+              scope: key3
+              value: "val3"
+        - noop:
+          - regexMatch:
+            scope: key2
+            value: "^val$"
+          - equals:
+            scope: key4
+            value: "val4"
+        - equals:
+            scope: key2
+            value: "val2"
+
+'logicalop-span':
+  - if:
+      all:
+        - any:
+          - startsWith:
+              scope: spanName
+              value: "testSpanName."
+          - endsWith:
+              scope: key1
+              value: "val11"
+        - none:
+          - contains:
+              scope: debug
+              value: "true"
+          - equals:
+              scope: key3
+              value: "val3"
+        - noop:
+          - regexMatch:
+            scope: key2
+            value: "^val$"
+          - equals:
+            scope: key4
+            value: "val4"
+        - equals:
+            scope: key2
+            value: "val2"

@@ -329,6 +329,49 @@
       key2: "bar[0-9]{1,3}"
       version: "[0-9\\.]{1,10}"
 
+'30126':
+    - rule : test-v2Predicate
+      action : spanWhitelistRegex
+      if:
+        all:
+          - any:
+            - all:
+              - equals:
+                  scope: key2
+                  value: "val2"
+              - startsWith:
+                  scope: metricName
+                  value: "foo"
+            - startsWith:
+                scope: metricName
+                value: "trace.deri."
+            - equals:
+                scope: key1
+                value: "val1"
+          - none:
+            - any:
+              - equals:
+                  scope: key1
+                  value: "val1"
+              - startsWith:
+                  scope: metricName
+                  value: "trace.derive."
+            - startsWith:
+                scope: metricName
+                value: "trace.der."
+            - equals:
+                scope: debug
+                value: "true"
+
+
+'30127':
+    - rule : test-v2Predicate
+      action : spanWhitelistRegex
+      if:
+       equals:
+          scope: debug
+          value: "true"
+
 '2880, 2881':
   # add a "multiPortTagKey=multiTagVal" point tag to all points
   - rule    : example-tag-all-metrics

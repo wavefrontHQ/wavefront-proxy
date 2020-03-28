@@ -2,11 +2,12 @@ package com.wavefront.agent.preprocessor;
 
 import org.junit.Assert;
 import org.junit.Test;
-import wavefront.report.ReportPoint;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.HashMap;
+
+import wavefront.report.ReportPoint;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -22,7 +23,7 @@ public class AgentConfigurationTest {
       fail("Invalid rules did not cause an exception");
     } catch (RuntimeException ex) {
       Assert.assertEquals(0, config.totalValidRules);
-      Assert.assertEquals(128, config.totalInvalidRules);
+      Assert.assertEquals(134, config.totalInvalidRules);
     }
   }
 
@@ -32,7 +33,7 @@ public class AgentConfigurationTest {
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
     config.loadFromStream(stream);
     Assert.assertEquals(0, config.totalInvalidRules);
-    Assert.assertEquals(55, config.totalValidRules);
+    Assert.assertEquals(57, config.totalValidRules);
   }
 
   @Test

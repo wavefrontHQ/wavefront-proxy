@@ -1,5 +1,7 @@
 package com.wavefront.agent.preprocessor;
 
+import java.util.function.Predicate;
+
 import javax.annotation.Nullable;
 
 import wavefront.report.Span;
@@ -18,8 +20,10 @@ public class SpanExtractAnnotationIfNotExistsTransformer extends SpanExtractAnno
                                                      @Nullable final String replaceInput,
                                                      @Nullable final String patternMatch,
                                                      final boolean firstMatchOnly,
+                                                     @Nullable final Predicate v2Predicate,
                                                      final PreprocessorRuleMetrics ruleMetrics) {
-    super(key, input, patternSearch, patternReplace, replaceInput, patternMatch, firstMatchOnly, ruleMetrics);
+    super(key, input, patternSearch, patternReplace, replaceInput, patternMatch, firstMatchOnly,
+        v2Predicate, ruleMetrics);
   }
 
   @Nullable
@@ -27,10 +31,15 @@ public class SpanExtractAnnotationIfNotExistsTransformer extends SpanExtractAnno
   public Span apply(@Nullable Span span) {
     if (span == null) return null;
     long startNanos = ruleMetrics.ruleStart();
-    if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
-      internalApply(span);
+    try {
+      if (!v2Predicate.test(span)) return span;
+
+      if (span.getAnnotations().stream().noneMatch(a -> a.getKey().equals(key))) {
+        internalApply(span);
+      }
+      return span;
+    } finally {
+      ruleMetrics.ruleEnd(startNanos);
     }
-    ruleMetrics.ruleEnd(startNanos);
-    return span;
   }
 }

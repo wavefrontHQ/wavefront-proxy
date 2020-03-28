@@ -890,4 +890,83 @@
       key           : myDevice
       newkey        : device
 
+    # Invalid v2 Predicate. Multiple top-level predicates.
+    - rule : test-invalidV2Pred-1
+      action : spanLimitLength
+      if :
+       all :
+         - equals:
+             scope: key2
+             value: "val2"
+         - contains:
+             scope: sourceName
+             value: "prod"
+       any :
+         - equals:
+             scope: key1
+             value: "val1"
+         - contains:
+             scope: metricName
+             value: "foometric"
 
+    # Invalid v2 Predicate due to Not specifying both v1 Predicates [scope, match].
+    - rule : test-invalidV2Pred-1
+      action : spanWhitelistRegex
+      scope : metricName
+      if :
+       all :
+         - equals:
+             scope: key2
+             value: "val2"
+         - contains:
+             scope: sourceName
+             value: "prod"
+
+    # Invalid v2 Predicate due to Not specifying both v1 Predicates [scope, match].
+    - rule : test-invalidV2Pred-1
+      action : spanBlacklistRegex
+      match : "^prod$"
+      if :
+       all :
+         - equals:
+             scope: key2
+             value: "val2"
+         - contains:
+             scope: sourceName
+             value: "prod"
+
+    # Invalid v2 Predicate due to Invalid scope.
+    - rule : test-invalidV2Pred-1
+      action : spanWhitelistRegex
+      scope : pointline
+      if :
+       all :
+         - equals:
+             scope: key2
+             value: "val2"
+         - contains:
+             scope: sourceName
+             value: "prod"
+
+    # Invalid v2 Predicate due to blank value.
+    - rule : test-invalidV2Pred-1
+      action : spanLimitLength
+      if :
+       all :
+         - equals:
+             scope: key2
+             value: "val2"
+         - contains:
+             scope: sourceName
+             value:
+
+    # Invalid v2 Predicate due to no scope.
+    - rule : test-invalidV2Pred-1
+      action : spanLimitLength
+      if :
+       all :
+         - equals:
+             value: "val2"
+         - contains:
+             scope: sourceName
+             value: "prod"
