@@ -230,9 +230,6 @@ public class PreprocessorRulesTest {
       // Expected.
     }
 
-    ReportPointWhitelistRegexFilter validWhitelistRule = new ReportPointWhitelistRegexFilter
-          (null, null, x -> false, metrics);
-
     try {
       ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter("metricName",
           null, x -> false, metrics);
@@ -253,6 +250,12 @@ public class PreprocessorRulesTest {
     } catch (IllegalArgumentException e) {
       // Expected.
     }
+  }
+
+  @Test
+  public void testReportPointFiltersWithValidV2AndV1Predicate() {
+    ReportPointWhitelistRegexFilter validWhitelistRule = new ReportPointWhitelistRegexFilter
+        (null, null, x -> false, metrics);
 
     ReportPointBlacklistRegexFilter validBlacklistRule = new ReportPointBlacklistRegexFilter
         (null, null, x -> false, metrics);
