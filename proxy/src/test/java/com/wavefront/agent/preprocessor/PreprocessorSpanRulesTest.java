@@ -77,6 +77,66 @@ public class PreprocessorSpanRulesTest {
   }
 
   @Test
+  public void testSpanFiltersWithValidV2AndInvalidV1Predicate() {
+    try {
+      SpanWhitelistRegexFilter invalidRule = new SpanWhitelistRegexFilter("spanName",
+          null, x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    try {
+      SpanWhitelistRegexFilter invalidRule = new SpanWhitelistRegexFilter(null,
+          "^host$", x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    try {
+      SpanWhitelistRegexFilter invalidRule = new SpanWhitelistRegexFilter
+          ("spanName", "^host$", x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    SpanWhitelistRegexFilter validWhitelistRule = new SpanWhitelistRegexFilter(null,
+        null, x -> false, metrics);
+
+    try {
+      SpanBlacklistRegexFilter invalidRule = new SpanBlacklistRegexFilter("metricName",
+          null, x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    try {
+      SpanBlacklistRegexFilter invalidRule = new SpanBlacklistRegexFilter(null,
+          "^host$", x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    try {
+      SpanBlacklistRegexFilter invalidRule = new SpanBlacklistRegexFilter
+          ("spanName", "^host$", x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    SpanBlacklistRegexFilter validBlacklistRule = new SpanBlacklistRegexFilter(null,
+        null, x -> false, metrics);
+  }
+
+  @Test
+  public void testSpanFiltersWithValidV2AndV1Predicate() {
+    SpanWhitelistRegexFilter validWhitelistRule = new SpanWhitelistRegexFilter(null,
+        null, x -> false, metrics);
+
+    SpanBlacklistRegexFilter validBlacklistRule = new SpanBlacklistRegexFilter(null,
+        null, x -> false, metrics);
+  }
+
+  @Test
   public void testSpanLimitRule() {
     String spanLine = "\"testSpanName\" \"source\"=\"spanSourceName\" " +
         "\"spanId\"=\"4217104a-690d-4927-baff-d9aa779414c2\" \"traceId\"=\"d5355bf7-fc8d-48d1-b761-75b170f396e0\" " +

@@ -208,6 +208,60 @@ public class PreprocessorRulesTest {
   }
 
   @Test
+  public void testReportPointFiltersWithValidV2AndInvalidV1Predicate() {
+    try {
+      ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter("metricName",
+          null, x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    try {
+      ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter(null,
+          "^host$", x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    try {
+      ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter
+          ("metricName", "^host$", x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    try {
+      ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter("metricName",
+          null, x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    try {
+      ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter(null,
+          "^host$", x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+
+    try {
+      ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter
+          ("metricName", "^host$", x -> false, metrics);
+    } catch (IllegalArgumentException e) {
+      // Expected.
+    }
+  }
+
+  @Test
+  public void testReportPointFiltersWithValidV2AndV1Predicate() {
+    ReportPointWhitelistRegexFilter validWhitelistRule = new ReportPointWhitelistRegexFilter
+        (null, null, x -> false, metrics);
+
+    ReportPointBlacklistRegexFilter validBlacklistRule = new ReportPointBlacklistRegexFilter
+        (null, null, x -> false, metrics);
+  }
+
+  @Test
   public void testPointLineRules() {
     String testPoint1 = "collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=baz";
     String testPoint2 = "collectd.#cpu#.&loadavg^.1m 7 1459527231 source=source$hostname foo=bar boo=baz";
