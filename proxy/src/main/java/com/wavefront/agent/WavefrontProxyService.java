@@ -6,7 +6,7 @@ import org.apache.commons.daemon.DaemonContext;
 /**
  * @author Mori Bellamy (mori@wavefront.com)
  */
-public class PushAgentDaemon implements Daemon {
+public class WavefrontProxyService implements Daemon {
 
     private PushAgent agent;
     private DaemonContext daemonContext;

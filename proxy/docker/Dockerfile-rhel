@@ -2,7 +2,6 @@
 FROM registry.access.redhat.com/ubi7
 USER root
 
-
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
 #  WAVEFRONT_URL           (required)
@@ -12,17 +11,17 @@ USER root
 #  WAVEFRONT_PROXY_ARGS    (default is none)
 #  JAVA_ARGS               (default is none)
 
+RUN yum-config-manager --enable rhel-7-server-optional-rpms
 RUN yum update --disableplugin=subscription-manager -y && rm -rf /var/cache/yum
 
 RUN yum install -y sudo
 RUN yum install -y curl
 RUN yum install -y hostname
-RUN yum install -y java-1.8.0-openjdk-devel.x86_64
+RUN yum install -y java-11-openjdk-devel
 
-# Download wavefront proxy (latest release). Merely extract the debian, don't want to try running startup scripts.
+# Download wavefront proxy (latest release). Merely extract the package, don't want to try running startup scripts.
 RUN curl -s https://packagecloud.io/install/repositories/wavefront/proxy/script.rpm.sh | sudo bash
 RUN yum -y update
-
 RUN yum -y -q install wavefront-proxy
 
 # Configure agent

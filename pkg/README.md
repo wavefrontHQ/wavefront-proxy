@@ -4,7 +4,7 @@ Wavefront Proxy Packaging
 Tools
 -----
 * Install [docker](https://www.docker.com/).
-* Install Java 8+/Maven.
+* Install Java 11+/Maven.
 
 Methodology
 -----------

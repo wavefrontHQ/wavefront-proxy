@@ -10,8 +10,8 @@
   </modules>
   <packaging>pom</packaging>
 
-  <name>Wavefront All-in-One</name>
-  <description>Top-level Wavefront Public Java POM</description>
+  <name>Wavefront Proxy</name>
+  <description>Wavefront Proxy Project</description>
   <url>http://www.wavefront.com</url>
   <licenses>
     <license>
@@ -53,12 +53,12 @@
     <junit.version>4.12</junit.version>
     <truth.version>0.29</truth.version>
 
-    <java.version>1.8</java.version>
+    <java.version>11</java.version>
     <log4j.version>2.12.1</log4j.version>
     <jackson.version>2.9.10</jackson.version>
     <jackson-databind.version>2.9.10.3</jackson-databind.version>
     <netty.version>4.1.45.Final</netty.version>
-    <java-lib.version>2020-02.2</java-lib.version>
+    <java-lib.version>2020-03.4</java-lib.version>
 
     <doclint>none</doclint>
   </properties>

@@ -1,5 +1,9 @@
 package com.wavefront.common;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -37,28 +41,38 @@ public abstract class DelegatingLogger extends Logger {
     delegate.log(logRecord);
   }
 
-  /**
-   * This is a JDK8-specific implementation. TODO: switch to StackWalker after migrating to JDK9+
-   */
   private void inferCaller(LogRecord logRecord) {
-    StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-    boolean lookingForLogger = true;
-    for (StackTraceElement frame : stackTraceElements) {
-      String cname = frame.getClassName();
+    Optional<StackWalker.StackFrame> frame = new CallerFinder().get();
+    frame.ifPresent(f -> {
+      logRecord.setSourceClassName(f.getClassName());
+      logRecord.setSourceMethodName(f.getMethodName());
+    });
+  }
+
+  static final class CallerFinder implements Predicate<StackWalker.StackFrame> {
+    private static final StackWalker WALKER;
+    static {
+      final PrivilegedAction<StackWalker> action =
+          () -> StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
+      WALKER = AccessController.doPrivileged(action);
+    }
+
+    Optional<StackWalker.StackFrame> get() {
+      return WALKER.walk(s -> s.filter(this).findFirst());
+    }
+
+    private boolean lookingForLogger = true;
+
+    @Override
+    public boolean test(StackWalker.StackFrame t) {
+      final String cname = t.getClassName();
       if (lookingForLogger) {
-        // Skip all frames until we have found the first logger frame.
-        if (cname.endsWith("Logger")) {
-          lookingForLogger = false;
-        }
-      } else {
-        if (!cname.endsWith("Logger") && !cname.startsWith("java.lang.reflect.") &&
-            !cname.startsWith("sun.reflect.")) {
-          // We've found the relevant frame.
-          logRecord.setSourceClassName(cname);
-          logRecord.setSourceMethodName(frame.getMethodName());
-          return;
-        }
+        // the log record could be created for a platform logger
+        lookingForLogger = !(cname.endsWith("Logger") ||
+            cname.startsWith("sun.util.logging.PlatformLogger"));
+        return false;
       }
+      return !cname.endsWith("Logger");
     }
   }
 }
