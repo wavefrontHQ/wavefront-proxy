@@ -892,7 +892,7 @@
 
     # Invalid v2 Predicate. Multiple top-level predicates.
     - rule : test-invalidV2Pred-1
-      action : spanLimitLength
+      action : spanWhitelistRegex
       if :
        all :
          - equals:
@@ -950,23 +950,129 @@
 
     # Invalid v2 Predicate due to blank value.
     - rule : test-invalidV2Pred-5
-      action : spanLimitLength
+      action : spanWhitelistRegex
       if :
-       all :
-         - equals:
-             scope: key2
-             value: "val2"
-         - contains:
-             scope: sourceName
-             value:
+        contains:
+          scope: sourceName
+          value:
 
     # Invalid v2 Predicate due to no scope.
     - rule : test-invalidV2Pred-6
-      action : spanLimitLength
+      action : spanWhitelistRegex
       if :
-       all :
-         - equals:
-             value: "val2"
-         - contains:
-             scope: sourceName
-             value: "prod"
+        equals:
+          value: "val2"
+
+
+    # Invalid v2 Predicate due to invalid comparison function.
+    - rule : test-invalidV2Pred-7
+      action : whitelistRegex
+      if :
+       invalidComparisonFunction:
+         scope: key1
+         value: "val1"
+
+    # Invalid v2 Predicate due to invalid comparison function.
+    - rule : test-invalidV2Pred-8
+      action : spanWhitelistRegex
+      if :
+       invalidComparisonFunction:
+         scope: key1
+         value: "val1"
+
+     # Invalid v2 Predicate due to invalid type i.e. string for in-predicate.
+    - rule : test-invalidV2Pred-9
+      action : spanWhitelistRegex
+      if:
+        in:
+          scope: key1
+          value: "val1"
+
+    # Invalid v2 Predicate due to invalid type i.e. list for equals-predicate.
+    - rule : test-invalidV2Pred-10
+      action : spanWhitelistRegex
+      if :
+       equals:
+         scope: key1
+         value: ["val1", "val2"]
+
+    # Invalid v2 Predicate due to invalid type i.e. list for contains-predicate.
+    - rule : test-invalidV2Pred-11
+      action : spanWhitelistRegex
+      if :
+       contains:
+         scope: key1
+         value: ["val1", "val2"]
+
+    # Invalid v2 Predicate due to invalid type i.e. list for startsWith-predicate.
+    - rule : test-invalidV2Pred-12
+      action : spanWhitelistRegex
+      if :
+       startsWith:
+         scope: key1
+         value: ["val1", "val2"]
+
+    # Invalid v2 Predicate due to invalid type i.e. list for endsWith-predicate.
+    - rule : test-invalidV2Pred-13
+      action : spanWhitelistRegex
+      if :
+       endsWith:
+         scope: key1
+         value: ["val1", "val2"]
+
+    # Invalid v2 Predicate due to invalid type i.e. list for regexMatch-predicate.
+    - rule : test-invalidV2Pred-14
+      action : spanWhitelistRegex
+      if :
+       regexMatch:
+         scope: key1
+         value: ["^val1.$", "^val2.$"]
+
+    # Invalid v2 Predicate due to invalid type i.e. list for equals-predicate.
+    - rule : test-invalidV2Pred-15
+      action : whitelistRegex
+      if :
+       equals:
+         scope: key1
+         value: ["val1", "val2"]
+
+    # Invalid v2 Predicate due to invalid type i.e. list for startsWith-predicate.
+    - rule : test-invalidV2Pred-16
+      action : whitelistRegex
+      if :
+       startsWith:
+         scope: key1
+         value: ["val1", "val2"]
+
+    # Invalid v2 Predicate due to invalid type i.e. list for endsWith-predicate.
+    - rule : test-invalidV2Pred-17
+      action : whitelistRegex
+      if :
+       endsWith:
+         scope: key1
+         value: ["val1", "val2"]
+
+    # Invalid v2 Predicate due to invalid type i.e. list for contains-predicate.
+    - rule : test-invalidV2Pred-18
+      action : whitelistRegex
+      if :
+       contains:
+         scope: key1
+         value: ["val1", "val2"]
+
+    # Invalid v2 Predicate due to invalid type i.e. list for regexMatch-predicate.
+    - rule : test-invalidV2Pred-19
+      action : whitelistRegex
+      if :
+       regexMatch:
+         scope: key1
+         value: ["^val1.$", "^val2.$"]
+
+     # Invalid v2 Predicate due to invalid type i.e. string for in-predicate.
+    - rule : test-invalidV2Pred-20
+      action : whitelistRegex
+      if:
+        in:
+          scope: key1
+          value: "val1"
+

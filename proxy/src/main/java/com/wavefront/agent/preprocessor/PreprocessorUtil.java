@@ -262,34 +262,70 @@ public abstract class PreprocessorUtil {
     if (reportableEntity == ReportPoint.class) {
       switch (subElement.getKey()) {
         case "equals":
-          return new ReportPointEqualsPredicate(scope, (String) ruleVal);
+          if (ruleVal instanceof String) {
+            return new ReportPointEqualsPredicate(scope, (String) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [equals] should have a value of type [string].");
         case "startsWith":
-          return new ReportPointStartsWithPredicate(scope, (String) ruleVal);
+          if (ruleVal instanceof String) {
+            return new ReportPointStartsWithPredicate(scope, (String) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [startsWith] should have a value of type [string].");
         case "contains":
-          return new ReportPointContainsPredicate(scope, (String) ruleVal);
+          if (ruleVal instanceof String) {
+            return new ReportPointContainsPredicate(scope, (String) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [contains] should have a value of type [string].");
         case "endsWith":
-          return new ReportPointEndsWithPredicate(scope, (String) ruleVal);
+          if (ruleVal instanceof String) {
+            return new ReportPointEndsWithPredicate(scope, (String) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [endsWith] should have a value of type [string].");
         case "regexMatch":
-          return new ReportPointRegexMatchPredicate(scope, (String) ruleVal);
+          if (ruleVal instanceof String) {
+            return new ReportPointRegexMatchPredicate(scope, (String) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [regexMatch] should have a value of type [string].");
         case "in":
-          return new ReportPointInPredicate(scope, (ArrayList) ruleVal);
+          if (ruleVal instanceof List) {
+            return new ReportPointInPredicate(scope, (List) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [in] should have a value of type [list].");
         default:
           throw new IllegalArgumentException("Unsupported comparison argument [" + subElement.getKey() + "].");
       }
     } else if (reportableEntity == Span.class) {
       switch (subElement.getKey()) {
         case "equals":
-          return new SpanEqualsPredicate(scope, (String) ruleVal);
+          if (ruleVal instanceof String) {
+            return new SpanEqualsPredicate(scope, (String) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [equals] should have a value of type [string].");
         case "startsWith":
-          return new SpanStartsWithPredicate(scope, (String) ruleVal);
+          if (ruleVal instanceof String) {
+            return new SpanStartsWithPredicate(scope, (String) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [startsWith] should have a value of type [string].");
         case "contains":
-          return new SpanContainsPredicate(scope, (String) ruleVal);
+          if (ruleVal instanceof String) {
+            return new SpanContainsPredicate(scope, (String) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [contains] should have a value of type [string].");
         case "endsWith":
-          return new SpanEndsWithPredicate(scope, (String) ruleVal);
+          if (ruleVal instanceof String) {
+            return new SpanEndsWithPredicate(scope, (String) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [endsWith] should have a value of type [string].");
         case "regexMatch":
-          return new SpanRegexMatchPredicate(scope, (String) ruleVal);
+          if (ruleVal instanceof String) {
+            return new SpanRegexMatchPredicate(scope, (String) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [regexMatch] should have a value of type [string].");
         case "in":
-          return new SpanInPredicate(scope, (ArrayList) ruleVal);
+          if (ruleVal instanceof List) {
+            return new SpanInPredicate(scope, (List) ruleVal);
+          }
+          throw new IllegalArgumentException("Argument [in] should have a value of type [list].");
         default:
           throw new IllegalArgumentException("Unsupported comparison argument [" + subElement.getKey() + "].");
       }

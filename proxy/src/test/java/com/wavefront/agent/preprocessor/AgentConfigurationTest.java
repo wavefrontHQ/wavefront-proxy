@@ -23,7 +23,7 @@ public class AgentConfigurationTest {
       fail("Invalid rules did not cause an exception");
     } catch (RuntimeException ex) {
       Assert.assertEquals(0, config.totalValidRules);
-      Assert.assertEquals(134, config.totalInvalidRules);
+      Assert.assertEquals(148, config.totalInvalidRules);
     }
   }
 
