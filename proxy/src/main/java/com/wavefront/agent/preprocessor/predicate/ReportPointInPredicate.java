@@ -17,9 +17,9 @@ public class ReportPointInPredicate extends ComparisonPredicate<ReportPoint>{
 
   private final List<String> values;
 
-  public ReportPointInPredicate(String scope, String value) {
-    super(scope, value);
-    this.values = Collections.unmodifiableList(Arrays.asList(value.trim().split("\\s*,\\s*")));
+  public ReportPointInPredicate(String scope, List<String> values) {
+    super(scope, null);
+    this.values = Collections.unmodifiableList(values);
   }
 
   @Override

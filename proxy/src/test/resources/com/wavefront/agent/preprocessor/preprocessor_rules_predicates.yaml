@@ -33,7 +33,7 @@
   - if:
       in:
         scope: key1
-        value: "val1, val2, val3"
+        value: ['val1', 'val2', 'val3']
 
 'equals-span':
   - if:
@@ -69,7 +69,7 @@
   - if:
       in:
         scope: key1
-        value: "val1, val2, val3"
+        value: [val1, val2, val3]
 
 # Logical Operator predicates.
 

@@ -17,6 +17,7 @@ import com.wavefront.agent.preprocessor.predicate.SpanInPredicate;
 import com.wavefront.agent.preprocessor.predicate.SpanRegexMatchPredicate;
 import com.wavefront.agent.preprocessor.predicate.SpanStartsWithPredicate;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -250,7 +251,7 @@ public abstract class PreprocessorUtil {
       throw new IllegalArgumentException("Argument [ + " + subElement.getKey() + "] can have only" +
           " 2 elements, but found :: " + svpair.size() + ".");
     }
-    String ruleVal = (String) svpair.get("value");
+    Object ruleVal = svpair.get("value");
     String scope = (String) svpair.get("scope");
     if (scope == null) {
       throw new IllegalArgumentException("Argument [scope] can't be null/blank.");
@@ -261,34 +262,34 @@ public abstract class PreprocessorUtil {
     if (reportableEntity == ReportPoint.class) {
       switch (subElement.getKey()) {
         case "equals":
-          return new ReportPointEqualsPredicate(scope, ruleVal);
+          return new ReportPointEqualsPredicate(scope, (String) ruleVal);
         case "startsWith":
-          return new ReportPointStartsWithPredicate(scope, ruleVal);
+          return new ReportPointStartsWithPredicate(scope, (String) ruleVal);
         case "contains":
-          return new ReportPointContainsPredicate(scope, ruleVal);
+          return new ReportPointContainsPredicate(scope, (String) ruleVal);
         case "endsWith":
-          return new ReportPointEndsWithPredicate(scope, ruleVal);
+          return new ReportPointEndsWithPredicate(scope, (String) ruleVal);
         case "regexMatch":
-          return new ReportPointRegexMatchPredicate(scope, ruleVal);
+          return new ReportPointRegexMatchPredicate(scope, (String) ruleVal);
         case "in":
-          return new ReportPointInPredicate(scope, ruleVal);
+          return new ReportPointInPredicate(scope, (ArrayList) ruleVal);
         default:
           throw new IllegalArgumentException("Unsupported comparison argument [" + subElement.getKey() + "].");
       }
     } else if (reportableEntity == Span.class) {
       switch (subElement.getKey()) {
         case "equals":
-          return new SpanEqualsPredicate(scope, ruleVal);
+          return new SpanEqualsPredicate(scope, (String) ruleVal);
         case "startsWith":
-          return new SpanStartsWithPredicate(scope, ruleVal);
+          return new SpanStartsWithPredicate(scope, (String) ruleVal);
         case "contains":
-          return new SpanContainsPredicate(scope, ruleVal);
+          return new SpanContainsPredicate(scope, (String) ruleVal);
         case "endsWith":
-          return new SpanEndsWithPredicate(scope, ruleVal);
+          return new SpanEndsWithPredicate(scope, (String) ruleVal);
         case "regexMatch":
-          return new SpanRegexMatchPredicate(scope, ruleVal);
+          return new SpanRegexMatchPredicate(scope, (String) ruleVal);
         case "in":
-          return new SpanInPredicate(scope, ruleVal);
+          return new SpanInPredicate(scope, (ArrayList) ruleVal);
         default:
           throw new IllegalArgumentException("Unsupported comparison argument [" + subElement.getKey() + "].");
       }

@@ -17,9 +17,9 @@ public class SpanInPredicate extends ComparisonPredicate<Span>{
 
   private final List<String> values;
 
-  public SpanInPredicate(String scope, String value) {
-    super(scope, value);
-    this.values = Collections.unmodifiableList(Arrays.asList(value.trim().split("\\s*,\\s*")));
+  public SpanInPredicate(String scope, List<String> values) {
+    super(scope, null);
+    this.values = Collections.unmodifiableList(values);
   }
 
   @Override
