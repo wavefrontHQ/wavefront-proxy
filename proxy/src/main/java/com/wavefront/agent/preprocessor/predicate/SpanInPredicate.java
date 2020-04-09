@@ -9,7 +9,7 @@ import java.util.List;
 import wavefront.report.Span;
 
 /**
- * An Extension of {@link ReportPointEqualsPredicate} that takes in a range of comma separated values to check.
+ * An Extension of {@link SpanEqualsPredicate} that takes in a list of values to check.
  *
  * @author Anil Kodali (akodali@vmware.com).
  */
