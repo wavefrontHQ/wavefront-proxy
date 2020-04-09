@@ -2,7 +2,7 @@
 
 service_name="wavefront-proxy"
 wavefront_dir="/opt/wavefront"
-jre_dir="$wavefront_dir/$service_name/proxy-jre-11"
+jre_dir="$wavefront_dir/$service_name/proxy-jre"
 
 #service wavefront-proxy stop || true
 
