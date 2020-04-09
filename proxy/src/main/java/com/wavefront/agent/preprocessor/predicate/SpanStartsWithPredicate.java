@@ -13,7 +13,7 @@ import wavefront.report.Span;
  */
 public class SpanStartsWithPredicate extends ComparisonPredicate<Span>{
 
-  public SpanStartsWithPredicate(String scope, String value) {
+  public SpanStartsWithPredicate(String scope, Object value) {
     super(scope, value);
   }
 
@@ -21,7 +21,7 @@ public class SpanStartsWithPredicate extends ComparisonPredicate<Span>{
   public boolean test(Span span) {
     List<String> spanVal = PreprocessorUtil.getReportableEntityComparableValue(scope, span);
     if (spanVal != null) {
-      return spanVal.stream().anyMatch(v -> v.startsWith(value));
+      return spanVal.stream().anyMatch(sv -> value.stream().anyMatch(v -> sv.startsWith(v)));
     }
     return false;
   }

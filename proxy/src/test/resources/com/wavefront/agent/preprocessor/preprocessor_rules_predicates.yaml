@@ -29,12 +29,6 @@
         scope: sourceName
         value: "prod"
 
-'in-reportpoint':
-  - if:
-      in:
-        scope: key1
-        value: "val1, val2, val3"
-
 'equals-span':
   - if:
       equals:
@@ -65,11 +59,66 @@
         scope: sourceName
         value: "prod"
 
-'in-span':
+# Comparison Operator predicates with list values.
+'equals-list-reportpoint':
   - if:
-      in:
-        scope: key1
-        value: "val1, val2, val3"
+      equals:
+        scope: metricName
+        value: ["foometric.1"]
+
+'startsWith-list-reportpoint':
+  - if:
+      startsWith:
+        scope: metricName
+        value: ["foometric."]
+
+'endsWith-list-reportpoint':
+  - if:
+      endsWith:
+        scope: sourceName
+        value: ["prod"]
+
+'regexMatch-list-reportpoint':
+  - if:
+      regexMatch:
+        scope: sourceName
+        value: ["^host$"]
+
+'contains-list-reportpoint':
+  - if:
+      contains:
+        scope: sourceName
+        value: ["prod"]
+
+'equals-list-span':
+  - if:
+      equals:
+        scope: spanName
+        value: ["testSpanName.1"]
+
+'startsWith-list-span':
+  - if:
+      startsWith:
+        scope: spanName
+        value: ["testSpanName."]
+
+'endsWith-list-span':
+  - if:
+      endsWith:
+        scope: sourceName
+        value: ["prod"]
+
+'regexMatch-list-span':
+  - if:
+      regexMatch:
+        scope: sourceName
+        value: ["^host$"]
+
+'contains-list-span':
+  - if:
+      contains:
+        scope: sourceName
+        value: ["prod"]
 
 # Logical Operator predicates.
 
@@ -90,7 +139,7 @@
           - equals:
               scope: key3
               value: "val3"
-        - noop:
+        - ignore:
           - regexMatch:
             scope: key2
             value: "^val$"
@@ -118,7 +167,7 @@
           - equals:
               scope: key3
               value: "val3"
-        - noop:
+        - ignore:
           - regexMatch:
             scope: key2
             value: "^val$"

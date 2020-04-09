@@ -7,13 +7,11 @@ import com.google.common.collect.ImmutableList;
 import com.wavefront.agent.preprocessor.predicate.ReportPointContainsPredicate;
 import com.wavefront.agent.preprocessor.predicate.ReportPointEndsWithPredicate;
 import com.wavefront.agent.preprocessor.predicate.ReportPointEqualsPredicate;
-import com.wavefront.agent.preprocessor.predicate.ReportPointInPredicate;
 import com.wavefront.agent.preprocessor.predicate.ReportPointRegexMatchPredicate;
 import com.wavefront.agent.preprocessor.predicate.ReportPointStartsWithPredicate;
 import com.wavefront.agent.preprocessor.predicate.SpanContainsPredicate;
 import com.wavefront.agent.preprocessor.predicate.SpanEndsWithPredicate;
 import com.wavefront.agent.preprocessor.predicate.SpanEqualsPredicate;
-import com.wavefront.agent.preprocessor.predicate.SpanInPredicate;
 import com.wavefront.agent.preprocessor.predicate.SpanRegexMatchPredicate;
 import com.wavefront.agent.preprocessor.predicate.SpanStartsWithPredicate;
 
@@ -42,7 +40,7 @@ import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 public abstract class PreprocessorUtil {
 
   private static final Pattern PLACEHOLDERS = Pattern.compile("\\{\\{(.*?)}}");
-  public static final String[] LOGICAL_OPS = {"all", "any", "none", "noop"};
+  public static final String[] LOGICAL_OPS = {"all", "any", "none", "ignore"};
   public static final String V2_PREDICATE_KEY = "if";
 
   /**
@@ -234,7 +232,7 @@ public abstract class PreprocessorUtil {
             }
           }
           return finalPred;
-        case "noop":
+        case "ignore":
           // Always return true.
           return Predicates.alwaysTrue();
         default:
@@ -250,7 +248,7 @@ public abstract class PreprocessorUtil {
       throw new IllegalArgumentException("Argument [ + " + subElement.getKey() + "] can have only" +
           " 2 elements, but found :: " + svpair.size() + ".");
     }
-    String ruleVal = (String) svpair.get("value");
+    Object ruleVal = svpair.get("value");
     String scope = (String) svpair.get("scope");
     if (scope == null) {
       throw new IllegalArgumentException("Argument [scope] can't be null/blank.");
@@ -270,8 +268,6 @@ public abstract class PreprocessorUtil {
           return new ReportPointEndsWithPredicate(scope, ruleVal);
         case "regexMatch":
           return new ReportPointRegexMatchPredicate(scope, ruleVal);
-        case "in":
-          return new ReportPointInPredicate(scope, ruleVal);
         default:
           throw new IllegalArgumentException("Unsupported comparison argument [" + subElement.getKey() + "].");
       }
@@ -287,8 +283,6 @@ public abstract class PreprocessorUtil {
           return new SpanEndsWithPredicate(scope, ruleVal);
         case "regexMatch":
           return new SpanRegexMatchPredicate(scope, ruleVal);
-        case "in":
-          return new SpanInPredicate(scope, ruleVal);
         default:
           throw new IllegalArgumentException("Unsupported comparison argument [" + subElement.getKey() + "].");
       }

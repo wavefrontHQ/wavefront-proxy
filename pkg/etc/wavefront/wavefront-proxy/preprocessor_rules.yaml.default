@@ -207,6 +207,34 @@
   #  replace       : "$2"
   #  replaceInput  : "$1$3" # optional, omit if you plan on just extracting the tag leaving the metric name intact
 
+  ## Advanced predicates for finer control.
+  ## Example: The below rule uses nested predicates to whitelists all "prod" metrics i.e.
+  ## all -> returns true in case both "any" AND "none" is true.
+  ## any -> returns true in case either nested "all" OR "startsWith" OR "equals" is true.
+  ## none -> returns true in case nested comparison is false.
+  ###################################################################################
+  #- rule: test-whitelist
+  #  action: whitelistRegex
+  #  if:
+  #    all:
+  #      - any:
+  #        - all:
+  #          - contains:
+  #              scope: sourceName
+  #              value: "prod"
+  #          - startsWith
+  #              scope: metricName
+  #              value: "foometric."
+  #        - startsWith:
+  #            scope: metricName
+  #            value: "foometric.prod."
+  #        - equals:
+  #            scope: env
+  #            value: "prod"
+  #      - none:
+  #        - equals:
+  #            scope: debug
+  #            value: ["true"]
 
 # rules for port 4242
 '4242':

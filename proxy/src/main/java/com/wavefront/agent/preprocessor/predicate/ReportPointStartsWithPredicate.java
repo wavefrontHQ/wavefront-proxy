@@ -14,7 +14,7 @@ import wavefront.report.Span;
  */
 public class ReportPointStartsWithPredicate extends ComparisonPredicate<ReportPoint>{
 
-  public ReportPointStartsWithPredicate(String scope, String value) {
+  public ReportPointStartsWithPredicate(String scope, Object value) {
     super(scope, value);
   }
 
@@ -22,7 +22,7 @@ public class ReportPointStartsWithPredicate extends ComparisonPredicate<ReportPo
   public boolean test(ReportPoint reportPoint) {
     String pointVal = PreprocessorUtil.getReportableEntityComparableValue(scope, reportPoint);
     if (pointVal != null) {
-      return pointVal.startsWith(value);
+      return value.stream().anyMatch(x -> pointVal.startsWith(x));
     }
     return false;
   }
