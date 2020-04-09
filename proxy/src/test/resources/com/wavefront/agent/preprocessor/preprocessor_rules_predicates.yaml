@@ -90,7 +90,7 @@
           - equals:
               scope: key3
               value: "val3"
-        - noop:
+        - ignore:
           - regexMatch:
             scope: key2
             value: "^val$"
@@ -118,7 +118,7 @@
           - equals:
               scope: key3
               value: "val3"
-        - noop:
+        - ignore:
           - regexMatch:
             scope: key2
             value: "^val$"

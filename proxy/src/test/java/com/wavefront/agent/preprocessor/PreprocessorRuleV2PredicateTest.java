@@ -178,7 +178,7 @@ public class PreprocessorRuleV2PredicateTest {
     Assert.assertTrue("Expected [logicalop-reportpoint] rule to return :: true , Actual :: false",
         v2Predicate.test(point));
 
-    // Tests for "noop" : by not satisfying "regexMatch"/"equals" comparison
+    // Tests for "ignore" : by not satisfying "regexMatch"/"equals" comparison
     pointTags = new HashMap<>();
     pointTags.put("key2", "val2");
     point = new ReportPoint("foometric.1", System.currentTimeMillis(), 10L,
@@ -235,7 +235,7 @@ public class PreprocessorRuleV2PredicateTest {
     Assert.assertTrue("Expected [logicalop-reportpoint] rule to return :: true , Actual :: false",
         v2Predicate.test(span));
 
-    // Tests for "noop" : by not satisfying "regexMatch"/"equals" comparison
+    // Tests for "ignore" : by not satisfying "regexMatch"/"equals" comparison
     span = PreprocessorSpanRulesTest.parseSpan("testSpanName.1 " +
         "source=spanSourceName-prod " +
         "spanId=4217104a-690d-4927-baff-d9aa779414c2 " +

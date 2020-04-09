@@ -43,7 +43,7 @@ import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 public abstract class PreprocessorUtil {
 
   private static final Pattern PLACEHOLDERS = Pattern.compile("\\{\\{(.*?)}}");
-  public static final String[] LOGICAL_OPS = {"all", "any", "none", "noop"};
+  public static final String[] LOGICAL_OPS = {"all", "any", "none", "ignore"};
   public static final String V2_PREDICATE_KEY = "if";
 
   /**
@@ -235,7 +235,7 @@ public abstract class PreprocessorUtil {
             }
           }
           return finalPred;
-        case "noop":
+        case "ignore":
           // Always return true.
           return Predicates.alwaysTrue();
         default:
