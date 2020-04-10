@@ -11,7 +11,7 @@ import wavefront.report.ReportPoint;
  */
 public class ReportPointEqualsPredicate extends ComparisonPredicate<ReportPoint>{
 
-  public ReportPointEqualsPredicate(String scope, String value) {
+  public ReportPointEqualsPredicate(String scope, Object value) {
     super(scope, value);
   }
 
@@ -19,7 +19,7 @@ public class ReportPointEqualsPredicate extends ComparisonPredicate<ReportPoint>
   public boolean test(ReportPoint reportPoint) {
     String pointVal = PreprocessorUtil.getReportableEntityComparableValue(scope, reportPoint);
     if (pointVal != null) {
-      return pointVal.equals(value);
+      return value.contains(pointVal);
     }
     return false;
   }
