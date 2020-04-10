@@ -46,10 +46,10 @@ chown $user:$group $conf_dir/$service_name
 
 if [[ ! -f $conf_dir/$service_name/wavefront.conf ]]; then
     if [[ -f $wavefront_dir/$service_name/conf/wavefront.conf ]]; then
-        echo "Copying $conf_dir/$service_name/wavefront.conf from $wavefront_dir/$service_name/conf/wavefront.conf"
+        echo "Copying $conf_dir/$service_name/wavefront.conf from $wavefront_dir/$service_name/conf/wavefront.conf" >&2
         cp $wavefront_dir/$service_name/conf/wavefront.conf $conf_dir/$service_name/wavefront.conf
     else
-        echo "Creating $conf_dir/$service_name/wavefront.conf from template"
+        echo "Creating $conf_dir/$service_name/wavefront.conf from default template" >&2
         cp $conf_dir/$service_name/wavefront.conf.default $conf_dir/$service_name/wavefront.conf
     fi
 else
@@ -57,12 +57,12 @@ else
 fi
 
 if [[ ! -f $conf_dir/$service_name/preprocessor_rules.yaml ]]; then
-    echo "Creating $conf_dir/$service_name/preprocessor_rules.yaml from template"
+    echo "Creating $conf_dir/$service_name/preprocessor_rules.yaml from default template" >&2
     cp $conf_dir/$service_name/preprocessor_rules.yaml.default $conf_dir/$service_name/preprocessor_rules.yaml
 fi
 
 if [[ ! -f $conf_dir/$service_name/log4j2.xml ]]; then
-    echo "Creating $conf_dir/$service_name/log4j2.xml from template"
+    echo "Creating $conf_dir/$service_name/log4j2.xml from default template" >&2
     cp $conf_dir/$service_name/log4j2.xml.default $conf_dir/$service_name/log4j2.xml
 fi
 

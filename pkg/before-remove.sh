@@ -15,8 +15,10 @@ jre_dir="$wavefront_dir/$service_name/proxy-jre"
 #  - https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
 if [[ "$1" == "0" ]] || [[ "$1" == "remove" ]] || [[ "$1" == "purge" ]]; then
     service wavefront-proxy stop || true
-    echo "Removing installed JRE from $jre_dir"
-    rm -rf $jre_dir
+    if [ -d $jre_dir ]; then
+      [ "$(ls -A $jre_dir)" ] && echo "Removing installed JRE from $jre_dir" >&2
+      rm -rf $jre_dir
+    fi
 fi
 
 exit 0

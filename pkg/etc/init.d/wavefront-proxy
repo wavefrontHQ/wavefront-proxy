@@ -53,8 +53,8 @@ fi
 daemon_log_file=${DAEMON_LOG_FILE:-/var/log/wavefront/wavefront-daemon.log}
 err_file="/var/log/wavefront/wavefront-error.log"
 pid_file=${PID_FILE:-/var/run/$service_name.pid}
-agent_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-push-agent.jar}
-class="com.wavefront.agent.PushAgentDaemon"
+proxy_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-proxy.jar}
+class="com.wavefront.agent.WavefrontProxyService"
 app_args=${APP_ARGS:--f $conf_file}
 
 # If JAVA_ARGS is not set, try to detect memory size and set heap to 8GB if machine has more than 8GB.
@@ -85,38 +85,51 @@ if [[ -r $proxy_launch_conf ]]; then
 	fi
 fi
 
+# Workaround for environments with locked-down internet access where approved traffic goes through HTTP proxy.
+# If JRE cannot be found in $proxy_jre_dir (most likely because its download failed during installation), and
+# $PROXY_JAVA_HOME pointing to a user-defined JRE is not defined either, we'll try to read HTTP proxy settings
+# from wavefront.conf, if any, and try to download the JRE again. Ideally we should go back to bundling JRE
+# and not having to worry about accessibility of external resources.
 download_jre() {
     [[ -d $proxy_jre_dir ]] || mkdir -p $proxy_jre_dir
 
-    echo "Checking $conf_file for HTTP proxy settings"
+    echo "Checking $conf_file for HTTP proxy settings" >&2
     proxy_host=$(grep "^\s*proxyHost=" $conf_file | cut -d'=' -f2)
     proxy_port=$(grep "^\s*proxyPort=" $conf_file | cut -d'=' -f2)
     proxy_user=$(grep "^\s*proxyUser=" $conf_file | cut -d'=' -f2)
     proxy_password=$(grep "^\s*proxyPassword=" $conf_file | cut -d'=' -f2)
 
     if [[ -n $proxy_host && -n $proxy_port ]]; then
-        echo "Using HTTP proxy $proxy_host:$proxy_port"
+        echo "Using HTTP proxy $proxy_host:$proxy_port" >&2
         proxy_args="--proxy $proxy_host:$proxy_port"
         if [[ -n $proxy_user && -n $proxy_password ]]; then
-            echo "Authenticating as $proxy_user"
+            echo "Authenticating as $proxy_user" >&2
             proxy_args+=" --proxy-user $proxy_user:$proxy_password"
         fi
     else
-        echo "No HTTP proxy configuration detected - attempting direct download"
+        echo "No HTTP proxy configuration detected - attempting direct download" >&2
     fi
-    curl -L --silent -o /tmp/jre.tar.gz $proxy_args https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre.tgz || true
+    curl -L --silent -o /tmp/jre.tar.gz $proxy_args https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre-11.0.6-linux_x64.tar.gz || true
     tar -xf /tmp/jre.tar.gz --strip 1 -C $proxy_jre_dir || true
     rm /tmp/jre.tar.gz || true
 }
 
-# Workaround for environments with locked-down internet access where approved traffic goes through HTTP proxy.
-# If JRE cannot be found in $proxy_jre_dir (most likely because its download failed during installation), and
-# $PROXY_JAVA_HOME pointing to a user-defined JRE is not defined either, we'll try to read HTTP proxy settings
-# from wavefront.conf, if any, and try to download the JRE again. Ideally we should go back to bundling JRE
-# and not having to worry about accessibility of external resources.
+# If $PROXY_JAVA_HOME is not defined and there is no JRE in $proxy_jre_dir, try to auto-detect
+# locally installed JDK first. We will accept 1.8, 9, 10, 11.
 if [[ -z "$PROXY_JAVA_HOME" && ! -r $proxy_jre_dir/bin/java ]]; then
-    echo "JRE not found - trying to download and install"
-    download_jre
+    if type -p java; then
+        JAVA_VERSION=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1)
+        if [[ $JAVA_VERSION == "11" || $JAVA_VERSION == "10" || $JAVA_VERSION == "9" || $JAVA_VERSION == "1.8" ]]; then
+            JAVA_HOME=$($(dirname $(dirname $(readlink -f $(which javac)))))
+            echo "Using Java runtime $JAVA_VERSION detected in $JAVA_HOME" >&2
+        else
+            echo "Java runtime [1.8; 12) not found - trying to download and install" >&2
+            download_jre
+        fi
+    else
+        echo "Java runtime not found - trying to download and install" >&2
+        download_jre
+    fi
 fi
 
 jsvc=$proxy_dir/bin/jsvc
@@ -128,7 +141,7 @@ jsvc_exec()
         > $err_file
     fi
 
-	cd "$(dirname "$agent_jar")"
+	cd "$(dirname "$proxy_jar")"
 
     set +e
 	# We want word splitting below, as we're building up a command line.
@@ -136,7 +149,7 @@ jsvc_exec()
 	$jsvc \
 		-user $user \
 		-home $JAVA_HOME \
-		-cp $agent_jar \
+		-cp $proxy_jar \
 		$java_args \
 		-Xss2049k \
 		-XX:OnOutOfMemoryError="kill -1 %p" \
@@ -150,7 +163,7 @@ jsvc_exec()
 		$class \
 		$app_args &> $daemon_log_file
 	if [[ $? -ne 0 ]]; then
-		echo "There was a problem, see $err_file and $daemon_log_file"
+		echo "There was a problem, see $err_file and $daemon_log_file" >&2
 	fi
 }
 

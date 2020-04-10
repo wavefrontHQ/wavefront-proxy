@@ -17,7 +17,7 @@ RUN apt-get install -y sudo
 RUN apt-get install -y gnupg2
 RUN apt-get install -y debian-archive-keyring
 RUN apt-get install -y apt-transport-https
-RUN apt-get install -y openjdk-8-jdk
+RUN apt-get install -y openjdk-11-jdk
 
 # Download wavefront proxy (latest release). Merely extract the debian, don't want to try running startup scripts.
 RUN echo "deb https://packagecloud.io/wavefront/proxy/ubuntu/ bionic main" > /etc/apt/sources.list.d/wavefront_proxy.list

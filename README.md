@@ -5,7 +5,7 @@
 The [Wavefront Proxy](https://docs.wavefront.com/proxies.html) is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner.
 
 ## Requirements
-  * Java >= 1.8
+  * Java 8 or higher
   * Maven
 
 ## Overview
