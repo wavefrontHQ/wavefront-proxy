@@ -6,6 +6,7 @@ import org.hamcrest.Matcher;
 
 import java.util.Map;
 
+import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 /**
@@ -98,4 +99,26 @@ public class PointMatchers {
     };
   }
 
+  public static Matcher<ReportPoint> histogramMatches(int samples, double weight) {
+    return new BaseMatcher<ReportPoint>() {
+
+      @Override
+      public boolean matches(Object o) {
+        ReportPoint point = (ReportPoint) o;
+        if (!(point.getValue() instanceof Histogram)) return false;
+        Histogram value = (Histogram) point.getValue();
+        double sum = 0;
+        for (int i = 0; i < value.getBins().size(); i++) {
+          sum += value.getBins().get(i) * value.getCounts().get(i);
+        }
+        return sum == weight && value.getCounts().stream().reduce(Integer::sum).get() == samples;
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description.appendText(
+            "Total histogram weight should be " + weight + ", and total samples = " + samples);
+      }
+    };
+  }
 }

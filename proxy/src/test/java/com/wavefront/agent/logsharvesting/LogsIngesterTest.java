@@ -1,12 +1,28 @@
 package com.wavefront.agent.logsharvesting;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
+
+import org.easymock.Capture;
+import org.easymock.CaptureType;
+import org.easymock.EasyMock;
+import org.junit.After;
+import org.junit.Test;
+import org.logstash.beats.Message;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.wavefront.agent.PointMatchers;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
@@ -19,23 +35,6 @@ import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.common.MetricConstants;
 import com.wavefront.data.ReportableEntityType;
-
-import org.easymock.Capture;
-import org.easymock.CaptureType;
-import org.easymock.EasyMock;
-import org.junit.After;
-import org.junit.Test;
-import org.logstash.beats.Message;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -54,7 +53,6 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.lessThan;
@@ -568,24 +566,9 @@ public class LogsIngesterTest {
       lines[i] = "histo " + (i + 1);
     }
     List<ReportPoint> reportPoints = getPoints(mockHistogramHandler, 2, 500, this::receiveLog, lines);
-    ReportPoint reportPoint = reportPoints.get(0);
-    assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
-    Histogram wavefrontHistogram = (Histogram) reportPoint.getValue();
-    double sum = 0;
-    for (int i = 0; i < wavefrontHistogram.getBins().size(); i++) {
-      sum += wavefrontHistogram.getBins().get(i) * wavefrontHistogram.getCounts().get(i);
-    }
-    assertThat(sum, equalTo(7260.0));
-    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(120));
-    reportPoint = reportPoints.get(1);
-    assertThat(reportPoint.getValue(), instanceOf(Histogram.class));
-    wavefrontHistogram = (Histogram) reportPoint.getValue();
-    sum = 0;
-    for (int i = 0; i < wavefrontHistogram.getBins().size(); i++) {
-      sum += wavefrontHistogram.getBins().get(i) * wavefrontHistogram.getCounts().get(i);
-    }
-    assertThat(sum, equalTo(21660.0));
-    assertThat(wavefrontHistogram.getCounts().stream().reduce(Integer::sum).get(), equalTo(120));
+    assertThat(reportPoints.size(), equalTo(2));
+    assertThat(reportPoints, containsInAnyOrder(PointMatchers.histogramMatches(120, 7260.0),
+        PointMatchers.histogramMatches(120, 21660.0)));
   }
 
   @Test(expected = ConfigurationException.class)
