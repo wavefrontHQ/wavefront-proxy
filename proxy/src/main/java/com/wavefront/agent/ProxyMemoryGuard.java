@@ -35,7 +35,7 @@ public class ProxyMemoryGuard {
    * Set up the memory guard.
    *
    * @param flushTask runnable to invoke when in-memory buffers need to be drained to disk
-   * @param threshold memory usage threshold that is considered critical, 0 < threshold <= 1.
+   * @param threshold memory usage threshold that is considered critical, 0 &lt; threshold &lt;= 1.
    */
   public ProxyMemoryGuard(@Nonnull final Runnable flushTask, double threshold) {
     Preconditions.checkArgument(threshold > 0, "ProxyMemoryGuard threshold must be > 0!");
