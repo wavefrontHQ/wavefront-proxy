@@ -54,6 +54,7 @@
     <truth.version>0.29</truth.version>
 
     <java.version>1.8</java.version>
+    <javadoc.sdk.version>8</javadoc.sdk.version>
     <log4j.version>2.12.1</log4j.version>
     <jackson.version>2.9.10</jackson.version>
     <jackson-databind.version>2.9.10.3</jackson-databind.version>
@@ -311,7 +312,7 @@
                 </goals>
                 <configuration>
                   <doclint>none</doclint>
-                  <source>${java.version}</source>
+                  <source>${javadoc.sdk.version}</source>
                 </configuration>
               </execution>
             </executions>
