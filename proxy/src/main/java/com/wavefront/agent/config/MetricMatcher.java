@@ -182,7 +182,10 @@ public class MetricMatcher extends Configuration {
     for (int i = 0; i < tagKeys.size(); i++) {
       String tagKey = tagKeys.get(i);
       if (tagValues.size() > 0) {
-        tags.put(tagKey, expandTemplate(tagValues.get(i), matches));
+        String value = expandTemplate(tagValues.get(i), matches));
+        if(value.trim().length() > 0) {
+          tags.put(tagKey, value);
+        }
       } else {
         String tagValueLabel = tagValueLabels.get(i);
         if (!matches.containsKey(tagValueLabel)) {
@@ -191,7 +194,9 @@ public class MetricMatcher extends Configuration {
           continue;
         }
         String value = (String) matches.get(tagValueLabel);
-        tags.put(tagKey, value);
+        if(value.trim().length() > 0) {
+          tags.put(tagKey, value);
+        }
       }
     }
     builder.setAnnotations(tags);
