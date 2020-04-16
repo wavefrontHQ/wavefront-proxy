@@ -182,7 +182,7 @@ public class MetricMatcher extends Configuration {
     for (int i = 0; i < tagKeys.size(); i++) {
       String tagKey = tagKeys.get(i);
       if (tagValues.size() > 0) {
-        String value = expandTemplate(tagValues.get(i), matches));
+        String value = expandTemplate(tagValues.get(i), matches);
         if(value.trim().length() > 0) {
           tags.put(tagKey, value);
         }
