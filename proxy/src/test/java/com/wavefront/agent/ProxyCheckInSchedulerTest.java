@@ -184,7 +184,6 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
-    returnConfig.setPointsPerBatch(4321);
     replay(proxyConfig);
     UUID proxyId = ProxyUtil.getOrCreateProxyId(proxyConfig);
     expect(apiContainer.getProxyV2API()).andReturn(proxyV2API).anyTimes();
@@ -213,7 +212,7 @@ public class ProxyCheckInSchedulerTest {
 
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
-        x -> assertEquals(4321L, x.getPointsPerBatch().longValue()), () -> {});
+        x -> assertNull(x.getPointsPerBatch()), () -> {});
     scheduler.updateProxyMetrics();
     scheduler.updateConfiguration();
     scheduler.updateProxyMetrics();
