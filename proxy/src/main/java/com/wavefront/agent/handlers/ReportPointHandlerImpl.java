@@ -2,8 +2,11 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
+import com.wavefront.common.Utils;
+import com.wavefront.data.DeltaCounterValueException;
 import com.wavefront.ingester.ReportPointSerializer;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import wavefront.report.Histogram;
@@ -13,6 +16,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import static com.wavefront.data.Validation.validatePoint;
@@ -29,6 +33,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   final ValidationConfiguration validationConfig;
   final Function<Histogram, Histogram> recompressor;
   final com.yammer.metrics.core.Histogram receivedPointLag;
+  final Supplier<Counter> discardedCounterSupplier;
 
   /**
    * Creates a new instance that handles either histograms or points.
@@ -57,13 +62,20 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     this.validItemsLogger = validItemsLogger;
     this.recompressor = recompressor;
     MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
-    this.receivedPointLag = registry.newHistogram(new MetricName(handlerKey.getEntityType() + "." +
-        handlerKey.getHandle() + ".received", "", "lag"), false);
+    this.receivedPointLag = registry.newHistogram(new MetricName(handlerKey.toString() +
+        ".received", "", "lag"), false);
+    this.discardedCounterSupplier = Utils.lazySupplier(() ->
+        Metrics.newCounter(new MetricName(handlerKey.toString(), "", "discarded")));
   }
 
   @Override
   void reportInternal(ReportPoint point) {
-    validatePoint(point, validationConfig);
+    try {
+      validatePoint(point, validationConfig);
+    } catch (DeltaCounterValueException e) {
+      discardedCounterSupplier.get().inc();
+      return;
+    }
     receivedPointLag.update(Clock.now() - point.getTimestamp());
     if (point.getValue() instanceof Histogram && recompressor != null) {
       Histogram histogram = (Histogram) point.getValue();

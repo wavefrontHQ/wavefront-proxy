@@ -8,6 +8,8 @@ import com.google.common.util.concurrent.AtomicDouble;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.HostMetricTagsPair;
+import com.wavefront.common.Utils;
+import com.wavefront.data.DeltaCounterValueException;
 import com.wavefront.ingester.ReportPointSerializer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -24,6 +26,7 @@ import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,6 +47,7 @@ public class DeltaCounterAccumulationHandlerImpl
   private final Logger validItemsLogger;
   final Histogram receivedPointLag;
   private final Counter reportedCounter;
+  private final Supplier<Counter> discardedCounterSupplier;
   private final Cache<HostMetricTagsPair, AtomicDouble> aggregatedDeltas;
   private final ScheduledExecutorService reporter = Executors.newSingleThreadScheduledExecutor();
 
@@ -81,6 +85,8 @@ public class DeltaCounterAccumulationHandlerImpl
 
     String metricPrefix = handlerKey.toString();
     this.reportedCounter = Metrics.newCounter(new MetricName(metricPrefix, "", "sent"));
+    this.discardedCounterSupplier = Utils.lazySupplier(() ->
+            Metrics.newCounter(new MetricName(metricPrefix, "", "discarded")));
     Metrics.newGauge(new MetricName(metricPrefix, "", "accumulator.size"), new Gauge<Long>() {
       @Override
       public Long value() {
@@ -110,7 +116,12 @@ public class DeltaCounterAccumulationHandlerImpl
   @Override
   void reportInternal(ReportPoint point) {
     if (DeltaCounter.isDelta(point.getMetric())) {
-      validatePoint(point, validationConfig);
+      try {
+        validatePoint(point, validationConfig);
+      } catch (DeltaCounterValueException e) {
+        discardedCounterSupplier.get().inc();
+        return;
+      }
       getReceivedCounter().inc();
       double deltaValue = (double) point.getValue();
       receivedPointLag.update(Clock.now() - point.getTimestamp());
