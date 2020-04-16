@@ -183,7 +183,7 @@ public class MetricMatcher extends Configuration {
       String tagKey = tagKeys.get(i);
       if (tagValues.size() > 0) {
         String value = expandTemplate(tagValues.get(i), matches);
-        if(value.trim().length() > 0) {
+        if(StringUtils.isNotBlank(value)) {
           tags.put(tagKey, value);
         }
       } else {
@@ -194,7 +194,7 @@ public class MetricMatcher extends Configuration {
           continue;
         }
         String value = (String) matches.get(tagValueLabel);
-        if(value.trim().length() > 0) {
+        if(StringUtils.isNotBlank(value)) {
           tags.put(tagKey, value);
         }
       }
