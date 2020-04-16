@@ -247,6 +247,20 @@ public class LogsIngesterTest {
             ImmutableMap.of())));
   }
 
+  @Test
+  public void testEmptyTagValuesIgnored() throws Exception {
+    setup(parseConfigFile("test.yml"));
+    assertThat(
+        getPoints(1, 0, this::receiveRawLog, "pingSSO|2020-03-13 09:11:30,490|OAuth| RLin123456| " +
+            "10.0.0.1 | | pa_wam| OAuth20| sso2-prod| AS| success| SecurID| | 249"),
+            contains(PointMatchers.matches(249.0, "pingSSO",
+                ImmutableMap.<String, String>builder().put("sso_host", "sso2-prod").
+                    put("protocol", "OAuth20").put("role", "AS").put("subject", "RLin123456").
+                    put("ip", "10.0.0.1").put("connectionid", "pa_wam").
+                    put("adapterid", "SecurID").put("event", "OAuth").put("status", "success").
+                    build())));
+  }
+
   @Test(expected = ConfigurationException.class)
   public void testGaugeWithoutValue() throws Exception {
     setup(parseConfigFile("badGauge.yml"));
