@@ -50,11 +50,37 @@ gauges:
   - pattern: '%{LOGLEVEL}: \[%{NUMBER:port}\] %{GREEDYDATA} points attempted: %{NUMBER:pointsAttempted}'
     metricName: "wavefrontPointsSent.%{port}"
     valueLabel: "pointsAttempted"
+  - pattern: 'pingSSO\|(\s*%{DATA:datetime}\s*)\|(\s*%{DATA:event}\s*)\|(\s*%{DATA:subject}\s*)\|(\s*%{DATA:ip}\s*)\|(\s*%{DATA:app}\s*)\|(\s*%{DATA:connectionid}\s*)\|(\s*%{DATA:protocol}\s*)\|(\s*%{DATA:host}\s*)\|(\s*%{DATA:role}\s*)\|(\s*%{DATA:status}\s*)\|(\s*%{DATA:adapterid}\s*)\|(\s*%{DATA:description}\s*)\|(\s*%{NUMBER:responsetime}\s*)'
+    metricName: 'pingSSO'
+    valueLabel: 'responsetime'
+    tagKeys:
+      - "event"
+      - "subject"
+      - "ip"
+      - "app"
+      - "connectionid"
+      - "protocol"
+      - "sso_host"
+      - "role"
+      - "status"
+      - "adapterid"
+      - "description"
+    tagValueLabels:
+      - "event"
+      - "subject"
+      - "ip"
+      - "app"
+      - "connectionid"
+      - "protocol"
+      - "host"
+      - "role"
+      - "status"
+      - "adapterid"
+      - "description"
 
 histograms:
   - pattern: "histo %{NUMBER:value}"
     metricName: "myHisto"
-
 
 additionalPatterns:
   - "MYPATTERN %{WORD:myword} and %{NUMBER:value}"
