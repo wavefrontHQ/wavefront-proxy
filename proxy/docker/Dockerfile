@@ -8,6 +8,11 @@ FROM ubuntu:18.04
 #  WAVEFRONT_HOSTNAME      (default is the docker containers hostname)
 #  WAVEFRONT_PROXY_ARGS    (default is none)
 #  JAVA_ARGS               (default is none)
+# Add non-root user 
+RUN useradd -ms /bin/bash wavefront
+
+# Change to non-root privilege
+USER wavefront
 
 # Dumb-init
 RUN apt-get -y update
