@@ -103,5 +103,14 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
     @Override
     public void setHistogramStorageAccuracy(short histogramStorageAccuracy) {
     }
+
+    @Override
+    public Double getTraceSamplingRate() {
+      return 1.0d;
+    }
+
+    @Override
+    public void setTraceSamplingRate(Double traceSamplingRate) {
+    }
   }
 }
