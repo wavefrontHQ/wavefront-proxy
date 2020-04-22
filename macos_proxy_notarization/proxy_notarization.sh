@@ -118,17 +118,17 @@ sleep 540
 
 xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW"
 
-sleep 540
+# sleep 540
 
-xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW"
+# xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW"
 
-sleep 540
+# sleep 540
 
-xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW"
+# xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW"
 
-sleep 540
+# sleep 540
 
-xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW"
+# xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW"
 
 x="$(xcrun altool --notarization-info "$requestuuid" -u svc.wf-jenkins@vmware.com -p lmyf-ofzv-ntfh-ybus)"
 success='Status Message: Package Approved'
