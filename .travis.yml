@@ -1,3 +1,19 @@
+os: osx
 language: java
 jdk:
-  - openjdk11
+- openjdk11
+osx_image: xcode11.3
+
+before_install:
+  - pip3 install awscli
+  - chmod +x ./macos_proxy_notarization/create_credentials.sh
+  - ./macos_proxy_notarization/create_credentials.sh
+script:
+  - chmod +x ./macos_proxy_notarization/proxy_notarization.sh;
+  - ./macos_proxy_notarization/proxy_notarization.sh;
+after_success:
+  - aws s3 cp /Users/travis/build/alchen1218/wavefront-proxy/wavefront-proxy-7.0.zip s3://eso-test-alan/
+env:
+  global:
+  - secure: NKcXtA6LrgMd5kWOBaY9Zh0qhpiqL4dmeiQxAfMOoq3myoES5mmGQlBHWMnMeeTXrAACVdONIFbXK8zh8So3wczRpMJyNbmhPTpHDqJU7LDNtGV8iWyjU2fxsLpJyuetarW6/8PuOtXm/4nqPHz/a5JbuRQZ0zrcpP5P3Nnd58oNLsT+H1l+35EZF3ADfD9T1cP2pcvMF1+bApM5T9Ea3SeShP7mUTiT+e1iVHE7epzUsMSWg1fhF3cwI+Cyoe5uS8ljWK+ufK+OKFhnj0T9kKG5H/TMdjw5MlNXH7TpRQ4W4+MeD5/QTitvdS8KkcHXcq++4AmW0NGTFCyjOndJ7OdHYtXsNPS3Zf+BNPNVcIdohBauCVhma9IfON1lFxlw4dGS4kSpUFsrPYNgUXMxq4+cUxyKPfSvHFKjhOCMm+sEGaYTSmfbALnXWRTOycBTvIC+bd2VaFB18N1qSMWKhM+EZFAJIvAWYTqII90vJqmPt6e26Dbopn8QcZGlRM8iWDMfOHESV5XQaH+wJu/MK6Dy7Lz24baqqfx+w08Z3FuWuVBXPErDaX6oomCF4xMxiWp+bLMV9RVJ6HF3OvljzXHBE3ndReQlNMtIsUbLdSI5X19piVOVPmkXD3EDSAWy+KWg1RcTrs32pLuB2ZJRpVLnKSVDSb1SqpfaZdkkqgc=
+  - secure: G2y0k65r5bVMnmmJoykDMB/W1uBrRHZNdkIwpicnGMW+0an2HS9REOKG7bc0/mKn7Wh/0jLP3esjportD6g7OMlpQwEr4r/K5g6H2qRWUWQQVAeA5Z+dxMNBTArHA7f21XylNAhcC1eWPsHwA8fCuVf8gigOZ4gYAT2AZcTq/Z1RJG2Ej8Y33K7Wvb7yDKkxskzsFKSmvhys+4M9OmE7jInNKwnFuJquKS74l1XnEnqgDIVNVgWkMKM5FJ4Txo27VRJ6lt2g45ginHBOgZEefoBcHy54L4Yy2MpbpIG1XWBAOodcYkrgvp+A4tTpGSi1N0VuL9+rXXUAnDUJ8bHm+i171tmMZbbENm4ibP/7Y1QSXnCfDJn0pav+VKVfnO/9r+yeKx2p8JwC3nENiuHBIvKx9MDEj5ypnkAUDEgU8heZqFDxToACBodvum9kYYMU9HoHU8D5U04e76L1PETLKwGW2/ggAwwy8b9sBBYYKUnSfUPAUdHRia3p7rvYZ539IMCaylYKFHAeuAEi/b2Nzz+v26JkII3xXB0uRqiuyNwK+3ZscQ+menVSKdOJCaz4hgFXpdT8pIv0uOdFRcYfDdBDdOaHzdNhP42JAfuBHBBTtpIoDSrQJ/GferXn27xqUQpAXZ/KGsfqroN5YRgYIoKmdfWxgO9mqIvReX8Cv34=
