@@ -53,6 +53,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     private final ProxyConfig wrapped;
     private Double retryBackoffBaseSeconds = null;
     private short histogramStorageAccuracy = 32;
+    private Double traceSamplingRate = null;
 
     GlobalPropertiesImpl(ProxyConfig wrapped) {
       this.wrapped = wrapped;
@@ -77,6 +78,19 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     @Override
     public void setHistogramStorageAccuracy(short histogramStorageAccuracy) {
       this.histogramStorageAccuracy = histogramStorageAccuracy;
+    }
+
+    public Double getTraceSamplingRate() {
+      if (traceSamplingRate != null) {
+        // use the minimum of backend provided and local proxy configured sampling rates.
+        return Math.min(traceSamplingRate, wrapped.getTraceSamplingRate());
+      } else {
+        return wrapped.getTraceSamplingRate();
+      }
+    }
+
+    public void setTraceSamplingRate(Double traceSamplingRate) {
+      this.traceSamplingRate = traceSamplingRate;
     }
   }
 
