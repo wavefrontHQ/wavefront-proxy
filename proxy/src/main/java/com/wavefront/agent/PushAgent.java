@@ -1027,10 +1027,13 @@ public class PushAgent extends AbstractAgent {
         entityProps.getGlobalProperties().
             setHistogramStorageAccuracy(config.getHistogramStorageAccuracy().shortValue());
       }
+      double previousSamplingRate = entityProps.getGlobalProperties().getTraceSamplingRate();
       entityProps.getGlobalProperties().setTraceSamplingRate(config.getSpanSamplingRate());
       rateSampler.setSamplingRate(entityProps.getGlobalProperties().getTraceSamplingRate());
-      logger.fine("Proxy trace span sampling rate set to " +
-              entityProps.getGlobalProperties().getTraceSamplingRate());
+      if (previousSamplingRate != entityProps.getGlobalProperties().getTraceSamplingRate()) {
+        logger.info("Proxy trace span sampling rate set to " +
+                entityProps.getGlobalProperties().getTraceSamplingRate());
+      }
 
       updateRateLimiter(ReportableEntityType.POINT, config.getCollectorSetsRateLimit(),
           config.getCollectorRateLimit(), config.getGlobalCollectorRateLimit());
