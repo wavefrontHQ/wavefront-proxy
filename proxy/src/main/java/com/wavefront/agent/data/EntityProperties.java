@@ -167,5 +167,19 @@ public interface EntityProperties {
      * @param histogramStorageAccuracy storage accuracy
      */
     void setHistogramStorageAccuracy(short histogramStorageAccuracy);
+
+    /**
+     * Get the sampling rate for tracing spans.
+     *
+     * @return sampling rate for tracing spans.
+     */
+    Double getTraceSamplingRate();
+
+    /**
+     * Sets the sampling rate for tracing spans.
+     *
+     * @param traceSamplingRate sampling rate for tracing spans
+     */
+    void setTraceSamplingRate(Double traceSamplingRate);
   }
 }

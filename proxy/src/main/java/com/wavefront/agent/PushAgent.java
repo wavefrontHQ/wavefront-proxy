@@ -84,6 +84,7 @@ import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.CompositeSampler;
+import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -169,6 +170,8 @@ public class PushAgent extends AbstractAgent {
           put(ReportableEntityType.TRACE, new SpanDecoder("unknown")).
           put(ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder()).
           put(ReportableEntityType.EVENT, new EventDecoder()).build());
+  // default rate sampler which always samples.
+  protected final RateSampler rateSampler = new RateSampler(1.0d);
   private Logger blockedPointsLogger;
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;
@@ -337,7 +340,7 @@ public class PushAgent extends AbstractAgent {
           startDataDogListener(strPort, handlerFactory, httpClient));
     }
     // sampler for spans
-    Sampler rateSampler = SpanSamplerUtils.getRateSampler(proxyConfig.getTraceSamplingRate());
+    rateSampler.setSamplingRate(entityProps.getGlobalProperties().getTraceSamplingRate());
     Sampler durationSampler = SpanSamplerUtils.getDurationSampler(
         proxyConfig.getTraceSamplingDuration());
     List<Sampler> samplers = SpanSamplerUtils.fromSamplers(rateSampler, durationSampler);
@@ -1023,6 +1026,13 @@ public class PushAgent extends AbstractAgent {
       if (config.getHistogramStorageAccuracy() != null) {
         entityProps.getGlobalProperties().
             setHistogramStorageAccuracy(config.getHistogramStorageAccuracy().shortValue());
+      }
+      double previousSamplingRate = entityProps.getGlobalProperties().getTraceSamplingRate();
+      entityProps.getGlobalProperties().setTraceSamplingRate(config.getSpanSamplingRate());
+      rateSampler.setSamplingRate(entityProps.getGlobalProperties().getTraceSamplingRate());
+      if (previousSamplingRate != entityProps.getGlobalProperties().getTraceSamplingRate()) {
+        logger.info("Proxy trace span sampling rate set to " +
+                entityProps.getGlobalProperties().getTraceSamplingRate());
       }
 
       updateRateLimiter(ReportableEntityType.POINT, config.getCollectorSetsRateLimit(),
