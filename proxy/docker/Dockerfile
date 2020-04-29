@@ -8,11 +8,6 @@ FROM ubuntu:18.04
 #  WAVEFRONT_HOSTNAME      (default is the docker containers hostname)
 #  WAVEFRONT_PROXY_ARGS    (default is none)
 #  JAVA_ARGS               (default is none)
-# Add non-root user 
-RUN useradd -ms /bin/bash wavefront
-
-# Change to non-root privilege
-USER wavefront
 
 # Dumb-init
 RUN apt-get -y update
@@ -38,6 +33,13 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Configure agent
 RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
+
+# Add new user: wavefront
+RUN adduser --disabled-password --gecos '' wavefront
+RUN chown -R wavefront:wavefront /var
+RUN chmod 755 /var
+
+USER wavefront
 
 # Run the agent
 EXPOSE 3878
