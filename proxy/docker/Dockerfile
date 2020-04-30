@@ -34,6 +34,13 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 # Configure agent
 RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
 
+# Add new user: wavefront
+RUN adduser --disabled-password --gecos '' wavefront
+RUN chown -R wavefront:wavefront /var
+RUN chmod 755 /var
+
+USER wavefront
+
 # Run the agent
 EXPOSE 3878
 EXPOSE 2878
