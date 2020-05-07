@@ -62,7 +62,7 @@ security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k travis $KE
 echo "remove certs"
 rm -fr *.p12
 
-echo "Downloading most recent WF-Proxy  from packagecloud"
+echo "Downloading most recent WF-Proxy from packagecloud"
 mkdir temp_new_WF_proxy
 WF_PROXY="`wget https://packagecloud.io/wavefront/proxy/packages/ubuntu/bionic/wavefront-proxy_6.1-1_amd64.deb/download.deb`"
 $WF_PROXY
@@ -78,7 +78,7 @@ echo "codesigning & timestamping each file in the JDK/JRE"
 find "zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk" -type f \( -name "*.jar" -or -name "*.dylib" -or -perm +111 -type f -or -type l \) -exec codesign -f -s "$WF_DEV_ACCOUNT" --entitlements "./macos_proxy_notarization/wfproxy.entitlements" {} --timestamp --options runtime \;
 
 echo "Downloading previous proxy release"
-PREVIOUS_PROXY_RELEASE="`wget https://wavefront-cdn.s3-us-west-2.amazonaws.com/brew/wfproxy-6.4.0.tar.gz`"
+PREVIOUS_PROXY_RELEASE="`wget http://wavefront-cdn.s3-us-west-2.amazonaws.com/brew/wfproxy-6.4.0.tar.gz`"
 $PREVIOUS_PROXY_RELEASE
 tar xvzf wfproxy-6.4.0.tar.gz
 
@@ -93,10 +93,8 @@ zip -r wavefront-proxy-7.0.zip bin/ etc/ lib/
 ls
 pwd
 
-
 echo "Codesigning the wavefront-proxy package"
 codesign -f -s "$ESO_DEV_ACCOUNT" wavefront-proxy-7.0.zip --deep --options runtime
-
 
 echo "Verifying the codesign"
 codesign -vvv --deep --strict wavefront-proxy-7.0.zip
@@ -119,6 +117,7 @@ invalid='Status: invalid'
 
 while true;
 do
+  echo $status
   if [[ "$status" == *"$success"* ]]; then
     echo "Successful notarization"
     exit 0
