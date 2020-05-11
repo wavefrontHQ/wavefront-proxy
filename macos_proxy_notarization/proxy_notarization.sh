@@ -94,6 +94,11 @@ if [[ $TO_BE_NOTARIZED =~ $RE ]]; then
 fi
 echo $VERSION
 
+copy_from_to_be_notarized="aws s3 cp s3://eso-test-alan/to_be_notarized/wfproxy-$VERSION.tar.gz ."
+$copy_from_to_be_notarized
+tarfile="wfproxy-$VERSION.tar.gz"
+tar xvzf $tarfile
+
 echo "=============================================================="
 echo "=============================================================="
 
@@ -147,4 +152,4 @@ do
   fi
 done
 
-
+aws s3 cp wavefront-proxy-$VERSION.zip s3://eso-test-alan/notarized/
