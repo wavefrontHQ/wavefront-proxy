@@ -129,6 +129,8 @@ echo "Grabbing Request UUID"
 requestuuid=${response#*= }
 echo $requestuuid
 
+sleep 20
+
 echo "Executing this command to see the status of notarization"
 xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW"
 
