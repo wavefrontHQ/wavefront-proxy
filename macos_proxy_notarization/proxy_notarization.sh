@@ -97,7 +97,9 @@ echo $VERSION
 echo "=============================================================="
 echo "=============================================================="
 
+ls
 rm -rf lib/*;
+ls
 mkdir lib/jdk;
 cp -r zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk/Contents/Home/* lib/jdk/;
 cp temp_new_WF_proxy/opt/wavefront/wavefront-proxy/bin/*.jar lib/proxy-uber.jar;
