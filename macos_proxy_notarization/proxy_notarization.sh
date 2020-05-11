@@ -78,7 +78,7 @@ find "zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk" -type f \( -name "*.jar"
 echo "=============================================================="
 echo "=============================================================="
 echo "Downloading previous proxy release"
-# PREVIOUS_PROXY_RELEASE="`wget http://wavefront-cdn.s3-us-west-2.amazonaws.com/brew/wfproxy-6.4.0.tar.gz`"
+# PREVIOUS_PROXY_RELEASE="`wget http://wavefront-cdn.http://wavefront-cdn.s3-us-west-2.amazonaws.com/brew//wfproxy-6.4.0.tar.gz`"
 # $PREVIOUS_PROXY_RELEASE
 # tar xvzf wfproxy-6.4.0.tar.gz
 
@@ -144,6 +144,7 @@ do
   echo $status
   if [[ "$status" == *"$success"* ]]; then
     echo "Successful notarization"
+    aws s3 cp wavefront-proxy-$VERSION.zip s3://eso-test-alan/notarized/
     exit 0
   elif [[ "$status" == *"$in_progress"* ]]; then
     status="$(xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW")"
@@ -153,5 +154,3 @@ do
     exit 1
   fi
 done
-
-aws s3 cp wavefront-proxy-$VERSION.zip s3://eso-test-alan/notarized/
