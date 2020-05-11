@@ -1,5 +1,3 @@
-#!/usr/bin/env sh
-
 set -ev
 
 # echo "Checking to see if a new tag was created, else FAIL BUILD"
@@ -10,20 +8,20 @@ set -ev
 #     exit 1;
 # fi
 
-VERSION=${TRAVIS_TAG}
+# VERSION=${TRAVIS_TAG}
 # WF_PROXY="http://wavefront-cdn.s3-website-us-west-2.amazonaws.com/brew/wfproxy-$VERSION.0.tar.gz"
 # WF_PROXY="http://wavefront-cdn.s3-website-us-west-2.amazonaws.com/brew/wfproxy-6.4.0.tar.gz"
 
-echo $VERSION
+# echo $VERSION
 # echo $WF_PROXY
 
-echo "Get the version"
-RE=[0-9]+\.[0-9]+\.[0-9]+
-if [[ $WF_PROXY =~ $RE ]]; then 
-  echo ${BASH_REMATCH[0]};
-  VERSION=${BASH_REMATCH[0]} 
-fi
-echo $VERSION
+# echo "Get the version"
+# RE=[0-9]+\.[0-9]+\.[0-9]+
+# if [[ $WF_PROXY =~ $RE ]]; then 
+#   echo ${BASH_REMATCH[0]};
+#   VERSION=${BASH_REMATCH[0]} 
+# fi
+# echo $VERSION
 
 echo "=============STARTING======================"
 ls
@@ -62,12 +60,12 @@ security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k travis $KE
 echo "remove certs"
 rm -fr *.p12
 
-echo "Downloading most recent WF-Proxy from packagecloud"
-mkdir temp_new_WF_proxy
-WF_PROXY="`wget https://packagecloud.io/wavefront/proxy/packages/ubuntu/bionic/wavefront-proxy_6.1-1_amd64.deb/download.deb`"
-$WF_PROXY
-brew install dpkg
-dpkg -x download.deb ./temp_new_WF_proxy
+# echo "Downloading most recent WF-Proxy from packagecloud"
+# mkdir temp_new_WF_proxy
+# WF_PROXY="`wget https://packagecloud.io/wavefront/proxy/packages/ubuntu/bionic/wavefront-proxy_6.1-1_amd64.deb/download.deb`"
+# $WF_PROXY
+# brew install dpkg
+# dpkg -x download.deb ./temp_new_WF_proxy
 
 echo "Downloading Zulu JDK 11.0.7"
 ZULU_JDK="`wget https://cdn.azul.com/zulu/bin/zulu11.39.15-ca-jdk11.0.7-macosx_x64.tar.gz`"
@@ -77,10 +75,27 @@ tar xvzf zulu11.39.15-ca-jdk11.0.7-macosx_x64.tar.gz
 echo "codesigning & timestamping each file in the JDK/JRE"
 find "zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk" -type f \( -name "*.jar" -or -name "*.dylib" -or -perm +111 -type f -or -type l \) -exec codesign -f -s "$WF_DEV_ACCOUNT" --entitlements "./macos_proxy_notarization/wfproxy.entitlements" {} --timestamp --options runtime \;
 
+echo "=============================================================="
+echo "=============================================================="
 echo "Downloading previous proxy release"
-PREVIOUS_PROXY_RELEASE="`wget http://wavefront-cdn.s3-us-west-2.amazonaws.com/brew/wfproxy-6.4.0.tar.gz`"
-$PREVIOUS_PROXY_RELEASE
-tar xvzf wfproxy-6.4.0.tar.gz
+# PREVIOUS_PROXY_RELEASE="`wget http://wavefront-cdn.s3-us-west-2.amazonaws.com/brew/wfproxy-6.4.0.tar.gz`"
+# $PREVIOUS_PROXY_RELEASE
+# tar xvzf wfproxy-6.4.0.tar.gz
+
+TO_BE_NOTARIZED=$(aws s3 ls s3://eso-test-alan/to_be_notarized/ | sort -r | grep wfproxy | head -1 | awk '{print $4}')
+echo $TO_BE_NOTARIZED
+
+echo "Get the version"
+RE=[0-9]+\.[0-9]+\.[0-9]+
+# RE=[0-9]+\.[0-9]+
+if [[ $TO_BE_NOTARIZED =~ $RE ]]; then 
+  echo ${BASH_REMATCH[0]};
+  VERSION=${BASH_REMATCH[0]} 
+fi
+echo $VERSION
+
+echo "=============================================================="
+echo "=============================================================="
 
 rm -rf lib/*;
 mkdir lib/jdk;
@@ -88,19 +103,19 @@ cp -r zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk/Contents/Home/* lib/jdk/;
 cp temp_new_WF_proxy/opt/wavefront/wavefront-proxy/bin/*.jar lib/proxy-uber.jar;
 cp temp_new_WF_proxy/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml.default etc/preprocessor_rules.yaml;
 
-zip -r wavefront-proxy-7.0.zip bin/ etc/ lib/
+zip -r wavefront-proxy-$VERSION.zip bin/ etc/ lib/
 
 ls
 pwd
 
 echo "Codesigning the wavefront-proxy package"
-codesign -f -s "$ESO_DEV_ACCOUNT" wavefront-proxy-7.0.zip --deep --options runtime
+codesign -f -s "$ESO_DEV_ACCOUNT" wavefront-proxy-$VERSION.zip--deep --options runtime
 
 echo "Verifying the codesign"
-codesign -vvv --deep --strict wavefront-proxy-7.0.zip
+codesign -vvv --deep --strict wavefront-proxy-$VERSION.zip
 
 echo "Uploading the package for Notarization"
-response="$(xcrun altool --notarize-app --primary-bundle-id "com.wavefront" --username "$USERNAME" --password "$APP_SPECIFIC_PW" --file "wavefront-proxy-7.0.zip" | sed -n '2 p')"
+response="$(xcrun altool --notarize-app --primary-bundle-id "com.wavefront" --username "$USERNAME" --password "$APP_SPECIFIC_PW" --file "wavefront-proxy-$VERSION.zip" | sed -n '2 p')"
 echo $response
 
 echo "Grabbing Request UUID"
