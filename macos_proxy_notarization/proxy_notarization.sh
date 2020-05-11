@@ -144,7 +144,7 @@ do
   echo $status
   if [[ "$status" == *"$success"* ]]; then
     echo "Successful notarization"
-    aws s3 wfproxy-$VERSION.zip s3://eso-test-alan/notarized/
+    aws s3 cp wfproxy-$VERSION.zip s3://eso-test-alan/notarized/
     exit 0
   elif [[ "$status" == *"$in_progress"* ]]; then
     status="$(xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW")"
