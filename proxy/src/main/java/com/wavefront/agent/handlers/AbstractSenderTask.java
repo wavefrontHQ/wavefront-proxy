@@ -52,7 +52,6 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   final RecyclableRateLimiter rateLimiter;
 
   final Counter attemptedCounter;
-  final Counter queuedCounter;
   final Counter blockedCounter;
   final Counter bufferFlushCounter;
   final Counter bufferCompletedFlushCounter;
@@ -89,7 +88,6 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         "-" + threadId));
 
     this.attemptedCounter = Metrics.newCounter(new MetricName(handlerKey.toString(), "", "sent"));
-    this.queuedCounter = Metrics.newCounter(new MetricName(handlerKey.toString(), "", "queued"));
     this.blockedCounter = Metrics.newCounter(new MetricName(handlerKey.toString(), "", "blocked"));
     this.bufferFlushCounter = Metrics.newCounter(new TaggedMetricName("buffer", "flush-count",
         "port", handlerKey.getHandle()));
@@ -184,8 +182,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     logger.fine("[" + handlerKey.getHandle() + "] (DETAILED): sending " + current.size() +
         " valid " + handlerKey.getEntityType() + "; in memory: " + this.datum.size() +
         "; total attempted: " + this.attemptedCounter.count() +
-        "; total blocked: " + this.blockedCounter.count() +
-        "; total queued: " + this.queuedCounter.count());
+        "; total blocked: " + this.blockedCounter.count());
     return current;
   }
 
