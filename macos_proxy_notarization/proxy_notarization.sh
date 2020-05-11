@@ -116,7 +116,7 @@ ls
 pwd
 
 echo "Codesigning the wavefront-proxy package"
-codesign -f -s "$ESO_DEV_ACCOUNT" wavefront-proxy-$VERSION.zip--deep --options runtime
+codesign -f -s "$ESO_DEV_ACCOUNT" wavefront-proxy-$VERSION.zip --deep --options runtime
 
 echo "Verifying the codesign"
 codesign -vvv --deep --strict wavefront-proxy-$VERSION.zip
