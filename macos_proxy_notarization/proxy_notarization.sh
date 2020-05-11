@@ -110,19 +110,19 @@ cp -r zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk/Contents/Home/* lib/jdk/;
 # cp temp_new_WF_proxy/opt/wavefront/wavefront-proxy/bin/*.jar lib/proxy-uber.jar;
 # cp temp_new_WF_proxy/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml.default etc/preprocessor_rules.yaml;
 
-zip -r wavefront-proxy-$VERSION.zip bin/ etc/ lib/
+zip -r wfproxy-$VERSION.zip bin/ etc/ lib/
 
 ls
 pwd
 
 echo "Codesigning the wavefront-proxy package"
-codesign -f -s "$ESO_DEV_ACCOUNT" wavefront-proxy-$VERSION.zip --deep --options runtime
+codesign -f -s "$ESO_DEV_ACCOUNT" wfproxy-$VERSION.zip --deep --options runtime
 
 echo "Verifying the codesign"
-codesign -vvv --deep --strict wavefront-proxy-$VERSION.zip
+codesign -vvv --deep --strict wfproxy-$VERSION.zip
 
 echo "Uploading the package for Notarization"
-response="$(xcrun altool --notarize-app --primary-bundle-id "com.wavefront" --username "$USERNAME" --password "$APP_SPECIFIC_PW" --file "wavefront-proxy-$VERSION.zip" | sed -n '2 p')"
+response="$(xcrun altool --notarize-app --primary-bundle-id "com.wavefront" --username "$USERNAME" --password "$APP_SPECIFIC_PW" --file "wfproxy-$VERSION.zip" | sed -n '2 p')"
 echo $response
 
 echo "Grabbing Request UUID"
@@ -144,7 +144,7 @@ do
   echo $status
   if [[ "$status" == *"$success"* ]]; then
     echo "Successful notarization"
-    aws s3 cp wavefront-proxy-$VERSION.zip s3://eso-test-alan/notarized/
+    aws s3 wfproxy-$VERSION.zip s3://eso-test-alan/notarized/
     exit 0
   elif [[ "$status" == *"$in_progress"* ]]; then
     status="$(xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW")"
