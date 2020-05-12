@@ -2,6 +2,8 @@ package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Sets;
+
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -12,28 +14,32 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
+import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
+
 import io.jaegertracing.thriftjava.Batch;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.thrift.TDeserializer;
+
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -44,8 +50,8 @@ import java.util.logging.Logger;
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.tracing.JaegerThriftUtils.processBatch;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
 
 /**
  * Handler that processes Jaeger Thrift trace data over HTTP and converts them to Wavefront format.
@@ -79,7 +85,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
   private final Counter processedBatches;
   private final Counter failedBatches;
   private final Counter discardedSpansBySampler;
-  private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
+  private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
   private final static String JAEGER_VALID_PATH = "/api/traces/";
@@ -129,7 +135,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
     this.alwaysSampleErrors = alwaysSampleErrors;
     this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ?
         "Jaeger" : traceJaegerApplicationName.trim();
-    this.traceDerivedCustomTagKeys =  traceDerivedCustomTagKeys;
+    this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
     this.discardedTraces = Metrics.newCounter(
         new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(
@@ -140,7 +146,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
         new MetricName("spans." + handle + ".batches", "", "failed"));
     this.discardedSpansBySampler = Metrics.newCounter(
         new MetricName("spans." + handle, "", "sampler.discarded"));
-    this.discoveredHeartbeatMetrics =  new ConcurrentHashMap<>();
+    this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("jaeger-heart-beater"));
     scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
@@ -202,7 +208,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
   @Override
   public void run() {
     try {
-      reportHeartbeats(JAEGER_COMPONENT, wfSender, discoveredHeartbeatMetrics);
+      reportHeartbeats(wfSender, discoveredHeartbeatMetrics, JAEGER_COMPONENT);
     } catch (IOException e) {
       logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
     }

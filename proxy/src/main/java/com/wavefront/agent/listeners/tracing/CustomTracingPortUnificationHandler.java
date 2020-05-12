@@ -1,6 +1,7 @@
 package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Sets;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.agent.auth.TokenAuthenticator;
@@ -12,17 +13,18 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
+import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -31,9 +33,9 @@ import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
@@ -53,7 +55,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
   @Nullable
   private final WavefrontSender wfSender;
   private final WavefrontInternalReporter wfInternalReporter;
-  private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
+  private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   private final Set<String> traceDerivedCustomTagKeys;
 
   /**
@@ -103,7 +105,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
         preprocessor, handler, spanLogsHandler, sampler, alwaysSampleErrors, traceDisabled, spanLogsDisabled);
     this.wfSender = wfSender;
     this.wfInternalReporter = wfInternalReporter;
-    this.discoveredHeartbeatMetrics = new ConcurrentHashMap<>();
+    this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
   }
 
@@ -147,12 +149,14 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
     handler.report(object);
 
     if (wfInternalReporter != null) {
-      discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
+      List<Pair<String, String>> spanTags = annotations.stream().map(a -> new Pair<>(a.getKey(),
+          a.getValue())).collect(Collectors.toList());
+      discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
           object.getName(), applicationName, serviceName, cluster, shard, object.getSource(),
           componentTagValue, Boolean.parseBoolean(isError), object.getDuration(),
-          traceDerivedCustomTagKeys, annotations), true);
+          traceDerivedCustomTagKeys, spanTags));
       try {
-        reportHeartbeats("wavefront-generated", wfSender, discoveredHeartbeatMetrics);
+        reportHeartbeats(wfSender, discoveredHeartbeatMetrics, "wavefront-generated");
       } catch (IOException e) {
         logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
       }
