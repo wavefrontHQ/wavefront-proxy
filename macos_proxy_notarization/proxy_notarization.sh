@@ -1,28 +1,5 @@
 set -ev
 
-# echo "Checking to see if a new tag was created, else FAIL BUILD"
-# if [ "$TRAVIS_TAG" ]; then
-#   echo "-- TAG: $TRAVIS_TAG --";
-# else
-#     echo "-- NO TAG --";
-#     exit 1;
-# fi
-
-# VERSION=${TRAVIS_TAG}
-# WF_PROXY="http://wavefront-cdn.s3-website-us-west-2.amazonaws.com/brew/wfproxy-$VERSION.0.tar.gz"
-# WF_PROXY="http://wavefront-cdn.s3-website-us-west-2.amazonaws.com/brew/wfproxy-6.4.0.tar.gz"
-
-# echo $VERSION
-# echo $WF_PROXY
-
-# echo "Get the version"
-# RE=[0-9]+\.[0-9]+\.[0-9]+
-# if [[ $WF_PROXY =~ $RE ]]; then 
-#   echo ${BASH_REMATCH[0]};
-#   VERSION=${BASH_REMATCH[0]} 
-# fi
-# echo $VERSION
-
 echo "Check notarization if proxy version is already in notarized, if it is, exit 0"
 echo "===================================================================================================="
 echo "checking to see if it's already notarized:"
@@ -80,13 +57,6 @@ security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k travis $KE
 echo "remove certs"
 rm -fr *.p12
 
-# echo "Downloading most recent WF-Proxy from packagecloud"
-# mkdir temp_new_WF_proxy
-# WF_PROXY="`wget https://packagecloud.io/wavefront/proxy/packages/ubuntu/bionic/wavefront-proxy_6.1-1_amd64.deb/download.deb`"
-# $WF_PROXY
-# brew install dpkg
-# dpkg -x download.deb ./temp_new_WF_proxy
-
 echo "Downloading Zulu JDK 11.0.7"
 ZULU_JDK="`wget https://cdn.azul.com/zulu/bin/zulu11.39.15-ca-jdk11.0.7-macosx_x64.tar.gz`"
 $ZULU_JDK
@@ -98,16 +68,11 @@ find "zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk" -type f \( -name "*.jar"
 echo "=============================================================="
 echo "=============================================================="
 echo "Downloading previous proxy release"
-# PREVIOUS_PROXY_RELEASE="`wget http://wavefront-cdn.http://wavefront-cdn.s3-us-west-2.amazonaws.com/brew//wfproxy-6.4.0.tar.gz`"
-# $PREVIOUS_PROXY_RELEASE
-# tar xvzf wfproxy-6.4.0.tar.gz
-
 TO_BE_NOTARIZED=$(aws s3 ls s3://eso-test-alan/to_be_notarized/ | sort -r | grep wfproxy | head -1 | awk '{print $4}')
 echo $TO_BE_NOTARIZED
 
 echo "Get the version"
 RE=[0-9]+\.[0-9]+\.[0-9]+
-# RE=[0-9]+\.[0-9]+
 if [[ $TO_BE_NOTARIZED =~ $RE ]]; then 
   echo ${BASH_REMATCH[0]};
   VERSION=${BASH_REMATCH[0]} 
@@ -122,11 +87,11 @@ tar xvzf $tarfile
 echo "=============================================================="
 echo "=============================================================="
 
-ls
-rm -rf lib/*;
+# ls
+# rm -rf lib/*;
 ls
 mkdir lib/jdk;
-cp -r zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk/Contents/Home/* lib/jdk/;
+cp -r -p zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk/Contents/Home/* lib/jdk/;
 # cp temp_new_WF_proxy/opt/wavefront/wavefront-proxy/bin/*.jar lib/proxy-uber.jar;
 # cp temp_new_WF_proxy/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml.default etc/preprocessor_rules.yaml;
 
