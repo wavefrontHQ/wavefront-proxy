@@ -4,7 +4,6 @@ echo "Check notarization if proxy version is already in notarized, if it is, exi
 echo "===================================================================================================="
 echo "checking to see if it's already notarized:"
 to_be_notarizaed="`aws s3 ls s3://eso-test-alan/to_be_notarized/ | sort -r | grep wfproxy | awk '{print $4}' | head -1 | sed 's/.tar.gz//'`"
-to_be_notarizaed="${to_be_notarizaed%.tar.gz}"
 echo $to_be_notarizaed
 echo "========================="
 echo "list that is already notarized:"
