@@ -23,6 +23,26 @@ set -ev
 # fi
 # echo $VERSION
 
+echo "Check notarization if proxy version is already in notarized, if it is, exit 0"
+echo "===================================================================================================="
+echo "checking to see if it's already notarized:"
+to_be_notarizaed="`aws s3 ls s3://eso-test-alan/to_be_notarized/ | sort -r | grep wfproxy | awk '{print $4}' | head -1 | sed 's/.tar.gz//'`"
+to_be_notarizaed="${to_be_notarizaed%.tar.gz}"
+echo $to_be_notarizaed
+echo "========================="
+echo "list that is already notarized:"
+notarized="`aws s3 ls s3://eso-test-alan/notarized/ | sort -r | grep wfproxy | awk '{print $4}'`"
+echo $notarized
+echo "========================="
+
+if [[ "$notarized" == *"$to_be_notarizaed"* ]]; then
+  echo "$to_be_notarizaed is in the bucket"
+  exit 0
+else
+  echo "It's not in the directory, we need to move it into notarized bucket/do the whole process"
+fi
+echo "===================================================================================================="
+
 echo "=============STARTING======================"
 ls
 echo "Adding OSX Certificates"
