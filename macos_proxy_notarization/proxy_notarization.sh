@@ -1,23 +1,20 @@
 set -ev
 
-echo "Check notarization if proxy version is already in notarized, if it is, exit 0"
+echo "Check if notarized proxy version is already in notarized dir, if it is, exit 0"
 echo "===================================================================================================="
-echo "checking to see if it's already notarized:"
+echo "Taking newest proxy and checking to see if it's already notarized:"
 to_be_notarizaed="`aws s3 ls s3://eso-test-alan/to_be_notarized/ | sort -r | grep wfproxy | awk '{print $4}' | head -1 | sed 's/.tar.gz//'`"
 echo $to_be_notarizaed
-echo "========================="
-echo "list that is already notarized:"
+echo "Checking against this list that is already notarized:"
 notarized="`aws s3 ls s3://eso-test-alan/notarized/ | sort -r | grep wfproxy | awk '{print $4}'`"
 echo $notarized
-echo "========================="
 
 if [[ "$notarized" == *"$to_be_notarizaed"* ]]; then
   echo "$to_be_notarizaed is in the bucket"
   exit 0
 else
-  echo "It's not in the directory, we need to move it into notarized bucket/do the whole process"
+  echo "It's not in the directory, we need to move it into notarized bucket/do the whole process below"
 fi
-echo "===================================================================================================="
 
 echo "=============STARTING======================"
 ls
@@ -53,7 +50,7 @@ security find-identity -v
 echo "Unlock the keychain 3"
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k travis $KEY_CHAIN
 
-echo "remove certs"
+echo "Remove certs"
 rm -fr *.p12
 
 echo "Downloading Zulu JDK 11.0.7"
@@ -61,11 +58,9 @@ ZULU_JDK="`wget https://cdn.azul.com/zulu/bin/zulu11.39.15-ca-jdk11.0.7-macosx_x
 $ZULU_JDK
 tar xvzf zulu11.39.15-ca-jdk11.0.7-macosx_x64.tar.gz
 
-echo "codesigning & timestamping each file in the JDK/JRE"
+echo "Codesigning & timestamping each file in the JDK/JRE"
 find "zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk" -type f \( -name "*.jar" -or -name "*.dylib" -or -perm +111 -type f -or -type l \) -exec codesign -f -s "$WF_DEV_ACCOUNT" --entitlements "./macos_proxy_notarization/wfproxy.entitlements" {} --timestamp --options runtime \;
 
-echo "=============================================================="
-echo "=============================================================="
 echo "Downloading previous proxy release"
 TO_BE_NOTARIZED=$(aws s3 ls s3://eso-test-alan/to_be_notarized/ | sort -r | grep wfproxy | head -1 | awk '{print $4}')
 echo $TO_BE_NOTARIZED
@@ -83,24 +78,11 @@ $copy_from_to_be_notarized
 tarfile="wfproxy-$VERSION.tar.gz"
 tar xvzf $tarfile
 
-echo "=============================================================="
-echo "=============================================================="
-
-ls
-ls lib
-ls lib/jdk
 rm -rf lib/jdk
 mkdir lib/jdk
-ls lib
-ls lib/jdk
 cp -r zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk/Contents/Home/* lib/jdk/;
-# cp temp_new_WF_proxy/opt/wavefront/wavefront-proxy/bin/*.jar lib/proxy-uber.jar;
-# cp temp_new_WF_proxy/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml.default etc/preprocessor_rules.yaml;
 
 zip -r wfproxy-$VERSION.zip bin/ etc/ lib/
-
-ls
-pwd
 
 echo "Codesigning the wavefront-proxy package"
 codesign -f -s "$ESO_DEV_ACCOUNT" wfproxy-$VERSION.zip --deep --options runtime
