@@ -1,12 +1,13 @@
 set -ev
 
+echo "first var is: $1"
 echo "Check if notarized proxy version is already in notarized dir, if it is, exit 0"
 echo "===================================================================================================="
 echo "Taking newest proxy and checking to see if it's already notarized:"
-to_be_notarizaed="`aws s3 ls s3://eso-test-alan/to_be_notarized/ | sort -r | grep wfproxy | awk '{print $4}' | head -1 | sed 's/.tar.gz//'`"
+to_be_notarizaed="`aws s3 ls s3://eso-wfproxy-testing/to_be_notarized/ | sort -r | grep wfproxy | awk '{print $4}' | head -1 | sed 's/.tar.gz//'`"
 echo $to_be_notarizaed
 echo "Checking against this list that is already notarized:"
-notarized="`aws s3 ls s3://eso-test-alan/notarized/ | sort -r | grep wfproxy | awk '{print $4}'`"
+notarized="`aws s3 ls s3://eso-wfproxy-testing/notarized/ | sort -r | grep wfproxy | awk '{print $4}'`"
 echo $notarized
 
 if [[ "$notarized" == *"$to_be_notarizaed"* ]]; then
