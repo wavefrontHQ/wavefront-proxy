@@ -731,6 +731,25 @@ public class ProxyConfig extends Configuration {
           " Defaults: none")
   protected String customTracingListenerPorts = "";
 
+  @Parameter(names = {"--privateCertPath"},
+          description = "TLS certificate path to use for securing all the ports. " +
+                  "X.509 certificate chain file in PEM format.")
+  protected String privateCertPath = "";
+
+  @Parameter(names = {"--privateKeyPath"},
+          description = "TLS private key path to use for securing all the ports. " +
+                  "PKCS#8 private key file in PEM format.")
+  protected String privateKeyPath = "";
+
+  @Parameter(names = {"--enableTLS"},
+          description = "To enable secure communication.")
+  protected boolean enableTLS = false;
+
+  @Parameter(names = {"--tlsPorts"},
+          description = "Comma-separated list of ports to be secured using TLS. " +
+                  "All ports will be secured when not specified.")
+  protected String tlsPorts = "";
+
   @Parameter()
   List<String> unparsed_params;
 
@@ -1410,6 +1429,22 @@ public class ProxyConfig extends Configuration {
     return timeProvider;
   }
 
+  public String getPrivateCertPath() {
+    return privateCertPath;
+  }
+
+  public String getPrivateKeyPath() {
+    return privateKeyPath;
+  }
+
+  public boolean isEnableTLS() {
+    return enableTLS;
+  }
+
+  public String getTlsPorts() {
+    return tlsPorts;
+  }
+
   @Override
   public void verifyAndInit() {
     if (unparsed_params != null) {
@@ -1710,6 +1745,12 @@ public class ProxyConfig extends Configuration {
           httpHealthCheckFailStatusCode);
       httpHealthCheckFailResponseBody = config.getString("httpHealthCheckFailResponseBody",
           httpHealthCheckFailResponseBody);
+
+      //TLS configurations
+      enableTLS = config.getBoolean("enableTLS", enableTLS);
+      privateCertPath = config.getString("privateCertPath", privateCertPath);
+      privateKeyPath = config.getString("privateKeyPath", privateKeyPath);
+      tlsPorts = config.getString("tlsPorts", tlsPorts);
 
       // clamp values for pushFlushMaxPoints/etc between min split size
       // (or 1 in case of source tags and events) and default batch size.

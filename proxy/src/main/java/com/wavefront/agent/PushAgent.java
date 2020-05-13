@@ -92,6 +92,8 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import net.openhft.chronicle.map.ChronicleMap;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -110,11 +112,7 @@ import java.io.File;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -132,6 +130,8 @@ import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VA
 import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_POINTS_LOGGER;
 import static com.wavefront.common.Utils.csvToList;
 import static com.wavefront.common.Utils.lazySupplier;
+import static java.util.Collections.EMPTY_LIST;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 /**
  * Push-only Agent.
@@ -413,6 +413,13 @@ public class PushAgent extends AbstractAgent {
     setupMemoryGuard();
   }
 
+  protected Optional<SslContext> getSslContext(String port) {
+    if (enableTLS && (tlsPorts.isEmpty() || tlsPorts.contains(port))) {
+      return Optional.of(sslContext);
+    }
+    return Optional.empty();
+  }
+
   protected void startJsonListener(String strPort, ReportableEntityHandlerFactory handlerFactory) {
     final int port = Integer.parseInt(strPort);
     registerTimestampFilter(strPort);
@@ -424,7 +431,7 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-plaintext-json-" + port);
     logger.info("listening on port: " + strPort + " for JSON metrics data");
   }
@@ -442,7 +449,7 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-plaintext-writehttpjson-" + port);
     logger.info("listening on port: " + strPort + " for write_http data");
   }
@@ -463,7 +470,7 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-plaintext-opentsdb-" + port);
     logger.info("listening on port: " + strPort + " for OpenTSDB metrics");
   }
@@ -490,7 +497,7 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-plaintext-datadog-" + port);
     logger.info("listening on port: " + strPort + " for DataDog metrics");
   }
@@ -517,7 +524,7 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(port, new TcpIngester(createInitializer(ImmutableList.of(
         () -> new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false),
         ByteArrayDecoder::new, () -> channelHandler), port,
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
             withChildChannelOptions(childChannelOptions), "listener-binary-pickle-" + strPort);
     logger.info("listening on port: " + strPort + " for Graphite/pickle protocol metrics");
   }
@@ -540,7 +547,7 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getTraceListenerMaxReceivedLength(),
         proxyConfig.getTraceListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-plaintext-trace-" + port);
     logger.info("listening on port: " + strPort + " for trace data");
   }
@@ -572,7 +579,7 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getTraceListenerMaxReceivedLength(), proxyConfig.getTraceListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()),
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)),
         port).withChildChannelOptions(childChannelOptions), "listener-custom-trace-" + port);
     logger.info("listening on port: " + strPort + " for custom trace data");
   }
@@ -630,7 +637,7 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getTraceListenerMaxReceivedLength(),
         proxyConfig.getTraceListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()),
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)),
         port).withChildChannelOptions(childChannelOptions), "listener-jaeger-http-" + port);
     logger.info("listening on port: " + strPort + " for trace data (Jaeger format over HTTP)");
   }
@@ -650,7 +657,7 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getTraceListenerMaxReceivedLength(),
         proxyConfig.getTraceListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()),
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)),
         port).withChildChannelOptions(childChannelOptions), "listener-zipkin-trace-" + port);
     logger.info("listening on port: " + strPort + " for trace data (Zipkin format)");
   }
@@ -674,7 +681,7 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-graphite-" + port);
   }
 
@@ -721,7 +728,7 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-deltaCounter-" + port);
   }
 
@@ -777,7 +784,7 @@ public class PushAgent extends AbstractAgent {
         () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled());
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-relay-" + port);
   }
 
@@ -821,33 +828,35 @@ public class PushAgent extends AbstractAgent {
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getRawLogsMaxReceivedLength(), proxyConfig.getRawLogsHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-logs-raw-" + port);
     logger.info("listening on port: " + strPort + " for raw logs");
   }
 
   @VisibleForTesting
   protected void startAdminListener(int port) {
+    String strPort = String.valueOf(port);
     ChannelHandler channelHandler = new AdminPortUnificationHandler(tokenAuthenticator,
         healthCheckManager, String.valueOf(port), proxyConfig.getAdminApiRemoteIpWhitelistRegex());
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-http-admin-" + port);
     logger.info("Admin port: " + port);
   }
 
   @VisibleForTesting
   protected void startHealthCheckListener(int port) {
+    String strPort = String.valueOf(port);
     healthCheckManager.enableHealthcheck(port);
     ChannelHandler channelHandler = new HttpHealthCheckEndpointHandler(healthCheckManager, port);
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
-        proxyConfig.getListenerIdleConnectionTimeout()), port).
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-http-healthcheck-" + port);
     logger.info("Health check port enabled: " + port);
   }
@@ -981,7 +990,7 @@ public class PushAgent extends AbstractAgent {
       startAsManagedThread(port,
           new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
           proxyConfig.getHistogramMaxReceivedLength(), proxyConfig.getHistogramHttpBufferSize(),
-          proxyConfig.getListenerIdleConnectionTimeout()), port).
+          proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
           withChildChannelOptions(childChannelOptions), "listener-histogram-" + port);
       logger.info("listening on port: " + port + " for histogram samples, accumulating to the " +
           listenerBinType);

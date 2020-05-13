@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.api.APIContainer;
@@ -27,9 +28,12 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 
+import javax.net.ssl.SSLException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -47,7 +51,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.wavefront.agent.ProxyUtil.getOrCreateProxyId;
+import static com.wavefront.common.Utils.csvToList;
 import static com.wavefront.common.Utils.getBuildVersion;
+import static java.util.Collections.EMPTY_LIST;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 /**
  * Agent that runs remotely on a server collecting metrics.
@@ -76,6 +83,9 @@ public abstract class AbstractAgent {
   protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);
   protected ProxyCheckInScheduler proxyCheckinScheduler;
   protected UUID agentId;
+  protected SslContext sslContext;
+  protected List<String> tlsPorts = EMPTY_LIST;
+  protected boolean enableTLS = false;
 
   @Deprecated
   public AbstractAgent(boolean localAgent, boolean pushAgent) {
@@ -106,6 +116,20 @@ public abstract class AbstractAgent {
               new PointLineWhitelistRegexFilter(whitelist, ruleMetrics));
         }
       }
+    }
+  }
+
+  @VisibleForTesting
+  void initSslContext() throws SSLException {
+    if (!isEmpty(proxyConfig.getPrivateCertPath()) && !isEmpty(proxyConfig.getPrivateKeyPath())) {
+      sslContext = SslContextBuilder.forServer(new File(proxyConfig.getPrivateCertPath()),
+              new File(proxyConfig.getPrivateKeyPath())).build();
+    }
+    if (proxyConfig.isEnableTLS()) {
+      Preconditions.checkArgument(sslContext != null,
+              "Missing TLS certificate/private key configuration.");
+      enableTLS = true;
+      tlsPorts = csvToList(proxyConfig.getTlsPorts());
     }
   }
 
@@ -201,6 +225,7 @@ public abstract class AbstractAgent {
       // Parse commandline arguments and load configuration file
       parseArguments(args);
       postProcessConfig();
+      initSslContext();
       initPreprocessors();
 
       if (proxyConfig.isTestLogs() || proxyConfig.getTestPreprocessorForPort() != null ||

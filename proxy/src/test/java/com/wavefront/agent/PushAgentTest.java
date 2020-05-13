@@ -11,6 +11,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.SenderTask;
 import com.wavefront.agent.handlers.SenderTaskFactory;
+import com.wavefront.agent.tls.NaiveTrustManager;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 import com.wavefront.dto.SourceTag;
@@ -28,6 +29,7 @@ import org.easymock.CaptureType;
 import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
@@ -43,9 +45,11 @@ import wavefront.report.SpanLogs;
 
 import javax.annotation.Nonnull;
 import javax.net.SocketFactory;
+import javax.net.ssl.*;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.Socket;
+import java.security.SecureRandom;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.UUID;
@@ -88,6 +92,7 @@ public class PushAgentTest {
   private int customTracePort;
   private int ddPort;
   private int deltaPort;
+  private static SSLSocketFactory sslSocketFactory;
   private ReportableEntityHandler<ReportPoint, String> mockPointHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
   private ReportableEntityHandler<ReportSourceTag, SourceTag> mockSourceTagHandler =
@@ -129,6 +134,14 @@ public class PushAgentTest {
           mockTraceSpanLogsHandler, mockEventHandler);
   private HttpClient mockHttpClient = EasyMock.createMock(HttpClient.class);
 
+  @BeforeClass
+  public static void init() throws Exception {
+    TrustManager[] tm = new TrustManager[]{new NaiveTrustManager()};
+    SSLContext context = SSLContext.getInstance("SSL");
+    context.init(new KeyManager[0], tm, new SecureRandom());
+    sslSocketFactory = context.getSocketFactory();
+  }
+
   @Before
   public void setup() throws Exception {
     proxy = new PushAgent();
@@ -167,6 +180,98 @@ public class PushAgentTest {
     BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
     String payloadStr = "metric.test 0 " + startTime + " source=test1\n" +
         "metric.test 1 " + (startTime + 1) + " source=test2\n";
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+    verifyWithTimeout(500, mockPointHandler);
+  }
+
+  @Test
+  public void testWavefrontUnifiedPortHandlerPlaintextUncompressedWithSSL() throws Exception {
+    port = findAvailablePort(2888);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.proxyConfig.enableTLS = true;
+    proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
+    proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
+    proxy.initSslContext();
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    waitUntilListenerIsOnline(port);
+    reset(mockPointHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+            setMetric("metric.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
+    expectLastCall();
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+            setMetric("metric.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+    expectLastCall();
+    replay(mockPointHandler);
+
+    // try plaintext over tcp first
+    Socket socket = sslSocketFactory.createSocket("localhost", port);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    String payloadStr = "metric.test 0 " + startTime + " source=test1\n" +
+            "metric.test 1 " + (startTime + 1) + " source=test2\n";
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+    verifyWithTimeout(500, mockPointHandler);
+  }
+
+  @Test
+  public void testWavefrontUnifiedPortHandlerPlaintextUncompressedWithSSLAndPort() throws Exception {
+    port = findAvailablePort(2888);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.proxyConfig.enableTLS = true;
+    proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
+    proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
+    proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + port +"  ,6";
+    proxy.initSslContext();
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    waitUntilListenerIsOnline(port);
+    reset(mockPointHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+            setMetric("metric.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
+    expectLastCall();
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+            setMetric("metric.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+    expectLastCall();
+    replay(mockPointHandler);
+
+    // try plaintext over tcp first
+    Socket socket = sslSocketFactory.createSocket("localhost", port);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    String payloadStr = "metric.test 0 " + startTime + " source=test1\n" +
+            "metric.test 1 " + (startTime + 1) + " source=test2\n";
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+    verifyWithTimeout(500, mockPointHandler);
+  }
+
+  @Test
+  public void testWavefrontUnifiedPortHandlerPlaintextUncompressedWithSSLAndDifferentPort() throws Exception {
+    port = findAvailablePort(2888);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.proxyConfig.enableTLS = true;
+    proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
+    proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
+    proxy.proxyConfig.tlsPorts = "1,23 , 4,   , 6 ";
+    proxy.initSslContext();
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    waitUntilListenerIsOnline(port);
+    reset(mockPointHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+            setMetric("metric.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
+    expectLastCall();
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+            setMetric("metric.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+    expectLastCall();
+    replay(mockPointHandler);
+
+    // try plaintext over tcp first
+    Socket socket = SocketFactory.getDefault().createSocket("localhost", port);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    String payloadStr = "metric.test 0 " + startTime + " source=test1\n" +
+            "metric.test 1 " + (startTime + 1) + " source=test2\n";
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();

@@ -27,10 +27,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -66,7 +63,7 @@ public class HttpEndToEndTest {
     ChannelHandler channelHandler = new WrappingHttpHandler(null, null,
         String.valueOf(backendPort), server);
     thread = new Thread(new TcpIngester(createInitializer(channelHandler,
-        backendPort, 32768, 16 * 1024 * 1024, 5), backendPort));
+        backendPort, 32768, 16 * 1024 * 1024, 5, Optional.empty()), backendPort));
     thread.start();
     waitUntilListenerIsOnline(backendPort);
   }
