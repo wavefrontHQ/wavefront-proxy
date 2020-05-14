@@ -151,3 +151,4 @@ main() {
   wait_for_notarization
 }
 
+main
