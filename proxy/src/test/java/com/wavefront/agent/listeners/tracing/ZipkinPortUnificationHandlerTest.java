@@ -254,6 +254,7 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("http.method", "GET").
         putTag("http.url", "none+h1c://localhost:8881/").
         putTag("http.status_code", "200").
+        addAnnotation(startTime * 1000, "start processing").
         build();
 
     zipkin2.Span spanServer2 = zipkin2.Span.newBuilder().
@@ -267,6 +268,7 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("http.method", "GET").
         putTag("http.url", "none+h1c://localhost:8881/").
         putTag("http.status_code", "200").
+        addAnnotation(startTime * 1000, "start processing").
         build();
 
     List<zipkin2.Span> zipkinSpanList = ImmutableList.of(spanServer1, spanServer2);
@@ -278,15 +280,16 @@ public class ZipkinPortUnificationHandlerTest {
     reset(mockTraceHandler, mockTraceSpanLogsHandler);
 
     // Set Expectation
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+    Span expectedSpan2 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
         setDuration(9).
         setName("getservice").
         setSource(DEFAULT_SOURCE).
         setSpanId("00000000-0000-0000-3822-889fe47043bd").
         setTraceId("00000000-0000-0000-3822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
-            setAnnotations(ImmutableList.of(
+        setAnnotations(ImmutableList.of(
             new Annotation("span.kind", "server"),
+            new Annotation("_spanSecondaryId", "server"),
             new Annotation("service", "frontend"),
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
@@ -294,8 +297,24 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("application", "Zipkin"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
-            new Annotation("ipv4", "10.0.0.1"))).
-            build());
+            new Annotation("ipv4", "10.0.0.1"),
+            new Annotation("_spanLogs", "true"))).
+        build();
+    mockTraceHandler.report(expectedSpan2);
+    expectLastCall();
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("default").
+        setTraceId("00000000-0000-0000-3822-889fe47043bd").
+        setSpanId("00000000-0000-0000-3822-889fe47043bd").
+        setSpanSecondaryId("server").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(startTime * 1000).
+                setFields(ImmutableMap.of("annotation", "start processing")).
+                build()
+        )).
+        setSpan(SPAN_SERIALIZER.apply(expectedSpan2)).
+        build());
     expectLastCall();
     replay(mockTraceHandler, mockTraceSpanLogsHandler);
 
@@ -323,15 +342,16 @@ public class ZipkinPortUnificationHandlerTest {
     reset(mockTraceHandler, mockTraceSpanLogsHandler);
 
     // Set Expectation
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+    Span expectedSpan2 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
         setDuration(9).
         setName("getservice").
         setSource(DEFAULT_SOURCE).
         setSpanId("00000000-0000-0000-3822-889fe47043bd").
         setTraceId("00000000-0000-0000-3822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
-            setAnnotations(ImmutableList.of(
+        setAnnotations(ImmutableList.of(
             new Annotation("span.kind", "server"),
+            new Annotation("_spanSecondaryId", "server"),
             new Annotation("service", "frontend"),
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
@@ -340,18 +360,36 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
             new Annotation("debug", "true"),
-            new Annotation("ipv4", "10.0.0.1"))).
-            build());
+            new Annotation("ipv4", "10.0.0.1"),
+            new Annotation("_spanLogs", "true"))).
+        build();
+    mockTraceHandler.report(expectedSpan2);
     expectLastCall();
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("default").
+        setTraceId("00000000-0000-0000-3822-889fe47043bd").
+        setSpanId("00000000-0000-0000-3822-889fe47043bd").
+        setSpanSecondaryId("server").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(startTime * 1000).
+                setFields(ImmutableMap.of("annotation", "start processing")).
+                build()
+        )).
+        setSpan(SPAN_SERIALIZER.apply(expectedSpan2)).
+        build());
+    expectLastCall();
+
+    Span expectedSpan3 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
         setDuration(7).
         setName("getservice").
         setSource(DEFAULT_SOURCE).
         setSpanId("00000000-0000-0000-4822-889fe47043bd").
         setTraceId("00000000-0000-0000-4822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
-            setAnnotations(ImmutableList.of(
+        setAnnotations(ImmutableList.of(
             new Annotation("span.kind", "server"),
+            new Annotation("_spanSecondaryId", "server"),
             new Annotation("service", "frontend"),
             new Annotation("debug", "true"),
             new Annotation("http.method", "GET"),
@@ -360,8 +398,24 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("application", "Zipkin"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
-            new Annotation("ipv4", "10.0.0.1"))).
-            build());
+            new Annotation("ipv4", "10.0.0.1"),
+            new Annotation("_spanLogs", "true"))).
+        build();
+    mockTraceHandler.report(expectedSpan3);
+    expectLastCall();
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("default").
+        setTraceId("00000000-0000-0000-4822-889fe47043bd").
+        setSpanId("00000000-0000-0000-4822-889fe47043bd").
+        setSpanSecondaryId("server").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(startTime * 1000).
+                setFields(ImmutableMap.of("annotation", "start processing")).
+                build()
+        )).
+        setSpan(SPAN_SERIALIZER.apply(expectedSpan3)).
+        build());
     expectLastCall();
 
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
@@ -397,6 +451,7 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("http.method", "GET").
         putTag("http.url", "none+h1c://localhost:8881/").
         putTag("http.status_code", "200").
+        addAnnotation(startTime * 1000, "start processing").
         build();
 
     zipkin2.Span spanServer2 = zipkin2.Span.newBuilder().
@@ -411,6 +466,7 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("http.url", "none+h1c://localhost:8881/").
         putTag("http.status_code", "200").
         debug(true).
+        addAnnotation(startTime * 1000, "start processing").
         build();
 
     zipkin2.Span spanServer3 = zipkin2.Span.newBuilder().
@@ -425,6 +481,7 @@ public class ZipkinPortUnificationHandlerTest {
         putTag("http.url", "none+h1c://localhost:8881/").
         putTag("http.status_code", "200").
         putTag("debug", "debug-id-1").
+        addAnnotation(startTime * 1000, "start processing").
         build();
 
     zipkin2.Span spanServer4 = zipkin2.Span.newBuilder().

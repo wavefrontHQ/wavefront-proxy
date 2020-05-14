@@ -40,7 +40,7 @@ public class JaegerTChannelCollectorHandlerTest {
   @Test
   public void testJaegerTChannelCollector() throws Exception {
     reset(mockTraceHandler, mockTraceLogsHandler);
-    Span span = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+    Span expectedSpan1 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(1234)
         .setName("HTTP GET")
         .setSource(DEFAULT_SOURCE)
@@ -56,7 +56,7 @@ public class JaegerTChannelCollectorHandlerTest {
             new Annotation("shard", "none"),
             new Annotation("_spanLogs", "true")))
         .build();
-    mockTraceHandler.report(span);
+    mockTraceHandler.report(expectedSpan1);
     expectLastCall();
 
     mockTraceLogsHandler.report(SpanLogs.newBuilder().
@@ -69,7 +69,7 @@ public class JaegerTChannelCollectorHandlerTest {
                 setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
                 build()
         )).
-        setSpan(SPAN_SERIALIZER.apply(span)).
+        setSpan(SPAN_SERIALIZER.apply(expectedSpan1)).
         build());
     expectLastCall();
 
@@ -311,7 +311,7 @@ public class JaegerTChannelCollectorHandlerTest {
   public void testJaegerDurationSampler() throws Exception {
     reset(mockTraceHandler, mockTraceLogsHandler);
 
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+    Span expectedSpan2 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(9)
         .setName("HTTP GET /")
         .setSource(DEFAULT_SOURCE)
@@ -324,8 +324,24 @@ public class JaegerTChannelCollectorHandlerTest {
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none")))
-        .build());
+            new Annotation("shard", "none"),
+            new Annotation("_spanLogs", "true")))
+        .build();
+    mockTraceHandler.report(expectedSpan2);
+    expectLastCall();
+
+    mockTraceLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("default").
+        setSpanId("00000000-0000-0000-0000-00000023cace").
+        setTraceId("00000000-4996-02d2-0000-011f71fb04cb").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(startTime * 1000).
+                setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
+                build()
+        )).
+        setSpan(SPAN_SERIALIZER.apply(expectedSpan2)).
+        build());
     expectLastCall();
 
     replay(mockTraceHandler, mockTraceLogsHandler);
@@ -342,6 +358,15 @@ public class JaegerTChannelCollectorHandlerTest {
 
     io.jaegertracing.thriftjava.Span span2 = new io.jaegertracing.thriftjava.Span(1234567890123L, 1234567890L,
         2345678L, 1234567L, "HTTP GET /", 1, startTime * 1000, 9 * 1000);
+
+    Tag tag1 = new Tag("event", TagType.STRING);
+    tag1.setVStr("error");
+    Tag tag2 = new Tag("exception", TagType.STRING);
+    tag2.setVStr("NullPointerException");
+    span1.setLogs(ImmutableList.of(new Log(startTime * 1000,
+        ImmutableList.of(tag1, tag2))));
+    span2.setLogs(ImmutableList.of(new Log(startTime * 1000,
+        ImmutableList.of(tag1, tag2))));
 
     Batch testBatch = new Batch();
     testBatch.process = new Process();
@@ -363,7 +388,7 @@ public class JaegerTChannelCollectorHandlerTest {
   public void testJaegerDebugOverride() throws Exception {
     reset(mockTraceHandler, mockTraceLogsHandler);
 
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+    Span expectedSpan1 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(9)
         .setName("HTTP GET /")
         .setSource(DEFAULT_SOURCE)
@@ -377,11 +402,27 @@ public class JaegerTChannelCollectorHandlerTest {
             new Annotation("debug", "true1"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none")))
-        .build());
+            new Annotation("shard", "none"),
+            new Annotation("_spanLogs", "true")))
+        .build();
+    mockTraceHandler.report(expectedSpan1);
     expectLastCall();
 
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+    mockTraceLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("default").
+        setSpanId("00000000-0000-0000-0000-00000023cace").
+        setTraceId("00000000-4996-02d2-0000-011f71fb04cb").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(startTime * 1000).
+                setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
+                build()
+        )).
+        setSpan(SPAN_SERIALIZER.apply(expectedSpan1)).
+        build());
+    expectLastCall();
+
+    Span expectedSpan2 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(4)
         .setName("HTTP GET")
         .setSource(DEFAULT_SOURCE)
@@ -394,8 +435,24 @@ public class JaegerTChannelCollectorHandlerTest {
             new Annotation("sampling.priority", "0.3"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
-            new Annotation("shard", "none")))
-        .build());
+            new Annotation("shard", "none"),
+            new Annotation("_spanLogs", "true")))
+        .build();
+    mockTraceHandler.report(expectedSpan2);
+    expectLastCall();
+
+    mockTraceLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("default").
+        setSpanId("00000000-0000-0000-0000-00000012d687").
+        setTraceId("00000000-4996-02d2-0000-011f71fb04cb").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(startTime * 1000).
+                setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
+                build()
+        )).
+        setSpan(SPAN_SERIALIZER.apply(expectedSpan2)).
+        build());
     expectLastCall();
 
     replay(mockTraceHandler, mockTraceLogsHandler);
@@ -420,6 +477,15 @@ public class JaegerTChannelCollectorHandlerTest {
     io.jaegertracing.thriftjava.Span span2 = new io.jaegertracing.thriftjava.Span(1234567890123L,
         1234567890L, 1234567L, 0L, "HTTP GET", 1, startTime * 1000, 4 * 1000);
     span2.setTags(ImmutableList.of(samplePriorityTag));
+
+    Tag tag1 = new Tag("event", TagType.STRING);
+    tag1.setVStr("error");
+    Tag tag2 = new Tag("exception", TagType.STRING);
+    tag2.setVStr("NullPointerException");
+    span1.setLogs(ImmutableList.of(new Log(startTime * 1000,
+        ImmutableList.of(tag1, tag2))));
+    span2.setLogs(ImmutableList.of(new Log(startTime * 1000,
+        ImmutableList.of(tag1, tag2))));
 
     Batch testBatch = new Batch();
     testBatch.process = new Process();
