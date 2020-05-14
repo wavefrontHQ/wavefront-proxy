@@ -86,6 +86,7 @@ parse_proxy_version_tarball() {
 
 # CP non-notarized proxy, cp signed jdk with it, package as .zip
 repackage_proxy() {
+  echo $VERSION
   COPY_FORM_TO_BE_NOTARIZED="aws s3 cp s3://eso-wfproxy-testing/to_be_notarized/wfproxy-$VERSION.tar.gz ."
   $COPY_FORM_TO_BE_NOTARIZED
   TARBALL="wfproxy-$VERSION.tar.gz"
