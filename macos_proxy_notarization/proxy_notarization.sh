@@ -95,10 +95,10 @@ echo "Grabbing Request UUID"
 requestuuid=${response#*= }
 echo $requestuuid
 
-sleep 60
-
 echo "Executing this command to see the status of notarization"
 xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW"
+
+sleep 20
 
 status="$(xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW")"
 in_progress='Status: in progress'
