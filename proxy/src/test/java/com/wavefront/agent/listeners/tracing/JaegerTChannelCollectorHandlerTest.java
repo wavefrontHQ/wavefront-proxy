@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.uber.tchannel.messages.ThriftRequest;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.ingester.SpanSerializer;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
@@ -28,7 +29,8 @@ import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
 
 public class JaegerTChannelCollectorHandlerTest {
-  private final static String DEFAULT_SOURCE = "jaeger";
+  private static final String DEFAULT_SOURCE = "jaeger";
+  private static final SpanSerializer SPAN_SERIALIZER = new SpanSerializer();
   private ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
@@ -38,7 +40,7 @@ public class JaegerTChannelCollectorHandlerTest {
   @Test
   public void testJaegerTChannelCollector() throws Exception {
     reset(mockTraceHandler, mockTraceLogsHandler);
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+    Span span = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(1234)
         .setName("HTTP GET")
         .setSource(DEFAULT_SOURCE)
@@ -53,7 +55,8 @@ public class JaegerTChannelCollectorHandlerTest {
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
             new Annotation("_spanLogs", "true")))
-        .build());
+        .build();
+    mockTraceHandler.report(span);
     expectLastCall();
 
     mockTraceLogsHandler.report(SpanLogs.newBuilder().
@@ -66,6 +69,7 @@ public class JaegerTChannelCollectorHandlerTest {
                 setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
                 build()
         )).
+        setSpan(SPAN_SERIALIZER.apply(span)).
         build());
     expectLastCall();
 

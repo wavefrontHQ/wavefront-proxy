@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.ingester.SpanSerializer;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
@@ -36,7 +37,8 @@ import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
 
 public class ZipkinPortUnificationHandlerTest {
-  private final static String DEFAULT_SOURCE = "zipkin";
+  private static final String DEFAULT_SOURCE = "zipkin";
+  private static final SpanSerializer SPAN_SERIALIZER = new SpanSerializer();
   private ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
@@ -151,7 +153,7 @@ public class ZipkinPortUnificationHandlerTest {
         build());
     expectLastCall();
 
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+    Span span1 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
         setDuration(2234).
         setName("getbackendservice").
         setSource(DEFAULT_SOURCE).
@@ -172,30 +174,32 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("shard", "none"),
             new Annotation("ipv4", "10.0.0.1"),
             new Annotation("_spanLogs", "true"))).
-        build());
+        build();
+    mockTraceHandler.report(span1);
     expectLastCall();
 
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
-            setDuration(2234).
-            setName("getbackendservice2").
-            setSource(DEFAULT_SOURCE).
-            setTraceId("00000000-0000-0000-2822-889fe47043bd").
-            setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
-            // Note: Order of annotations list matters for this unit test.
-            setAnnotations(ImmutableList.of(
-                new Annotation("span.kind", "client"),
-                new Annotation("_spanSecondaryId", "client"),
-                new Annotation("service", "backend"),
-                new Annotation("component", "jersey-server"),
-                new Annotation("http.method", "GET"),
-                new Annotation("http.status_code", "200"),
-                new Annotation("http.url", "none+h2c://localhost:9000/api"),
-                new Annotation("application", "SpanLevelAppTag"),
-                new Annotation("cluster", "none"),
-                new Annotation("shard", "none"),
-                new Annotation("ipv4", "10.0.0.1"),
-                new Annotation("_spanLogs", "true"))).
-            build());
+    Span span2 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+        setDuration(2234).
+        setName("getbackendservice2").
+        setSource(DEFAULT_SOURCE).
+        setTraceId("00000000-0000-0000-2822-889fe47043bd").
+        setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
+        // Note: Order of annotations list matters for this unit test.
+        setAnnotations(ImmutableList.of(
+            new Annotation("span.kind", "client"),
+            new Annotation("_spanSecondaryId", "client"),
+            new Annotation("service", "backend"),
+            new Annotation("component", "jersey-server"),
+            new Annotation("http.method", "GET"),
+            new Annotation("http.status_code", "200"),
+            new Annotation("http.url", "none+h2c://localhost:9000/api"),
+            new Annotation("application", "SpanLevelAppTag"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none"),
+            new Annotation("ipv4", "10.0.0.1"),
+            new Annotation("_spanLogs", "true"))).
+        build();
+    mockTraceHandler.report(span2);
     expectLastCall();
 
     mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
@@ -209,21 +213,23 @@ public class ZipkinPortUnificationHandlerTest {
                 setFields(ImmutableMap.of("annotation", "start processing")).
                 build()
             )).
+        setSpan(SPAN_SERIALIZER.apply(span1)).
         build());
     expectLastCall();
 
     mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
-            setCustomer("default").
-            setTraceId("00000000-0000-0000-2822-889fe47043bd").
-            setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
-            setSpanSecondaryId("client").
-            setLogs(ImmutableList.of(
-                    SpanLog.newBuilder().
-                            setTimestamp(startTime * 1000).
-                            setFields(ImmutableMap.of("annotation", "start processing")).
-                            build()
-            )).
-            build());
+        setCustomer("default").
+        setTraceId("00000000-0000-0000-2822-889fe47043bd").
+        setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
+        setSpanSecondaryId("client").
+        setLogs(ImmutableList.of(
+                SpanLog.newBuilder().
+                        setTimestamp(startTime * 1000).
+                        setFields(ImmutableMap.of("annotation", "start processing")).
+                        build()
+        )).
+        setSpan(SPAN_SERIALIZER.apply(span2)).
+        build());
     expectLastCall();
 
     // Replay
