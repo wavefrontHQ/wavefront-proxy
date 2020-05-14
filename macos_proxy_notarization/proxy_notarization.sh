@@ -92,7 +92,7 @@ repackage_proxy() {
   TARBALL="wfproxy-$VERSION.tar.gz"
   tar xvzf $TARBALL
   rm -rf lib/jdk
-  mkdir lib/jdkv
+  mkdir lib/jdk
   ls
   cp -r zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk/Contents/Home/* lib/jdk/;
   zip -r wfproxy-$VERSION.zip bin/ etc/ lib/
@@ -147,6 +147,7 @@ main() {
   create_dev_certs
   download_jdk
   parse_proxy_version_tarball
+  echo $VERSION
   repackage_proxy
   notarized_newly_package_proxy
   sleep 20
