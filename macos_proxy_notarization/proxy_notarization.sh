@@ -7,7 +7,7 @@ echo "Taking newest proxy and checking to see if it's already notarized:"
 to_be_notarizaed="`aws s3 ls s3://eso-wfproxy-testing/to_be_notarized/ | sort -r | grep wfproxy | awk '{print $4}' | head -1 | sed 's/.tar.gz//'`"
 echo $to_be_notarizaed
 echo "Checking against this list that is already notarized:"
-notarized="`aws s3 ls s3://eso-wfproxy-testing/notarized/ | sort -r | grep wfproxy | awk '{print $4}'`"
+notarized="`aws s3 ls s3://eso-wfproxy-testing/brew/ | sort -r | grep wfproxy | awk '{print $4}'`"
 echo $notarized
 
 if [[ "$notarized" == *"$to_be_notarizaed"* ]]; then
@@ -55,15 +55,11 @@ echo "Remove certs"
 rm -fr *.p12
 
 echo "Downloading Zulu JDK 11.0.7"
-ZULU_JDK="`wget https://cdn.azul.com/zulu/bin/zulu11.39.15-ca-jdk11.0.7-macosx_x64.tar.gz`"
-$ZULU_JDK
-tar xvzf zulu11.39.15-ca-jdk11.0.7-macosx_x64.tar.gz
-
-echo "Codesigning & timestamping each file in the JDK/JRE"
-find "zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk" -type f \( -name "*.jar" -or -name "*.dylib" -or -perm +111 -type f -or -type l \) -exec codesign -f -s "$WF_DEV_ACCOUNT" --entitlements "./macos_proxy_notarization/wfproxy.entitlements" {} --timestamp --options runtime \;
+aws s3 cp s3://wavefront-misc/PROXY-JRE-IS-ZULU-11.0.7/zulu11.39.15-ca-jdk11.0.7-macosx_x64.zip .
+unzip zulu11.39.15-ca-jdk11.0.7-macosx_x64.zip
 
 echo "Downloading previous proxy release"
-TO_BE_NOTARIZED=$(aws s3 ls s3://eso-test-alan/to_be_notarized/ | sort -r | grep wfproxy | head -1 | awk '{print $4}')
+TO_BE_NOTARIZED=$(aws s3 ls s3://eso-wfproxy-testing/to_be_notarized/ | sort -r | grep wfproxy | head -1 | awk '{print $4}')
 echo $TO_BE_NOTARIZED
 
 echo "Get the version"
@@ -74,7 +70,7 @@ if [[ $TO_BE_NOTARIZED =~ $RE ]]; then
 fi
 echo $VERSION
 
-copy_from_to_be_notarized="aws s3 cp s3://eso-test-alan/to_be_notarized/wfproxy-$VERSION.tar.gz ."
+copy_from_to_be_notarized="aws s3 cp s3://eso-wfproxy-testing/to_be_notarized/wfproxy-$VERSION.tar.gz ."
 $copy_from_to_be_notarized
 tarfile="wfproxy-$VERSION.tar.gz"
 tar xvzf $tarfile
