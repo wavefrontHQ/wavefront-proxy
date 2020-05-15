@@ -148,6 +148,9 @@ abstract class ProxyUtil {
             strPort)),
         Metrics.newCounter(new TaggedMetricName("listeners", "connections.active", "port",
             strPort)));
+    if (sslContext.isPresent()) {
+      logger.info("Securing port: " + port);
+    }
     return new ChannelInitializer<SocketChannel>() {
       @Override
       public void initChannel(SocketChannel ch) {
