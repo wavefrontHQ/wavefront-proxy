@@ -84,19 +84,19 @@ repackage_proxy() {
   mkdir lib/jdk
   ls
   cp -r zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk/Contents/Home/* lib/jdk/;
-  zip -r wfproxy-$VERSION.zip bin/ etc/ lib/
+  zip -r wavefront-proxy-$VERSION.zip bin/ etc/ lib/
 }
 
 # Notarized the .zip and upload to Apply
 notarized_newly_package_proxy() {
   echo "Codesigning the wavefront-proxy package"
-  codesign -f -s "$ESO_DEV_ACCOUNT" wfproxy-$VERSION.zip --deep --options runtime
+  codesign -f -s "$ESO_DEV_ACCOUNT" wavefront-proxy-$VERSION.zip --deep --options runtime
 
   echo "Verifying the codesign"
-  codesign -vvv --deep --strict wfproxy-$VERSION.zip
+  codesign -vvv --deep --strict wavefront-proxy-$VERSION.zip
 
   echo "Uploading the package for Notarization"
-  response="$(xcrun altool --notarize-app --primary-bundle-id "com.wavefront" --username "$USERNAME" --password "$APP_SPECIFIC_PW" --file "wfproxy-$VERSION.zip" | sed -n '2 p')"
+  response="$(xcrun altool --notarize-app --primary-bundle-id "com.wavefront" --username "$USERNAME" --password "$APP_SPECIFIC_PW" --file "wavefront-proxy-$VERSION.zip" | sed -n '2 p')"
   echo $response
 
   echo "Grabbing Request UUID"
