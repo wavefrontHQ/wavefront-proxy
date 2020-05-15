@@ -55,13 +55,6 @@ create_dev_certs() {
   rm -fr *.p12
 }
 
-# Download the signed JDK from AWS S3 Bucket
-download_jdk() {
-  echo "Downloading Zulu JDK 11.0.7"
-  aws s3 cp s3://wavefront-misc/PROXY-JRE-IS-ZULU-11.0.7/zulu11.39.15-ca-jdk11.0.7-macosx_x64.zip .
-  unzip zulu11.39.15-ca-jdk11.0.7-macosx_x64.zip
-}
-
 # Parse the proxy version our of the 
 parse_proxy_version_tarball() {
   echo "Get the version"
@@ -80,10 +73,6 @@ repackage_proxy() {
   $COPY_FORM_TO_BE_NOTARIZED
   TARBALL="wfproxy-$VERSION.tar.gz"
   tar xvzf $TARBALL
-  rm -rf lib/jdk
-  mkdir lib/jdk
-  ls
-  cp -r zulu11.39.15-ca-jdk11.0.7-macosx_x64/zulu-11.jdk/Contents/Home/* lib/jdk/;
   zip -r wavefront-proxy-$VERSION.zip bin/ etc/ lib/
 }
 
@@ -134,7 +123,7 @@ wait_for_notarization() {
 main() {
   check_notarized_list
   create_dev_certs
-  download_jdk
+  # download_jdk
   parse_proxy_version_tarball
   echo $VERSION
   repackage_proxy
