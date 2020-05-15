@@ -119,7 +119,7 @@ download_jre() {
 if [[ -z "$PROXY_JAVA_HOME" && ! -r $proxy_jre_dir/bin/java ]]; then
     if type -p java; then
         JAVA_VERSION=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1)
-        if [[ $JAVA_VERSION == "11" || $JAVA_VERSION == "10" || $JAVA_VERSION == "9" || $JAVA_VERSION == "1.8" ]]; then
+        if [[ $JAVA_VERSION == "11" || $JAVA_VERSION == "10" || $JAVA_VERSION == "9" || $JAVA_VERSION == "8" || $JAVA_VERSION == "1.8" ]]; then
             JAVA_HOME=$($(dirname $(dirname $(readlink -f $(which javac)))))
             echo "Using Java runtime $JAVA_VERSION detected in $JAVA_HOME" >&2
         else
