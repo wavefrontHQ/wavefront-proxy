@@ -2,7 +2,7 @@ set -ev
 
 WFPROXY_TARBALL=$1
 echo "This is the tarball that was just uplaoded: $1"
-PARSED_TARBALL="`echo $WFPROXY_TARBALL| sed 's/.tar.gz//'`"
+PARSED_TARBALL="`echo $WFPROXY_TARBALL | sed 's/.tar.gz//'`"
 echo $PARSED_TARBALL
 
 echo "List of proxy that are already notarized:"
@@ -51,7 +51,7 @@ create_dev_certs() {
   echo "Unlock the keychain 3"
   security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k travis $KEY_CHAIN
 
-  echo "Remove certs"
+  echo "Delete certs"
   rm -fr *.p12
 }
 
@@ -60,16 +60,6 @@ download_jdk() {
   echo "Downloading Zulu JDK 11.0.7"
   aws s3 cp s3://wavefront-misc/PROXY-JRE-IS-ZULU-11.0.7/zulu11.39.15-ca-jdk11.0.7-macosx_x64.zip .
   unzip zulu11.39.15-ca-jdk11.0.7-macosx_x64.zip
-}
-
-# NOT NEEDED?
-# Download non-notarized wf-proxy that was uploaded to 'to_be_notarized' dir, via jenkins job 
-download_proxy_non_notarized() {
-  echo "Downloading recently uploaded proxy from to_be_notarized:"
-  # TO_BE_NOTARIZED=$(aws s3 ls s3://eso-wfproxy-testing/to_be_notarized/ | sort -r | grep wfproxy | head -1 | awk '{print $4}')
-  # echo $TO_BE_NOTARIZED
-  TO_BE_NOTARIZED=$(aws s3 ls s3://eso-wfproxy-testing/to_be_notarized/$WFPROXY_TARBALL | awk '{print $4}')
-  echo $TO_BE_NOTARIZED
 }
 
 # Parse the proxy version our of the 
@@ -86,7 +76,6 @@ parse_proxy_version_tarball() {
 
 # CP non-notarized proxy, cp signed jdk with it, package as .zip
 repackage_proxy() {
-  echo $VERSION
   COPY_FORM_TO_BE_NOTARIZED="aws s3 cp s3://eso-wfproxy-testing/to_be_notarized/wfproxy-$VERSION.tar.gz ."
   $COPY_FORM_TO_BE_NOTARIZED
   TARBALL="wfproxy-$VERSION.tar.gz"
