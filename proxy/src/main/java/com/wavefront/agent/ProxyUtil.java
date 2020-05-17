@@ -149,7 +149,7 @@ abstract class ProxyUtil {
         Metrics.newCounter(new TaggedMetricName("listeners", "connections.active", "port",
             strPort)));
     if (sslContext.isPresent()) {
-      logger.info("Securing port: " + port);
+      logger.info("TLS enabled on port: " + port);
     }
     return new ChannelInitializer<SocketChannel>() {
       @Override
