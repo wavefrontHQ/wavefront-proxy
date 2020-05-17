@@ -6,7 +6,7 @@ PARSED_TARBALL="`echo $WFPROXY_TARBALL | sed 's/.tar.gz//'`"
 echo $PARSED_TARBALL
 
 echo "List of proxy that are already notarized:"
-LIST_ALREADY_NOTARIZED="`aws s3 ls s3://eso-wfproxy-testing/brew/ | sort -r | grep wfproxy | awk '{print $4}'`"
+LIST_ALREADY_NOTARIZED="`aws s3 ls s3://wavefront-cdn/brew/ | sort -r | grep wavefront-proxy | awk '{print $4}'`"
 echo $LIST_ALREADY_NOTARIZED
 
 # Checking against this list that is already notarized
@@ -108,7 +108,7 @@ wait_for_notarization() {
     echo $status
     if [[ "$status" == *"$success"* ]]; then
       echo "Successful notarization"
-      aws s3 cp wavefront-proxy-$VERSION.zip s3://eso-wfproxy-testing/brew/
+      aws s3 cp wavefront-proxy-$VERSION.zip s3://wavefront-cdn/brew/
       exit 0
     elif [[ "$status" == *"$in_progress"* ]]; then
       status="$(xcrun altool --notarization-info "$requestuuid" -u "$USERNAME" -p "$APP_SPECIFIC_PW")"
@@ -121,9 +121,8 @@ wait_for_notarization() {
 }
 
 main() {
-  check_notarized_list
+  # check_notarized_list
   create_dev_certs
-  # download_jdk
   parse_proxy_version_tarball
   echo $VERSION
   repackage_proxy
