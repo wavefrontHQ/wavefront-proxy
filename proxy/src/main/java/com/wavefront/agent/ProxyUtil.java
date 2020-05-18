@@ -12,12 +12,15 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -119,9 +122,10 @@ abstract class ProxyUtil {
   static ChannelInitializer<SocketChannel> createInitializer(ChannelHandler channelHandler,
                                                              int port, int messageMaxLength,
                                                              int httpRequestBufferSize,
-                                                             int idleTimeout) {
+                                                             int idleTimeout,
+                                                             Optional<SslContext> sslContext) {
     return createInitializer(ImmutableList.of(() -> new PlainTextOrHttpFrameDecoder(channelHandler,
-        messageMaxLength, httpRequestBufferSize)), port, idleTimeout);
+        messageMaxLength, httpRequestBufferSize)), port, idleTimeout, sslContext);
   }
 
   /**
@@ -134,7 +138,8 @@ abstract class ProxyUtil {
    * @return channel initializer
    */
   static ChannelInitializer<SocketChannel> createInitializer(
-      Iterable<Supplier<ChannelHandler>> channelHandlerSuppliers, int port, int idleTimeout) {
+      Iterable<Supplier<ChannelHandler>> channelHandlerSuppliers, int port, int idleTimeout,
+      Optional<SslContext> sslContext) {
     String strPort = String.valueOf(port);
     ChannelHandler idleStateEventHandler = new IdleStateEventHandler(Metrics.newCounter(
         new TaggedMetricName("listeners", "connections.idle.closed", "port", strPort)));
@@ -143,10 +148,14 @@ abstract class ProxyUtil {
             strPort)),
         Metrics.newCounter(new TaggedMetricName("listeners", "connections.active", "port",
             strPort)));
+    if (sslContext.isPresent()) {
+      logger.info("TLS enabled on port: " + port);
+    }
     return new ChannelInitializer<SocketChannel>() {
       @Override
       public void initChannel(SocketChannel ch) {
         ChannelPipeline pipeline = ch.pipeline();
+        sslContext.ifPresent(s -> pipeline.addLast(s.newHandler(ch.alloc())));
         pipeline.addFirst("idlehandler", new IdleStateHandler(idleTimeout, 0, 0));
         pipeline.addLast("idlestateeventhandler", idleStateEventHandler);
         pipeline.addLast("connectiontracker", connectionTracker);
