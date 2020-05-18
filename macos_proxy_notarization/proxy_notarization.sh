@@ -121,7 +121,7 @@ wait_for_notarization() {
 }
 
 main() {
-  # check_notarized_list
+  check_notarized_list
   create_dev_certs
   parse_proxy_version_tarball
   echo $VERSION
