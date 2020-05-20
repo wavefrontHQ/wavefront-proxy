@@ -16,6 +16,7 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
+import com.wavefront.ingester.SpanSerializer;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
@@ -117,6 +118,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
   private final Set<String> traceDerivedCustomTagKeys;
 
   private static final Logger ZIPKIN_DATA_LOGGER = Logger.getLogger("ZipkinDataLogger");
+  private static final SpanSerializer SPAN_SERIALIZER = new SpanSerializer();
 
   public ZipkinPortUnificationHandler(String handle,
                                       final HealthCheckManager healthCheckManager,
@@ -400,6 +402,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
                     setFields(ImmutableMap.of("annotation", x.value())).
                     build()).
                 collect(Collectors.toList())).
+            setSpan(SPAN_SERIALIZER.apply(wavefrontSpan)).
             build();
         spanLogsHandler.report(spanLogs);
       }

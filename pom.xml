@@ -59,7 +59,7 @@
     <jackson.version>2.9.10</jackson.version>
     <jackson-databind.version>2.9.10.4</jackson-databind.version>
     <netty.version>4.1.45.Final</netty.version>
-    <java-lib.version>2020-04.4</java-lib.version>
+    <java-lib.version>2020-05.2</java-lib.version>
 
     <doclint>none</doclint>
   </properties>

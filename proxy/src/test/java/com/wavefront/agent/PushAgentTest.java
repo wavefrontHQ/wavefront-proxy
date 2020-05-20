@@ -514,15 +514,19 @@ public class PushAgentTest {
         "\",\"logs\":[{\"timestamp\":" + timestamp1 +
         ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
         timestamp2 + ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n";
+    String spanLogDataWithSpanField = "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId +
+        "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
+        timestamp2 + ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]," +
+        "\"span\":\"" + escapeSpanData(spanData) + "\"}\n";
     String mixedData = "@SourceTag action=save source=testSource newtag1 newtag2\n" +
         "@Event " + startTime + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
         "severity=INFO multi=bar multi=baz\n" +
         "!M " + (startTime + 60) + " #5 20.0 #6 30.0 #7 40.0 metric.test.histo source=test2\n" +
-        "metric4.test 0 " + startTime + " source=test1\n" + spanLogData;
+        "metric4.test 0 " + startTime + " source=test1\n" + spanLogData + spanLogDataWithSpanField;
 
     String invalidData = "{\"spanId\"}\n@SourceTag\n@Event\n!M #5\nmetric.name\n" +
         "metric5.test 0 1234567890 source=test1\n";
-
 
     reset(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
         mockSourceTagHandler, mockEventHandler);
@@ -595,6 +599,22 @@ public class PushAgentTest {
         )).
         build());
     expectLastCall();
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("dummy").
+        setTraceId(traceId).
+        setSpanId("testspanid").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(timestamp1).
+                setFields(ImmutableMap.of("key", "value", "key2", "value2")).
+                build(),
+            SpanLog.newBuilder().
+                setTimestamp(timestamp2).
+                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                build()
+        )).
+        setSpan(spanData).
+        build());
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
         .setDuration(1000)
         .setName("testSpanName")
@@ -612,6 +632,8 @@ public class PushAgentTest {
         "/report?format=trace", spanData));
     assertEquals(202, gzippedHttpPost("http://localhost:" + port +
         "/report?format=spanLogs", spanLogData));
+    assertEquals(202, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=spanLogs", spanLogDataWithSpanField));
     verify(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
         mockSourceTagHandler, mockEventHandler);
 
@@ -643,6 +665,8 @@ public class PushAgentTest {
     proxy.entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/report?format=spanLogs", spanLogData));
+    assertEquals(403, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=spanLogs", spanLogDataWithSpanField));
     assertEquals(202, gzippedHttpPost("http://localhost:" + port + "/report", mixedData));
     verify(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
         mockSourceTagHandler, mockEventHandler);
@@ -694,6 +718,8 @@ public class PushAgentTest {
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = startTime * 1000000 + 12345;
     long timestamp2 = startTime * 1000000 + 23456;
+    String spanData = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
+        "traceId=\"" + traceId + "\" parent=parent2 " + startTime + " " + (startTime + 1) + "\n";
     mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
         setCustomer("dummy").
         setTraceId(traceId).
@@ -710,6 +736,23 @@ public class PushAgentTest {
         )).
         build());
     expectLastCall();
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("dummy").
+        setTraceId(traceId).
+        setSpanId("testspanid").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(timestamp1).
+                setFields(ImmutableMap.of("key", "value", "key2", "value2")).
+                build(),
+            SpanLog.newBuilder().
+                setTimestamp(timestamp2).
+                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                build()
+        )).
+        setSpan(spanData).
+        build());
+    expectLastCall();
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
         .setDuration(1000)
         .setName("testSpanName")
@@ -724,11 +767,14 @@ public class PushAgentTest {
 
     Socket socket = SocketFactory.getDefault().createSocket("localhost", tracePort);
     BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
-    String payloadStr = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
-        "traceId=\"" + traceId + "\" parent=parent2 " + startTime + " " + (startTime + 1) + "\n" +
+    String payloadStr = spanData +
         "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId + "\",\"logs\":[{\"timestamp\":" + timestamp1 +
         ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 +
-        ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n";
+        ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n" +
+        "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId + "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 +
+        ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]," +
+        "\"span\":\"" + escapeSpanData(spanData) + "\"}\n";
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
@@ -748,6 +794,9 @@ public class PushAgentTest {
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = startTime * 1000000 + 12345;
     long timestamp2 = startTime * 1000000 + 23456;
+    String spanData = "testSpanName source=testsource spanId=testspanid " +
+        "traceId=\"" + traceId + "\" application=application1 service=service1 " + startTime +
+        " " + (startTime + 1) + "\n";
     mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
         setCustomer("dummy").
         setTraceId(traceId).
@@ -762,6 +811,23 @@ public class PushAgentTest {
                 setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
                 build()
         )).
+        build());
+    expectLastCall();
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("dummy").
+        setTraceId(traceId).
+        setSpanId("testspanid").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(timestamp1).
+                setFields(ImmutableMap.of("key", "value", "key2", "value2")).
+                build(),
+            SpanLog.newBuilder().
+                setTimestamp(timestamp2).
+                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                build()
+        )).
+        setSpan(spanData).
         build());
     expectLastCall();
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
@@ -780,11 +846,14 @@ public class PushAgentTest {
     replay(mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender);
     Socket socket = SocketFactory.getDefault().createSocket("localhost", customTracePort);
     BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
-    String payloadStr = "testSpanName source=testsource spanId=testspanid " +
-        "traceId=\"" + traceId + "\" application=application1 service=service1 " + startTime + " " + (startTime + 1) + "\n" +
+    String payloadStr = spanData +
         "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId + "\",\"logs\":[{\"timestamp\":" + timestamp1 +
         ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 +
-        ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n";
+        ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n" +
+        "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId + "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 +
+        ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]," +
+        "\"span\":\"" + escapeSpanData(spanData) + "\"}\n";
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
@@ -1234,6 +1303,8 @@ public class PushAgentTest {
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = startTime * 1000000 + 12345;
     long timestamp2 = startTime * 1000000 + 23456;
+    String spanData = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
+        "traceId=\"" + traceId + "\" parent=parent2 " + startTime + " " + (startTime + 1);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric4.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
@@ -1259,6 +1330,23 @@ public class PushAgentTest {
         )).
         build());
     expectLastCall();
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("dummy").
+        setTraceId(traceId).
+        setSpanId("testspanid").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(timestamp1).
+                setFields(ImmutableMap.of("key", "value", "key2", "value2")).
+                build(),
+            SpanLog.newBuilder().
+                setTimestamp(timestamp2).
+                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                build()
+        )).
+        setSpan(spanData).
+        build());
+    expectLastCall();
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
         .setDuration(1000)
         .setName("testSpanName")
@@ -1278,12 +1366,15 @@ public class PushAgentTest {
         "metric4.test 2 " + (startTime + 2) + " source=test3"; // note the lack of newline at the end!
     String histoData = "!M " + startTime + " #5 10.0 #10 100.0 metric.test.histo source=test1\n" +
         "!M " + (startTime + 60) + " #5 20.0 #6 30.0 #7 40.0 metric.test.histo source=test2";
-    String spanData = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
-        "traceId=\"" + traceId + "\" parent=parent2 " + startTime + " " + (startTime + 1);
     String spanLogData = "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId +
         "\",\"logs\":[{\"timestamp\":" + timestamp1 +
         ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
         timestamp2 + ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n";
+    String spanLogDataWithSpanField = "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId +
+        "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
+        timestamp2 + ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]," +
+        "\"span\":\"" + escapeSpanData(spanData) + "\"}\n";
     String badData = "@SourceTag action=save source=testSource newtag1 newtag2\n" +
         "@Event " + startTime + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
         "severity=INFO multi=bar multi=baz\n" +
@@ -1299,6 +1390,8 @@ public class PushAgentTest {
         "/api/v2/wfproxy/report?format=trace", spanData));
     assertEquals(200, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=spanLogs", spanLogData));
+    assertEquals(200, gzippedHttpPost("http://localhost:" + port +
+        "/api/v2/wfproxy/report?format=spanLogs", spanLogDataWithSpanField));
     proxy.entityProps.get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=histogram", histoData));
@@ -1308,6 +1401,8 @@ public class PushAgentTest {
     proxy.entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=spanLogs", spanLogData));
+    assertEquals(403, gzippedHttpPost("http://localhost:" + port +
+        "/api/v2/wfproxy/report?format=spanLogs", spanLogDataWithSpanField));
     assertEquals(400, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=wavefront", badData));
     verify(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler);
@@ -1396,5 +1491,9 @@ public class PushAgentTest {
     assertEquals(200, httpGet("http://localhost:" + port2 + "/health"));
     assertEquals(200, httpGet("http://localhost:" + port3 + "/health"));
     assertEquals(200, httpGet("http://localhost:" + port4 + "/health"));
+  }
+
+  private String escapeSpanData(String spanData) {
+    return spanData.replace("\"", "\\\"").replace("\n", "\\n");
   }
 }

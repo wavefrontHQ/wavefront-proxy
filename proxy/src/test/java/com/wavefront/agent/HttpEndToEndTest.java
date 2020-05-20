@@ -516,12 +516,66 @@ public class HttpEndToEndTest {
         timestamp1 + ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
         timestamp2 + ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n";
     String expectedSpan = "\"testSpanName\" source=\"testsource\" spanId=\"testspanid\" " +
-        "traceId=\"" + traceId +"\" \"parent\"=\"parent1\" \"parent\"=\"parent2\" " +
+        "traceId=\"" + traceId + "\" \"parent\"=\"parent1\" \"parent\"=\"parent2\" " +
         (time * 1000) + " 1000";
     String expectedSpanLog = "{\"customer\":\"dummy\",\"traceId\":\"" + traceId + "\",\"spanId" +
         "\":\"testspanid\",\"spanSecondaryId\":null,\"logs\":[{\"timestamp\":" + timestamp1 + "," +
         "\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 + "," +
-        "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}";
+        "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":null}";
+    AtomicBoolean gotSpan = new AtomicBoolean(false);
+    AtomicBoolean gotSpanLog = new AtomicBoolean(false);
+    server.update(req -> {
+      String content = req.content().toString(CharsetUtil.UTF_8);
+      logger.fine("Content received: " + content);
+      if (content.equals(expectedSpan)) gotSpan.set(true);
+      if (content.equals(expectedSpanLog)) gotSpanLog.set(true);
+      return makeResponse(HttpResponseStatus.OK, "");
+    });
+    gzippedHttpPost("http://localhost:" + proxyPort + "/", payload);
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).
+        flushNow(HandlerKey.of(ReportableEntityType.TRACE, String.valueOf(proxyPort)));
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).
+        flushNow(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, String.valueOf(proxyPort)));
+    assertTrueWithTimeout(50, gotSpan::get);
+    assertTrueWithTimeout(50, gotSpanLog::get);
+  }
+
+  @Test
+  public void testEndToEndSpans_SpanLogsWithSpanField() throws Exception {
+    long time = Clock.now() / 1000;
+    proxyPort = findAvailablePort(2898);
+    proxyPort = findAvailablePort(2898);
+    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    proxy = new PushAgent();
+    proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.flushThreads = 1;
+    proxy.proxyConfig.traceListenerPorts = String.valueOf(proxyPort);
+    proxy.proxyConfig.pushFlushInterval = 50;
+    proxy.proxyConfig.bufferFile = buffer;
+    proxy.start(new String[]{});
+    waitUntilListenerIsOnline(proxyPort);
+    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
+    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
+
+    String traceId = UUID.randomUUID().toString();
+    long timestamp1 = time * 1000000 + 12345;
+    long timestamp2 = time * 1000000 + 23456;
+    String payload = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
+        "traceId=\"" + traceId + "\" parent=parent2 " + time + " " + (time + 1) + "\n" +
+        "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId + "\",\"logs\":[{\"timestamp\":" +
+        timestamp1 + ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
+        timestamp2 + ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":\"" +
+        "testSpanName parent=parent1 source=testsource spanId=testspanid traceId=\\\"" + traceId +
+        "\\\" parent=parent2 " + time + " " + (time + 1) + "\\n\"}\n";
+    String expectedSpan = "\"testSpanName\" source=\"testsource\" spanId=\"testspanid\" " +
+        "traceId=\"" + traceId + "\" \"parent\"=\"parent1\" \"parent\"=\"parent2\" " +
+        (time * 1000) + " 1000";
+    String expectedSpanLog = "{\"customer\":\"dummy\",\"traceId\":\"" + traceId + "\",\"spanId" +
+        "\":\"testspanid\",\"spanSecondaryId\":null,\"logs\":[{\"timestamp\":" + timestamp1 + "," +
+        "\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 + "," +
+        "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":\"" +
+        "testSpanName parent=parent1 source=testsource spanId=testspanid traceId=\\\"" + traceId +
+        "\\\" parent=parent2 " + time + " " + (time + 1) + "\\n\"}";
     AtomicBoolean gotSpan = new AtomicBoolean(false);
     AtomicBoolean gotSpanLog = new AtomicBoolean(false);
     server.update(req -> {
