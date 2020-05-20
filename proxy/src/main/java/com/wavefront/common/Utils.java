@@ -115,6 +115,17 @@ public abstract class Utils {
   }
 
   /**
+   * Returns current java runtime version information (name/vendor/version) as a string.
+   *
+   * @return java runtime version as string
+   */
+  public static String getJavaVersion() {
+    return System.getProperty("java.runtime.name", "(unknown runtime)") + " (" +
+        System.getProperty("java.vendor", "") + ") " +
+        System.getProperty("java.version", "(unknown version)");
+  }
+
+  /**
    * Makes a best-effort attempt to resolve the hostname for the local host.
    *
    * @return name for localhost
