@@ -6,6 +6,7 @@ import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.ingester.SpanSerializer;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 import io.jaegertracing.thriftjava.Batch;
 import io.jaegertracing.thriftjava.Log;
@@ -37,7 +38,8 @@ import static org.easymock.EasyMock.verify;
  * @author Han Zhang (zhanghan@vmware.com)
  */
 public class JaegerPortUnificationHandlerTest {
-  private final static String DEFAULT_SOURCE = "jaeger";
+  private static final String DEFAULT_SOURCE = "jaeger";
+  private static final SpanSerializer SPAN_SERIALIZER = new SpanSerializer();
   private ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
@@ -49,7 +51,7 @@ public class JaegerPortUnificationHandlerTest {
   @Test
   public void testJaegerPortUnificationHandler() throws Exception {
     reset(mockTraceHandler, mockTraceSpanLogsHandler, mockCtx);
-    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+    Span expectedSpan1 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
         .setDuration(1234)
         .setName("HTTP GET")
         .setSource(DEFAULT_SOURCE)
@@ -64,7 +66,8 @@ public class JaegerPortUnificationHandlerTest {
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
             new Annotation("_spanLogs", "true")))
-        .build());
+        .build();
+    mockTraceHandler.report(expectedSpan1);
     expectLastCall();
 
     mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
@@ -77,6 +80,7 @@ public class JaegerPortUnificationHandlerTest {
                 setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
                 build()
         )).
+        setSpan(SPAN_SERIALIZER.apply(expectedSpan1)).
         build());
     expectLastCall();
 

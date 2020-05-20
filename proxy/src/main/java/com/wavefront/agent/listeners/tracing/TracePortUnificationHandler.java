@@ -74,7 +74,9 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private final Supplier<Boolean> spanLogsDisabled;
 
   protected final Counter discardedSpans;
+  protected final Counter discardedSpanLogs;
   private final Counter discardedSpansBySampler;
+  private final Counter discardedSpanLogsBySampler;
 
   public TracePortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
@@ -113,7 +115,11 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
     this.traceDisabled = traceDisabled;
     this.spanLogsDisabled = spanLogsDisabled;
     this.discardedSpans = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
+    this.discardedSpanLogs = Metrics.newCounter(new MetricName("spanLogs." + handle, "",
+        "discarded"));
     this.discardedSpansBySampler = Metrics.newCounter(new MetricName("spans." + handle, "",
+        "sampler.discarded"));
+    this.discardedSpanLogsBySampler = Metrics.newCounter(new MetricName("spanLogs." + handle, "",
         "sampler.discarded"));
   }
 
@@ -128,21 +134,13 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   @Override
   protected void processLine(final ChannelHandlerContext ctx, @Nonnull String message,
                              @Nullable DataFormat format) {
-    if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedSpans)) return;
     if (format == DataFormat.SPAN_LOG || (message.startsWith("{") && message.endsWith("}"))) {
-      if (isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) return;
-      try {
-        List<SpanLogs> output = new ArrayList<>(1);
-        spanLogsDecoder.decode(JSON_PARSER.readTree(message), output, "dummy");
-        for (SpanLogs object : output) {
-          spanLogsHandler.report(object);
-        }
-      } catch (Exception e) {
-        spanLogsHandler.reject(message, formatErrorMessage(message, e, ctx));
-      }
+      if (isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, discardedSpanLogs)) return;
+      handleSpanLogs(message, spanLogsDecoder, decoder, spanLogsHandler, preprocessorSupplier,
+          ctx, alwaysSampleErrors, this::sampleSpanLogs);
       return;
     }
-
+    if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedSpans)) return;
     preprocessAndHandleSpan(message, decoder, handler, this::report, preprocessorSupplier, ctx,
         alwaysSampleErrors, this::sample);
   }
@@ -199,6 +197,76 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
     }
   }
 
+  public static void handleSpanLogs(
+      String message, ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
+      ReportableEntityDecoder<String, Span> spanDecoder,
+      ReportableEntityHandler<SpanLogs, String> handler,
+      @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      @Nullable ChannelHandlerContext ctx, boolean alwaysSampleErrors,
+      Function<Span, Boolean> samplerFunc) {
+    List<SpanLogs> spanLogsOutput = new ArrayList<>(1);
+    try {
+      spanLogsDecoder.decode(JSON_PARSER.readTree(message), spanLogsOutput, "dummy");
+    } catch (Exception e) {
+      handler.reject(message, formatErrorMessage(message, e, ctx));
+      return;
+    }
+
+    for (SpanLogs spanLogs : spanLogsOutput) {
+      String spanMessage = spanLogs.getSpan();
+      if (spanMessage == null) {
+        // For backwards compatibility, report the span logs if span line data is not included
+        handler.report(spanLogs);
+      } else {
+        ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
+            null : preprocessorSupplier.get();
+        String[] spanMessageHolder = new String[1];
+
+        // transform the line if needed
+        if (preprocessor != null) {
+          spanMessage = preprocessor.forPointLine().transform(spanMessage);
+
+          if (!preprocessor.forPointLine().filter(message, spanMessageHolder)) {
+            if (spanMessageHolder[0] != null) {
+              handler.reject(spanLogs, spanMessageHolder[0]);
+            } else {
+              handler.block(spanLogs);
+            }
+            return;
+          }
+        }
+        List<Span> spanOutput = new ArrayList<>(1);
+        try {
+          spanDecoder.decode(spanMessage, spanOutput, "dummy");
+        } catch (Exception e) {
+          handler.reject(spanLogs, formatErrorMessage(message, e, ctx));
+          return;
+        }
+
+        if (!spanOutput.isEmpty()) {
+          Span span = spanOutput.get(0);
+          if (preprocessor != null) {
+            preprocessor.forSpan().transform(span);
+            if (!preprocessor.forSpan().filter(span, spanMessageHolder)) {
+              if (spanMessageHolder[0] != null) {
+                handler.reject(spanLogs, spanMessageHolder[0]);
+              } else {
+                handler.block(spanLogs);
+              }
+              return;
+            }
+          }
+          // check whether error span tag exists.
+          boolean sampleError = alwaysSampleErrors && span.getAnnotations().stream().anyMatch(t ->
+              t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
+          if (sampleError || samplerFunc.apply(span)) {
+            handler.report(spanLogs);
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Report span and derived metrics if needed.
    *
@@ -209,11 +277,19 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   }
 
   protected boolean sample(Span object) {
+    return sample(object, discardedSpansBySampler);
+  }
+
+  protected boolean sampleSpanLogs(Span object) {
+    return sample(object, discardedSpanLogsBySampler);
+  }
+
+  private boolean sample(Span object, Counter discarded) {
     if (sampler.sample(object.getName(),
         UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
       return true;
     }
-    discardedSpansBySampler.inc();
+    discarded.inc();
     return false;
   }
 }

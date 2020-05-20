@@ -1,7 +1,6 @@
 package com.wavefront.agent.listeners;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -50,6 +49,7 @@ import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.handleSpanLogs;
 import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.preprocessAndHandleSpan;
 
 /**
@@ -63,8 +63,6 @@ import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.
  */
 @ChannelHandler.Sharable
 public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandler {
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
   @Nullable
   private final SharedGraphiteHostAnnotator annotator;
   @Nullable
@@ -233,20 +231,13 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       case SPAN_LOG:
         if (isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, discardedSpanLogs.get())) return;
         ReportableEntityHandler<SpanLogs, String> spanLogsHandler = spanLogsHandlerSupplier.get();
-        if (spanLogsHandler == null || spanLogsDecoder == null) {
+        if (spanLogsHandler == null || spanLogsDecoder == null || spanDecoder == null) {
           wavefrontHandler.reject(message, "Port is not configured to accept " +
               "tracing data (span logs)!");
           return;
         }
-        try {
-          List<SpanLogs> spanLogs = new ArrayList<>(1);
-          spanLogsDecoder.decode(OBJECT_MAPPER.readTree(message), spanLogs, "dummy");
-          for (SpanLogs object : spanLogs) {
-            spanLogsHandler.report(object);
-          }
-        } catch (Exception e) {
-          spanLogsHandler.reject(message, formatErrorMessage(message, e, ctx));
-        }
+        handleSpanLogs(message, spanLogsDecoder, spanDecoder, spanLogsHandler, preprocessorSupplier,
+            ctx, true, x -> true);
         return;
       case HISTOGRAM:
         if (isFeatureDisabled(histogramDisabled, HISTO_DISABLED, discardedHistograms.get())) return;
