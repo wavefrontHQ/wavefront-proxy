@@ -53,6 +53,7 @@ import java.util.stream.IntStream;
 import static com.wavefront.agent.ProxyUtil.getOrCreateProxyId;
 import static com.wavefront.common.Utils.csvToList;
 import static com.wavefront.common.Utils.getBuildVersion;
+import static com.wavefront.common.Utils.getJavaVersion;
 import static java.util.Collections.EMPTY_LIST;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
@@ -180,9 +181,12 @@ public abstract class AbstractAgent {
   }
 
   private void postProcessConfig() {
-    System.setProperty("org.apache.commons.logging.Log",
-        "org.apache.commons.logging.impl.SimpleLog");
-    System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http", "warn");
+    // disable useless info messages when httpClient has to retry a request due to a stale
+    // connection. the alternative is to always validate connections before reuse, but since
+    // it happens fairly infrequently, and connection re-validation performance penalty is
+    // incurred every time, suppressing that message seems to be a more reasonable approach.
+    org.apache.log4j.Logger.getLogger("org.apache.http.impl.execchain.RetryExec").
+        setLevel(org.apache.log4j.Level.WARN);
 
     if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
       logger.severe("hostname cannot be blank! Please correct your configuration settings.");
@@ -193,7 +197,8 @@ public abstract class AbstractAgent {
   @VisibleForTesting
   void parseArguments(String[] args) {
     // read build information and print version.
-    String versionStr = "Wavefront Proxy version " + getBuildVersion();
+    String versionStr = "Wavefront Proxy version " + getBuildVersion() +
+        ", runtime: " + getJavaVersion();
     try {
       if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
         System.exit(0);

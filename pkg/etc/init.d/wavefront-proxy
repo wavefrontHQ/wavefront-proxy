@@ -123,7 +123,7 @@ if [[ -z "$PROXY_JAVA_HOME" && ! -r $proxy_jre_dir/bin/java ]]; then
             JAVA_HOME=$($(dirname $(dirname $(readlink -f $(which javac)))))
             echo "Using Java runtime $JAVA_VERSION detected in $JAVA_HOME" >&2
         else
-            echo "Java runtime [1.8; 12) not found - trying to download and install" >&2
+            echo "Found Java runtime $JAVA_VERSION, needs 8, 9, 10 or 11 to run - trying to download and install" >&2
             download_jre
         fi
     else
