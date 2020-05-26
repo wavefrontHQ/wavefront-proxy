@@ -141,6 +141,8 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-2822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
         setAnnotations(ImmutableList.of(
+            new Annotation("originalTraceId", "2822889fe47043bd"),
+            new Annotation("originalSpanId", "2822889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("service", "frontend"),
             new Annotation("http.method", "GET"),
@@ -161,6 +163,8 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-2822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
         setAnnotations(ImmutableList.of(
+            new Annotation("originalTraceId", "2822889fe47043bd"),
+            new Annotation("originalSpanId", "d6ab73f8a3930ae8"),
             new Annotation("parent", "00000000-0000-0000-2822-889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("_spanSecondaryId", "server"),
@@ -186,6 +190,8 @@ public class ZipkinPortUnificationHandlerTest {
         setSpanId("00000000-0000-0000-d6ab-73f8a3930ae8").
         // Note: Order of annotations list matters for this unit test.
         setAnnotations(ImmutableList.of(
+            new Annotation("originalTraceId", "2822889fe47043bd"),
+            new Annotation("originalSpanId", "d6ab73f8a3930ae8"),
             new Annotation("span.kind", "client"),
             new Annotation("_spanSecondaryId", "client"),
             new Annotation("service", "backend"),
@@ -288,6 +294,8 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-3822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
         setAnnotations(ImmutableList.of(
+            new Annotation("originalTraceId", "3822889fe47043bd"),
+            new Annotation("originalSpanId", "3822889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("_spanSecondaryId", "server"),
             new Annotation("service", "frontend"),
@@ -350,6 +358,8 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-3822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
         setAnnotations(ImmutableList.of(
+            new Annotation("originalTraceId", "3822889fe47043bd"),
+            new Annotation("originalSpanId", "3822889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("_spanSecondaryId", "server"),
             new Annotation("service", "frontend"),
@@ -388,6 +398,8 @@ public class ZipkinPortUnificationHandlerTest {
         setTraceId("00000000-0000-0000-4822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
         setAnnotations(ImmutableList.of(
+            new Annotation("originalTraceId", "4822889fe47043bd"),
+            new Annotation("originalSpanId", "4822889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("_spanSecondaryId", "server"),
             new Annotation("service", "frontend"),
@@ -425,7 +437,9 @@ public class ZipkinPortUnificationHandlerTest {
         setSpanId("00000000-0000-0000-5822-889fe47043bd").
         setTraceId("00000000-0000-0000-5822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
-            setAnnotations(ImmutableList.of(
+        setAnnotations(ImmutableList.of(
+            new Annotation("originalTraceId", "5822889fe47043bd"),
+            new Annotation("originalSpanId", "5822889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("service", "frontend"),
             new Annotation("debug", "true"),
@@ -436,7 +450,7 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
             new Annotation("ipv4", "10.0.0.1"))).
-            build());
+        build());
     expectLastCall();
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
@@ -538,7 +552,9 @@ public class ZipkinPortUnificationHandlerTest {
         setSpanId("00000000-0000-0000-2822-889fe47043bd").
         setTraceId("00000000-0000-0000-2822-889fe47043bd").
         // Note: Order of annotations list matters for this unit test.
-            setAnnotations(ImmutableList.of(
+        setAnnotations(ImmutableList.of(
+            new Annotation("originalTraceId", "2822889fe47043bd"),
+            new Annotation("originalSpanId", "2822889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("service", "frontend"),
             new Annotation("http.method", "GET"),
@@ -548,7 +564,7 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
             new Annotation("ipv4", "10.0.0.1"))).
-            build());
+        build());
     expectLastCall();
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
