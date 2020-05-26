@@ -419,7 +419,7 @@ public class PushAgent extends AbstractAgent {
   }
 
   protected Optional<SslContext> getSslContext(String port) {
-    if (enableTLS && (tlsPorts.isEmpty() || tlsPorts.contains(port))) {
+    if (secureAllPorts || tlsPorts.contains(port)) {
       return Optional.of(sslContext);
     }
     return Optional.empty();

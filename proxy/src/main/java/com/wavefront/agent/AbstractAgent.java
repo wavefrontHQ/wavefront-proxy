@@ -86,7 +86,7 @@ public abstract class AbstractAgent {
   protected UUID agentId;
   protected SslContext sslContext;
   protected List<String> tlsPorts = EMPTY_LIST;
-  protected boolean enableTLS = false;
+  protected boolean secureAllPorts = false;
 
   @Deprecated
   public AbstractAgent(boolean localAgent, boolean pushAgent) {
@@ -126,10 +126,13 @@ public abstract class AbstractAgent {
       sslContext = SslContextBuilder.forServer(new File(proxyConfig.getPrivateCertPath()),
               new File(proxyConfig.getPrivateKeyPath())).build();
     }
-    if (proxyConfig.isEnableTLS()) {
+    if (!isEmpty(proxyConfig.getTlsPorts()) && sslContext == null) {
       Preconditions.checkArgument(sslContext != null,
               "Missing TLS certificate/private key configuration.");
-      enableTLS = true;
+    }
+    if (StringUtils.equals(proxyConfig.getTlsPorts(), "*")) {
+      secureAllPorts = true;
+    } else {
       tlsPorts = csvToList(proxyConfig.getTlsPorts());
     }
   }
