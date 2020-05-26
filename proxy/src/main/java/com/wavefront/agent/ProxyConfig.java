@@ -741,13 +741,9 @@ public class ProxyConfig extends Configuration {
                   "PKCS#8 private key file in PEM format.")
   protected String privateKeyPath = "";
 
-  @Parameter(names = {"--enableTLS"},
-          description = "To enable secure communication.")
-  protected boolean enableTLS = false;
-
   @Parameter(names = {"--tlsPorts"},
           description = "Comma-separated list of ports to be secured using TLS. " +
-                  "All ports will be secured when not specified.")
+                  "All ports will be secured when * specified.")
   protected String tlsPorts = "";
 
   @Parameter()
@@ -1437,10 +1433,6 @@ public class ProxyConfig extends Configuration {
     return privateKeyPath;
   }
 
-  public boolean isEnableTLS() {
-    return enableTLS;
-  }
-
   public String getTlsPorts() {
     return tlsPorts;
   }
@@ -1747,7 +1739,6 @@ public class ProxyConfig extends Configuration {
           httpHealthCheckFailResponseBody);
 
       //TLS configurations
-      enableTLS = config.getBoolean("enableTLS", enableTLS);
       privateCertPath = config.getString("privateCertPath", privateCertPath);
       privateKeyPath = config.getString("privateKeyPath", privateKeyPath);
       tlsPorts = config.getString("tlsPorts", tlsPorts);

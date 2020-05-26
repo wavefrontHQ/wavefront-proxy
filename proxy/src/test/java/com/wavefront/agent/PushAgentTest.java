@@ -167,10 +167,61 @@ public class PushAgentTest {
   }
 
   @Test
+  public void testSecureAll() throws Exception {
+    int securePort1 = findAvailablePort(2888);
+    int securePort2 = findAvailablePort(2889);
+    proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
+    proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
+    proxy.proxyConfig.tlsPorts = "*";
+    proxy.initSslContext();
+    proxy.proxyConfig.pushListenerPorts = securePort1 + "," + securePort2;
+    proxy.startGraphiteListener(String.valueOf(securePort1), mockHandlerFactory, null);
+    proxy.startGraphiteListener(String.valueOf(securePort2), mockHandlerFactory, null);
+    waitUntilListenerIsOnline(securePort1);
+    waitUntilListenerIsOnline(securePort2);
+    reset(mockPointHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+            setMetric("metric.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
+    expectLastCall();
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+            setMetric("metric.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+    expectLastCall();
+    replay(mockPointHandler);
+
+    // try plaintext over tcp first
+    Socket socket = sslSocketFactory.createSocket("localhost", securePort1);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    String payloadStr = "metric.test 0 " + startTime + " source=test1\n" +
+            "metric.test 1 " + (startTime + 1) + " source=test2\n";
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+    verifyWithTimeout(500, mockPointHandler);
+
+    reset(mockPointHandler);
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+            setMetric("metric.test").setHost("test3").setTimestamp(startTime * 1000).setValue(0.0d).build());
+    expectLastCall();
+    mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
+            setMetric("metric.test").setHost("test4").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+    expectLastCall();
+    replay(mockPointHandler);
+
+    // secure test
+    socket = sslSocketFactory.createSocket("localhost", securePort2);
+    stream = new BufferedOutputStream(socket.getOutputStream());
+    payloadStr = "metric.test 0 " + startTime + " source=test3\n" +
+            "metric.test 1 " + (startTime + 1) + " source=test4\n";
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+    verifyWithTimeout(500, mockPointHandler);
+  }
+
+  @Test
   public void testWavefrontUnifiedPortHandlerPlaintextUncompressed() throws Exception {
     port = findAvailablePort(2888);
     int securePort = findAvailablePort(2889);
-    proxy.proxyConfig.enableTLS = true;
     proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
     proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
@@ -223,7 +274,6 @@ public class PushAgentTest {
   public void testWavefrontUnifiedPortHandlerGzippedPlaintextStream() throws Exception {
     port = findAvailablePort(2888);
     int securePort = findAvailablePort(2889);
-    proxy.proxyConfig.enableTLS = true;
     proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
     proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
@@ -284,7 +334,6 @@ public class PushAgentTest {
     port = findAvailablePort(2888);
     int securePort = findAvailablePort(2889);
     int healthCheckPort = findAvailablePort(8881);
-    proxy.proxyConfig.enableTLS = true;
     proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
     proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
@@ -347,7 +396,6 @@ public class PushAgentTest {
   public void testWavefrontUnifiedPortHandlerHttpGzipped() throws Exception {
     port = findAvailablePort(2888);
     int securePort = findAvailablePort(2889);
-    proxy.proxyConfig.enableTLS = true;
     proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
     proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
