@@ -613,7 +613,6 @@ public class PushAgentTest {
                 setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
                 build()
         )).
-        setSpan(spanData).
         build());
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
         .setDuration(1000)
@@ -750,7 +749,6 @@ public class PushAgentTest {
                 setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
                 build()
         )).
-        setSpan(spanData).
         build());
     expectLastCall();
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
@@ -827,7 +825,6 @@ public class PushAgentTest {
                 setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
                 build()
         )).
-        setSpan(spanData).
         build());
     expectLastCall();
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
@@ -1344,7 +1341,6 @@ public class PushAgentTest {
                 setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
                 build()
         )).
-        setSpan(spanData).
         build());
     expectLastCall();
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
