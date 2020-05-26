@@ -517,7 +517,7 @@ public class PushAgentTest {
     String spanLogDataWithSpanField = "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId +
         "\",\"logs\":[{\"timestamp\":" + timestamp1 +
         ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
-        timestamp2 + ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]," +
+        timestamp2 + ",\"fields\":{\"key3\":\"value3\"}}]," +
         "\"span\":\"" + escapeSpanData(spanData) + "\"}\n";
     String mixedData = "@SourceTag action=save source=testSource newtag1 newtag2\n" +
         "@Event " + startTime + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
@@ -610,7 +610,7 @@ public class PushAgentTest {
                 build(),
             SpanLog.newBuilder().
                 setTimestamp(timestamp2).
-                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                setFields(ImmutableMap.of("key3", "value3")).
                 build()
         )).
         build());
@@ -1338,9 +1338,10 @@ public class PushAgentTest {
                 build(),
             SpanLog.newBuilder().
                 setTimestamp(timestamp2).
-                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                setFields(ImmutableMap.of("key3", "value3")).
                 build()
         )).
+        setSpan(spanData).
         build());
     expectLastCall();
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
@@ -1369,7 +1370,7 @@ public class PushAgentTest {
     String spanLogDataWithSpanField = "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId +
         "\",\"logs\":[{\"timestamp\":" + timestamp1 +
         ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
-        timestamp2 + ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]," +
+        timestamp2 + ",\"fields\":{\"key3\":\"value3\"}}]," +
         "\"span\":\"" + escapeSpanData(spanData) + "\"}\n";
     String badData = "@SourceTag action=save source=testSource newtag1 newtag2\n" +
         "@Event " + startTime + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
