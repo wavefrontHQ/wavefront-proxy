@@ -30,9 +30,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>wavefront-internal-reporter-java</artifactId>
-      <!-- TODO: Remove SNAPSHOT after released -->
-      <!-- <version>1.4</version> -->
-      <version>1.4-SNAPSHOT</version>
+      <version>1.4</version>
     </dependency>
     <dependency>
       <groupId>com.beust</groupId>
