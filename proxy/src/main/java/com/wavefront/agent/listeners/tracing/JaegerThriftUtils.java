@@ -1,24 +1,30 @@
 package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableSet;
+
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.ingester.SpanSerializer;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
+import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.core.Counter;
+
 import io.jaegertracing.thriftjava.Batch;
 import io.jaegertracing.thriftjava.SpanRef;
 import io.jaegertracing.thriftjava.Tag;
 import io.jaegertracing.thriftjava.TagType;
+
 import org.apache.commons.lang.StringUtils;
+
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
 import javax.annotation.Nullable;
+
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -27,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,10 +41,10 @@ import java.util.stream.Collectors;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
@@ -82,7 +87,7 @@ public abstract class JaegerThriftUtils {
                                   Counter discardedTraces,
                                   Counter discardedBatches,
                                   Counter discardedSpansBySampler,
-                                  ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics) {
+                                  Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics) {
     String serviceName = batch.getProcess().getServiceName();
     List<Annotation> processAnnotations = new ArrayList<>();
     boolean isSourceProcessTagPresent = false;
@@ -141,7 +146,7 @@ public abstract class JaegerThriftUtils {
                                   boolean alwaysSampleErrors,
                                   Set<String> traceDerivedCustomTagKeys,
                                   Counter discardedSpansBySampler,
-                                  ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics) {
+                                  Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics) {
     List<Annotation> annotations = new ArrayList<>(processAnnotations);
     // serviceName is mandatory in Jaeger
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
@@ -199,7 +204,7 @@ public abstract class JaegerThriftUtils {
               } catch (ParseException e) {
                 if (JAEGER_DATA_LOGGER.isLoggable(Level.FINE)) {
                   JAEGER_DATA_LOGGER.info("Invalid value :: " + annotation.getValue() +
-                      " for span tag key : "+ FORCE_SAMPLED_KEY);
+                      " for span tag key : " + FORCE_SAMPLED_KEY);
                 }
               }
               break;
@@ -310,10 +315,12 @@ public abstract class JaegerThriftUtils {
     // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {
       // report converted metrics/histograms from the span
-      discoveredHeartbeatMetrics.putIfAbsent(reportWavefrontGeneratedData(wfInternalReporter,
+      List<Pair<String, String>> spanTags = annotations.stream().map(a -> new Pair<>(a.getKey(),
+          a.getValue())).collect(Collectors.toList());
+      discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
           span.getOperationName(), applicationName, serviceName, cluster, shard, sourceName,
           componentTagValue, isError, span.getDuration(), traceDerivedCustomTagKeys,
-          annotations), true);
+          spanTags, true));
     }
   }
 

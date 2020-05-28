@@ -890,7 +890,7 @@ public class PushAgentTest {
     Capture<HashMap<String, String>> tagsCapture = EasyMock.newCapture();
     mockWavefrontSender.sendMetric(eq(HEART_BEAT_METRIC), eq(1.0), anyLong(),
         eq("testsource"), EasyMock.capture(tagsCapture));
-    EasyMock.expectLastCall();
+    EasyMock.expectLastCall().anyTimes();
     replay(mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender);
     Socket socket = SocketFactory.getDefault().createSocket("localhost", customTracePort);
     BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());

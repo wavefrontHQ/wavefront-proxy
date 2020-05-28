@@ -30,7 +30,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>wavefront-internal-reporter-java</artifactId>
-      <version>1.3</version>
+      <version>1.4</version>
     </dependency>
     <dependency>
       <groupId>com.beust</groupId>

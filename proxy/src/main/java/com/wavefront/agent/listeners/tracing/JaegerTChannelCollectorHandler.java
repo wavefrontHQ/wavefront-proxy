@@ -1,6 +1,8 @@
 package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Sets;
+
 import com.uber.tchannel.api.handlers.ThriftRequestHandler;
 import com.uber.tchannel.messages.ThriftRequest;
 import com.uber.tchannel.messages.ThriftResponse;
@@ -11,23 +13,27 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
+import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
+
 import io.jaegertracing.thriftjava.Batch;
 import io.jaegertracing.thriftjava.Collector;
+
 import org.apache.commons.lang.StringUtils;
+
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
 import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -36,12 +42,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.wavefront.agent.listeners.tracing.JaegerThriftUtils.processBatch;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.reportHeartbeats;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
 
 /**
- * Handler that processes trace data in Jaeger Thrift compact format and
- * converts them to Wavefront format
+ * Handler that processes trace data in Jaeger Thrift compact format and converts them to Wavefront
+ * format
  *
  * @author vasily@wavefront.com
  */
@@ -72,7 +78,7 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   private final Counter processedBatches;
   private final Counter failedBatches;
   private final Counter discardedSpansBySampler;
-  private final ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics;
+  private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   private final ScheduledExecutorService scheduledExecutorService;
 
   public JaegerTChannelCollectorHandler(String handle,
@@ -112,7 +118,7 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
     this.alwaysSampleErrors = alwaysSampleErrors;
     this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ?
         "Jaeger" : traceJaegerApplicationName.trim();
-    this.traceDerivedCustomTagKeys =  traceDerivedCustomTagKeys;
+    this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
     this.discardedTraces = Metrics.newCounter(
         new MetricName("spans." + handle, "", "discarded"));
     this.discardedBatches = Metrics.newCounter(
@@ -123,7 +129,7 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
         new MetricName("spans." + handle + ".batches", "", "failed"));
     this.discardedSpansBySampler = Metrics.newCounter(
         new MetricName("spans." + handle, "", "sampler.discarded"));
-    this.discoveredHeartbeatMetrics =  new ConcurrentHashMap<>();
+    this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("jaeger-heart-beater"));
     scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
@@ -163,7 +169,7 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   @Override
   public void run() {
     try {
-      reportHeartbeats(JAEGER_COMPONENT, wfSender, discoveredHeartbeatMetrics);
+      reportHeartbeats(wfSender, discoveredHeartbeatMetrics, JAEGER_COMPONENT);
     } catch (IOException e) {
       logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
     }

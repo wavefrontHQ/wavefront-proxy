@@ -45,14 +45,14 @@ import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 
 /**
  * Process incoming trace-formatted data.
  *
- * Accepts incoming messages of either String or FullHttpRequest type: single Span in a string,
- * or multiple points in the HTTP post body, newline-delimited.
+ * Accepts incoming messages of either String or FullHttpRequest type: single Span in a string, or
+ * multiple points in the HTTP post body, newline-delimited.
  *
  * @author vasily@wavefront.com
  */
@@ -270,7 +270,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   /**
    * Report span and derived metrics if needed.
    *
-   * @param object     span.
+   * @param object span.
    */
   protected void report(Span object) {
     handler.report(object);
