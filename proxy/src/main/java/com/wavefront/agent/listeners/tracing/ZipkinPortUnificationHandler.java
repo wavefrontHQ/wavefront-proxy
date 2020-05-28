@@ -248,8 +248,8 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     List<Annotation> annotations = new ArrayList<>();
 
     // Add original Zipkin trace and span ids as tags to make finding them easier
-    annotations.add(new Annotation("originalSpanId", zipkinSpan.id()));
-    annotations.add(new Annotation("originalTraceId", zipkinSpan.traceId()));
+    annotations.add(new Annotation("zipkinSpanId", zipkinSpan.id()));
+    annotations.add(new Annotation("zipkinTraceId", zipkinSpan.traceId()));
 
     // Set Span's References.
     if (zipkinSpan.parentId() != null) {

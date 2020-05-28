@@ -49,6 +49,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "12d687"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
             new Annotation("service", "frontend"),
             new Annotation("component", "db"),
             new Annotation("application", "Jaeger"),
@@ -82,6 +84,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "23cace"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
             new Annotation("component", "db"),
@@ -100,6 +104,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "9a12b85901d53397"),
+            new Annotation("jaegerTraceId", "fea487ee36e58cab"),
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-fea4-87ee36e58cab"),
             new Annotation("application", "Jaeger"),
@@ -117,11 +123,13 @@ public class JaegerTChannelCollectorHandlerTest {
             .setTraceId("0000011e-ab2a-9944-0000-000049631900")
             // Note: Order of annotations list matters for this unit test.
             .setAnnotations(ImmutableList.of(
-                    new Annotation("ip", "10.0.0.1"),
-                    new Annotation("service", "frontend"),
-                    new Annotation("application", "Jaeger"),
-                    new Annotation("cluster", "none"),
-                    new Annotation("shard", "none")))
+                new Annotation("ip", "10.0.0.1"),
+                new Annotation("jaegerSpanId", "51759bfc69"),
+                new Annotation("jaegerTraceId", "11eab2a99440000000049631900"),
+                new Annotation("service", "frontend"),
+                new Annotation("application", "Jaeger"),
+                new Annotation("cluster", "none"),
+                new Annotation("shard", "none")))
             .build());
     expectLastCall();
 
@@ -197,6 +205,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "12d687"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
             new Annotation("service", "frontend"),
             new Annotation("component", "db"),
             new Annotation("application", "SpanLevelAppTag"),
@@ -215,6 +225,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "23cace"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
             new Annotation("component", "db"),
@@ -234,6 +246,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "9a12b85901d53397"),
+            new Annotation("jaegerTraceId", "fea487ee36e58cab"),
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-fea4-87ee36e58cab"),
             new Annotation("application", "ProxyLevelAppTag"),
@@ -320,6 +334,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "23cace"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
             new Annotation("application", "Jaeger"),
@@ -397,6 +413,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "23cace"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
             new Annotation("debug", "true1"),
@@ -431,6 +449,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "12d687"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
             new Annotation("service", "frontend"),
             new Annotation("sampling.priority", "0.3"),
             new Annotation("application", "Jaeger"),
@@ -516,6 +536,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "23cace"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
             new Annotation("application", "Jaeger"),
@@ -533,6 +555,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "12d687"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
             new Annotation("service", "frontend"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
@@ -549,6 +573,8 @@ public class JaegerTChannelCollectorHandlerTest {
         // Note: Order of annotations list matters for this unit test.
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "51759bfc69"),
+            new Annotation("jaegerTraceId", "11eab2a99440000000049631900"),
             new Annotation("service", "frontend"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),

@@ -143,6 +143,13 @@ public abstract class JaegerThriftUtils {
                                   Counter discardedSpansBySampler,
                                   ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics) {
     List<Annotation> annotations = new ArrayList<>(processAnnotations);
+
+    String traceId = new UUID(span.getTraceIdHigh(), span.getTraceIdLow()).toString();
+    String strippedTraceId = StringUtils.stripStart(traceId.replace("-", ""), "0");
+    strippedTraceId = strippedTraceId.length() > 0 ? strippedTraceId : "0";
+    annotations.add(new Annotation("jaegerSpanId", Long.toHexString(span.getSpanId())));
+    annotations.add(new Annotation("jaegerTraceId", strippedTraceId));
+
     // serviceName is mandatory in Jaeger
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
     long parentSpanId = span.getParentSpanId();
@@ -242,7 +249,7 @@ public abstract class JaegerThriftUtils {
         .setName(span.getOperationName())
         .setSource(sourceName)
         .setSpanId(new UUID(0, span.getSpanId()).toString())
-        .setTraceId(new UUID(span.getTraceIdHigh(), span.getTraceIdLow()).toString())
+        .setTraceId(traceId)
         .setStartMillis(span.getStartTime() / 1000)
         .setDuration(span.getDuration() / 1000)
         .setAnnotations(annotations)
