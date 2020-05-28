@@ -411,7 +411,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
           a.getValue())).collect(Collectors.toList());
       discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
           spanName, applicationName, serviceName, cluster, shard, sourceName, componentTagValue,
-          isError, zipkinSpan.durationAsLong(), traceDerivedCustomTagKeys, spanTags));
+          isError, zipkinSpan.durationAsLong(), traceDerivedCustomTagKeys, spanTags, true));
     }
   }
 

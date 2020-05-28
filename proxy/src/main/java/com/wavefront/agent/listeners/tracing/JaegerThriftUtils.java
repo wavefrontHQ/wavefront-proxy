@@ -316,7 +316,7 @@ public abstract class JaegerThriftUtils {
       discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
           span.getOperationName(), applicationName, serviceName, cluster, shard, sourceName,
           componentTagValue, isError, span.getDuration(), traceDerivedCustomTagKeys,
-          spanTags));
+          spanTags, true));
     }
   }
 

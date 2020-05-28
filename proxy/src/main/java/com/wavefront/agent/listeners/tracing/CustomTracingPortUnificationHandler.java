@@ -154,7 +154,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
           object.getName(), applicationName, serviceName, cluster, shard, object.getSource(),
           componentTagValue, Boolean.parseBoolean(isError), object.getDuration(),
-          traceDerivedCustomTagKeys, spanTags));
+          traceDerivedCustomTagKeys, spanTags, true));
       try {
         reportHeartbeats(wfSender, discoveredHeartbeatMetrics, "wavefront-generated");
       } catch (IOException e) {
