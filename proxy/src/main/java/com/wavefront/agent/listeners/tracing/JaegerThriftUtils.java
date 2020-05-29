@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.TraceConstants;
-import com.wavefront.ingester.SpanSerializer;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
@@ -66,7 +65,6 @@ public abstract class JaegerThriftUtils {
   private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
   private final static String FORCE_SAMPLED_KEY = "sampling.priority";
   private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
-  private static final SpanSerializer SPAN_SERIALIZER = new SpanSerializer();
 
   private JaegerThriftUtils() {
   }
@@ -314,7 +312,6 @@ public abstract class JaegerThriftUtils {
                   setFields(fields).
                   build();
             }).collect(Collectors.toList())).
-            setSpan(SPAN_SERIALIZER.apply(wavefrontSpan)).
             build();
         spanLogsHandler.report(spanLogs);
       }

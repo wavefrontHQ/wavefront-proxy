@@ -573,9 +573,7 @@ public class HttpEndToEndTest {
     String expectedSpanLog = "{\"customer\":\"dummy\",\"traceId\":\"" + traceId + "\",\"spanId" +
         "\":\"testspanid\",\"spanSecondaryId\":null,\"logs\":[{\"timestamp\":" + timestamp1 + "," +
         "\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 + "," +
-        "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":\"" +
-        "testSpanName parent=parent1 source=testsource spanId=testspanid traceId=\\\"" + traceId +
-        "\\\" parent=parent2 " + time + " " + (time + 1) + "\\n\"}";
+        "\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}],\"span\":null}";
     AtomicBoolean gotSpan = new AtomicBoolean(false);
     AtomicBoolean gotSpanLog = new AtomicBoolean(false);
     server.update(req -> {

@@ -6,7 +6,6 @@ import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.ingester.SpanSerializer;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 import io.jaegertracing.thriftjava.Batch;
 import io.jaegertracing.thriftjava.Log;
@@ -16,7 +15,11 @@ import io.jaegertracing.thriftjava.TagType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpVersion;
 import org.apache.thrift.TSerializer;
 import org.easymock.EasyMock;
 import org.junit.Test;
@@ -39,7 +42,6 @@ import static org.easymock.EasyMock.verify;
  */
 public class JaegerPortUnificationHandlerTest {
   private static final String DEFAULT_SOURCE = "jaeger";
-  private static final SpanSerializer SPAN_SERIALIZER = new SpanSerializer();
   private ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
@@ -82,7 +84,6 @@ public class JaegerPortUnificationHandlerTest {
                 setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
                 build()
         )).
-        setSpan(SPAN_SERIALIZER.apply(expectedSpan1)).
         build());
     expectLastCall();
 

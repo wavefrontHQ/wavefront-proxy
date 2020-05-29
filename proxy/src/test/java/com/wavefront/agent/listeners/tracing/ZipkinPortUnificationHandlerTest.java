@@ -6,7 +6,6 @@ import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.ingester.SpanSerializer;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
@@ -38,7 +37,6 @@ import static org.easymock.EasyMock.verify;
 
 public class ZipkinPortUnificationHandlerTest {
   private static final String DEFAULT_SOURCE = "zipkin";
-  private static final SpanSerializer SPAN_SERIALIZER = new SpanSerializer();
   private ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
@@ -219,7 +217,6 @@ public class ZipkinPortUnificationHandlerTest {
                 setFields(ImmutableMap.of("annotation", "start processing")).
                 build()
             )).
-        setSpan(SPAN_SERIALIZER.apply(span1)).
         build());
     expectLastCall();
 
@@ -234,7 +231,6 @@ public class ZipkinPortUnificationHandlerTest {
                         setFields(ImmutableMap.of("annotation", "start processing")).
                         build()
         )).
-        setSpan(SPAN_SERIALIZER.apply(span2)).
         build());
     expectLastCall();
 
@@ -321,7 +317,6 @@ public class ZipkinPortUnificationHandlerTest {
                 setFields(ImmutableMap.of("annotation", "start processing")).
                 build()
         )).
-        setSpan(SPAN_SERIALIZER.apply(expectedSpan2)).
         build());
     expectLastCall();
     replay(mockTraceHandler, mockTraceSpanLogsHandler);
@@ -386,7 +381,6 @@ public class ZipkinPortUnificationHandlerTest {
                 setFields(ImmutableMap.of("annotation", "start processing")).
                 build()
         )).
-        setSpan(SPAN_SERIALIZER.apply(expectedSpan2)).
         build());
     expectLastCall();
 
@@ -426,7 +420,6 @@ public class ZipkinPortUnificationHandlerTest {
                 setFields(ImmutableMap.of("annotation", "start processing")).
                 build()
         )).
-        setSpan(SPAN_SERIALIZER.apply(expectedSpan3)).
         build());
     expectLastCall();
 
