@@ -48,6 +48,11 @@
       <version>0.31.0</version>
     </dependency>
     <dependency>
+      <groupId>org.apache.skywalking</groupId>
+      <artifactId>receiver-proto</artifactId>
+      <version>7.0.0</version>
+    </dependency>
+    <dependency>
       <groupId>com.uber.tchannel</groupId>
       <artifactId>tchannel-core</artifactId>
       <version>0.8.5</version>

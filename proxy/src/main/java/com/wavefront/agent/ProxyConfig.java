@@ -520,6 +520,10 @@ public class ProxyConfig extends Configuration {
       "on for jaeger thrift formatted data over HTTP. Defaults to none.")
   String traceJaegerHttpListenerPorts;
 
+  @Parameter(names = {"--traceJaegerGrpcListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
+      "on for jaeger Protobuf formatted data over gRPC. Defaults to none.")
+  String traceJaegerGrpcListenerPorts;
+
   @Parameter(names = {"--traceJaegerApplicationName"}, description = "Application name for Jaeger. Defaults to Jaeger.")
   String traceJaegerApplicationName;
 
@@ -1195,6 +1199,10 @@ public class ProxyConfig extends Configuration {
     return traceJaegerHttpListenerPorts;
   }
 
+  public String getTraceJaegerGrpcListenerPorts() {
+    return traceJaegerGrpcListenerPorts;
+  }
+
   public String getTraceJaegerApplicationName() {
     return traceJaegerApplicationName;
   }
@@ -1671,6 +1679,8 @@ public class ProxyConfig extends Configuration {
           traceJaegerListenerPorts);
       traceJaegerHttpListenerPorts = config.getString("traceJaegerHttpListenerPorts",
           traceJaegerHttpListenerPorts);
+      traceJaegerGrpcListenerPorts = config.getString("traceJaegerGrpcListenerPorts",
+          traceJaegerGrpcListenerPorts);
       traceJaegerApplicationName = config.getString("traceJaegerApplicationName",
           traceJaegerApplicationName);
       traceZipkinListenerPorts = config.getString("traceZipkinListenerPorts",
