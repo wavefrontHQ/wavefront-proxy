@@ -247,6 +247,10 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     // Add application tags, span references, span kind and http uri, responses etc.
     List<Annotation> annotations = new ArrayList<>();
 
+    // Add original Zipkin trace and span ids as tags to make finding them easier
+    annotations.add(new Annotation("zipkinSpanId", zipkinSpan.id()));
+    annotations.add(new Annotation("zipkinTraceId", zipkinSpan.traceId()));
+
     // Set Span's References.
     if (zipkinSpan.parentId() != null) {
       annotations.add(new Annotation(TraceConstants.PARENT_KEY,
