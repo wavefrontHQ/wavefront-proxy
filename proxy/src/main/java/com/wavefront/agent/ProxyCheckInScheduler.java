@@ -184,6 +184,9 @@ public class ProxyCheckInScheduler {
             throw new RuntimeException("Aborting start-up");
           }
           break;
+        case 406:
+          //
+          break;
         case 407:
           checkinError("HTTP 407 Proxy Authentication Required: Please verify that " +
               "proxyUser and proxyPassword settings are correct and make sure your HTTP proxy" +
@@ -191,6 +194,9 @@ public class ProxyCheckInScheduler {
           if (successfulCheckIns.get() == 0) {
             throw new RuntimeException("Aborting start-up");
           }
+          break;
+        case 429:
+          //
           break;
         default:
           checkinError("HTTP " + ex.getResponse().getStatus() +
@@ -205,9 +211,13 @@ public class ProxyCheckInScheduler {
             ". Please verify your DNS and network settings!");
         return null;
       }
-      if (rootCause instanceof ConnectException ||
-          rootCause instanceof SocketTimeoutException) {
+      if (rootCause instanceof ConnectException) {
         checkinError("Unable to connect to " + proxyConfig.getServer() + ": " +
+            rootCause.getMessage() + " Please verify your network/firewall settings!");
+        return null;
+      }
+      if (rootCause instanceof SocketTimeoutException) {
+        checkinError("Unable to check in with " + proxyConfig.getServer() + ": " +
             rootCause.getMessage() + " Please verify your network/firewall settings!");
         return null;
       }
@@ -235,19 +245,17 @@ public class ProxyCheckInScheduler {
 
   @VisibleForTesting
   void updateConfiguration() {
-    boolean doShutDown = false;
     try {
       AgentConfiguration config = checkin();
       if (config != null) {
-        agentConfigurationConsumer.accept(config);
-        doShutDown = config.getShutOffAgents();
+        if (config.getShutOffAgents()) {
+          shutdownHook.run();
+        } else {
+          agentConfigurationConsumer.accept(config);
+        }
       }
     } catch (Exception e) {
       logger.log(Level.SEVERE, "Exception occurred during configuration update", e);
-    } finally {
-      if (doShutDown) {
-        shutdownHook.run();
-      }
     }
   }
 
