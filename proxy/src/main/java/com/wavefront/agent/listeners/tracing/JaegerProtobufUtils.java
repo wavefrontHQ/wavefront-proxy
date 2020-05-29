@@ -37,8 +37,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import static com.google.protobuf.util.Timestamps.*;
-import static com.google.protobuf.util.Durations.*;
+import static com.google.protobuf.util.Timestamps.toMillis;
+import static com.google.protobuf.util.Timestamps.toMicros;
+import static com.google.protobuf.util.Durations.toMillis;
+import static com.google.protobuf.util.Durations.toMicros;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
@@ -315,11 +317,8 @@ public abstract class JaegerProtobufUtils {
           a.getValue())).collect(Collectors.toList());
       discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
           span.getOperationName(), applicationName, serviceName, cluster, shard, sourceName,
-          componentTagValue, isError,
-          toMicros(span.getDuration()),
-          traceDerivedCustomTagKeys,
-          spanTags,
-          true));
+          componentTagValue, isError, toMicros(span.getDuration()), traceDerivedCustomTagKeys,
+          spanTags, true));
     }
   }
 
