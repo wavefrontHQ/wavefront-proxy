@@ -14,7 +14,7 @@ import com.yammer.metrics.core.Counter;
 
 import org.apache.commons.lang.StringUtils;
 
-import io.jaegertracing.api_v2.Model;
+import io.opentelemetry.exporters.jaeger.proto.api_v2.Model;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
@@ -126,7 +126,7 @@ public abstract class JaegerProtobufUtils {
       discardedTraces.inc(batch.getSpansCount());
       return;
     }
-    for (io.jaegertracing.api_v2.Model.Span span : batch.getSpansList()) {
+    for (Model.Span span : batch.getSpansList()) {
       processSpan(span, serviceName, sourceName, applicationName, processAnnotations,
           spanHandler, spanLogsHandler, wfInternalReporter, spanLogsDisabled,
           preprocessorSupplier, sampler, alwaysSampleErrors, traceDerivedCustomTagKeys,
@@ -134,7 +134,7 @@ public abstract class JaegerProtobufUtils {
     }
   }
 
-  private static void processSpan(io.jaegertracing.api_v2.Model.Span span,
+  private static void processSpan(Model.Span span,
                                   String serviceName,
                                   String sourceName,
                                   String applicationName,

@@ -4,8 +4,9 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 
 import io.grpc.stub.StreamObserver;
-import io.jaegertracing.api_v2.CollectorServiceGrpc;
-import io.jaegertracing.api_v2.Collector;
+
+import io.opentelemetry.exporters.jaeger.proto.api_v2.Collector;
+import io.opentelemetry.exporters.jaeger.proto.api_v2.CollectorServiceGrpc;
 
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
