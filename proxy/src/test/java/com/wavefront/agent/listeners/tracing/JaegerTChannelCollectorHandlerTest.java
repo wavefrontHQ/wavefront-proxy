@@ -6,7 +6,6 @@ import com.google.common.collect.ImmutableMap;
 import com.uber.tchannel.messages.ThriftRequest;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.ingester.SpanSerializer;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
@@ -30,7 +29,6 @@ import static org.easymock.EasyMock.verify;
 
 public class JaegerTChannelCollectorHandlerTest {
   private static final String DEFAULT_SOURCE = "jaeger";
-  private static final SpanSerializer SPAN_SERIALIZER = new SpanSerializer();
   private ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
@@ -69,7 +67,6 @@ public class JaegerTChannelCollectorHandlerTest {
                 setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
                 build()
         )).
-        setSpan(SPAN_SERIALIZER.apply(expectedSpan1)).
         build());
     expectLastCall();
 
@@ -340,7 +337,6 @@ public class JaegerTChannelCollectorHandlerTest {
                 setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
                 build()
         )).
-        setSpan(SPAN_SERIALIZER.apply(expectedSpan2)).
         build());
     expectLastCall();
 
@@ -418,7 +414,6 @@ public class JaegerTChannelCollectorHandlerTest {
                 setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
                 build()
         )).
-        setSpan(SPAN_SERIALIZER.apply(expectedSpan1)).
         build());
     expectLastCall();
 
@@ -451,7 +446,6 @@ public class JaegerTChannelCollectorHandlerTest {
                 setFields(ImmutableMap.of("event", "error", "exception", "NullPointerException")).
                 build()
         )).
-        setSpan(SPAN_SERIALIZER.apply(expectedSpan2)).
         build());
     expectLastCall();
 

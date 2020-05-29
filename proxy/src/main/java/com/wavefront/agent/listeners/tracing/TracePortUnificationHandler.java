@@ -260,6 +260,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
           boolean sampleError = alwaysSampleErrors && span.getAnnotations().stream().anyMatch(t ->
               t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
           if (sampleError || samplerFunc.apply(span)) {
+            // after sampling, span line data is no longer needed
+            spanLogs.setSpan(null);
             handler.report(spanLogs);
           }
         }
