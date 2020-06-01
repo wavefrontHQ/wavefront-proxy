@@ -59,7 +59,7 @@
     <jackson.version>2.11.0</jackson.version>
     <jackson-databind.version>2.11.0</jackson-databind.version>
     <netty.version>4.1.50.Final</netty.version>
-    <java-lib.version>2020-05.7</java-lib.version>
+    <java-lib.version>2020-05.8</java-lib.version>
 
     <doclint>none</doclint>
   </properties>
@@ -147,7 +147,7 @@
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.3</version>
+        <version>4.5.12</version>
       </dependency>
       <dependency>
         <groupId>org.ops4j.pax.url</groupId>

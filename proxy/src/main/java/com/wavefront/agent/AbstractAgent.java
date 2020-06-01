@@ -283,10 +283,7 @@ public abstract class AbstractAgent {
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       proxyCheckinScheduler = new ProxyCheckInScheduler(agentId, proxyConfig, apiContainer,
-          this::processConfiguration, () -> {
-        logger.warning("Shutting down: Server side flag indicating proxy has to shut down.");
-        System.exit(1);
-      });
+          this::processConfiguration, () -> System.exit(1));
       proxyCheckinScheduler.scheduleCheckins();
 
       // Start the listening endpoints

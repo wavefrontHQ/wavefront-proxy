@@ -10,7 +10,6 @@ import com.wavefront.common.Clock;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
-import org.apache.commons.lang3.ObjectUtils;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
@@ -30,6 +29,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.wavefront.common.Utils.getBuildVersion;
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 /**
  * Registers the proxy with the back-end, sets up regular "check-ins" (every minute),
@@ -105,7 +105,7 @@ public class ProxyCheckInScheduler {
    */
   public void scheduleCheckins() {
     logger.info("scheduling regular check-ins");
-    executor.scheduleAtFixedRate(this::updateProxyMetrics, 10, 60, TimeUnit.SECONDS);
+    executor.scheduleAtFixedRate(this::updateProxyMetrics, 60, 60, TimeUnit.SECONDS);
     executor.scheduleWithFixedDelay(this::updateConfiguration, 0, 1, TimeUnit.SECONDS);
   }
 
@@ -139,8 +139,7 @@ public class ProxyCheckInScheduler {
       agentMetrics = null;
       if (retries.incrementAndGet() > MAX_CHECKIN_ATTEMPTS) return null;
     }
-    logger.info("Checking in: " + ObjectUtils.firstNonNull(serverEndpointUrl,
-        proxyConfig.getServer()));
+    logger.info("Checking in: " + firstNonNull(serverEndpointUrl, proxyConfig.getServer()));
     try {
       newConfig = apiContainer.getProxyV2API().proxyCheckin(proxyId,
           "Bearer " + proxyConfig.getToken(), proxyConfig.getHostname(), getBuildVersion(),
@@ -184,9 +183,6 @@ public class ProxyCheckInScheduler {
             throw new RuntimeException("Aborting start-up");
           }
           break;
-        case 406:
-          //
-          break;
         case 407:
           checkinError("HTTP 407 Proxy Authentication Required: Please verify that " +
               "proxyUser and proxyPassword settings are correct and make sure your HTTP proxy" +
@@ -196,8 +192,8 @@ public class ProxyCheckInScheduler {
           }
           break;
         case 429:
-          //
-          break;
+          // 429s are retried silently.
+          return null;
         default:
           checkinError("HTTP " + ex.getResponse().getStatus() +
               " error: Unable to check in with Wavefront! " + proxyConfig.getServer() + ": " +
@@ -249,6 +245,8 @@ public class ProxyCheckInScheduler {
       AgentConfiguration config = checkin();
       if (config != null) {
         if (config.getShutOffAgents()) {
+          logger.severe(firstNonNull(config.getShutOffMessage(),
+              "Shutting down: Server side flag indicating proxy has to shut down."));
           shutdownHook.run();
         } else {
           agentConfigurationConsumer.accept(config);

@@ -205,6 +205,9 @@ public class ProxyCheckInSchedulerTest {
         andThrow(new ClientErrorException(Response.status(408).build())).once();
     expect(proxyV2API.proxyCheckin(eq(proxyId), eq(authHeader), eq("proxyHost"),
         eq(getBuildVersion()), anyLong(), anyObject(), eq(true))).
+        andThrow(new ClientErrorException(Response.status(429).build())).once();
+    expect(proxyV2API.proxyCheckin(eq(proxyId), eq(authHeader), eq("proxyHost"),
+        eq(getBuildVersion()), anyLong(), anyObject(), eq(true))).
         andThrow(new ServerErrorException(Response.status(500).build())).once();
     expect(proxyV2API.proxyCheckin(eq(proxyId), eq(authHeader), eq("proxyHost"),
         eq(getBuildVersion()), anyLong(), anyObject(), eq(true))).
@@ -213,6 +216,8 @@ public class ProxyCheckInSchedulerTest {
     replay(proxyV2API, apiContainer);
     ProxyCheckInScheduler scheduler = new ProxyCheckInScheduler(proxyId, proxyConfig, apiContainer,
         x -> assertNull(x.getPointsPerBatch()), () -> {});
+    scheduler.updateProxyMetrics();
+    scheduler.updateConfiguration();
     scheduler.updateProxyMetrics();
     scheduler.updateConfiguration();
     scheduler.updateProxyMetrics();
