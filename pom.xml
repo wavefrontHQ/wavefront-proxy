@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>8.1-SNAPSHOT</version>
+  <version>8.1</version>
   <modules>
     <module>proxy</module>
   </modules>
@@ -31,7 +31,7 @@
     <connection>scm:git:git@github.com:wavefronthq/java.git</connection>
     <developerConnection>scm:git:git@github.com:wavefronthq/java.git</developerConnection>
     <url>git@github.com:wavefronthq/java.git</url>
-    <tag>release-8.x</tag>
+    <tag>wavefront-8.1</tag>
   </scm>
 
   <distributionManagement>
