@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
@@ -20,7 +21,6 @@ import com.wavefront.common.TraceConstants;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.WavefrontSender;
-import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -36,7 +36,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -63,7 +62,6 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.sample;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
@@ -98,8 +96,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
-  private final Sampler sampler;
-  private final boolean alwaysSampleErrors;
+  private final SpanSampler sampler;
   private final Counter discardedBatches;
   private final Counter processedBatches;
   private final Counter failedBatches;
@@ -126,14 +123,13 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
                                       Supplier<Boolean> traceDisabled,
                                       Supplier<Boolean> spanLogsDisabled,
                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                                      Sampler sampler,
-                                      boolean alwaysSampleErrors,
+                                      SpanSampler sampler,
                                       @Nullable String traceZipkinApplicationName,
                                       Set<String> traceDerivedCustomTagKeys) {
     this(handle, healthCheckManager,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler, alwaysSampleErrors,
+        wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler,
         traceZipkinApplicationName, traceDerivedCustomTagKeys);
   }
 
@@ -146,8 +142,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
                                Supplier<Boolean> traceDisabled,
                                Supplier<Boolean> spanLogsDisabled,
                                @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                               Sampler sampler,
-                               boolean alwaysSampleErrors,
+                               SpanSampler sampler,
                                @Nullable String traceZipkinApplicationName,
                                Set<String> traceDerivedCustomTagKeys) {
     super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, handle);
@@ -158,7 +153,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     this.spanLogsDisabled = spanLogsDisabled;
     this.preprocessorSupplier = preprocessor;
     this.sampler = sampler;
-    this.alwaysSampleErrors = alwaysSampleErrors;
     this.proxyLevelApplicationName = StringUtils.isBlank(traceZipkinApplicationName) ?
         "Zipkin" : traceZipkinApplicationName.trim();
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
@@ -388,8 +382,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       }
     }
 
-    if (isDebugSpanTag || isDebug || (alwaysSampleErrors && isError) || sample(wavefrontSpan,
-        sampler, discardedSpansBySampler)) {
+    if (isDebugSpanTag || isDebug || sampler.sample(wavefrontSpan, discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty() &&

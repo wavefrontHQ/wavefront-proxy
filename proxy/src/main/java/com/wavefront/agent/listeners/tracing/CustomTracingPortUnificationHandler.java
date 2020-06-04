@@ -10,12 +10,12 @@ import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
-import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 
 import java.io.IOException;
 import java.util.List;
@@ -67,7 +67,6 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
    * @param preprocessor              preprocessor.
    * @param handlerFactory            factory for ReportableEntityHandler objects.
    * @param sampler                   sampler.
-   * @param alwaysSampleErrors        always sample spans with error tag.
    * @param traceDisabled             supplier for backend-controlled feature flag for spans.
    * @param spanLogsDisabled          supplier for backend-controlled feature flag for span logs.
    * @param wfSender                  sender to send trace to Wavefront.
@@ -78,14 +77,14 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       ReportableEntityDecoder<String, Span> traceDecoder,
       ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-      ReportableEntityHandlerFactory handlerFactory, Sampler sampler, boolean alwaysSampleErrors,
+      ReportableEntityHandlerFactory handlerFactory, SpanSampler sampler,
       Supplier<Boolean> traceDisabled, Supplier<Boolean> spanLogsDisabled,
       @Nullable WavefrontSender wfSender, @Nullable WavefrontInternalReporter wfInternalReporter,
       Set<String> traceDerivedCustomTagKeys) {
     this(handle, tokenAuthenticator, healthCheckManager, traceDecoder, spanLogsDecoder,
         preprocessor, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        sampler, alwaysSampleErrors, traceDisabled, spanLogsDisabled, wfSender, wfInternalReporter,
+        sampler, traceDisabled, spanLogsDisabled, wfSender, wfInternalReporter,
         traceDerivedCustomTagKeys);
   }
 
@@ -96,13 +95,12 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
       final ReportableEntityHandler<Span, String> handler,
-      final ReportableEntityHandler<SpanLogs, String> spanLogsHandler, Sampler sampler,
-      boolean alwaysSampleErrors, Supplier<Boolean> traceDisabled,
-      Supplier<Boolean> spanLogsDisabled, @Nullable WavefrontSender wfSender,
-      @Nullable WavefrontInternalReporter wfInternalReporter,
+      final ReportableEntityHandler<SpanLogs, String> spanLogsHandler, SpanSampler sampler,
+      Supplier<Boolean> traceDisabled, Supplier<Boolean> spanLogsDisabled,
+      @Nullable WavefrontSender wfSender, @Nullable WavefrontInternalReporter wfInternalReporter,
       Set<String> traceDerivedCustomTagKeys) {
     super(handle, tokenAuthenticator, healthCheckManager, traceDecoder, spanLogsDecoder,
-        preprocessor, handler, spanLogsHandler, sampler, alwaysSampleErrors, traceDisabled, spanLogsDisabled);
+        preprocessor, handler, spanLogsHandler, sampler, traceDisabled, spanLogsDisabled);
     this.wfSender = wfSender;
     this.wfInternalReporter = wfInternalReporter;
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
