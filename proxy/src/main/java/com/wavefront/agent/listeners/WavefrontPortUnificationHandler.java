@@ -13,6 +13,7 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.SourceTag;
 import com.wavefront.ingester.ReportableEntityDecoder;
+import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -51,6 +52,7 @@ import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.handleSpanLogs;
 import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.preprocessAndHandleSpan;
+import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.sample;
 
 /**
  * Process incoming Wavefront-formatted data. Also allows sourceTag formatted data and
@@ -84,9 +86,14 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
 
+  private final Sampler sampler;
+  private final boolean alwaysSampleErrors;
+
   private final Supplier<Counter> discardedHistograms;
   private final Supplier<Counter> discardedSpans;
   private final Supplier<Counter> discardedSpanLogs;
+  private final Supplier<Counter> discardedSpansBySampler;
+  private final Supplier<Counter> discardedSpanLogsBySampler;
   /**
    * Create new instance with lazy initialization for handlers.
    *
@@ -110,7 +117,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       @Nullable final SharedGraphiteHostAnnotator annotator,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
       final Supplier<Boolean> histogramDisabled, final Supplier<Boolean> traceDisabled,
-      final Supplier<Boolean> spanLogsDisabled) {
+      final Supplier<Boolean> spanLogsDisabled, final Sampler sampler,
+      final boolean alwaysSampleErrors) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.wavefrontDecoder = (ReportableEntityDecoder<String, ReportPoint>) decoders.
         get(ReportableEntityType.POINT);
@@ -140,12 +148,18 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
     this.histogramDisabled = histogramDisabled;
     this.traceDisabled = traceDisabled;
     this.spanLogsDisabled = spanLogsDisabled;
+    this.sampler = sampler;
+    this.alwaysSampleErrors = alwaysSampleErrors;
     this.discardedHistograms = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
         "histogram", "", "discarded_points")));
     this.discardedSpans = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
         "spans." + handle, "", "discarded")));
     this.discardedSpanLogs = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
         "spanLogs." + handle, "", "discarded")));
+    this.discardedSpansBySampler = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
+        "spans." + handle, "", "sampler.discarded")));
+    this.discardedSpanLogsBySampler = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
+        "spanLogs." + handle, "", "sampler.discarded")));
   }
 
   @Override
@@ -226,7 +240,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         }
         message = annotator == null ? message : annotator.apply(ctx, message);
         preprocessAndHandleSpan(message, spanDecoder, spanHandler, spanHandler::report,
-            preprocessorSupplier, ctx, true, x -> true);
+            preprocessorSupplier, ctx, alwaysSampleErrors, span -> sample(span, sampler,
+                discardedSpansBySampler.get()));
         return;
       case SPAN_LOG:
         if (isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, discardedSpanLogs.get())) return;
@@ -237,7 +252,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
           return;
         }
         handleSpanLogs(message, spanLogsDecoder, spanDecoder, spanLogsHandler, preprocessorSupplier,
-            ctx, true, x -> true);
+            ctx, alwaysSampleErrors, span -> sample(span, sampler,
+                discardedSpanLogsBySampler.get()));
         return;
       case HISTOGRAM:
         if (isFeatureDisabled(histogramDisabled, HISTO_DISABLED, discardedHistograms.get())) return;

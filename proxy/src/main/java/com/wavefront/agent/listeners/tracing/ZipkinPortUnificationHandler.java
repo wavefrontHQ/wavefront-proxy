@@ -63,6 +63,7 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.sample;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
@@ -387,7 +388,8 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       }
     }
 
-    if (isDebugSpanTag || isDebug || (alwaysSampleErrors && isError) || sample(wavefrontSpan)) {
+    if (isDebugSpanTag || isDebug || (alwaysSampleErrors && isError) || sample(wavefrontSpan,
+        sampler, discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty() &&
@@ -417,16 +419,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
           spanName, applicationName, serviceName, cluster, shard, sourceName, componentTagValue,
           isError, zipkinSpan.durationAsLong(), traceDerivedCustomTagKeys, spanTags, true));
     }
-  }
-
-  private boolean sample(Span wavefrontSpan) {
-    if (sampler.sample(wavefrontSpan.getName(),
-        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
-        wavefrontSpan.getDuration())) {
-      return true;
-    }
-    discardedSpansBySampler.inc();
-    return false;
   }
 
   @Override

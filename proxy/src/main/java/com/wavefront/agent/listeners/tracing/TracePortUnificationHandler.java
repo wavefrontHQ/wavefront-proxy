@@ -137,12 +137,21 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
     if (format == DataFormat.SPAN_LOG || (message.startsWith("{") && message.endsWith("}"))) {
       if (isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, discardedSpanLogs)) return;
       handleSpanLogs(message, spanLogsDecoder, decoder, spanLogsHandler, preprocessorSupplier,
-          ctx, alwaysSampleErrors, this::sampleSpanLogs);
+          ctx, alwaysSampleErrors, span -> sample(span, sampler, discardedSpanLogsBySampler));
       return;
     }
     if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedSpans)) return;
     preprocessAndHandleSpan(message, decoder, handler, this::report, preprocessorSupplier, ctx,
-        alwaysSampleErrors, this::sample);
+        alwaysSampleErrors, span -> sample(span, sampler, discardedSpansBySampler));
+  }
+
+  /**
+   * Report span and derived metrics if needed.
+   *
+   * @param object span.
+   */
+  protected void report(Span object) {
+    handler.report(object);
   }
 
   public static void preprocessAndHandleSpan(
@@ -270,25 +279,17 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   }
 
   /**
-   * Report span and derived metrics if needed.
+   * Evaluates and returns the sampling decision for a {@link Span}.
    *
-   * @param object span.
+   * @param wavefrontSpan The span to sample.
+   * @param sampler       The sampler used to sample the span.
+   * @param discarded     The counter to increment if the decision is to discard the span.
+   * @return true to keep the span, false to discard the span.
    */
-  protected void report(Span object) {
-    handler.report(object);
-  }
-
-  protected boolean sample(Span object) {
-    return sample(object, discardedSpansBySampler);
-  }
-
-  protected boolean sampleSpanLogs(Span object) {
-    return sample(object, discardedSpanLogsBySampler);
-  }
-
-  private boolean sample(Span object, Counter discarded) {
-    if (sampler.sample(object.getName(),
-        UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
+  public static boolean sample(Span wavefrontSpan, Sampler sampler, Counter discarded) {
+    if (sampler.sample(wavefrontSpan.getName(),
+        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
+        wavefrontSpan.getDuration())) {
       return true;
     }
     discarded.inc();

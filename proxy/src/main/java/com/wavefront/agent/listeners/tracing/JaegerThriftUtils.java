@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.sample;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
@@ -326,17 +327,6 @@ public abstract class JaegerThriftUtils {
           componentTagValue, isError, span.getDuration(), traceDerivedCustomTagKeys,
           spanTags, true));
     }
-  }
-
-  private static boolean sample(Span wavefrontSpan, Sampler sampler,
-                                Counter discardedSpansBySampler) {
-    if (sampler.sample(wavefrontSpan.getName(),
-        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
-        wavefrontSpan.getDuration())) {
-      return true;
-    }
-    discardedSpansBySampler.inc();
-    return false;
   }
 
   @Nullable

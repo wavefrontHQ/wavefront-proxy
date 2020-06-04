@@ -93,7 +93,6 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
 import net.openhft.chronicle.map.ChronicleMap;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -135,8 +134,6 @@ import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VA
 import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_POINTS_LOGGER;
 import static com.wavefront.common.Utils.csvToList;
 import static com.wavefront.common.Utils.lazySupplier;
-import static java.util.Collections.EMPTY_LIST;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 /**
  * Push-only Agent.
@@ -225,6 +222,13 @@ public class PushAgent extends AbstractAgent {
     shutdownTasks.add(() -> senderTaskFactory.shutdown());
     shutdownTasks.add(() -> senderTaskFactory.drainBuffersToQueue(null));
 
+    // sampler for spans
+    rateSampler.setSamplingRate(entityProps.getGlobalProperties().getTraceSamplingRate());
+    Sampler durationSampler = SpanSamplerUtils.getDurationSampler(
+        proxyConfig.getTraceSamplingDuration());
+    List<Sampler> samplers = SpanSamplerUtils.fromSamplers(rateSampler, durationSampler);
+    Sampler compositeSampler = new CompositeSampler(samplers);
+
     if (proxyConfig.getAdminApiListenerPort() > 0) {
       startAdminListener(proxyConfig.getAdminApiListenerPort());
     }
@@ -232,13 +236,14 @@ public class PushAgent extends AbstractAgent {
         startHealthCheckListener(Integer.parseInt(strPort)));
 
     csvToList(proxyConfig.getPushListenerPorts()).forEach(strPort -> {
-      startGraphiteListener(strPort, handlerFactory, remoteHostAnnotator);
+      startGraphiteListener(strPort, handlerFactory, remoteHostAnnotator, compositeSampler);
       logger.info("listening on port: " + strPort + " for Wavefront metrics");
     });
 
     csvToList(proxyConfig.getDeltaCountersAggregationListenerPorts()).forEach(
         strPort -> {
-          startDeltaCounterListener(strPort, remoteHostAnnotator, senderTaskFactory);
+          startDeltaCounterListener(strPort, remoteHostAnnotator, senderTaskFactory,
+              compositeSampler);
           logger.info("listening on port: " + strPort + " for Wavefront delta counter metrics");
         });
 
@@ -274,7 +279,7 @@ public class PushAgent extends AbstractAgent {
             proxyConfig.getHistogramMinuteAvgKeyBytes(),
             proxyConfig.getHistogramMinuteAvgDigestBytes(),
             proxyConfig.getHistogramMinuteCompression(),
-            proxyConfig.isHistogramMinuteAccumulatorPersisted());
+            proxyConfig.isHistogramMinuteAccumulatorPersisted(), compositeSampler);
         startHistogramListeners(histHourPorts, pointHandler, remoteHostAnnotator,
             Granularity.HOUR, proxyConfig.getHistogramHourFlushSecs(),
             proxyConfig.isHistogramHourMemoryCache(), baseDirectory,
@@ -282,7 +287,7 @@ public class PushAgent extends AbstractAgent {
             proxyConfig.getHistogramHourAvgKeyBytes(),
             proxyConfig.getHistogramHourAvgDigestBytes(),
             proxyConfig.getHistogramHourCompression(),
-            proxyConfig.isHistogramHourAccumulatorPersisted());
+            proxyConfig.isHistogramHourAccumulatorPersisted(), compositeSampler);
         startHistogramListeners(histDayPorts, pointHandler, remoteHostAnnotator,
             Granularity.DAY, proxyConfig.getHistogramDayFlushSecs(),
             proxyConfig.isHistogramDayMemoryCache(), baseDirectory,
@@ -290,13 +295,13 @@ public class PushAgent extends AbstractAgent {
             proxyConfig.getHistogramDayAvgKeyBytes(),
             proxyConfig.getHistogramDayAvgDigestBytes(),
             proxyConfig.getHistogramDayCompression(),
-            proxyConfig.isHistogramDayAccumulatorPersisted());
+            proxyConfig.isHistogramDayAccumulatorPersisted(), compositeSampler);
         startHistogramListeners(histDistPorts, pointHandler, remoteHostAnnotator,
             null, proxyConfig.getHistogramDistFlushSecs(), proxyConfig.isHistogramDistMemoryCache(),
             baseDirectory, proxyConfig.getHistogramDistAccumulatorSize(),
             proxyConfig.getHistogramDistAvgKeyBytes(), proxyConfig.getHistogramDistAvgDigestBytes(),
             proxyConfig.getHistogramDistCompression(),
-            proxyConfig.isHistogramDistAccumulatorPersisted());
+            proxyConfig.isHistogramDistAccumulatorPersisted(), compositeSampler);
       }
     }
 
@@ -314,7 +319,7 @@ public class PushAgent extends AbstractAgent {
         csvToList(proxyConfig.getGraphitePorts()).forEach(strPort -> {
           preprocessors.getSystemPreprocessor(strPort).forPointLine().
               addTransformer(0, graphiteFormatter);
-          startGraphiteListener(strPort, handlerFactory, null);
+          startGraphiteListener(strPort, handlerFactory, null, compositeSampler);
           logger.info("listening on port: " + strPort + " for graphite metrics");
         });
         csvToList(proxyConfig.getPicklePorts()).forEach(strPort ->
@@ -344,12 +349,6 @@ public class PushAgent extends AbstractAgent {
       csvToList(proxyConfig.getDataDogJsonPorts()).forEach(strPort ->
           startDataDogListener(strPort, handlerFactory, httpClient));
     }
-    // sampler for spans
-    rateSampler.setSamplingRate(entityProps.getGlobalProperties().getTraceSamplingRate());
-    Sampler durationSampler = SpanSamplerUtils.getDurationSampler(
-        proxyConfig.getTraceSamplingDuration());
-    List<Sampler> samplers = SpanSamplerUtils.fromSamplers(rateSampler, durationSampler);
-    Sampler compositeSampler = new CompositeSampler(samplers);
 
     csvToList(proxyConfig.getTraceListenerPorts()).forEach(strPort ->
         startTraceListener(strPort, handlerFactory, compositeSampler));
@@ -670,7 +669,7 @@ public class PushAgent extends AbstractAgent {
   @VisibleForTesting
   protected void startGraphiteListener(String strPort,
                                        ReportableEntityHandlerFactory handlerFactory,
-                                       SharedGraphiteHostAnnotator hostAnnotator) {
+                                       SharedGraphiteHostAnnotator hostAnnotator, Sampler sampler) {
     final int port = Integer.parseInt(strPort);
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
@@ -681,7 +680,8 @@ public class PushAgent extends AbstractAgent {
             decoderSupplier.get(), handlerFactory, hostAnnotator, preprocessors.get(strPort),
             () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
             () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
-            () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled());
+            () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
+            sampler, proxyConfig.isTraceAlwaysSampleErrors());
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -693,7 +693,7 @@ public class PushAgent extends AbstractAgent {
   @VisibleForTesting
   protected void startDeltaCounterListener(String strPort,
                                            SharedGraphiteHostAnnotator hostAnnotator,
-                                           SenderTaskFactory senderTaskFactory) {
+                                           SenderTaskFactory senderTaskFactory, Sampler sampler) {
     final int port = Integer.parseInt(strPort);
     registerPrefixFilter(strPort);
     registerTimestampFilter(strPort);
@@ -728,7 +728,8 @@ public class PushAgent extends AbstractAgent {
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
         new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
             decoderSupplier.get(), deltaCounterHandlerFactory, hostAnnotator,
-            preprocessors.get(strPort), () -> false, () -> false, () -> false);
+            preprocessors.get(strPort), () -> false, () -> false, () -> false, sampler,
+            proxyConfig.isTraceAlwaysSampleErrors());
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -872,7 +873,8 @@ public class PushAgent extends AbstractAgent {
                                          @Nullable Granularity granularity,
                                          int flushSecs, boolean memoryCacheEnabled,
                                          File baseDirectory, Long accumulatorSize, int avgKeyBytes,
-                                         int avgDigestBytes, short compression, boolean persist)
+                                         int avgDigestBytes, short compression, boolean persist,
+                                         Sampler sampler)
       throws Exception {
     if (ports.size() == 0) return;
     String listenerBinType = HistogramUtils.granularityToString(granularity);
@@ -991,7 +993,8 @@ public class PushAgent extends AbstractAgent {
               preprocessors.get(strPort),
               () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
               () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
-              () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled());
+              () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
+              sampler, proxyConfig.isTraceAlwaysSampleErrors());
       startAsManagedThread(port,
           new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
           proxyConfig.getHistogramMaxReceivedLength(), proxyConfig.getHistogramHttpBufferSize(),
