@@ -11,11 +11,13 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.SenderTask;
 import com.wavefront.agent.handlers.SenderTaskFactory;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.agent.tls.NaiveTrustManager;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 import com.wavefront.dto.SourceTag;
 import com.wavefront.sdk.common.WavefrontSender;
+import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 import junit.framework.AssertionFailedError;
 import net.jcip.annotations.NotThreadSafe;
@@ -175,8 +177,10 @@ public class PushAgentTest {
     proxy.proxyConfig.tlsPorts = "*";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = securePort1 + "," + securePort2;
-    proxy.startGraphiteListener(String.valueOf(securePort1), mockHandlerFactory, null);
-    proxy.startGraphiteListener(String.valueOf(securePort2), mockHandlerFactory, null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D),
+        proxy.proxyConfig.isTraceAlwaysSampleErrors());
+    proxy.startGraphiteListener(String.valueOf(securePort1), mockHandlerFactory, null, sampler);
+    proxy.startGraphiteListener(String.valueOf(securePort2), mockHandlerFactory, null, sampler);
     waitUntilListenerIsOnline(securePort1);
     waitUntilListenerIsOnline(securePort2);
     reset(mockPointHandler);
@@ -227,8 +231,10 @@ public class PushAgentTest {
     proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = port + "," + securePort;
-    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null);
-    proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D),
+        proxy.proxyConfig.isTraceAlwaysSampleErrors());
+    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null, sampler);
+    proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null, sampler);
     waitUntilListenerIsOnline(port);
     waitUntilListenerIsOnline(securePort);
     reset(mockPointHandler);
@@ -279,8 +285,10 @@ public class PushAgentTest {
     proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = port + "," + securePort;
-    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null);
-    proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D),
+        proxy.proxyConfig.isTraceAlwaysSampleErrors());
+    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null, sampler);
+    proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null, sampler);
     waitUntilListenerIsOnline(port);
     waitUntilListenerIsOnline(securePort);
     reset(mockPointHandler);
@@ -343,8 +351,10 @@ public class PushAgentTest {
     proxy.proxyConfig.httpHealthCheckPorts = String.valueOf(healthCheckPort);
     proxy.proxyConfig.httpHealthCheckAllPorts = true;
     proxy.healthCheckManager = new HealthCheckManagerImpl(proxy.proxyConfig);
-    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null);
-    proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D),
+        proxy.proxyConfig.isTraceAlwaysSampleErrors());
+    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null, sampler);
+    proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null, sampler);
     proxy.startHealthCheckListener(healthCheckPort);
     waitUntilListenerIsOnline(port);
     waitUntilListenerIsOnline(securePort);
@@ -401,8 +411,10 @@ public class PushAgentTest {
     proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = port + "," + securePort;
-    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null);
-    proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D),
+        proxy.proxyConfig.isTraceAlwaysSampleErrors());
+    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null, sampler);
+    proxy.startGraphiteListener(String.valueOf(securePort), mockHandlerFactory, null, sampler);
     waitUntilListenerIsOnline(port);
     waitUntilListenerIsOnline(securePort);
     reset(mockPointHandler);
@@ -449,7 +461,9 @@ public class PushAgentTest {
   public void testHistogramDataOnWavefrontUnifiedPortHandlerPlaintextUncompressed() throws Exception {
     port = findAvailablePort(2888);
     proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
-    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory,
+        null, new SpanSampler(new RateSampler(1.0D),
+            proxy.proxyConfig.isTraceAlwaysSampleErrors()));
     waitUntilListenerIsOnline(port);
     reset(mockHistogramHandler);
     mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
@@ -488,7 +502,9 @@ public class PushAgentTest {
   public void testWavefrontUnifiedPortHandlerPlaintextUncompressedMixedDataPayload() throws Exception {
     port = findAvailablePort(2888);
     proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
-    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory, null);
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory,
+        null, new SpanSampler(new RateSampler(1.0D),
+            proxy.proxyConfig.isTraceAlwaysSampleErrors()));
     waitUntilListenerIsOnline(port);
     reset(mockHistogramHandler);
     reset(mockPointHandler);
@@ -545,7 +561,8 @@ public class PushAgentTest {
     proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
     proxy.proxyConfig.dataBackfillCutoffHours = 8640;
     proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory,
-        null);
+        null, new SpanSampler(new DurationSampler(5000),
+            proxy.proxyConfig.isTraceAlwaysSampleErrors()));
     waitUntilListenerIsOnline(port);
     String traceId = UUID.randomUUID().toString();
     long timestamp1 = startTime * 1000000 + 12345;
@@ -557,6 +574,8 @@ public class PushAgentTest {
     String histoData = "!M " + startTime + " #5 10.0 #10 100.0 metric.test.histo source=test1\n" +
         "!M " + (startTime + 60) + " #5 20.0 #6 30.0 #7 40.0 metric.test.histo source=test2";
     String spanData = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
+        "traceId=\"" + traceId + "\" parent=parent2 " + startTime + " " + (startTime + 10);
+    String spanDataToDiscard = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
         "traceId=\"" + traceId + "\" parent=parent2 " + startTime + " " + (startTime + 1);
     String spanLogData = "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId +
         "\",\"logs\":[{\"timestamp\":" + timestamp1 +
@@ -567,6 +586,11 @@ public class PushAgentTest {
         ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" +
         timestamp2 + ",\"fields\":{\"key3\":\"value3\"}}]," +
         "\"span\":\"" + escapeSpanData(spanData) + "\"}\n";
+    String spanLogDataWithSpanFieldToDiscard =
+        "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId +
+        "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}}]," +
+        "\"span\":\"" + escapeSpanData(spanDataToDiscard) + "\"}\n";
     String mixedData = "@SourceTag action=save source=testSource newtag1 newtag2\n" +
         "@Event " + startTime + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
         "severity=INFO multi=bar multi=baz\n" +
@@ -663,7 +687,7 @@ public class PushAgentTest {
         )).
         build());
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000)
-        .setDuration(1000)
+        .setDuration(10000)
         .setName("testSpanName")
         .setSource("testsource")
         .setSpanId("testspanid")
@@ -681,6 +705,10 @@ public class PushAgentTest {
         "/report?format=spanLogs", spanLogData));
     assertEquals(202, gzippedHttpPost("http://localhost:" + port +
         "/report?format=spanLogs", spanLogDataWithSpanField));
+    assertEquals(202, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=trace", spanDataToDiscard));
+    assertEquals(202, gzippedHttpPost("http://localhost:" + port +
+        "/report?format=spanLogs", spanLogDataWithSpanFieldToDiscard));
     verify(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
         mockSourceTagHandler, mockEventHandler);
 
@@ -758,7 +786,7 @@ public class PushAgentTest {
     tracePort = findAvailablePort(3888);
     proxy.proxyConfig.traceListenerPorts = String.valueOf(tracePort);
     proxy.startTraceListener(proxy.proxyConfig.getTraceListenerPorts(), mockHandlerFactory,
-        new RateSampler(1.0D));
+        new SpanSampler(new RateSampler(1.0D), proxy.proxyConfig.isTraceAlwaysSampleErrors()));
     waitUntilListenerIsOnline(tracePort);
     reset(mockTraceHandler);
     reset(mockTraceSpanLogsHandler);
@@ -832,7 +860,8 @@ public class PushAgentTest {
     customTracePort = findAvailablePort(50000);
     proxy.proxyConfig.customTracingListenerPorts = String.valueOf(customTracePort);
     proxy.startCustomTracingListener(proxy.proxyConfig.getCustomTracingListenerPorts(),
-        mockHandlerFactory, mockWavefrontSender, new RateSampler(1.0D));
+        mockHandlerFactory, mockWavefrontSender, new SpanSampler(new RateSampler(1.0D),
+            proxy.proxyConfig.isTraceAlwaysSampleErrors()));
     waitUntilListenerIsOnline(customTracePort);
     reset(mockTraceHandler);
     reset(mockTraceSpanLogsHandler);
@@ -1080,7 +1109,8 @@ public class PushAgentTest {
     proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 10;
     proxy.proxyConfig.pushFlushInterval = 100;
     proxy.startDeltaCounterListener(proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
-        null, mockSenderTaskFactory);
+        null, mockSenderTaskFactory, new SpanSampler(new RateSampler(1.0D),
+            proxy.proxyConfig.isTraceAlwaysSampleErrors()));
     waitUntilListenerIsOnline(deltaPort);
     reset(mockSenderTask);
     Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
@@ -1112,7 +1142,8 @@ public class PushAgentTest {
     proxy.proxyConfig.deltaCountersAggregationListenerPorts = String.valueOf(deltaPort);
     proxy.proxyConfig.deltaCountersAggregationIntervalSeconds = 10;
     proxy.startDeltaCounterListener(proxy.proxyConfig.getDeltaCountersAggregationListenerPorts(),
-        null, mockSenderTaskFactory);
+        null, mockSenderTaskFactory, new SpanSampler(new RateSampler(1.0D),
+            proxy.proxyConfig.isTraceAlwaysSampleErrors()));
     waitUntilListenerIsOnline(deltaPort);
     reset(mockSenderTask);
     Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
@@ -1466,10 +1497,12 @@ public class PushAgentTest {
     proxy.proxyConfig.httpHealthCheckAllPorts = true;
     proxy.proxyConfig.httpHealthCheckFailStatusCode = 403;
     proxy.healthCheckManager = new HealthCheckManagerImpl(proxy.proxyConfig);
-    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null);
-    proxy.startGraphiteListener(String.valueOf(port2), mockHandlerFactory, null);
-    proxy.startGraphiteListener(String.valueOf(port3), mockHandlerFactory, null);
-    proxy.startGraphiteListener(String.valueOf(port4), mockHandlerFactory, null);
+    SpanSampler sampler = new SpanSampler(new RateSampler(1.0D),
+        proxy.proxyConfig.isTraceAlwaysSampleErrors());
+    proxy.startGraphiteListener(String.valueOf(port), mockHandlerFactory, null, sampler);
+    proxy.startGraphiteListener(String.valueOf(port2), mockHandlerFactory, null, sampler);
+    proxy.startGraphiteListener(String.valueOf(port3), mockHandlerFactory, null, sampler);
+    proxy.startGraphiteListener(String.valueOf(port4), mockHandlerFactory, null, sampler);
     proxy.startAdminListener(adminPort);
     waitUntilListenerIsOnline(adminPort);
     assertEquals(404, httpGet("http://localhost:" + adminPort + "/"));
