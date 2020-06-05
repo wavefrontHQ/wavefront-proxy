@@ -10,12 +10,12 @@ import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
-import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -68,8 +68,7 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
-  private final Sampler sampler;
-  private final boolean alwaysSampleErrors;
+  private final SpanSampler sampler;
   private final String proxyLevelApplicationName;
   private final Set<String> traceDerivedCustomTagKeys;
 
@@ -87,13 +86,12 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
                                         Supplier<Boolean> traceDisabled,
                                         Supplier<Boolean> spanLogsDisabled,
                                         @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                                        Sampler sampler,
-                                        boolean alwaysSampleErrors,
+                                        SpanSampler sampler,
                                         @Nullable String traceJaegerApplicationName,
                                         Set<String> traceDerivedCustomTagKeys) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler, alwaysSampleErrors,
+        wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler,
         traceJaegerApplicationName, traceDerivedCustomTagKeys);
   }
 
@@ -104,8 +102,7 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
                                         Supplier<Boolean> traceDisabled,
                                         Supplier<Boolean> spanLogsDisabled,
                                         @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                                        Sampler sampler,
-                                        boolean alwaysSampleErrors,
+                                        SpanSampler sampler,
                                         @Nullable String traceJaegerApplicationName,
                                         Set<String> traceDerivedCustomTagKeys) {
     this.spanHandler = spanHandler;
@@ -115,7 +112,6 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
     this.spanLogsDisabled = spanLogsDisabled;
     this.preprocessorSupplier = preprocessor;
     this.sampler = sampler;
-    this.alwaysSampleErrors = alwaysSampleErrors;
     this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ?
         "Jaeger" : traceJaegerApplicationName.trim();
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
@@ -152,8 +148,8 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
       try {
         processBatch(batch, null, DEFAULT_SOURCE, proxyLevelApplicationName, spanHandler,
             spanLogsHandler, wfInternalReporter, traceDisabled, spanLogsDisabled,
-            preprocessorSupplier, sampler, alwaysSampleErrors, traceDerivedCustomTagKeys,
-            discardedTraces, discardedBatches, discardedSpansBySampler, discoveredHeartbeatMetrics);
+            preprocessorSupplier, sampler, traceDerivedCustomTagKeys, discardedTraces,
+            discardedBatches, discardedSpansBySampler, discoveredHeartbeatMetrics);
         processedBatches.inc();
       } catch (Exception e) {
         failedBatches.inc();
