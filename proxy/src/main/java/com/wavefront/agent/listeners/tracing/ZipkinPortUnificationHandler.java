@@ -405,9 +405,33 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     }
     // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {
-      // report converted metrics/histograms from the span
-      List<Pair<String, String>> spanTags = annotations.stream().map(a -> new Pair<>(a.getKey(),
-          a.getValue())).collect(Collectors.toList());
+      // Set post preprocessor rule values and report converted metrics/histograms from the span
+      sourceName = wavefrontSpan.getSource();
+      List<Annotation> processedAnnotations = wavefrontSpan.getAnnotations();
+      for (Annotation processedAnnotation : processedAnnotations) {
+        switch (processedAnnotation.getKey()) {
+          case APPLICATION_TAG_KEY:
+            applicationName = processedAnnotation.getValue();
+            continue;
+          case SERVICE_TAG_KEY:
+            serviceName = processedAnnotation.getValue();
+            continue;
+          case CLUSTER_TAG_KEY:
+            cluster = processedAnnotation.getValue();
+            continue;
+          case SHARD_TAG_KEY:
+            shard = processedAnnotation.getValue();
+            continue;
+          case COMPONENT_TAG_KEY:
+            componentTagValue = processedAnnotation.getValue();
+            continue;
+          case ERROR_SPAN_TAG_KEY:
+            isError = true;
+            continue;
+        }
+      }
+      List<Pair<String, String>> spanTags = processedAnnotations.stream().map(
+          a -> new Pair<>(a.getKey(), a.getValue())).collect(Collectors.toList());
       discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
           spanName, applicationName, serviceName, cluster, shard, sourceName, componentTagValue,
           isError, zipkinSpan.durationAsLong(), traceDerivedCustomTagKeys, spanTags, true));

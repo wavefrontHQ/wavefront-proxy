@@ -2,6 +2,7 @@ package com.wavefront.agent;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
@@ -19,8 +20,11 @@ import com.wavefront.dto.SourceTag;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
+
 import junit.framework.AssertionFailedError;
+
 import net.jcip.annotations.NotThreadSafe;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
@@ -33,6 +37,25 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.net.Socket;
+import java.security.SecureRandom;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.UUID;
+import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
+
+import javax.annotation.Nonnull;
+import javax.net.SocketFactory;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -45,23 +68,6 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-import javax.annotation.Nonnull;
-import javax.net.SocketFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.HttpsURLConnection;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
-import java.net.Socket;
-import java.security.SecureRandom;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.UUID;
-import java.util.logging.Logger;
-import java.util.zip.GZIPOutputStream;
-
 import static com.wavefront.agent.TestUtils.findAvailablePort;
 import static com.wavefront.agent.TestUtils.getResource;
 import static com.wavefront.agent.TestUtils.gzippedHttpPost;
@@ -70,8 +76,10 @@ import static com.wavefront.agent.TestUtils.httpPost;
 import static com.wavefront.agent.TestUtils.verifyWithTimeout;
 import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static org.easymock.EasyMock.anyLong;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.anyString;
@@ -935,6 +943,8 @@ public class PushAgentTest {
     HashMap<String, String> tagsReturned = tagsCapture.getValue();
     assertEquals("application1", tagsReturned.get(APPLICATION_TAG_KEY));
     assertEquals("service1", tagsReturned.get(SERVICE_TAG_KEY));
+    assertEquals("none", tagsReturned.get(CLUSTER_TAG_KEY));
+    assertEquals("none", tagsReturned.get(SHARD_TAG_KEY));
   }
 
   @Test(timeout = 30000)
