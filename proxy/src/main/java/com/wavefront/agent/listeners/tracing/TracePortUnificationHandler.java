@@ -12,9 +12,9 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.AbstractLineDelimitedHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.ReportableEntityDecoder;
-import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -22,7 +22,6 @@ import com.yammer.metrics.core.MetricName;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -45,8 +44,6 @@ import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
-import static com.wavefront.agent.listeners.tracing.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 
 /**
  * Process incoming trace-formatted data.
@@ -68,8 +65,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private final ReportableEntityDecoder<String, Span> decoder;
   private final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
-  private final Sampler sampler;
-  protected final boolean alwaysSampleErrors;
+  private final SpanSampler sampler;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
 
@@ -84,13 +80,12 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       final ReportableEntityDecoder<String, Span> traceDecoder,
       final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
-      final ReportableEntityHandlerFactory handlerFactory, final Sampler sampler,
-      final boolean alwaysSampleErrors, final Supplier<Boolean> traceDisabled,
-      final Supplier<Boolean> spanLogsDisabled) {
+      final ReportableEntityHandlerFactory handlerFactory, final SpanSampler sampler,
+      final Supplier<Boolean> traceDisabled, final Supplier<Boolean> spanLogsDisabled) {
     this(handle, tokenAuthenticator, healthCheckManager, traceDecoder, spanLogsDecoder,
         preprocessor, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        sampler, alwaysSampleErrors, traceDisabled, spanLogsDisabled);
+        sampler, traceDisabled, spanLogsDisabled);
   }
 
   @VisibleForTesting
@@ -101,8 +96,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       final ReportableEntityDecoder<JsonNode, SpanLogs> spanLogsDecoder,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
       final ReportableEntityHandler<Span, String> handler,
-      final ReportableEntityHandler<SpanLogs, String> spanLogsHandler, final Sampler sampler,
-      final boolean alwaysSampleErrors, final Supplier<Boolean> traceDisabled,
+      final ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      final SpanSampler sampler, final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.decoder = traceDecoder;
@@ -111,7 +106,6 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
     this.spanLogsHandler = spanLogsHandler;
     this.preprocessorSupplier = preprocessor;
     this.sampler = sampler;
-    this.alwaysSampleErrors = alwaysSampleErrors;
     this.traceDisabled = traceDisabled;
     this.spanLogsDisabled = spanLogsDisabled;
     this.discardedSpans = Metrics.newCounter(new MetricName("spans." + handle, "", "discarded"));
@@ -137,20 +131,28 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
     if (format == DataFormat.SPAN_LOG || (message.startsWith("{") && message.endsWith("}"))) {
       if (isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, discardedSpanLogs)) return;
       handleSpanLogs(message, spanLogsDecoder, decoder, spanLogsHandler, preprocessorSupplier,
-          ctx, alwaysSampleErrors, this::sampleSpanLogs);
+          ctx, span -> sampler.sample(span, discardedSpanLogsBySampler));
       return;
     }
     if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedSpans)) return;
     preprocessAndHandleSpan(message, decoder, handler, this::report, preprocessorSupplier, ctx,
-        alwaysSampleErrors, this::sample);
+        span -> sampler.sample(span, discardedSpansBySampler));
+  }
+
+  /**
+   * Report span and derived metrics if needed.
+   *
+   * @param object span.
+   */
+  protected void report(Span object) {
+    handler.report(object);
   }
 
   public static void preprocessAndHandleSpan(
       String message, ReportableEntityDecoder<String, Span> decoder,
       ReportableEntityHandler<Span, String> handler, Consumer<Span> spanReporter,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-      @Nullable ChannelHandlerContext ctx, boolean alwaysSampleErrors,
-      Function<Span, Boolean> samplerFunc) {
+      @Nullable ChannelHandlerContext ctx, Function<Span, Boolean> samplerFunc) {
     ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
         null : preprocessorSupplier.get();
     String[] messageHolder = new String[1];
@@ -188,10 +190,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
           return;
         }
       }
-      // check whether error span tag exists.
-      boolean sampleError = alwaysSampleErrors && object.getAnnotations().stream().anyMatch(t ->
-          t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
-      if (sampleError || samplerFunc.apply(object)) {
+      if (samplerFunc.apply(object)) {
         spanReporter.accept(object);
       }
     }
@@ -202,8 +201,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
       ReportableEntityDecoder<String, Span> spanDecoder,
       ReportableEntityHandler<SpanLogs, String> handler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-      @Nullable ChannelHandlerContext ctx, boolean alwaysSampleErrors,
-      Function<Span, Boolean> samplerFunc) {
+      @Nullable ChannelHandlerContext ctx, Function<Span, Boolean> samplerFunc) {
     List<SpanLogs> spanLogsOutput = new ArrayList<>(1);
     try {
       spanLogsDecoder.decode(JSON_PARSER.readTree(message), spanLogsOutput, "dummy");
@@ -256,10 +254,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
               return;
             }
           }
-          // check whether error span tag exists.
-          boolean sampleError = alwaysSampleErrors && span.getAnnotations().stream().anyMatch(t ->
-              t.getKey().equals(ERROR_SPAN_TAG_KEY) && t.getValue().equals(ERROR_SPAN_TAG_VAL));
-          if (sampleError || samplerFunc.apply(span)) {
+          if (samplerFunc.apply(span)) {
             // after sampling, span line data is no longer needed
             spanLogs.setSpan(null);
             handler.report(spanLogs);
@@ -267,31 +262,5 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         }
       }
     }
-  }
-
-  /**
-   * Report span and derived metrics if needed.
-   *
-   * @param object     span.
-   */
-  protected void report(Span object) {
-    handler.report(object);
-  }
-
-  protected boolean sample(Span object) {
-    return sample(object, discardedSpansBySampler);
-  }
-
-  protected boolean sampleSpanLogs(Span object) {
-    return sample(object, discardedSpanLogsBySampler);
-  }
-
-  private boolean sample(Span object, Counter discarded) {
-    if (sampler.sample(object.getName(),
-        UUID.fromString(object.getTraceId()).getLeastSignificantBits(), object.getDuration())) {
-      return true;
-    }
-    discarded.inc();
-    return false;
   }
 }

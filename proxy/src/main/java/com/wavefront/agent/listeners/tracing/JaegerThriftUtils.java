@@ -3,9 +3,9 @@ package com.wavefront.agent.listeners.tracing;
 import com.google.common.collect.ImmutableSet;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
-import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.core.Counter;
 import io.jaegertracing.thriftjava.Batch;
 import io.jaegertracing.thriftjava.SpanRef;
@@ -74,8 +74,7 @@ public abstract class JaegerThriftUtils {
                                   Supplier<Boolean> traceDisabled,
                                   Supplier<Boolean> spanLogsDisabled,
                                   Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                                  Sampler sampler,
-                                  boolean alwaysSampleErrors,
+                                  SpanSampler sampler,
                                   Set<String> traceDerivedCustomTagKeys,
                                   Counter discardedTraces,
                                   Counter discardedBatches,
@@ -120,8 +119,8 @@ public abstract class JaegerThriftUtils {
     for (io.jaegertracing.thriftjava.Span span : batch.getSpans()) {
       processSpan(span, serviceName, sourceName, applicationName, processAnnotations,
           spanHandler, spanLogsHandler, wfInternalReporter, spanLogsDisabled,
-          preprocessorSupplier, sampler, alwaysSampleErrors, traceDerivedCustomTagKeys,
-          discardedSpansBySampler, discoveredHeartbeatMetrics);
+          preprocessorSupplier, sampler, traceDerivedCustomTagKeys, discardedSpansBySampler,
+          discoveredHeartbeatMetrics);
     }
   }
 
@@ -135,8 +134,7 @@ public abstract class JaegerThriftUtils {
                                   @Nullable WavefrontInternalReporter wfInternalReporter,
                                   Supplier<Boolean> spanLogsDisabled,
                                   Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                                  Sampler sampler,
-                                  boolean alwaysSampleErrors,
+                                  SpanSampler sampler,
                                   Set<String> traceDerivedCustomTagKeys,
                                   Counter discardedSpansBySampler,
                                   ConcurrentMap<HeartbeatMetricKey, Boolean> discoveredHeartbeatMetrics) {
@@ -265,8 +263,8 @@ public abstract class JaegerThriftUtils {
         return;
       }
     }
-    if (isForceSampled || isDebugSpanTag || (alwaysSampleErrors && isError) ||
-        sample(wavefrontSpan, sampler, discardedSpansBySampler)) {
+    if (isForceSampled || isDebugSpanTag || sampler.sample(wavefrontSpan,
+        discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null && !span.getLogs().isEmpty() &&
           !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
@@ -312,17 +310,6 @@ public abstract class JaegerThriftUtils {
           componentTagValue, isError, span.getDuration(), traceDerivedCustomTagKeys,
           annotations), true);
     }
-  }
-
-  private static boolean sample(Span wavefrontSpan, Sampler sampler,
-                                Counter discardedSpansBySampler) {
-    if (sampler.sample(wavefrontSpan.getName(),
-        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
-        wavefrontSpan.getDuration())) {
-      return true;
-    }
-    discardedSpansBySampler.inc();
-    return false;
   }
 
   @Nullable

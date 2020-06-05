@@ -6,6 +6,7 @@ import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 import io.jaegertracing.thriftjava.Batch;
 import io.jaegertracing.thriftjava.Log;
@@ -144,7 +145,7 @@ public class JaegerPortUnificationHandlerTest {
     JaegerPortUnificationHandler handler = new JaegerPortUnificationHandler("14268",
         TokenAuthenticatorBuilder.create().build(), new NoopHealthCheckManager(),
         mockTraceHandler, mockTraceSpanLogsHandler, null, () -> false, () -> false, null,
-        new RateSampler(1.0D), false, null, null);
+        new SpanSampler(new RateSampler(1.0D), false), null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");

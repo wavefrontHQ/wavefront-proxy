@@ -135,7 +135,7 @@ public class InteractivePreprocessorTester implements InteractiveTester {
     if (entityType == ReportableEntityType.TRACE) {
       ReportableEntityHandler<Span, String> handler = factory.getHandler(entityType, port);
       TracePortUnificationHandler.preprocessAndHandleSpan(line, SPAN_DECODER, handler,
-          handler::report, preprocessorSupplier, null, true, x -> true);
+          handler::report, preprocessorSupplier, null, x -> true);
     } else {
       ReportableEntityHandler<ReportPoint, String> handler = factory.getHandler(entityType, port);
       ReportableEntityDecoder<String, ReportPoint> decoder;

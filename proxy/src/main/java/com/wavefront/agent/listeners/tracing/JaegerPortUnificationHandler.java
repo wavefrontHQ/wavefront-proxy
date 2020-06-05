@@ -9,11 +9,11 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.WavefrontSender;
-import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -69,8 +69,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
-  private final Sampler sampler;
-  private final boolean alwaysSampleErrors;
+  private final SpanSampler sampler;
   private final String proxyLevelApplicationName;
   private final Set<String> traceDerivedCustomTagKeys;
 
@@ -93,14 +92,13 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
                                       Supplier<Boolean> traceDisabled,
                                       Supplier<Boolean> spanLogsDisabled,
                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                                      Sampler sampler,
-                                      boolean alwaysSampleErrors,
+                                      SpanSampler sampler,
                                       @Nullable String traceJaegerApplicationName,
                                       Set<String> traceDerivedCustomTagKeys) {
     this(handle, tokenAuthenticator, healthCheckManager,
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler, alwaysSampleErrors,
+        wfSender, traceDisabled, spanLogsDisabled, preprocessor, sampler,
         traceJaegerApplicationName, traceDerivedCustomTagKeys);
   }
 
@@ -114,8 +112,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
                                Supplier<Boolean> traceDisabled,
                                Supplier<Boolean> spanLogsDisabled,
                                @Nullable Supplier<ReportableEntityPreprocessor> preprocessor,
-                               Sampler sampler,
-                               boolean alwaysSampleErrors,
+                               SpanSampler sampler,
                                @Nullable String traceJaegerApplicationName,
                                Set<String> traceDerivedCustomTagKeys) {
     super(tokenAuthenticator, healthCheckManager, handle);
@@ -126,7 +123,6 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
     this.spanLogsDisabled = spanLogsDisabled;
     this.preprocessorSupplier = preprocessor;
     this.sampler = sampler;
-    this.alwaysSampleErrors = alwaysSampleErrors;
     this.proxyLevelApplicationName = StringUtils.isBlank(traceJaegerApplicationName) ?
         "Jaeger" : traceJaegerApplicationName.trim();
     this.traceDerivedCustomTagKeys =  traceDerivedCustomTagKeys;
@@ -186,7 +182,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
 
       processBatch(batch, output, DEFAULT_SOURCE, proxyLevelApplicationName, spanHandler,
           spanLogsHandler, wfInternalReporter, traceDisabled, spanLogsDisabled,
-          preprocessorSupplier, sampler, alwaysSampleErrors, traceDerivedCustomTagKeys,
+          preprocessorSupplier, sampler, traceDerivedCustomTagKeys,
           discardedTraces, discardedBatches, discardedSpansBySampler, discoveredHeartbeatMetrics);
       status = HttpResponseStatus.ACCEPTED;
       processedBatches.inc();
