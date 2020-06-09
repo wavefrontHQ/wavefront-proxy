@@ -406,7 +406,6 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
     // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {
       // Set post preprocessor rule values and report converted metrics/histograms from the span
-      sourceName = wavefrontSpan.getSource();
       List<Annotation> processedAnnotations = wavefrontSpan.getAnnotations();
       for (Annotation processedAnnotation : processedAnnotations) {
         switch (processedAnnotation.getKey()) {
@@ -433,8 +432,9 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       List<Pair<String, String>> spanTags = processedAnnotations.stream().map(
           a -> new Pair<>(a.getKey(), a.getValue())).collect(Collectors.toList());
       discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
-          spanName, applicationName, serviceName, cluster, shard, sourceName, componentTagValue,
-          isError, zipkinSpan.durationAsLong(), traceDerivedCustomTagKeys, spanTags, true));
+          wavefrontSpan.getName(), applicationName, serviceName, cluster, shard,
+          wavefrontSpan.getSource(), componentTagValue, isError, zipkinSpan.durationAsLong(),
+          traceDerivedCustomTagKeys, spanTags, true));
     }
   }
 
