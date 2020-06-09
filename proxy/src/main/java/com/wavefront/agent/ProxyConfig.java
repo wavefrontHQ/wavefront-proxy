@@ -530,6 +530,22 @@ public class ProxyConfig extends Configuration {
   @Parameter(names = {"--traceZipkinApplicationName"}, description = "Application name for Zipkin. Defaults to Zipkin.")
   String traceZipkinApplicationName;
 
+  @Parameter(names = {"--customTracingListenerPorts"},
+      description = "Comma-separated list of ports to listen on spans from level 1 SDK. Helps " +
+          "derive RED metrics and for the span and heartbeat for corresponding application at " +
+          "proxy. Defaults: none")
+  String customTracingListenerPorts = "";
+
+  @Parameter(names = {"--customTracingApplicationName"}, description = "Application name to use " +
+      "for spans sent to customTracingListenerPorts when span doesn't have application tag. " +
+      "Defaults to defaultApp.")
+  String customTracingApplicationName;
+
+  @Parameter(names = {"--customTracingServiceName"}, description = "Service name to use for spans" +
+      " sent to customTracingListenerPorts when span doesn't have service tag. " +
+      "Defaults to defaultService.")
+  String customTracingServiceName;
+
   @Parameter(names = {"--traceSamplingRate"}, description = "Value between 0.0 and 1.0. " +
       "Defaults to 1.0 (allow all spans).")
   double traceSamplingRate = 1.0d;
@@ -724,12 +740,6 @@ public class ProxyConfig extends Configuration {
           "counters. Helps reduce outbound point rate by pre-aggregating delta counters at proxy." +
           " Defaults: none")
   String deltaCountersAggregationListenerPorts = "";
-
-  @Parameter(names = {"--customTracingListenerPorts"},
-      description = "Comma-separated list of ports to listen on spans from level 1 SDK. Helps " +
-          "derive RED metrics and for the span and heartbeat for corresponding application at proxy." +
-          " Defaults: none")
-  protected String customTracingListenerPorts = "";
 
   @Parameter(names = {"--privateCertPath"},
           description = "TLS certificate path to use for securing all the ports. " +
@@ -1207,6 +1217,18 @@ public class ProxyConfig extends Configuration {
     return traceZipkinApplicationName;
   }
 
+  public String getCustomTracingListenerPorts() {
+    return customTracingListenerPorts;
+  }
+
+  public String getCustomTracingApplicationName() {
+    return customTracingApplicationName;
+  }
+
+  public String getCustomTracingServiceName() {
+    return customTracingServiceName;
+  }
+
   public double getTraceSamplingRate() {
     return traceSamplingRate;
   }
@@ -1414,10 +1436,6 @@ public class ProxyConfig extends Configuration {
 
   public String getDeltaCountersAggregationListenerPorts() {
     return deltaCountersAggregationListenerPorts;
-  }
-
-  public String getCustomTracingListenerPorts() {
-    return customTracingListenerPorts;
   }
 
   @JsonIgnore
@@ -1677,6 +1695,12 @@ public class ProxyConfig extends Configuration {
           traceZipkinListenerPorts);
       traceZipkinApplicationName = config.getString("traceZipkinApplicationName",
           traceZipkinApplicationName);
+      customTracingListenerPorts =
+          config.getString("customTracingListenerPorts", customTracingListenerPorts);
+      customTracingApplicationName =
+          config.getString("customTracingApplicationName", customTracingApplicationName);
+      customTracingServiceName =
+          config.getString("customTracingServiceName", customTracingServiceName);
       traceSamplingRate = config.getDouble("traceSamplingRate", traceSamplingRate);
       traceSamplingDuration = config.getInteger("traceSamplingDuration", traceSamplingDuration);
       traceDerivedCustomTagKeys = config.getString("traceDerivedCustomTagKeys",
