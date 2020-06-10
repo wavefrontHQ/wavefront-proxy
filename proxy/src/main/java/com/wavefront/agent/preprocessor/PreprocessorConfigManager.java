@@ -63,7 +63,8 @@ public class PreprocessorConfigManager {
   private final Map<String, ReportableEntityPreprocessor> systemPreprocessors = new HashMap<>();
   private final Map<String, PreprocessorRuleMetrics> preprocessorRuleMetricsMap = new HashMap<>();
 
-  private Map<String, ReportableEntityPreprocessor> userPreprocessors;
+  @VisibleForTesting
+  public Map<String, ReportableEntityPreprocessor> userPreprocessors;
   private Map<String, ReportableEntityPreprocessor> preprocessors = null;
 
   private volatile long systemPreprocessorsTs = Long.MIN_VALUE;

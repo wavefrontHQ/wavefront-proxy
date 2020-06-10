@@ -10,19 +10,7 @@ import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.yammer.metrics.core.Counter;
 
-import io.jaegertracing.thriftjava.Batch;
-import io.jaegertracing.thriftjava.SpanRef;
-import io.jaegertracing.thriftjava.Tag;
-import io.jaegertracing.thriftjava.TagType;
-
 import org.apache.commons.lang.StringUtils;
-
-import wavefront.report.Annotation;
-import wavefront.report.Span;
-import wavefront.report.SpanLog;
-import wavefront.report.SpanLogs;
-
-import javax.annotation.Nullable;
 
 import java.text.NumberFormat;
 import java.text.ParseException;
@@ -36,6 +24,17 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
+
+import io.jaegertracing.thriftjava.Batch;
+import io.jaegertracing.thriftjava.SpanRef;
+import io.jaegertracing.thriftjava.Tag;
+import io.jaegertracing.thriftjava.TagType;
+import wavefront.report.Annotation;
+import wavefront.report.Span;
+import wavefront.report.SpanLog;
+import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
@@ -314,15 +313,40 @@ public abstract class JaegerThriftUtils {
         spanLogsHandler.report(spanLogs);
       }
     }
+
     // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {
-      // report converted metrics/histograms from the span
-      List<Pair<String, String>> spanTags = annotations.stream().map(a -> new Pair<>(a.getKey(),
-          a.getValue())).collect(Collectors.toList());
+      // Set post preprocessor rule values and report converted metrics/histograms from the span
+      List<Annotation> processedAnnotations = wavefrontSpan.getAnnotations();
+      for (Annotation processedAnnotation : processedAnnotations) {
+        switch (processedAnnotation.getKey()) {
+          case APPLICATION_TAG_KEY:
+            applicationName = processedAnnotation.getValue();
+            continue;
+          case SERVICE_TAG_KEY:
+            serviceName = processedAnnotation.getValue();
+            continue;
+          case CLUSTER_TAG_KEY:
+            cluster = processedAnnotation.getValue();
+            continue;
+          case SHARD_TAG_KEY:
+            shard = processedAnnotation.getValue();
+            continue;
+          case COMPONENT_TAG_KEY:
+            componentTagValue = processedAnnotation.getValue();
+            continue;
+          case ERROR_SPAN_TAG_KEY:
+            isError = processedAnnotation.getValue().equals(ERROR_SPAN_TAG_VAL);
+            continue;
+        }
+      }
+      List<Pair<String, String>> spanTags = processedAnnotations.stream().map(
+          a -> new Pair<>(a.getKey(), a.getValue())).collect(Collectors.toList());
+      // TODO: Modify to use new method from wavefront internal reporter.
       discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
-          span.getOperationName(), applicationName, serviceName, cluster, shard, sourceName,
-          componentTagValue, isError, span.getDuration(), traceDerivedCustomTagKeys,
-          spanTags, true));
+          wavefrontSpan.getName(), applicationName, serviceName, cluster, shard,
+          wavefrontSpan.getSource(), componentTagValue, isError, span.getDuration(),
+          traceDerivedCustomTagKeys, spanTags, true));
     }
   }
 

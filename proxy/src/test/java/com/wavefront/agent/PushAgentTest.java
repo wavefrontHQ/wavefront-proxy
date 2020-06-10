@@ -2,6 +2,7 @@ package com.wavefront.agent;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
@@ -11,6 +12,10 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.SenderTask;
 import com.wavefront.agent.handlers.SenderTaskFactory;
+import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
+import com.wavefront.agent.preprocessor.SpanReplaceRegexTransformer;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.agent.tls.NaiveTrustManager;
 import com.wavefront.data.ReportableEntityType;
@@ -19,8 +24,11 @@ import com.wavefront.dto.SourceTag;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
+
 import junit.framework.AssertionFailedError;
+
 import net.jcip.annotations.NotThreadSafe;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
@@ -33,6 +41,26 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.net.Socket;
+import java.security.SecureRandom;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
+
+import javax.annotation.Nonnull;
+import javax.net.SocketFactory;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -45,23 +73,6 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
-import javax.annotation.Nonnull;
-import javax.net.SocketFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.HttpsURLConnection;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
-import java.net.Socket;
-import java.security.SecureRandom;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.UUID;
-import java.util.logging.Logger;
-import java.util.zip.GZIPOutputStream;
-
 import static com.wavefront.agent.TestUtils.findAvailablePort;
 import static com.wavefront.agent.TestUtils.getResource;
 import static com.wavefront.agent.TestUtils.gzippedHttpPost;
@@ -70,8 +81,10 @@ import static com.wavefront.agent.TestUtils.httpPost;
 import static com.wavefront.agent.TestUtils.verifyWithTimeout;
 import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static org.easymock.EasyMock.anyLong;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.anyString;
@@ -114,6 +127,14 @@ public class PushAgentTest {
   private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private SenderTask<String> mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
   private Collection<SenderTask<String>> mockSenderTasks = ImmutableList.of(mockSenderTask);
+
+  // Derived RED metrics related.
+  private final String PREPROCESSED_APPLICATION_TAG_VALUE = "preprocessedApplication";
+  private final String PREPROCESSED_SERVICE_TAG_VALUE = "preprocessedService";
+  private final String PREPROCESSED_CLUSTER_TAG_VALUE = "preprocessedCluster";
+  private final String PREPROCESSED_SHARD_TAG_VALUE = "preprocessedShard";
+  private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
+
   private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
     @SuppressWarnings("unchecked")
     @Override
@@ -856,6 +877,75 @@ public class PushAgentTest {
   }
 
   @Test
+  public void testCustomTraceUnifiedPortHandlerDerivedMetrics() throws Exception {
+    customTracePort = findAvailablePort(51233);
+    proxy.proxyConfig.customTracingListenerPorts = String.valueOf(customTracePort);
+    setUserPreprocessorForTraceDerivedREDMetrics(customTracePort);
+    proxy.startCustomTracingListener(proxy.proxyConfig.getCustomTracingListenerPorts(),
+        mockHandlerFactory, mockWavefrontSender, new SpanSampler(new RateSampler(1.0D),
+            proxy.proxyConfig.isTraceAlwaysSampleErrors()));
+    waitUntilListenerIsOnline(customTracePort);
+    reset(mockTraceHandler);
+    reset(mockWavefrontSender);
+
+    String traceId = UUID.randomUUID().toString();
+    String spanData = "testSpanName source=testsource spanId=testspanid " +
+        "traceId=\"" + traceId + "\" " + startTime + " " + (startTime + 1) + "\n";
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000).
+        setDuration(1000).
+        setName("testSpanName").
+        setSource(PREPROCESSED_SOURCE_VALUE).
+        setSpanId("testspanid").
+        setTraceId(traceId).
+        setAnnotations(ImmutableList.of(
+            new Annotation("application", PREPROCESSED_APPLICATION_TAG_VALUE),
+            new Annotation("service", PREPROCESSED_SERVICE_TAG_VALUE),
+            new Annotation("cluster", PREPROCESSED_CLUSTER_TAG_VALUE),
+            new Annotation("shard", PREPROCESSED_SHARD_TAG_VALUE))).build());
+    expectLastCall();
+
+    Capture<HashMap<String, String>> tagsCapture = EasyMock.newCapture();
+    mockWavefrontSender.sendMetric(eq(HEART_BEAT_METRIC), eq(1.0), anyLong(),
+        eq(PREPROCESSED_SOURCE_VALUE), EasyMock.capture(tagsCapture));
+    expectLastCall().anyTimes();
+    replay(mockTraceHandler, mockWavefrontSender);
+
+    Socket socket = SocketFactory.getDefault().createSocket("localhost", customTracePort);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    stream.write(spanData.getBytes());
+    stream.flush();
+    socket.close();
+    // sleep to get around "Nothing captured yet" issue with heartbeat metric call.
+    Thread.sleep(100);
+    verifyWithTimeout(500, mockTraceHandler, mockWavefrontSender);
+    HashMap<String, String> tagsReturned = tagsCapture.getValue();
+    assertEquals(PREPROCESSED_APPLICATION_TAG_VALUE, tagsReturned.get(APPLICATION_TAG_KEY));
+    assertEquals(PREPROCESSED_SERVICE_TAG_VALUE, tagsReturned.get(SERVICE_TAG_KEY));
+    assertEquals(PREPROCESSED_CLUSTER_TAG_VALUE, tagsReturned.get(CLUSTER_TAG_KEY));
+    assertEquals(PREPROCESSED_SHARD_TAG_VALUE, tagsReturned.get(SHARD_TAG_KEY));
+  }
+
+  private void setUserPreprocessorForTraceDerivedREDMetrics(int port) {
+    ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
+    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
+        null);
+    preprocessor.forSpan().addTransformer(new SpanAddAnnotationIfNotExistsTransformer
+        ("application", PREPROCESSED_APPLICATION_TAG_VALUE, x -> true, preprocessorRuleMetrics));
+    preprocessor.forSpan().addTransformer(new SpanAddAnnotationIfNotExistsTransformer
+        ("service", PREPROCESSED_SERVICE_TAG_VALUE, x -> true, preprocessorRuleMetrics));
+    preprocessor.forSpan().addTransformer(new SpanAddAnnotationIfNotExistsTransformer
+        ("cluster", PREPROCESSED_CLUSTER_TAG_VALUE, x -> true, preprocessorRuleMetrics));
+    preprocessor.forSpan().addTransformer(new SpanAddAnnotationIfNotExistsTransformer
+        ("shard", PREPROCESSED_SHARD_TAG_VALUE, x -> true, preprocessorRuleMetrics));
+    preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer("sourceName",
+        "^test.*", PREPROCESSED_SOURCE_VALUE, null, null, false, x -> true, preprocessorRuleMetrics));
+    Map<String, ReportableEntityPreprocessor> userPreprocessorMap = new HashMap<>();
+    userPreprocessorMap.put(String.valueOf(port), preprocessor);
+    proxy.preprocessors.userPreprocessors = userPreprocessorMap;
+  }
+
+  @Test
   public void testCustomTraceUnifiedPortHandlerPlaintext() throws Exception {
     customTracePort = findAvailablePort(50000);
     proxy.proxyConfig.customTracingListenerPorts = String.valueOf(customTracePort);
@@ -935,6 +1025,8 @@ public class PushAgentTest {
     HashMap<String, String> tagsReturned = tagsCapture.getValue();
     assertEquals("application1", tagsReturned.get(APPLICATION_TAG_KEY));
     assertEquals("service1", tagsReturned.get(SERVICE_TAG_KEY));
+    assertEquals("none", tagsReturned.get(CLUSTER_TAG_KEY));
+    assertEquals("none", tagsReturned.get(SHARD_TAG_KEY));
   }
 
   @Test(timeout = 30000)
