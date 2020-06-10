@@ -124,6 +124,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
           continue;
         case SERVICE_TAG_KEY:
           serviceName = annotation.getValue();
+          continue;
         case CLUSTER_TAG_KEY:
           cluster = annotation.getValue();
           continue;
@@ -132,10 +133,10 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
           continue;
         case COMPONENT_TAG_KEY:
           componentTagValue = annotation.getValue();
-          break;
+          continue;
         case ERROR_SPAN_TAG_KEY:
           isError = annotation.getValue();
-          break;
+          continue;
       }
     }
     if (applicationName.equals(NULL_TAG_VAL) || serviceName.equals(NULL_TAG_VAL)) {

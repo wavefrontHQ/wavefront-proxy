@@ -2,12 +2,26 @@ package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.NoopHealthCheckManager;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.preprocessor.SpanReplaceRegexTransformer;
 import com.wavefront.agent.sampler.SpanSampler;
+import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
+
+import org.apache.thrift.TSerializer;
+import org.easymock.Capture;
+import org.easymock.EasyMock;
+import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.function.Supplier;
+
 import io.jaegertracing.thriftjava.Batch;
 import io.jaegertracing.thriftjava.Log;
 import io.jaegertracing.thriftjava.Process;
@@ -21,20 +35,26 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
-import org.apache.thrift.TSerializer;
-import org.easymock.EasyMock;
-import org.junit.Test;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
+import static com.wavefront.agent.TestUtils.verifyWithTimeout;
+import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
+import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static org.easymock.EasyMock.anyLong;
 import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Unit tests for {@link JaegerPortUnificationHandler}.
@@ -47,9 +67,105 @@ public class JaegerPortUnificationHandlerTest {
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs, String> mockTraceSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
+  private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private ChannelHandlerContext mockCtx = createNiceMock(ChannelHandlerContext.class);
 
   private long startTime = System.currentTimeMillis();
+
+  // Derived RED metrics related.
+  private final String PREPROCESSED_APPLICATION_TAG_VALUE = "preprocessedApplication";
+  private final String PREPROCESSED_SERVICE_TAG_VALUE = "preprocessedService";
+  private final String PREPROCESSED_CLUSTER_TAG_VALUE = "preprocessedCluster";
+  private final String PREPROCESSED_SHARD_TAG_VALUE = "preprocessedShard";
+  private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
+
+  /**
+   * Test for derived metrics emitted from Jaeger trace listeners. Derived metrics should report
+   * tag values post applying preprocessing rules to the span.
+   */
+  @Test
+  public void testJaegerPreprocessedDerivedMetrics() throws Exception {
+    Supplier<ReportableEntityPreprocessor> preprocessorSupplier = () -> {
+      ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
+      PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
+          null);
+      preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer(APPLICATION_TAG_KEY,
+          "^Jaeger.*", PREPROCESSED_APPLICATION_TAG_VALUE, null, null, false, x -> true,
+          preprocessorRuleMetrics));
+      preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer(SERVICE_TAG_KEY,
+          "^test.*", PREPROCESSED_SERVICE_TAG_VALUE, null, null, false, x -> true,
+          preprocessorRuleMetrics));
+      preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer("sourceName",
+          "^jaeger.*", PREPROCESSED_SOURCE_VALUE, null, null, false, x -> true,
+          preprocessorRuleMetrics));
+      preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer(CLUSTER_TAG_KEY,
+          "^none.*", PREPROCESSED_CLUSTER_TAG_VALUE, null, null, false, x -> true,
+          preprocessorRuleMetrics));
+      preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer(SHARD_TAG_KEY,
+          "^none.*", PREPROCESSED_SHARD_TAG_VALUE, null, null, false, x -> true,
+          preprocessorRuleMetrics));
+      return preprocessor;
+    };
+
+    JaegerPortUnificationHandler handler = new JaegerPortUnificationHandler("14268",
+        TokenAuthenticatorBuilder.create().build(), new NoopHealthCheckManager(),
+        mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender, () -> false, () -> false,
+        preprocessorSupplier, new SpanSampler(new RateSampler(1.0D), false),null, null);
+
+    io.jaegertracing.thriftjava.Span span1 = new io.jaegertracing.thriftjava.Span(1234567890123L, 1234567890L,
+        1234567L, 0L, "HTTP GET", 1, startTime * 1000, 1234 * 1000);
+    Batch testBatch = new Batch();
+    testBatch.process = new Process();
+    testBatch.process.serviceName = "testService";
+    testBatch.setSpans(ImmutableList.of(span1));
+
+    // Reset mock
+    reset(mockCtx, mockTraceHandler, mockWavefrontSender);
+
+    // Set Expectation
+    Span expectedSpan1 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
+        setDuration(1234).
+        setName("HTTP GET").
+        setSource(PREPROCESSED_SOURCE_VALUE).
+        setSpanId("00000000-0000-0000-0000-00000012d687").
+        setTraceId("00000000-4996-02d2-0000-011f71fb04cb").
+        // Note: Order of annotations list matters for this unit test.
+        setAnnotations(ImmutableList.of(
+            new Annotation("jaegerSpanId", "12d687"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
+            new Annotation("service", PREPROCESSED_SERVICE_TAG_VALUE),
+            new Annotation("application", PREPROCESSED_APPLICATION_TAG_VALUE),
+            new Annotation("cluster", PREPROCESSED_CLUSTER_TAG_VALUE),
+            new Annotation("shard", PREPROCESSED_SHARD_TAG_VALUE))).build();
+    mockTraceHandler.report(expectedSpan1);
+    expectLastCall();
+
+    Capture<HashMap<String, String>> tagsCapture = EasyMock.newCapture();
+    mockWavefrontSender.sendMetric(eq(HEART_BEAT_METRIC), eq(1.0), anyLong(),
+        eq(PREPROCESSED_SOURCE_VALUE), EasyMock.capture(tagsCapture));
+    expectLastCall().anyTimes();
+
+    replay(mockCtx, mockTraceHandler, mockWavefrontSender);
+
+    ByteBuf content = Unpooled.copiedBuffer(new TSerializer().serialize(testBatch));
+
+    FullHttpRequest httpRequest = new DefaultFullHttpRequest(
+        HttpVersion.HTTP_1_1,
+        HttpMethod.POST,
+        "http://localhost:14268/api/traces",
+        content,
+        true
+    );
+    handler.handleHttpMessage(mockCtx, httpRequest);
+    handler.run();
+    verifyWithTimeout(500, mockTraceHandler, mockWavefrontSender);
+    HashMap<String, String> tagsReturned = tagsCapture.getValue();
+    assertEquals(PREPROCESSED_APPLICATION_TAG_VALUE, tagsReturned.get(APPLICATION_TAG_KEY));
+    assertEquals(PREPROCESSED_SERVICE_TAG_VALUE, tagsReturned.get(SERVICE_TAG_KEY));
+    assertEquals(PREPROCESSED_CLUSTER_TAG_VALUE, tagsReturned.get(CLUSTER_TAG_KEY));
+    assertEquals(PREPROCESSED_SHARD_TAG_VALUE, tagsReturned.get(SHARD_TAG_KEY));
+  }
+
 
   @Test
   public void testJaegerPortUnificationHandler() throws Exception {
