@@ -36,7 +36,7 @@ wavefront_dir="/opt/wavefront"
 proxy_dir=${PROXY_DIR:-$wavefront_dir/wavefront-proxy}
 config_dir=${CONFIG_DIR:-/etc/wavefront/wavefront-proxy}
 proxy_jre_dir="$proxy_dir/proxy-jre"
-export JAVA_HOME=${PROXY_JAVA_HOME:-$proxy_jre_dir}
+bundled_jre_version="11.0.6"
 conf_file=$CONF_FILE
 if [[ -z $conf_file ]]; then
     legacy_config_dir=$proxy_dir/conf
@@ -59,7 +59,7 @@ app_args=${APP_ARGS:--f $conf_file}
 
 # If JAVA_ARGS is not set, try to detect memory size and set heap to 8GB if machine has more than 8GB.
 # Fall back to using AggressiveHeap (old behavior) if less than 8GB.
-if [[ -z $JAVA_ARGS ]]; then
+if [[ -z "$JAVA_ARGS" ]]; then
     if [ `grep MemTotal /proc/meminfo | awk '{print $2}'` -gt "8388607" ]; then
         java_args=-Xmx8g
         >&2 echo "Using default heap size (8GB), please set JAVA_ARGS in /etc/sysconfig/wavefront-proxy to use a different value"
@@ -92,6 +92,7 @@ fi
 # and not having to worry about accessibility of external resources.
 download_jre() {
     [[ -d $proxy_jre_dir ]] || mkdir -p $proxy_jre_dir
+    JAVA_HOME=$proxy_jre_dir
 
     echo "Checking $conf_file for HTTP proxy settings" >&2
     proxy_host=$(grep "^\s*proxyHost=" $conf_file | cut -d'=' -f2)
@@ -106,28 +107,36 @@ download_jre() {
             echo "Authenticating as $proxy_user" >&2
             proxy_args+=" --proxy-user $proxy_user:$proxy_password"
         fi
-    else
-        echo "No HTTP proxy configuration detected - attempting direct download" >&2
     fi
-    curl -L --silent -o /tmp/jre.tar.gz $proxy_args https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre-11.0.6-linux_x64.tar.gz || true
+    echo "Downloading and installing JRE $bundled_jre_version" >&2
+    curl -L --silent -o /tmp/jre.tar.gz $proxy_args https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre-$bundled_jre_version-linux_x64.tar.gz || true
     tar -xf /tmp/jre.tar.gz --strip 1 -C $proxy_jre_dir || true
     rm /tmp/jre.tar.gz || true
 }
 
 # If $PROXY_JAVA_HOME is not defined and there is no JRE in $proxy_jre_dir, try to auto-detect
-# locally installed JDK first. We will accept 1.8, 9, 10, 11.
+# locally installed JDK first. We will accept 8, 9, 10, 11.
 if [[ -z "$PROXY_JAVA_HOME" && ! -r $proxy_jre_dir/bin/java ]]; then
-    if type -p java; then
-        JAVA_VERSION=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1)
-        if [[ $JAVA_VERSION == "11" || $JAVA_VERSION == "10" || $JAVA_VERSION == "9" || $JAVA_VERSION == "8" || $JAVA_VERSION == "1.8" ]]; then
-            JAVA_HOME=$($(dirname $(dirname $(readlink -f $(which javac)))))
-            echo "Using Java runtime $JAVA_VERSION detected in $JAVA_HOME" >&2
+    # if java found in path
+    if type -p java > /dev/null 2>&1; then
+        JAVA_VERSION=$(java -XshowSettings:properties -version 2>&1 > /dev/null | grep "java.specification.version" | awk -F " = " '{ print $2 }') || true
+        if [[ -z "$JAVA_VERSION" ]]; then
+          JAVA_VERSION="(unknown version)"
+        fi
+        if [[ $JAVA_VERSION == "11" || $JAVA_VERSION == "10" || $JAVA_VERSION == "9" || $JAVA_VERSION == "1.8" ]]; then
+            JAVA_HOME=$(java -XshowSettings:properties -version 2>&1 > /dev/null | grep 'java.home' | awk -F " = " '{ print $2 }') || true
+            if [[ -z "$JAVA_HOME" ]]; then
+              echo "Unable to detect JAVA_HOME for pre-installed Java runtime" >&2
+              download_jre
+            else
+              echo "Using Java runtime $JAVA_VERSION detected in $JAVA_HOME (set PROXY_JAVA_HOME in /etc/sysconfig/wavefront-proxy to override)" >&2
+            fi
         else
-            echo "Found Java runtime $JAVA_VERSION, needs 8, 9, 10 or 11 to run - trying to download and install" >&2
+            echo "Found Java runtime $JAVA_VERSION, needs 8, 9, 10 or 11 to run" >&2
             download_jre
         fi
     else
-        echo "Java runtime not found - trying to download and install" >&2
+        echo "No preinstalled Java runtime found" >&2
         download_jre
     fi
 fi
@@ -137,8 +146,8 @@ jsvc=$proxy_dir/bin/jsvc
 jsvc_exec()
 {
     if [[ ! $1 == "-stop" ]]; then
-        > $daemon_log_file
-        > $err_file
+        : > $daemon_log_file
+        : > $err_file
     fi
 
 	cd "$(dirname "$proxy_jar")"
@@ -210,8 +219,9 @@ status) status ;;
 stop) stop ;;
 restart) restart ;;
 condrestart) condrestart ;;
+force_java_install) download_jre ;;
 
 *)
-	echo "Usage: $0 {status | start | stop | restart | condrestart}"
+	echo "Usage: $0 {status | start | stop | restart | condrestart | force_java_install}"
 	exit 1
 esac
