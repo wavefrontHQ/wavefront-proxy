@@ -8,6 +8,7 @@ import com.google.protobuf.Duration;
 
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
@@ -135,7 +136,8 @@ public class JaegerGrpcCollectorHandlerTest {
     replay(mockTraceHandler, mockTraceLogsHandler);
 
     JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876", mockTraceHandler,
-        mockTraceLogsHandler, null, () -> false, () -> false, null, new RateSampler(1.0D), false,
+        mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new RateSampler(1.0D), false),
         null, null);
 
     Model.KeyValue ipTag = Model.KeyValue.newBuilder().
@@ -327,8 +329,8 @@ public class JaegerGrpcCollectorHandlerTest {
 
     // Verify span level "application" tags precedence
     JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876", mockTraceHandler,
-        mockTraceLogsHandler, null, () -> false, () -> false, null, new RateSampler(1.0D), false,
-        "ProxyLevelAppTag", null);
+        mockTraceLogsHandler, null, () -> false, () -> false, null, new SpanSampler(new RateSampler(1.0D),
+        false), "ProxyLevelAppTag", null);
 
     Model.KeyValue ipTag = Model.KeyValue.newBuilder().
         setKey("ip").
@@ -475,8 +477,8 @@ public class JaegerGrpcCollectorHandlerTest {
     replay(mockTraceHandler, mockTraceLogsHandler);
 
     JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876", mockTraceHandler,
-        mockTraceLogsHandler, null, () -> false, () -> false, null, new DurationSampler(5 * 1000),
-        false, null, null);
+        mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new DurationSampler(5 * 1000), false), null, null);
 
     Model.KeyValue ipTag = Model.KeyValue.newBuilder().
         setKey("ip").
@@ -581,8 +583,8 @@ public class JaegerGrpcCollectorHandlerTest {
     replay(mockTraceHandler, mockTraceLogsHandler);
 
     JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876", mockTraceHandler,
-        mockTraceLogsHandler, null, () -> false, () -> false, null, new DurationSampler(10 * 1000),
-        false, null, null);
+        mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new DurationSampler(10 * 1000), false), null, null);
 
     Model.KeyValue ipTag = Model.KeyValue.newBuilder().
         setKey("ip").
@@ -714,8 +716,8 @@ public class JaegerGrpcCollectorHandlerTest {
     replay(mockTraceHandler, mockTraceLogsHandler);
 
     JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876",
-        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
-        null, new RateSampler(1.0D), false,
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new RateSampler(1.0D), false),
         null, null);
 
     Model.KeyValue ipTag = Model.KeyValue.newBuilder().
