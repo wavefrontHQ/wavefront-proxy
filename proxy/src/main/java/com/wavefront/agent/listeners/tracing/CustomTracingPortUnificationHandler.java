@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
+import org.apache.commons.lang.StringUtils;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
@@ -42,6 +43,7 @@ import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 /**
  * Handler that process trace data sent from tier 1 SDK.
@@ -57,6 +59,8 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
   private final WavefrontInternalReporter wfInternalReporter;
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   private final Set<String> traceDerivedCustomTagKeys;
+  private final String proxyLevelApplicationName;
+  private final String proxyLevelServiceName;
 
   /**
    * @param handle                    handle/port number.
@@ -80,12 +84,13 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       ReportableEntityHandlerFactory handlerFactory, SpanSampler sampler,
       Supplier<Boolean> traceDisabled, Supplier<Boolean> spanLogsDisabled,
       @Nullable WavefrontSender wfSender, @Nullable WavefrontInternalReporter wfInternalReporter,
-      Set<String> traceDerivedCustomTagKeys) {
+      Set<String> traceDerivedCustomTagKeys, @Nullable String customTracingApplicationName,
+      @Nullable String customTracingServiceName) {
     this(handle, tokenAuthenticator, healthCheckManager, traceDecoder, spanLogsDecoder,
         preprocessor, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         sampler, traceDisabled, spanLogsDisabled, wfSender, wfInternalReporter,
-        traceDerivedCustomTagKeys);
+        traceDerivedCustomTagKeys, customTracingApplicationName, customTracingServiceName);
   }
 
   @VisibleForTesting
@@ -98,20 +103,25 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
       final ReportableEntityHandler<SpanLogs, String> spanLogsHandler, SpanSampler sampler,
       Supplier<Boolean> traceDisabled, Supplier<Boolean> spanLogsDisabled,
       @Nullable WavefrontSender wfSender, @Nullable WavefrontInternalReporter wfInternalReporter,
-      Set<String> traceDerivedCustomTagKeys) {
+      Set<String> traceDerivedCustomTagKeys, @Nullable String customTracingApplicationName,
+      @Nullable String customTracingServiceName) {
     super(handle, tokenAuthenticator, healthCheckManager, traceDecoder, spanLogsDecoder,
         preprocessor, handler, spanLogsHandler, sampler, traceDisabled, spanLogsDisabled);
     this.wfSender = wfSender;
     this.wfInternalReporter = wfInternalReporter;
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
+    this.proxyLevelApplicationName = StringUtils.isBlank(customTracingApplicationName) ?
+            "defaultApp" : customTracingApplicationName;
+    this.proxyLevelServiceName = StringUtils.isBlank(customTracingServiceName) ?
+            "defaultService" : customTracingServiceName;
   }
 
   @Override
   protected void report(Span object) {
     // report converted metrics/histograms from the span
-    String applicationName = NULL_TAG_VAL;
-    String serviceName = NULL_TAG_VAL;
+    String applicationName = null;
+    String serviceName = null;
     String cluster = NULL_TAG_VAL;
     String shard = NULL_TAG_VAL;
     String componentTagValue = NULL_TAG_VAL;
@@ -139,14 +149,16 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
           continue;
       }
     }
-    if (applicationName.equals(NULL_TAG_VAL) || serviceName.equals(NULL_TAG_VAL)) {
+    if (applicationName == null || serviceName == null) {
       logger.warning("Ingested spans discarded because span application/service name is " +
           "missing.");
       discardedSpans.inc();
       return;
     }
     handler.report(object);
-
+    // update application and service for red metrics
+    applicationName = firstNonNull(applicationName, proxyLevelApplicationName);
+    serviceName = firstNonNull(serviceName, proxyLevelServiceName);
     if (wfInternalReporter != null) {
       List<Pair<String, String>> spanTags = annotations.stream().map(a -> new Pair<>(a.getKey(),
           a.getValue())).collect(Collectors.toList());

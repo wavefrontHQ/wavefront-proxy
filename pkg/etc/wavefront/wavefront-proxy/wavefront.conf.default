@@ -221,13 +221,18 @@ customSourceTags=fqdn, hostname
 ########################################### DISTRIBUTED TRACING SETTINGS ###############################################
 ## Comma-separated list of ports to listen on for spans in Wavefront format. Defaults to none.
 #traceListenerPorts=30000
-## Comma-separated list of ports to listen on for spans from SDKs that send raw data. Unlike
-## `traceListenerPorts` setting, also derives RED metrics based on received spans. Defaults to none.
-#customTracingListenerPorts=30001
 ## Maximum line length for received spans and span logs (Default: 1MB)
 #traceListenerMaxReceivedLength=1048576
 ## Maximum allowed request size (in bytes) for incoming HTTP requests on tracing ports (Default: 16MB)
 #traceListenerHttpBufferSize=16777216
+
+## Comma-separated list of ports to listen on for spans from SDKs that send raw data. Unlike
+## `traceListenerPorts` setting, also derives RED metrics based on received spans. Defaults to none.
+#customTracingListenerPorts=30001
+## Custom application name for spans received on customTracingListenerPorts. Defaults to defaultApp.
+#customTracingApplicationName=defaultApp
+## Custom service name for spans received on customTracingListenerPorts. Defaults to defaultService.
+#customTracingServiceName=defaultService
 
 ## Comma-separated list of ports on which to listen on for Jaeger Thrift formatted data. Defaults to none.
 #traceJaegerListenerPorts=14267

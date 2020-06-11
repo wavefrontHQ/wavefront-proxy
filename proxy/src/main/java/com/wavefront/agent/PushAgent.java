@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
+
 import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.uber.tchannel.api.TChannel;
@@ -65,8 +66,8 @@ import com.wavefront.agent.queueing.QueueingFactory;
 import com.wavefront.agent.queueing.QueueingFactoryImpl;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
-import com.wavefront.agent.sampler.SpanSamplerUtils;
 import com.wavefront.agent.sampler.SpanSampler;
+import com.wavefront.agent.sampler.SpanSamplerUtils;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
@@ -98,6 +99,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 import io.netty.handler.ssl.SslContext;
 import net.openhft.chronicle.map.ChronicleMap;
+
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -106,11 +108,7 @@ import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.logstash.beats.Server;
-import wavefront.report.Histogram;
-import wavefront.report.ReportPoint;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.File;
 import java.net.BindException;
 import java.net.InetAddress;
@@ -130,6 +128,17 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelOption;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.bytes.ByteArrayDecoder;
+import io.netty.handler.ssl.SslContext;
+import wavefront.report.Histogram;
+import wavefront.report.ReportPoint;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.wavefront.agent.ProxyUtil.createInitializer;
@@ -593,7 +602,8 @@ public class PushAgent extends AbstractAgent {
         preprocessors.get(strPort), handlerFactory, sampler,
         () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
         () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
-        wfSender, wfInternalReporter, proxyConfig.getTraceDerivedCustomTagKeys());
+        wfSender, wfInternalReporter, proxyConfig.getTraceDerivedCustomTagKeys(),
+        proxyConfig.getCustomTracingApplicationName(), proxyConfig.getCustomTracingServiceName());
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getTraceListenerMaxReceivedLength(), proxyConfig.getTraceListenerHttpBufferSize(),
