@@ -36,7 +36,7 @@ wavefront_dir="/opt/wavefront"
 proxy_dir=${PROXY_DIR:-$wavefront_dir/wavefront-proxy}
 config_dir=${CONFIG_DIR:-/etc/wavefront/wavefront-proxy}
 proxy_jre_dir="$proxy_dir/proxy-jre"
-export JAVA_HOME=${PROXY_JAVA_HOME:-$proxy_jre_dir}
+JAVA_HOME=${PROXY_JAVA_HOME:-$proxy_jre_dir}
 conf_file=$CONF_FILE
 if [[ -z $conf_file ]]; then
     legacy_config_dir=$proxy_dir/conf
@@ -120,7 +120,7 @@ if [[ -z "$PROXY_JAVA_HOME" && ! -r $proxy_jre_dir/bin/java ]]; then
     if type -p java; then
         JAVA_VERSION=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1)
         if [[ $JAVA_VERSION == "11" || $JAVA_VERSION == "10" || $JAVA_VERSION == "9" || $JAVA_VERSION == "8" || $JAVA_VERSION == "1.8" ]]; then
-            JAVA_HOME=$($(dirname $(dirname $(readlink -f $(which javac)))))
+            JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
             echo "Using Java runtime $JAVA_VERSION detected in $JAVA_HOME" >&2
         else
             echo "Found Java runtime $JAVA_VERSION, needs 8, 9, 10 or 11 to run - trying to download and install" >&2
@@ -136,6 +136,7 @@ jsvc=$proxy_dir/bin/jsvc
 
 jsvc_exec()
 {
+	export JAVA_HOME=$JAVA_HOME
     if [[ ! $1 == "-stop" ]]; then
         > $daemon_log_file
         > $err_file
