@@ -51,6 +51,7 @@ import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.CustomTracingPortUnificationHandler;
+import com.wavefront.agent.listeners.tracing.JaegerGrpcCollectorHandler;
 import com.wavefront.agent.listeners.tracing.JaegerPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.JaegerTChannelCollectorHandler;
 import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
@@ -91,6 +92,12 @@ import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 
+import io.grpc.netty.NettyServerBuilder;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelOption;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.bytes.ByteArrayDecoder;
+import io.netty.handler.ssl.SslContext;
 import net.openhft.chronicle.map.ChronicleMap;
 
 import org.apache.commons.lang.BooleanUtils;
@@ -372,6 +379,16 @@ public class PushAgent extends AbstractAgent {
       startTraceJaegerListener(strPort, handlerFactory,
           new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
     });
+    csvToList(proxyConfig.getTraceJaegerGrpcListenerPorts()).forEach(strPort -> {
+      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
+      );
+      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+          new SpanSanitizeTransformer(ruleMetrics));
+      startTraceJaegerGrpcListener(strPort, handlerFactory,
+          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
+    });
     csvToList(proxyConfig.getTraceJaegerHttpListenerPorts()).forEach(strPort -> {
       PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
           Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
@@ -650,6 +667,35 @@ public class PushAgent extends AbstractAgent {
         proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)),
         port).withChildChannelOptions(childChannelOptions), "listener-jaeger-http-" + port);
     logger.info("listening on port: " + strPort + " for trace data (Jaeger format over HTTP)");
+  }
+
+  protected void startTraceJaegerGrpcListener(final String strPort,
+                                              ReportableEntityHandlerFactory handlerFactory,
+                                              @Nullable WavefrontSender wfSender,
+                                              Sampler sampler) {
+    if (tokenAuthenticator.authRequired()) {
+      logger.warning("Port: " + strPort + " is not compatible with HTTP authentication, ignoring");
+      return;
+    }
+    final int port = Integer.parseInt(strPort);
+    startAsManagedThread(port, () -> {
+      activeListeners.inc();
+      try {
+        io.grpc.Server server = NettyServerBuilder.forPort(port).addService(
+            new JaegerGrpcCollectorHandler(strPort, handlerFactory, wfSender,
+            () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
+            () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
+            preprocessors.get(strPort), sampler, proxyConfig.isTraceAlwaysSampleErrors(),
+            proxyConfig.getTraceJaegerApplicationName(),
+            proxyConfig.getTraceDerivedCustomTagKeys())).build();
+        server.start();
+      } catch (Exception e) {
+        logger.log(Level.SEVERE, "Jaeger gRPC trace collector exception", e);
+      } finally {
+        activeListeners.dec();
+      }
+    }, "listener-jaeger-grpc-" + strPort);
+    logger.info("listening on port: " + strPort + " for trace data (Jaeger Protobuf format over gRPC)");
   }
 
   protected void startTraceZipkinListener(String strPort,
