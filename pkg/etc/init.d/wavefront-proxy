@@ -119,11 +119,11 @@ download_jre() {
 if [[ -z "$PROXY_JAVA_HOME" && ! -r $proxy_jre_dir/bin/java ]]; then
     # if java found in path
     if type -p java > /dev/null 2>&1; then
-        JAVA_VERSION=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1) || true
+        JAVA_VERSION=$(java -XshowSettings:properties -version 2>&1 > /dev/null | grep "java.specification.version" | awk -F " = " '{ print $2 }') || true
         if [[ -z "$JAVA_VERSION" ]]; then
           JAVA_VERSION="(unknown version)"
         fi
-        if [[ $JAVA_VERSION == "11" || $JAVA_VERSION == "10" || $JAVA_VERSION == "9" || $JAVA_VERSION == "8" ]]; then
+        if [[ $JAVA_VERSION == "11" || $JAVA_VERSION == "10" || $JAVA_VERSION == "9" || $JAVA_VERSION == "1.8" ]]; then
             JAVA_HOME=$(java -XshowSettings:properties -version 2>&1 > /dev/null | grep 'java.home' | awk -F " = " '{ print $2 }') || true
             if [[ -z "$JAVA_HOME" ]]; then
               echo "Unable to detect JAVA_HOME for pre-installed Java runtime" >&2
