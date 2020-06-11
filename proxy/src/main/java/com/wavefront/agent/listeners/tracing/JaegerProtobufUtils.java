@@ -5,11 +5,11 @@ import com.google.protobuf.ByteString;
 
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.java_sdk.com.google.common.annotations.VisibleForTesting;
 import com.wavefront.sdk.common.Pair;
-import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.core.Counter;
 
 import org.apache.commons.lang.StringUtils;
@@ -83,8 +83,7 @@ public abstract class JaegerProtobufUtils {
                                   Supplier<Boolean> traceDisabled,
                                   Supplier<Boolean> spanLogsDisabled,
                                   Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                                  Sampler sampler,
-                                  boolean alwaysSampleErrors,
+                                  SpanSampler sampler,
                                   Set<String> traceDerivedCustomTagKeys,
                                   Counter discardedTraces,
                                   Counter discardedBatches,
@@ -129,7 +128,7 @@ public abstract class JaegerProtobufUtils {
     for (Model.Span span : batch.getSpansList()) {
       processSpan(span, serviceName, sourceName, applicationName, processAnnotations,
           spanHandler, spanLogsHandler, wfInternalReporter, spanLogsDisabled,
-          preprocessorSupplier, sampler, alwaysSampleErrors, traceDerivedCustomTagKeys,
+          preprocessorSupplier, sampler, traceDerivedCustomTagKeys,
           discardedSpansBySampler, discoveredHeartbeatMetrics);
     }
   }
@@ -144,8 +143,7 @@ public abstract class JaegerProtobufUtils {
                                   @Nullable WavefrontInternalReporter wfInternalReporter,
                                   Supplier<Boolean> spanLogsDisabled,
                                   Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                                  Sampler sampler,
-                                  boolean alwaysSampleErrors,
+                                  SpanSampler sampler,
                                   Set<String> traceDerivedCustomTagKeys,
                                   Counter discardedSpansBySampler,
                                   Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics) {
@@ -271,8 +269,7 @@ public abstract class JaegerProtobufUtils {
         return;
       }
     }
-    if (isForceSampled || isDebugSpanTag || (alwaysSampleErrors && isError) ||
-        sample(wavefrontSpan, sampler, discardedSpansBySampler)) {
+    if (isForceSampled || isDebugSpanTag || sampler.sample(wavefrontSpan, discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
       if (span.getLogsCount() > 0 &&
           !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
@@ -329,17 +326,6 @@ public abstract class JaegerProtobufUtils {
     long leastSigBits = new BigInteger(1, byteBuffer.array()).longValue();
     UUID uuid = new UUID(mostSigBits, leastSigBits);
     return uuid.toString();
-  }
-
-  private static boolean sample(Span wavefrontSpan, Sampler sampler,
-                                Counter discardedSpansBySampler) {
-    if (sampler.sample(wavefrontSpan.getName(),
-        UUID.fromString(wavefrontSpan.getTraceId()).getLeastSignificantBits(),
-        wavefrontSpan.getDuration())) {
-      return true;
-    }
-    discardedSpansBySampler.inc();
-    return false;
   }
 
   @Nullable

@@ -378,7 +378,7 @@ public class PushAgent extends AbstractAgent {
       preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
           new SpanSanitizeTransformer(ruleMetrics));
       startTraceJaegerGrpcListener(strPort, handlerFactory,
-          new InternalProxyWavefrontClient(handlerFactory, strPort), compositeSampler);
+          new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
     });
     csvToList(proxyConfig.getTraceJaegerHttpListenerPorts()).forEach(strPort -> {
       PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
@@ -662,7 +662,7 @@ public class PushAgent extends AbstractAgent {
   protected void startTraceJaegerGrpcListener(final String strPort,
                                               ReportableEntityHandlerFactory handlerFactory,
                                               @Nullable WavefrontSender wfSender,
-                                              Sampler sampler) {
+                                              SpanSampler sampler) {
     if (tokenAuthenticator.authRequired()) {
       logger.warning("Port: " + strPort + " is not compatible with HTTP authentication, ignoring");
       return;
@@ -675,8 +675,7 @@ public class PushAgent extends AbstractAgent {
             new JaegerGrpcCollectorHandler(strPort, handlerFactory, wfSender,
             () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
             () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
-            preprocessors.get(strPort), sampler, proxyConfig.isTraceAlwaysSampleErrors(),
-            proxyConfig.getTraceJaegerApplicationName(),
+            preprocessors.get(strPort), sampler, proxyConfig.getTraceJaegerApplicationName(),
             proxyConfig.getTraceDerivedCustomTagKeys())).build();
         server.start();
       } catch (Exception e) {
