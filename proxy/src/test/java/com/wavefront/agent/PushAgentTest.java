@@ -803,6 +803,81 @@ public class PushAgentTest {
   }
 
   @Test
+  public void testTraceUnifiedPortHandlerPlaintextDebugSampling() throws Exception {
+    tracePort = findAvailablePort(3888);
+    proxy.proxyConfig.traceListenerPorts = String.valueOf(tracePort);
+    proxy.startTraceListener(proxy.proxyConfig.getTraceListenerPorts(), mockHandlerFactory,
+        new SpanSampler(new RateSampler(0.0D), false));
+    waitUntilListenerIsOnline(tracePort);
+    reset(mockTraceHandler);
+    reset(mockTraceSpanLogsHandler);
+    String traceId = UUID.randomUUID().toString();
+    long timestamp1 = startTime * 1000000 + 12345;
+    long timestamp2 = startTime * 1000000 + 23456;
+    String spanData = "testSpanName parent=parent1 source=testsource spanId=testspanid " +
+        "traceId=\"" + traceId + "\" debug=true " + startTime + " " + (startTime + 1) + "\n";
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("dummy").
+        setTraceId(traceId).
+        setSpanId("testspanid").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(timestamp1).
+                setFields(ImmutableMap.of("key", "value", "key2", "value2")).
+                build(),
+            SpanLog.newBuilder().
+                setTimestamp(timestamp2).
+                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                build()
+        )).
+        build());
+    expectLastCall();
+    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
+        setCustomer("dummy").
+        setTraceId(traceId).
+        setSpanId("testspanid").
+        setLogs(ImmutableList.of(
+            SpanLog.newBuilder().
+                setTimestamp(timestamp1).
+                setFields(ImmutableMap.of("key", "value", "key2", "value2")).
+                build(),
+            SpanLog.newBuilder().
+                setTimestamp(timestamp2).
+                setFields(ImmutableMap.of("key3", "value3", "key4", "value4")).
+                build()
+        )).
+        build());
+    expectLastCall();
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime * 1000).
+        setDuration(1000).
+        setName("testSpanName").
+        setSource("testsource").
+        setSpanId("testspanid").
+        setTraceId(traceId).
+        setAnnotations(ImmutableList.of(
+            new Annotation("parent", "parent1"),
+            new Annotation("debug", "true"))).build());
+    expectLastCall();
+    replay(mockTraceHandler);
+    replay(mockTraceSpanLogsHandler);
+
+    Socket socket = SocketFactory.getDefault().createSocket("localhost", tracePort);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    String payloadStr = spanData +
+        "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId + "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 +
+        ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]}\n" +
+        "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId + "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}},{\"timestamp\":" + timestamp2 +
+        ",\"fields\":{\"key3\":\"value3\",\"key4\":\"value4\"}}]," +
+        "\"span\":\"" + escapeSpanData(spanData) + "\"}\n";
+    stream.write(payloadStr.getBytes());
+    stream.flush();
+    socket.close();
+    verifyWithTimeout(500, mockTraceHandler, mockTraceSpanLogsHandler);
+  }
+
+  @Test
   public void testTraceUnifiedPortHandlerPlaintext() throws Exception {
     tracePort = findAvailablePort(3888);
     proxy.proxyConfig.traceListenerPorts = String.valueOf(tracePort);

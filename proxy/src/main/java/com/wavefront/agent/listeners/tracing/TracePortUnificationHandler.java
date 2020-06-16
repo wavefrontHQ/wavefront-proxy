@@ -19,24 +19,28 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
+
 import java.net.URI;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URLEncodedUtils;
-
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.util.CharsetUtil;
+import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
@@ -44,6 +48,17 @@ import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
+import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 
 /**
  * Process incoming trace-formatted data.
@@ -68,6 +83,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private final SpanSampler sampler;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
+  private final static String FORCE_SAMPLED_KEY = "sampling.priority";
 
   protected final Counter discardedSpans;
   protected final Counter discardedSpanLogs;
@@ -190,7 +206,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
           return;
         }
       }
-      if (samplerFunc.apply(object)) {
+      if (isDebugSampled(object) || samplerFunc.apply(object)) {
         spanReporter.accept(object);
       }
     }
@@ -254,7 +270,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
               return;
             }
           }
-          if (samplerFunc.apply(span)) {
+          if (isDebugSampled(span) || samplerFunc.apply(span)) {
             // after sampling, span line data is no longer needed
             spanLogs.setSpan(null);
             handler.report(spanLogs);
@@ -262,5 +278,18 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         }
       }
     }
+  }
+
+  private static boolean isDebugSampled(Span span) {
+    boolean isDebugSpanTag = false;
+    List<Annotation> annotations = span.getAnnotations();
+    for (Annotation annotation : annotations) {
+      switch (annotation.getKey()) {
+        case DEBUG_TAG_KEY:
+          isDebugSpanTag = annotation.getValue().equals(DEBUG_SPAN_TAG_VAL);
+          break;
+      }
+    }
+    return isDebugSpanTag;
   }
 }

@@ -555,7 +555,7 @@ public class JaegerGrpcCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
             new Annotation("service", "frontend"),
-            new Annotation("debug", "true1"),
+            new Annotation("debug", "true"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
@@ -594,7 +594,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     Model.KeyValue debugTag = Model.KeyValue.newBuilder().
         setKey("debug").
-        setVStr("true1").
+        setVStr("true").
         setVType(Model.ValueType.STRING).
         build();
 

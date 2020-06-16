@@ -415,7 +415,7 @@ public class JaegerTChannelCollectorHandlerTest {
             new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
             new Annotation("service", "frontend"),
             new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
-            new Annotation("debug", "true1"),
+            new Annotation("debug", "true"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
@@ -481,7 +481,7 @@ public class JaegerTChannelCollectorHandlerTest {
     ipTag.setVStr("10.0.0.1");
 
     Tag debugTag = new Tag("debug", TagType.STRING);
-    debugTag.setVStr("true1");
+    debugTag.setVStr("true");
 
     io.jaegertracing.thriftjava.Span span1 = new io.jaegertracing.thriftjava.Span(1234567890123L,
         1234567890L, 2345678L, 1234567L, "HTTP GET /", 1, startTime * 1000, 9 * 1000);

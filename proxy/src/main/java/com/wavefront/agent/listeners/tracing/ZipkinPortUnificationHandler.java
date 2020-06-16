@@ -6,9 +6,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
-import com.wavefront.agent.sampler.SpanSampler;
-import com.wavefront.sdk.common.Pair;
-import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -16,10 +13,13 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TraceConstants;
+import com.wavefront.common.Utils;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
+import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -71,6 +71,7 @@ import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGene
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
@@ -295,11 +296,8 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
               // Ignore the original error value
               annotation.setValue(ERROR_SPAN_TAG_VAL);
               break;
-            // TODO : Import DEBUG_SPAN_TAG_KEY from wavefront-sdk-java constants.
-            case DEBUG_SPAN_TAG_KEY:
-              isDebugSpanTag = true;
-              // Ignore the original debug value
-              annotation.setValue(DEBUG_SPAN_TAG_VAL);
+            case DEBUG_TAG_KEY:
+              isDebugSpanTag = annotation.getValue().equals(DEBUG_SPAN_TAG_VAL);
               break;
           }
           annotations.add(annotation);

@@ -510,45 +510,6 @@ public class ZipkinPortUnificationHandlerTest {
         build());
     expectLastCall();
 
-    Span expectedSpan3 = Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
-        setDuration(7).
-        setName("getservice").
-        setSource(DEFAULT_SOURCE).
-        setSpanId("00000000-0000-0000-4822-889fe47043bd").
-        setTraceId("00000000-0000-0000-4822-889fe47043bd").
-        // Note: Order of annotations list matters for this unit test.
-        setAnnotations(ImmutableList.of(
-            new Annotation("zipkinSpanId", "4822889fe47043bd"),
-            new Annotation("zipkinTraceId", "4822889fe47043bd"),
-            new Annotation("span.kind", "server"),
-            new Annotation("_spanSecondaryId", "server"),
-            new Annotation("service", "frontend"),
-            new Annotation("debug", "true"),
-            new Annotation("http.method", "GET"),
-            new Annotation("http.status_code", "200"),
-            new Annotation("http.url", "none+h1c://localhost:8881/"),
-            new Annotation("application", "Zipkin"),
-            new Annotation("cluster", "none"),
-            new Annotation("shard", "none"),
-            new Annotation("ipv4", "10.0.0.1"),
-            new Annotation("_spanLogs", "true"))).
-        build();
-    mockTraceHandler.report(expectedSpan3);
-    expectLastCall();
-    mockTraceSpanLogsHandler.report(SpanLogs.newBuilder().
-        setCustomer("default").
-        setTraceId("00000000-0000-0000-4822-889fe47043bd").
-        setSpanId("00000000-0000-0000-4822-889fe47043bd").
-        setSpanSecondaryId("server").
-        setLogs(ImmutableList.of(
-            SpanLog.newBuilder().
-                setTimestamp(startTime * 1000).
-                setFields(ImmutableMap.of("annotation", "start processing")).
-                build()
-        )).
-        build());
-    expectLastCall();
-
     mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime).
         setDuration(6).
         setName("getservice").
@@ -561,13 +522,14 @@ public class ZipkinPortUnificationHandlerTest {
             new Annotation("zipkinTraceId", "5822889fe47043bd"),
             new Annotation("span.kind", "server"),
             new Annotation("service", "frontend"),
-            new Annotation("debug", "true"),
+            new Annotation("debug", "debug-id-4"),
             new Annotation("http.method", "GET"),
             new Annotation("http.status_code", "200"),
             new Annotation("http.url", "none+h1c://localhost:8881/"),
             new Annotation("application", "Zipkin"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
+            new Annotation("debug", "true"),
             new Annotation("ipv4", "10.0.0.1"))).
         build());
     expectLastCall();
