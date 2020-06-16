@@ -268,15 +268,13 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   }
 
   private static boolean isDebugSampled(Span span) {
-    boolean isDebugSpanTag = false;
     List<Annotation> annotations = span.getAnnotations();
     for (Annotation annotation : annotations) {
-      switch (annotation.getKey()) {
-        case DEBUG_TAG_KEY:
-          isDebugSpanTag = annotation.getValue().equals(DEBUG_SPAN_TAG_VAL);
-          break;
+      if (annotation.getKey().equals(DEBUG_TAG_KEY) &&
+          annotation.getValue().equals(DEBUG_SPAN_TAG_VAL)) {
+            return true;
       }
     }
-    return isDebugSpanTag;
+    return false;
   }
 }
