@@ -380,7 +380,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
       }
     }
 
-    if (isDebugSpanTag || isDebug || sampler.sample(wavefrontSpan, discardedSpansBySampler)) {
+    if (sampler.sample(wavefrontSpan, discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
 
       if (zipkinSpan.annotations() != null && !zipkinSpan.annotations().isEmpty() &&

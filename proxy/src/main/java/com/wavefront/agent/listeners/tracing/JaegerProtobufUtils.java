@@ -200,7 +200,7 @@ public abstract class JaegerProtobufUtils {
               } catch (ParseException e) {
                 if (JAEGER_DATA_LOGGER.isLoggable(Level.FINE)) {
                   JAEGER_DATA_LOGGER.info("Invalid value :: " + annotation.getValue() +
-                      " for span tag key : " + FORCE_SAMPLED_KEY);
+                      " for span tag key : " + FORCE_SAMPLED_KEY + " for span : " + span.getOperationName());
                 }
               }
               break;
@@ -269,7 +269,7 @@ public abstract class JaegerProtobufUtils {
         return;
       }
     }
-    if (isForceSampled || isDebugSpanTag || sampler.sample(wavefrontSpan, discardedSpansBySampler)) {
+    if (isForceSampled || sampler.sample(wavefrontSpan, discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
       if (span.getLogsCount() > 0 &&
           !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
