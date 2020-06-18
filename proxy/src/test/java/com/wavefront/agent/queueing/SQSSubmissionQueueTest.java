@@ -7,14 +7,23 @@ import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.DefaultEntityPropertiesForTesting;
+import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.QueueingReason;
+import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.data.ReportableEntityType;
+import com.wavefront.dto.Event;
+import com.wavefront.dto.SourceTag;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import wavefront.report.ReportEvent;
+import wavefront.report.ReportSourceTag;
+import wavefront.report.SourceOperationType;
+import wavefront.report.SourceTagAction;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,17 +40,15 @@ import static org.junit.Assert.assertEquals;
 @RunWith(Parameterized.class)
 public class SQSSubmissionQueueTest<T extends DataSubmissionTask<T>> {
   private final String queueUrl = "https://amazonsqs.some.queue";
-  private final TaskConverter.CompressionType compressionType;
   private AmazonSQS client = createMock(AmazonSQS.class);
   private final T expectedTask;
   private final RetryTaskConverter<T> converter;
   private final AtomicLong time = new AtomicLong(77777);
 
   public SQSSubmissionQueueTest(TaskConverter.CompressionType compressionType, RetryTaskConverter<T> converter, T task) {
-    this.compressionType = compressionType;
     this.converter = converter;
     this.expectedTask = task;
-    System.out.println("compression type: " + compressionType);
+    System.out.println(task.getClass().getSimpleName() + " compression type: " + compressionType);
   }
 
   @Parameterized.Parameters
@@ -52,33 +59,44 @@ public class SQSSubmissionQueueTest<T extends DataSubmissionTask<T>> {
       LineDelimitedDataSubmissionTask task = converter.from("WF\u0001\u0001{\"__CLASS\":\"com.wavefront.agent.data.LineDelimitedDataSubmissionTask\",\"enqueuedTimeMillis\":77777,\"attempts\":0,\"serverErrors\":0,\"handle\":\"2878\",\"entityType\":\"POINT\",\"format\":\"wavefront\",\"payload\":[\"java.util.ArrayList\",[\"item1\",\"item2\",\"item3\"]],\"enqueuedMillis\":77777}".getBytes());
       scenarios.add(new Object[]{type, converter, task});
     }
+    for (TaskConverter.CompressionType type : TaskConverter.CompressionType.values()) {
+      RetryTaskConverter<EventDataSubmissionTask> converter = new RetryTaskConverter<>("2878", type);
+      EventDataSubmissionTask task = converter.from("WF\u0001\u0001{\"__CLASS\":\"com.wavefront.agent.data.EventDataSubmissionTask\",\"enqueuedTimeMillis\":77777,\"attempts\":0,\"serverErrors\":0,\"handle\":\"2878\",\"entityType\":\"EVENT\",\"events\":[\"java.util.ArrayList\",[{\"name\":\"Event name for testing\",\"startTime\":77777000,\"endTime\":77777001,\"annotations\":[\"java.util.HashMap\",{\"severity\":\"INFO\"}],\"dimensions\":[\"java.util.HashMap\",{\"multi\":[\"java.util.ArrayList\",[\"bar\",\"baz\"]]}],\"hosts\":[\"java.util.ArrayList\",[\"host1\",\"host2\"]],\"tags\":[\"java.util.ArrayList\",[\"tag1\"]]}]],\"enqueuedMillis\":77777}".getBytes());
+      scenarios.add(new Object[]{type, converter, task});
+    }
     return scenarios;
   }
 
   @Test
-  public void testTaskPurge() {
-    // noinspection unchecked
-    SQSSubmissionQueue<LineDelimitedDataSubmissionTask> queue = getTaskQueue();
-    reset(client);
-    expect(client.purgeQueue(new PurgeQueueRequest(queueUrl))).andReturn(null);
-    replay(client);
-    queue.clear();
-    queue.close(); // note this does not actually do anything...
-  }
-
-  @Test
   public void testTaskRead() throws IOException {
-    // noinspection unchecked
-    SQSSubmissionQueue<LineDelimitedDataSubmissionTask> queue = getTaskQueue();
+    SQSSubmissionQueue queue = getTaskQueue();
     UUID proxyId = UUID.randomUUID();
-    LineDelimitedDataSubmissionTask task = new LineDelimitedDataSubmissionTask(null, proxyId,
-        new DefaultEntityPropertiesForTesting(), queue, "wavefront", ReportableEntityType.POINT,
-        "2878", ImmutableList.of("item1", "item2", "item3"), time::get);
-
+    DataSubmissionTask<? extends DataSubmissionTask<?>> task;
+    if (this.expectedTask instanceof LineDelimitedDataSubmissionTask) {
+      task = new LineDelimitedDataSubmissionTask(null, proxyId,
+          new DefaultEntityPropertiesForTesting(), queue, "wavefront", ReportableEntityType.POINT,
+          "2878", ImmutableList.of("item1", "item2", "item3"), time::get);
+    } else if (this.expectedTask instanceof EventDataSubmissionTask) {
+      task = new EventDataSubmissionTask(null, proxyId,
+          new DefaultEntityPropertiesForTesting(), queue, "2878",
+          ImmutableList.of(
+              new Event(ReportEvent.newBuilder().
+                  setStartTime(time.get() * 1000).
+                  setEndTime(time.get() * 1000 + 1).
+                  setName("Event name for testing").
+                  setHosts(ImmutableList.of("host1", "host2")).
+                  setDimensions(ImmutableMap.of("multi", ImmutableList.of("bar", "baz"))).
+                  setAnnotations(ImmutableMap.of("severity", "INFO")).
+                  setTags(ImmutableList.of("tag1")).
+                  build())),
+          time::get);
+    } else {
+      task = null;
+    }
     expect(client.sendMessage(
         new SendMessageRequest(
             queueUrl,
-            queue.encodeMessageForDelivery((LineDelimitedDataSubmissionTask) this.expectedTask)))).
+            queue.encodeMessageForDelivery(this.expectedTask)))).
         andReturn(null);
     replay(client);
     task.enqueue(QueueingReason.RETRY);
@@ -93,13 +111,19 @@ public class SQSSubmissionQueueTest<T extends DataSubmissionTask<T>> {
 
     expect(client.receiveMessage(msgRequest)).andReturn(msgResult);
     replay(client);
-    LineDelimitedDataSubmissionTask readTask = queue.peek();
-    assertEquals(task.payload(), readTask.payload());
-    assertEquals(77777, readTask.getEnqueuedMillis());
+    if (this.expectedTask instanceof LineDelimitedDataSubmissionTask) {
+      LineDelimitedDataSubmissionTask readTask = (LineDelimitedDataSubmissionTask) queue.peek();
+      assertEquals(((LineDelimitedDataSubmissionTask)task).payload(), readTask.payload());
+      assertEquals(77777, readTask.getEnqueuedMillis());
+    }
+    if (this.expectedTask instanceof EventDataSubmissionTask) {
+      EventDataSubmissionTask readTask = (EventDataSubmissionTask) queue.peek();
+      assertEquals(((EventDataSubmissionTask)task).payload(), readTask.payload());
+      assertEquals(77777, readTask.getEnqueuedMillis());
+    }
   }
 
-  private SQSSubmissionQueue getTaskQueue() {
-    //noinspection unchecked
-    return new SQSSubmissionQueue(queueUrl, client, converter, "2878", null, 0);
+  private SQSSubmissionQueue<? extends T> getTaskQueue() {
+    return new SQSSubmissionQueue<>(queueUrl, client, converter, "2878", null, 0);
   }
 }
