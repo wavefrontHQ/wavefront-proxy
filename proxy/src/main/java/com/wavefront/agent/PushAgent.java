@@ -64,6 +64,7 @@ import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.preprocessor.SpanSanitizeTransformer;
 import com.wavefront.agent.queueing.QueueingFactory;
 import com.wavefront.agent.queueing.QueueingFactoryImpl;
+import com.wavefront.agent.queueing.SQSQueueFactoryImpl;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
 import com.wavefront.agent.sampler.SpanSampler;
@@ -215,8 +216,18 @@ public class PushAgent extends AbstractAgent {
     }
     hostnameResolver = new CachingHostnameLookupResolver(proxyConfig.isDisableRdnsLookup(),
         ExpectedAgentMetric.RDNS_CACHE_SIZE.metricName);
-    taskQueueFactory = new TaskQueueFactoryImpl(proxyConfig.getBufferFile(),
-        proxyConfig.isPurgeBuffer());
+
+    if (proxyConfig.isSqsQueueBuffer()) {
+      taskQueueFactory = new SQSQueueFactoryImpl(
+          proxyConfig.getSqsQueueNameTemplate(),
+          proxyConfig.getSqsQueueRegion(),
+          proxyConfig.getSqsQueueIdentifier(),
+          proxyConfig.isPurgeBuffer());
+    } else {
+      taskQueueFactory = new TaskQueueFactoryImpl(proxyConfig.getBufferFile(),
+          proxyConfig.isPurgeBuffer());
+
+    }
     remoteHostAnnotator = new SharedGraphiteHostAnnotator(proxyConfig.getCustomSourceTags(),
         hostnameResolver);
     queueingFactory = new QueueingFactoryImpl(apiContainer, agentId, taskQueueFactory, entityProps);
@@ -733,7 +744,9 @@ public class PushAgent extends AbstractAgent {
             () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
             () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
             () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
-            sampler);
+            sampler,
+            // SQS doe snot support source tagging operations
+            proxyConfig.isSqsQueueBuffer());
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -781,7 +794,7 @@ public class PushAgent extends AbstractAgent {
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
         new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
             decoderSupplier.get(), deltaCounterHandlerFactory, hostAnnotator,
-            preprocessors.get(strPort), () -> false, () -> false, () -> false, sampler);
+            preprocessors.get(strPort), () -> false, () -> false, () -> false, sampler, proxyConfig.isSqsQueueBuffer());
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -1046,7 +1059,8 @@ public class PushAgent extends AbstractAgent {
               () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
               () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
               () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
-              sampler);
+              sampler, proxyConfig.isSqsQueueBuffer());
+
       startAsManagedThread(port,
           new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
           proxyConfig.getHistogramMaxReceivedLength(), proxyConfig.getHistogramHttpBufferSize(),

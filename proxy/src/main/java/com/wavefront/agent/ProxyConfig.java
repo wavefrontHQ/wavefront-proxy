@@ -91,6 +91,20 @@ public class ProxyConfig extends Configuration {
       "to be retried. Defaults to /var/spool/wavefront-proxy/buffer.", order = 7)
   String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
+  @Parameter(names = {"--sqsBuffer"}, description = "Use AWS SQS Based for buffering transmissions " +
+      "to be retried. Defaults to False")
+  boolean sqsQueueBuffer = false;
+
+  @Parameter(names = {"--sqsQueueNameTemplate"}, description = "The replacement pattern to use for naming the " +
+      "sqs queues. e.g. wf-proxy-{{id}}-{{entity}}-{{port}} would result in a queue named wf-proxy-id-points-2878")
+  String sqsQueueNameTemplate = "wf-proxy-{{id}}-{{entity}}-{{port}}";
+
+  @Parameter(names = {"--sqsQueueIdentifier"}, description = "An identifier for identifying these proxies in SQS")
+  String sqsQueueIdentifier = null;
+
+  @Parameter(names = {"--sqsQueueRegion"}, description = "The AWS Region name the queue will live in.")
+  String sqsQueueRegion = "us-west-2";
+
   @Parameter(names = {"--taskQueueLevel"}, converter = TaskQueueLevelConverter.class,
       description = "Sets queueing strategy. Allowed values: MEMORY, PUSHBACK, ANY_ERROR. " +
           "Default: ANY_ERROR")
@@ -799,6 +813,22 @@ public class ProxyConfig extends Configuration {
 
   public String getBufferFile() {
     return bufferFile;
+  }
+
+  public boolean isSqsQueueBuffer() {
+    return sqsQueueBuffer;
+  }
+
+  public String getSqsQueueNameTemplate() {
+    return sqsQueueNameTemplate;
+  }
+
+  public String getSqsQueueRegion() {
+    return sqsQueueRegion;
+  }
+
+  public String getSqsQueueIdentifier() {
+    return sqsQueueIdentifier;
   }
 
   public TaskQueueLevel getTaskQueueLevel() {
@@ -1741,6 +1771,11 @@ public class ProxyConfig extends Configuration {
           rawLogsMaxReceivedLength);
       rawLogsHttpBufferSize = config.getInteger("rawLogsHttpBufferSize", rawLogsHttpBufferSize);
       logsIngestionConfigFile = config.getString("logsIngestionConfigFile", logsIngestionConfigFile);
+
+      sqsQueueBuffer = config.getBoolean("sqsBuffer", sqsQueueBuffer);
+      sqsQueueNameTemplate = config.getString("sqsQueueNameTemplate", sqsQueueNameTemplate);
+      sqsQueueRegion = config.getString("sqsQueueRegion", sqsQueueRegion);
+      sqsQueueIdentifier = config.getString("sqsQueueIdentifier", sqsQueueIdentifier);
 
       // auth settings
       authMethod = TokenValidationMethod.fromString(config.getString("authMethod",
