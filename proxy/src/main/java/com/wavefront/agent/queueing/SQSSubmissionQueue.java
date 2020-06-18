@@ -1,6 +1,5 @@
 package com.wavefront.agent.queueing;
 
-import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.model.DeleteMessageRequest;
@@ -12,6 +11,7 @@ import com.amazonaws.services.sqs.model.QueueAttributeName;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
@@ -39,8 +39,7 @@ import static javax.xml.bind.DatatypeConverter.printBase64Binary;
  *
  * @author mike@wavefront.com
  */
-public class SQSSubmissionQueue<T extends DataSubmissionTask<T>>
-    implements TaskQueue<T> {
+public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements TaskQueue<T> {
   private static final Logger log = Logger.getLogger(SQSSubmissionQueue.class.getCanonicalName());
 
   private final String queueUrl;
