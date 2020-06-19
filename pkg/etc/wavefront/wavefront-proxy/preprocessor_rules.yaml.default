@@ -11,8 +11,8 @@
 ##
 ## available action types:
 ##   - replaceRegex: perform search/replace substitutions (substring match)
-##   - whitelistRegex: reject all points not matching a regex pattern (full match)
-##   - blacklistRegex: reject all points matching a regex pattern (full match)
+##   - allow: reject all points not matching a regex pattern (full match)
+##   - block: reject all points matching a regex pattern (full match)
 ##   - forceLowercase: convert a point's component (metric name, source, point tag value) to lowercase
 ##   - dropTag: remove a point tag. optional: remove tag only when its value matches a regex pattern (full match))
 ##   - addTag: add a new point tag. if such point tag already exists, an existing value will be replaced
@@ -25,7 +25,7 @@
 ##   - limitLength: enforce custom string length limits for various data point's components (metric name, source,
 ##                  point tag value). Available action sub-types: truncate, truncateWithEllipsis, drop
 ##
-## "Scope" parameter for replaceRegex/whitelistRegex/blacklistRegex:
+## "Scope" parameter for replaceRegex/allow/block:
 ##   - pointLine: applies to the whole point string before it's parsed, which makes it possible to correct
 ##                specific issues in the data stream that would normally make the data point unparseable.
 ##
@@ -44,7 +44,7 @@
 ##     unique within the same port. for every rule the proxy reports a counter metric, which represents the number of
 ##     times a rule has been successfully applied, and a rule ID becomes part of the metric name
 ##     (ex: ~agent.preprocessor.replace-badchars.count)
-##   - multiple whitelistRegex rules are allowed, with a caveat: a point must satisfy all of these rules
+##   - multiple allow rules are allowed, with a caveat: a point must satisfy all of these rules
 ##     to go through, so if it doesn't match at least one of the patterns, a point is blocked
 ##
 ##############################################################################
@@ -93,28 +93,28 @@
   ## only allow points that contain "prod" substring anywhere in the point line
   ################################################################
   #- rule    : example-allow-only-prod
-  #  action  : whitelistRegex
+  #  action  : allow
   #  scope   : pointLine
   #  match   : ".*prod.*"
 
   ## block all points with sourceName that starts with qa-statsd
   ################################################################
   #- rule    : example-block-qa-statsd
-  #  action  : blacklistRegex
+  #  action  : block
   #  scope   : sourceName
   #  match   : "qa-statsd.*"
 
   ## block all AWS metrics (all metric names that start with "aws.")
   ################################################################
   #- rule    : example-block-aws
-  #  action  : blacklistRegex
+  #  action  : block
   #  scope   : metricName
   #  match   : "aws\\..*"
 
   ## block all points where "datacenter" point tag starts with "west"
   ################################################################
   #- rule    : example-block-west
-  #  action  : blacklistRegex
+  #  action  : block
   #  scope   : datacenter
   #  match   : "west.*"
 
@@ -189,7 +189,7 @@
   ## block all points that have a point tag "blocker" (any value)
   ################################################################
   #- rule    : example-block-by-tag
-  #  action  : blacklistRegex
+  #  action  : block
   #  scope   : blocker
   #  match   : ".*"
 
@@ -208,13 +208,13 @@
   #  replaceInput  : "$1$3" # optional, omit if you plan on just extracting the tag leaving the metric name intact
 
   ## Advanced predicates for finer control.
-  ## Example: The below rule uses nested predicates to whitelists all "prod" metrics i.e.
+  ## Example: The below rule uses nested predicates to allow all "prod" metrics i.e.
   ## all -> returns true in case both "any" AND "none" is true.
   ## any -> returns true in case either nested "all" OR "startsWith" OR "equals" is true.
   ## none -> returns true in case nested comparison is false.
   ###################################################################################
-  #- rule: test-whitelist
-  #  action: whitelistRegex
+  #- rule: test-allow
+  #  action: allow
   #  if:
   #    all:
   #      - any:

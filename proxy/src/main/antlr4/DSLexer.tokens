@@ -1,0 +1,15 @@
+EQ=1
+MinusSign=2
+PlusSign=3
+UID=4
+Number=5
+Identifier=6
+Letters=7
+Quoted=8
+Literal=9
+WS=10
+COMMENT=11
+LINE_COMMENT=12
+'='=1
+'-'=2
+'+'=3

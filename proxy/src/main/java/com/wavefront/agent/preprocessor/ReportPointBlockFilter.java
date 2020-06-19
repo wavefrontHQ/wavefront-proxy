@@ -12,23 +12,23 @@ import javax.annotation.Nullable;
 import wavefront.report.ReportPoint;
 
 /**
- * Blacklist regex filter. Rejects a point if a specified component (metric, source, or point tag value, depending
- * on the "scope" parameter) doesn't match the regex.
+ * Blocking regex-based filter. Rejects a point if a specified component (metric, source, or point
+ * tag value, depending on the "scope" parameter) doesn't match the regex.
  *
  * Created by Vasily on 9/13/16.
  */
-public class ReportPointBlacklistRegexFilter implements AnnotatedPredicate<ReportPoint> {
+public class ReportPointBlockFilter implements AnnotatedPredicate<ReportPoint> {
 
   private final String scope;
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<ReportPoint> v2Predicate;
   private boolean isV1PredicatePresent = false;
 
-  public ReportPointBlacklistRegexFilter(final String scope,
-                                         final String patternMatch,
-                                         @Nullable final Predicate v2Predicate,
-                                         final PreprocessorRuleMetrics ruleMetrics) {
+  public ReportPointBlockFilter(final String scope,
+                                final String patternMatch,
+                                @Nullable final Predicate<ReportPoint> v2Predicate,
+                                final PreprocessorRuleMetrics ruleMetrics) {
 
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
@@ -49,7 +49,7 @@ public class ReportPointBlacklistRegexFilter implements AnnotatedPredicate<Repor
         isV1PredicatePresent = true;
       } else if (!bothV1PredicatesNull) {
         // Specifying any one of the v1Predicates and leaving it blank in considered invalid.
-        Preconditions.checkArgument(false, "[match], [scope] for rule should both be valid non " +
+        throw new IllegalArgumentException("[match], [scope] for rule should both be valid non " +
             "null/blank values or both null.");
       }
     }

@@ -20,7 +20,7 @@ public class SpanExtractAnnotationIfNotExistsTransformer extends SpanExtractAnno
                                                      @Nullable final String replaceInput,
                                                      @Nullable final String patternMatch,
                                                      final boolean firstMatchOnly,
-                                                     @Nullable final Predicate v2Predicate,
+                                                     @Nullable final Predicate<Span> v2Predicate,
                                                      final PreprocessorRuleMetrics ruleMetrics) {
     super(key, input, patternSearch, patternReplace, replaceInput, patternMatch, firstMatchOnly,
         v2Predicate, ruleMetrics);

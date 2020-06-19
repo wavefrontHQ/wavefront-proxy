@@ -2,23 +2,22 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Preconditions;
 
-import java.util.List;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
 /**
- * Blacklist regex filter. Reject a point line if it matches the regex
+ * "Allow list" regex filter. Reject a point line if it doesn't match the regex
  *
  * Created by Vasily on 9/13/16.
  */
-public class PointLineBlacklistRegexFilter implements AnnotatedPredicate<String> {
+public class LineBasedAllowFilter implements AnnotatedPredicate<String> {
 
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  public PointLineBlacklistRegexFilter(final String patternMatch,
-                                       final PreprocessorRuleMetrics ruleMetrics) {
+  public LineBasedAllowFilter(final String patternMatch,
+                              final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
     Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
@@ -29,7 +28,7 @@ public class PointLineBlacklistRegexFilter implements AnnotatedPredicate<String>
   public boolean test(String pointLine, @Nullable String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
     try {
-      if (compiledPattern.matcher(pointLine).matches()) {
+      if (!compiledPattern.matcher(pointLine).matches()) {
         ruleMetrics.incrementRuleAppliedCounter();
         return false;
       }

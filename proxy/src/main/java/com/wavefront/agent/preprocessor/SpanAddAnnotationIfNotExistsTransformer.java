@@ -17,7 +17,7 @@ public class SpanAddAnnotationIfNotExistsTransformer extends SpanAddAnnotationTr
 
   public SpanAddAnnotationIfNotExistsTransformer(final String key,
                                                  final String value,
-                                                 @Nullable final Predicate v2Predicate,
+                                                 @Nullable final Predicate<Span> v2Predicate,
                                                  final PreprocessorRuleMetrics ruleMetrics) {
     super(key, value, v2Predicate, ruleMetrics);
   }

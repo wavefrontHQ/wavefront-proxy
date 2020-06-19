@@ -697,9 +697,9 @@ public class ProxyConfig extends Configuration {
       "healthcheck status per port. Default: none")
   Integer adminApiListenerPort = 0;
 
-  @Parameter(names = {"--adminApiRemoteIpWhitelistRegex"}, description = "Remote IPs must match " +
+  @Parameter(names = {"--adminApiRemoteIpAllowRegex"}, description = "Remote IPs must match " +
       "this regex to access admin API")
-  String adminApiRemoteIpWhitelistRegex = null;
+  String adminApiRemoteIpAllowRegex = null;
 
   @Parameter(names = {"--httpHealthCheckPorts"}, description = "Comma-delimited list of ports " +
       "to function as standalone healthchecks. May be used independently of " +
@@ -1402,8 +1402,8 @@ public class ProxyConfig extends Configuration {
     return adminApiListenerPort;
   }
 
-  public String getAdminApiRemoteIpWhitelistRegex() {
-    return adminApiRemoteIpWhitelistRegex;
+  public String getAdminApiRemoteIpAllowRegex() {
+    return adminApiRemoteIpAllowRegex;
   }
 
   public String getHttpHealthCheckPorts() {
@@ -1756,8 +1756,8 @@ public class ProxyConfig extends Configuration {
 
       // health check / admin API settings
       adminApiListenerPort = config.getInteger("adminApiListenerPort", adminApiListenerPort);
-      adminApiRemoteIpWhitelistRegex = config.getString("adminApiRemoteIpWhitelistRegex",
-          adminApiRemoteIpWhitelistRegex);
+      adminApiRemoteIpAllowRegex = config.getString("adminApiRemoteIpWhitelistRegex",
+          adminApiRemoteIpAllowRegex);
       httpHealthCheckPorts = config.getString("httpHealthCheckPorts", httpHealthCheckPorts);
       httpHealthCheckAllPorts = config.getBoolean("httpHealthCheckAllPorts", false);
       httpHealthCheckPath = config.getString("httpHealthCheckPath", httpHealthCheckPath);

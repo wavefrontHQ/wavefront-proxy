@@ -32,7 +32,7 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
   protected final String patternReplaceInput;
   protected final boolean firstMatchOnly;
   protected final PreprocessorRuleMetrics ruleMetrics;
-  protected final Predicate v2Predicate;
+  protected final Predicate<Span> v2Predicate;
 
   public SpanExtractAnnotationTransformer(final String key,
                                           final String input,
@@ -41,7 +41,7 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
                                           @Nullable final String replaceInput,
                                           @Nullable final String patternMatch,
                                           final boolean firstMatchOnly,
-                                          @Nullable Predicate v2Predicate,
+                                          @Nullable Predicate<Span> v2Predicate,
                                           final PreprocessorRuleMetrics ruleMetrics) {
     this.key = Preconditions.checkNotNull(key, "[key] can't be null");
     this.input = Preconditions.checkNotNull(input, "[input] can't be null");

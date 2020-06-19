@@ -25,7 +25,7 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 
 /**
  * Admin API for managing proxy-wide healthchecks. Access can be restricted by a client's
- * IP address (must match provided whitelist regex).
+ * IP address (must match provided allow list regex).
  * Exposed endpoints:
  *  - GET /status/{port}    check current status for {port}, returns 200 if enabled / 503 if not.
  *  - POST /enable/{port}   mark port {port} as healthy.
@@ -42,7 +42,7 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   private static final Pattern PATH = Pattern.compile("/(enable|disable|status)/?(\\d*)/?");
 
-  private final String remoteIpWhitelistRegex;
+  private final String remoteIpAllowRegex;
 
   /**
    * Create new instance.
@@ -54,9 +54,9 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
   public AdminPortUnificationHandler(@Nullable TokenAuthenticator tokenAuthenticator,
                                      @Nullable HealthCheckManager healthCheckManager,
                                      @Nullable String handle,
-                                     @Nullable String remoteIpWhitelistRegex) {
+                                     @Nullable String remoteIpAllowRegex) {
     super(tokenAuthenticator, healthCheckManager, handle);
-    this.remoteIpWhitelistRegex = remoteIpWhitelistRegex;
+    this.remoteIpAllowRegex = remoteIpAllowRegex;
   }
 
   @Override
@@ -65,9 +65,9 @@ public class AdminPortUnificationHandler extends AbstractHttpOnlyHandler {
     StringBuilder output = new StringBuilder();
     String remoteIp = ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().
         getHostAddress();
-    if (remoteIpWhitelistRegex != null && !Pattern.compile(remoteIpWhitelistRegex).
+    if (remoteIpAllowRegex != null && !Pattern.compile(remoteIpAllowRegex).
         matcher(remoteIp).matches()) {
-      logger.warning("Incoming request from non-whitelisted remote address " + remoteIp +
+      logger.warning("Incoming request from non-allowed remote address " + remoteIp +
           " rejected!");
       writeHttpResponse(ctx, HttpResponseStatus.UNAUTHORIZED, output, request);
       return;

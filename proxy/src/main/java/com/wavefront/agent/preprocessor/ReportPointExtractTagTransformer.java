@@ -28,7 +28,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   @Nullable
   protected final String patternReplaceSource;
   protected final PreprocessorRuleMetrics ruleMetrics;
-  protected final Predicate v2Predicate;
+  protected final Predicate<ReportPoint> v2Predicate;
 
   public ReportPointExtractTagTransformer(final String tag,
                                           final String source,
@@ -36,7 +36,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
                                           final String patternReplace,
                                           @Nullable final String replaceSource,
                                           @Nullable final String patternMatch,
-                                          @Nullable final Predicate v2Predicate,
+                                          @Nullable final Predicate<ReportPoint> v2Predicate,
                                           final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.source = Preconditions.checkNotNull(source, "[source] can't be null");

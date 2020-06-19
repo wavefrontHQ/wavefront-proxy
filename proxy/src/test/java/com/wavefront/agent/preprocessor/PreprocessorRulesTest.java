@@ -161,91 +161,91 @@ public class PreprocessorRulesTest {
   @Test(expected = NullPointerException.class)
   public void testLineReplaceRegexNullMatchThrows() {
     // try to create a regex replace rule with a null match pattern
-    PointLineReplaceRegexTransformer invalidRule = new PointLineReplaceRegexTransformer(null, FOO, null, null, metrics);
+    LineBasedReplaceRegexTransformer invalidRule = new LineBasedReplaceRegexTransformer(null, FOO, null, null, metrics);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testLineReplaceRegexBlankMatchThrows() {
     // try to create a regex replace rule with a blank match pattern
-    PointLineReplaceRegexTransformer invalidRule = new PointLineReplaceRegexTransformer("", FOO, null, null, metrics);
+    LineBasedReplaceRegexTransformer invalidRule = new LineBasedReplaceRegexTransformer("", FOO, null, null, metrics);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testLineWhitelistRegexNullMatchThrows() {
-    // try to create a whitelist rule with a null match pattern
-    PointLineWhitelistRegexFilter invalidRule = new PointLineWhitelistRegexFilter(null, metrics);
+  public void testLineAllowNullMatchThrows() {
+    // try to create an allow rule with a null match pattern
+    LineBasedAllowFilter invalidRule = new LineBasedAllowFilter(null, metrics);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testLineBlacklistRegexNullMatchThrows() {
-    // try to create a blacklist rule with a null match pattern
-    PointLineBlacklistRegexFilter invalidRule = new PointLineBlacklistRegexFilter(null, metrics);
+  public void testLineBlockNullMatchThrows() {
+    // try to create a block rule with a null match pattern
+    LineBasedBlockFilter invalidRule = new LineBasedBlockFilter(null, metrics);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testPointBlacklistRegexNullScopeThrows() {
-    // try to create a blacklist rule with a null scope
-    ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter(null, FOO,null, metrics);
+  public void testPointBlockNullScopeThrows() {
+    // try to create a block rule with a null scope
+    ReportPointBlockFilter invalidRule = new ReportPointBlockFilter(null, FOO,null, metrics);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testPointBlacklistRegexNullMatchThrows() {
-    // try to create a blacklist rule with a null pattern
-    ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter(FOO, null,
+  public void testPointBlockNullMatchThrows() {
+    // try to create a block rule with a null pattern
+    ReportPointBlockFilter invalidRule = new ReportPointBlockFilter(FOO, null,
         null, metrics);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testPointWhitelistRegexNullScopeThrows() {
-    // try to create a whitelist rule with a null scope
-    ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter(null, FOO, null, metrics);
+  public void testPointAllowNullScopeThrows() {
+    // try to create an allow rule with a null scope
+    ReportPointAllowFilter invalidRule = new ReportPointAllowFilter(null, FOO, null, metrics);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testPointWhitelistRegexNullMatchThrows() {
-    // try to create a blacklist rule with a null pattern
-    ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter(FOO, null, null, metrics);
+  public void testPointAllowNullMatchThrows() {
+    // try to create a block rule with a null pattern
+    ReportPointAllowFilter invalidRule = new ReportPointAllowFilter(FOO, null, null, metrics);
   }
 
   @Test
   public void testReportPointFiltersWithValidV2AndInvalidV1Predicate() {
     try {
-      ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter("metricName",
+      ReportPointAllowFilter invalidRule = new ReportPointAllowFilter("metricName",
           null, x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
     try {
-      ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter(null,
+      ReportPointAllowFilter invalidRule = new ReportPointAllowFilter(null,
           "^host$", x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
     try {
-      ReportPointWhitelistRegexFilter invalidRule = new ReportPointWhitelistRegexFilter
+      ReportPointAllowFilter invalidRule = new ReportPointAllowFilter
           ("metricName", "^host$", x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
     try {
-      ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter("metricName",
+      ReportPointBlockFilter invalidRule = new ReportPointBlockFilter("metricName",
           null, x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
     try {
-      ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter(null,
+      ReportPointBlockFilter invalidRule = new ReportPointBlockFilter(null,
           "^host$", x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
     try {
-      ReportPointBlacklistRegexFilter invalidRule = new ReportPointBlacklistRegexFilter
+      ReportPointBlockFilter invalidRule = new ReportPointBlockFilter
           ("metricName", "^host$", x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
@@ -254,10 +254,10 @@ public class PreprocessorRulesTest {
 
   @Test
   public void testReportPointFiltersWithValidV2AndV1Predicate() {
-    ReportPointWhitelistRegexFilter validWhitelistRule = new ReportPointWhitelistRegexFilter
+    ReportPointAllowFilter validAllowRule = new ReportPointAllowFilter
         (null, null, x -> false, metrics);
 
-    ReportPointBlacklistRegexFilter validBlacklistRule = new ReportPointBlacklistRegexFilter
+    ReportPointBlockFilter validBlocktRule = new ReportPointBlockFilter
         (null, null, x -> false, metrics);
   }
 
@@ -267,13 +267,13 @@ public class PreprocessorRulesTest {
     String testPoint2 = "collectd.#cpu#.&loadavg^.1m 7 1459527231 source=source$hostname foo=bar boo=baz";
     String testPoint3 = "collectd.cpu.loadavg.1m;foo=bar;boo=baz;tag=extra 7 1459527231 source=hostname";
 
-    PointLineReplaceRegexTransformer rule1 = new PointLineReplaceRegexTransformer("(boo)=baz", "$1=qux", null, null, metrics);
-    PointLineReplaceRegexTransformer rule2 = new PointLineReplaceRegexTransformer("[#&\\$\\^]", "", null, null, metrics);
-    PointLineBlacklistRegexFilter rule3 = new PointLineBlacklistRegexFilter(".*source=source.*", metrics);
-    PointLineWhitelistRegexFilter rule4 = new PointLineWhitelistRegexFilter(".*source=source.*", metrics);
-    PointLineReplaceRegexTransformer rule5 = new PointLineReplaceRegexTransformer("cpu", "gpu", ".*hostname.*", null, metrics);
-    PointLineReplaceRegexTransformer rule6 = new PointLineReplaceRegexTransformer("cpu", "gpu", ".*nomatch.*", null, metrics);
-    PointLineReplaceRegexTransformer rule7 = new PointLineReplaceRegexTransformer("([^;]*);([^; ]*)([ ;].*)", "$1$3 $2", null, 2, metrics);
+    LineBasedReplaceRegexTransformer rule1 = new LineBasedReplaceRegexTransformer("(boo)=baz", "$1=qux", null, null, metrics);
+    LineBasedReplaceRegexTransformer rule2 = new LineBasedReplaceRegexTransformer("[#&\\$\\^]", "", null, null, metrics);
+    LineBasedBlockFilter rule3 = new LineBasedBlockFilter(".*source=source.*", metrics);
+    LineBasedAllowFilter rule4 = new LineBasedAllowFilter(".*source=source.*", metrics);
+    LineBasedReplaceRegexTransformer rule5 = new LineBasedReplaceRegexTransformer("cpu", "gpu", ".*hostname.*", null, metrics);
+    LineBasedReplaceRegexTransformer rule6 = new LineBasedReplaceRegexTransformer("cpu", "gpu", ".*nomatch.*", null, metrics);
+    LineBasedReplaceRegexTransformer rule7 = new LineBasedReplaceRegexTransformer("([^;]*);([^; ]*)([ ;].*)", "$1$3 $2", null, 2, metrics);
 
     String expectedPoint1 = "collectd.cpu.loadavg.1m 7 1459527231 source=hostname foo=bar boo=qux";
     String expectedPoint2 = "collectd.cpu.loadavg.1m 7 1459527231 source=sourcehostname foo=bar boo=baz";

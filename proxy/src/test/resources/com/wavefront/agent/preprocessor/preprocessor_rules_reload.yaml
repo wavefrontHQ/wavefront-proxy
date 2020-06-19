@@ -1,6 +1,6 @@
 '2878':
-  - rule    : test-blacklist-sourcename
-    action  : blacklistRegex
+  - rule    : test-block-sourcename
+    action  : block
     scope   : sourceName
     match   : "bar.*"
 

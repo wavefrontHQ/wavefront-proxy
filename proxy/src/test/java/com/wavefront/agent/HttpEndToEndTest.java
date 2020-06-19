@@ -93,7 +93,7 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.pushFlushInterval = 50;
     proxy.proxyConfig.bufferFile = buffer;
     proxy.proxyConfig.whitelistRegex = "^.*$";
-    proxy.proxyConfig.blacklistRegex = "^.*blacklist.*$";
+    proxy.proxyConfig.blacklistRegex = "^.*blocklist.*$";
     proxy.proxyConfig.gzipCompression = false;
     proxy.start(new String[]{});
     waitUntilListenerIsOnline(proxyPort);
