@@ -157,11 +157,11 @@ public abstract class AbstractAgent {
         ObjectUtils.firstNonNull(proxyConfig.getPicklePorts(), ""),
         ObjectUtils.firstNonNull(proxyConfig.getTraceListenerPorts(), "")
     }, ",");
-    addPreprocessorFilters(allPorts, proxyConfig.getWhitelistRegex(),
-        proxyConfig.getBlacklistRegex());
+    addPreprocessorFilters(allPorts, proxyConfig.getAllowRegex(),
+        proxyConfig.getBlockRegex());
     // opentsdb block/allow lists are applied to opentsdbPorts only
-    addPreprocessorFilters(proxyConfig.getOpentsdbPorts(), proxyConfig.getOpentsdbWhitelistRegex(),
-        proxyConfig.getOpentsdbBlacklistRegex());
+    addPreprocessorFilters(proxyConfig.getOpentsdbPorts(), proxyConfig.getOpentsdbAllowRegex(),
+        proxyConfig.getOpentsdbBlockRegex());
   }
 
   // Returns null on any exception, and logs the exception.

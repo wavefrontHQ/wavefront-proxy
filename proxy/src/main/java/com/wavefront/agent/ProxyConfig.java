@@ -482,27 +482,25 @@ public class ProxyConfig extends Configuration {
       "This property is ignored if ephemeral=true.")
   String idFile = null;
 
-  @Parameter(names = {"--graphiteWhitelistRegex"}, description = "(DEPRECATED for whitelistRegex)", hidden = true)
-  String graphiteWhitelistRegex;
+  @Parameter(names = {"--allowRegex", "--whitelistRegex"}, description = "Regex pattern (java" +
+      ".util.regex) that graphite input lines must match to be accepted")
+  String allowRegex;
 
-  @Parameter(names = {"--graphiteBlacklistRegex"}, description = "(DEPRECATED for blacklistRegex)", hidden = true)
-  String graphiteBlacklistRegex;
-
-  @Parameter(names = {"--whitelistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must match to be accepted")
-  String whitelistRegex;
-
-  @Parameter(names = {"--blacklistRegex"}, description = "Regex pattern (java.util.regex) that graphite input lines must NOT match to be accepted")
-  String blacklistRegex;
+  @Parameter(names = {"--blockRegex", "--blacklistRegex"}, description = "Regex pattern (java" +
+      ".util.regex) that graphite input lines must NOT match to be accepted")
+  String blockRegex;
 
   @Parameter(names = {"--opentsdbPorts"}, description = "Comma-separated list of ports to listen on for opentsdb data. " +
       "Binds, by default, to none.")
   String opentsdbPorts = "";
 
-  @Parameter(names = {"--opentsdbWhitelistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must match to be accepted")
-  String opentsdbWhitelistRegex;
+  @Parameter(names = {"--opentsdbAllowRegex", "--opentsdbWhitelistRegex"}, description = "Regex " +
+      "pattern (java.util.regex) that opentsdb input lines must match to be accepted")
+  String opentsdbAllowRegex;
 
-  @Parameter(names = {"--opentsdbBlacklistRegex"}, description = "Regex pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
-  String opentsdbBlacklistRegex;
+  @Parameter(names = {"--opentsdbBlockRegex", "--opentsdbBlacklistRegex"}, description = "Regex " +
+      "pattern (java.util.regex) that opentsdb input lines must NOT match to be accepted")
+  String opentsdbBlockRegex;
 
   @Parameter(names = {"--picklePorts"}, description = "Comma-separated list of ports to listen on for pickle protocol " +
       "data. Defaults to none.")
@@ -1173,24 +1171,24 @@ public class ProxyConfig extends Configuration {
     return idFile;
   }
 
-  public String getWhitelistRegex() {
-    return whitelistRegex;
+  public String getAllowRegex() {
+    return allowRegex;
   }
 
-  public String getBlacklistRegex() {
-    return blacklistRegex;
+  public String getBlockRegex() {
+    return blockRegex;
   }
 
   public String getOpentsdbPorts() {
     return opentsdbPorts;
   }
 
-  public String getOpentsdbWhitelistRegex() {
-    return opentsdbWhitelistRegex;
+  public String getOpentsdbAllowRegex() {
+    return opentsdbAllowRegex;
   }
 
-  public String getOpentsdbBlacklistRegex() {
-    return opentsdbBlacklistRegex;
+  public String getOpentsdbBlockRegex() {
+    return opentsdbBlockRegex;
   }
 
   public String getPicklePorts() {
@@ -1663,13 +1661,13 @@ public class ProxyConfig extends Configuration {
       graphiteFormat = config.getString("graphiteFormat", graphiteFormat);
       graphiteFieldsToRemove = config.getString("graphiteFieldsToRemove", graphiteFieldsToRemove);
       graphiteDelimiters = config.getString("graphiteDelimiters", graphiteDelimiters);
-      graphiteWhitelistRegex = config.getString("graphiteWhitelistRegex", graphiteWhitelistRegex);
-      graphiteBlacklistRegex = config.getString("graphiteBlacklistRegex", graphiteBlacklistRegex);
-      whitelistRegex = config.getString("whitelistRegex", whitelistRegex);
-      blacklistRegex = config.getString("blacklistRegex", blacklistRegex);
+      allowRegex = config.getString("allowRegex", config.getString("whitelistRegex", allowRegex));
+      blockRegex = config.getString("blockRegex", config.getString("blacklistRegex", blockRegex));
       opentsdbPorts = config.getString("opentsdbPorts", opentsdbPorts);
-      opentsdbWhitelistRegex = config.getString("opentsdbWhitelistRegex", opentsdbWhitelistRegex);
-      opentsdbBlacklistRegex = config.getString("opentsdbBlacklistRegex", opentsdbBlacklistRegex);
+      opentsdbAllowRegex = config.getString("opentsdbAllowRegex",
+          config.getString("opentsdbWhitelistRegex", opentsdbAllowRegex));
+      opentsdbBlockRegex = config.getString("opentsdbBlockRegex",
+          config.getString("opentsdbBlacklistRegex", opentsdbBlockRegex));
       proxyHost = config.getString("proxyHost", proxyHost);
       proxyPort = config.getInteger("proxyPort", proxyPort);
       proxyPassword = config.getString("proxyPassword", proxyPassword, s -> "<removed>");
@@ -1820,13 +1818,6 @@ public class ProxyConfig extends Configuration {
     } catch (Throwable exception) {
       logger.severe("Could not load configuration file " + pushConfigFile);
       throw new RuntimeException(exception.getMessage());
-    }
-    // Compatibility with deprecated fields
-    if (whitelistRegex == null && graphiteWhitelistRegex != null) {
-      whitelistRegex = graphiteWhitelistRegex;
-    }
-    if (blacklistRegex == null && graphiteBlacklistRegex != null) {
-      blacklistRegex = graphiteBlacklistRegex;
     }
     if (httpUserAgent == null) {
       httpUserAgent = "Wavefront-Proxy/" + getBuildVersion();
