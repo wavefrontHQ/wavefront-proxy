@@ -3,7 +3,7 @@ grammar Condition;
 import DSLexer;
 
 @header {
-  package com.wavefront.agent.preprocessor.predicate;
+  package parser.predicate;
 }
 
 program
@@ -12,6 +12,8 @@ program
 
 evalExpression
   : '(' evalExpression ')'
+  | evalExpression op=('&'|'|'|'^'|'<<<'|'<<'|'>>>'|'>>') evalExpression
+  | complement='~' evalExpression
   | evalExpression op=('*'|'/'|'%') evalExpression
   | evalExpression op=('-'|'+') evalExpression
   | evalExpression comparisonOperator evalExpression
@@ -24,6 +26,7 @@ evalExpression
   | parse
   | time
   | length
+  | strHashCode
   | strIsEmpty
   | strIsNotEmpty
   | strIsBlank
@@ -47,6 +50,10 @@ time
 
 length
   : 'length' '(' stringExpression ')'
+  ;
+
+strHashCode
+  : 'hashCode' '(' stringExpression ')'
   ;
 
 strIsEmpty
@@ -79,6 +86,7 @@ stringExpression
   : '(' stringExpression ')'
   | stringExpression concat='+' stringExpression
   | stringExpression '.' stringFunc
+  | strIff
   | string
   ;
 
@@ -90,6 +98,10 @@ stringFunc
   | replaceAll
   | toLowerCase
   | toUpperCase
+  ;
+
+strIff
+  : 'if' '(' evalExpression ',' stringExpression ',' stringExpression ')'
   ;
 
 substring
@@ -137,10 +149,12 @@ stringComparisonOp
   | 'startsWithIgnoreCase'
   | 'contains'
   | 'containsIgnoreCase'
-  | 'endWith'
+  | 'endsWith'
   | 'endsWithIgnoreCase'
   | 'matches'
   | 'matchesIgnoreCase'
+  | 'regexMatch'
+  | 'regexMatchIgnoreCase'
   ;
 
 comparisonOperator

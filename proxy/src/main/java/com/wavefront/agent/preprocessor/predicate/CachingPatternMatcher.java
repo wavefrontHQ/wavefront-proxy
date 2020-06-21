@@ -7,6 +7,11 @@ import java.util.regex.Pattern;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 
+/**
+ * A pattern matcher that uses a cache of compiled patterns.
+ *
+ * @author vasily@wavefront.com.
+ */
 public class CachingPatternMatcher implements BiFunction<String, String, Boolean> {
   private final LoadingCache<String, Pattern> patternCache;
 
@@ -18,9 +23,7 @@ public class CachingPatternMatcher implements BiFunction<String, String, Boolean
      this.patternCache = Caffeine.newBuilder().
         maximumSize(10000).
         expireAfterAccess(1, TimeUnit.MINUTES).
-        build(regex -> {
-          return Pattern.compile(regex, flags);
-        });
+        build(regex -> Pattern.compile(regex, flags));
   }
 
   @Override

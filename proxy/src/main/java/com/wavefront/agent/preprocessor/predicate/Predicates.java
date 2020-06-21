@@ -6,16 +6,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.wavefront.agent.preprocessor.PreprocessorUtil;
+import com.wavefront.common.TimeProvider;
+import parser.predicate.ConditionLexer;
+import parser.predicate.ConditionParser;
 
-import static com.wavefront.agent.preprocessor.predicate.EvalExpression.*;
+import static com.wavefront.agent.preprocessor.predicate.EvalExpression.asDouble;
+import static com.wavefront.agent.preprocessor.predicate.EvalExpression.isTrue;
 
 /**
  * Collection of helper methods Base factory class for predicates; supports both text parsing as
@@ -35,17 +38,51 @@ public abstract class Predicates {
     Object value = ruleMap.get("if");
     if (value == null) return null;
     if (value instanceof String) {
-      return PreprocessorUtil.parsePredicateString((String) value);
+      return new ExpressionPredicate<>(parseEvalExpression((String) value));
     } else if (value instanceof Map) {
       //noinspection unchecked
       Map<String, Object> v2PredicateMap = (Map<String, Object>) value;
       Preconditions.checkArgument(v2PredicateMap.size() == 1,
           "Argument [if] can have only 1 top level predicate, but found :: " +
               v2PredicateMap.size() + ".");
-      return new ExpressionPredicate<>(parsePredicate(v2PredicateMap));
+      return parsePredicate(v2PredicateMap);
     } else {
       throw new IllegalArgumentException("Argument [if] value can only be String or Map, got " +
           value.getClass().getCanonicalName());
+    }
+  }
+
+  /**
+   * Parses an expression string into an {@link EvalExpression}.
+   *
+   * @param predicateString string to parse.
+   * @return parsed expression
+   */
+  public static EvalExpression parseEvalExpression(String predicateString) {
+    return parseEvalExpression(predicateString, System::currentTimeMillis);
+  }
+
+  static EvalExpression parseEvalExpression(String predicateString, TimeProvider timeProvider) {
+    ConditionLexer lexer = new ConditionLexer(CharStreams.fromString(predicateString));
+    lexer.removeErrorListeners();
+    ErrorListener errorListener = new ErrorListener();
+    lexer.addErrorListener(errorListener);
+    CommonTokenStream tokens = new CommonTokenStream(lexer);
+    ConditionParser parser = new ConditionParser(tokens);
+    parser.removeErrorListeners();
+    parser.addErrorListener(errorListener);
+    ConditionVisitorImpl visitor = new ConditionVisitorImpl(timeProvider);
+    try {
+      ConditionParser.ProgramContext context = parser.program();
+      EvalExpression result = (EvalExpression) context.evalExpression().accept(visitor);
+      if (errorListener.getErrors().length() == 0) {
+        return result;
+      } else {
+        throw new IllegalArgumentException(errorListener.getErrors().toString());
+      }
+    } catch (Exception e) {
+      System.out.println("Exception: " + e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -56,11 +93,11 @@ public abstract class Predicates {
    * @return parsed predicate
    */
   @VisibleForTesting
-  static EvalExpression parsePredicate(Map<String, Object> v2Predicate) {
+  static <T> Predicate<T> parsePredicate(Map<String, Object> v2Predicate) {
     if(v2Predicate != null && !v2Predicate.isEmpty()) {
-      return processLogicalOp(v2Predicate);
+      return new ExpressionPredicate<>(processLogicalOp(v2Predicate));
     }
-    return x -> 1;
+    return x -> true;
   }
 
   private static EvalExpression processLogicalOp(Map<String, Object> element) {
@@ -116,83 +153,15 @@ public abstract class Predicates {
     }
     if (ruleVal instanceof List) {
       List<EvalExpression> options = ((List<String>) ruleVal).stream().map(option ->
-          getStringComparisonExpression(new TemplateExpression("{{" + scope + "}}"),
+          StringComparisonExpression.of(new TemplateExpression("{{" + scope + "}}"),
               x -> option, subElement.getKey())).collect(Collectors.toList());
       return entity -> asDouble(options.stream().anyMatch(x -> isTrue(x.getValue(entity))));
     } else if (ruleVal instanceof String) {
-      return getStringComparisonExpression(new TemplateExpression("{{" + scope + "}}"),
+      return StringComparisonExpression.of(new TemplateExpression("{{" + scope + "}}"),
           x -> (String) ruleVal, subElement.getKey());
     } else {
       throw new IllegalArgumentException("[value] can only be String or List, got " +
           ruleVal.getClass().getCanonicalName());
-    }
-  }
-
-  public static EvalExpression getStringComparisonExpression(StringExpression left,
-                                                             StringExpression right,
-                                                             String op) {
-    switch (op) {
-      case "=":
-      case "equals":
-        return new StringComparisonExpression(left, right, String::equals);
-      case "startsWith":
-        return new StringComparisonExpression(left, right, String::startsWith);
-      case "endsWith":
-        return new StringComparisonExpression(left, right, String::endsWith);
-      case "contains":
-        return new StringComparisonExpression(left, right, String::contains);
-      case "regexMatch":
-        return new StringComparisonExpression(left, right, new CachingPatternMatcher());
-      case "equalsIgnoreCase":
-        return new StringComparisonExpression(left, right, String::equalsIgnoreCase);
-      case "startsWithIgnoreCase":
-        return new StringComparisonExpression(left, right, StringUtils::startsWithIgnoreCase);
-      case "endsWithIgnoreCase":
-        return new StringComparisonExpression(left, right, StringUtils::endsWithIgnoreCase);
-      case "containsIgnoreCase":
-        return new StringComparisonExpression(left, right, StringUtils::containsIgnoreCase);
-      case "regexMatchIgnoreCase":
-        return new StringComparisonExpression(left, right,
-            new CachingPatternMatcher(Pattern.CASE_INSENSITIVE));
-      default:
-        throw new IllegalArgumentException(op + " is not handled");
-    }
-  }
-
-  public static EvalExpression getMultiStringComparisonExpression(String scope,
-                                                                  StringExpression argument,
-                                                                  boolean all,
-                                                                  String op) {
-    switch (op) {
-      case "=":
-      case "equals":
-        return new MultiStringComparisonExpression(scope, argument, all, String::equals);
-      case "startsWith":
-        return new MultiStringComparisonExpression(scope, argument, all, String::startsWith);
-      case "endsWith":
-        return new MultiStringComparisonExpression(scope, argument, all, String::endsWith);
-      case "contains":
-        return new MultiStringComparisonExpression(scope, argument, all, String::contains);
-      case "regexMatch":
-        return new MultiStringComparisonExpression(scope, argument, all,
-            new CachingPatternMatcher());
-      case "equalsIgnoreCase":
-        return new MultiStringComparisonExpression(scope, argument, all,
-            String::equalsIgnoreCase);
-      case "startsWithIgnoreCase":
-        return new MultiStringComparisonExpression(scope, argument, all,
-            StringUtils::startsWithIgnoreCase);
-      case "endsWithIgnoreCase":
-        return new MultiStringComparisonExpression(scope, argument, all,
-            StringUtils::endsWithIgnoreCase);
-      case "containsIgnoreCase":
-        return new MultiStringComparisonExpression(scope, argument, all,
-            StringUtils::containsIgnoreCase);
-      case "regexMatchIgnoreCase":
-        return new MultiStringComparisonExpression(scope, argument, all,
-            new CachingPatternMatcher(Pattern.CASE_INSENSITIVE));
-      default:
-        throw new IllegalArgumentException(op + " is not handled");
     }
   }
 }

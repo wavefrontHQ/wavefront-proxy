@@ -8,6 +8,12 @@ import com.wavefront.agent.preprocessor.PreprocessorUtil;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
+/**
+ * A string template rendered. Substitutes {{...}} placeholders with corresponding
+ * components; string literals are returned as is.
+ *
+ * @author vasily@wavefront.com
+ */
 public class TemplateExpression implements StringExpression {
   private final String template;
 

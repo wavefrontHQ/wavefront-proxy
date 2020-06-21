@@ -4,21 +4,11 @@ import javax.annotation.Nullable;
 import java.util.Calendar;
 import java.util.Map;
 import java.util.TimeZone;
-import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-
 import com.mdimension.jchronic.Chronic;
 import com.mdimension.jchronic.Options;
-import com.wavefront.agent.preprocessor.predicate.ConditionLexer;
-import com.wavefront.agent.preprocessor.predicate.ConditionParser;
-import com.wavefront.agent.preprocessor.predicate.ConditionVisitorImpl;
-import com.wavefront.agent.preprocessor.predicate.ErrorListener;
-import com.wavefront.agent.preprocessor.predicate.EvalExpression;
-import com.wavefront.agent.preprocessor.predicate.ExpressionPredicate;
 
 import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
@@ -166,29 +156,5 @@ public abstract class PreprocessorUtil {
       throw new IllegalArgumentException("Failed to parse " + interval + " as a time-expression");
     }
     return parse.getBeginCalendar().getTimeInMillis();
-  }
-
-  public static <T> Predicate<T> parsePredicateString(String predicateString) {
-    ConditionLexer lexer = new ConditionLexer(CharStreams.fromString(predicateString));
-    lexer.removeErrorListeners();
-    ErrorListener errorListener = new ErrorListener();
-    lexer.addErrorListener(errorListener);
-    CommonTokenStream tokens = new CommonTokenStream(lexer);
-    ConditionParser parser = new ConditionParser(tokens);
-    parser.removeErrorListeners();
-    parser.addErrorListener(errorListener);
-    ConditionVisitorImpl visitor = new ConditionVisitorImpl(System::currentTimeMillis);
-    try {
-      ConditionParser.ProgramContext context = parser.program();
-      EvalExpression result = (EvalExpression) context.evalExpression().accept(visitor);
-      if (errorListener.getErrors().length() == 0) {
-        return new ExpressionPredicate<>(result);
-      } else {
-        throw new IllegalArgumentException(errorListener.getErrors().toString());
-      }
-    } catch (Exception e) {
-      System.out.println("Exception: " + e);
-      throw new RuntimeException(e);
-    }
   }
 }

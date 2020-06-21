@@ -35,8 +35,7 @@ public class PreprocessorRuleV2PredicateTest {
           (comparisonOp + "-reportpoint");
       Assert.assertEquals("Expected rule size :: ", 1, rules.size());
       Map<String, Object> v2PredicateMap = (Map<String, Object>) rules.get(0).get("if");
-      Predicate<ReportPoint> v2Predicate =
-          new ExpressionPredicate<>(Predicates.parsePredicate(v2PredicateMap));
+      Predicate<ReportPoint> v2Predicate = Predicates.parsePredicate(v2PredicateMap);
       Map<String, String> pointTags = new HashMap<>();
       switch (comparisonOp) {
         case "equals":
@@ -88,8 +87,7 @@ public class PreprocessorRuleV2PredicateTest {
           (comparisonOp + "-list-reportpoint");
       Assert.assertEquals("Expected rule size :: ", 1, rules.size());
       Map<String, Object> v2PredicateMap = (Map<String, Object>) rules.get(0).get("if");
-      Predicate<ReportPoint> v2Predicate =
-          new ExpressionPredicate<>(Predicates.parsePredicate(v2PredicateMap));
+      Predicate<ReportPoint> v2Predicate = Predicates.parsePredicate(v2PredicateMap);
       Map<String, String> pointTags = new HashMap<>();
       switch (comparisonOp) {
         case "equals":
@@ -144,8 +142,7 @@ public class PreprocessorRuleV2PredicateTest {
           (comparisonOp + "-list-span");
       Assert.assertEquals("Expected rule size :: ", 1, rules.size());
       Map<String, Object> v2PredicateMap = (Map<String, Object>) rules.get(0).get("if");
-      Predicate<Span> v2Predicate =
-          new ExpressionPredicate<>(Predicates.parsePredicate(v2PredicateMap));
+      Predicate<Span> v2Predicate = Predicates.parsePredicate(v2PredicateMap);
       Map<String, String> pointTags = new HashMap<>();
       switch (comparisonOp) {
         case "equals":
@@ -210,8 +207,7 @@ public class PreprocessorRuleV2PredicateTest {
           (comparisonOp + "-span");
       Assert.assertEquals("Expected rule size :: ", 1, rules.size());
       Map<String, Object> v2PredicateMap = (Map<String, Object>) rules.get(0).get("if");
-      Predicate<Span> v2Predicate =
-          new ExpressionPredicate<>(Predicates.parsePredicate(v2PredicateMap));
+      Predicate<Span> v2Predicate = Predicates.parsePredicate(v2PredicateMap);
       Map<String, String> pointTags = new HashMap<>();
       switch (comparisonOp) {
         case "equals":
@@ -270,8 +266,7 @@ public class PreprocessorRuleV2PredicateTest {
     List<Map<String, Object>> rules = (List<Map<String, Object>>) rulesByPort.get("logicalop-reportpoint");
     Assert.assertEquals("Expected rule size :: ", 1, rules.size());
     Map<String, Object> v2PredicateMap = (Map<String, Object>) rules.get(0).get("if");
-    Predicate<ReportPoint> v2Predicate =
-        new ExpressionPredicate<>(Predicates.parsePredicate(v2PredicateMap));
+    Predicate<ReportPoint> v2Predicate = Predicates.parsePredicate(v2PredicateMap);
     Map<String, String> pointTags = new HashMap<>();
     ReportPoint point = null;
 
@@ -327,8 +322,7 @@ public class PreprocessorRuleV2PredicateTest {
     List<Map<String, Object>> rules = (List<Map<String, Object>>) rulesByPort.get("logicalop-span");
     Assert.assertEquals("Expected rule size :: ", 1, rules.size());
     Map<String, Object> v2PredicateMap = (Map<String, Object>) rules.get(0).get("if");
-    Predicate<Span> v2Predicate =
-        new ExpressionPredicate<>(Predicates.parsePredicate(v2PredicateMap));
+    Predicate<Span> v2Predicate = Predicates.parsePredicate(v2PredicateMap);
     Span span = null;
 
     // Satisfies all requirements.

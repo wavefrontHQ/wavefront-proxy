@@ -4,6 +4,11 @@ import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 
+/**
+ * Parser error listener.
+ *
+ * @author vasily@wavefront.com
+ */
 public class ErrorListener extends BaseErrorListener {
   private final StringBuilder errors = new StringBuilder();
 
