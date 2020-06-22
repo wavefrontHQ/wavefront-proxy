@@ -17,6 +17,8 @@ import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
 
+import org.apache.commons.lang.StringUtils;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -29,17 +31,16 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandler;
-import org.apache.commons.lang.StringUtils;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
@@ -144,7 +145,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
         case COMPONENT_TAG_KEY:
           componentTagValue = annotation.getValue();
           continue;
-        case ERROR_SPAN_TAG_KEY:
+        case ERROR_TAG_KEY:
           isError = annotation.getValue();
           continue;
       }

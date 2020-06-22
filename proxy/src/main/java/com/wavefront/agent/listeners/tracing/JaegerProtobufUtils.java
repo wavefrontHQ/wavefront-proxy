@@ -309,11 +309,34 @@ public abstract class JaegerProtobufUtils {
 
     // report stats irrespective of span sampling.
     if (wfInternalReporter != null) {
-      // report converted metrics/histograms from the span
-      List<Pair<String, String>> spanTags = annotations.stream().map(a -> new Pair<>(a.getKey(),
+      // Set post preprocessor rule values and report converted metrics/histograms from the span
+      List<Annotation> processedAnnotations = wavefrontSpan.getAnnotations();
+      for (Annotation processedAnnotation : processedAnnotations) {
+        switch (processedAnnotation.getKey()) {
+          case APPLICATION_TAG_KEY:
+            applicationName = processedAnnotation.getValue();
+            continue;
+          case SERVICE_TAG_KEY:
+            serviceName = processedAnnotation.getValue();
+            continue;
+          case CLUSTER_TAG_KEY:
+            cluster = processedAnnotation.getValue();
+            continue;
+          case SHARD_TAG_KEY:
+            shard = processedAnnotation.getValue();
+            continue;
+          case COMPONENT_TAG_KEY:
+            componentTagValue = processedAnnotation.getValue();
+            continue;
+          case ERROR_TAG_KEY:
+            isError = processedAnnotation.getValue().equals(ERROR_SPAN_TAG_VAL);
+            continue;
+        }
+      }
+      List<Pair<String, String>> spanTags = processedAnnotations.stream().map(a -> new Pair<>(a.getKey(),
           a.getValue())).collect(Collectors.toList());
       discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
-          span.getOperationName(), applicationName, serviceName, cluster, shard, sourceName,
+          wavefrontSpan.getName(), applicationName, serviceName, cluster, shard, wavefrontSpan.getSource(),
           componentTagValue, isError, toMicros(span.getDuration()), traceDerivedCustomTagKeys,
           spanTags, true));
     }

@@ -72,6 +72,7 @@ import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
@@ -422,7 +423,7 @@ public class ZipkinPortUnificationHandler extends AbstractHttpOnlyHandler
           case COMPONENT_TAG_KEY:
             componentTagValue = processedAnnotation.getValue();
             continue;
-          case ERROR_SPAN_TAG_KEY:
+          case ERROR_TAG_KEY:
             isError = true;
             continue;
         }

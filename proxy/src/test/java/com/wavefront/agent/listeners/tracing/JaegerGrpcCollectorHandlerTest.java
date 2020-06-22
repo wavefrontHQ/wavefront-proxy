@@ -7,13 +7,21 @@ import com.google.protobuf.Duration;
 
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.preprocessor.SpanReplaceRegexTransformer;
 import com.wavefront.agent.sampler.SpanSampler;
+import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
+import org.easymock.Capture;
+import org.easymock.EasyMock;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.function.Supplier;
 
 import io.grpc.stub.StreamObserver;
 import io.opentelemetry.exporters.jaeger.proto.api_v2.Collector;
@@ -24,10 +32,19 @@ import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
 import static com.google.protobuf.util.Timestamps.fromMillis;
+import static com.wavefront.agent.TestUtils.verifyWithTimeout;
+import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
+import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static org.easymock.EasyMock.anyLong;
+import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Unit tests for {@link JaegerGrpcCollectorHandler}
@@ -40,7 +57,15 @@ public class JaegerGrpcCollectorHandlerTest {
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
+  private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private long startTime = System.currentTimeMillis();
+
+  // Derived RED metrics related.
+  private final String PREPROCESSED_APPLICATION_TAG_VALUE = "preprocessedApplication";
+  private final String PREPROCESSED_SERVICE_TAG_VALUE = "preprocessedService";
+  private final String PREPROCESSED_CLUSTER_TAG_VALUE = "preprocessedCluster";
+  private final String PREPROCESSED_SHARD_TAG_VALUE = "preprocessedShard";
+  private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
 
   @Test
   public void testJaegerGrpcCollector() throws Exception {
@@ -824,5 +849,120 @@ public class JaegerGrpcCollectorHandlerTest {
     handler.postSpans(batchesSourceAsProcessTagHostName, streamObserver);
 
     verify(mockTraceHandler, mockTraceLogsHandler);
+  }
+
+  /**
+   * Test for derived metrics emitted from Jaeger trace listeners. Derived metrics should report
+   * tag values post applying preprocessing rules to the span.
+   */
+  @Test
+  public void testJaegerPreprocessedDerivedMetrics() throws Exception {
+    reset(mockTraceHandler, mockWavefrontSender);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(4000)
+        .setName("HTTP GET")
+        .setSource(PREPROCESSED_SOURCE_VALUE)
+        .setSpanId("00000000-0000-0000-0000-00000012d687")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("service", PREPROCESSED_SERVICE_TAG_VALUE),
+            new Annotation("application", PREPROCESSED_APPLICATION_TAG_VALUE),
+            new Annotation("cluster", PREPROCESSED_CLUSTER_TAG_VALUE),
+            new Annotation("shard", PREPROCESSED_SHARD_TAG_VALUE)))
+        .build());
+    expectLastCall();
+
+    Capture<HashMap<String, String>> tagsCapture = EasyMock.newCapture();
+    mockWavefrontSender.sendMetric(eq(HEART_BEAT_METRIC), eq(1.0), anyLong(),
+        eq(PREPROCESSED_SOURCE_VALUE), EasyMock.capture(tagsCapture));
+    expectLastCall().anyTimes();
+
+    replay(mockTraceHandler, mockWavefrontSender);
+
+    Supplier<ReportableEntityPreprocessor> preprocessorSupplier = () -> {
+      ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
+      PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
+          null);
+      preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer(APPLICATION_TAG_KEY,
+          "^Jaeger.*", PREPROCESSED_APPLICATION_TAG_VALUE, null, null, false, x -> true,
+          preprocessorRuleMetrics));
+      preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer(SERVICE_TAG_KEY,
+          "^test.*", PREPROCESSED_SERVICE_TAG_VALUE, null, null, false, x -> true,
+          preprocessorRuleMetrics));
+      preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer("sourceName",
+          "^jaeger.*", PREPROCESSED_SOURCE_VALUE, null, null, false, x -> true,
+          preprocessorRuleMetrics));
+      preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer(CLUSTER_TAG_KEY,
+          "^none.*", PREPROCESSED_CLUSTER_TAG_VALUE, null, null, false, x -> true,
+          preprocessorRuleMetrics));
+      preprocessor.forSpan().addTransformer(new SpanReplaceRegexTransformer(SHARD_TAG_KEY,
+          "^none.*", PREPROCESSED_SHARD_TAG_VALUE, null, null, false, x -> true,
+          preprocessorRuleMetrics));
+      return preprocessor;
+    };
+
+    JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876", mockTraceHandler,
+        mockTraceLogsHandler, mockWavefrontSender, () -> false, () -> false, preprocessorSupplier,
+        new SpanSampler(new RateSampler(1.0D), false), null, null);
+
+    Model.KeyValue ipTag = Model.KeyValue.newBuilder().
+        setKey("ip").
+        setVStr("10.0.0.1").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
+    buffer.putLong(1234567890L);
+    buffer.putLong(1234567890123L);
+    ByteString traceId = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(2345678L);
+    ByteString span1Id = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(1234567L);
+    ByteString span2Id = ByteString.copyFrom(buffer.array());
+
+    Model.Span span2 = Model.Span.newBuilder().
+        setTraceId(traceId).
+        setSpanId(span2Id).
+        setDuration(Duration.newBuilder().setSeconds(4L).build()).
+        setOperationName("HTTP GET").
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Batch testBatch = Model.Batch.newBuilder().
+        setProcess(Model.Process.newBuilder().setServiceName("testService").addTags(ipTag).build()).
+        addAllSpans(ImmutableList.of(span2)).
+        build();
+
+    Collector.PostSpansRequest batches =
+        Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
+
+    handler.postSpans(batches, new StreamObserver<Collector.PostSpansResponse>() {
+      @Override
+      public void onNext(Collector.PostSpansResponse postSpansResponse) {
+      }
+
+      @Override
+      public void onError(Throwable throwable) {
+      }
+
+      @Override
+      public void onCompleted() {
+      }
+    });
+    handler.run();
+
+    verifyWithTimeout(500, mockTraceHandler, mockWavefrontSender);
+    HashMap<String, String> tagsReturned = tagsCapture.getValue();
+    assertEquals(PREPROCESSED_APPLICATION_TAG_VALUE, tagsReturned.get(APPLICATION_TAG_KEY));
+    assertEquals(PREPROCESSED_SERVICE_TAG_VALUE, tagsReturned.get(SERVICE_TAG_KEY));
+    assertEquals(PREPROCESSED_CLUSTER_TAG_VALUE, tagsReturned.get(CLUSTER_TAG_KEY));
+    assertEquals(PREPROCESSED_SHARD_TAG_VALUE, tagsReturned.get(SHARD_TAG_KEY));
   }
 }
