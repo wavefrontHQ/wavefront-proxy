@@ -24,13 +24,13 @@ public class SpanForceLowercaseTransformer implements Function<Span, Span> {
   private final Pattern compiledMatchPattern;
   private final boolean firstMatchOnly;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<Span> v2Predicate;
 
 
   public SpanForceLowercaseTransformer(final String scope,
                                        @Nullable final String patternMatch,
                                        final boolean firstMatchOnly,
-                                       @Nullable final Predicate v2Predicate,
+                                       @Nullable final Predicate<Span> v2Predicate,
                                        final PreprocessorRuleMetrics ruleMetrics) {
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");

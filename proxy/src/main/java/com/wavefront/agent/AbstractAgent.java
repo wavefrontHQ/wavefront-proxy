@@ -14,8 +14,8 @@ import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.InteractivePreprocessorTester;
-import com.wavefront.agent.preprocessor.PointLineBlacklistRegexFilter;
-import com.wavefront.agent.preprocessor.PointLineWhitelistRegexFilter;
+import com.wavefront.agent.preprocessor.LineBasedBlockFilter;
+import com.wavefront.agent.preprocessor.LineBasedAllowFilter;
 import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.queueing.QueueExporter;
@@ -96,9 +96,8 @@ public abstract class AbstractAgent {
   public AbstractAgent() {
   }
 
-  private void addPreprocessorFilters(String ports, String whitelist,
-                                      String blacklist) {
-    if (ports != null && (whitelist != null || blacklist != null)) {
+  private void addPreprocessorFilters(String ports, String allowList, String blockList) {
+    if (ports != null && (allowList != null || blockList != null)) {
       for (String strPort : Splitter.on(",").omitEmptyStrings().trimResults().split(ports)) {
         PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
             Metrics.newCounter(new TaggedMetricName("validationRegex", "points-rejected",
@@ -108,13 +107,13 @@ public abstract class AbstractAgent {
             Metrics.newCounter(new TaggedMetricName("validationRegex", "points-checked",
                 "port", strPort))
         );
-        if (blacklist != null) {
+        if (blockList != null) {
           preprocessors.getSystemPreprocessor(strPort).forPointLine().addFilter(
-              new PointLineBlacklistRegexFilter(blacklist, ruleMetrics));
+              new LineBasedBlockFilter(blockList, ruleMetrics));
         }
-        if (whitelist != null) {
+        if (allowList != null) {
           preprocessors.getSystemPreprocessor(strPort).forPointLine().addFilter(
-              new PointLineWhitelistRegexFilter(whitelist, ruleMetrics));
+              new LineBasedAllowFilter(allowList, ruleMetrics));
         }
       }
     }
@@ -150,20 +149,19 @@ public abstract class AbstractAgent {
       logger.info("Preprocessor configuration loaded from " + configFileName);
     }
 
-    // convert blacklist/whitelist fields to filters for full backwards compatibility.
-    // blacklistRegex and whitelistRegex are applied to pushListenerPorts,
-    // graphitePorts and picklePorts
+    // convert block/allow list fields to filters for full backwards compatibility.
+    // "block" and "allow" regexes are applied to pushListenerPorts, graphitePorts and picklePorts
     String allPorts = StringUtils.join(new String[]{
         ObjectUtils.firstNonNull(proxyConfig.getPushListenerPorts(), ""),
         ObjectUtils.firstNonNull(proxyConfig.getGraphitePorts(), ""),
         ObjectUtils.firstNonNull(proxyConfig.getPicklePorts(), ""),
         ObjectUtils.firstNonNull(proxyConfig.getTraceListenerPorts(), "")
     }, ",");
-    addPreprocessorFilters(allPorts, proxyConfig.getWhitelistRegex(),
-        proxyConfig.getBlacklistRegex());
-    // opentsdbBlacklistRegex and opentsdbWhitelistRegex are applied to opentsdbPorts only
-    addPreprocessorFilters(proxyConfig.getOpentsdbPorts(), proxyConfig.getOpentsdbWhitelistRegex(),
-        proxyConfig.getOpentsdbBlacklistRegex());
+    addPreprocessorFilters(allPorts, proxyConfig.getAllowRegex(),
+        proxyConfig.getBlockRegex());
+    // opentsdb block/allow lists are applied to opentsdbPorts only
+    addPreprocessorFilters(proxyConfig.getOpentsdbPorts(), proxyConfig.getOpentsdbAllowRegex(),
+        proxyConfig.getOpentsdbBlockRegex());
   }
 
   // Returns null on any exception, and logs the exception.

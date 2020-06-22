@@ -20,12 +20,12 @@ public class SpanAddAnnotationTransformer implements Function<Span, Span> {
   protected final String key;
   protected final String value;
   protected final PreprocessorRuleMetrics ruleMetrics;
-  protected final Predicate v2Predicate;
+  protected final Predicate<Span> v2Predicate;
 
 
   public SpanAddAnnotationTransformer(final String key,
                                       final String value,
-                                      @Nullable final Predicate v2Predicate,
+                                      @Nullable final Predicate<Span> v2Predicate,
                                       final PreprocessorRuleMetrics ruleMetrics) {
     this.key = Preconditions.checkNotNull(key, "[key] can't be null");
     this.value = Preconditions.checkNotNull(value, "[value] can't be null");

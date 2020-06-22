@@ -16,25 +16,25 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Only allow span annotations that match the whitelist.
+ * Only allow span annotations that match the allowed list.
  *
  * @author vasily@wavefront.com
  */
-public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> {
+public class SpanAllowAnnotationTransformer implements Function<Span, Span> {
   private static final Set<String> SYSTEM_TAGS = ImmutableSet.of("service", "application",
       "cluster", "shard");
 
-  private final Map<String, Pattern> whitelistedKeys;
+  private final Map<String, Pattern> allowedKeys;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<Span> v2Predicate;
 
 
-  SpanWhitelistAnnotationTransformer(final Map<String, String> keys,
-                                     @Nullable final Predicate v2Predicate,
-                                     final PreprocessorRuleMetrics ruleMetrics) {
-    this.whitelistedKeys = new HashMap<>(keys.size() + SYSTEM_TAGS.size());
-    SYSTEM_TAGS.forEach(x -> whitelistedKeys.put(x, null));
-    keys.forEach((k, v) -> whitelistedKeys.put(k, v == null ? null : Pattern.compile(v)));
+  SpanAllowAnnotationTransformer(final Map<String, String> keys,
+                                 @Nullable final Predicate<Span> v2Predicate,
+                                 final PreprocessorRuleMetrics ruleMetrics) {
+    this.allowedKeys = new HashMap<>(keys.size() + SYSTEM_TAGS.size());
+    SYSTEM_TAGS.forEach(x -> allowedKeys.put(x, null));
+    keys.forEach((k, v) -> allowedKeys.put(k, v == null ? null : Pattern.compile(v)));
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
     this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
@@ -49,8 +49,8 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
       if (!v2Predicate.test(span)) return span;
 
       List<Annotation> annotations = span.getAnnotations().stream().
-          filter(x -> whitelistedKeys.containsKey(x.getKey())).
-          filter(x -> isPatternNullOrMatches(whitelistedKeys.get(x.getKey()), x.getValue())).
+          filter(x -> allowedKeys.containsKey(x.getKey())).
+          filter(x -> isPatternNullOrMatches(allowedKeys.get(x.getKey()), x.getValue())).
           collect(Collectors.toList());
       if (annotations.size() < span.getAnnotations().size()) {
         span.setAnnotations(annotations);
@@ -72,21 +72,21 @@ public class SpanWhitelistAnnotationTransformer implements Function<Span, Span> 
    * @param ruleMap     yaml map
    * @param v2Predicate the v2 predicate
    * @param ruleMetrics metrics container
-   * @return SpanWhitelistAnnotationTransformer instance
+   * @return SpanAllowAnnotationTransformer instance
    */
-  public static SpanWhitelistAnnotationTransformer create(Map<String, Object> ruleMap,
-                                                          @Nullable final Predicate v2Predicate,
-                                                          final PreprocessorRuleMetrics ruleMetrics) {
-    Object keys = ruleMap.get("whitelist");
+  public static SpanAllowAnnotationTransformer create(Map<String, Object> ruleMap,
+                                                      @Nullable final Predicate<Span> v2Predicate,
+                                                      final PreprocessorRuleMetrics ruleMetrics) {
+    Object keys = ruleMap.get("allow");
     if (keys instanceof Map) {
       //noinspection unchecked
-      return new SpanWhitelistAnnotationTransformer((Map<String, String>) keys, v2Predicate, ruleMetrics);
+      return new SpanAllowAnnotationTransformer((Map<String, String>) keys, v2Predicate, ruleMetrics);
     } else if (keys instanceof List) {
       Map<String, String> map = new HashMap<>();
       //noinspection unchecked
       ((List<String>) keys).forEach(x -> map.put(x, null));
-      return new SpanWhitelistAnnotationTransformer(map, null, ruleMetrics);
+      return new SpanAllowAnnotationTransformer(map, null, ruleMetrics);
     }
-    throw new IllegalArgumentException("[whitelist] is not a list or a map");
+    throw new IllegalArgumentException("[allow] is not a list or a map");
   }
 }

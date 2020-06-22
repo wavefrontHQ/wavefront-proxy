@@ -213,139 +213,139 @@
 
 
 
-    # test blacklistRegex
+    # test block
 
-    # test blacklistRegex: missing parameters
+    # test block: missing parameters
 
     # missing scope
-    - rule    : test-blacklistRegex-1
-      action  : blacklistRegex
+    - rule    : test-block-1
+      action  : block
       match   : "foo\\..*"
 
     # missing match
-    - rule    : test-blacklistRegex-2
-      action  : blacklistRegex
+    - rule    : test-block-2
+      action  : block
       scope   : pointLine
 
     # missing match
-    - rule    : test-blacklistRegex-3
-      action  : blacklistRegex
+    - rule    : test-block-3
+      action  : block
       scope   : metricName
 
     # null match
-    - rule    : test-blacklistRegex-4
-      action  : blacklistRegex
+    - rule    : test-block-4
+      action  : block
       scope   : pointLine
       match   :
 
     # empty match
-    - rule    : test-blacklistRegex-5
-      action  : blacklistRegex
+    - rule    : test-block-5
+      action  : block
       scope   : pointLine
       match   : ""
 
-    # test blacklistRegex: non-applicable parameters
+    # test block: non-applicable parameters
 
     # tag does not apply
-    - rule    : test-blacklistRegex-6
-      action  : blacklistRegex
+    - rule    : test-block-6
+      action  : block
       scope   : pointLine
       match   : "foo"
       tag     : tag
 
     # replace does not apply
-    - rule    : test-blacklistRegex-7
-      action  : blacklistRegex
+    - rule    : test-block-7
+      action  : block
       scope   : pointLine
       match   : "foo"
       replace : replace
 
     # search does not apply
-    - rule    : test-blacklistRegex-8
-      action  : blacklistRegex
+    - rule    : test-block-8
+      action  : block
       scope   : pointLine
       match   : "foo"
       search  : search
 
     # newtag does not apply
-    - rule    : test-blacklistRegex-9
-      action  : blacklistRegex
+    - rule    : test-block-9
+      action  : block
       scope   : pointLine
       match   : "foo"
       newtag  : newtag
 
     # value does not apply
-    - rule    : test-blacklistRegex-10
-      action  : blacklistRegex
+    - rule    : test-block-10
+      action  : block
       scope   : pointLine
       match   : "foo"
       value   : "value"
 
 
-    # test whitelistRegex
+    # test allow
 
-    # test whitelistRegex: missing parameters
+    # test allow: missing parameters
 
     # missing scope
-    - rule    : test-whitelistRegex-1
-      action  : whitelistRegex
+    - rule    : test-allow-1
+      action  : allow
       match   : "foo\\..*"
 
     # missing match
-    - rule    : test-whitelistRegex-2
-      action  : whitelistRegex
+    - rule    : test-allow-2
+      action  : allow
       scope   : pointLine
 
     # missing match
-    - rule    : test-whitelistRegex-3
-      action  : whitelistRegex
+    - rule    : test-allow-3
+      action  : allow
       scope   : metricName
 
     # null match
-    - rule    : test-whitelistRegex-4
-      action  : whitelistRegex
+    - rule    : test-allow-4
+      action  : allow
       scope   : pointLine
       match   :
 
     # empty match
-    - rule    : test-whitelistRegex-5
-      action  : whitelistRegex
+    - rule    : test-allow-5
+      action  : allow
       scope   : pointLine
       match   : ""
 
-    # test whitelistRegex: non-applicable parameters
+    # test allow: non-applicable parameters
 
     # tag does not apply
-    - rule    : test-whitelistRegex-6
-      action  : whitelistRegex
+    - rule    : test-allow-6
+      action  : allow
       scope   : pointLine
       match   : "foo"
       tag     : tag
 
     # replace does not apply
-    - rule    : test-whitelistRegex-7
-      action  : whitelistRegex
+    - rule    : test-allow-7
+      action  : allow
       scope   : pointLine
       match   : "foo"
       replace : replace
 
     # search does not apply
-    - rule    : test-whitelistRegex-8
-      action  : whitelistRegex
+    - rule    : test-allow-8
+      action  : allow
       scope   : pointLine
       match   : "foo"
       search  : search
 
     # newtag does not apply
-    - rule    : test-whitelistRegex-9
-      action  : whitelistRegex
+    - rule    : test-allow-9
+      action  : allow
       scope   : pointLine
       match   : "foo"
       newtag  : newtag
 
     # value does not apply
-    - rule    : test-whitelistRegex-10
-      action  : whitelistRegex
+    - rule    : test-allow-10
+      action  : allow
       scope   : pointLine
       match   : "foo"
       value   : "value"
@@ -892,7 +892,7 @@
 
     # Invalid v2 Predicate. Multiple top-level predicates.
     - rule : test-invalidV2Pred-1
-      action : spanWhitelistRegex
+      action : spanAllow
       if :
        all :
          - equals:
@@ -911,7 +911,7 @@
 
     # Invalid v2 Predicate due to Not specifying both v1 Predicates [scope, match].
     - rule : test-invalidV2Pred-2
-      action : spanWhitelistRegex
+      action : spanAllow
       scope : metricName
       if :
        all :
@@ -924,7 +924,7 @@
 
     # Invalid v2 Predicate due to Not specifying both v1 Predicates [scope, match].
     - rule : test-invalidV2Pred-3
-      action : spanBlacklistRegex
+      action : spanBlock
       match : "^prod$"
       if :
        all :
@@ -937,7 +937,7 @@
 
     # Invalid v2 Predicate due to Invalid scope.
     - rule : test-invalidV2Pred-4
-      action : spanWhitelistRegex
+      action : spanAllow
       scope : pointline
       if :
        all :
@@ -950,7 +950,7 @@
 
     # Invalid v2 Predicate due to blank value.
     - rule : test-invalidV2Pred-5
-      action : spanWhitelistRegex
+      action : spanAllow
       if :
         contains:
           scope: sourceName
@@ -958,14 +958,14 @@
 
     # Invalid v2 Predicate due to no scope.
     - rule : test-invalidV2Pred-6
-      action : spanWhitelistRegex
+      action : spanAllow
       if :
         equals:
           value: "val2"
 
     # Invalid v2 Predicate due to invalid comparison function.
     - rule : test-invalidV2Pred-7
-      action : whitelistRegex
+      action : allow
       if :
        invalidComparisonFunction:
          scope: key1
@@ -973,7 +973,7 @@
 
     # Invalid v2 Predicate due to invalid comparison function.
     - rule : test-invalidV2Pred-8
-      action : spanWhitelistRegex
+      action : spanAllow
       if :
        invalidComparisonFunction:
          scope: key1

@@ -27,14 +27,14 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
   @Nullable
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<ReportPoint> v2Predicate;
 
   public ReportPointReplaceRegexTransformer(final String scope,
                                             final String patternSearch,
                                             final String patternReplace,
                                             @Nullable final String patternMatch,
                                             @Nullable final Integer maxIterations,
-                                            @Nullable final Predicate v2Predicate,
+                                            @Nullable final Predicate<ReportPoint> v2Predicate,
                                             final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
     Preconditions.checkArgument(!patternSearch.isEmpty(), "[search] can't be blank");

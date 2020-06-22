@@ -29,7 +29,7 @@ public class SpanReplaceRegexTransformer implements Function<Span, Span> {
   private final Pattern compiledMatchPattern;
   private final boolean firstMatchOnly;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<Span> v2Predicate;
 
   public SpanReplaceRegexTransformer(final String scope,
                                      final String patternSearch,
@@ -37,7 +37,7 @@ public class SpanReplaceRegexTransformer implements Function<Span, Span> {
                                      @Nullable final String patternMatch,
                                      @Nullable final Integer maxIterations,
                                      final boolean firstMatchOnly,
-                                     @Nullable final Predicate v2Predicate,
+                                     @Nullable final Predicate<Span> v2Predicate,
                                      final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledSearchPattern = Pattern.compile(Preconditions.checkNotNull(patternSearch, "[search] can't be null"));
     Preconditions.checkArgument(!patternSearch.isEmpty(), "[search] can't be blank");

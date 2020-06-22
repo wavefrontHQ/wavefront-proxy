@@ -20,7 +20,7 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
   private final LengthLimitActionType actionSubtype;
   @Nullable
   private final Pattern compiledMatchPattern;
-  private final Predicate v2Predicate;
+  private final Predicate<ReportPoint> v2Predicate;
 
   private final PreprocessorRuleMetrics ruleMetrics;
 
@@ -28,7 +28,7 @@ public class ReportPointLimitLengthTransformer implements Function<ReportPoint, 
                                            final int maxLength,
                                            @Nonnull final LengthLimitActionType actionSubtype,
                                            @Nullable final String patternMatch,
-                                           @Nullable final Predicate v2Predicate,
+                                           @Nullable final Predicate<ReportPoint> v2Predicate,
                                            @Nonnull final PreprocessorRuleMetrics ruleMetrics) {
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
