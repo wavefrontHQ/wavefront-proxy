@@ -13,26 +13,23 @@ import wavefront.report.Annotation;
 import wavefront.report.Span;
 
 /**
- * Blacklist regex filter. Rejects a span if a specified component (name, source, or
+ * "Allow list" regex filter. Rejects a span if a specified component (name, source, or
  * annotation value, depending on the "scope" parameter) doesn't match the regex.
  *
  * @author vasily@wavefront.com
  */
-public class SpanBlacklistRegexFilter implements AnnotatedPredicate<Span> {
+public class SpanAllowFilter implements AnnotatedPredicate<Span> {
 
-  @Nullable
   private final String scope;
-  @Nullable
   private final Pattern compiledPattern;
-  private final Predicate v2Predicate;
+  private final PreprocessorRuleMetrics ruleMetrics;
+  private final Predicate<Span> v2Predicate;
   private boolean isV1PredicatePresent = false;
 
-  private final PreprocessorRuleMetrics ruleMetrics;
-
-  public SpanBlacklistRegexFilter(@Nullable final String scope,
-                                  @Nullable final String patternMatch,
-                                  @Nullable final Predicate v2Predicate,
-                                  @Nonnull final PreprocessorRuleMetrics ruleMetrics) {
+  public SpanAllowFilter(final String scope,
+                         final String patternMatch,
+                         @Nullable final Predicate<Span> v2Predicate,
+                         final PreprocessorRuleMetrics ruleMetrics) {
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
     this.ruleMetrics = ruleMetrics;
     // If v2 predicate is null, v1 predicate becomes mandatory.
@@ -52,7 +49,7 @@ public class SpanBlacklistRegexFilter implements AnnotatedPredicate<Span> {
         isV1PredicatePresent = true;
       } else if (!bothV1PredicatesNull) {
         // Specifying any one of the v1Predicates and leaving it blank in considered invalid.
-        Preconditions.checkArgument(false, "[match], [scope] for rule should both be valid non " +
+        throw new IllegalArgumentException("[match], [scope] for rule should both be valid non " +
             "null/blank values or both null.");
       }
     }
@@ -68,25 +65,25 @@ public class SpanBlacklistRegexFilter implements AnnotatedPredicate<Span> {
   }
 
   @Override
-  public boolean test(@Nonnull Span span, @Nullable String[] messageHolder) {
+  public boolean test(@Nonnull Span span, String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
     try {
-      if (!v2Predicate.test(span)) return true;
+      if (!v2Predicate.test(span)) return false;
       if (!isV1PredicatePresent) {
         ruleMetrics.incrementRuleAppliedCounter();
-        return false;
+        return true;
       }
 
       // Evaluate v1 predicate if present.
       switch (scope) {
         case "spanName":
-          if (compiledPattern.matcher(span.getName()).matches()) {
+          if (!compiledPattern.matcher(span.getName()).matches()) {
             ruleMetrics.incrementRuleAppliedCounter();
             return false;
           }
           break;
         case "sourceName":
-          if (compiledPattern.matcher(span.getSource()).matches()) {
+          if (!compiledPattern.matcher(span.getSource()).matches()) {
             ruleMetrics.incrementRuleAppliedCounter();
             return false;
           }
@@ -95,10 +92,11 @@ public class SpanBlacklistRegexFilter implements AnnotatedPredicate<Span> {
           for (Annotation annotation : span.getAnnotations()) {
             if (annotation.getKey().equals(scope) &&
                 compiledPattern.matcher(annotation.getValue()).matches()) {
-              ruleMetrics.incrementRuleAppliedCounter();
-              return false;
+              return true;
             }
           }
+          ruleMetrics.incrementRuleAppliedCounter();
+          return false;
       }
       return true;
     } finally {

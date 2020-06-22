@@ -22,13 +22,13 @@ public class ReportPointRenameTagTransformer implements Function<ReportPoint, Re
   @Nullable
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<ReportPoint> v2Predicate;
 
 
   public ReportPointRenameTagTransformer(final String tag,
                                          final String newTag,
                                          @Nullable final String patternMatch,
-                                         @Nullable final Predicate v2Predicate,
+                                         @Nullable final Predicate<ReportPoint> v2Predicate,
                                          final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.newTag = Preconditions.checkNotNull(newTag, "[newtag] can't be null");

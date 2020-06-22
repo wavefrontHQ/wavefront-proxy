@@ -5,7 +5,7 @@
   <parent>
     <groupId>com.wavefront</groupId>
     <artifactId>wavefront</artifactId>
-    <version>9.0-RC1-SNAPSHOT</version>
+    <version>9.0-RC4-SNAPSHOT</version>
   </parent>
 
   <properties>
@@ -127,6 +127,11 @@
     <dependency>
       <groupId>com.yammer.metrics</groupId>
       <artifactId>metrics-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>4.7.2</version>
     </dependency>
     <dependency>
       <groupId>javax.annotation</groupId>
@@ -289,6 +294,10 @@
       <artifactId>jafama</artifactId>
       <version>2.1.0</version>
     </dependency>
+    <dependency>
+      <groupId>com.rubiconproject.oss</groupId>
+      <artifactId>jchronic</artifactId>
+    </dependency>
   </dependencies>
 
   <build>
@@ -352,6 +361,7 @@
               <excludes>
                 <exclude>com.tdunning.math.*</exclude>
                 <exclude>org.logstash.*</exclude>
+                <exclude>parser.*</exclude>
               </excludes>
             </configuration>
           </execution>
@@ -389,6 +399,19 @@
                 <rule>
                   <element>PACKAGE</element>
                   <includes>
+                    <include>com.wavefront.agent.preprocessor.predicate</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.9</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <rule>
+                  <element>PACKAGE</element>
+                  <includes>
                     <include>com.wavefront.agent.histogram</include>
                   </includes>
                   <limits>
@@ -401,6 +424,7 @@
                 </rule>
               </rules>
               <excludes>
+                <exclude>parser/**</exclude>
                 <exclude>com/tdunning/**</exclude>
                 <exclude>org/logstash/**</exclude>
               </excludes>
@@ -414,6 +438,7 @@
             </goals>
             <configuration>
               <excludes>
+                <exclude>parser/**</exclude>
                 <exclude>com/tdunning/**</exclude>
                 <exclude>org/logstash/**</exclude>
               </excludes>
@@ -461,6 +486,25 @@
           <source>${java.version}</source>
           <target>${java.version}</target>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-maven-plugin</artifactId>
+        <version>4.7.1</version>
+        <configuration>
+          <outputDirectory>target/generated-sources/antlr4/parser/predicate</outputDirectory>
+          <sourceDirectory>${project.basedir}/src/main/antlr4</sourceDirectory>
+          <arguments>
+            <argument>-visitor</argument>
+          </arguments>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>antlr4</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>

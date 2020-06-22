@@ -19,11 +19,11 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
   protected final String tag;
   protected final String value;
   protected final PreprocessorRuleMetrics ruleMetrics;
-  protected final Predicate v2Predicate;
+  protected final Predicate<ReportPoint> v2Predicate;
 
   public ReportPointAddTagTransformer(final String tag,
                                       final String value,
-                                      @Nullable final Predicate v2Predicate,
+                                      @Nullable final Predicate<ReportPoint> v2Predicate,
                                       final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.value = Preconditions.checkNotNull(value, "[value] can't be null");

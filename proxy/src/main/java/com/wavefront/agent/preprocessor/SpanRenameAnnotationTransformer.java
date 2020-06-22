@@ -29,14 +29,14 @@ public class SpanRenameAnnotationTransformer implements Function<Span, Span> {
   private final Pattern compiledPattern;
   private final boolean firstMatchOnly;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<Span> v2Predicate;
 
 
   public SpanRenameAnnotationTransformer(final String key,
                                          final String newKey,
                                          @Nullable final String patternMatch,
                                          final boolean firstMatchOnly,
-                                         @Nullable final Predicate v2Predicate,
+                                         @Nullable final Predicate<Span> v2Predicate,
                                          final PreprocessorRuleMetrics ruleMetrics) {
     this.key = Preconditions.checkNotNull(key, "[key] can't be null");
     this.newKey = Preconditions.checkNotNull(newKey, "[newkey] can't be null");

@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
  *
  * Created by Vasily on 9/13/16.
  */
-public class PointLineReplaceRegexTransformer implements Function<String, String> {
+public class LineBasedReplaceRegexTransformer implements Function<String, String> {
 
   private final String patternReplace;
   private final Pattern compiledSearchPattern;
@@ -22,7 +22,7 @@ public class PointLineReplaceRegexTransformer implements Function<String, String
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  public PointLineReplaceRegexTransformer(final String patternSearch,
+  public LineBasedReplaceRegexTransformer(final String patternSearch,
                                           final String patternReplace,
                                           @Nullable final String patternMatch,
                                           @Nullable final Integer maxIterations,
