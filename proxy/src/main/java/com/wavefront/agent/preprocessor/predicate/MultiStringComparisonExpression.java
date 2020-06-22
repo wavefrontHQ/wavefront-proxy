@@ -13,6 +13,8 @@ import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 
+import static com.wavefront.agent.preprocessor.predicate.EvalExpression.asDouble;
+
 /**
  * An eval expression that compares a collection of strings
  *
@@ -21,15 +23,16 @@ import wavefront.report.Span;
 public class MultiStringComparisonExpression implements EvalExpression {
 
   private final String scope;
-  private final StringExpression argument;
-  private final boolean all;
+  private final StringExpression arg;
+  private final PredicateMatchOp matchOp;
   private final BiFunction<String, String, Boolean> cmp;
 
-  private MultiStringComparisonExpression(String scope, StringExpression argument, boolean all,
-                                         BiFunction<String, String, Boolean> cmp) {
+  private MultiStringComparisonExpression(String scope, StringExpression arg,
+                                          PredicateMatchOp matchOp,
+                                          BiFunction<String, String, Boolean> cmp) {
     this.scope = scope;
-    this.argument = argument;
-    this.all = all;
+    this.arg = arg;
+    this.matchOp = matchOp;
     this.cmp = cmp;
   }
 
@@ -62,40 +65,49 @@ public class MultiStringComparisonExpression implements EvalExpression {
       throw new IllegalArgumentException("Unknown object type: " +
           entity.getClass().getCanonicalName());
     }
-    return EvalExpression.asDouble(all ?
-        annotations.stream().allMatch(x -> cmp.apply(x, argument.getString(entity))) :
-        annotations.stream().anyMatch(x -> cmp.apply(x, argument.getString(entity))));
+    switch (matchOp) {
+      case ALL:
+        return asDouble(annotations.stream().allMatch(x -> cmp.apply(x, arg.getString(entity))));
+      case ANY:
+        return asDouble(annotations.stream().anyMatch(x -> cmp.apply(x, arg.getString(entity))));
+      case NONE:
+        return asDouble(annotations.stream().noneMatch(x -> cmp.apply(x, arg.getString(entity))));
+      default :
+        throw new IllegalArgumentException("Unknown matchOp type: " + matchOp);
+    }
   }
 
-  public static EvalExpression of(String scope, StringExpression argument, boolean all, String op) {
+  public static EvalExpression of(String scope, StringExpression argument,
+                                  PredicateMatchOp matchOp, String op) {
     switch (op) {
       case "=":
       case "equals":
-        return new MultiStringComparisonExpression(scope, argument, all, String::equals);
+        return new MultiStringComparisonExpression(scope, argument, matchOp, String::equals);
       case "startsWith":
-        return new MultiStringComparisonExpression(scope, argument, all, String::startsWith);
+        return new MultiStringComparisonExpression(scope, argument, matchOp, String::startsWith);
       case "endsWith":
-        return new MultiStringComparisonExpression(scope, argument, all, String::endsWith);
+        return new MultiStringComparisonExpression(scope, argument, matchOp, String::endsWith);
       case "contains":
-        return new MultiStringComparisonExpression(scope, argument, all, String::contains);
+        return new MultiStringComparisonExpression(scope, argument, matchOp, String::contains);
       case "matches":
       case "regexMatch":
-        return new MultiStringComparisonExpression(scope, argument, all,
+        return new MultiStringComparisonExpression(scope, argument, matchOp,
             new CachingPatternMatcher());
       case "equalsIgnoreCase":
-        return new MultiStringComparisonExpression(scope, argument, all, String::equalsIgnoreCase);
+        return new MultiStringComparisonExpression(scope, argument, matchOp,
+            String::equalsIgnoreCase);
       case "startsWithIgnoreCase":
-        return new MultiStringComparisonExpression(scope, argument, all,
+        return new MultiStringComparisonExpression(scope, argument, matchOp,
             StringUtils::startsWithIgnoreCase);
       case "endsWithIgnoreCase":
-        return new MultiStringComparisonExpression(scope, argument, all,
+        return new MultiStringComparisonExpression(scope, argument, matchOp,
             StringUtils::endsWithIgnoreCase);
       case "containsIgnoreCase":
-        return new MultiStringComparisonExpression(scope, argument, all,
+        return new MultiStringComparisonExpression(scope, argument, matchOp,
             StringUtils::containsIgnoreCase);
       case "matchesIgnoreCase":
       case "regexMatchIgnoreCase":
-        return new MultiStringComparisonExpression(scope, argument, all,
+        return new MultiStringComparisonExpression(scope, argument, matchOp,
             new CachingPatternMatcher(Pattern.CASE_INSENSITIVE));
       default:
         throw new IllegalArgumentException(op + " is not handled");

@@ -19,18 +19,19 @@ evalExpression
   | evalExpression comparisonOperator evalExpression
   | evalExpression op=('or'|'and'|'OR'|'AND') evalExpression
   | not=('not'|'NOT') evalExpression
-  | placeholder multiModifier=('any'|'ANY'|'all'|'ALL') stringComparisonOp stringExpression
+  | placeholder multiModifier=('any'|'ANY'|'all'|'ALL'|'none'|'NONE') stringComparisonOp stringExpression
   | stringExpression stringComparisonOp stringExpression
   | stringExpression in='in' '(' stringExpression (',' stringExpression)*')'
+  | stringExpression '.' stringEvalFunc
   | iff
   | parse
   | time
-  | length
-  | strHashCode
-  | strIsEmpty
-  | strIsNotEmpty
-  | strIsBlank
-  | strIsNotBlank
+  | evalLength
+  | evalHashCode
+  | evalIsEmpty
+  | evalIsNotEmpty
+  | evalIsBlank
+  | evalIsNotBlank
   | random
   | number
   | '$' propertyAccessor
@@ -41,34 +42,34 @@ iff
   ;
 
 parse
-  : 'parse' '(' stringExpression ',' evalExpression ')'
+  : 'parse' '(' stringExpression (',' evalExpression)? ')'
   ;
 
 time
   : 'time' '(' stringExpression (',' stringExpression)? ')'
   ;
 
-length
+evalLength
   : 'length' '(' stringExpression ')'
   ;
 
-strHashCode
+evalHashCode
   : 'hashCode' '(' stringExpression ')'
   ;
 
-strIsEmpty
+evalIsEmpty
   : 'isEmpty' '(' stringExpression ')'
   ;
 
-strIsNotEmpty
+evalIsNotEmpty
   : 'isNotEmpty' '(' stringExpression ')'
   ;
 
-strIsBlank
+evalIsBlank
   : 'isBlank' '(' stringExpression ')'
   ;
 
-strIsNotBlank
+evalIsNotBlank
   : 'isNotBlank' '(' stringExpression ')'
   ;
 
@@ -79,6 +80,7 @@ random
 propertyAccessor
   : 'value'
   | 'timestamp'
+  | 'startMillis'
   | 'duration'
   ;
 
@@ -91,20 +93,30 @@ stringExpression
   ;
 
 stringFunc
-  : substring
+  : strSubstring
   | strLeft
   | strRight
-  | replace
-  | replaceAll
-  | toLowerCase
-  | toUpperCase
+  | strReplace
+  | strReplaceAll
+  | strToLowerCase
+  | strToUpperCase
+  ;
+
+stringEvalFunc
+  : strLength
+  | strHashCode
+  | strIsEmpty
+  | strIsNotEmpty
+  | strIsBlank
+  | strIsNotBlank
+  | strParse
   ;
 
 strIff
   : 'if' '(' evalExpression ',' stringExpression ',' stringExpression ')'
   ;
 
-substring
+strSubstring
   : 'substring' '(' evalExpression (',' evalExpression)? ')'
   ;
 
@@ -116,20 +128,48 @@ strRight
   : 'right' '(' evalExpression ')'
   ;
 
-replace
+strReplace
   : 'replace' '(' stringExpression ',' stringExpression ')'
   ;
 
-replaceAll
+strReplaceAll
   : 'replaceAll' '(' stringExpression ',' stringExpression ')'
   ;
 
-toLowerCase
+strToLowerCase
   : 'toLowerCase' '(' ')'
   ;
 
-toUpperCase
+strToUpperCase
   : 'toUpperCase' '(' ')'
+  ;
+
+strLength
+  : 'length' '(' ')'
+  ;
+
+strHashCode
+  : 'hashCode' '(' ')'
+  ;
+
+strIsEmpty
+  : 'isEmpty' '(' ')'
+  ;
+
+strIsNotEmpty
+  : 'isNotEmpty' '(' ')'
+  ;
+
+strIsBlank
+  : 'isBlank' '(' ')'
+  ;
+
+strIsNotBlank
+  : 'isNotBlank' '(' ')'
+  ;
+
+strParse
+  : 'parse' '(' (evalExpression)? ')'
   ;
 
 string

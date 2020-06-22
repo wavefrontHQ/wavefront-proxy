@@ -399,6 +399,19 @@
                 <rule>
                   <element>PACKAGE</element>
                   <includes>
+                    <include>com.wavefront.agent.preprocessor.predicate</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.9</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <rule>
+                  <element>PACKAGE</element>
+                  <includes>
                     <include>com.wavefront.agent.histogram</include>
                   </includes>
                   <limits>

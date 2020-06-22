@@ -53,9 +53,9 @@ public class ConditionVisitorImpl extends ConditionBaseVisitor<Expression> {
       String scope = firstNonNull(ctx.placeholder().Letters(),
           ctx.placeholder().Identifier()).getText();
       StringExpression argument = stringExpression(ctx.stringExpression(0));
-      boolean all = ctx.multiModifier.getText().equalsIgnoreCase("all");
       String op = ctx.stringComparisonOp().getText();
-      return MultiStringComparisonExpression.of(scope, argument, all, op);
+      return MultiStringComparisonExpression.of(scope, argument,
+          PredicateMatchOp.fromString(ctx.multiModifier.getText()), op);
     } else if (ctx.stringComparisonOp() != null) {
       StringExpression left = stringExpression(ctx.stringExpression(0));
       StringExpression right = stringExpression(ctx.stringExpression(1));
@@ -69,6 +69,33 @@ public class ConditionVisitorImpl extends ConditionBaseVisitor<Expression> {
           collect(Collectors.toList());
       return (EvalExpression) entity ->
           asDouble(branches.stream().anyMatch(x -> isTrue(x.getValue(entity))));
+    } else if (ctx.stringEvalFunc() != null) {
+      StringExpression input = stringExpression(ctx.stringExpression(0));
+      if (ctx.stringEvalFunc().strLength() != null) {
+        return (EvalExpression) entity -> input.getString(entity).length();
+      } else if (ctx.stringEvalFunc().strHashCode() != null) {
+        return (EvalExpression) entity -> murmurhash3_x86_32(input.getString(entity));
+      } else if (ctx.stringEvalFunc().strIsEmpty() != null) {
+        return (EvalExpression) entity -> asDouble(StringUtils.isEmpty(input.getString(entity)));
+      } else if (ctx.stringEvalFunc().strIsNotEmpty() != null) {
+        return (EvalExpression) entity -> asDouble(StringUtils.isNotEmpty(input.getString(entity)));
+      } else if (ctx.stringEvalFunc().strIsBlank() != null) {
+        return (EvalExpression) entity -> asDouble(StringUtils.isBlank(input.getString(entity)));
+      } else if (ctx.stringEvalFunc().strIsNotBlank() != null) {
+        return (EvalExpression) entity -> asDouble(StringUtils.isNotBlank(input.getString(entity)));
+      } else if (ctx.stringEvalFunc().strParse() != null) {
+        EvalExpression defaultExp = ctx.stringEvalFunc().strParse().evalExpression() == null ? x -> 0 :
+            eval(ctx.stringEvalFunc().strParse().evalExpression());
+        return (EvalExpression) entity -> {
+          try {
+            return Double.parseDouble(input.getString(entity));
+          } catch (NumberFormatException e) {
+            return defaultExp.getValue(entity);
+          }
+        };
+      } else {
+        throw new IllegalArgumentException("Unknown string eval function");
+      }
     } else if (ctx.propertyAccessor() != null) {
       switch (ctx.propertyAccessor().getText()) {
         case "value":
@@ -101,24 +128,24 @@ public class ConditionVisitorImpl extends ConditionBaseVisitor<Expression> {
       return (StringExpression) entity -> left.getString(entity) + right.getString(entity);
     } else if (ctx.stringFunc() != null) {
       StringExpression input = stringExpression(ctx.stringExpression(0));
-      if (ctx.stringFunc().replace() != null) {
+      if (ctx.stringFunc().strReplace() != null) {
         StringExpression search = stringExpression(ctx.stringFunc().
-            replace().stringExpression(0));
+            strReplace().stringExpression(0));
         StringExpression replacement = stringExpression(ctx.stringFunc().
-            replace().stringExpression(1));
+            strReplace().stringExpression(1));
         return (StringExpression) entity -> input.getString(entity).
             replace(search.getString(entity), replacement.getString(entity));
-      } else if (ctx.stringFunc().replaceAll() != null) {
+      } else if (ctx.stringFunc().strReplaceAll() != null) {
         StringExpression regex = stringExpression(ctx.stringFunc().
-            replaceAll().stringExpression(0));
+            strReplaceAll().stringExpression(0));
         StringExpression replacement = stringExpression(ctx.stringFunc().
-            replaceAll().stringExpression(1));
+            strReplaceAll().stringExpression(1));
         return (StringExpression) entity -> input.getString(entity).
             replaceAll(regex.getString(entity), replacement.getString(entity));
-      } else if (ctx.stringFunc().substring() != null) {
-        EvalExpression fromExp = eval(ctx.stringFunc().substring().evalExpression(0));
-        if (ctx.stringFunc().substring().evalExpression().size() > 1) {
-          EvalExpression toExp = eval(ctx.stringFunc().substring().evalExpression(1));
+      } else if (ctx.stringFunc().strSubstring() != null) {
+        EvalExpression fromExp = eval(ctx.stringFunc().strSubstring().evalExpression(0));
+        if (ctx.stringFunc().strSubstring().evalExpression().size() > 1) {
+          EvalExpression toExp = eval(ctx.stringFunc().strSubstring().evalExpression(1));
           return (StringExpression) entity -> input.getString(entity).
               substring((int) fromExp.getValue(entity), (int) toExp.getValue(entity));
         } else {
@@ -135,9 +162,9 @@ public class ConditionVisitorImpl extends ConditionBaseVisitor<Expression> {
           String str = input.getString(entity);
           return str.substring(str.length() - (int) index.getValue(entity));
         };
-      } else if (ctx.stringFunc().toLowerCase() != null) {
+      } else if (ctx.stringFunc().strToLowerCase() != null) {
         return (StringExpression) entity -> input.getString(entity).toLowerCase();
-      } else if (ctx.stringFunc().toUpperCase() != null) {
+      } else if (ctx.stringFunc().strToUpperCase() != null) {
         return (StringExpression) entity -> input.getString(entity).toUpperCase();
       } else {
         throw new IllegalArgumentException("Unknown string function");
@@ -168,12 +195,12 @@ public class ConditionVisitorImpl extends ConditionBaseVisitor<Expression> {
   @Override
   public Expression visitParse(ConditionParser.ParseContext ctx) {
     StringExpression strExp = stringExpression(ctx.stringExpression());
-    EvalExpression defaultValue = eval(ctx.evalExpression());
+    EvalExpression defaultExp = ctx.evalExpression() == null ? x -> 0 : eval(ctx.evalExpression());
     return (EvalExpression) entity -> {
       try {
         return Double.parseDouble(strExp.getString(entity));
       } catch (NumberFormatException e) {
-        return defaultValue.getValue(entity);
+        return defaultExp.getValue(entity);
       }
     };
   }
@@ -200,37 +227,37 @@ public class ConditionVisitorImpl extends ConditionBaseVisitor<Expression> {
   }
 
   @Override
-  public Expression visitLength(ConditionParser.LengthContext ctx) {
+  public Expression visitEvalLength(ConditionParser.EvalLengthContext ctx) {
     StringExpression exp = stringExpression(ctx.stringExpression());
     return (EvalExpression) entity -> exp.getString(entity).length();
   }
 
   @Override
-  public Expression visitStrHashCode(ConditionParser.StrHashCodeContext ctx) {
+  public Expression visitEvalHashCode(ConditionParser.EvalHashCodeContext ctx) {
     StringExpression exp = stringExpression(ctx.stringExpression());
     return (EvalExpression) entity -> murmurhash3_x86_32(exp.getString(entity));
   }
 
   @Override
-  public Expression visitStrIsEmpty(ConditionParser.StrIsEmptyContext ctx) {
+  public Expression visitEvalIsEmpty(ConditionParser.EvalIsEmptyContext ctx) {
     StringExpression exp = stringExpression(ctx.stringExpression());
     return (EvalExpression) entity -> asDouble(StringUtils.isEmpty(exp.getString(entity)));
   }
 
   @Override
-  public Expression visitStrIsNotEmpty(ConditionParser.StrIsNotEmptyContext ctx) {
+  public Expression visitEvalIsNotEmpty(ConditionParser.EvalIsNotEmptyContext ctx) {
     StringExpression exp = stringExpression(ctx.stringExpression());
     return (EvalExpression) entity -> asDouble(StringUtils.isNotEmpty(exp.getString(entity)));
   }
 
   @Override
-  public Expression visitStrIsBlank(ConditionParser.StrIsBlankContext ctx) {
+  public Expression visitEvalIsBlank(ConditionParser.EvalIsBlankContext ctx) {
     StringExpression exp = stringExpression(ctx.stringExpression());
     return (EvalExpression) entity -> asDouble(StringUtils.isBlank(exp.getString(entity)));
   }
 
   @Override
-  public Expression visitStrIsNotBlank(ConditionParser.StrIsNotBlankContext ctx) {
+  public Expression visitEvalIsNotBlank(ConditionParser.EvalIsNotBlankContext ctx) {
     StringExpression exp = stringExpression(ctx.stringExpression());
     return (EvalExpression) entity -> asDouble(StringUtils.isNotBlank(exp.getString(entity)));
   }

@@ -54,7 +54,7 @@ public abstract class PreprocessorUtil {
             default:
               substitution = reportPoint.getAnnotations().get(placeholders.group(1));
           }
-          placeholders.appendReplacement(result, firstNonNull(substitution, placeholders.group(0)));
+          placeholders.appendReplacement(result, firstNonNull(substitution, ""));
         }
       }
       placeholders.appendTail(result);
@@ -93,7 +93,7 @@ public abstract class PreprocessorUtil {
                   filter(a -> a.getKey().equals(placeholders.group(1))).
                   map(Annotation::getValue).findFirst().orElse(null);
           }
-          placeholders.appendReplacement(result, firstNonNull(substitution, placeholders.group(0)));
+          placeholders.appendReplacement(result, firstNonNull(substitution, ""));
         }
       }
       placeholders.appendTail(result);

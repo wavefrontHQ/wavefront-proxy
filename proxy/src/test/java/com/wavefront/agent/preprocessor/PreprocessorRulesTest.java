@@ -398,7 +398,7 @@ public class PreprocessorRulesTest {
         "{{foo}}-{{no_match}}-g{{sourceName}}-{{metricName}}-{{}}", null, null, null, metrics).apply(point);
     String expectedPoint11 =
         "\"prefix.s0me metric\" 10.0 1469751813 source=\"h0st\" \"foo\"=\"zaz\" " +
-            "\"qux\"=\"bzaz-{{no_match}}-gh0st-prefix.s0me metric-{{}}\"";
+            "\"qux\"=\"bzaz--gh0st-prefix.s0me metric-{{}}\"";
     assertEquals(expectedPoint11, referencePointToStringImpl(point));
 
   }
