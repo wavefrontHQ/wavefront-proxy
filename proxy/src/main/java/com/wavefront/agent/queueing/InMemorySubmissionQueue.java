@@ -154,9 +154,6 @@ public class InMemorySubmissionQueue<T extends DataSubmissionTask<T>> implements
     }
   }
 
-
-
-
   @Override
   public void close() {
     try {
