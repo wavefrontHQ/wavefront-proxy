@@ -133,11 +133,6 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelOption;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.codec.bytes.ByteArrayDecoder;
-import io.netty.handler.ssl.SslContext;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
@@ -906,7 +901,7 @@ public class PushAgent extends AbstractAgent {
   protected void startAdminListener(int port) {
     String strPort = String.valueOf(port);
     ChannelHandler channelHandler = new AdminPortUnificationHandler(tokenAuthenticator,
-        healthCheckManager, String.valueOf(port), proxyConfig.getAdminApiRemoteIpWhitelistRegex());
+        healthCheckManager, String.valueOf(port), proxyConfig.getAdminApiRemoteIpAllowRegex());
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(channelHandler, port,

@@ -21,7 +21,7 @@ public class ReportPointExtractTagIfNotExistsTransformer extends ReportPointExtr
                                                      final String patternReplace,
                                                      @Nullable final String replaceSource,
                                                      @Nullable final String patternMatch,
-                                                     @Nullable final Predicate v2Predicate,
+                                                     @Nullable final Predicate<ReportPoint> v2Predicate,
                                                      final PreprocessorRuleMetrics ruleMetrics) {
     super(tag, source, patternSearch, patternReplace, replaceSource, patternMatch, v2Predicate, ruleMetrics);
   }

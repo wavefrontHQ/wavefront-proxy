@@ -26,13 +26,13 @@ public class SpanDropAnnotationTransformer implements Function<Span, Span> {
   private final Pattern compiledValuePattern;
   private final boolean firstMatchOnly;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<Span> v2Predicate;
 
 
   public SpanDropAnnotationTransformer(final String key,
                                        @Nullable final String patternMatch,
                                        final boolean firstMatchOnly,
-                                       @Nullable final Predicate v2Predicate,
+                                       @Nullable final Predicate<Span> v2Predicate,
                                        final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledKeyPattern = Pattern.compile(Preconditions.checkNotNull(key, "[key] can't be null"));
     Preconditions.checkArgument(!key.isEmpty(), "[key] can't be blank");

@@ -54,7 +54,7 @@
     <Loggers>
         <!-- Uncomment AppenderRef to log blocked points to a file.
              Logger property level="WARN" logs only rejected points, level="INFO"
-             logs points filtered out by whitelist/blacklist rules as well -->
+             logs points filtered out by allow/block rules as well -->
         <AsyncLogger name="RawBlockedPoints" level="WARN" additivity="false">
             <!--
             <AppenderRef ref="BlockedPointsFile"/>

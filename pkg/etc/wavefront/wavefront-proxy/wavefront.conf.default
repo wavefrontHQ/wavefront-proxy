@@ -67,7 +67,7 @@ pushListenerPorts=2878
 #writeHttpJsonListenerPorts=4878
 
 ################################################# DATA PREPROCESSING ###################################################
-## Path to the optional config file with preprocessor rules (advanced regEx replacements and whitelist/blacklists)
+## Path to the optional config file with preprocessor rules (advanced regEx replacements and allow/block lists)
 #preprocessorConfigFile=/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml
 
 # When using the Wavefront or TSDB data formats, the proxy will automatically look for a tag named
@@ -81,9 +81,9 @@ customSourceTags=fqdn, hostname
 #prefix=production
 
 ## Regex pattern (Java) that input lines must match to be accepted. Use preprocessor rules for finer control.
-#whitelistRegex=^(production|stage).*
+#allow=^(production|stage).*
 ## Regex pattern (Java) that input lines must NOT match to be accepted. Use preprocessor rules for finer control.
-#blacklistRegex=^(qa|development|test).*
+#block=^(qa|development|test).*
 
 ## This setting defines the cut-off point for what is considered a valid timestamp for back-dated points.
 ## Default (and recommended) value is 8760 (1 year), so all the data points from more than 1 year ago will be rejected.
