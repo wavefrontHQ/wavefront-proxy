@@ -2,7 +2,6 @@ package com.wavefront.agent.queueing;
 
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.model.Message;
-import com.amazonaws.services.sqs.model.PurgeQueueRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
@@ -13,17 +12,12 @@ import com.wavefront.agent.data.DefaultEntityPropertiesForTesting;
 import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.QueueingReason;
-import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
-import com.wavefront.dto.SourceTag;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import wavefront.report.ReportEvent;
-import wavefront.report.ReportSourceTag;
-import wavefront.report.SourceOperationType;
-import wavefront.report.SourceTagAction;
 
 import java.io.IOException;
 import java.util.ArrayList;
