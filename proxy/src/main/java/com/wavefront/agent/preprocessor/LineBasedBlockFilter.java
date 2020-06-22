@@ -7,17 +7,17 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
- * Whitelist regex filter. Reject a point line if it doesn't match the regex
+ * Blocking regex-based filter. Reject a point line if it matches the regex.
  *
  * Created by Vasily on 9/13/16.
  */
-public class PointLineWhitelistRegexFilter implements AnnotatedPredicate<String> {
+public class LineBasedBlockFilter implements AnnotatedPredicate<String> {
 
   private final Pattern compiledPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
 
-  public PointLineWhitelistRegexFilter(final String patternMatch,
-                                       final PreprocessorRuleMetrics ruleMetrics) {
+  public LineBasedBlockFilter(final String patternMatch,
+                              final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledPattern = Pattern.compile(Preconditions.checkNotNull(patternMatch, "[match] can't be null"));
     Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
@@ -28,7 +28,7 @@ public class PointLineWhitelistRegexFilter implements AnnotatedPredicate<String>
   public boolean test(String pointLine, @Nullable String[] messageHolder) {
     long startNanos = ruleMetrics.ruleStart();
     try {
-      if (!compiledPattern.matcher(pointLine).matches()) {
+      if (compiledPattern.matcher(pointLine).matches()) {
         ruleMetrics.incrementRuleAppliedCounter();
         return false;
       }

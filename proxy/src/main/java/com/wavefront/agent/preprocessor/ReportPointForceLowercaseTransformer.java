@@ -23,12 +23,12 @@ public class ReportPointForceLowercaseTransformer implements Function<ReportPoin
   @Nullable
   private final Pattern compiledMatchPattern;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<ReportPoint> v2Predicate;
 
 
   public ReportPointForceLowercaseTransformer(final String scope,
                                               @Nullable final String patternMatch,
-                                              @Nullable Predicate v2Predicate,
+                                              @Nullable Predicate<ReportPoint> v2Predicate,
                                               final PreprocessorRuleMetrics ruleMetrics) {
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");

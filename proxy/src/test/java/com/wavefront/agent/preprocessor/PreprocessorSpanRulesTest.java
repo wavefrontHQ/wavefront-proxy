@@ -1,21 +1,18 @@
 package com.wavefront.agent.preprocessor;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
-import com.wavefront.ingester.SpanDecoder;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.stream.Collectors;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
-import java.util.stream.Collectors;
+import com.google.common.collect.ImmutableList;
 
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
+import static com.wavefront.agent.TestUtils.parseSpan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -79,60 +76,60 @@ public class PreprocessorSpanRulesTest {
   @Test
   public void testSpanFiltersWithValidV2AndInvalidV1Predicate() {
     try {
-      SpanWhitelistRegexFilter invalidRule = new SpanWhitelistRegexFilter("spanName",
+      SpanAllowFilter invalidRule = new SpanAllowFilter("spanName",
           null, x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
     try {
-      SpanWhitelistRegexFilter invalidRule = new SpanWhitelistRegexFilter(null,
+      SpanAllowFilter invalidRule = new SpanAllowFilter(null,
           "^host$", x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
     try {
-      SpanWhitelistRegexFilter invalidRule = new SpanWhitelistRegexFilter
+      SpanAllowFilter invalidRule = new SpanAllowFilter
           ("spanName", "^host$", x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
-    SpanWhitelistRegexFilter validWhitelistRule = new SpanWhitelistRegexFilter(null,
+    SpanAllowFilter validWhitelistRule = new SpanAllowFilter(null,
         null, x -> false, metrics);
 
     try {
-      SpanBlacklistRegexFilter invalidRule = new SpanBlacklistRegexFilter("metricName",
+      SpanBlockFilter invalidRule = new SpanBlockFilter("metricName",
           null, x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
     try {
-      SpanBlacklistRegexFilter invalidRule = new SpanBlacklistRegexFilter(null,
+      SpanBlockFilter invalidRule = new SpanBlockFilter(null,
           "^host$", x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
     try {
-      SpanBlacklistRegexFilter invalidRule = new SpanBlacklistRegexFilter
+      SpanBlockFilter invalidRule = new SpanBlockFilter
           ("spanName", "^host$", x -> false, metrics);
     } catch (IllegalArgumentException e) {
       // Expected.
     }
 
-    SpanBlacklistRegexFilter validBlacklistRule = new SpanBlacklistRegexFilter(null,
+    SpanBlockFilter validBlockRule = new SpanBlockFilter(null,
         null, x -> false, metrics);
   }
 
   @Test
   public void testSpanFiltersWithValidV2AndV1Predicate() {
-    SpanWhitelistRegexFilter validWhitelistRule = new SpanWhitelistRegexFilter(null,
+    SpanAllowFilter validAllowRule = new SpanAllowFilter(null,
         null, x -> false, metrics);
 
-    SpanBlacklistRegexFilter validBlacklistRule = new SpanBlacklistRegexFilter(null,
+    SpanBlockFilter validBlockRule = new SpanBlockFilter(null,
         null, x -> false, metrics);
   }
 
@@ -566,44 +563,44 @@ public class PreprocessorSpanRulesTest {
   }
 
   @Test
-  public void testSpanWhitelistBlacklistRules() {
+  public void testSpanAllowBlockRules() {
     String spanLine = "testSpanName source=spanSourceName spanId=4217104a-690d-4927-baff-d9aa779414c2 " +
         "traceId=d5355bf7-fc8d-48d1-b761-75b170f396e0 foo=bar1-1234567890 foo=bar2-2345678901 foo=bar2-3456789012 " +
         "foo=bar boo=baz url=\"https://localhost:50051/style/foo/make?id=5145\" " +
         "1532012145123 1532012146234";
-    SpanBlacklistRegexFilter blacklistRule;
-    SpanWhitelistRegexFilter whitelistRule;
+    SpanBlockFilter blockRule;
+    SpanAllowFilter allowRule;
     Span span = parseSpan(spanLine);
 
-    blacklistRule = new SpanBlacklistRegexFilter(SPAN_NAME, "^test.*$", null, metrics);
-    whitelistRule = new SpanWhitelistRegexFilter(SPAN_NAME, "^test.*$", null, metrics);
-    assertFalse(blacklistRule.test(span));
-    assertTrue(whitelistRule.test(span));
+    blockRule = new SpanBlockFilter(SPAN_NAME, "^test.*$", null, metrics);
+    allowRule = new SpanAllowFilter(SPAN_NAME, "^test.*$", null, metrics);
+    assertFalse(blockRule.test(span));
+    assertTrue(allowRule.test(span));
 
-    blacklistRule = new SpanBlacklistRegexFilter(SPAN_NAME, "^ztest.*$", null, metrics);
-    whitelistRule = new SpanWhitelistRegexFilter(SPAN_NAME, "^ztest.*$", null, metrics);
-    assertTrue(blacklistRule.test(span));
-    assertFalse(whitelistRule.test(span));
+    blockRule = new SpanBlockFilter(SPAN_NAME, "^ztest.*$", null, metrics);
+    allowRule = new SpanAllowFilter(SPAN_NAME, "^ztest.*$", null, metrics);
+    assertTrue(blockRule.test(span));
+    assertFalse(allowRule.test(span));
 
-    blacklistRule = new SpanBlacklistRegexFilter(SOURCE_NAME, ".*ourceN.*", null, metrics);
-    whitelistRule = new SpanWhitelistRegexFilter(SOURCE_NAME, ".*ourceN.*", null, metrics);
-    assertFalse(blacklistRule.test(span));
-    assertTrue(whitelistRule.test(span));
+    blockRule = new SpanBlockFilter(SOURCE_NAME, ".*ourceN.*", null, metrics);
+    allowRule = new SpanAllowFilter(SOURCE_NAME, ".*ourceN.*", null, metrics);
+    assertFalse(blockRule.test(span));
+    assertTrue(allowRule.test(span));
 
-    blacklistRule = new SpanBlacklistRegexFilter(SOURCE_NAME, "ourceN.*", null, metrics);
-    whitelistRule = new SpanWhitelistRegexFilter(SOURCE_NAME, "ourceN.*", null, metrics);
-    assertTrue(blacklistRule.test(span));
-    assertFalse(whitelistRule.test(span));
+    blockRule = new SpanBlockFilter(SOURCE_NAME, "ourceN.*", null, metrics);
+    allowRule = new SpanAllowFilter(SOURCE_NAME, "ourceN.*", null, metrics);
+    assertTrue(blockRule.test(span));
+    assertFalse(allowRule.test(span));
 
-    blacklistRule = new SpanBlacklistRegexFilter("foo", "bar", null, metrics);
-    whitelistRule = new SpanWhitelistRegexFilter("foo", "bar", null, metrics);
-    assertFalse(blacklistRule.test(span));
-    assertTrue(whitelistRule.test(span));
+    blockRule = new SpanBlockFilter("foo", "bar", null, metrics);
+    allowRule = new SpanAllowFilter("foo", "bar", null, metrics);
+    assertFalse(blockRule.test(span));
+    assertTrue(allowRule.test(span));
 
-    blacklistRule = new SpanBlacklistRegexFilter("foo", "baz", null, metrics);
-    whitelistRule = new SpanWhitelistRegexFilter("foo", "baz", null, metrics);
-    assertTrue(blacklistRule.test(span));
-    assertFalse(whitelistRule.test(span));
+    blockRule = new SpanBlockFilter("foo", "baz", null, metrics);
+    allowRule = new SpanAllowFilter("foo", "baz", null, metrics);
+    assertTrue(blockRule.test(span));
+    assertFalse(allowRule.test(span));
   }
 
   @Test
@@ -629,11 +626,5 @@ public class PreprocessorSpanRulesTest {
     assertEquals(ImmutableList.of("hello \\n world"),
         span.getAnnotations().stream().filter(x -> x.getKey().equals("specialvalue")).map(Annotation::getValue).
             collect(Collectors.toList()));
-  }
-
-  static Span parseSpan(String line) {
-    List<Span> out = Lists.newArrayListWithExpectedSize(1);
-    new SpanDecoder("unknown").decode(line, out, "dummy");
-    return out.get(0);
   }
 }

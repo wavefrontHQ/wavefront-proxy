@@ -25,11 +25,11 @@ public class ReportPointDropTagTransformer implements Function<ReportPoint, Repo
   @Nullable
   private final Pattern compiledValuePattern;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<ReportPoint> v2Predicate;
 
   public ReportPointDropTagTransformer(final String tag,
                                        @Nullable final String patternMatch,
-                                       @Nullable final Predicate v2Predicate,
+                                       @Nullable final Predicate<ReportPoint> v2Predicate,
                                        final PreprocessorRuleMetrics ruleMetrics) {
     this.compiledTagPattern = Pattern.compile(Preconditions.checkNotNull(tag, "[tag] can't be null"));
     Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");

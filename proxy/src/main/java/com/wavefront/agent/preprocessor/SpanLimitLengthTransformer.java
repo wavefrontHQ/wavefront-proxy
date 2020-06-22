@@ -26,14 +26,14 @@ public class SpanLimitLengthTransformer implements Function<Span, Span> {
   private final Pattern compiledMatchPattern;
   private final boolean firstMatchOnly;
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Predicate v2Predicate;
+  private final Predicate<Span> v2Predicate;
 
   public SpanLimitLengthTransformer(@Nonnull final String scope,
                                     final int maxLength,
                                     @Nonnull final LengthLimitActionType actionSubtype,
                                     @Nullable final String patternMatch,
                                     final boolean firstMatchOnly,
-                                    @Nullable final Predicate v2Predicate,
+                                    @Nullable final Predicate<Span> v2Predicate,
                                     @Nonnull final PreprocessorRuleMetrics ruleMetrics) {
     this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");

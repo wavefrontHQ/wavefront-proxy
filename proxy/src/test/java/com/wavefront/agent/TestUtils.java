@@ -1,6 +1,9 @@
 package com.wavefront.agent;
 
+import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
+import com.wavefront.ingester.SpanDecoder;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -23,11 +26,14 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
+
+import wavefront.report.Span;
 
 import static org.easymock.EasyMock.verify;
 
@@ -211,4 +217,11 @@ public class TestUtils {
       logger.info("assertTrueWithTimeout() wait time: " + waitTime + "ms");
     }
   }
+
+  public static Span parseSpan(String line) {
+    List<Span> out = Lists.newArrayListWithExpectedSize(1);
+    new SpanDecoder("unknown").decode(line, out, "dummy");
+    return out.get(0);
+  }
+
 }

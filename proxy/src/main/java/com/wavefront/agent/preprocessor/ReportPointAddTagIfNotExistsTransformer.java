@@ -16,7 +16,7 @@ public class ReportPointAddTagIfNotExistsTransformer extends ReportPointAddTagTr
 
   public ReportPointAddTagIfNotExistsTransformer(final String tag,
                                                  final String value,
-                                                 @Nullable final Predicate v2Predicate,
+                                                 @Nullable final Predicate<ReportPoint> v2Predicate,
                                                  final PreprocessorRuleMetrics ruleMetrics) {
     super(tag, value, v2Predicate, ruleMetrics);
   }
