@@ -8,6 +8,10 @@ import org.junit.Test;
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertFalse;
 import static junit.framework.TestCase.assertTrue;
+
+/**
+ * @author mike@wavefront.com
+ */
 public class SQSQueueFactoryImplTest {
   @Test
   public void testQueueTemplate() {

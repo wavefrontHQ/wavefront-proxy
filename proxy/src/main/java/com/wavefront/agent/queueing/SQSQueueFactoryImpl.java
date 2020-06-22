@@ -45,6 +45,13 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
   private final Map<String, String> queues = new ConcurrentHashMap<>();
   private final AmazonSQS client;
 
+  /**
+   * @param template    The sqsTemplateName
+   * @param region      The region in AWS to operate against
+   * @param queueId     The unique identifier for the queues
+   * @param purgeBuffer Whether buffer files should be nuked before starting (this may cause data
+   *                    loss if queue files are not empty)
+   */
   public SQSQueueFactoryImpl(String template, String region, String queueId, boolean purgeBuffer) {
     this.queueNameTemplate = template;
     this.region = region;
@@ -57,12 +64,12 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
   public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@Nonnull HandlerKey key, int threadNum) {
     // noinspection unchecked
     TaskQueue<T> taskQueue = (TaskQueue<T>) taskQueues.computeIfAbsent(key, x -> new TreeMap<>()).
-        computeIfAbsent(threadNum, x -> createTaskQueue(key, threadNum));
+        computeIfAbsent(threadNum, x -> createTaskQueue(key));
     return taskQueue;
   }
 
   private <T extends DataSubmissionTask<T>> TaskQueue<T> createTaskQueue(
-      @Nonnull HandlerKey handlerKey, int threadNum) {
+      @Nonnull HandlerKey handlerKey) {
     if (purgeBuffer) {
       logger.warning("--purgeBuffer is set but purging buffers is not supported on SQS implementation");
     }
@@ -73,7 +80,7 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
       return new SQSSubmissionQueue<>(queueUrl, AmazonSQSClientBuilder.standard().withRegion(this.region).build(),
           new RetryTaskConverter<T>(handlerKey.getHandle(),
               RetryTaskConverter.CompressionType.LZ4),
-          handlerKey.getHandle(), handlerKey.getEntityType(), threadNum);
+          handlerKey.getHandle(), handlerKey.getEntityType());
     }
     return new TaskQueueStub<>();
   }

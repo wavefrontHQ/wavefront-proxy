@@ -31,6 +31,9 @@ import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.junit.Assert.assertEquals;
 
+/**
+ * @author mike@wavefront.com
+ */
 @RunWith(Parameterized.class)
 public class SQSSubmissionQueueTest<T extends DataSubmissionTask<T>> {
   private final String queueUrl = "https://amazonsqs.some.queue";
@@ -118,6 +121,6 @@ public class SQSSubmissionQueueTest<T extends DataSubmissionTask<T>> {
   }
 
   private SQSSubmissionQueue<? extends T> getTaskQueue() {
-    return new SQSSubmissionQueue<>(queueUrl, client, converter, "2878", null, 0);
+    return new SQSSubmissionQueue<>(queueUrl, client, converter, "2878", null);
   }
 }
