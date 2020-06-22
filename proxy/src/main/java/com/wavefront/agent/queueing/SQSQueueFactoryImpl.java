@@ -12,6 +12,7 @@ import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.data.ReportableEntityType;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
@@ -70,6 +71,9 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
 
     final String queueName = getQueueName(handlerKey);
     String queueUrl = queues.computeIfAbsent(queueName, x -> getOrCreateQueue(queueName));
+    if (handlerKey.getEntityType() == ReportableEntityType.SOURCE_TAG) {
+      return new InMemorySubmissionQueue<>(handlerKey.getHandle(), handlerKey.getEntityType());
+    }
     if (StringUtils.isNotBlank(queueUrl)) {
       return new SQSSubmissionQueue<>(queueUrl, AmazonSQSClientBuilder.standard().withRegion(this.region).build(),
           new RetryTaskConverter<T>(handlerKey.getHandle(),

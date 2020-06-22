@@ -84,7 +84,6 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
   private final Supplier<Boolean> histogramDisabled;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
-  private final boolean sourceTagsDisabled;
 
   private final SpanSampler sampler;
 
@@ -117,8 +116,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       @Nullable final SharedGraphiteHostAnnotator annotator,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor,
       final Supplier<Boolean> histogramDisabled, final Supplier<Boolean> traceDisabled,
-      final Supplier<Boolean> spanLogsDisabled, final SpanSampler sampler,
-      final boolean sourceTagsDisabled) {
+      final Supplier<Boolean> spanLogsDisabled, final SpanSampler sampler) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.wavefrontDecoder = (ReportableEntityDecoder<String, ReportPoint>) decoders.
         get(ReportableEntityType.POINT);
@@ -159,7 +157,6 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         "spans." + handle, "", "sampler.discarded")));
     this.discardedSpanLogsBySampler = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
         "spanLogs." + handle, "", "sampler.discarded")));
-    this.sourceTagsDisabled = sourceTagsDisabled;
   }
 
   @Override
@@ -196,10 +193,6 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
     DataFormat dataFormat = format == null ? DataFormat.autodetect(message) : format;
     switch (dataFormat) {
       case SOURCE_TAG:
-        if (sourceTagsDisabled) {
-          wavefrontHandler.reject(message, "Source tagging is not available when using SQS queues.");
-          return;
-        }
         ReportableEntityHandler<ReportSourceTag, SourceTag> sourceTagHandler =
             sourceTagHandlerSupplier.get();
         if (sourceTagHandler == null || sourceTagDecoder == null) {

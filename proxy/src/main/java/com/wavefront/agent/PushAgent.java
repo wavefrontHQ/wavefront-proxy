@@ -744,9 +744,7 @@ public class PushAgent extends AbstractAgent {
             () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
             () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
             () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
-            sampler,
-            // SQS doe snot support source tagging operations
-            proxyConfig.isSqsQueueBuffer());
+            sampler);
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -794,7 +792,7 @@ public class PushAgent extends AbstractAgent {
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
         new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
             decoderSupplier.get(), deltaCounterHandlerFactory, hostAnnotator,
-            preprocessors.get(strPort), () -> false, () -> false, () -> false, sampler, proxyConfig.isSqsQueueBuffer());
+            preprocessors.get(strPort), () -> false, () -> false, () -> false, sampler);
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -1059,7 +1057,7 @@ public class PushAgent extends AbstractAgent {
               () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
               () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
               () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
-              sampler, proxyConfig.isSqsQueueBuffer());
+              sampler);
 
       startAsManagedThread(port,
           new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
