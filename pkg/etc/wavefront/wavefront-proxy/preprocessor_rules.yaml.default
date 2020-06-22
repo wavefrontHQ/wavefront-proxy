@@ -236,6 +236,20 @@
   #            scope: debug
   #            value: ["true"]
 
+  ## Advanced condition expression: block QA metrics (with source name containing 'qa'
+  # or env=qa point tag), that are older than 10 minutes
+  ###################################################################################
+  #- rule: test-block-old-qa-metrics
+  #  action: block
+  #  if: '({{sourceName}} contains "qa" or {{env}} = "qa") and not {{debug}} = "true" and $timestamp < time("10 minutes ago")'
+
+  ## Advanced condition expression: do deterministic sampling at 25% based on containerId
+  # (only allow metrics for 1 out of 4 containers) for staging k8s metrics.
+  ###################################################################################
+  #- rule: test-sample-staging-k8s-metrics
+  #  action: block
+  #  if: '{{sourceName}} contains "staging" and {{metricName}} startsWith "k8s." and {{containerId}}.hashCode() % 4 != 0'
+
 # rules for port 4242
 '4242':
 
