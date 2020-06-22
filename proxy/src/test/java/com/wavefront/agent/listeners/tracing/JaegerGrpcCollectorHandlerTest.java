@@ -1,7 +1,6 @@
 package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableList;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Duration;
@@ -17,10 +16,8 @@ import org.junit.Test;
 import java.nio.ByteBuffer;
 
 import io.grpc.stub.StreamObserver;
-
 import io.opentelemetry.exporters.jaeger.proto.api_v2.Collector;
 import io.opentelemetry.exporters.jaeger.proto.api_v2.Model;
-
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
@@ -555,7 +552,7 @@ public class JaegerGrpcCollectorHandlerTest {
         .setAnnotations(ImmutableList.of(
             new Annotation("ip", "10.0.0.1"),
             new Annotation("service", "frontend"),
-            new Annotation("debug", "true1"),
+            new Annotation("debug", "true"),
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
@@ -594,7 +591,7 @@ public class JaegerGrpcCollectorHandlerTest {
 
     Model.KeyValue debugTag = Model.KeyValue.newBuilder().
         setKey("debug").
-        setVStr("true1").
+        setVStr("true").
         setVType(Model.ValueType.STRING).
         build();
 

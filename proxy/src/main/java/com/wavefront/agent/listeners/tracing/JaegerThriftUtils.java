@@ -39,13 +39,15 @@ import wavefront.report.SpanLogs;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_KEY;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
@@ -190,13 +192,12 @@ public abstract class JaegerThriftUtils {
             case COMPONENT_TAG_KEY:
               componentTagValue = annotation.getValue();
               break;
-            case ERROR_SPAN_TAG_KEY:
+            case ERROR_TAG_KEY:
               // only error=true is supported
               isError = annotation.getValue().equals(ERROR_SPAN_TAG_VAL);
               break;
-            //TODO : Import DEBUG_SPAN_TAG_KEY from wavefront-sdk-java constants.
-            case DEBUG_SPAN_TAG_KEY:
-              isDebugSpanTag = true;
+            case DEBUG_TAG_KEY:
+              isDebugSpanTag = annotation.getValue().equals(DEBUG_SPAN_TAG_VAL);
               break;
             case FORCE_SAMPLED_KEY:
               try {
@@ -206,7 +207,7 @@ public abstract class JaegerThriftUtils {
               } catch (ParseException e) {
                 if (JAEGER_DATA_LOGGER.isLoggable(Level.FINE)) {
                   JAEGER_DATA_LOGGER.info("Invalid value :: " + annotation.getValue() +
-                      " for span tag key : " + FORCE_SAMPLED_KEY);
+                      " for span tag key : " + FORCE_SAMPLED_KEY + " for span : " + span.getOperationName());
                 }
               }
               break;
@@ -274,7 +275,7 @@ public abstract class JaegerThriftUtils {
         return;
       }
     }
-    if (isForceSampled || isDebugSpanTag || sampler.sample(wavefrontSpan,
+    if (isForceSampled || sampler.sample(wavefrontSpan,
         discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null && !span.getLogs().isEmpty() &&
