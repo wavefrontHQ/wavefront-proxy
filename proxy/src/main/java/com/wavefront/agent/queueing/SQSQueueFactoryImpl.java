@@ -12,16 +12,10 @@ import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.common.TaggedMetricName;
-import com.wavefront.metrics.ExpectedAgentMetric;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
-import java.io.File;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
