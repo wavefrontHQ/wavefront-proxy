@@ -19,24 +19,28 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
+
 import java.net.URI;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URLEncodedUtils;
-
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.util.CharsetUtil;
+import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
@@ -44,6 +48,7 @@ import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 
 /**
  * Process incoming trace-formatted data.
@@ -68,6 +73,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   private final SpanSampler sampler;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
+  private final static String FORCE_SAMPLED_KEY = "sampling.priority";
 
   protected final Counter discardedSpans;
   protected final Counter discardedSpanLogs;
@@ -190,7 +196,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
           return;
         }
       }
-      if (samplerFunc.apply(object)) {
+      if (isForceSampled(object) || samplerFunc.apply(object)) {
         spanReporter.accept(object);
       }
     }
@@ -254,7 +260,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
               return;
             }
           }
-          if (samplerFunc.apply(span)) {
+          if (isForceSampled(span) || samplerFunc.apply(span)) {
             // after sampling, span line data is no longer needed
             spanLogs.setSpan(null);
             handler.report(spanLogs);
@@ -262,5 +268,24 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         }
       }
     }
+  }
+
+  private static boolean isForceSampled(Span span) {
+    List<Annotation> annotations = span.getAnnotations();
+    for (Annotation annotation : annotations) {
+      if (annotation.getKey().equals(FORCE_SAMPLED_KEY)) {
+        try {
+          if (NumberFormat.getInstance().parse(annotation.getValue()).doubleValue() > 0) {
+            return true;
+          }
+        } catch (ParseException e) {
+          if (logger.isLoggable(Level.FINE)) {
+            logger.info("Invalid value :: " + annotation.getValue() +
+                " for span tag key : " + FORCE_SAMPLED_KEY + " for span : " + span.getName());
+          }
+        }
+      }
+    }
+    return false;
   }
 }
