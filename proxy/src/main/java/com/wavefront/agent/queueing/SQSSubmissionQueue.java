@@ -50,7 +50,6 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
   private final String handle;
   private final String entityName;
   private final AmazonSQS sqsClient;
-  private final int threadNum;
 
   private final Counter tasksAddedCounter;
   private final Counter itemsAddedCounter;
@@ -63,18 +62,23 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
   // maintain a fair lock on the queue
   private final ReentrantLock queueLock = new ReentrantLock(true);
 
+  /**
+   * @param queueUrl   The FQDN of the SQS Queue
+   * @param sqsClient  The {@link AmazonSQS} client.
+   * @param converter  The {@link TaskQueue<T>} for converting tasks into and from the Queue
+   * @param handle     Pipeline handle
+   * @param entityType Entity type
+   */
   public SQSSubmissionQueue(String queueUrl,
                             AmazonSQS sqsClient,
                             TaskConverter<T> converter,
                             @Nullable String handle,
-                            @Nullable ReportableEntityType entityType,
-                            int threadNum) {
+                            @Nullable ReportableEntityType entityType) {
     this.queueUrl = queueUrl;
     this.converter = converter;
     this.handle = handle;
     this.entityName = entityType == null ? "points" : entityType.toString();
     this.sqsClient = sqsClient;
-    this.threadNum = threadNum;
 
     this.tasksAddedCounter = Metrics.newCounter(new TaggedMetricName("buffer.sqs", "task-added",
         "port", handle, "queueUrl", queueUrl));
