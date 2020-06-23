@@ -19,6 +19,7 @@ import com.wavefront.agent.preprocessor.LineBasedAllowFilter;
 import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.queueing.QueueExporter;
+import com.wavefront.agent.queueing.SQSQueueFactoryImpl;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
 import com.wavefront.api.agent.AgentConfiguration;
@@ -190,8 +191,18 @@ public abstract class AbstractAgent {
         setLevel(org.apache.log4j.Level.WARN);
 
     if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
-      logger.severe("hostname cannot be blank! Please correct your configuration settings.");
-      System.exit(1);
+      throw new IllegalArgumentException("hostname cannot be blank! Please correct your configuration settings.");
+    }
+
+    if (proxyConfig.isSqsQueueBuffer()) {
+      if (StringUtils.isBlank(proxyConfig.getSqsQueueIdentifier())) {
+        throw new IllegalArgumentException("sqsQueueIdentifier cannot be blank! Please correct " +
+            "your configuration settings.");
+      }
+      if (!SQSQueueFactoryImpl.isValidSQSTemplate(proxyConfig.getSqsQueueNameTemplate())) {
+        throw new IllegalArgumentException("sqsQueueNameTemplate is invalid! Must contain " +
+            "{{id}} {{entity}} and {{port}} replacements.");
+      }
     }
   }
 

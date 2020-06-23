@@ -1,5 +1,6 @@
 package com.wavefront.agent.queueing;
 
+import com.google.common.base.Suppliers;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.common.Managed;
@@ -12,6 +13,7 @@ import javax.annotation.Nonnull;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,6 +37,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   private volatile double schedulerTimingFactor = 1.0d;
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   private int backoffExponent = 1;
+  private Supplier<T> storedTask;
 
   /**
    * @param handlerKey         pipeline handler key
@@ -64,7 +67,10 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
     try {
       while (taskQueue.size() > 0 && taskQueue.size() > failures) {
         if (!isRunning.get() || Thread.currentThread().isInterrupted()) return;
-        T task = taskQueue.peek();
+        if (storedTask == null) {
+          storedTask = Suppliers.memoizeWithExpiration(taskQueue::peek, 500, TimeUnit.MILLISECONDS);
+        }
+        T task = storedTask.get();
         int taskSize = task == null ? 0 : task.weight();
         this.headTaskTimestamp = task == null ? Long.MAX_VALUE : task.getEnqueuedMillis();
         int permitsNeeded = Math.min((int) rateLimiter.getRate(), taskSize);
@@ -107,6 +113,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
           if (removeTask) {
             taskQueue.remove();
             if (taskQueue.size() == 0) schedulerTimingFactor = 1.0d;
+            storedTask = null;
           }
         }
       }
