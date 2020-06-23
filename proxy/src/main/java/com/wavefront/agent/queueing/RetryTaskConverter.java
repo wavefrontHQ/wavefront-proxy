@@ -28,7 +28,7 @@ import java.util.zip.GZIPOutputStream;
  * @author vasily@wavefront.com
  */
 public class RetryTaskConverter<T extends DataSubmissionTask<T>>
-    implements ObjectQueue.Converter<T> {
+    implements ObjectQueue.Converter<T>, TaskConverter<T> {
   private static final Logger logger = Logger.getLogger(
       RetryTaskConverter.class.getCanonicalName());
 
@@ -121,6 +121,4 @@ public class RetryTaskConverter<T extends DataSubmissionTask<T>>
         objectMapper.writeValue(bytes, t);
     }
   }
-
-  public enum CompressionType { NONE, GZIP, LZ4 }
 }
