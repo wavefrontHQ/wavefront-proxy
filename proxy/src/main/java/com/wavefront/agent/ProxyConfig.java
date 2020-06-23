@@ -772,6 +772,10 @@ public class ProxyConfig extends Configuration {
                   "All ports will be secured when * specified.")
   protected String tlsPorts = "";
 
+  @Parameter(names = {"--trafficShaping"}, description = "Enables intelligent traffic shaping " +
+      "based on received rate over last 5 minutes. Default: disabled", arity = 1)
+  protected boolean trafficShaping = false;
+
   @Parameter()
   List<String> unparsed_params;
 
@@ -1491,6 +1495,10 @@ public class ProxyConfig extends Configuration {
     return tlsPorts;
   }
 
+  public boolean isTrafficShaping() {
+    return trafficShaping;
+  }
+
   @Override
   public void verifyAndInit() {
     if (unparsed_params != null) {
@@ -1809,6 +1817,8 @@ public class ProxyConfig extends Configuration {
       privateCertPath = config.getString("privateCertPath", privateCertPath);
       privateKeyPath = config.getString("privateKeyPath", privateKeyPath);
       tlsPorts = config.getString("tlsPorts", tlsPorts);
+
+      trafficShaping = config.getBoolean("trafficShaping", trafficShaping);
 
       // clamp values for pushFlushMaxPoints/etc between min split size
       // (or 1 in case of source tags and events) and default batch size.

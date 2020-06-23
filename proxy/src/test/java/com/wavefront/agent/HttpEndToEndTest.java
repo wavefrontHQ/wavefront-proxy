@@ -502,6 +502,7 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.traceListenerPorts = String.valueOf(proxyPort);
     proxy.proxyConfig.pushFlushInterval = 50;
     proxy.proxyConfig.bufferFile = buffer;
+    proxy.proxyConfig.trafficShaping = true;
     proxy.start(new String[]{});
     waitUntilListenerIsOnline(proxyPort);
     if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();

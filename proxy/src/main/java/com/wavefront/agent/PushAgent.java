@@ -30,6 +30,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.wavefront.agent.handlers.SenderTaskFactoryImpl;
+import com.wavefront.agent.handlers.TrafficShapingRateLimitAdjuster;
 import com.wavefront.agent.histogram.Granularity;
 import com.wavefront.agent.histogram.HistogramKey;
 import com.wavefront.agent.histogram.HistogramRecompressor;
@@ -166,7 +167,7 @@ public class PushAgent extends AbstractAgent {
   protected SenderTaskFactory senderTaskFactory;
   protected QueueingFactory queueingFactory;
   protected Function<Histogram, Histogram> histogramRecompressor = null;
-  protected ReportableEntityHandlerFactory handlerFactory;
+  protected ReportableEntityHandlerFactoryImpl handlerFactory;
   protected ReportableEntityHandlerFactory deltaCounterHandlerFactory;
   protected HealthCheckManager healthCheckManager;
   protected TokenAuthenticator tokenAuthenticator = TokenAuthenticator.DUMMY_AUTHENTICATOR;
@@ -186,6 +187,7 @@ public class PushAgent extends AbstractAgent {
   private Logger blockedPointsLogger;
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;
+  private TrafficShapingRateLimitAdjuster rateLimitAdjuster;
 
   public static void main(String[] args) {
     // Start the ssh daemon
@@ -221,8 +223,8 @@ public class PushAgent extends AbstractAgent {
     } else {
       taskQueueFactory = new TaskQueueFactoryImpl(proxyConfig.getBufferFile(),
           proxyConfig.isPurgeBuffer());
-
     }
+
     remoteHostAnnotator = new SharedGraphiteHostAnnotator(proxyConfig.getCustomSourceTags(),
         hostnameResolver);
     queueingFactory = new QueueingFactoryImpl(apiContainer, agentId, taskQueueFactory, entityProps);
@@ -236,6 +238,10 @@ public class PushAgent extends AbstractAgent {
         proxyConfig.getPushBlockedSamples(), validationConfiguration, blockedPointsLogger,
         blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor,
         () -> entityProps.getGlobalProperties().getDropSpansDelayedMinutes());
+    if (proxyConfig.isTrafficShaping()) {
+      rateLimitAdjuster = new TrafficShapingRateLimitAdjuster(handlerFactory, entityProps);
+      rateLimitAdjuster.start();
+    }
     healthCheckManager = new HealthCheckManagerImpl(proxyConfig);
     tokenAuthenticator = configureTokenAuthenticator();
 

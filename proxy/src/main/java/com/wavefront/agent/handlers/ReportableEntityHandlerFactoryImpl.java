@@ -6,7 +6,9 @@ import com.wavefront.data.ReportableEntityType;
 import org.apache.commons.lang.math.NumberUtils;
 import wavefront.report.Histogram;
 
+import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -43,8 +45,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       ReportableEntityType.EVENT, Logger.getLogger("RawValidEvents"),
       getSystemPropertyAsDouble("wavefront.proxy.logevents.sample-rate"), false, logger::info);
 
-  protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?, ?>>> handlers =
-      new ConcurrentHashMap<>();
+  protected final Map<ReportableEntityType, Map<String, AbstractReportableEntityHandler<?, ?>>>
+      handlers = new ConcurrentHashMap<>();
 
   private final SenderTaskFactory senderTaskFactory;
   private final int blockedItemsPerBatch;
@@ -83,8 +85,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   @SuppressWarnings("unchecked")
   @Override
   public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
-    return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey.getHandle(),
-        h -> new ConcurrentHashMap<>()).computeIfAbsent(handlerKey.getEntityType(), k -> {
+    return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey.getEntityType(),
+        h -> new ConcurrentHashMap<>()).computeIfAbsent(handlerKey.getHandle(), k -> {
       switch (handlerKey.getEntityType()) {
         case POINT:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
@@ -120,9 +122,24 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
 
   @Override
   public void shutdown(@Nonnull String handle) {
-    if (handlers.containsKey(handle)) {
-      handlers.get(handle).values().forEach(ReportableEntityHandler::shutdown);
-    }
+    handlers.values().forEach(value -> {
+      if (value.containsKey(handle)) {
+        value.get(handle).shutdown();
+      }
+    });
+  }
+
+  /**
+   * Get aggregated current receive rate across all handlers per entity type.
+   *
+   * @param type entity type.
+   * @return per second received rate or 0 if no handlers of this type are active
+   */
+  long getReceivedRate(ReportableEntityType type) {
+    return handlers.containsKey(type) ?
+        handlers.get(type).values().stream().
+            mapToLong(AbstractReportableEntityHandler::getReceivedRate).sum() :
+        0;
   }
 
   private static double getSystemPropertyAsDouble(String propertyName) {

@@ -75,7 +75,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
                                   @Nullable final Logger blockedItemsLogger) {
     this.handlerKey = handlerKey;
     //noinspection UnstableApiUsage
-    this.blockedItemsLimiter = blockedItemsPerBatch == 0 ? null : RateLimiter.create(blockedItemsPerBatch / 10d);
+    this.blockedItemsLimiter = blockedItemsPerBatch == 0 ? null :
+        RateLimiter.create(blockedItemsPerBatch / 10d);
     this.serializer = serializer;
     this.senderTasks = senderTasks == null ? new ArrayList<>() : new ArrayList<>(senderTasks);
     this.reportReceivedStats = reportReceivedStats;
@@ -176,6 +177,10 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   }
 
   abstract void reportInternal(T item);
+
+  protected long getReceivedRate() {
+    return receivedStats.getCurrentRate();
+  }
 
   protected Counter getReceivedCounter() {
     return receivedCounter;
