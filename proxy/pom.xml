@@ -365,7 +365,7 @@
               <excludes>
                 <exclude>com.tdunning.math.*</exclude>
                 <exclude>org.logstash.*</exclude>
-                <exclude>parser.*</exclude>
+                <exclude>condition.parser.*</exclude>
               </excludes>
             </configuration>
           </execution>
@@ -428,7 +428,7 @@
                 </rule>
               </rules>
               <excludes>
-                <exclude>parser/**</exclude>
+                <exclude>condition/parser/**</exclude>
                 <exclude>com/tdunning/**</exclude>
                 <exclude>org/logstash/**</exclude>
               </excludes>
@@ -442,7 +442,7 @@
             </goals>
             <configuration>
               <excludes>
-                <exclude>parser/**</exclude>
+                <exclude>condition/parser/**</exclude>
                 <exclude>com/tdunning/**</exclude>
                 <exclude>org/logstash/**</exclude>
               </excludes>
@@ -490,25 +490,6 @@
           <source>${java.version}</source>
           <target>${java.version}</target>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.antlr</groupId>
-        <artifactId>antlr4-maven-plugin</artifactId>
-        <version>4.7.1</version>
-        <configuration>
-          <outputDirectory>target/generated-sources/antlr4/parser/predicate</outputDirectory>
-          <sourceDirectory>${project.basedir}/src/main/antlr4</sourceDirectory>
-          <arguments>
-            <argument>-visitor</argument>
-          </arguments>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>antlr4</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
