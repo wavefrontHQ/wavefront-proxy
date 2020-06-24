@@ -2,7 +2,6 @@ package com.wavefront.agent.queueing;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.squareup.tape2.ObjectQueue;
 import com.squareup.tape2.QueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.DefaultEntityPropertiesForTesting;
@@ -30,7 +29,7 @@ import static org.junit.Assert.assertEquals;
  *
  * @author vasily@wavefront.com
  */
-public class DataSubmissionQueueTest {
+public class SynchronizedTaskQueueWithMetricsTest {
 
   @Test
   public void testLineDelimitedTask() throws Exception {
@@ -39,7 +38,7 @@ public class DataSubmissionQueueTest {
       System.out.println("LineDelimited task, compression type: " + type);
       File file = new File(File.createTempFile("proxyTestConverter", null).getPath() + ".queue");
       file.deleteOnExit();
-      DataSubmissionQueue<LineDelimitedDataSubmissionTask> queue = getTaskQueue(file, type);
+      TaskQueue<LineDelimitedDataSubmissionTask> queue = getTaskQueue(file, type);
       queue.clear();
       UUID proxyId = UUID.randomUUID();
       LineDelimitedDataSubmissionTask task = new LineDelimitedDataSubmissionTask(null, proxyId,
@@ -47,7 +46,7 @@ public class DataSubmissionQueueTest {
           "2878", ImmutableList.of("item1", "item2", "item3"), time::get);
       task.enqueue(QueueingReason.RETRY);
       queue.close();
-      DataSubmissionQueue<LineDelimitedDataSubmissionTask> readQueue = getTaskQueue(file, type);
+      TaskQueue<LineDelimitedDataSubmissionTask> readQueue = getTaskQueue(file, type);
       LineDelimitedDataSubmissionTask readTask = readQueue.peek();
       assertEquals(task.payload(), readTask.payload());
       assertEquals(77777, readTask.getEnqueuedMillis());
@@ -60,7 +59,7 @@ public class DataSubmissionQueueTest {
       System.out.println("SourceTag task, compression type: " + type);
       File file = new File(File.createTempFile("proxyTestConverter", null).getPath() + ".queue");
       file.deleteOnExit();
-      DataSubmissionQueue<SourceTagSubmissionTask> queue = getTaskQueue(file, type);
+      TaskQueue<SourceTagSubmissionTask> queue = getTaskQueue(file, type);
       queue.clear();
       SourceTagSubmissionTask task = new SourceTagSubmissionTask(null,
           new DefaultEntityPropertiesForTesting(), queue, "2878",
@@ -71,8 +70,8 @@ public class DataSubmissionQueueTest {
           () -> 77777L);
       task.enqueue(QueueingReason.RETRY);
       queue.close();
-      DataSubmissionQueue<SourceTagSubmissionTask> readQueue = getTaskQueue(file, type);
-      SourceTagSubmissionTask readTask = readQueue.peek(1).get(0);
+      TaskQueue<SourceTagSubmissionTask> readQueue = getTaskQueue(file, type);
+      SourceTagSubmissionTask readTask = readQueue.peek();
       assertEquals(task.payload(), readTask.payload());
       assertEquals(77777, readTask.getEnqueuedMillis());
     }
@@ -85,7 +84,7 @@ public class DataSubmissionQueueTest {
       System.out.println("Event task, compression type: " + type);
       File file = new File(File.createTempFile("proxyTestConverter", null).getPath() + ".queue");
       file.deleteOnExit();
-      DataSubmissionQueue<EventDataSubmissionTask> queue = getTaskQueue(file, type);
+      TaskQueue<EventDataSubmissionTask> queue = getTaskQueue(file, type);
       queue.clear();
       UUID proxyId = UUID.randomUUID();
       EventDataSubmissionTask task = new EventDataSubmissionTask(null, proxyId,
@@ -102,19 +101,19 @@ public class DataSubmissionQueueTest {
           time::get);
       task.enqueue(QueueingReason.RETRY);
       queue.close();
-      DataSubmissionQueue<EventDataSubmissionTask> readQueue = getTaskQueue(file, type);
+      TaskQueue<EventDataSubmissionTask> readQueue = getTaskQueue(file, type);
       EventDataSubmissionTask readTask = readQueue.peek();
       assertEquals(task.payload(), readTask.payload());
       assertEquals(77777, readTask.getEnqueuedMillis());
     }
   }
 
-  private <T extends DataSubmissionTask<T>> DataSubmissionQueue<T> getTaskQueue(
+  private <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(
       File file, RetryTaskConverter.CompressionType compressionType) throws Exception {
-    return new DataSubmissionQueue<>(ObjectQueue.create(
+    return new SynchronizedTaskQueueWithMetrics<>(new FileBasedTaskQueue<>(
         new QueueFile.Builder(file).build(),
         new RetryTaskConverter<T>("2878",
             compressionType)),
-        null, null);
+        null, null, null);
   }
 }
