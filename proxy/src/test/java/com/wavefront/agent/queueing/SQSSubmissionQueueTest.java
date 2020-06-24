@@ -123,6 +123,6 @@ public class SQSSubmissionQueueTest<T extends DataSubmissionTask<T>> {
   }
 
   private SQSSubmissionQueue<? extends T> getTaskQueue() {
-    return new SQSSubmissionQueue<>(queueUrl, client, converter, "2878", null);
+    return new SQSSubmissionQueue<>(queueUrl, client, converter);
   }
 }
