@@ -1,7 +1,7 @@
 package com.wavefront.agent.queueing;
 
 import com.google.common.base.Preconditions;
-import com.squareup.tape2.ObjectQueue;
+import com.google.common.collect.ImmutableMap;
 import com.squareup.tape2.QueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -114,11 +114,10 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
         }
       }
       // TODO: allow configurable compression types and levels
-      return new DataSubmissionQueue<>(ObjectQueue.create(
+      return new SynchronizedTaskQueueWithMetrics<>(new FileBasedTaskQueue<>(
           new QueueFile.Builder(buffer).build(),
-          new RetryTaskConverter<T>(handlerKey.getHandle(),
-              RetryTaskConverter.CompressionType.LZ4)),
-          handlerKey.getHandle(), handlerKey.getEntityType());
+          new RetryTaskConverter<T>(handlerKey.getHandle(), TaskConverter.CompressionType.LZ4)),
+          "buffer", ImmutableMap.of("port", handlerKey.getHandle()), handlerKey.getEntityType());
     } catch (Exception e) {
       logger.severe("WF-006: Unable to open or create queue file " + spoolFileName + ": " +
           e.getMessage());

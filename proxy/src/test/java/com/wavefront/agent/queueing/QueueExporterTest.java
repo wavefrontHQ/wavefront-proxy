@@ -52,7 +52,7 @@ public class QueueExporterTest {
         "--buffer", file.getAbsolutePath(),
         "--exportQueuePorts", "2878",
         "--exportQueueOutputFile", file.getAbsolutePath() + "-output",
-        "--exportQueueRetainData", "true"
+        "--exportQueueRetainData", "false"
     }, "proxy");
     TaskQueueFactory taskQueueFactory = new TaskQueueFactoryImpl(config.getBufferFile(), false);
     EntityPropertiesFactory entityPropertiesFactory = new EntityPropertiesFactoryImpl(config);
@@ -61,7 +61,6 @@ public class QueueExporterTest {
     reset(mockedWriter);
     HandlerKey key = HandlerKey.of(ReportableEntityType.POINT, "2878");
     TaskQueue<LineDelimitedDataSubmissionTask> queue = taskQueueFactory.getTaskQueue(key, 0);
-    TaskQueue<LineDelimitedDataSubmissionTask> backupQueue = qe.getBackupQueue(key, 0);
     queue.clear();
     UUID proxyId = UUID.randomUUID();
     LineDelimitedDataSubmissionTask task = new LineDelimitedDataSubmissionTask(null, proxyId,
@@ -134,26 +133,23 @@ public class QueueExporterTest {
     replay(mockedWriter);
 
     assertEquals(2, queue.size());
-    assertEquals(0, backupQueue.size());
-    qe.processQueue(queue, backupQueue, mockedWriter);
+    qe.processQueue(queue, mockedWriter);
     assertEquals(0, queue.size());
-    assertEquals(2, backupQueue.size());
 
     assertEquals(1, queue2.size());
-    qe.processQueue(queue2, null, mockedWriter);
+    qe.processQueue(queue2, mockedWriter);
     assertEquals(0, queue2.size());
 
     assertEquals(1, queue3.size());
-    qe.processQueue(queue3, null, mockedWriter);
+    qe.processQueue(queue3, mockedWriter);
     assertEquals(0, queue3.size());
 
     verify(mockedWriter);
 
     List<String> files = QueueExporter.listFiles(file.getAbsolutePath()).stream().
         map(x -> x.replace(file.getAbsolutePath() + ".", "")).collect(Collectors.toList());
-    assertEquals(4, files.size());
+    assertEquals(3, files.size());
     assertTrue(files.contains("points.2878.0.spool"));
-    assertTrue(files.contains("points._2878.0.spool"));
     assertTrue(files.contains("events.2888.0.spool"));
     assertTrue(files.contains("sourceTags.2898.0.spool"));
 

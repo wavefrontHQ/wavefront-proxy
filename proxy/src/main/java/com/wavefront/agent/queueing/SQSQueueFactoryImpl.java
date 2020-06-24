@@ -10,6 +10,7 @@ import com.amazonaws.services.sqs.model.GetQueueUrlResult;
 import com.amazonaws.services.sqs.model.QueueAttributeName;
 import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.data.ReportableEntityType;
@@ -56,29 +57,33 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
   }
 
   @Override
-  public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@Nonnull HandlerKey key, int threadNum) {
+  public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@Nonnull HandlerKey key,
+                                                                     int threadNum) {
     // noinspection unchecked
-    TaskQueue<T> taskQueue = (TaskQueue<T>) taskQueues.computeIfAbsent(key, x -> new TreeMap<>()).
+    return (TaskQueue<T>) taskQueues.computeIfAbsent(key, x -> new TreeMap<>()).
         computeIfAbsent(threadNum, x -> createTaskQueue(key));
-    return taskQueue;
   }
 
   private <T extends DataSubmissionTask<T>> TaskQueue<T> createTaskQueue(
       @Nonnull HandlerKey handlerKey) {
     if (purgeBuffer) {
-      logger.warning("--purgeBuffer is set but purging buffers is not supported on SQS implementation");
+      logger.warning("--purgeBuffer is set but purging buffers is not supported on " +
+          "SQS implementation");
     }
 
     final String queueName = getQueueName(handlerKey);
     String queueUrl = queues.computeIfAbsent(queueName, x -> getOrCreateQueue(queueName));
     if (handlerKey.getEntityType() == ReportableEntityType.SOURCE_TAG) {
-      return new InMemorySubmissionQueue<>(handlerKey.getHandle(), handlerKey.getEntityType());
+      return new SynchronizedTaskQueueWithMetrics<T>(new InMemorySubmissionQueue<>(), "buffer.in-memory",
+          ImmutableMap.of("port", handlerKey.getHandle()), handlerKey.getEntityType());
     }
     if (StringUtils.isNotBlank(queueUrl)) {
-      return new SQSSubmissionQueue<>(queueUrl, AmazonSQSClientBuilder.standard().withRegion(this.region).build(),
+      return new SynchronizedTaskQueueWithMetrics<>(new SQSSubmissionQueue<>(queueUrl,
+          AmazonSQSClientBuilder.standard().withRegion(this.region).build(),
           new RetryTaskConverter<T>(handlerKey.getHandle(),
-              RetryTaskConverter.CompressionType.LZ4),
-          handlerKey.getHandle(), handlerKey.getEntityType());
+              RetryTaskConverter.CompressionType.LZ4)),
+          "buffer.sqs", ImmutableMap.of("port", handlerKey.getHandle(), "sqsQueue", queueUrl),
+          handlerKey.getEntityType());
     }
     return new TaskQueueStub<>();
   }
@@ -96,7 +101,8 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
     String queueUrl = queues.getOrDefault(queueName, "");
     if (StringUtils.isNotBlank(queueUrl)) return queueUrl;
     try {
-      GetQueueUrlResult queueUrlResult = client.getQueueUrl(new GetQueueUrlRequest().withQueueName(queueName));
+      GetQueueUrlResult queueUrlResult =
+          client.getQueueUrl(new GetQueueUrlRequest().withQueueName(queueName));
       queueUrl = queueUrlResult.getQueueUrl();
     } catch (QueueDoesNotExistException e) {
       logger.info("Queue " + queueName + " does not exist...creating for first time");
@@ -123,6 +129,7 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
   }
 
   public static boolean isValidSQSTemplate(String template) {
-    return template.contains("{{id}}") && template.contains("{{entity}}") && template.contains("{{port}}");
+    return template.contains("{{id}}") && template.contains("{{entity}}") &&
+        template.contains("{{port}}");
   }
 }

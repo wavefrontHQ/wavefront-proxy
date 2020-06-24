@@ -1,18 +1,17 @@
 package com.wavefront.agent.queueing;
 
-import com.squareup.tape2.ObjectQueue;
-import com.wavefront.agent.data.DataSubmissionTask;
-import com.wavefront.common.TaggedMetricName;
-import com.wavefront.data.ReportableEntityType;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Counter;
-
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.jetbrains.annotations.NotNull;
+
+import com.squareup.tape2.ObjectQueue;
+import com.wavefront.agent.data.DataSubmissionTask;
+import com.wavefront.common.Utils;
 
 /**
  * Implements proxy-specific in-memory-queue interface as a wrapper over tape {@link ObjectQueue}
@@ -22,55 +21,28 @@ import java.util.logging.Logger;
  * @author mike@wavefront.com
  */
 public class InMemorySubmissionQueue<T extends DataSubmissionTask<T>> implements TaskQueue<T> {
+  private static final Logger log =
+      Logger.getLogger(InMemorySubmissionQueue.class.getCanonicalName());
+  private static final int MAX_BUFFER_SIZE = 50_000;
 
-  private static final Logger log = Logger.getLogger(InMemorySubmissionQueue.class.getCanonicalName());
+  private final ObjectQueue<T> wrapped;
 
-  private final ObjectQueue<T> delegate;
-  @Nullable
-  private final String handle;
-  private final String entityName;
-  private final int maxBufferSize = 50_000;
-  private final ReentrantLock queueLock = new ReentrantLock(true);
-
-  private final Counter tasksAddedCounter;
-  private final Counter itemsAddedCounter;
-  private final Counter tasksRemovedCounter;
-  private final Counter itemsRemovedCounter;
-
-  private AtomicLong currentWeight = null;
+  private final AtomicLong currentWeight = new AtomicLong();
   private T head;
 
-  /**
-   * @param handle       pipeline handle.
-   * @param entityType   entity type.
-   */
-  public InMemorySubmissionQueue(@Nullable String handle,
-                                 @Nullable ReportableEntityType entityType) {
-    delegate = ObjectQueue.createInMemory();
-    this.handle = handle;
-    this.entityName = entityType == null ? "points" : entityType.toString();
-    if (delegate.isEmpty()) {
-      initializeTracking();
-    }
-    this.tasksAddedCounter = Metrics.newCounter(new TaggedMetricName("buffer.in-memory", "task-added",
-        "port", handle));
-    this.itemsAddedCounter = Metrics.newCounter(new TaggedMetricName("buffer.in-memory", entityName +
-        "-added", "port", handle));
-    this.tasksRemovedCounter = Metrics.newCounter(new TaggedMetricName("buffer.in-memory", "task-removed",
-        "port", handle));
-    this.itemsRemovedCounter = Metrics.newCounter(new TaggedMetricName("buffer.in-memory", entityName +
-        "-removed", "port", handle));
+  public InMemorySubmissionQueue() {
+    this.wrapped = ObjectQueue.createInMemory();
   }
 
   @Override
   public int size() {
-    return this.delegate.size();
+    return wrapped.size();
   }
 
   @Nullable
   @Override
   public Long weight() {
-    return currentWeight != null ? currentWeight.get() : null;
+    return currentWeight.get();
   }
 
   @Nullable
@@ -79,96 +51,57 @@ public class InMemorySubmissionQueue<T extends DataSubmissionTask<T>> implements
     return null;
   }
 
+  @Override
+  public String getName() {
+    return "unknown";
+  }
+
   @Nullable
   @Override
   public T peek() {
-    if (this.head != null) return this.head;
-    queueLock.lock();
     try {
-      this.head = delegate.peek();
+      if (this.head != null) return this.head;
+      this.head = wrapped.peek();
       return this.head;
-    } catch (IOException e) {
-      Metrics.newCounter(new TaggedMetricName("buffer.in-memory", "failures", "port", handle)).inc();
-      log.log(Level.SEVERE, "I/O error retrieving data from the queue: ", e);
-      this.head = null;
-      return null;
-    } finally {
-      queueLock.unlock();
+    } catch (IOException ex) {
+      throw Utils.<Error>throwAny(ex);
     }
   }
 
   @Override
-  public void add(T t) throws IOException {
-    queueLock.lock();
-    try {
-      if (delegate.size() >= maxBufferSize) {
-        log.severe("Unable to enqueue in memory, too many outstanding tasks.");
-        return;
-      }
-      this.delegate.add(t);
-      if (currentWeight != null) {
-        currentWeight.addAndGet(t.weight());
-      }
-      tasksAddedCounter.inc();
-      itemsAddedCounter.inc(t.weight());
-    } finally {
-      queueLock.unlock();
+  public void add(@Nonnull T entry) throws IOException {
+    if (wrapped.size() >= MAX_BUFFER_SIZE) {
+      log.severe("Memory buffer full - too many outstanding tasks (" + MAX_BUFFER_SIZE + ")");
+      return;
     }
+    wrapped.add(entry);
+    currentWeight.addAndGet(entry.weight());
   }
 
   @Override
-  public void clear() {
-    queueLock.lock();
-    try {
-      delegate.clear();
-      this.head = null;
-      initializeTracking();
-    } catch (IOException e) {
-      Metrics.newCounter(new TaggedMetricName("buffer.in-memory", "failures", "port", handle)).inc();
-      log.severe("I/O error clearing queue: " + e.getMessage());
-    } finally {
-      queueLock.unlock();
-    }
+  public void clear() throws IOException {
+    wrapped.clear();
+    this.head = null;
+    this.currentWeight.set(0);
   }
 
   @Override
-  public void remove() {
-    queueLock.lock();
-    long taskSize = head == null ? 0 : head.weight();
-    try {
-      delegate.remove();
-      if (currentWeight != null) {
-        currentWeight.getAndUpdate(x -> x > taskSize ? x - taskSize : 0);
-      }
-      head = null;
-      if (delegate.isEmpty()) {
-        initializeTracking();
-      }
-      tasksRemovedCounter.inc();
-      itemsRemovedCounter.inc(taskSize);
-    } catch (IOException e) {
-      Metrics.newCounter(new TaggedMetricName("buffer.in-memory", "failures", "port", handle)).inc();
-      log.severe("I/O error removing task from the queue: " + e.getMessage());
-    } finally {
-      queueLock.unlock();
-    }
+  public void remove() throws IOException {
+    T t = peek();
+    long weight = t == null ? 0 : t.weight();
+    currentWeight.getAndUpdate(x -> x > weight ? x - weight : 0);
+    wrapped.remove();
+    head = null;
   }
 
   @Override
-  public void close() {
-    try {
-      delegate.close();
-    } catch (IOException e) {
-      Metrics.newCounter(new TaggedMetricName("buffer.in-memory", "failures", "port", handle)).inc();
-      log.severe("I/O error closing queue: " + e.getMessage());
-    }
+  public void close() throws IOException {
+    wrapped.close();
   }
 
-  private synchronized void initializeTracking() {
-    if (currentWeight == null) {
-      currentWeight = new AtomicLong(0);
-    } else {
-      currentWeight.set(0);
-    }
+  @NotNull
+  @Override
+  public Iterator<T> iterator() {
+    return wrapped.iterator();
   }
 }

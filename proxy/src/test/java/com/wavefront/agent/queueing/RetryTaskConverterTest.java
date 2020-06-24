@@ -21,9 +21,9 @@ public class RetryTaskConverterTest {
     RetryTaskConverter<LineDelimitedDataSubmissionTask> converter = new RetryTaskConverter<>(
         "2878", RetryTaskConverter.CompressionType.NONE);
 
-    assertNull(converter.from(new byte[] {0, 0, 0}));
-    assertNull(converter.from(new byte[] {'W', 'F', 0}));
-    assertNull(converter.from(new byte[] {'W', 'F', 1}));
-    assertNull(converter.from(new byte[] {'W', 'F', 1, 0}));
+    assertNull(converter.fromBytes(new byte[] {0, 0, 0}));
+    assertNull(converter.fromBytes(new byte[] {'W', 'F', 0}));
+    assertNull(converter.fromBytes(new byte[] {'W', 'F', 1}));
+    assertNull(converter.fromBytes(new byte[] {'W', 'F', 1, 0}));
   }
 }

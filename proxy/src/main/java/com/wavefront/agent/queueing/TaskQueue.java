@@ -14,22 +14,23 @@ import java.io.IOException;
  *
  * @author vasily@wavefront.com.
  */
-public interface TaskQueue<T extends DataSubmissionTask<T>> {
+public interface TaskQueue<T extends DataSubmissionTask<T>> extends Iterable<T> {
 
   /**
    * Retrieve a task that is currently at the head of the queue.
    *
    * @return task object
    */
+  @Nullable
   T peek();
 
   /**
    * Add a task to the end of the queue
    *
-   * @param t task
+   * @param entry task
    * @throws IOException IO exceptions caught by the storage engine
    */
-  void add(@Nonnull T t) throws IOException;
+  void add(@Nonnull T entry) throws IOException;
 
   /**
    * Remove a task from the head of the queue. Requires peek() to be called first, otherwise
@@ -42,7 +43,7 @@ public interface TaskQueue<T extends DataSubmissionTask<T>> {
   /**
    * Empty and re-initialize the queue.
    */
-  void clear();
+  void clear() throws IOException;
 
   /**
    * Returns a number of tasks currently in the queue.
@@ -54,7 +55,7 @@ public interface TaskQueue<T extends DataSubmissionTask<T>> {
   /**
    * Close the queue. Should be invoked before a graceful shutdown.
    */
-  void close();
+  void close() throws IOException;
 
   /**
    * Returns the total weight of the queue (sum of weights of all tasks).
@@ -72,4 +73,12 @@ public interface TaskQueue<T extends DataSubmissionTask<T>> {
    */
   @Nullable
   Long getAvailableBytes();
+
+  /**
+   * Returns the unique queue name/identifier, can be anything, like file path name for
+   * file-based queues.
+   *
+   * @return queue name.
+   */
+  String getName();
 }

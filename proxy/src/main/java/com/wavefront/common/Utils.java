@@ -182,6 +182,15 @@ public abstract class Utils {
     return false;
   }
 
+  /**
+   * Use this to throw checked exceptions from iterator methods that do not declare that they throw
+   * checked exceptions.
+   */
+  @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
+  public static <E extends Throwable> E throwAny(Throwable t) throws E {
+    throw (E) t;
+  }
+
   @JsonIgnoreProperties(ignoreUnknown = true)
   private static class Status {
     @JsonProperty

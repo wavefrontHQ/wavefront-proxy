@@ -13,19 +13,17 @@ import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.data.DataSubmissionTask;
-import com.wavefront.common.TaggedMetricName;
-import com.wavefront.data.ReportableEntityType;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Counter;
+import com.wavefront.common.Utils;
+
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,57 +42,29 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
 
   private final String queueUrl;
   private final TaskConverter<T> converter;
-  private AtomicLong currentWeight = null;
 
-  @Nullable
-  private final String handle;
-  private final String entityName;
   private final AmazonSQS sqsClient;
 
-  private final Counter tasksAddedCounter;
-  private final Counter itemsAddedCounter;
-  private final Counter tasksRemovedCounter;
-  private final Counter itemsRemovedCounter;
-
-  private String messageHandle = null;
-  private T head = null;
-
-  // maintain a fair lock on the queue
-  private final ReentrantLock queueLock = new ReentrantLock(true);
+  private volatile String messageHandle = null;
+  private volatile T head = null;
 
   /**
    * @param queueUrl   The FQDN of the SQS Queue
    * @param sqsClient  The {@link AmazonSQS} client.
    * @param converter  The {@link TaskQueue<T>} for converting tasks into and from the Queue
-   * @param handle     Pipeline handle
-   * @param entityType Entity type
    */
   public SQSSubmissionQueue(String queueUrl,
                             AmazonSQS sqsClient,
-                            TaskConverter<T> converter,
-                            @Nullable String handle,
-                            @Nullable ReportableEntityType entityType) {
+                            TaskConverter<T> converter) {
     this.queueUrl = queueUrl;
     this.converter = converter;
-    this.handle = handle;
-    this.entityName = entityType == null ? "points" : entityType.toString();
     this.sqsClient = sqsClient;
-
-    this.tasksAddedCounter = Metrics.newCounter(new TaggedMetricName("buffer.sqs", "task-added",
-        "port", handle, "queueUrl", queueUrl));
-    this.itemsAddedCounter = Metrics.newCounter(new TaggedMetricName("buffer.sqs", entityName +
-        "-added", "port", handle, "queueUrl", queueUrl));
-    this.tasksRemovedCounter = Metrics.newCounter(new TaggedMetricName("buffer.sqs", "task-removed",
-        "port", handle, "queueUrl", queueUrl));
-    this.itemsRemovedCounter = Metrics.newCounter(new TaggedMetricName("buffer.sqs", entityName +
-        "-removed", "port", handle, "queueUrl", queueUrl));
   }
 
   @Override
   public T peek() {
-    if (this.head != null) return head;
-    queueLock.lock();
     try {
+      if (this.head != null) return head;
       ReceiveMessageRequest receiveRequest = new ReceiveMessageRequest(this.queueUrl);
       receiveRequest.setMaxNumberOfMessages(1);
       receiveRequest.setWaitTimeSeconds(1);
@@ -106,85 +76,62 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
       Message message = messages.get(0);
       byte[] messageBytes = parseBase64Binary(message.getBody());
       messageHandle = message.getReceiptHandle();
-      head = converter.from(messageBytes);
+      head = converter.fromBytes(messageBytes);
       return head;
+    } catch (IOException e) {
+      throw Utils.<Error>throwAny(e);
     } catch (AmazonClientException e) {
-      log.log(Level.SEVERE, "AmazonClientException while trying to peek the queues, ", e.getMessage());
-    } finally {
-      queueLock.unlock();
+      throw Utils.<Error>throwAny(
+          new IOException("AmazonClientException while trying to peek the queues, ", e));
     }
-    return null;
   }
 
   @Override
   public void add(@Nonnull T t) throws IOException {
-    queueLock.lock();
     try {
       SendMessageRequest request = new SendMessageRequest();
       String contents = encodeMessageForDelivery(t);
       request.setMessageBody(contents);
       request.setQueueUrl(queueUrl);
       sqsClient.sendMessage(request);
-      if (currentWeight != null) {
-        currentWeight.addAndGet(t.weight());
-      }
-      tasksAddedCounter.inc();
-      itemsAddedCounter.inc(t.weight());
     } catch (AmazonClientException e) {
       throw new IOException("AmazonClientException adding messages onto the queue", e);
-    } finally {
-      queueLock.unlock();
     }
   }
 
   @VisibleForTesting
   public String encodeMessageForDelivery(T t) throws IOException {
     try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-      converter.toStream(t, os);
+      converter.serializeToStream(t, os);
       byte[] contents = os.toByteArray();
       return printBase64Binary(contents);
     }
   }
 
   @Override
-  public void remove() {
-    queueLock.lock();
+  public void remove() throws IOException {
     try {
       // We have no head, do not remove
       if (StringUtils.isBlank(messageHandle) || head == null) {
         return;
       }
       int taskSize = head.weight();
-      if (currentWeight != null) {
-        currentWeight.getAndUpdate(x -> x > taskSize ? x - taskSize : 0);
-      }
-      DeleteMessageRequest deleteRequest = new DeleteMessageRequest(this.queueUrl, this.messageHandle);
+      DeleteMessageRequest deleteRequest = new DeleteMessageRequest(this.queueUrl,
+          this.messageHandle);
       sqsClient.deleteMessage(deleteRequest);
       this.head = null;
       this.messageHandle = null;
-      initializeTracking();
-      tasksRemovedCounter.inc();
-      itemsRemovedCounter.inc(taskSize);
     } catch (AmazonClientException e) {
-      Metrics.newCounter(new TaggedMetricName("buffer.sqs", "failures", "port",
-          handle, "queueUrl", queueUrl)).inc();
-      log.log(Level.SEVERE, "AmazonClientException removing from the queue", e);
-    } finally {
-      queueLock.unlock();
+      throw new IOException("AmazonClientException removing from the queue", e);
     }
   }
 
   @Override
-  public void clear() {
-    queueLock.lock();
+  public void clear() throws IOException {
     try {
       sqsClient.purgeQueue(new PurgeQueueRequest(this.queueUrl));
     } catch (AmazonClientException e) {
-      Metrics.newCounter(new TaggedMetricName("buffer.sqs", "failures", "port",
-          handle, "queueUrl", queueUrl)).inc();
-      log.log(Level.SEVERE, "AmazonClientException clearing the queue", e);
-    } finally {
-      queueLock.unlock();
+      throw new IOException("AmazonClientException clearing the queue", e);
     }
   }
 
@@ -200,7 +147,8 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
     } catch (AmazonClientException e) {
       log.log(Level.SEVERE, "Unable to obtain ApproximateNumberOfMessages from queue", e);
     } catch (NumberFormatException e) {
-      log.log(Level.SEVERE, "Value returned for approximate number of messages is not a valid number", e);
+      log.log(Level.SEVERE, "Value returned for approximate number of messages is not a " +
+          "valid number", e);
     }
     return queueSize;
   }
@@ -213,20 +161,24 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
   @Nullable
   @Override
   public Long weight() {
-    return currentWeight == null ? null : currentWeight.get();
+    return null;
   }
 
   @Nullable
   @Override
   public Long getAvailableBytes() {
-    throw new UnsupportedOperationException("Cannot obtain total bytes from SQS queue, consider using size instead");
+    throw new UnsupportedOperationException("Cannot obtain total bytes from SQS queue, " +
+        "consider using size instead");
   }
 
-  private synchronized void initializeTracking() {
-    if (currentWeight == null) {
-      currentWeight = new AtomicLong(0);
-    } else {
-      currentWeight.set(0);
-    }
+  @Override
+  public String getName() {
+    return queueUrl;
+  }
+
+  @NotNull
+  @Override
+  public Iterator<T> iterator() {
+    throw new UnsupportedOperationException("iterator() is not supported on a SQS queue");
   }
 }

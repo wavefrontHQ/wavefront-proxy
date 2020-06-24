@@ -14,7 +14,6 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 import org.apache.commons.lang.math.NumberUtils;
 
-import javax.annotation.Nullable;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -22,6 +21,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
@@ -77,24 +77,9 @@ public class QueueExporter {
         logger.info("Exporting data to " + outputFileName);
         try {
           BufferedWriter writer = new BufferedWriter(new FileWriter(outputFileName));
-          TaskQueue<T> backupQueue = getBackupQueue(key, i);
-          processQueue(taskQueue, backupQueue, writer);
+          processQueue(taskQueue, writer);
           writer.close();
           taskQueue.close();
-          if (backupQueue != null) {
-            backupQueue.close();
-            String queueFn = getQueueFileName(taskQueue);
-            logger.info("Deleting " + queueFn);
-            if (new File(queueFn).delete()) {
-              String backupFn = getQueueFileName(backupQueue);
-              logger.info("Renaming " + backupFn + " to " + queueFn);
-              if (!new File(backupFn).renameTo(new File(queueFn))) {
-                logger.warning("Unable to rename the file!");
-              }
-            } else {
-              logger.warning("Unable to delete " + queueFn);
-            }
-          }
         } catch (IOException e) {
           logger.log(Level.SEVERE, "IO error", e);
         }
@@ -104,28 +89,16 @@ public class QueueExporter {
 
   @VisibleForTesting
   <T extends DataSubmissionTask<T>> void processQueue(TaskQueue<T> queue,
-                                                      @Nullable TaskQueue<T> backupQueue,
                                                       BufferedWriter writer) throws IOException {
     int tasksProcessed = 0;
     int itemsExported = 0;
-    while (queue.size() > 0) {
-      T task = queue.peek();
-      if (task instanceof LineDelimitedDataSubmissionTask) {
-        for (String line : ((LineDelimitedDataSubmissionTask) task).payload()) {
-          writer.write(line);
-          writer.newLine();
-        }
-      } else if (task instanceof SourceTagSubmissionTask) {
-        writer.write(((SourceTagSubmissionTask) task).payload().toString());
-        writer.newLine();
-      } else if (task instanceof EventDataSubmissionTask) {
-        for (Event event : ((EventDataSubmissionTask) task).payload()) {
-          writer.write(event.toString());
-          writer.newLine();
-        }
+    Iterator<T> iterator = queue.iterator();
+    while (iterator.hasNext()) {
+      T task = iterator.next();
+      processTask(task, writer);
+      if (!config.isExportQueueRetainData()) {
+        iterator.remove();
       }
-      if (backupQueue != null) backupQueue.add(task);
-      queue.remove();
       tasksProcessed++;
       itemsExported += task.weight();
     }
@@ -133,17 +106,22 @@ public class QueueExporter {
   }
 
   @VisibleForTesting
-  <T extends DataSubmissionTask<T>> TaskQueue<T> getBackupQueue(HandlerKey key, int threadNo) {
-    if (!config.isExportQueueRetainData()) return null;
-    TaskQueue<T> backupQueue = taskQueueFactory.getTaskQueue(HandlerKey.of(key.getEntityType(),
-        "_" + key.getHandle()), threadNo);
-    String backupFn = getQueueFileName(backupQueue);
-    if (backupQueue.size() > 0) {
-      logger.warning("Backup queue is not empty, please delete to proceed: " + backupFn);
-      return null;
+  <T extends DataSubmissionTask<T>> void processTask(T task, BufferedWriter writer)
+      throws IOException {
+    if (task instanceof LineDelimitedDataSubmissionTask) {
+      for (String line : ((LineDelimitedDataSubmissionTask) task).payload()) {
+        writer.write(line);
+        writer.newLine();
+      }
+    } else if (task instanceof SourceTagSubmissionTask) {
+      writer.write(((SourceTagSubmissionTask) task).payload().toString());
+      writer.newLine();
+    } else if (task instanceof EventDataSubmissionTask) {
+      for (Event event : ((EventDataSubmissionTask) task).payload()) {
+        writer.write(event.toString());
+        writer.newLine();
+      }
     }
-    logger.info("Copying data to the backup queue: " + backupFn);
-    return backupQueue;
   }
 
   @VisibleForTesting
@@ -174,9 +152,5 @@ public class QueueExporter {
     return files == null ?
         Collections.emptyList() :
         Arrays.stream(files).map(File::getAbsolutePath).collect(Collectors.toList());
-  }
-
-  static <T extends DataSubmissionTask<T>> String getQueueFileName(TaskQueue<T> taskQueue) {
-    return ((DataSubmissionQueue<T>) taskQueue).file().file().getAbsolutePath();
   }
 }

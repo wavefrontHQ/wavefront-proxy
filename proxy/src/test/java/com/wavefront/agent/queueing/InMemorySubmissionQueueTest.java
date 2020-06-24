@@ -19,7 +19,6 @@ import wavefront.report.ReportSourceTag;
 import wavefront.report.SourceOperationType;
 import wavefront.report.SourceTagAction;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
@@ -46,17 +45,17 @@ public class InMemorySubmissionQueueTest<T extends DataSubmissionTask<T>> {
     Collection<Object[]> scenarios = new ArrayList<>();
     for (TaskConverter.CompressionType type : TaskConverter.CompressionType.values()) {
       RetryTaskConverter<LineDelimitedDataSubmissionTask> converter = new RetryTaskConverter<>("2878", type);
-      LineDelimitedDataSubmissionTask task = converter.from("WF\u0001\u0001{\"__CLASS\":\"com.wavefront.agent.data.LineDelimitedDataSubmissionTask\",\"enqueuedTimeMillis\":77777,\"attempts\":0,\"serverErrors\":0,\"handle\":\"2878\",\"entityType\":\"POINT\",\"format\":\"wavefront\",\"payload\":[\"java.util.ArrayList\",[\"item1\",\"item2\",\"item3\"]],\"enqueuedMillis\":77777}".getBytes());
+      LineDelimitedDataSubmissionTask task = converter.fromBytes("WF\u0001\u0001{\"__CLASS\":\"com.wavefront.agent.data.LineDelimitedDataSubmissionTask\",\"enqueuedTimeMillis\":77777,\"attempts\":0,\"serverErrors\":0,\"handle\":\"2878\",\"entityType\":\"POINT\",\"format\":\"wavefront\",\"payload\":[\"java.util.ArrayList\",[\"item1\",\"item2\",\"item3\"]],\"enqueuedMillis\":77777}".getBytes());
       scenarios.add(new Object[]{type, task});
     }
     for (TaskConverter.CompressionType type : TaskConverter.CompressionType.values()) {
       RetryTaskConverter<EventDataSubmissionTask> converter = new RetryTaskConverter<>("2878", type);
-      EventDataSubmissionTask task = converter.from("WF\u0001\u0001{\"__CLASS\":\"com.wavefront.agent.data.EventDataSubmissionTask\",\"enqueuedTimeMillis\":77777,\"attempts\":0,\"serverErrors\":0,\"handle\":\"2878\",\"entityType\":\"EVENT\",\"events\":[\"java.util.ArrayList\",[{\"name\":\"Event name for testing\",\"startTime\":77777000,\"endTime\":77777001,\"annotations\":[\"java.util.HashMap\",{\"severity\":\"INFO\"}],\"dimensions\":[\"java.util.HashMap\",{\"multi\":[\"java.util.ArrayList\",[\"bar\",\"baz\"]]}],\"hosts\":[\"java.util.ArrayList\",[\"host1\",\"host2\"]],\"tags\":[\"java.util.ArrayList\",[\"tag1\"]]}]],\"enqueuedMillis\":77777}".getBytes());
+      EventDataSubmissionTask task = converter.fromBytes("WF\u0001\u0001{\"__CLASS\":\"com.wavefront.agent.data.EventDataSubmissionTask\",\"enqueuedTimeMillis\":77777,\"attempts\":0,\"serverErrors\":0,\"handle\":\"2878\",\"entityType\":\"EVENT\",\"events\":[\"java.util.ArrayList\",[{\"name\":\"Event name for testing\",\"startTime\":77777000,\"endTime\":77777001,\"annotations\":[\"java.util.HashMap\",{\"severity\":\"INFO\"}],\"dimensions\":[\"java.util.HashMap\",{\"multi\":[\"java.util.ArrayList\",[\"bar\",\"baz\"]]}],\"hosts\":[\"java.util.ArrayList\",[\"host1\",\"host2\"]],\"tags\":[\"java.util.ArrayList\",[\"tag1\"]]}]],\"enqueuedMillis\":77777}".getBytes());
       scenarios.add(new Object[]{type, task});
     }
     for (TaskConverter.CompressionType type : TaskConverter.CompressionType.values()) {
       RetryTaskConverter<SourceTagSubmissionTask> converter = new RetryTaskConverter<>("2878", type);
-      SourceTagSubmissionTask task = converter.from("WF\u0001\u0001{\"__CLASS\":\"com.wavefront.agent.data.SourceTagSubmissionTask\",\"enqueuedTimeMillis\":77777,\"attempts\":0,\"serverErrors\":0,\"handle\":\"2878\",\"entityType\":\"SOURCE_TAG\",\"limitRetries\":true,\"sourceTag\":{\"operation\":\"SOURCE_TAG\",\"action\":\"SAVE\",\"source\":\"testSource\",\"annotations\":[\"java.util.ArrayList\",[\"newtag1\",\"newtag2\"]]},\"enqueuedMillis\":77777}\n".getBytes());
+      SourceTagSubmissionTask task = converter.fromBytes("WF\u0001\u0001{\"__CLASS\":\"com.wavefront.agent.data.SourceTagSubmissionTask\",\"enqueuedTimeMillis\":77777,\"attempts\":0,\"serverErrors\":0,\"handle\":\"2878\",\"entityType\":\"SOURCE_TAG\",\"limitRetries\":true,\"sourceTag\":{\"operation\":\"SOURCE_TAG\",\"action\":\"SAVE\",\"source\":\"testSource\",\"annotations\":[\"java.util.ArrayList\",[\"newtag1\",\"newtag2\"]]},\"enqueuedMillis\":77777}\n".getBytes());
       scenarios.add(new Object[]{type, task});
     }
     return scenarios;
@@ -64,7 +63,7 @@ public class InMemorySubmissionQueueTest<T extends DataSubmissionTask<T>> {
 
   @Test
   public void testTaskRead() {
-    InMemorySubmissionQueue queue = new InMemorySubmissionQueue("2878", null);
+    TaskQueue queue = new InMemorySubmissionQueue<>();
     UUID proxyId = UUID.randomUUID();
     DataSubmissionTask<? extends DataSubmissionTask<?>> task = null;
     if (this.expectedTask instanceof LineDelimitedDataSubmissionTask) {

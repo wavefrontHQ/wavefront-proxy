@@ -5,6 +5,10 @@ import com.wavefront.agent.data.DataSubmissionTask;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.util.Iterator;
+
+import org.apache.commons.collections.iterators.EmptyIterator;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * A non-functional empty {@code TaskQueue} that throws an error when attempting to add a task.
@@ -51,5 +55,16 @@ public class TaskQueueStub<T extends DataSubmissionTask<T>> implements TaskQueue
   @Override
   public Long getAvailableBytes() {
     return null;
+  }
+
+  @Override
+  public String getName() {
+    return "stub";
+  }
+
+  @NotNull
+  @Override
+  public Iterator<T> iterator() {
+    return EmptyIterator.INSTANCE;
   }
 }
