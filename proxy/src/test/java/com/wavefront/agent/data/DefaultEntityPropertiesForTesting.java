@@ -112,5 +112,14 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
     @Override
     public void setTraceSamplingRate(Double traceSamplingRate) {
     }
+
+    @Override
+    public Integer getDropSpansDelayedMinutes() {
+      return null;
+    }
+
+    @Override
+    public void setDropSpansDelayedMinutes(Integer dropSpansDelayedMinutes) {
+    }
   }
 }

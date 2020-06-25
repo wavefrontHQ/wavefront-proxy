@@ -9,6 +9,7 @@ import wavefront.report.Histogram;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -52,6 +53,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final Logger blockedHistogramsLogger;
   private final Logger blockedSpansLogger;
   private final Function<Histogram, Histogram> histogramRecompressor;
+  private final Supplier<Integer> dropSpansDelayedMinutes;
 
   /**
    * Create new instance.
@@ -66,7 +68,8 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       final SenderTaskFactory senderTaskFactory, final int blockedItemsPerBatch,
       @Nonnull final ValidationConfiguration validationConfig, final Logger blockedPointsLogger,
       final Logger blockedHistogramsLogger, final Logger blockedSpansLogger,
-      @Nullable Function<Histogram, Histogram> histogramRecompressor) {
+      @Nullable Function<Histogram, Histogram> histogramRecompressor,
+      @Nonnull final Supplier<Integer> dropSpansDelayedMinutes) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.validationConfig = validationConfig;
@@ -74,6 +77,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
     this.blockedHistogramsLogger = blockedHistogramsLogger;
     this.blockedSpansLogger = blockedSpansLogger;
     this.histogramRecompressor = histogramRecompressor;
+    this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
   }
 
   @SuppressWarnings("unchecked")
@@ -98,7 +102,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
         case TRACE:
           return new SpanHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey),
-              validationConfig, blockedSpansLogger, VALID_SPANS_LOGGER);
+              validationConfig, blockedSpansLogger, VALID_SPANS_LOGGER, dropSpansDelayedMinutes);
         case TRACE_SPAN_LOGS:
           return new SpanLogsHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey),
