@@ -50,12 +50,14 @@ public class FileBasedTaskQueue<T extends DataSubmissionTask<T>> implements Task
   public FileBasedTaskQueue(QueueFile queueFile, TaskConverter<T> taskConverter) {
     this.queueFile = queueFile;
     this.taskConverter = taskConverter;
+    log.fine("Enumerating " + queueFile.file().getAbsolutePath() + " queue");
     this.queueFile.iterator().forEachRemaining(task -> {
       Integer weight = taskConverter.getWeight(task);
       if (weight != null) {
         currentWeight.addAndGet(weight);
       }
     });
+    log.fine("Enumerated: " + currentWeight.get() + " items in " +  queueFile.size() + " tasks");
   }
 
   @Override
