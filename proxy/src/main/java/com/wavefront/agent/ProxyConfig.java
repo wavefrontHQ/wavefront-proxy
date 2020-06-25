@@ -54,7 +54,6 @@ public class ProxyConfig extends Configuration {
   private static final double MAX_RETRY_BACKOFF_BASE_SECONDS = 60.0;
   private static final int GRAPHITE_LISTENING_PORT = 2878;
 
-
   @Parameter(names = {"--help"}, help = true)
   boolean help = false;
 
@@ -775,6 +774,15 @@ public class ProxyConfig extends Configuration {
   @Parameter(names = {"--trafficShaping"}, description = "Enables intelligent traffic shaping " +
       "based on received rate over last 5 minutes. Default: disabled", arity = 1)
   protected boolean trafficShaping = false;
+
+  @Parameter(names = {"--trafficShapingQuantile"}, description = "Sets the quantile to use " +
+      "for traffic shaping. Default: 75, i.e. 75th percentile of the received rate, heavily " +
+      "biased towards last 5 minutes, will be used as a basis for the rate limiter.")
+  protected double trafficShapingQuantile = 75;
+
+  @Parameter(names = {"--trafficShapingHeadroom"}, description = "Sets the headroom multiplier " +
+      " to use for traffic shaping. Default: 1.1 (10% headroom)")
+  protected double trafficShapingHeadroom = 1.1;
 
   @Parameter()
   List<String> unparsed_params;
@@ -1499,6 +1507,14 @@ public class ProxyConfig extends Configuration {
     return trafficShaping;
   }
 
+  public double getTrafficShapingQuantile() {
+    return trafficShapingQuantile;
+  }
+
+  public double getTrafficShapingHeadroom() {
+    return trafficShapingHeadroom;
+  }
+
   @Override
   public void verifyAndInit() {
     if (unparsed_params != null) {
@@ -1813,12 +1829,15 @@ public class ProxyConfig extends Configuration {
       httpHealthCheckFailResponseBody = config.getString("httpHealthCheckFailResponseBody",
           httpHealthCheckFailResponseBody);
 
-      //TLS configurations
+      // TLS configurations
       privateCertPath = config.getString("privateCertPath", privateCertPath);
       privateKeyPath = config.getString("privateKeyPath", privateKeyPath);
       tlsPorts = config.getString("tlsPorts", tlsPorts);
 
+      // Traffic shaping config
       trafficShaping = config.getBoolean("trafficShaping", trafficShaping);
+      trafficShapingQuantile = config.getDouble("trafficShapingQuantile", trafficShapingQuantile);
+      trafficShapingHeadroom = config.getDouble("trafficShapingHeadroom", trafficShapingHeadroom);
 
       // clamp values for pushFlushMaxPoints/etc between min split size
       // (or 1 in case of source tags and events) and default batch size.

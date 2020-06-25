@@ -187,7 +187,6 @@ public class PushAgent extends AbstractAgent {
   private Logger blockedPointsLogger;
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;
-  private TrafficShapingRateLimitAdjuster rateLimitAdjuster;
 
   public static void main(String[] args) {
     // Start the ssh daemon
@@ -239,8 +238,8 @@ public class PushAgent extends AbstractAgent {
         blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor,
         () -> entityProps.getGlobalProperties().getDropSpansDelayedMinutes());
     if (proxyConfig.isTrafficShaping()) {
-      rateLimitAdjuster = new TrafficShapingRateLimitAdjuster(handlerFactory, entityProps);
-      rateLimitAdjuster.start();
+      new TrafficShapingRateLimitAdjuster(handlerFactory, entityProps,
+          proxyConfig.getTrafficShapingQuantile(), proxyConfig.getTrafficShapingHeadroom()).start();
     }
     healthCheckManager = new HealthCheckManagerImpl(proxyConfig);
     tokenAuthenticator = configureTokenAuthenticator();
