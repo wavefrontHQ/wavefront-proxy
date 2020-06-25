@@ -68,8 +68,8 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
   @Override
   public T peek() {
     queueLock.lock();
-    if (this.head != null) return this.head;
     try {
+      if (this.head != null) return this.head;
       this.head = delegate.peek();
       return this.head;
     } catch (Exception e) {
@@ -117,7 +117,7 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
   public void remove() {
     queueLock.lock();
     try {
-      T t = peek();
+      T t = this.head == null ? delegate.peek() : head;
       long size = t == null ? 0 : t.weight();
       delegate.remove();
       head = null;
