@@ -5,6 +5,7 @@ import com.wavefront.common.Clock;
 import com.wavefront.ingester.SpanSerializer;
 
 import java.util.Collection;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
@@ -53,8 +54,8 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
   @Override
   protected void reportInternal(Span span) {
     Integer maxSpanDelay = dropSpansDelayedMinutes.get();
-    if (maxSpanDelay != null &&
-        span.getStartMillis() + span.getDuration() < Clock.now() - maxSpanDelay * 60 * 1000) {
+    if (maxSpanDelay != null && span.getStartMillis() + span.getDuration() <
+        Clock.now() - TimeUnit.MINUTES.toMillis(maxSpanDelay)) {
       this.reject(span, "span is older than acceptable delay of " + maxSpanDelay + " minutes");
       return;
     }

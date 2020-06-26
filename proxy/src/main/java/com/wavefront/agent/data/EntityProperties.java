@@ -183,16 +183,16 @@ public interface EntityProperties {
     void setTraceSamplingRate(Double traceSamplingRate);
 
     /**
-     * Get the maximum delay between the end time of a tracing span to reporting to wavefront,
-     * beyond which they are dropped.
+     * Get the maximum acceptable duration between now and the end of a span to be accepted for
+     * reporting to Wavefront, beyond which they are dropped.
      *
      * @return delay threshold for dropping spans in minutes.
      */
     Integer getDropSpansDelayedMinutes();
 
     /**
-     * Set the maximum delay between the end time of a tracing span to reporting to wavefront,
-     * beyond which they are dropped.
+     * Set the maximum acceptable duration between now and the end of a span to be accepted for
+     * reporting to Wavefront, beyond which they are dropped.
      *
      * @param dropSpansDelayedMinutes delay threshold for dropping spans in minutes.
      */
