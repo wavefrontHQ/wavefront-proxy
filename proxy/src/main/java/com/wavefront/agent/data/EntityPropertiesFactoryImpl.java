@@ -1,5 +1,7 @@
 package com.wavefront.agent.data;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
@@ -9,6 +11,9 @@ import com.wavefront.data.ReportableEntityType;
 
 import javax.annotation.Nullable;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
@@ -113,6 +118,10 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     protected final ProxyConfig wrapped;
     protected final GlobalProperties globalProperties;
     private final RecyclableRateLimiter rateLimiter;
+    private final LoadingCache<String, AtomicInteger> backlogSizeCache = Caffeine.newBuilder().
+        expireAfterAccess(10, TimeUnit.SECONDS).build(x -> new AtomicInteger());
+    private final LoadingCache<String, AtomicLong> receivedRateCache = Caffeine.newBuilder().
+        expireAfterAccess(10, TimeUnit.SECONDS).build(x -> new AtomicLong());
 
     public AbstractEntityProperties(ProxyConfig wrapped, GlobalProperties globalProperties) {
       this.wrapped = wrapped;
@@ -121,6 +130,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
           new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.create(
               getRateLimit(), getRateLimitMaxBurstSeconds()), getRateLimiterName()) :
           null;
+
       reportSettingAsGauge(this::getPushFlushInterval, "dynamic.pushFlushInterval");
     }
 
@@ -179,6 +189,26 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     @Override
     public TaskQueueLevel getTaskQueueLevel() {
       return wrapped.getTaskQueueLevel();
+    }
+
+    @Override
+    public int getTotalBacklogSize() {
+      return backlogSizeCache.asMap().values().stream().mapToInt(AtomicInteger::get).sum();
+    }
+
+    @Override
+    public void reportBacklogSize(String handle, int backlogSize) {
+      backlogSizeCache.get(handle).set(backlogSize);
+    }
+
+    @Override
+    public long getTotalReceivedRate() {
+      return receivedRateCache.asMap().values().stream().mapToLong(AtomicLong::get).sum();
+    }
+
+    @Override
+    public void reportReceivedRate(String handle, long receivedRate) {
+      receivedRateCache.get(handle).set(receivedRate);
     }
   }
 

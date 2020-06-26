@@ -7,6 +7,7 @@ import com.wavefront.ingester.SpanSerializer;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -34,6 +35,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
    *                             into the main log file.
    * @param sendDataTasks        sender tasks.
    * @param validationConfig     parameters for data validation.
+   * @param receivedRateSink     where to report received rate.
    * @param blockedItemLogger    logger for blocked items.
    * @param validItemsLogger     logger for valid items.
    */
@@ -41,11 +43,12 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
                   final int blockedItemsPerBatch,
                   final Collection<SenderTask<String>> sendDataTasks,
                   @Nonnull final ValidationConfiguration validationConfig,
+                  @Nullable final Consumer<Long> receivedRateSink,
                   @Nullable final Logger blockedItemLogger,
                   @Nullable final Logger validItemsLogger,
                   @Nonnull final Supplier<Integer> dropSpansDelayedMinutes) {
     super(handlerKey, blockedItemsPerBatch, new SpanSerializer(), sendDataTasks, true,
-        blockedItemLogger);
+        receivedRateSink, blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;

@@ -10,6 +10,7 @@ import java.util.logging.Logger;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
+import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.common.Managed;
 import com.wavefront.data.ReportableEntityType;
@@ -31,7 +32,6 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
   private static final int MIN_RATE_LIMIT = 10; // 10 pps
   private static final double TOLERANCE_PERCENT = 5.0;
 
-  private final ReportableEntityHandlerFactoryImpl handlerFactory;
   private final EntityPropertiesFactory entityProps;
   private final double quantile;
   private final double headroom;
@@ -41,38 +41,27 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
       new EnumMap<>(ReportableEntityType.class);
   private final Timer timer;
   private final Clock clock;
-  private final SenderTaskFactoryImpl senderTaskFactory;
 
   /**
-   * @param handlerFactory    handler factory (for collecting traffic stats)
-   * @param senderTaskFactory sender task factory (for collecting backlog stats)
-   * @param entityProps       entity properties factory (to control rate limiters)
+   * @param entityProps       entity properties factory
    * @param quantile          quantile of point rate to use
    * @param headroom          headroom multiplier and minimum headroom requirement
    */
-  public TrafficShapingRateLimitAdjuster(ReportableEntityHandlerFactoryImpl handlerFactory,
-                                         SenderTaskFactoryImpl senderTaskFactory,
-                                         EntityPropertiesFactory entityProps, double quantile,
+  public TrafficShapingRateLimitAdjuster(EntityPropertiesFactory entityProps, double quantile,
                                          double headroom) {
-    this(handlerFactory, senderTaskFactory, entityProps, quantile, headroom, Clock.defaultClock());
+    this(entityProps, quantile, headroom, Clock.defaultClock());
   }
 
-    /**
-     * @param handlerFactory    handler factory (for collecting traffic stats)
-     * @param senderTaskFactory sender task factory (for collecting backlog stats)
-     * @param entityProps       entity properties factory (to control rate limiters)
-     * @param quantile          quantile of point rate to use
-     * @param headroom          headroom multiplier
-     * @param clock             clock for the exponentially decaying reservoir
-     */
+  /**
+   * @param entityProps       entity properties factory (to control rate limiters)
+   * @param quantile          quantile of point rate to use
+   * @param headroom          headroom multiplier
+   * @param clock             clock for the exponentially decaying reservoir
+   */
   @VisibleForTesting
-  TrafficShapingRateLimitAdjuster(ReportableEntityHandlerFactoryImpl handlerFactory,
-                                  SenderTaskFactoryImpl senderTaskFactory,
-                                  EntityPropertiesFactory entityProps, double quantile,
+  TrafficShapingRateLimitAdjuster(EntityPropertiesFactory entityProps, double quantile,
                                   double headroom, Clock clock) {
     Preconditions.checkArgument(headroom >= 1.0, "headroom can't be less than 1!");
-    this.handlerFactory = handlerFactory;
-    this.senderTaskFactory = senderTaskFactory;
     this.entityProps = entityProps;
     this.quantile = quantile > 1 ? quantile / 100 : quantile;
     this.headroom = headroom;
@@ -84,13 +73,14 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
   public void run() {
     for (ReportableEntityType type : ReportableEntityType.values()) {
       AtomicLong samples = perEntitySamples.computeIfAbsent(type, k -> new AtomicLong(0));
-      long rate = handlerFactory.getReceivedRate(type);
-      boolean hasBacklog = senderTaskFactory.getQueueSize(type) > 0;
+      EntityProperties props = entityProps.get(type);
+      long rate = props.getTotalReceivedRate();
+      boolean hasBacklog = props.getTotalBacklogSize() > 0;
       if (rate > 0 || samples.get() > 0) {
         samples.incrementAndGet();
         Sample stats = updateStats(type, rate);
         if (samples.get() >= 300) { // need at least 5 minutes worth of stats to enable the limiter
-          RecyclableRateLimiter rateLimiter = entityProps.get(type).getRateLimiter();
+          RecyclableRateLimiter rateLimiter = props.getRateLimiter();
           adjustRateLimiter(type, stats, rateLimiter, hasBacklog);
         }
       }

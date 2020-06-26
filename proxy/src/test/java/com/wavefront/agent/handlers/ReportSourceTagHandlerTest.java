@@ -71,7 +71,7 @@ public class ReportSourceTagHandlerTest {
     });
     handlerKey = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878");
     sourceTagHandler = new ReportSourceTagHandlerImpl(handlerKey, 10,
-            senderTaskFactory.createSenderTasks(handlerKey), blockedLogger);
+            senderTaskFactory.createSenderTasks(handlerKey), null, blockedLogger);
   }
 
   /**
@@ -154,7 +154,7 @@ public class ReportSourceTagHandlerTest {
     tasks.add(task1);
     tasks.add(task2);
     ReportSourceTagHandlerImpl sourceTagHandler = new ReportSourceTagHandlerImpl(
-        HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"), 10, tasks, blockedLogger);
+        HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"), 10, tasks, null, blockedLogger);
     task1.add(new SourceTag(sourceTag1));
     EasyMock.expectLastCall();
     task1.add(new SourceTag(sourceTag2));

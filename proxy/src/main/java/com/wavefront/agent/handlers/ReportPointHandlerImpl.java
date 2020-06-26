@@ -15,6 +15,7 @@ import wavefront.report.ReportPoint;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -44,6 +45,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    * @param senderTasks          sender tasks.
    * @param validationConfig     validation configuration.
    * @param setupMetrics         Whether we should report counter metrics.
+   * @param receivedRateSink     Where to report received rate.
    * @param blockedItemLogger    logger for blocked items (optional).
    * @param validItemsLogger     sampling logger for valid items (optional).
    * @param recompressor         histogram recompressor (optional)
@@ -53,11 +55,12 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
                          @Nullable final Collection<SenderTask<String>> senderTasks,
                          @Nonnull final ValidationConfiguration validationConfig,
                          final boolean setupMetrics,
+                         @Nullable final Consumer<Long> receivedRateSink,
                          @Nullable final Logger blockedItemLogger,
                          @Nullable final Logger validItemsLogger,
                          @Nullable final Function<Histogram, Histogram> recompressor) {
     super(handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), senderTasks,
-        setupMetrics, blockedItemLogger);
+        setupMetrics, receivedRateSink, blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.recompressor = recompressor;

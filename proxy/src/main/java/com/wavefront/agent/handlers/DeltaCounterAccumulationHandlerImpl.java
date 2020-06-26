@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -58,6 +59,7 @@ public class DeltaCounterAccumulationHandlerImpl
    * @param senderTasks                sender tasks.
    * @param validationConfig           validation configuration.
    * @param aggregationIntervalSeconds aggregation interval for delta counters.
+   * @param receivedRateSink           where to report received rate.
    * @param blockedItemLogger          logger for blocked items.
    * @param validItemsLogger           logger for valid items.
    */
@@ -65,10 +67,11 @@ public class DeltaCounterAccumulationHandlerImpl
       final HandlerKey handlerKey, final int blockedItemsPerBatch,
       @Nullable final Collection<SenderTask<String>> senderTasks,
       @Nonnull final ValidationConfiguration validationConfig,
-      long aggregationIntervalSeconds, @Nullable final Logger blockedItemLogger,
+      long aggregationIntervalSeconds, @Nullable final Consumer<Long> receivedRateSink,
+      @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
     super(handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), senderTasks, true,
-        blockedItemLogger);
+        receivedRateSink, blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
 

@@ -8,6 +8,7 @@ import wavefront.report.SourceOperationType;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Logger;
 
@@ -22,12 +23,12 @@ class ReportSourceTagHandlerImpl
   private static final Function<ReportSourceTag, String> SOURCE_TAG_SERIALIZER = value ->
       new SourceTag(value).toString();
 
-  public ReportSourceTagHandlerImpl(
-      HandlerKey handlerKey, final int blockedItemsPerBatch,
-      @Nullable final Collection<SenderTask<SourceTag>> senderTasks,
-      final Logger blockedItemLogger) {
+  public ReportSourceTagHandlerImpl(HandlerKey handlerKey, final int blockedItemsPerBatch,
+                                    @Nullable final Collection<SenderTask<SourceTag>> senderTasks,
+                                    @Nullable final Consumer<Long> receivedRateSink,
+                                    final Logger blockedItemLogger) {
     super(handlerKey, blockedItemsPerBatch, SOURCE_TAG_SERIALIZER, senderTasks, true,
-        blockedItemLogger);
+        receivedRateSink, blockedItemLogger);
   }
 
   @Override
