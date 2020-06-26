@@ -116,6 +116,10 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
     }
   }
 
+  public int getQueueSize() {
+    return queueSize.get();
+  }
+
   /**
    * Compares timestamps of tasks at the head of all backing queues. If the time difference between
    * most recently queued head and the oldest queued head (across all backing queues) is less

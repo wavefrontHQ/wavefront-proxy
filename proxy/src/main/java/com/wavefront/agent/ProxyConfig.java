@@ -781,8 +781,8 @@ public class ProxyConfig extends Configuration {
   protected double trafficShapingQuantile = 75;
 
   @Parameter(names = {"--trafficShapingHeadroom"}, description = "Sets the headroom multiplier " +
-      " to use for traffic shaping. Default: 1.1 (10% headroom)")
-  protected double trafficShapingHeadroom = 1.1;
+      " to use for traffic shaping when there's backlog. Default: 1.15 (15% headroom)")
+  protected double trafficShapingHeadroom = 1.15;
 
   @Parameter()
   List<String> unparsed_params;

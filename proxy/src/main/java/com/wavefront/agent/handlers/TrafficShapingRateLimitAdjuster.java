@@ -41,32 +41,38 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
       new EnumMap<>(ReportableEntityType.class);
   private final Timer timer;
   private final Clock clock;
+  private final SenderTaskFactoryImpl senderTaskFactory;
 
   /**
-   * @param handlerFactory handler factory (for collecting traffic stats)
-   * @param entityProps    entity properties factory (to control rate limiters)
-   * @param quantile       quantile of point rate to use
-   * @param headroom       headroom multiplier and minimum headroom requirement
+   * @param handlerFactory    handler factory (for collecting traffic stats)
+   * @param senderTaskFactory sender task factory (for collecting backlog stats)
+   * @param entityProps       entity properties factory (to control rate limiters)
+   * @param quantile          quantile of point rate to use
+   * @param headroom          headroom multiplier and minimum headroom requirement
    */
   public TrafficShapingRateLimitAdjuster(ReportableEntityHandlerFactoryImpl handlerFactory,
-                                  EntityPropertiesFactory entityProps, double quantile,
-                                  double headroom) {
-    this(handlerFactory, entityProps, quantile, headroom, Clock.defaultClock());
+                                         SenderTaskFactoryImpl senderTaskFactory,
+                                         EntityPropertiesFactory entityProps, double quantile,
+                                         double headroom) {
+    this(handlerFactory, senderTaskFactory, entityProps, quantile, headroom, Clock.defaultClock());
   }
 
     /**
-     * @param handlerFactory handler factory (for collecting traffic stats)
-     * @param entityProps    entity properties factory (to control rate limiters)
-     * @param quantile       quantile of point rate to use
-     * @param headroom       headroom multiplier and minimum headroom requirement
-     * @param clock          clock for the exponentially decaying reservoir
+     * @param handlerFactory    handler factory (for collecting traffic stats)
+     * @param senderTaskFactory sender task factory (for collecting backlog stats)
+     * @param entityProps       entity properties factory (to control rate limiters)
+     * @param quantile          quantile of point rate to use
+     * @param headroom          headroom multiplier
+     * @param clock             clock for the exponentially decaying reservoir
      */
   @VisibleForTesting
   TrafficShapingRateLimitAdjuster(ReportableEntityHandlerFactoryImpl handlerFactory,
+                                  SenderTaskFactoryImpl senderTaskFactory,
                                   EntityPropertiesFactory entityProps, double quantile,
                                   double headroom, Clock clock) {
     Preconditions.checkArgument(headroom >= 1.0, "headroom can't be less than 1!");
     this.handlerFactory = handlerFactory;
+    this.senderTaskFactory = senderTaskFactory;
     this.entityProps = entityProps;
     this.quantile = quantile > 1 ? quantile / 100 : quantile;
     this.headroom = headroom;
@@ -79,9 +85,14 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
     for (ReportableEntityType type : ReportableEntityType.values()) {
       AtomicLong samples = perEntitySamples.computeIfAbsent(type, k -> new AtomicLong(0));
       long rate = handlerFactory.getReceivedRate(type);
+      boolean hasBacklog = senderTaskFactory.getQueueSize(type) > 0;
       if (rate > 0 || samples.get() > 0) {
         samples.incrementAndGet();
-        checkAndAdjust(type, rate, samples);
+        Sample stats = updateStats(type, rate);
+        if (samples.get() >= 300) { // need at least 5 minutes worth of stats to enable the limiter
+          RecyclableRateLimiter rateLimiter = entityProps.get(type).getRateLimiter();
+          adjustRateLimiter(type, stats, rateLimiter, hasBacklog);
+        }
       }
     }
   }
@@ -97,22 +108,20 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
   }
 
   @VisibleForTesting
-  void checkAndAdjust(ReportableEntityType type, long rate, AtomicLong samples) {
+  Sample updateStats(ReportableEntityType type, long rate) {
     Sample sample = perEntityStats.computeIfAbsent(type, x ->
         new ExponentiallyDecayingSample(DEFAULT_SAMPLE_SIZE, DEFAULT_ALPHA, clock));
     sample.update(rate);
-    if (samples.get() >= 300) { // need at least 5 minutes worth of stats to enable the limiter
-      RecyclableRateLimiter rateLimiter = entityProps.get(type).getRateLimiter();
-      adjustRateLimiter(type, sample, rateLimiter);
-    }
+    return sample;
   }
 
   @VisibleForTesting
   void adjustRateLimiter(ReportableEntityType type, Sample sample,
-                         RecyclableRateLimiter rateLimiter) {
-    double suggestedLimit = (MIN_RATE_LIMIT + sample.getSnapshot().getValue(quantile)) * headroom;
-    if (Math.abs(rateLimiter.getRate() - suggestedLimit) >
-        rateLimiter.getRate() * TOLERANCE_PERCENT / 100) {
+                         RecyclableRateLimiter rateLimiter, boolean backlog) {
+    double suggestedLimit = (MIN_RATE_LIMIT + sample.getSnapshot().getValue(quantile)) *
+        (backlog ? headroom : 1.0);
+    double currentRate = rateLimiter.getRate();
+    if (Math.abs(currentRate - suggestedLimit) > currentRate * TOLERANCE_PERCENT / 100) {
       log.fine("Setting rate limit for " + type.toString() + " to " + suggestedLimit);
       rateLimiter.setRate(suggestedLimit);
     }

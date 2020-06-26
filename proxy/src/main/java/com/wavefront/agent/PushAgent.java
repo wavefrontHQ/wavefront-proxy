@@ -164,7 +164,7 @@ public class PushAgent extends AbstractAgent {
   protected TaskQueueFactory taskQueueFactory;
   protected SharedGraphiteHostAnnotator remoteHostAnnotator;
   protected Function<InetAddress, String> hostnameResolver;
-  protected SenderTaskFactory senderTaskFactory;
+  protected SenderTaskFactoryImpl senderTaskFactory;
   protected QueueingFactory queueingFactory;
   protected Function<Histogram, Histogram> histogramRecompressor = null;
   protected ReportableEntityHandlerFactoryImpl handlerFactory;
@@ -238,7 +238,7 @@ public class PushAgent extends AbstractAgent {
         blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor,
         () -> entityProps.getGlobalProperties().getDropSpansDelayedMinutes());
     if (proxyConfig.isTrafficShaping()) {
-      new TrafficShapingRateLimitAdjuster(handlerFactory, entityProps,
+      new TrafficShapingRateLimitAdjuster(handlerFactory, senderTaskFactory, entityProps,
           proxyConfig.getTrafficShapingQuantile(), proxyConfig.getTrafficShapingHeadroom()).start();
     }
     healthCheckManager = new HealthCheckManagerImpl(proxyConfig);

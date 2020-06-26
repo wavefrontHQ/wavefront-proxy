@@ -45,7 +45,8 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   private final Map<String, List<ReportableEntityType>> entityTypes = new ConcurrentHashMap<>();
   private final Map<HandlerKey, ScheduledExecutorService> executors = new ConcurrentHashMap<>();
   private final Map<HandlerKey, List<SenderTask<?>>> managedTasks = new ConcurrentHashMap<>();
-  private final Map<HandlerKey, Managed> managedServices = new ConcurrentHashMap<>();
+  private final Map<ReportableEntityType, Map<String, QueueController<?>>> controllers =
+      new ConcurrentHashMap<>();
 
   /**
    * Keep track of all {@link TaskSizeEstimator} instances to calculate global buffer fill rate.
@@ -145,7 +146,8 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     }
     if (queueingFactory != null) {
       QueueController<?> controller = queueingFactory.getQueueController(handlerKey, numThreads);
-      managedServices.put(handlerKey, controller);
+      controllers.computeIfAbsent(handlerKey.getEntityType(), x -> new ConcurrentHashMap<>()).
+          put(handlerKey.getHandle(), controller);
       controller.start();
     }
     managedTasks.put(handlerKey, toReturn);
@@ -158,7 +160,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   public void shutdown() {
     managedTasks.values().stream().flatMap(Collection::stream).forEach(Managed::stop);
     taskSizeEstimators.values().forEach(TaskSizeEstimator::shutdown);
-    managedServices.values().forEach(Managed::stop);
+    controllers.values().stream().flatMap(x -> x.values().stream()).forEach(Managed::stop);
     executors.values().forEach(x -> {
       try {
         x.shutdown();
@@ -175,7 +177,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     if (types == null) return;
     try {
       types.forEach(x -> taskSizeEstimators.remove(HandlerKey.of(x, handle)).shutdown());
-      types.forEach(x -> managedServices.remove(HandlerKey.of(x, handle)).stop());
+      types.forEach(x -> controllers.get(x).remove(handle).stop());
       types.forEach(x -> managedTasks.remove(HandlerKey.of(x, handle)).forEach(t -> {
         t.stop();
         t.drainBuffersToQueue(null);
@@ -199,5 +201,12 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
         ((AbstractSenderTask<?>) task).run();
       }
     });
+  }
+
+  int getQueueSize(ReportableEntityType type) {
+    return controllers.containsKey(type) ?
+        controllers.get(type).values().stream().
+            mapToInt(QueueController::getQueueSize).sum() :
+        0;
   }
 }
