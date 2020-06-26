@@ -181,5 +181,21 @@ public interface EntityProperties {
      * @param traceSamplingRate sampling rate for tracing spans
      */
     void setTraceSamplingRate(Double traceSamplingRate);
+
+    /**
+     * Get the maximum acceptable duration between now and the end of a span to be accepted for
+     * reporting to Wavefront, beyond which they are dropped.
+     *
+     * @return delay threshold for dropping spans in minutes.
+     */
+    Integer getDropSpansDelayedMinutes();
+
+    /**
+     * Set the maximum acceptable duration between now and the end of a span to be accepted for
+     * reporting to Wavefront, beyond which they are dropped.
+     *
+     * @param dropSpansDelayedMinutes delay threshold for dropping spans in minutes.
+     */
+    void setDropSpansDelayedMinutes(Integer dropSpansDelayedMinutes);
   }
 }

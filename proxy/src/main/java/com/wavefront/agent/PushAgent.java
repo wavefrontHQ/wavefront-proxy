@@ -234,7 +234,8 @@ public class PushAgent extends AbstractAgent {
     }
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory,
         proxyConfig.getPushBlockedSamples(), validationConfiguration, blockedPointsLogger,
-        blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor);
+        blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor,
+        () -> entityProps.getGlobalProperties().getDropSpansDelayedMinutes());
     healthCheckManager = new HealthCheckManagerImpl(proxyConfig);
     tokenAuthenticator = configureTokenAuthenticator();
 
@@ -1110,6 +1111,8 @@ public class PushAgent extends AbstractAgent {
         logger.info("Proxy trace span sampling rate set to " +
                 entityProps.getGlobalProperties().getTraceSamplingRate());
       }
+      entityProps.getGlobalProperties().setDropSpansDelayedMinutes(
+          config.getDropSpansDelayedMinutes());
 
       updateRateLimiter(ReportableEntityType.POINT, config.getCollectorSetsRateLimit(),
           config.getCollectorRateLimit(), config.getGlobalCollectorRateLimit());

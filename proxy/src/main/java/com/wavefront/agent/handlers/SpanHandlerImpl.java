@@ -1,13 +1,18 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.api.agent.ValidationConfiguration;
+import com.wavefront.common.Clock;
 import com.wavefront.ingester.SpanSerializer;
-import wavefront.report.Span;
+
+import java.util.Collection;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.Collection;
-import java.util.logging.Logger;
+
+import wavefront.report.Span;
 
 import static com.wavefront.data.Validation.validateSpan;
 
@@ -21,6 +26,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
 
   private final ValidationConfiguration validationConfig;
   private final Logger validItemsLogger;
+  private final Supplier<Integer> dropSpansDelayedMinutes;
 
   /**
    * @param handlerKey           pipeline hanler key.
@@ -36,15 +42,23 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
                   final Collection<SenderTask<String>> sendDataTasks,
                   @Nonnull final ValidationConfiguration validationConfig,
                   @Nullable final Logger blockedItemLogger,
-                  @Nullable final Logger validItemsLogger) {
+                  @Nullable final Logger validItemsLogger,
+                  @Nonnull final Supplier<Integer> dropSpansDelayedMinutes) {
     super(handlerKey, blockedItemsPerBatch, new SpanSerializer(), sendDataTasks, true,
         blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
+    this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
   }
 
   @Override
   protected void reportInternal(Span span) {
+    Integer maxSpanDelay = dropSpansDelayedMinutes.get();
+    if (maxSpanDelay != null && span.getStartMillis() + span.getDuration() <
+        Clock.now() - TimeUnit.MINUTES.toMillis(maxSpanDelay)) {
+      this.reject(span, "span is older than acceptable delay of " + maxSpanDelay + " minutes");
+      return;
+    }
     validateSpan(span, validationConfig);
     final String strSpan = serializer.apply(span);
     getTask().add(strSpan);

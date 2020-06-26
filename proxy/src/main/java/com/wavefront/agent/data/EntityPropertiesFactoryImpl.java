@@ -54,6 +54,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     private Double retryBackoffBaseSeconds = null;
     private short histogramStorageAccuracy = 32;
     private Double traceSamplingRate = null;
+    private Integer dropSpansDelayedMinutes = null;
 
     GlobalPropertiesImpl(ProxyConfig wrapped) {
       this.wrapped = wrapped;
@@ -91,6 +92,16 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
 
     public void setTraceSamplingRate(Double traceSamplingRate) {
       this.traceSamplingRate = traceSamplingRate;
+    }
+
+    @Override
+    public Integer getDropSpansDelayedMinutes() {
+      return dropSpansDelayedMinutes;
+    }
+
+    @Override
+    public void setDropSpansDelayedMinutes(Integer dropSpansDelayedMinutes) {
+      this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
     }
   }
 
