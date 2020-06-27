@@ -132,6 +132,31 @@ public interface EntityProperties {
   void setFeatureDisabled(boolean featureDisabled);
 
   /**
+   * Get aggregated backlog size across all ports for this entity type.
+   *
+   * @return backlog size
+   */
+  int getTotalBacklogSize();
+
+  /**
+   * Updates backlog size for specific port.
+   */
+  void reportBacklogSize(String handle, int backlogSize);
+
+  /**
+   * Get aggregated received rate across all ports for this entity type.
+   *
+   * @return received rate
+   */
+  long getTotalReceivedRate();
+
+  /**
+   * Updates received rate for specific port.
+   */
+  void reportReceivedRate(String handle, long receivedRate);
+
+
+  /**
    * Accesses a container with properties shared across all entity types
    *
    * @return global properties container

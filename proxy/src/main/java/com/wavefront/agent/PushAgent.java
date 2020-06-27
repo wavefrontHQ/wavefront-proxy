@@ -30,6 +30,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
 import com.wavefront.agent.handlers.SenderTaskFactory;
 import com.wavefront.agent.handlers.SenderTaskFactoryImpl;
+import com.wavefront.agent.handlers.TrafficShapingRateLimitAdjuster;
 import com.wavefront.agent.histogram.Granularity;
 import com.wavefront.agent.histogram.HistogramKey;
 import com.wavefront.agent.histogram.HistogramRecompressor;
@@ -163,10 +164,10 @@ public class PushAgent extends AbstractAgent {
   protected TaskQueueFactory taskQueueFactory;
   protected SharedGraphiteHostAnnotator remoteHostAnnotator;
   protected Function<InetAddress, String> hostnameResolver;
-  protected SenderTaskFactory senderTaskFactory;
+  protected SenderTaskFactoryImpl senderTaskFactory;
   protected QueueingFactory queueingFactory;
   protected Function<Histogram, Histogram> histogramRecompressor = null;
-  protected ReportableEntityHandlerFactory handlerFactory;
+  protected ReportableEntityHandlerFactoryImpl handlerFactory;
   protected ReportableEntityHandlerFactory deltaCounterHandlerFactory;
   protected HealthCheckManager healthCheckManager;
   protected TokenAuthenticator tokenAuthenticator = TokenAuthenticator.DUMMY_AUTHENTICATOR;
@@ -221,8 +222,8 @@ public class PushAgent extends AbstractAgent {
     } else {
       taskQueueFactory = new TaskQueueFactoryImpl(proxyConfig.getBufferFile(),
           proxyConfig.isPurgeBuffer());
-
     }
+
     remoteHostAnnotator = new SharedGraphiteHostAnnotator(proxyConfig.getCustomSourceTags(),
         hostnameResolver);
     queueingFactory = new QueueingFactoryImpl(apiContainer, agentId, taskQueueFactory, entityProps);
@@ -234,8 +235,11 @@ public class PushAgent extends AbstractAgent {
     }
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory,
         proxyConfig.getPushBlockedSamples(), validationConfiguration, blockedPointsLogger,
-        blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor,
-        () -> entityProps.getGlobalProperties().getDropSpansDelayedMinutes());
+        blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor, entityProps);
+    if (proxyConfig.isTrafficShaping()) {
+      new TrafficShapingRateLimitAdjuster(entityProps, proxyConfig.getTrafficShapingQuantile(),
+          proxyConfig.getTrafficShapingHeadroom()).start();
+    }
     healthCheckManager = new HealthCheckManagerImpl(proxyConfig);
     tokenAuthenticator = configureTokenAuthenticator();
 
@@ -772,6 +776,8 @@ public class PushAgent extends AbstractAgent {
                   proxyConfig.getPushBlockedSamples(),
                   senderTaskFactory.createSenderTasks(handlerKey),
                   validationConfiguration, proxyConfig.getDeltaCountersAggregationIntervalSeconds(),
+                  rate -> entityProps.get(ReportableEntityType.POINT).
+                      reportReceivedRate(handlerKey.getHandle(), rate),
                   blockedPointsLogger, VALID_POINTS_LOGGER));
         }
 
@@ -831,7 +837,10 @@ public class PushAgent extends AbstractAgent {
               //noinspection unchecked
               return (ReportableEntityHandler<T, U>) new HistogramAccumulationHandlerImpl(
                   handlerKey, cachedAccumulator, proxyConfig.getPushBlockedSamples(), null,
-                  validationConfiguration, true, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER);
+                  validationConfiguration, true,
+                  rate -> entityProps.get(ReportableEntityType.HISTOGRAM).
+                      reportReceivedRate(handlerKey.getHandle(), rate),
+                  blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER);
             }
             return delegate.getHandler(handlerKey);
           }
@@ -1030,7 +1039,7 @@ public class PushAgent extends AbstractAgent {
           return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey,
               k -> new HistogramAccumulationHandlerImpl(handlerKey, cachedAccumulator,
                   proxyConfig.getPushBlockedSamples(), granularity, validationConfiguration,
-                  granularity == null, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER));
+                  granularity == null, null, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER));
       }
 
       @Override

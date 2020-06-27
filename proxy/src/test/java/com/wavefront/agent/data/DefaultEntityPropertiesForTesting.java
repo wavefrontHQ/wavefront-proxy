@@ -80,6 +80,24 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   }
 
   @Override
+  public int getTotalBacklogSize() {
+    return 0;
+  }
+
+  @Override
+  public void reportBacklogSize(String handle, int backlogSize) {
+  }
+
+  @Override
+  public long getTotalReceivedRate() {
+    return 0;
+  }
+
+  @Override
+  public void reportReceivedRate(String handle, long receivedRate) {
+  }
+
+  @Override
   public GlobalProperties getGlobalProperties() {
     return global;
   }

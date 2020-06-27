@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -65,6 +66,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
    *                             blocked points to logs.
    * @param senderTasks          tasks actually handling data transfer to the Wavefront endpoint.
    * @param reportReceivedStats  Whether we should report a .received counter metric.
+   * @param receivedRateSink     Where to report received rate.
    * @param blockedItemsLogger   a {@link Logger} instance for blocked items
    */
   AbstractReportableEntityHandler(HandlerKey handlerKey,
@@ -72,10 +74,12 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
                                   final Function<T, String> serializer,
                                   @Nullable final Collection<SenderTask<U>> senderTasks,
                                   boolean reportReceivedStats,
+                                  @Nullable final Consumer<Long> receivedRateSink,
                                   @Nullable final Logger blockedItemsLogger) {
     this.handlerKey = handlerKey;
     //noinspection UnstableApiUsage
-    this.blockedItemsLimiter = blockedItemsPerBatch == 0 ? null : RateLimiter.create(blockedItemsPerBatch / 10d);
+    this.blockedItemsLimiter = blockedItemsPerBatch == 0 ? null :
+        RateLimiter.create(blockedItemsPerBatch / 10d);
     this.serializer = serializer;
     this.senderTasks = senderTasks == null ? new ArrayList<>() : new ArrayList<>(senderTasks);
     this.reportReceivedStats = reportReceivedStats;
@@ -99,6 +103,14 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       }
     });
     timer = new Timer("stats-output-" + handlerKey);
+    if (receivedRateSink != null) {
+      timer.scheduleAtFixedRate(new TimerTask() {
+        @Override
+        public void run() {
+          receivedRateSink.accept(receivedStats.getCurrentRate());
+        }
+      }, 1000, 1000);
+    }
     timer.scheduleAtFixedRate(new TimerTask() {
       @Override
       public void run() {

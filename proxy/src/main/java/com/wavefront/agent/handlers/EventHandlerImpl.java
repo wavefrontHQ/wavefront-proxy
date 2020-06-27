@@ -7,6 +7,7 @@ import wavefront.report.ReportEvent;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,19 +26,20 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
   private final Logger validItemsLogger;
 
   /**
-   *
    * @param handlerKey           pipeline key.
    * @param blockedItemsPerBatch number of blocked items that are allowed to be written into the
    *                             main log.
    * @param senderTasks          sender tasks.
+   * @param receivedRateSink     where to report received rate.
    * @param blockedEventsLogger  logger for blocked events.
    * @param validEventsLogger    logger for valid events.
    */
   public EventHandlerImpl(final HandlerKey handlerKey, final int blockedItemsPerBatch,
                           @Nullable final Collection<SenderTask<Event>> senderTasks,
+                          @Nullable final Consumer<Long> receivedRateSink,
                           @Nullable final Logger blockedEventsLogger,
                           @Nullable final Logger validEventsLogger) {
-    super(handlerKey, blockedItemsPerBatch, EVENT_SERIALIZER, senderTasks, true,
+    super(handlerKey, blockedItemsPerBatch, EVENT_SERIALIZER, senderTasks, true, receivedRateSink,
         blockedEventsLogger);
     this.validItemsLogger = validEventsLogger;
   }

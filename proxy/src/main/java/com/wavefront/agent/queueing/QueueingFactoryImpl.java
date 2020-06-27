@@ -85,7 +85,9 @@ public class QueueingFactoryImpl implements QueueingFactory {
         mapToObj(i -> (QueueProcessor<T>) getQueueProcessor(handlerKey, executor, i)).
         collect(Collectors.toList());
     return (QueueController<T>) queueControllers.computeIfAbsent(handlerKey, x ->
-      new QueueController<>(handlerKey, queueProcessors, null));
+      new QueueController<>(handlerKey, queueProcessors,
+          backlogSize -> entityPropsFactory.get(handlerKey.getEntityType()).
+              reportBacklogSize(handlerKey.getHandle(), backlogSize)));
   }
 
   @SuppressWarnings("unchecked")

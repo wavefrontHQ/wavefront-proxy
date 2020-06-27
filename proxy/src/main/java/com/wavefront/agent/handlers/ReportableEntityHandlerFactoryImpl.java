@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.common.SamplingLogger;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.data.ReportableEntityType;
@@ -8,6 +9,7 @@ import wavefront.report.Histogram;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -53,7 +55,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final Logger blockedHistogramsLogger;
   private final Logger blockedSpansLogger;
   private final Function<Histogram, Histogram> histogramRecompressor;
-  private final Supplier<Integer> dropSpansDelayedMinutes;
+  private final EntityPropertiesFactory entityPropertiesFactory;
 
   /**
    * Create new instance.
@@ -69,7 +71,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       @Nonnull final ValidationConfiguration validationConfig, final Logger blockedPointsLogger,
       final Logger blockedHistogramsLogger, final Logger blockedSpansLogger,
       @Nullable Function<Histogram, Histogram> histogramRecompressor,
-      @Nonnull final Supplier<Integer> dropSpansDelayedMinutes) {
+      EntityPropertiesFactory entityPropertiesFactory) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.validationConfig = validationConfig;
@@ -77,39 +79,43 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
     this.blockedHistogramsLogger = blockedHistogramsLogger;
     this.blockedSpansLogger = blockedSpansLogger;
     this.histogramRecompressor = histogramRecompressor;
-    this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
+    this.entityPropertiesFactory = entityPropertiesFactory;
   }
 
   @SuppressWarnings("unchecked")
   @Override
   public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
+    Consumer<Long> receivedRateSink = rate ->
+        entityPropertiesFactory.get(handlerKey.getEntityType()).
+            reportReceivedRate(handlerKey.getHandle(), rate);
     return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey.getHandle(),
         h -> new ConcurrentHashMap<>()).computeIfAbsent(handlerKey.getEntityType(), k -> {
       switch (handlerKey.getEntityType()) {
         case POINT:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey),
-              validationConfig, true, blockedPointsLogger, VALID_POINTS_LOGGER, null);
+              senderTaskFactory.createSenderTasks(handlerKey), validationConfig, true,
+              receivedRateSink, blockedPointsLogger, VALID_POINTS_LOGGER, null);
         case HISTOGRAM:
           return new ReportPointHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey),
-              validationConfig, true, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER,
+              senderTaskFactory.createSenderTasks(handlerKey), validationConfig, true,
+              receivedRateSink, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER,
               histogramRecompressor);
         case SOURCE_TAG:
           return new ReportSourceTagHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey),
+              senderTaskFactory.createSenderTasks(handlerKey), receivedRateSink,
               blockedPointsLogger);
         case TRACE:
           return new SpanHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey),
-              validationConfig, blockedSpansLogger, VALID_SPANS_LOGGER, dropSpansDelayedMinutes);
+              validationConfig, receivedRateSink, blockedSpansLogger, VALID_SPANS_LOGGER,
+              () -> entityPropertiesFactory.getGlobalProperties().getDropSpansDelayedMinutes());
         case TRACE_SPAN_LOGS:
           return new SpanLogsHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey),
+              senderTaskFactory.createSenderTasks(handlerKey), receivedRateSink,
               blockedSpansLogger, VALID_SPAN_LOGS_LOGGER);
         case EVENT:
           return new EventHandlerImpl(handlerKey, blockedItemsPerBatch,
-              senderTaskFactory.createSenderTasks(handlerKey),
+              senderTaskFactory.createSenderTasks(handlerKey), receivedRateSink,
               blockedPointsLogger, VALID_EVENTS_LOGGER);
         default:
           throw new IllegalArgumentException("Unexpected entity type " +

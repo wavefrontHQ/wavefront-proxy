@@ -9,8 +9,8 @@ import java.util.Collection;
  *
  * @author vasily@wavefront.com
  */
-public class LineDelimitedUtils {
-  public static final String PUSH_DATA_DELIMETER = "\n";
+public abstract class LineDelimitedUtils {
+  static final String PUSH_DATA_DELIMITER = "\n";
 
   private LineDelimitedUtils() {
   }
@@ -23,7 +23,7 @@ public class LineDelimitedUtils {
    */
   @Deprecated
   public static String[] splitPushData(String pushData) {
-    return StringUtils.split(pushData, PUSH_DATA_DELIMETER);
+    return StringUtils.split(pushData, PUSH_DATA_DELIMITER);
   }
 
   /**
@@ -33,6 +33,6 @@ public class LineDelimitedUtils {
    * @return payload
    */
   public static String joinPushData(Collection<String> pushData) {
-    return StringUtils.join(pushData, PUSH_DATA_DELIMETER);
+    return StringUtils.join(pushData, PUSH_DATA_DELIMITER);
   }
 }

@@ -18,6 +18,7 @@ import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -42,6 +43,8 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
 
   protected final HandlerKey handlerKey;
   protected final List<QueueProcessor<T>> processorTasks;
+  @Nullable
+  private final Consumer<Integer> backlogSizeSink;
   protected final Supplier<Long> timeProvider;
   protected final Timer timer;
   @SuppressWarnings("UnstableApiUsage")
@@ -56,17 +59,30 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
    * @param handlerKey     Pipeline handler key
    * @param processorTasks List of {@link QueueProcessor} tasks responsible for processing the
    *                       backlog.
+   * @param backlogSizeSink Where to report backlog size.
+   */
+  public QueueController(HandlerKey handlerKey, List<QueueProcessor<T>> processorTasks,
+                         @Nullable Consumer<Integer> backlogSizeSink) {
+    this(handlerKey, processorTasks, backlogSizeSink, System::currentTimeMillis);
+  }
+
+  /**
+   * @param handlerKey      Pipeline handler key
+   * @param processorTasks  List of {@link QueueProcessor} tasks responsible for processing the
+   *                        backlog.
+   * @param backlogSizeSink Where to report backlog size.
    * @param timeProvider   current time provider (in millis).
    */
-  public QueueController(HandlerKey handlerKey,
-                         List<QueueProcessor<T>> processorTasks,
-                         @Nullable Supplier<Long> timeProvider) {
+  QueueController(HandlerKey handlerKey, List<QueueProcessor<T>> processorTasks,
+                  @Nullable Consumer<Integer> backlogSizeSink, Supplier<Long> timeProvider) {
     this.handlerKey = handlerKey;
     this.processorTasks = processorTasks;
+    this.backlogSizeSink = backlogSizeSink;
     this.timeProvider = timeProvider == null ? System::currentTimeMillis : timeProvider;
     this.timer = new Timer("timer-queuedservice-" + handlerKey.toString());
 
-    Metrics.newGauge(new TaggedMetricName("buffer", "task-count", "port", handlerKey.getHandle()),
+    Metrics.newGauge(new TaggedMetricName("buffer", "task-count", "port", handlerKey.getHandle(),
+            "content", handlerKey.getEntityType().toString()),
         new Gauge<Integer>() {
           @Override
           public Integer value() {
@@ -77,8 +93,12 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
 
   @Override
   public void run() {
-    // 1. grab current queue sizes (tasks count)
-    queueSize.set(processorTasks.stream().mapToInt(x -> x.getTaskQueue().size()).sum());
+    // 1. grab current queue sizes (tasks count) and report to EntityProperties
+    int backlog = processorTasks.stream().mapToInt(x -> x.getTaskQueue().size()).sum();
+    queueSize.set(backlog);
+    if (backlogSizeSink != null) {
+      backlogSizeSink.accept(backlog);
+    }
 
     // 2. grab queue sizes (points/etc count)
     Long totalWeight = 0L;
@@ -107,7 +127,7 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
     adjustTimingFactors(processorTasks);
 
     // 4. print stats when there's backlog
-    if (queueSize.get() > 0) {
+    if (backlog > 0) {
       printQueueStats();
     } else if (outputQueueingStats) {
       outputQueueingStats = false;

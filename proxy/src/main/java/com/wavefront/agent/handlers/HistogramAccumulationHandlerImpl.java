@@ -13,6 +13,7 @@ import wavefront.report.ReportPoint;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -48,6 +49,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
    * @param granularity          granularity level
    * @param validationConfig     Supplier for the ValidationConfiguration
    * @param isHistogramInput     Whether expected input data for this handler is histograms.
+   * @param receivedRateSink     Where to report received rate.
    */
   public HistogramAccumulationHandlerImpl(final HandlerKey handlerKey,
                                           final Accumulator digests,
@@ -55,10 +57,11 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
                                           @Nullable Granularity granularity,
                                           @Nonnull final ValidationConfiguration validationConfig,
                                           boolean isHistogramInput,
+                                          @Nullable final Consumer<Long> receivedRateSink,
                                           @Nullable final Logger blockedItemLogger,
                                           @Nullable final Logger validItemsLogger) {
     super(handlerKey, blockedItemsPerBatch, null, validationConfig, !isHistogramInput,
-        blockedItemLogger, validItemsLogger, null);
+        receivedRateSink, blockedItemLogger, validItemsLogger, null);
     this.digests = digests;
     this.granularity = granularity;
     String metricNamespace = "histogram.accumulator." + granularityToString(granularity);
