@@ -1039,10 +1039,7 @@ public class PushAgent extends AbstractAgent {
           return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey,
               k -> new HistogramAccumulationHandlerImpl(handlerKey, cachedAccumulator,
                   proxyConfig.getPushBlockedSamples(), granularity, validationConfiguration,
-                  granularity == null,
-                  rate -> entityProps.get(ReportableEntityType.POINT).
-                      reportReceivedRate(handlerKey.getHandle(), rate),
-                  blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER));
+                  granularity == null, null, blockedHistogramsLogger, VALID_HISTOGRAMS_LOGGER));
       }
 
       @Override
