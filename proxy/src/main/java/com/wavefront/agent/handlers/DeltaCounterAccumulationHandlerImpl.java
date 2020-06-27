@@ -50,7 +50,6 @@ public class DeltaCounterAccumulationHandlerImpl
   private final ValidationConfiguration validationConfig;
   private final Logger validItemsLogger;
   final Histogram receivedPointLag;
-  private final Counter reportedCounter;
   private final BurstRateTrackingCounter reportedStats;
   private final Supplier<Counter> discardedCounterSupplier;
   private final Cache<HostMetricTagsPair, AtomicDouble> aggregatedDeltas;
@@ -92,9 +91,8 @@ public class DeltaCounterAccumulationHandlerImpl
         aggregationIntervalSeconds, TimeUnit.SECONDS);
 
     String metricPrefix = handlerKey.toString();
-    MetricName reported = new MetricName(metricPrefix, "", "sent");
-    this.reportedCounter = Metrics.newCounter(reported);
-    this.reportedStats = new BurstRateTrackingCounter(reported, Metrics.defaultRegistry(), 1000);
+    this.reportedStats = new BurstRateTrackingCounter(new MetricName(metricPrefix, "", "sent"),
+        Metrics.defaultRegistry(), 1000);
     this.discardedCounterSupplier = Utils.lazySupplier(() ->
             Metrics.newCounter(new MetricName(metricPrefix, "", "discarded")));
     Metrics.newGauge(new MetricName(metricPrefix, "", "accumulator.size"), new Gauge<Long>() {
@@ -126,7 +124,7 @@ public class DeltaCounterAccumulationHandlerImpl
     if (value == null || hostMetricTagsPair == null) {
       return;
     }
-    this.reportedCounter.inc();
+    this.reportedStats.inc();
     double reportedValue = value.getAndSet(0);
     if (reportedValue == 0) return;
     String strPoint = metricToLineData(hostMetricTagsPair.metric, reportedValue, Clock.now(),
