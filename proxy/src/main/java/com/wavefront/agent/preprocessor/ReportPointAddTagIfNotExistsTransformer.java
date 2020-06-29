@@ -6,6 +6,8 @@ import javax.annotation.Nullable;
 
 import wavefront.report.ReportPoint;
 
+import static com.wavefront.predicates.Util.expandPlaceholders;
+
 /**
  * Creates a new point tag with a specified value. If such point tag already exists, the value won't be overwritten.
  *
@@ -30,7 +32,7 @@ public class ReportPointAddTagIfNotExistsTransformer extends ReportPointAddTagTr
       if (!v2Predicate.test(reportPoint)) return reportPoint;
 
       if (reportPoint.getAnnotations().get(tag) == null) {
-        reportPoint.getAnnotations().put(tag, PreprocessorUtil.expandPlaceholders(value, reportPoint));
+        reportPoint.getAnnotations().put(tag, expandPlaceholders(value, reportPoint));
         ruleMetrics.incrementRuleAppliedCounter();
       }
       return reportPoint;

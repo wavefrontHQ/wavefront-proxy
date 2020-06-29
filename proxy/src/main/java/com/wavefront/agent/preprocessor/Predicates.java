@@ -1,4 +1,4 @@
-package com.wavefront.agent.preprocessor.predicate;
+package com.wavefront.agent.preprocessor;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -8,17 +8,15 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.wavefront.common.TimeProvider;
-import parser.predicate.ConditionLexer;
-import parser.predicate.ConditionParser;
-
-import static com.wavefront.agent.preprocessor.predicate.EvalExpression.asDouble;
-import static com.wavefront.agent.preprocessor.predicate.EvalExpression.isTrue;
+import com.wavefront.predicates.ExpressionPredicate;
+import com.wavefront.predicates.PredicateEvalExpression;
+import com.wavefront.predicates.StringComparisonExpression;
+import com.wavefront.predicates.TemplateStringExpression;
+import static com.wavefront.predicates.PredicateEvalExpression.asDouble;
+import static com.wavefront.predicates.PredicateEvalExpression.isTrue;
+import static com.wavefront.predicates.Predicates.fromPredicateEvalExpression;
 
 /**
  * Collection of helper methods Base factory class for predicates; supports both text parsing as
@@ -38,7 +36,7 @@ public abstract class Predicates {
     Object value = ruleMap.get("if");
     if (value == null) return null;
     if (value instanceof String) {
-      return new ExpressionPredicate<>(parseEvalExpression((String) value));
+      return fromPredicateEvalExpression((String) value);
     } else if (value instanceof Map) {
       //noinspection unchecked
       Map<String, Object> v2PredicateMap = (Map<String, Object>) value;
@@ -49,40 +47,6 @@ public abstract class Predicates {
     } else {
       throw new IllegalArgumentException("Argument [if] value can only be String or Map, got " +
           value.getClass().getCanonicalName());
-    }
-  }
-
-  /**
-   * Parses an expression string into an {@link EvalExpression}.
-   *
-   * @param predicateString string to parse.
-   * @return parsed expression
-   */
-  public static EvalExpression parseEvalExpression(String predicateString) {
-    return parseEvalExpression(predicateString, System::currentTimeMillis);
-  }
-
-  static EvalExpression parseEvalExpression(String predicateString, TimeProvider timeProvider) {
-    ConditionLexer lexer = new ConditionLexer(CharStreams.fromString(predicateString));
-    lexer.removeErrorListeners();
-    ErrorListener errorListener = new ErrorListener();
-    lexer.addErrorListener(errorListener);
-    CommonTokenStream tokens = new CommonTokenStream(lexer);
-    ConditionParser parser = new ConditionParser(tokens);
-    parser.removeErrorListeners();
-    parser.addErrorListener(errorListener);
-    ConditionVisitorImpl visitor = new ConditionVisitorImpl(timeProvider);
-    try {
-      ConditionParser.ProgramContext context = parser.program();
-      EvalExpression result = (EvalExpression) context.evalExpression().accept(visitor);
-      if (errorListener.getErrors().length() == 0) {
-        return result;
-      } else {
-        throw new IllegalArgumentException(errorListener.getErrors().toString());
-      }
-    } catch (Exception e) {
-      System.out.println("Exception: " + e);
-      throw new RuntimeException(e);
     }
   }
 
@@ -100,17 +64,17 @@ public abstract class Predicates {
     return x -> true;
   }
 
-  private static EvalExpression processLogicalOp(Map<String, Object> element) {
+  private static PredicateEvalExpression processLogicalOp(Map<String, Object> element) {
     for (Map.Entry<String, Object> tlEntry : element.entrySet()) {
       switch (tlEntry.getKey()) {
         case "all":
-          List<EvalExpression> allOps = processOperation(tlEntry);
+          List<PredicateEvalExpression> allOps = processOperation(tlEntry);
           return entity -> asDouble(allOps.stream().allMatch(x -> isTrue(x.getValue(entity))));
         case "any":
-          List<EvalExpression> anyOps = processOperation(tlEntry);
+          List<PredicateEvalExpression> anyOps = processOperation(tlEntry);
           return entity -> asDouble(anyOps.stream().anyMatch(x -> isTrue(x.getValue(entity))));
         case "none":
-          List<EvalExpression> noneOps = processOperation(tlEntry);
+          List<PredicateEvalExpression> noneOps = processOperation(tlEntry);
           return entity -> asDouble(noneOps.stream().noneMatch(x -> isTrue(x.getValue(entity))));
         case "ignore":
           // Always return true.
@@ -122,8 +86,8 @@ public abstract class Predicates {
     return x -> 0;
   }
 
-  private static List<EvalExpression> processOperation(Map.Entry<String, Object> tlEntry) {
-    List<EvalExpression> ops = new ArrayList<>();
+  private static List<PredicateEvalExpression> processOperation(Map.Entry<String, Object> tlEntry) {
+    List<PredicateEvalExpression> ops = new ArrayList<>();
     //noinspection unchecked
     for (Map<String, Object> tlValue : (List<Map<String, Object>>) tlEntry.getValue()) { //
       for (Map.Entry<String, Object> tlValueEntry : tlValue.entrySet()) {
@@ -138,7 +102,7 @@ public abstract class Predicates {
   }
 
   @SuppressWarnings("unchecked")
-  private static EvalExpression processComparisonOp(Map.Entry<String, Object> subElement) {
+  private static PredicateEvalExpression processComparisonOp(Map.Entry<String, Object> subElement) {
     Map<String, Object> svpair = (Map<String, Object>) subElement.getValue();
     if (svpair.size() != 2) {
       throw new IllegalArgumentException("Argument [ + " + subElement.getKey() + "] can have only" +
@@ -152,12 +116,12 @@ public abstract class Predicates {
       throw new IllegalArgumentException("Argument [value] can't be null/blank.");
     }
     if (ruleVal instanceof List) {
-      List<EvalExpression> options = ((List<String>) ruleVal).stream().map(option ->
-          StringComparisonExpression.of(new TemplateExpression("{{" + scope + "}}"),
+      List<PredicateEvalExpression> options = ((List<String>) ruleVal).stream().map(option ->
+          StringComparisonExpression.of(new TemplateStringExpression("{{" + scope + "}}"),
               x -> option, subElement.getKey())).collect(Collectors.toList());
       return entity -> asDouble(options.stream().anyMatch(x -> isTrue(x.getValue(entity))));
     } else if (ruleVal instanceof String) {
-      return StringComparisonExpression.of(new TemplateExpression("{{" + scope + "}}"),
+      return StringComparisonExpression.of(new TemplateStringExpression("{{" + scope + "}}"),
           x -> (String) ruleVal, subElement.getKey());
     } else {
       throw new IllegalArgumentException("[value] can only be String or List, got " +

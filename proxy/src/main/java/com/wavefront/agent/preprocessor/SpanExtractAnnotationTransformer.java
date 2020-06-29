@@ -15,6 +15,8 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
+import static com.wavefront.predicates.Util.expandPlaceholders;
+
 /**
  * Create a point tag by extracting a portion of a metric name, source name or another point tag
  *
@@ -68,7 +70,7 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
     if (!patternMatcher.find()) {
       return false;
     }
-    String value = patternMatcher.replaceAll(PreprocessorUtil.expandPlaceholders(patternReplace, span));
+    String value = patternMatcher.replaceAll(expandPlaceholders(patternReplace, span));
     if (!value.isEmpty()) {
       annotationBuffer.add(new Annotation(key, value));
       ruleMetrics.incrementRuleAppliedCounter();
@@ -82,13 +84,13 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
       case "spanName":
         if (extractAnnotation(span, span.getName(), buffer) && patternReplaceInput != null) {
           span.setName(compiledSearchPattern.matcher(span.getName()).
-              replaceAll(PreprocessorUtil.expandPlaceholders(patternReplaceInput, span)));
+              replaceAll(expandPlaceholders(patternReplaceInput, span)));
         }
         break;
       case "sourceName":
         if (extractAnnotation(span, span.getSource(), buffer) && patternReplaceInput != null) {
           span.setSource(compiledSearchPattern.matcher(span.getSource()).
-              replaceAll(PreprocessorUtil.expandPlaceholders(patternReplaceInput, span)));
+              replaceAll(expandPlaceholders(patternReplaceInput, span)));
         }
         break;
       default:
@@ -97,7 +99,7 @@ public class SpanExtractAnnotationTransformer implements Function<Span, Span>{
             if (extractAnnotation(span, a.getValue(), buffer)) {
               if (patternReplaceInput != null) {
                 a.setValue(compiledSearchPattern.matcher(a.getValue()).
-                    replaceAll(PreprocessorUtil.expandPlaceholders(patternReplaceInput, span)));
+                    replaceAll(expandPlaceholders(patternReplaceInput, span)));
               }
               if (firstMatchOnly) {
                 break;

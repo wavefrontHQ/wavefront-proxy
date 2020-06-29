@@ -12,6 +12,8 @@ import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
+import static com.wavefront.predicates.Util.expandPlaceholders;
+
 /**
  * Create a point tag by extracting a portion of a metric name, source name or another point tag
  *
@@ -61,7 +63,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
     if (!patternMatcher.find()) {
       return false;
     }
-    String value = patternMatcher.replaceAll(PreprocessorUtil.expandPlaceholders(patternReplace, reportPoint));
+    String value = patternMatcher.replaceAll(expandPlaceholders(patternReplace, reportPoint));
     if (!value.isEmpty()) {
       reportPoint.getAnnotations().put(tag, value);
       ruleMetrics.incrementRuleAppliedCounter();
@@ -74,13 +76,13 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
       case "metricName":
         if (extractTag(reportPoint, reportPoint.getMetric()) && patternReplaceSource != null) {
           reportPoint.setMetric(compiledSearchPattern.matcher(reportPoint.getMetric()).
-              replaceAll(PreprocessorUtil.expandPlaceholders(patternReplaceSource, reportPoint)));
+              replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
         }
         break;
       case "sourceName":
         if (extractTag(reportPoint, reportPoint.getHost()) && patternReplaceSource != null) {
           reportPoint.setHost(compiledSearchPattern.matcher(reportPoint.getHost()).
-              replaceAll(PreprocessorUtil.expandPlaceholders(patternReplaceSource, reportPoint)));
+              replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
         }
         break;
       default:
@@ -88,7 +90,7 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
           if (extractTag(reportPoint, reportPoint.getAnnotations().get(source)) && patternReplaceSource != null) {
             reportPoint.getAnnotations().put(source,
                 compiledSearchPattern.matcher(reportPoint.getAnnotations().get(source)).
-                    replaceAll(PreprocessorUtil.expandPlaceholders(patternReplaceSource, reportPoint)));
+                    replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
           }
         }
     }

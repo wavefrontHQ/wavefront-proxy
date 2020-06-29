@@ -13,6 +13,8 @@ import javax.annotation.Nullable;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
+import static com.wavefront.predicates.Util.expandPlaceholders;
+
 /**
  * Replace regex transformer. Performs search and replace on a specified component of a span (span name,
  * source name or an annotation value, depending on "scope" parameter.
@@ -61,7 +63,7 @@ public class SpanReplaceRegexTransformer implements Function<Span, Span> {
     }
     ruleMetrics.incrementRuleAppliedCounter();
 
-    String replacement = PreprocessorUtil.expandPlaceholders(patternReplace, span);
+    String replacement = expandPlaceholders(patternReplace, span);
 
     int currentIteration = 0;
     while (currentIteration < maxIterations) {

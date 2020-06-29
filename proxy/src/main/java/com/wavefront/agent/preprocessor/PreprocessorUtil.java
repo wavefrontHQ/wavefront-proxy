@@ -24,84 +24,6 @@ import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
  */
 public abstract class PreprocessorUtil {
 
-  private static final Pattern PLACEHOLDERS = Pattern.compile("\\{\\{(.*?)}}");
-
-  /**
-   * Substitute {{...}} placeholders with corresponding components of the point
-   * {{metricName}} {{sourceName}} are replaced with the metric name and source respectively
-   * {{anyTagK}} is replaced with the value of the anyTagK point tag
-   *
-   * @param input        input string with {{...}} placeholders
-   * @param reportPoint  ReportPoint object to extract components from
-   * @return string with substituted placeholders
-   */
-  public static String expandPlaceholders(String input, ReportPoint reportPoint) {
-    if (reportPoint != null && input.contains("{{")) {
-      StringBuffer result = new StringBuffer();
-      Matcher placeholders = PLACEHOLDERS.matcher(input);
-      while (placeholders.find()) {
-        if (placeholders.group(1).isEmpty()) {
-          placeholders.appendReplacement(result, placeholders.group(0));
-        } else {
-          String substitution;
-          switch (placeholders.group(1)) {
-            case "metricName":
-              substitution = reportPoint.getMetric();
-              break;
-            case "sourceName":
-              substitution = reportPoint.getHost();
-              break;
-            default:
-              substitution = reportPoint.getAnnotations().get(placeholders.group(1));
-          }
-          placeholders.appendReplacement(result, firstNonNull(substitution, ""));
-        }
-      }
-      placeholders.appendTail(result);
-      return result.toString();
-    }
-    return input;
-  }
-
-  /**
-   * Substitute {{...}} placeholders with corresponding components of a Span
-   * {{spanName}} {{sourceName}} are replaced with the span name and source respectively
-   * {{anyKey}} is replaced with the value of an annotation with anyKey key
-   *
-   * @param input input string with {{...}} placeholders
-   * @param span  Span object to extract components from
-   * @return string with substituted placeholders
-   */
-  public static String expandPlaceholders(String input, Span span) {
-    if (span != null && input.contains("{{")) {
-      StringBuffer result = new StringBuffer();
-      Matcher placeholders = PLACEHOLDERS.matcher(input);
-      while (placeholders.find()) {
-        if (placeholders.group(1).isEmpty()) {
-          placeholders.appendReplacement(result, placeholders.group(0));
-        } else {
-          String substitution;
-          switch (placeholders.group(1)) {
-            case "spanName":
-              substitution = span.getName();
-              break;
-            case "sourceName":
-              substitution = span.getSource();
-              break;
-            default:
-              substitution = span.getAnnotations().stream().
-                  filter(a -> a.getKey().equals(placeholders.group(1))).
-                  map(Annotation::getValue).findFirst().orElse(null);
-          }
-          placeholders.appendReplacement(result, firstNonNull(substitution, ""));
-        }
-      }
-      placeholders.appendTail(result);
-      return result.toString();
-    }
-    return input;
-  }
-
   /**
    * Enforce string max length limit - either truncate or truncate with "..." at the end.
    *
@@ -144,17 +66,5 @@ public abstract class PreprocessorUtil {
     if (value instanceof Number) return ((Number) value).intValue();
     if (value instanceof String) return Integer.parseInt((String) value);
     throw new IllegalArgumentException();
-  }
-
-  public static long parseTextualTimeExact(String interval, long anchorTime, TimeZone timeZone) {
-    Calendar instance = Calendar.getInstance();
-    instance.setTimeZone(timeZone);
-    instance.setTimeInMillis(anchorTime);
-    com.mdimension.jchronic.utils.Span parse = Chronic.parse(unquote(interval),
-        new Options(instance));
-    if (parse == null) {
-      throw new IllegalArgumentException("Failed to parse " + interval + " as a time-expression");
-    }
-    return parse.getBeginCalendar().getTimeInMillis();
   }
 }

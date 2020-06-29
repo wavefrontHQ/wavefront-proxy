@@ -1,4 +1,4 @@
-package com.wavefront.agent.preprocessor.predicate;
+package com.wavefront.agent.preprocessor;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -9,9 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
-
-import com.wavefront.agent.preprocessor.PreprocessorConfigManager;
-import com.wavefront.agent.preprocessor.PreprocessorRulesTest;
 
 import wavefront.report.ReportPoint;
 import wavefront.report.Span;

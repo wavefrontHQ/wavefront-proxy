@@ -4,7 +4,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
-import com.wavefront.agent.preprocessor.predicate.Predicates;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;

@@ -12,6 +12,8 @@ import javax.annotation.Nonnull;
 
 import wavefront.report.ReportPoint;
 
+import static com.wavefront.predicates.Util.expandPlaceholders;
+
 /**
  * Replace regex transformer. Performs search and replace on a specified component of a point (metric name,
  * source name or a point tag value, depending on "scope" parameter.
@@ -58,7 +60,7 @@ public class ReportPointReplaceRegexTransformer implements Function<ReportPoint,
     }
     ruleMetrics.incrementRuleAppliedCounter();
 
-    String replacement = PreprocessorUtil.expandPlaceholders(patternReplace, reportPoint);
+    String replacement = expandPlaceholders(patternReplace, reportPoint);
 
     int currentIteration = 0;
     while (currentIteration < maxIterations) {
