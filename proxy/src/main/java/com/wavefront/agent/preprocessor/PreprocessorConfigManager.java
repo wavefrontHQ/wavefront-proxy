@@ -79,7 +79,6 @@ public class PreprocessorConfigManager {
 
   private final Supplier<Long> timeSupplier;
   private final Map<String, ReportableEntityPreprocessor> systemPreprocessors = new HashMap<>();
-  private final Map<String, PreprocessorRuleMetrics> preprocessorRuleMetricsMap = new HashMap<>();
 
   @VisibleForTesting
   public Map<String, ReportableEntityPreprocessor> userPreprocessors;
@@ -226,14 +225,13 @@ public class PreprocessorConfigManager {
                   MAX_LENGTH, FIRST_MATCH_ONLY, ALLOW, IF);
               String ruleName = Objects.requireNonNull(getString(rule, RULE)).
                   replaceAll("[^a-z0-9_-]", "");
-              PreprocessorRuleMetrics ruleMetrics = preprocessorRuleMetricsMap.computeIfAbsent(
-                  strPort, k -> new PreprocessorRuleMetrics(
+              PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
                       Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
                       "count", "port", strPort)),
                       Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
                       "cpu_nanos", "port", strPort)),
                       Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
-                      "checked-count", "port", strPort))));
+                      "checked-count", "port", strPort)));
               String scope = getString(rule, SCOPE);
               if ("pointLine".equals(scope) || "inputText".equals(scope)) {
                 if (Predicates.getPredicate(rule) != null) {
