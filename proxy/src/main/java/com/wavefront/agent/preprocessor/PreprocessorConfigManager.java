@@ -61,7 +61,6 @@ public class PreprocessorConfigManager {
 
   private final Supplier<Long> timeSupplier;
   private final Map<String, ReportableEntityPreprocessor> systemPreprocessors = new HashMap<>();
-  private final Map<String, PreprocessorRuleMetrics> preprocessorRuleMetricsMap = new HashMap<>();
 
   @VisibleForTesting
   public Map<String, ReportableEntityPreprocessor> userPreprocessors;
@@ -213,14 +212,13 @@ public class PreprocessorConfigManager {
                   "replaceInput", "actionSubtype", "maxLength", "firstMatchOnly", "whitelist", V2_PREDICATE_KEY);
               String ruleName = Objects.requireNonNull(getString(rule, "rule")).
                   replaceAll("[^a-z0-9_-]", "");
-              PreprocessorRuleMetrics ruleMetrics = preprocessorRuleMetricsMap.computeIfAbsent(
-                  strPort, k -> new PreprocessorRuleMetrics(
+              PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
                       Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
                       "count", "port", strPort)),
                       Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
                       "cpu_nanos", "port", strPort)),
                       Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
-                      "checked-count", "port", strPort))));
+              "checked-count", "port", strPort)));
               if ("pointLine".equals(getString(rule, "scope"))) {
                 if (getPredicate(rule, V2_PREDICATE_KEY, ReportPoint.class) != null) {
                   throw new IllegalArgumentException("Argument [" + V2_PREDICATE_KEY + "] is not " +
