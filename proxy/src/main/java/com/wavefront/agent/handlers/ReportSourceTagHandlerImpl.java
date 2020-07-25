@@ -37,6 +37,7 @@ class ReportSourceTagHandlerImpl
       throw new IllegalArgumentException("WF-401: SourceTag annotation key has illegal characters.");
     }
     getTask(sourceTag).add(new SourceTag(sourceTag));
+    getReceivedCounter().inc();
   }
 
   @VisibleForTesting
