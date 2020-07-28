@@ -79,6 +79,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   protected final Counter discardedSpanLogs;
   private final Counter discardedSpansBySampler;
   private final Counter discardedSpanLogsBySampler;
+  private final Counter spansSentToProxy;
+
 
   public TracePortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
@@ -121,6 +123,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         "sampler.discarded"));
     this.discardedSpanLogsBySampler = Metrics.newCounter(new MetricName("spanLogs." + handle, "",
         "sampler.discarded"));
+    this.spansSentToProxy = Metrics.newCounter(new MetricName("spans." + handle, "", "sent.count"));
   }
 
   @Nullable
@@ -140,6 +143,9 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
           ctx, span -> sampler.sample(span, discardedSpanLogsBySampler));
       return;
     }
+
+    // Payload is a span.
+    spansSentToProxy.inc();
     if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedSpans)) return;
     preprocessAndHandleSpan(message, decoder, handler, this::report, preprocessorSupplier, ctx,
         span -> sampler.sample(span, discardedSpansBySampler));
