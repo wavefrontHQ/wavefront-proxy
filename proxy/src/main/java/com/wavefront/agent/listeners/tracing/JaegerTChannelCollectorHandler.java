@@ -72,6 +72,7 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
   private final String proxyLevelApplicationName;
   private final Set<String> traceDerivedCustomTagKeys;
 
+  private final Counter spansSentToProxy;
   private final Counter discardedTraces;
   private final Counter discardedBatches;
   private final Counter processedBatches;
@@ -125,6 +126,8 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
         new MetricName("spans." + handle + ".batches", "", "failed"));
     this.discardedSpansBySampler = Metrics.newCounter(
         new MetricName("spans." + handle, "", "sampler.discarded"));
+    this.spansSentToProxy = Metrics.newCounter(new MetricName(
+        "spans." + handle, "", "sent.count"));
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("jaeger-heart-beater"));
@@ -149,7 +152,8 @@ public class JaegerTChannelCollectorHandler extends ThriftRequestHandler<Collect
         processBatch(batch, null, DEFAULT_SOURCE, proxyLevelApplicationName, spanHandler,
             spanLogsHandler, wfInternalReporter, traceDisabled, spanLogsDisabled,
             preprocessorSupplier, sampler, traceDerivedCustomTagKeys, discardedTraces,
-            discardedBatches, discardedSpansBySampler, discoveredHeartbeatMetrics);
+            discardedBatches, discardedSpansBySampler, discoveredHeartbeatMetrics,
+            spansSentToProxy);
         processedBatches.inc();
       } catch (Exception e) {
         failedBatches.inc();
