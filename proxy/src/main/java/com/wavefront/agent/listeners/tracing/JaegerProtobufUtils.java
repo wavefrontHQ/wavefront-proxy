@@ -90,7 +90,7 @@ public abstract class JaegerProtobufUtils {
                                   Counter discardedBatches,
                                   Counter discardedSpansBySampler,
                                   Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics,
-                                  Counter spansSentToProxy) {
+                                  Counter receivedSpansTotal) {
     String serviceName = batch.getProcess().getServiceName();
     List<Annotation> processAnnotations = new ArrayList<>();
     boolean isSourceProcessTagPresent = false;
@@ -125,10 +125,10 @@ public abstract class JaegerProtobufUtils {
     }
     if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedBatches, output)) {
       discardedTraces.inc(batch.getSpansCount());
-      spansSentToProxy.inc(batch.getSpansCount());
+      receivedSpansTotal.inc(batch.getSpansCount());
       return;
     }
-    spansSentToProxy.inc(batch.getSpansCount());
+    receivedSpansTotal.inc(batch.getSpansCount());
     for (Model.Span span : batch.getSpansList()) {
       processSpan(span, serviceName, sourceName, applicationName, processAnnotations,
           spanHandler, spanLogsHandler, wfInternalReporter, spanLogsDisabled,

@@ -79,7 +79,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
   private final String proxyLevelApplicationName;
   private final Set<String> traceDerivedCustomTagKeys;
 
-  private final Counter spansSentToProxy;
+  private final Counter receivedSpansTotal;
   private final Counter discardedTraces;
   private final Counter discardedBatches;
   private final Counter processedBatches;
@@ -143,8 +143,8 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
         new MetricName("spans." + handle + ".batches", "", "failed"));
     this.discardedSpansBySampler = Metrics.newCounter(
         new MetricName("spans." + handle, "", "sampler.discarded"));
-    this.spansSentToProxy = Metrics.newCounter(new MetricName(
-        "spans." + handle, "", "sent.count"));
+    this.receivedSpansTotal = Metrics.newCounter(new MetricName(
+        "spans." + handle, "", "received.total"));
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1,
         new NamedThreadFactory("jaeger-heart-beater"));
@@ -193,7 +193,7 @@ public class JaegerPortUnificationHandler extends AbstractHttpOnlyHandler implem
           spanLogsHandler, wfInternalReporter, traceDisabled, spanLogsDisabled,
           preprocessorSupplier, sampler, traceDerivedCustomTagKeys,
           discardedTraces, discardedBatches, discardedSpansBySampler, discoveredHeartbeatMetrics,
-          spansSentToProxy);
+          receivedSpansTotal);
       status = HttpResponseStatus.ACCEPTED;
       processedBatches.inc();
     } catch (Exception e) {

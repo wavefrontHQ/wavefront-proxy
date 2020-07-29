@@ -87,7 +87,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
 
   private final SpanSampler sampler;
 
-  private final Supplier<Counter> spansSentToProxy;
+  private final Supplier<Counter> receivedSpansTotal;
   private final Supplier<Counter> discardedHistograms;
   private final Supplier<Counter> discardedSpans;
   private final Supplier<Counter> discardedSpanLogs;
@@ -158,8 +158,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         "spans." + handle, "", "sampler.discarded")));
     this.discardedSpanLogsBySampler = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
         "spanLogs." + handle, "", "sampler.discarded")));
-    this.spansSentToProxy = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
-        "spans." + handle, "", "sent.count")));
+    this.receivedSpansTotal = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
+        "spans." + handle, "", "received.total")));
   }
 
   @Override
@@ -181,7 +181,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       return;
     } else if (format == SPAN && isFeatureDisabled(traceDisabled, SPAN_DISABLED,
         discardedSpans.get(), out, request)) {
-      spansSentToProxy.get().inc(discardedSpans.get().count());
+      receivedSpansTotal.get().inc(discardedSpans.get().count());
       writeHttpResponse(ctx, HttpResponseStatus.FORBIDDEN, out, request);
       return;
     }
@@ -242,7 +242,7 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
           return;
         }
         message = annotator == null ? message : annotator.apply(ctx, message);
-        spansSentToProxy.get().inc();
+        receivedSpansTotal.get().inc();
         preprocessAndHandleSpan(message, spanDecoder, spanHandler, spanHandler::report,
             preprocessorSupplier, ctx, span -> sampler.sample(span, discardedSpansBySampler.get()));
         return;
