@@ -237,7 +237,7 @@ public class PushAgent extends AbstractAgent {
         proxyConfig.getPushBlockedSamples(), validationConfiguration, blockedPointsLogger,
         blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor, entityProps);
     if (proxyConfig.isTrafficShaping()) {
-      new TrafficShapingRateLimitAdjuster(entityProps, proxyConfig.getTrafficShapingQuantile(),
+      new TrafficShapingRateLimitAdjuster(entityProps, proxyConfig.getTrafficShapingWindowSeconds(),
           proxyConfig.getTrafficShapingHeadroom()).start();
     }
     healthCheckManager = new HealthCheckManagerImpl(proxyConfig);
