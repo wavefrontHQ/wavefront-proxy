@@ -1,6 +1,6 @@
 # Create a docker VM for building the wavefront proxy agent .deb and .rpm
 # packages.
-FROM centos:6
+FROM centos:7
 RUN yum -y install gcc make autoconf wget vim rpm-build git gpg2
 
 # Set up Ruby 2.0.0 for FPM 1.10.0
