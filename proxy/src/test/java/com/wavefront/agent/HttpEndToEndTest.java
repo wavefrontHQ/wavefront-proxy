@@ -67,7 +67,7 @@ public class HttpEndToEndTest {
     ChannelHandler channelHandler = new WrappingHttpHandler(null, null,
         String.valueOf(backendPort), server);
     thread = new Thread(new TcpIngester(createInitializer(channelHandler,
-        backendPort, 32768, 16 * 1024 * 1024, 5, Optional.empty()), backendPort));
+        backendPort, 32768, 16 * 1024 * 1024, 5, null, null), backendPort));
     thread.start();
     waitUntilListenerIsOnline(backendPort);
   }
