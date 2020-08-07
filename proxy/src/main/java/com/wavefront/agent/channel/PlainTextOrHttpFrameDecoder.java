@@ -1,5 +1,7 @@
 package com.wavefront.agent.channel;
 
+import javax.annotation.Nullable;
+
 import com.google.common.base.Charsets;
 
 import java.util.List;
@@ -13,9 +15,10 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.compression.ZlibCodecFactory;
 import io.netty.handler.codec.compression.ZlibWrapper;
 import io.netty.handler.codec.http.HttpContentDecompressor;
-import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
+import io.netty.handler.codec.http.cors.CorsConfig;
+import io.netty.handler.codec.http.cors.CorsHandler;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 
@@ -38,6 +41,8 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
    */
   private final ChannelHandler handler;
   private final boolean detectGzip;
+  @Nullable
+  private final CorsConfig corsConfig;
   private final int maxLengthPlaintext;
   private final int maxLengthHttp;
 
@@ -47,18 +52,23 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
   /**
    * @param handler            the object responsible for handling the incoming messages on
    *                           either protocol.
+   * @param corsConfig         enables CORS when {@link CorsConfig} is specified
    * @param maxLengthPlaintext max allowed line length for line-delimiter protocol
    * @param maxLengthHttp      max allowed size for incoming HTTP requests
    */
   public PlainTextOrHttpFrameDecoder(final ChannelHandler handler,
+                                     @Nullable final CorsConfig corsConfig,
                                      int maxLengthPlaintext,
                                      int maxLengthHttp) {
-    this(handler, maxLengthPlaintext, maxLengthHttp, true);
+    this(handler, corsConfig, maxLengthPlaintext, maxLengthHttp, true);
   }
 
-  private PlainTextOrHttpFrameDecoder(final ChannelHandler handler, int maxLengthPlaintext,
-                                      int maxLengthHttp, boolean detectGzip) {
+  private PlainTextOrHttpFrameDecoder(final ChannelHandler handler,
+                                      @Nullable final CorsConfig corsConfig,
+                                      int maxLengthPlaintext, int maxLengthHttp,
+                                      boolean detectGzip) {
     this.handler = handler;
+    this.corsConfig = corsConfig;
     this.maxLengthPlaintext = maxLengthPlaintext;
     this.maxLengthHttp = maxLengthHttp;
     this.detectGzip = detectGzip;
@@ -87,16 +97,19 @@ public final class PlainTextOrHttpFrameDecoder extends ByteToMessageDecoder {
       pipeline.
           addLast("gzipdeflater", ZlibCodecFactory.newZlibEncoder(ZlibWrapper.GZIP)).
           addLast("gzipinflater", ZlibCodecFactory.newZlibDecoder(ZlibWrapper.GZIP)).
-          addLast("unificationB", new PlainTextOrHttpFrameDecoder(handler, maxLengthPlaintext,
-              maxLengthHttp, false));
+          addLast("unificationB", new PlainTextOrHttpFrameDecoder(handler, corsConfig,
+              maxLengthPlaintext, maxLengthHttp, false));
     } else if (isHttp(firstByte, secondByte)) {
       logger.fine("Switching to HTTP protocol");
       pipeline.
           addLast("decoder", new HttpRequestDecoder()).
           addLast("inflater", new HttpContentDecompressor()).
           addLast("encoder", new HttpResponseEncoder()).
-          addLast("aggregator", new StatusTrackingHttpObjectAggregator(maxLengthHttp)).
-          addLast("handler", this.handler);
+          addLast("aggregator", new StatusTrackingHttpObjectAggregator(maxLengthHttp));
+      if (corsConfig != null) {
+        pipeline.addLast("corsHandler", new CorsHandler(corsConfig));
+      }
+      pipeline.addLast("handler", this.handler);
     } else {
       logger.fine("Switching to plaintext TCP protocol");
       pipeline.

@@ -784,6 +784,18 @@ public class ProxyConfig extends Configuration {
       " to use for traffic shaping when there's backlog. Default: 1.15 (15% headroom)")
   protected double trafficShapingHeadroom = 1.15;
 
+  @Parameter(names = {"--corsEnabledPorts"}, description = "Enables CORS for specified " +
+      "comma-delimited list of listening ports. Default: none (CORS disabled)")
+  protected String corsEnabledPorts = "";
+
+  @Parameter(names = {"--corsOrigin"}, description = "Allowed origin for CORS requests, " +
+      "or '*' to allow everything. Default: none")
+  protected String corsOrigin = "";
+
+  @Parameter(names = {"--corsAllowNullOrigin"}, description = "Allow 'null' origin for CORS " +
+      "requests. Default: false")
+  protected boolean corsAllowNullOrigin = false;
+
   @Parameter()
   List<String> unparsed_params;
 
@@ -1515,6 +1527,18 @@ public class ProxyConfig extends Configuration {
     return trafficShapingHeadroom;
   }
 
+  public List<String> getCorsEnabledPorts() {
+    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(corsEnabledPorts);
+  }
+
+  public String getCorsOrigin() {
+    return corsOrigin;
+  }
+
+  public boolean isCorsAllowNullOrigin() {
+    return corsAllowNullOrigin;
+  }
+
   @Override
   public void verifyAndInit() {
     if (unparsed_params != null) {
@@ -1839,6 +1863,11 @@ public class ProxyConfig extends Configuration {
       trafficShapingWindowSeconds = config.getInteger("trafficShapingWindowSeconds",
           trafficShapingWindowSeconds);
       trafficShapingHeadroom = config.getDouble("trafficShapingHeadroom", trafficShapingHeadroom);
+
+      // CORS configuration
+      corsEnabledPorts = config.getString("corsEnabledPorts", corsEnabledPorts);
+      corsOrigin = config.getString("corsOrigin", corsOrigin);
+      corsAllowNullOrigin = config.getBoolean("corsAllowNullOrigin", corsAllowNullOrigin);
 
       // clamp values for pushFlushMaxPoints/etc between min split size
       // (or 1 in case of source tags and events) and default batch size.
