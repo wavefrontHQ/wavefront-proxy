@@ -1531,8 +1531,8 @@ public class ProxyConfig extends Configuration {
     return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(corsEnabledPorts);
   }
 
-  public String getCorsOrigin() {
-    return corsOrigin;
+  public List<String> getCorsOrigin() {
+    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(corsOrigin);
   }
 
   public boolean isCorsAllowNullOrigin() {

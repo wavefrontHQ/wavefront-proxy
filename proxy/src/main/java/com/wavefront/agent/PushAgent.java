@@ -99,6 +99,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.handler.ssl.SslContext;
@@ -462,7 +463,15 @@ public class PushAgent extends AbstractAgent {
   protected CorsConfig getCorsConfig(String port) {
     List<String> ports = proxyConfig.getCorsEnabledPorts();
     if (ports.size() == 1 && ports.get(0).equals("*") || ports.contains(port)) {
-      CorsConfigBuilder builder = CorsConfigBuilder.forOrigin(proxyConfig.getCorsOrigin());
+      CorsConfigBuilder builder = null;
+      if (proxyConfig.getCorsOrigin().size() == 1 && proxyConfig.getCorsOrigin().get(0).equals("*")) {
+        builder = CorsConfigBuilder.forOrigin(proxyConfig.getCorsOrigin().get(0));
+      } else {
+        builder = CorsConfigBuilder.forOrigins(proxyConfig.getCorsOrigin().toArray(new String[proxyConfig.getCorsOrigin().size()]));
+      }
+      builder.allowedRequestHeaders("Content-Type", "Referer","User-Agent");
+      builder.allowedRequestMethods(HttpMethod.GET, HttpMethod.POST, HttpMethod.PUT);
+    	  
       if (proxyConfig.isCorsAllowNullOrigin()) {
         builder.allowNullOrigin();
       }
