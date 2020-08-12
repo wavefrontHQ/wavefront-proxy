@@ -86,6 +86,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private final Supplier<Counter> discardedHistograms;
   private final Supplier<Counter> discardedSpans;
   private final Supplier<Counter> discardedSpanLogs;
+  private final Supplier<Counter> receivedSpansTotal;
 
   /**
    * Create new instance with lazy initialization for handlers.
@@ -122,6 +123,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         ReportableEntityType.TRACE, handle)));
     this.spanLogsHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(HandlerKey.of(
         ReportableEntityType.TRACE_SPAN_LOGS, handle)));
+    this.receivedSpansTotal = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
+        "spans." + handle, "", "received.total")));
     this.preprocessorSupplier = preprocessorSupplier;
     this.annotator = annotator;
     this.histogramDisabled = histogramDisabled;
@@ -224,6 +227,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       case Constants.PUSH_FORMAT_TRACING:
         if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedSpans.get(), output,
             request)) {
+          receivedSpansTotal.get().inc(discardedSpans.get().count());
           status = HttpResponseStatus.FORBIDDEN;
           break;
         }
@@ -236,6 +240,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         Splitter.on('\n').trimResults().omitEmptyStrings().
             split(request.content().toString(CharsetUtil.UTF_8)).forEach(line -> {
           try {
+            receivedSpansTotal.get().inc();
             spanDecoder.decode(line, spans, "dummy");
           } catch (Exception e) {
             spanHandler.reject(line, formatErrorMessage(line, e, ctx));

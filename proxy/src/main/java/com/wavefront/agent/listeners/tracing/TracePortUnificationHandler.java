@@ -48,7 +48,6 @@ import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 
 /**
  * Process incoming trace-formatted data.
@@ -79,6 +78,8 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
   protected final Counter discardedSpanLogs;
   private final Counter discardedSpansBySampler;
   private final Counter discardedSpanLogsBySampler;
+  private final Counter receivedSpansTotal;
+
 
   public TracePortUnificationHandler(
       final String handle, final TokenAuthenticator tokenAuthenticator,
@@ -121,6 +122,7 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
         "sampler.discarded"));
     this.discardedSpanLogsBySampler = Metrics.newCounter(new MetricName("spanLogs." + handle, "",
         "sampler.discarded"));
+    this.receivedSpansTotal = Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
   }
 
   @Nullable
@@ -140,6 +142,9 @@ public class TracePortUnificationHandler extends AbstractLineDelimitedHandler {
           ctx, span -> sampler.sample(span, discardedSpanLogsBySampler));
       return;
     }
+
+    // Payload is a span.
+    receivedSpansTotal.inc();
     if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedSpans)) return;
     preprocessAndHandleSpan(message, decoder, handler, this::report, preprocessorSupplier, ctx,
         span -> sampler.sample(span, discardedSpansBySampler));
