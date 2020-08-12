@@ -775,14 +775,26 @@ public class ProxyConfig extends Configuration {
       "based on received rate over last 5 minutes. Default: disabled", arity = 1)
   protected boolean trafficShaping = false;
 
-  @Parameter(names = {"--trafficShapingQuantile"}, description = "Sets the quantile to use " +
-      "for traffic shaping. Default: 75, i.e. 75th percentile of the received rate, heavily " +
-      "biased towards last 5 minutes, will be used as a basis for the rate limiter.")
-  protected double trafficShapingQuantile = 75;
+  @Parameter(names = {"--trafficShapingWindowSeconds"}, description = "Sets the width " +
+      "(in seconds) for the sliding time window which would be used to calculate received " +
+      "traffic rate. Default: 600 (10 minutes)")
+  protected Integer trafficShapingWindowSeconds = 600;
 
   @Parameter(names = {"--trafficShapingHeadroom"}, description = "Sets the headroom multiplier " +
       " to use for traffic shaping when there's backlog. Default: 1.15 (15% headroom)")
   protected double trafficShapingHeadroom = 1.15;
+
+  @Parameter(names = {"--corsEnabledPorts"}, description = "Enables CORS for specified " +
+      "comma-delimited list of listening ports. Default: none (CORS disabled)")
+  protected String corsEnabledPorts = "";
+
+  @Parameter(names = {"--corsOrigin"}, description = "Allowed origin for CORS requests, " +
+      "or '*' to allow everything. Default: none")
+  protected String corsOrigin = "";
+
+  @Parameter(names = {"--corsAllowNullOrigin"}, description = "Allow 'null' origin for CORS " +
+      "requests. Default: false")
+  protected boolean corsAllowNullOrigin = false;
 
   @Parameter()
   List<String> unparsed_params;
@@ -1507,12 +1519,24 @@ public class ProxyConfig extends Configuration {
     return trafficShaping;
   }
 
-  public double getTrafficShapingQuantile() {
-    return trafficShapingQuantile;
+  public Integer getTrafficShapingWindowSeconds() {
+    return trafficShapingWindowSeconds;
   }
 
   public double getTrafficShapingHeadroom() {
     return trafficShapingHeadroom;
+  }
+
+  public List<String> getCorsEnabledPorts() {
+    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(corsEnabledPorts);
+  }
+
+  public List<String> getCorsOrigin() {
+    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(corsOrigin);
+  }
+
+  public boolean isCorsAllowNullOrigin() {
+    return corsAllowNullOrigin;
   }
 
   @Override
@@ -1836,8 +1860,14 @@ public class ProxyConfig extends Configuration {
 
       // Traffic shaping config
       trafficShaping = config.getBoolean("trafficShaping", trafficShaping);
-      trafficShapingQuantile = config.getDouble("trafficShapingQuantile", trafficShapingQuantile);
+      trafficShapingWindowSeconds = config.getInteger("trafficShapingWindowSeconds",
+          trafficShapingWindowSeconds);
       trafficShapingHeadroom = config.getDouble("trafficShapingHeadroom", trafficShapingHeadroom);
+
+      // CORS configuration
+      corsEnabledPorts = config.getString("corsEnabledPorts", corsEnabledPorts);
+      corsOrigin = config.getString("corsOrigin", corsOrigin);
+      corsAllowNullOrigin = config.getBoolean("corsAllowNullOrigin", corsAllowNullOrigin);
 
       // clamp values for pushFlushMaxPoints/etc between min split size
       // (or 1 in case of source tags and events) and default batch size.

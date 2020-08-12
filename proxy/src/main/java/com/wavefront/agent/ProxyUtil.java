@@ -12,6 +12,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -117,15 +118,19 @@ abstract class ProxyUtil {
    * @param messageMaxLength      maximum line length for line-based protocols.
    * @param httpRequestBufferSize maximum request size for HTTP POST.
    * @param idleTimeout           idle timeout in seconds.
+   * @param sslContext            SSL context.
+   * @param corsConfig            enables CORS when {@link CorsConfig} is specified.
+   *
    * @return channel initializer
    */
   static ChannelInitializer<SocketChannel> createInitializer(ChannelHandler channelHandler,
                                                              int port, int messageMaxLength,
                                                              int httpRequestBufferSize,
                                                              int idleTimeout,
-                                                             Optional<SslContext> sslContext) {
+                                                             @Nullable SslContext sslContext,
+                                                             @Nullable CorsConfig corsConfig) {
     return createInitializer(ImmutableList.of(() -> new PlainTextOrHttpFrameDecoder(channelHandler,
-        messageMaxLength, httpRequestBufferSize)), port, idleTimeout, sslContext);
+        corsConfig, messageMaxLength, httpRequestBufferSize)), port, idleTimeout, sslContext);
   }
 
   /**
@@ -135,11 +140,12 @@ abstract class ProxyUtil {
    * @param channelHandlerSuppliers Suppliers of ChannelHandlers.
    * @param port                    port number.
    * @param idleTimeout             idle timeout in seconds.
+   * @param sslContext              SSL context.
    * @return channel initializer
    */
   static ChannelInitializer<SocketChannel> createInitializer(
       Iterable<Supplier<ChannelHandler>> channelHandlerSuppliers, int port, int idleTimeout,
-      Optional<SslContext> sslContext) {
+      @Nullable SslContext sslContext) {
     String strPort = String.valueOf(port);
     ChannelHandler idleStateEventHandler = new IdleStateEventHandler(Metrics.newCounter(
         new TaggedMetricName("listeners", "connections.idle.closed", "port", strPort)));
@@ -148,14 +154,16 @@ abstract class ProxyUtil {
             strPort)),
         Metrics.newCounter(new TaggedMetricName("listeners", "connections.active", "port",
             strPort)));
-    if (sslContext.isPresent()) {
+    if (sslContext != null) {
       logger.info("TLS enabled on port: " + port);
     }
     return new ChannelInitializer<SocketChannel>() {
       @Override
       public void initChannel(SocketChannel ch) {
         ChannelPipeline pipeline = ch.pipeline();
-        sslContext.ifPresent(s -> pipeline.addLast(s.newHandler(ch.alloc())));
+        if (sslContext != null) {
+          pipeline.addLast(sslContext.newHandler(ch.alloc()));
+        }
         pipeline.addFirst("idlehandler", new IdleStateHandler(idleTimeout, 0, 0));
         pipeline.addLast("idlestateeventhandler", idleStateEventHandler);
         pipeline.addLast("connectiontracker", connectionTracker);

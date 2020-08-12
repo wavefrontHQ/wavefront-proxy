@@ -26,14 +26,18 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.TooLongFrameException;
 import io.netty.handler.codec.compression.DecompressionException;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.CharsetUtil;
 
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
@@ -203,6 +207,11 @@ public abstract class AbstractPortUnificationHandler extends SimpleChannelInboun
           httpRequestsInFlightGauge.get();
           httpRequestsInFlight.incrementAndGet();
           long startTime = System.nanoTime();
+          if (request.method() == HttpMethod.OPTIONS) {
+            writeHttpResponse(ctx, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
+                HttpResponseStatus.NO_CONTENT, Unpooled.EMPTY_BUFFER), request);
+            return;
+          }
           try {
             handleHttpMessage(ctx, request);
           } finally {
