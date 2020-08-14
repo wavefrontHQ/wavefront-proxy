@@ -145,7 +145,7 @@ public class InteractivePreprocessorTester implements InteractiveTester {
         decoder = new ReportPointDecoder(() -> "unknown", customSourceTags);
       }
       WavefrontPortUnificationHandler.preprocessAndHandlePoint(line, decoder, handler,
-          preprocessorSupplier, null);
+          preprocessorSupplier, null, "");
     }
     return stdin.hasNext();
   }
