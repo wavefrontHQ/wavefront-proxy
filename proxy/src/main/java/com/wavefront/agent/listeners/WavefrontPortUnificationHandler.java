@@ -213,8 +213,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
             sourceTagHandler.report(tag);
           }
         } catch (Exception e) {
-          sourceTagHandler.reject(message, formatErrorMessage("WF-300 Cannot parse: \"" + message +
-              "\"", e, ctx));
+          sourceTagHandler.reject(message, formatErrorMessage("WF-300 Cannot parse sourceTag: \"" +
+              message + "\"", e, ctx));
         }
         return;
       case EVENT:
@@ -230,8 +230,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
             eventHandler.report(event);
           }
         } catch (Exception e) {
-          eventHandler.reject(message, formatErrorMessage("WF-300 Cannot parse: \"" + message +
-              "\"", e, ctx));
+          eventHandler.reject(message, formatErrorMessage("WF-300 Cannot parse event: \"" +
+              message + "\"", e, ctx));
         }
         return;
       case SPAN:
@@ -267,12 +267,12 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
         }
         message = annotator == null ? message : annotator.apply(ctx, message);
         preprocessAndHandlePoint(message, histogramDecoder, histogramHandler, preprocessorSupplier,
-            ctx);
+            ctx, "histogram");
         return;
       default:
         message = annotator == null ? message : annotator.apply(ctx, message);
         preprocessAndHandlePoint(message, wavefrontDecoder, wavefrontHandler, preprocessorSupplier,
-            ctx);
+            ctx, "metric");
     }
   }
 
@@ -280,7 +280,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
       String message, ReportableEntityDecoder<String, ReportPoint> decoder,
       ReportableEntityHandler<ReportPoint, String> handler,
       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-      @Nullable ChannelHandlerContext ctx) {
+      @Nullable ChannelHandlerContext ctx,
+      String type) {
     ReportableEntityPreprocessor preprocessor = preprocessorSupplier == null ?
         null : preprocessorSupplier.get();
     String[] messageHolder = new String[1];
@@ -303,8 +304,8 @@ public class WavefrontPortUnificationHandler extends AbstractLineDelimitedHandle
     try {
       decoder.decode(message, output, "dummy");
     } catch (Exception e) {
-      handler.reject(message, formatErrorMessage("WF-300 Cannot parse: \"" + message + "\"", e,
-          ctx));
+      handler.reject(message,
+          formatErrorMessage("WF-300 Cannot parse " + type + ": \"" + message + "\"", e, ctx));
       return;
     }
 

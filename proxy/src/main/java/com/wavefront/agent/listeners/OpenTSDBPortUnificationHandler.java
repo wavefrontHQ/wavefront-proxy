@@ -131,7 +131,7 @@ public class OpenTSDBPortUnificationHandler extends AbstractPortUnificationHandl
       }
     } else {
       WavefrontPortUnificationHandler.preprocessAndHandlePoint(message, decoder, pointHandler,
-          preprocessorSupplier, ctx);
+          preprocessorSupplier, ctx, "OpenTSDB metric");
     }
   }
 

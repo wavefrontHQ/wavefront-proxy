@@ -204,7 +204,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
                   break;
                 }
                 preprocessAndHandlePoint(message, histogramDecoder, histogramHandlerSupplier.get(),
-                    preprocessorSupplier, ctx);
+                    preprocessorSupplier, ctx, "histogram");
                 hasSuccessfulPoints.set(true);
                 break;
               default:
@@ -212,7 +212,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
                 message = annotator != null && isDirectIngestion ?
                     annotator.apply(ctx, message) : message;
                 preprocessAndHandlePoint(message, wavefrontDecoder, wavefrontHandler,
-                    preprocessorSupplier, ctx);
+                    preprocessorSupplier, ctx, "metric");
                 hasSuccessfulPoints.set(true);
                 break;
             }

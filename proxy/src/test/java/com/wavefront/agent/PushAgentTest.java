@@ -46,8 +46,10 @@ import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -1736,6 +1738,45 @@ public class PushAgentTest {
     assertEquals(200, httpGet("http://localhost:" + port2 + "/health"));
     assertEquals(200, httpGet("http://localhost:" + port3 + "/health"));
     assertEquals(200, httpGet("http://localhost:" + port4 + "/health"));
+  }
+
+  @Test
+  public void testLargeHistogramDataOnWavefrontUnifiedPortHandler() throws Exception {
+    port = findAvailablePort(2988);
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(port);
+    proxy.startGraphiteListener(proxy.proxyConfig.getPushListenerPorts(), mockHandlerFactory,
+        null, new SpanSampler(new RateSampler(1.0D),
+            proxy.proxyConfig.isTraceAlwaysSampleErrors()));
+    waitUntilListenerIsOnline(port);
+    reset(mockHistogramHandler);
+    List<Double> bins = new ArrayList<>();
+    List<Integer> counts = new ArrayList<>();
+    for (int i = 0; i < 50; i++) bins.add(10.0d);
+    for (int i = 0; i < 150; i++) bins.add(99.0d);
+    for (int i = 0; i < 200; i++) counts.add(1);
+    mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
+        setMetric("metric.test.histo").setHost("test1").setTimestamp(startTime * 1000).setValue(
+        Histogram.newBuilder()
+            .setType(HistogramType.TDIGEST)
+            .setDuration(60000)
+            .setBins(bins)
+            .setCounts(counts)
+            .build())
+        .build());
+    expectLastCall();
+    replay(mockHistogramHandler);
+
+    Socket socket = SocketFactory.getDefault().createSocket("localhost", port);
+    BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
+    StringBuilder payloadStr = new StringBuilder("!M ");
+    payloadStr.append(startTime);
+    for (int i = 0; i < 50; i++) payloadStr.append(" #1 10.0");
+    for (int i = 0; i < 150; i++) payloadStr.append(" #1 99.0");
+    payloadStr.append(" metric.test.histo source=test1\n");
+    stream.write(payloadStr.toString().getBytes());
+    stream.flush();
+    socket.close();
+    verifyWithTimeout(500, mockHistogramHandler);
   }
 
   private String escapeSpanData(String spanData) {
