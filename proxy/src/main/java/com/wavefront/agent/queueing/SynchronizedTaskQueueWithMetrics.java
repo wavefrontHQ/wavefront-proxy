@@ -6,12 +6,15 @@ import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.TimerContext;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
@@ -34,10 +37,15 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
 
   private final String prefix;
   private final Map<String, String> tags;
+  private final Counter tasksAddStartedCounter;
+  private final Counter tasksRemoveStartedCounter;
   private final Counter tasksAddedCounter;
   private final Counter itemsAddedCounter;
   private final Counter tasksRemovedCounter;
   private final Counter itemsRemovedCounter;
+  private final Timer addTimer;
+  private final Timer removeTimer;
+  private final Timer peekTimer;
 
   // maintain a fair lock on the queue
   private final ReentrantLock queueLock = new ReentrantLock(true);
@@ -56,6 +64,10 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
     String entityName = entityType == null ? "points" : entityType.toString();
     this.prefix = firstNonNull(metricPrefix, "buffer");
     this.tags = metricTags == null ? ImmutableMap.of() : metricTags;
+    this.tasksAddStartedCounter = Metrics.newCounter(new TaggedMetricName(prefix,
+        "task-add-started", tags));
+    this.tasksRemoveStartedCounter = Metrics.newCounter(new TaggedMetricName(prefix,
+        "task-remove-started", tags));
     this.tasksAddedCounter = Metrics.newCounter(new TaggedMetricName(prefix, "task-added", tags));
     this.itemsAddedCounter = Metrics.newCounter(new TaggedMetricName(prefix, entityName + "-added",
         tags));
@@ -63,10 +75,17 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
         tags));
     this.itemsRemovedCounter = Metrics.newCounter(new TaggedMetricName(prefix, entityName +
         "-removed", tags));
+    this.addTimer = Metrics.newTimer(new TaggedMetricName(prefix, "add-duration", tags),
+        TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+    this.removeTimer = Metrics.newTimer(new TaggedMetricName(prefix, "remove-duration", tags),
+        TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+    this.peekTimer = Metrics.newTimer(new TaggedMetricName(prefix, "peek-duration", tags),
+        TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
   }
 
   @Override
   public T peek() {
+    TimerContext context = peekTimer.time();
     queueLock.lock();
     try {
       if (this.head != null) return this.head;
@@ -84,11 +103,14 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
       }
     } finally {
       queueLock.unlock();
+      context.stop();
     }
   }
 
   @Override
   public void add(@Nonnull T t) throws IOException {
+    TimerContext context = addTimer.time();
+    tasksAddStartedCounter.inc();
     queueLock.lock();
     try {
       delegate.add(t);
@@ -96,6 +118,7 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
       itemsAddedCounter.inc(t.weight());
     } finally {
       queueLock.unlock();
+      context.stop();
     }
   }
 
@@ -115,6 +138,8 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
 
   @Override
   public void remove() {
+    TimerContext context = removeTimer.time();
+    tasksRemoveStartedCounter.inc();
     queueLock.lock();
     try {
       T t = this.head == null ? delegate.peek() : head;
@@ -128,6 +153,7 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
       log.severe("I/O error removing task from the queue: " + e.getMessage());
     } finally {
       queueLock.unlock();
+      context.stop();
     }
   }
 

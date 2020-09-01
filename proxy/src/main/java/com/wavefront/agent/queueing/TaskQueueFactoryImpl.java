@@ -2,7 +2,7 @@ package com.wavefront.agent.queueing;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.squareup.tape2.QueueFile;
+import com.squareup.tape2.DebuggableQueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.metrics.ExpectedAgentMetric;
@@ -115,7 +115,7 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
       }
       // TODO: allow configurable compression types and levels
       return new SynchronizedTaskQueueWithMetrics<>(new FileBasedTaskQueue<>(
-          new QueueFile.Builder(buffer).build(),
+          new DebuggableQueueFile.Builder(buffer).build(),
           new RetryTaskConverter<T>(handlerKey.getHandle(), TaskConverter.CompressionType.LZ4)),
           "buffer", ImmutableMap.of("port", handlerKey.getHandle()), handlerKey.getEntityType());
     } catch (Exception e) {

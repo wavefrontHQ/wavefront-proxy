@@ -1,6 +1,6 @@
 package com.wavefront.agent.queueing;
 
-import com.squareup.tape2.QueueFile;
+import com.squareup.tape2.DebuggableQueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.common.Utils;
 
@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 /**
- * Implements proxy-specific {@link TaskQueue<T>} interface as a wrapper over {@link QueueFile}.
+ * Implements proxy-specific {@link TaskQueue<T>} interface as a wrapper over {@link DebuggableQueueFile}.
  *
  * @param <T> type of objects stored.
  *
@@ -27,7 +27,7 @@ public class FileBasedTaskQueue<T extends DataSubmissionTask<T>> implements Task
 
   static {
     try {
-      Class<?> classQueueFile = Class.forName("com.squareup.tape2.QueueFile");
+      Class<?> classQueueFile = Class.forName("com.squareup.tape2.DebuggableQueueFile");
       getAvailableBytes = classQueueFile.getDeclaredMethod("remainingBytes");
       getAvailableBytes.setAccessible(true);
     } catch (ClassNotFoundException | NoSuchMethodException e) {
@@ -40,14 +40,14 @@ public class FileBasedTaskQueue<T extends DataSubmissionTask<T>> implements Task
   private volatile byte[] head;
 
   private final AtomicLong currentWeight = new AtomicLong();
-  private final QueueFile queueFile;
+  private final DebuggableQueueFile queueFile;
   private final TaskConverter<T> taskConverter;
 
   /**
    * @param queueFile     file backing the queue
    * @param taskConverter task converter
    */
-  public FileBasedTaskQueue(QueueFile queueFile, TaskConverter<T> taskConverter) {
+  public FileBasedTaskQueue(DebuggableQueueFile queueFile, TaskConverter<T> taskConverter) {
     this.queueFile = queueFile;
     this.taskConverter = taskConverter;
     log.fine("Enumerating " + queueFile.file().getAbsolutePath() + " queue");
