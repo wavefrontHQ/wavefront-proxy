@@ -1157,9 +1157,14 @@ public class PushAgent extends AbstractAgent {
       entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).
           setFeatureDisabled(BooleanUtils.isTrue(config.getSpanLogsDisabled()));
       validationConfiguration.updateFrom(config.getValidationConfiguration());
+    } catch (RuntimeException e) {
+      // cannot throw or else configuration update thread would die, so just log it.
+      logger.log(Level.WARNING, "Error during configuration update", e);
+    }
+    try {
       super.processConfiguration(config);
     } catch (RuntimeException e) {
-      // cannot throw or else configuration update thread would die.
+      // cannot throw or else configuration update thread would die. it's ok to ignore these.
     }
   }
 
@@ -1193,7 +1198,8 @@ public class PushAgent extends AbstractAgent {
             logger.warning(entityType.toCapitalizedString() + " rate limit is no longer " +
                 "enforced by remote");
           } else {
-            if (proxyCheckinScheduler.getSuccessfulCheckinCount() > 1) {
+            if (proxyCheckinScheduler != null &&
+                proxyCheckinScheduler.getSuccessfulCheckinCount() > 1) {
               // this will skip printing this message upon init
               logger.warning(entityType.toCapitalizedString() + " rate limit restored to " +
                   rateLimit + entityType.getRateUnit());

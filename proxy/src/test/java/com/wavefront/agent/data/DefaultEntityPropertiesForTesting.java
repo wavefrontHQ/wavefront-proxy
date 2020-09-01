@@ -123,7 +123,7 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
     }
 
     @Override
-    public Double getTraceSamplingRate() {
+    public double getTraceSamplingRate() {
       return 1.0d;
     }
 
