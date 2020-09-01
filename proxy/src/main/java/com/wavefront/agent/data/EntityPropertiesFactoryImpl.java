@@ -86,7 +86,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
       this.histogramStorageAccuracy = histogramStorageAccuracy;
     }
 
-    public Double getTraceSamplingRate() {
+    @Override
+    public double getTraceSamplingRate() {
       if (traceSamplingRate != null) {
         // use the minimum of backend provided and local proxy configured sampling rates.
         return Math.min(traceSamplingRate, wrapped.getTraceSamplingRate());
@@ -95,7 +96,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
       }
     }
 
-    public void setTraceSamplingRate(Double traceSamplingRate) {
+    public void setTraceSamplingRate(@Nullable Double traceSamplingRate) {
       this.traceSamplingRate = traceSamplingRate;
     }
 
@@ -105,7 +106,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
 
     @Override
-    public void setDropSpansDelayedMinutes(Integer dropSpansDelayedMinutes) {
+    public void setDropSpansDelayedMinutes(@Nullable Integer dropSpansDelayedMinutes) {
       this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
     }
   }

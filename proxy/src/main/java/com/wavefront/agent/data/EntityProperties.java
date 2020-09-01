@@ -198,14 +198,14 @@ public interface EntityProperties {
      *
      * @return sampling rate for tracing spans.
      */
-    Double getTraceSamplingRate();
+    double getTraceSamplingRate();
 
     /**
      * Sets the sampling rate for tracing spans.
      *
      * @param traceSamplingRate sampling rate for tracing spans
      */
-    void setTraceSamplingRate(Double traceSamplingRate);
+    void setTraceSamplingRate(@Nullable Double traceSamplingRate);
 
     /**
      * Get the maximum acceptable duration between now and the end of a span to be accepted for
@@ -213,6 +213,7 @@ public interface EntityProperties {
      *
      * @return delay threshold for dropping spans in minutes.
      */
+    @Nullable
     Integer getDropSpansDelayedMinutes();
 
     /**
@@ -221,6 +222,6 @@ public interface EntityProperties {
      *
      * @param dropSpansDelayedMinutes delay threshold for dropping spans in minutes.
      */
-    void setDropSpansDelayedMinutes(Integer dropSpansDelayedMinutes);
+    void setDropSpansDelayedMinutes(@Nullable Integer dropSpansDelayedMinutes);
   }
 }
