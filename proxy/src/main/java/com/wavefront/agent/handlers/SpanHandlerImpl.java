@@ -14,9 +14,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.yammer.metrics.Metrics;
-import wavefront.report.Span;
-
 import com.yammer.metrics.core.MetricName;
+import wavefront.report.Span;
 
 import static com.wavefront.data.Validation.validateSpan;
 
@@ -31,7 +30,8 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
   private final ValidationConfiguration validationConfig;
   private final Logger validItemsLogger;
   private final Supplier<Integer> dropSpansDelayedMinutes;
-  private final com.yammer.metrics.core.Histogram spanTagCount;
+  private final com.yammer.metrics.core.Histogram receivedTagCount;
+
 
   /**
    * @param handlerKey           pipeline hanler key.
@@ -56,12 +56,13 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
-    this.spanTagCount = Metrics.defaultRegistry().newHistogram(new MetricName(handlerKey.toString(), "",
-        "spanTagCount"), false);
+    this.receivedTagCount = Metrics.defaultRegistry().newHistogram(new MetricName(handlerKey.toString() +
+        ".received", "", "tagCount"), false);
   }
 
   @Override
   protected void reportInternal(Span span) {
+    receivedTagCount.update(span.getAnnotations().size());
     Integer maxSpanDelay = dropSpansDelayedMinutes.get();
     if (maxSpanDelay != null && span.getStartMillis() + span.getDuration() <
         Clock.now() - TimeUnit.MINUTES.toMillis(maxSpanDelay)) {
@@ -72,7 +73,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     final String strSpan = serializer.apply(span);
     getTask().add(strSpan);
     getReceivedCounter().inc();
-    spanTagCount.update(span.getAnnotations().size());
     if (validItemsLogger != null) validItemsLogger.info(strSpan);
   }
 }
