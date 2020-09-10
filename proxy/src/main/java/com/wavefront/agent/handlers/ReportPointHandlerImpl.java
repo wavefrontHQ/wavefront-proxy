@@ -34,6 +34,8 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   final ValidationConfiguration validationConfig;
   final Function<Histogram, Histogram> recompressor;
   final com.yammer.metrics.core.Histogram receivedPointLag;
+  final com.yammer.metrics.core.Histogram histogramTagCount;
+  final com.yammer.metrics.core.Histogram pointTagCount;
   final Supplier<Counter> discardedCounterSupplier;
 
   /**
@@ -67,6 +69,8 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
     this.receivedPointLag = registry.newHistogram(new MetricName(handlerKey.toString() +
         ".received", "", "lag"), false);
+    this.pointTagCount = registry.newHistogram(new MetricName(handlerKey.toString(), "", "pointTagCount"), false);
+    this.histogramTagCount = registry.newHistogram(new MetricName(handlerKey.toString(), "", "histogramTagCount"), false);
     this.discardedCounterSupplier = Utils.lazySupplier(() ->
         Metrics.newCounter(new MetricName(handlerKey.toString(), "", "discarded")));
   }
@@ -84,6 +88,13 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       Histogram histogram = (Histogram) point.getValue();
       point.setValue(recompressor.apply(histogram));
     }
+
+    if (point.getValue() instanceof Histogram) {
+      histogramTagCount.update(point.getAnnotations().size());
+    } else {
+      pointTagCount.update(point.getAnnotations().size());
+    }
+
     final String strPoint = serializer.apply(point);
     getTask().add(strPoint);
     getReceivedCounter().inc();
