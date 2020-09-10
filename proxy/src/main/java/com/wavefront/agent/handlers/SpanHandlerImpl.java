@@ -56,7 +56,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
     this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
-    this.receivedTagCount = Metrics.defaultRegistry().newHistogram(new MetricName(handlerKey.toString() +
+    this.receivedTagCount = Metrics.newHistogram(new MetricName(handlerKey.toString() +
         ".received", "", "tagCount"), false);
   }
 
