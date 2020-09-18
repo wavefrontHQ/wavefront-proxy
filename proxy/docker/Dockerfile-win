@@ -16,6 +16,6 @@ EXPOSE 3878
 EXPOSE 2878
 EXPOSE 4242
 
-COPY proxy-installer.bat /
+COPY win-proxy-installer.bat /
 
-CMD ".\proxy-installer.bat"
+CMD ".\win-proxy-installer.bat"
