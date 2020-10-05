@@ -787,6 +787,105 @@ public class JaegerGrpcCollectorHandlerTest {
     verify(mockTraceHandler, mockTraceLogsHandler);
   }
 
+  @Test
+  public void testAllProcessTagsPropagated() throws Exception {
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9000)
+        .setName("HTTP GET /")
+        .setSource("source-spantag")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("processTag1", "one"),
+            new Annotation("processTag2", "two"),
+            new Annotation("processTag3", "three"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876",
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new RateSampler(1.0D), false),
+        null, null);
+
+    Model.KeyValue ipTag = Model.KeyValue.newBuilder().
+        setKey("ip").
+        setVStr("10.0.0.1").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue hostNameProcessTag = Model.KeyValue.newBuilder().
+        setKey("hostname").
+        setVStr("hostname-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customProcessTag1 = Model.KeyValue.newBuilder().
+        setKey("processTag1").
+        setVStr("one").
+        setVType(Model.ValueType.STRING).
+        build();
+
+   Model.KeyValue customProcessTag2 = Model.KeyValue.newBuilder().
+        setKey("processTag2").
+        setVStr("two").
+        setVType(Model.ValueType.STRING).
+        build();
+
+   Model.KeyValue customProcessTag3 = Model.KeyValue.newBuilder().
+        setKey("processTag3").
+        setVStr("three").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customSourceSpanTag = Model.KeyValue.newBuilder().
+        setKey("source").
+        setVStr("source-spantag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
+    buffer.putLong(1234567890L);
+    buffer.putLong(1234567890123L);
+    ByteString traceId = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(2345678L);
+    ByteString spanId = ByteString.copyFrom(buffer.array());
+
+    Model.Span span = Model.Span.newBuilder().
+        setTraceId(traceId).
+        setSpanId(spanId).
+        setDuration(Duration.newBuilder().setSeconds(9L).build()).
+        setOperationName("HTTP GET /").
+        addTags(customSourceSpanTag).
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Batch testBatch = Model.Batch.newBuilder().
+        setProcess(Model.Process.newBuilder().setServiceName("frontend").
+            addTags(ipTag).addTags(hostNameProcessTag).
+            addTags(customProcessTag1).addTags(customProcessTag2).addTags(customProcessTag3).
+            build()).
+        addAllSpans(ImmutableList.of(span)).
+        build();
+
+    Collector.PostSpansRequest batches =
+        Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
+
+    handler.postSpans(batches, emptyStreamObserver);
+
+    verify(mockTraceHandler, mockTraceLogsHandler);
+  }
+
   /**
    * Test for derived metrics emitted from Jaeger trace listeners. Derived metrics should report
    * tag values post applying preprocessing rules to the span.

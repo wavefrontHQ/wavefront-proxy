@@ -116,13 +116,12 @@ public abstract class JaegerProtobufUtils {
           continue;
         }
 
-        //TODO: Propagate other Jaeger process tags as span tags
-        if (tag.getKey().equals("ip")) {
-          Annotation annotation = tagToAnnotation(tag);
-          processAnnotations.add(annotation);
-        }
+
+        Annotation annotation = tagToAnnotation(tag);
+        processAnnotations.add(annotation);
       }
     }
+
     if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedBatches, output)) {
       discardedTraces.inc(batch.getSpansCount());
       receivedSpansTotal.inc(batch.getSpansCount());
