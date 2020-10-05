@@ -89,10 +89,23 @@ public abstract class JaegerThriftUtils {
     String serviceName = batch.getProcess().getServiceName();
     List<Annotation> processAnnotations = new ArrayList<>();
     boolean isSourceProcessTagPresent = false;
+    String cluster = NULL_TAG_VAL;
+    String shard = NULL_TAG_VAL;
+
     if (batch.getProcess().getTags() != null) {
       for (Tag tag : batch.getProcess().getTags()) {
         if (tag.getKey().equals(APPLICATION_TAG_KEY) && tag.getVType() == TagType.STRING) {
           applicationName = tag.getVStr();
+          continue;
+        }
+
+        if (tag.getKey().equals(CLUSTER_TAG_KEY) && tag.getVType() == TagType.STRING) {
+          cluster = tag.getVStr();
+          continue;
+        }
+
+        if (tag.getKey().equals(SHARD_TAG_KEY) && tag.getVType() == TagType.STRING) {
+          shard = tag.getVStr();
           continue;
         }
 
@@ -127,7 +140,7 @@ public abstract class JaegerThriftUtils {
     }
     receivedSpansTotal.inc(batch.getSpansSize());
     for (io.jaegertracing.thriftjava.Span span : batch.getSpans()) {
-      processSpan(span, serviceName, sourceName, applicationName, processAnnotations,
+      processSpan(span, serviceName, sourceName, applicationName, cluster, shard, processAnnotations,
           spanHandler, spanLogsHandler, wfInternalReporter, spanLogsDisabled,
           preprocessorSupplier, sampler, traceDerivedCustomTagKeys, discardedSpansBySampler,
           discoveredHeartbeatMetrics);
@@ -138,6 +151,8 @@ public abstract class JaegerThriftUtils {
                                   String serviceName,
                                   String sourceName,
                                   String applicationName,
+                                  String cluster,
+                                  String shard,
                                   List<Annotation> processAnnotations,
                                   ReportableEntityHandler<Span, String> spanHandler,
                                   ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
@@ -163,8 +178,6 @@ public abstract class JaegerThriftUtils {
       annotations.add(new Annotation("parent", new UUID(0, parentSpanId).toString()));
     }
 
-    String cluster = NULL_TAG_VAL;
-    String shard = NULL_TAG_VAL;
     String componentTagValue = NULL_TAG_VAL;
     boolean isError = false;
     boolean isDebugSpanTag = false;
