@@ -111,6 +111,11 @@ public abstract class JaegerThriftUtils {
           continue;
         }
 
+        if (tag.getKey().equals(SERVICE_TAG_KEY) && tag.getVType() == TagType.STRING) {
+          // ignore "service" tags, since service is a field on the span
+          continue;
+        }
+
         Annotation annotation = tagToAnnotation(tag);
         processAnnotations.add(annotation);
       }
@@ -184,9 +189,12 @@ public abstract class JaegerThriftUtils {
             case SHARD_TAG_KEY:
               shard = annotation.getValue();
               continue;
-              // Do not add source to annotation span tag list.
             case SOURCE_KEY:
+              // Do not add source to annotation span tag list.
               sourceName = annotation.getValue();
+              continue;
+            case SERVICE_TAG_KEY:
+              // Do not use service tag from annotations, use field instead
               continue;
             case COMPONENT_TAG_KEY:
               componentTagValue = annotation.getValue();

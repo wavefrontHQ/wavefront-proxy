@@ -788,6 +788,154 @@ public class JaegerGrpcCollectorHandlerTest {
   }
 
   @Test
+  public void testIgnoresServiceTags() throws Exception {
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9000)
+        .setName("HTTP GET /")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(4000)
+        .setName("HTTP GET")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-00000012d687")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(3000)
+        .setName("HTTP GET /test")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-0051759bfc69")
+        .setTraceId("0000011e-ab2a-9944-0000-000049631900")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876",
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new RateSampler(1.0D), false),
+        null, null);
+
+    Model.KeyValue ipTag = Model.KeyValue.newBuilder().
+        setKey("ip").
+        setVStr("10.0.0.1").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue sourceProcessTag = Model.KeyValue.newBuilder().
+        setKey("source").
+        setVStr("source-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customServiceProcessTag = Model.KeyValue.newBuilder().
+        setKey("service").
+        setVStr("service-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customServiceSpanTag = Model.KeyValue.newBuilder().
+        setKey("service").
+        setVStr("service-spantag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
+    buffer.putLong(1234567890L);
+    buffer.putLong(1234567890123L);
+    ByteString traceId = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES * 2);
+    buffer.putLong(1231232342340L);
+    buffer.putLong(1231231232L);
+    ByteString trace2Id = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(2345678L);
+    ByteString span1Id = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(1234567L);
+    ByteString span2Id = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(349865507945L);
+    ByteString span3Id = ByteString.copyFrom(buffer.array());
+
+    Model.Span span1 = Model.Span.newBuilder().
+        setTraceId(traceId).
+        setSpanId(span1Id).
+        setDuration(Duration.newBuilder().setSeconds(9L).build()).
+        setOperationName("HTTP GET /").
+        addTags(customServiceSpanTag).
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Span span2 = Model.Span.newBuilder().
+        setTraceId(traceId).
+        setSpanId(span2Id).
+        setDuration(Duration.newBuilder().setSeconds(4L).build()).
+        setOperationName("HTTP GET").
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Span span3 = Model.Span.newBuilder().
+        setTraceId(trace2Id).
+        setSpanId(span3Id).
+        setDuration(Duration.newBuilder().setSeconds(3L).build()).
+        setOperationName("HTTP GET /test").
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Batch testBatch = Model.Batch.newBuilder().
+        setProcess(Model.Process.newBuilder().setServiceName("frontend").addTags(ipTag).addTags(sourceProcessTag).addTags(customServiceProcessTag).build()).
+        addAllSpans(ImmutableList.of(span1, span2)).
+        build();
+
+    Collector.PostSpansRequest batches = Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
+    handler.postSpans(batches, emptyStreamObserver);
+
+    Model.Batch testBatchForProxyLevel = Model.Batch.newBuilder().
+        setProcess(Model.Process.newBuilder().setServiceName("frontend").addTags(ipTag).addTags(sourceProcessTag).build()).
+        addAllSpans(ImmutableList.of(span3)).
+        build();
+
+    handler.postSpans(Collector.PostSpansRequest.newBuilder().setBatch(testBatchForProxyLevel).build(), emptyStreamObserver);
+
+    verify(mockTraceHandler, mockTraceLogsHandler);
+
+  }
+
+   @Test
   public void testAllProcessTagsPropagated() throws Exception {
     reset(mockTraceHandler, mockTraceLogsHandler);
 
