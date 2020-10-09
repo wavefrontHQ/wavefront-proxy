@@ -5,8 +5,10 @@ import com.google.common.collect.ImmutableMap;
 import com.squareup.tape2.QueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 
 import javax.annotation.Nonnull;
@@ -17,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.logging.Logger;
 
 /**
@@ -31,15 +34,27 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
 
   private final String bufferFile;
   private final boolean purgeBuffer;
+  private final boolean disableSharding;
+  private final int shardSize;
+
+  private static final Counter bytesWritten = Metrics.newCounter(new TaggedMetricName("buffer",
+      "bytes-written"));
+  private static final Counter ioTimeWrites = Metrics.newCounter(new TaggedMetricName("buffer",
+      "io-time-writes"));
 
   /**
-   * @param bufferFile  Path prefix for queue file names.
-   * @param purgeBuffer Whether buffer files should be nuked before starting (this may cause data
-   *                    loss if queue files are not empty).
+   * @param bufferFile      File name prefix for queue file names.
+   * @param purgeBuffer     Whether buffer files should be nuked before starting (this may cause
+   *                        data loss if queue files are not empty).
+   * @param disableSharding disable buffer sharding (use single file)
+   * @param shardSize       target shard size (in MBytes)
    */
-  public TaskQueueFactoryImpl(String bufferFile, boolean purgeBuffer) {
+  public TaskQueueFactoryImpl(String bufferFile, boolean purgeBuffer,
+                              boolean disableSharding, int shardSize) {
     this.bufferFile = bufferFile;
     this.purgeBuffer = purgeBuffer;
+    this.disableSharding = disableSharding;
+    this.shardSize = shardSize;
 
     Metrics.newGauge(ExpectedAgentMetric.BUFFER_BYTES_LEFT.metricName,
         new Gauge<Long>() {
@@ -113,9 +128,17 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
           logger.warning("Retry buffer has been purged: " + spoolFileName);
         }
       }
+      BiConsumer<Integer, Long> statsUpdater = (bytes, millis) -> {
+        bytesWritten.inc(bytes);
+        ioTimeWrites.inc(millis);
+      };
+      com.wavefront.agent.queueing.QueueFile queueFile = disableSharding ?
+          new ConcurrentQueueFile(new TapeQueueFile(new QueueFile.Builder(
+              new File(spoolFileName)).build(), statsUpdater)) :
+          new ConcurrentShardedQueueFile(spoolFileName, ".spool", shardSize * 1024 * 1024,
+              s -> new TapeQueueFile(new QueueFile.Builder(new File(s)).build(), statsUpdater));
       // TODO: allow configurable compression types and levels
-      return new SynchronizedTaskQueueWithMetrics<>(new FileBasedTaskQueue<>(
-          new QueueFile.Builder(buffer).build(),
+      return new InstrumentedTaskQueueDelegate<>(new FileBasedTaskQueue<>(queueFile,
           new RetryTaskConverter<T>(handlerKey.getHandle(), TaskConverter.CompressionType.LZ4)),
           "buffer", ImmutableMap.of("port", handlerKey.getHandle()), handlerKey.getEntityType());
     } catch (Exception e) {

@@ -51,11 +51,6 @@ public class InMemorySubmissionQueue<T extends DataSubmissionTask<T>> implements
     return null;
   }
 
-  @Override
-  public String getName() {
-    return "unknown";
-  }
-
   @Nullable
   @Override
   public T peek() {

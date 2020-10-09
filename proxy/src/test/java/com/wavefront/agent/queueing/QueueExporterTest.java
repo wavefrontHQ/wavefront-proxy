@@ -4,10 +4,9 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
-import com.wavefront.agent.ProxyConfig;
+import com.wavefront.agent.data.DefaultEntityPropertiesFactoryForTesting;
 import com.wavefront.agent.data.DefaultEntityPropertiesForTesting;
 import com.wavefront.agent.data.EntityPropertiesFactory;
-import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
 import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
 import com.wavefront.agent.data.QueueingReason;
@@ -46,17 +45,11 @@ public class QueueExporterTest {
   public void testQueueExporter() throws Exception {
     File file = new File(File.createTempFile("proxyTestConverter", null).getPath() + ".queue");
     file.deleteOnExit();
-    ProxyConfig config = new ProxyConfig();
-    config.parseArguments(new String[]{
-        "--flushThreads", "2",
-        "--buffer", file.getAbsolutePath(),
-        "--exportQueuePorts", "2878",
-        "--exportQueueOutputFile", file.getAbsolutePath() + "-output",
-        "--exportQueueRetainData", "false"
-    }, "proxy");
-    TaskQueueFactory taskQueueFactory = new TaskQueueFactoryImpl(config.getBufferFile(), false);
-    EntityPropertiesFactory entityPropertiesFactory = new EntityPropertiesFactoryImpl(config);
-    QueueExporter qe = new QueueExporter(config, taskQueueFactory, entityPropertiesFactory);
+    String bufferFile = file.getAbsolutePath();
+    TaskQueueFactory taskQueueFactory = new TaskQueueFactoryImpl(bufferFile, false, false, 128);
+    EntityPropertiesFactory entityPropFactory = new DefaultEntityPropertiesFactoryForTesting();
+    QueueExporter qe = new QueueExporter(bufferFile, "2878", bufferFile + "-output", false,
+        taskQueueFactory, entityPropFactory);
     BufferedWriter mockedWriter = EasyMock.createMock(BufferedWriter.class);
     reset(mockedWriter);
     HandlerKey key = HandlerKey.of(ReportableEntityType.POINT, "2878");
@@ -146,17 +139,17 @@ public class QueueExporterTest {
 
     verify(mockedWriter);
 
-    List<String> files = QueueExporter.listFiles(file.getAbsolutePath()).stream().
-        map(x -> x.replace(file.getAbsolutePath() + ".", "")).collect(Collectors.toList());
+    List<String> files = ConcurrentShardedQueueFile.listFiles(bufferFile, ".spool").stream().
+        map(x -> x.replace(bufferFile + ".", "")).collect(Collectors.toList());
     assertEquals(3, files.size());
-    assertTrue(files.contains("points.2878.0.spool"));
-    assertTrue(files.contains("events.2888.0.spool"));
-    assertTrue(files.contains("sourceTags.2898.0.spool"));
+    assertTrue(files.contains("points.2878.0.spool_0000"));
+    assertTrue(files.contains("events.2888.0.spool_0000"));
+    assertTrue(files.contains("sourceTags.2898.0.spool_0000"));
 
     HandlerKey k1 = HandlerKey.of(ReportableEntityType.POINT, "2878");
     HandlerKey k2 = HandlerKey.of(ReportableEntityType.EVENT, "2888");
     HandlerKey k3 = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "2898");
-    files = QueueExporter.listFiles(file.getAbsolutePath());
+    files = ConcurrentShardedQueueFile.listFiles(bufferFile, ".spool");
     Set<HandlerKey> hk = QueueExporter.getValidHandlerKeys(files, "all");
     assertEquals(3, hk.size());
     assertTrue(hk.contains(k1));
@@ -177,17 +170,11 @@ public class QueueExporterTest {
   public void testQueueExporterWithRetainData() throws Exception {
     File file = new File(File.createTempFile("proxyTestConverter", null).getPath() + ".queue");
     file.deleteOnExit();
-    ProxyConfig config = new ProxyConfig();
-    config.parseArguments(new String[]{
-        "--flushThreads", "2",
-        "--buffer", file.getAbsolutePath(),
-        "--exportQueuePorts", "2878",
-        "--exportQueueOutputFile", file.getAbsolutePath() + "-output",
-        "--exportQueueRetainData", "true"
-    }, "proxy");
-    TaskQueueFactory taskQueueFactory = new TaskQueueFactoryImpl(config.getBufferFile(), false);
-    EntityPropertiesFactory entityPropertiesFactory = new EntityPropertiesFactoryImpl(config);
-    QueueExporter qe = new QueueExporter(config, taskQueueFactory, entityPropertiesFactory);
+    String bufferFile = file.getAbsolutePath();
+    TaskQueueFactory taskQueueFactory = new TaskQueueFactoryImpl(bufferFile, false, false, 128);
+    EntityPropertiesFactory entityPropFactory = new DefaultEntityPropertiesFactoryForTesting();
+    QueueExporter qe = new QueueExporter(bufferFile, "2878", bufferFile + "-output", true,
+        taskQueueFactory, entityPropFactory);
     BufferedWriter mockedWriter = EasyMock.createMock(BufferedWriter.class);
     reset(mockedWriter);
     HandlerKey key = HandlerKey.of(ReportableEntityType.POINT, "2878");
@@ -202,7 +189,6 @@ public class QueueExporterTest {
         new DefaultEntityPropertiesForTesting(), queue, "wavefront", ReportableEntityType.POINT,
         "2878", ImmutableList.of("item4", "item5"), () -> 12345L);
     task2.enqueue(QueueingReason.RETRY);
-    queue.close();
 
     qe.export();
     File outputTextFile = new File(file.getAbsolutePath() + "-output.points.2878.0.txt");
