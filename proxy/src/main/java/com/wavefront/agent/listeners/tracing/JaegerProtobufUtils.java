@@ -94,10 +94,23 @@ public abstract class JaegerProtobufUtils {
     String serviceName = batch.getProcess().getServiceName();
     List<Annotation> processAnnotations = new ArrayList<>();
     boolean isSourceProcessTagPresent = false;
+    String cluster = NULL_TAG_VAL;
+    String shard = NULL_TAG_VAL;
+
     if (batch.getProcess().getTagsList() != null) {
       for (Model.KeyValue tag : batch.getProcess().getTagsList()) {
         if (tag.getKey().equals(APPLICATION_TAG_KEY) && tag.getVType() == Model.ValueType.STRING) {
           applicationName = tag.getVStr();
+          continue;
+        }
+
+       if (tag.getKey().equals(CLUSTER_TAG_KEY) && tag.getVType() == Model.ValueType.STRING) {
+          cluster = tag.getVStr();
+          continue;
+        }
+
+       if (tag.getKey().equals(SHARD_TAG_KEY) && tag.getVType() == Model.ValueType.STRING) {
+          shard = tag.getVStr();
           continue;
         }
 
@@ -116,13 +129,16 @@ public abstract class JaegerProtobufUtils {
           continue;
         }
 
-        //TODO: Propagate other Jaeger process tags as span tags
-        if (tag.getKey().equals("ip")) {
-          Annotation annotation = tagToAnnotation(tag);
-          processAnnotations.add(annotation);
+        if (tag.getKey().equals(SERVICE_TAG_KEY) && tag.getVType() == Model.ValueType.STRING) {
+          // ignore "service" tags, since service is a field on the span
+          continue;
         }
+
+        Annotation annotation = tagToAnnotation(tag);
+        processAnnotations.add(annotation);
       }
     }
+
     if (isFeatureDisabled(traceDisabled, SPAN_DISABLED, discardedBatches, output)) {
       discardedTraces.inc(batch.getSpansCount());
       receivedSpansTotal.inc(batch.getSpansCount());
@@ -130,7 +146,7 @@ public abstract class JaegerProtobufUtils {
     }
     receivedSpansTotal.inc(batch.getSpansCount());
     for (Model.Span span : batch.getSpansList()) {
-      processSpan(span, serviceName, sourceName, applicationName, processAnnotations,
+      processSpan(span, serviceName, sourceName, applicationName, cluster, shard, processAnnotations,
           spanHandler, spanLogsHandler, wfInternalReporter, spanLogsDisabled,
           preprocessorSupplier, sampler, traceDerivedCustomTagKeys,
           discardedSpansBySampler, discoveredHeartbeatMetrics);
@@ -141,6 +157,8 @@ public abstract class JaegerProtobufUtils {
                                   String serviceName,
                                   String sourceName,
                                   String applicationName,
+                                  String cluster,
+                                  String shard,
                                   List<Annotation> processAnnotations,
                                   ReportableEntityHandler<Span, String> spanHandler,
                                   ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
@@ -155,8 +173,6 @@ public abstract class JaegerProtobufUtils {
     // serviceName is mandatory in Jaeger
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
 
-    String cluster = NULL_TAG_VAL;
-    String shard = NULL_TAG_VAL;
     String componentTagValue = NULL_TAG_VAL;
     boolean isError = false;
     boolean isDebugSpanTag = false;
@@ -181,9 +197,12 @@ public abstract class JaegerProtobufUtils {
             case SHARD_TAG_KEY:
               shard = annotation.getValue();
               continue;
-              // Do not add source to annotation span tag list.
             case SOURCE_KEY:
+              // Do not add source to annotation span tag list.
               sourceName = annotation.getValue();
+              continue;
+            case SERVICE_TAG_KEY:
+              // Do not use service tag from annotations, use field instead
               continue;
             case COMPONENT_TAG_KEY:
               componentTagValue = annotation.getValue();

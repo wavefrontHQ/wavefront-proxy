@@ -640,4 +640,335 @@ public class JaegerTChannelCollectorHandlerTest {
 
     verify(mockTraceHandler, mockTraceLogsHandler);
   }
+
+  @Test
+  public void testIgnoresServiceTags() throws Exception {
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9)
+        .setName("HTTP GET /")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "23cace"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(4)
+        .setName("HTTP GET")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-00000012d687")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "12d687"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(3456)
+        .setName("HTTP GET /test")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-0051759bfc69")
+        .setTraceId("0000011e-ab2a-9944-0000-000049631900")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "51759bfc69"),
+            new Annotation("jaegerTraceId", "11eab2a99440000000049631900"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
+        null, new SpanSampler(new RateSampler(1.0D), false), null, null);
+
+    Tag ipTag = new Tag("ip", TagType.STRING);
+    ipTag.setVStr("10.0.0.1");
+
+    Tag sourceProcessTag = new Tag("source", TagType.STRING);
+    sourceProcessTag.setVStr("source-processtag");
+
+    Tag customServiceProcessTag = new Tag("service", TagType.STRING);
+    customServiceProcessTag.setVStr("service-processtag");
+
+    Tag customServiceSpanTag = new Tag("service", TagType.STRING);
+    customServiceSpanTag.setVStr("service-spantag");
+
+    io.jaegertracing.thriftjava.Span span1 = new io.jaegertracing.thriftjava.Span(1234567890123L,
+        1234567890L, 2345678L, 0, "HTTP GET /", 1,
+        startTime * 1000, 9 * 1000);
+    span1.setTags(ImmutableList.of(customServiceSpanTag));
+
+    io.jaegertracing.thriftjava.Span span2 = new io.jaegertracing.thriftjava.Span(1234567890123L,
+        1234567890L, 1234567L, 0, "HTTP GET", 1,
+        startTime * 1000, 4 * 1000);
+
+    io.jaegertracing.thriftjava.Span span3 = new io.jaegertracing.thriftjava.Span(1231231232L,
+        1231232342340L, 349865507945L, 0, "HTTP GET /test", 1,
+        startTime * 1000, 3456 * 1000);
+
+    Batch testBatch = new Batch();
+    testBatch.process = new Process();
+    testBatch.process.serviceName = "frontend";
+    testBatch.process.setTags(ImmutableList.of(ipTag, sourceProcessTag, customServiceProcessTag));
+
+    testBatch.setSpans(ImmutableList.of(span1, span2));
+
+    Collector.submitBatches_args batches = new Collector.submitBatches_args();
+    batches.addToBatches(testBatch);
+    ThriftRequest<Collector.submitBatches_args> request = new ThriftRequest.Builder<Collector.submitBatches_args>(
+        "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
+    handler.handleImpl(request);
+
+    Batch testBatchWithoutProcessTag = new Batch();
+    testBatchWithoutProcessTag.process = new Process();
+    testBatchWithoutProcessTag.process.serviceName = "frontend";
+    testBatchWithoutProcessTag.process.setTags(ImmutableList.of(ipTag, sourceProcessTag));
+    testBatchWithoutProcessTag.setSpans(ImmutableList.of(span3));
+
+    Collector.submitBatches_args batchesWithoutProcessTags = new Collector.submitBatches_args();
+    batchesWithoutProcessTags.addToBatches(testBatchWithoutProcessTag);
+    ThriftRequest<Collector.submitBatches_args> requestForProxyLevel = new ThriftRequest.
+        Builder<Collector.submitBatches_args>("jaeger-collector", "Collector::submitBatches").
+        setBody(batchesWithoutProcessTags).
+        build();
+    handler.handleImpl(requestForProxyLevel);
+
+    verify(mockTraceHandler, mockTraceLogsHandler);
+
+  }
+
+  @Test
+  public void testProtectedTagsSpanOverridesProcess() throws Exception {
+    // cluster, shard and service are special tags, because they're indexed by wavefront
+    // The priority order is:
+    // Span Level > Process Level > Proxy Level > Default
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9)
+        .setName("HTTP GET /")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "23cace"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "application-spantag"),
+            new Annotation("cluster", "cluster-spantag"),
+            new Annotation("shard", "shard-spantag")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
+        null, new SpanSampler(new RateSampler(1.0D), false), null, null);
+
+    Tag ipTag = new Tag("ip", TagType.STRING);
+    ipTag.setVStr("10.0.0.1");
+
+    Tag sourceProcessTag = new Tag("source", TagType.STRING);
+    sourceProcessTag.setVStr("source-processtag");
+
+    Tag customApplicationProcessTag = new Tag("application", TagType.STRING);
+    customApplicationProcessTag.setVStr("application-processtag");
+
+    Tag customApplicationSpanTag = new Tag("application", TagType.STRING);
+    customApplicationSpanTag.setVStr("application-spantag");
+
+    Tag customClusterProcessTag = new Tag("cluster", TagType.STRING);
+    customClusterProcessTag.setVStr("cluster-processtag");
+
+    Tag customClusterSpanTag = new Tag("cluster", TagType.STRING);
+    customClusterSpanTag.setVStr("cluster-spantag");
+
+    Tag customShardProcessTag = new Tag("shard", TagType.STRING);
+    customShardProcessTag.setVStr("shard-processtag");
+
+    Tag customShardSpanTag = new Tag("shard", TagType.STRING);
+    customShardSpanTag.setVStr("shard-spantag");
+
+    io.jaegertracing.thriftjava.Span span = new io.jaegertracing.thriftjava.Span(1234567890123L,
+        1234567890L, 2345678L, 0, "HTTP GET /", 1,
+        startTime * 1000, 9 * 1000);
+    span.setTags(ImmutableList.of(customApplicationSpanTag, customClusterSpanTag, customShardSpanTag));
+
+    Batch testBatch = new Batch();
+    testBatch.process = new Process();
+    testBatch.process.serviceName = "frontend";
+    testBatch.process.setTags(ImmutableList.of(ipTag, sourceProcessTag, customApplicationProcessTag, customClusterProcessTag, customShardProcessTag));
+
+    testBatch.setSpans(ImmutableList.of(span));
+
+    Collector.submitBatches_args batches = new Collector.submitBatches_args();
+    batches.addToBatches(testBatch);
+    ThriftRequest<Collector.submitBatches_args> request = new ThriftRequest.Builder<Collector.submitBatches_args>(
+        "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
+    handler.handleImpl(request);
+
+    verify(mockTraceHandler, mockTraceLogsHandler);
+  }
+
+  @Test
+  public void testProtectedTagsProcessOverridesProxyConfig() throws Exception {
+    // cluster, shard and service are special tags, because they're indexed by wavefront
+    // The priority order is:
+    // Span Level > Process Level > Proxy Level > Default
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9)
+        .setName("HTTP GET /")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("jaegerSpanId", "23cace"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "application-processtag"),
+            new Annotation("cluster", "cluster-processtag"),
+            new Annotation("shard", "shard-processtag")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
+        null, new SpanSampler(new RateSampler(1.0D), false), null, null);
+
+    Tag ipTag = new Tag("ip", TagType.STRING);
+    ipTag.setVStr("10.0.0.1");
+
+    Tag sourceProcessTag = new Tag("source", TagType.STRING);
+    sourceProcessTag.setVStr("source-processtag");
+
+    Tag customApplicationProcessTag = new Tag("application", TagType.STRING);
+    customApplicationProcessTag.setVStr("application-processtag");
+
+    Tag customClusterProcessTag = new Tag("cluster", TagType.STRING);
+    customClusterProcessTag.setVStr("cluster-processtag");
+
+    Tag customShardProcessTag = new Tag("shard", TagType.STRING);
+    customShardProcessTag.setVStr("shard-processtag");
+
+    io.jaegertracing.thriftjava.Span span = new io.jaegertracing.thriftjava.Span(1234567890123L,
+        1234567890L, 2345678L, 0, "HTTP GET /", 1,
+        startTime * 1000, 9 * 1000);
+
+    Batch testBatch = new Batch();
+    testBatch.process = new Process();
+    testBatch.process.serviceName = "frontend";
+    testBatch.process.setTags(ImmutableList.of(ipTag, sourceProcessTag, customApplicationProcessTag, customClusterProcessTag, customShardProcessTag));
+
+    testBatch.setSpans(ImmutableList.of(span));
+
+    Collector.submitBatches_args batches = new Collector.submitBatches_args();
+    batches.addToBatches(testBatch);
+    ThriftRequest<Collector.submitBatches_args> request = new ThriftRequest.Builder<Collector.submitBatches_args>(
+        "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
+    handler.handleImpl(request);
+
+    verify(mockTraceHandler, mockTraceLogsHandler);
+  }
+
+
+  @Test
+  public void testAllProcessTagsPropagated() throws Exception {
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9)
+        .setName("HTTP GET /")
+        .setSource("source-spantag")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("processTag1", "one"),
+            new Annotation("processTag2", "two"),
+            new Annotation("processTag3", "three"),
+            new Annotation("jaegerSpanId", "23cace"),
+            new Annotation("jaegerTraceId", "499602d20000011f71fb04cb"),
+            new Annotation("service", "frontend"),
+            new Annotation("parent", "00000000-0000-0000-0000-00000012d687"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
+        null, new SpanSampler(new RateSampler(1.0D), false), null, null);
+
+    Tag ipTag = new Tag("ip", TagType.STRING);
+    ipTag.setVStr("10.0.0.1");
+
+    Tag hostNameProcessTag = new Tag("hostname", TagType.STRING);
+    hostNameProcessTag.setVStr("hostname-processtag");
+
+    Tag customProcessTag1 = new Tag("processTag1", TagType.STRING);
+    customProcessTag1.setVStr("one");
+
+    Tag customProcessTag2 = new Tag("processTag2", TagType.STRING);
+    customProcessTag2.setVStr("two");
+
+    Tag customProcessTag3 = new Tag("processTag3", TagType.STRING);
+    customProcessTag3.setVStr("three");
+
+    Tag customSourceSpanTag = new Tag("source", TagType.STRING);
+    customSourceSpanTag.setVStr("source-spantag");
+
+    io.jaegertracing.thriftjava.Span span = new io.jaegertracing.thriftjava.Span(1234567890123L,
+        1234567890L, 2345678L, 1234567L, "HTTP GET /", 1,
+        startTime * 1000, 9 * 1000);
+    span.setTags(ImmutableList.of(customSourceSpanTag));
+
+    Batch testBatch = new Batch();
+    testBatch.process = new Process();
+    testBatch.process.serviceName = "frontend";
+    testBatch.process.setTags(ImmutableList.of(ipTag, hostNameProcessTag, customProcessTag1, customProcessTag2, customProcessTag3));
+
+    testBatch.setSpans(ImmutableList.of(span));
+
+    Collector.submitBatches_args batches = new Collector.submitBatches_args();
+    batches.addToBatches(testBatch);
+    ThriftRequest<Collector.submitBatches_args> request = new ThriftRequest.Builder<Collector.submitBatches_args>(
+        "jaeger-collector", "Collector::submitBatches").setBody(batches).build();
+    handler.handleImpl(request);
+
+
+    verify(mockTraceHandler, mockTraceLogsHandler);
+  }
 }
