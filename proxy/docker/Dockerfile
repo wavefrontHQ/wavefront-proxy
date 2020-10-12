@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM photon:3.0
 
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
@@ -9,45 +9,31 @@ FROM ubuntu:18.04
 #  WAVEFRONT_PROXY_ARGS    (default is none)
 #  JAVA_ARGS               (default is none)
 
-# Dumb-init
-RUN apt-get -y update
-RUN apt-get install -y apt-utils
-RUN apt-get install -y curl
-RUN apt-get install -y sudo
-RUN apt-get install -y gnupg2
-RUN apt-get install -y debian-archive-keyring
-RUN apt-get install -y apt-transport-https
-RUN apt-get install -y openjdk-11-jdk
+RUN tdnf install -y \
+  openjdk11 \
+  shadow
 
-# Download wavefront proxy (latest release). Merely extract the debian, don't want to try running startup scripts.
-RUN echo "deb https://packagecloud.io/wavefront/proxy/ubuntu/ bionic main" > /etc/apt/sources.list.d/wavefront_proxy.list
-RUN echo "deb-src https://packagecloud.io/wavefront/proxy/ubuntu/ bionic main" >> /etc/apt/sources.list.d/wavefront_proxy.list
-RUN curl -L "https://packagecloud.io/wavefront/proxy/gpgkey" | apt-key add -
-RUN apt-get -y update
-
-RUN apt-get -d install wavefront-proxy
-RUN dpkg -x $(ls /var/cache/apt/archives/wavefront-proxy* | tail -n1) /
-
-# Clean up APT when done.
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Configure agent
-RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
-
-# Add new group: wavefront
-RUN groupadd -g 2000 wavefront
-
-# Add new user: wavefront
-RUN adduser --disabled-password --gecos '' --uid 1000 --gid 2000 wavefront
+# Add new group:user "wavefront"
+RUN /usr/sbin/groupadd -g 2000 wavefront
+RUN useradd --comment '' --uid 1000 --gid 2000 wavefront
 RUN chown -R wavefront:wavefront /var
 RUN chmod 755 /var
 
-USER 1000:2000
+# tdnf doesn't support "download only" so we have to go with a
+# full fledged package install, but it merely just unpacks the RPM.
+RUN curl -sSf "https://packagecloud.io/install/repositories/wavefront/proxy/config_file.repo?os=el&dist=7&source=script" > /etc/yum.repos.d/wavefront_proxy.repo
+RUN tdnf -q makecache -y --disablerepo='*' --enablerepo='wavefront_proxy'
+RUN tdnf install -y wavefront-proxy
+RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
+
+ENV PATH /usr/lib/jvm/OpenJDK-1.11.0/bin/:$PATH
 
 # Run the agent
 EXPOSE 3878
 EXPOSE 2878
 EXPOSE 4242
+
+USER 1000:2000
 
 ADD run.sh run.sh
 CMD ["/bin/bash", "/run.sh"]

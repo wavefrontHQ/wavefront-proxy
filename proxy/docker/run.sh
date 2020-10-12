@@ -1,5 +1,15 @@
 #!/bin/bash
 
+if [[ -z "$WAVEFRONT_URL" ]]; then
+  echo "WAVEFRONT_URL environment variable not configured - aborting startup " >&2
+  exit 0
+fi
+
+if [[ -z "$WAVEFRONT_TOKEN" ]]; then
+  echo "WAVEFRONT_TOKEN environment variable not configured - aborting startup " >&2
+  exit 0
+fi
+
 spool_dir="/var/spool/wavefront-proxy"
 mkdir -p $spool_dir
 
