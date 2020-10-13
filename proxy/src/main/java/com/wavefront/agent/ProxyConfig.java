@@ -86,12 +86,22 @@ public class ProxyConfig extends Configuration {
   @Parameter(names = {"-h", "--host"}, description = "Server URL", order = 2)
   String server = "http://localhost:8080/api/";
 
-  @Parameter(names = {"--buffer"}, description = "File to use for buffering transmissions " +
-      "to be retried. Defaults to /var/spool/wavefront-proxy/buffer.", order = 7)
+  @Parameter(names = {"--buffer"}, description = "File name prefix to use for buffering " +
+      "transmissions to be retried. Defaults to /var/spool/wavefront-proxy/buffer.", order = 7)
   String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
+  @Parameter(names = {"--bufferShardSize"}, description = "Buffer file partition size, in MB. " +
+      "Setting this value too low may reduce the efficiency of disk space utilization, " +
+      "while setting this value too high will allocate disk space in larger increments. " +
+      "Default: 128")
+  int bufferShardSize = 128;
+
+  @Parameter(names = {"--disableBufferSharding"}, description = "Use single-file buffer " +
+      "(legacy functionality). Default: false", arity = 1)
+  boolean disableBufferSharding = false;
+
   @Parameter(names = {"--sqsBuffer"}, description = "Use AWS SQS Based for buffering transmissions " +
-      "to be retried. Defaults to False")
+      "to be retried. Defaults to False", arity = 1)
   boolean sqsQueueBuffer = false;
 
   @Parameter(names = {"--sqsQueueNameTemplate"}, description = "The replacement pattern to use for naming the " +
@@ -835,6 +845,14 @@ public class ProxyConfig extends Configuration {
 
   public String getBufferFile() {
     return bufferFile;
+  }
+
+  public int getBufferShardSize() {
+    return bufferShardSize;
+  }
+
+  public boolean isDisableBufferSharding() {
+    return disableBufferSharding;
   }
 
   public boolean isSqsQueueBuffer() {
@@ -1805,6 +1823,8 @@ public class ProxyConfig extends Configuration {
           config.getNumber("pushRelayHistogramAggregatorCompression",
               pushRelayHistogramAggregatorCompression).shortValue();
       bufferFile = config.getString("buffer", bufferFile);
+      bufferShardSize = config.getInteger("bufferShardSize", bufferShardSize);
+      disableBufferSharding = config.getBoolean("disableBufferSharding", disableBufferSharding);
       taskQueueLevel = TaskQueueLevel.fromString(config.getString("taskQueueStrategy",
           taskQueueLevel.toString()));
       purgeBuffer = config.getBoolean("purgeBuffer", purgeBuffer);

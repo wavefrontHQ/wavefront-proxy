@@ -1,9 +1,9 @@
 package com.wavefront.agent.queueing;
 
+import javax.annotation.Nullable;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
-import com.google.common.collect.Iterators;
-import com.wavefront.agent.ProxyConfig;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.EventDataSubmissionTask;
@@ -15,10 +15,8 @@ import com.wavefront.dto.Event;
 import org.apache.commons.lang.math.NumberUtils;
 
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -28,7 +26,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+
+import static com.wavefront.agent.queueing.ConcurrentShardedQueueFile.listFiles;
 
 /**
  * Supports proxy's ability to export data from buffer files.
@@ -40,18 +39,28 @@ public class QueueExporter {
   private static final Pattern FILENAME =
       Pattern.compile("^(.*)\\.(\\w+)\\.(\\w+)\\.(\\w+)\\.(\\w+)$");
 
-  private final ProxyConfig config;
+  private final String bufferFile;
+  private final String exportQueuePorts;
+  private final String exportQueueOutputFile;
+  private final boolean retainData;
   private final TaskQueueFactory taskQueueFactory;
   private final EntityPropertiesFactory entityPropertiesFactory;
 
   /**
-   * @param config                  Proxy configuration
+   * @param bufferFile
+   * @param exportQueuePorts
+   * @param exportQueueOutputFile
+   * @param retainData
    * @param taskQueueFactory        Factory for task queues
    * @param entityPropertiesFactory Entity properties factory
    */
-  public QueueExporter(ProxyConfig config, TaskQueueFactory taskQueueFactory,
+  public QueueExporter(String bufferFile, String exportQueuePorts, String exportQueueOutputFile,
+                       boolean retainData, TaskQueueFactory taskQueueFactory,
                        EntityPropertiesFactory entityPropertiesFactory) {
-    this.config = config;
+    this.bufferFile = bufferFile;
+    this.exportQueuePorts = exportQueuePorts;
+    this.exportQueueOutputFile = exportQueueOutputFile;
+    this.retainData = retainData;
     this.taskQueueFactory = taskQueueFactory;
     this.entityPropertiesFactory = entityPropertiesFactory;
   }
@@ -60,8 +69,8 @@ public class QueueExporter {
    * Starts data exporting process.
    */
   public void export() {
-    Set<HandlerKey> handlerKeys = getValidHandlerKeys(listFiles(config.getBufferFile()),
-        config.getExportQueuePorts());
+    Set<HandlerKey> handlerKeys = getValidHandlerKeys(listFiles(bufferFile, ".spool"),
+        exportQueuePorts);
     handlerKeys.forEach(this::processHandlerKey);
   }
 
@@ -72,7 +81,7 @@ public class QueueExporter {
     for (int i = 0; i < threads; i++) {
       TaskQueue<T> taskQueue = taskQueueFactory.getTaskQueue(key, i);
       if (!(taskQueue instanceof TaskQueueStub)) {
-        String outputFileName = config.getExportQueueOutputFile() + "." + key.getEntityType() +
+        String outputFileName = exportQueueOutputFile + "." + key.getEntityType() +
             "." + key.getHandle() + "." + i + ".txt";
         logger.info("Exporting data to " + outputFileName);
         try {
@@ -96,7 +105,7 @@ public class QueueExporter {
     while (iterator.hasNext()) {
       T task = iterator.next();
       processTask(task, writer);
-      if (!config.isExportQueueRetainData()) {
+      if (!retainData) {
         iterator.remove();
       }
       tasksProcessed++;
@@ -125,7 +134,10 @@ public class QueueExporter {
   }
 
   @VisibleForTesting
-  static Set<HandlerKey> getValidHandlerKeys(List<String> files, String portList) {
+  static Set<HandlerKey> getValidHandlerKeys(@Nullable List<String> files, String portList) {
+    if (files == null) {
+      return Collections.emptySet();
+    }
     Set<String> ports = new HashSet<>(Splitter.on(",").omitEmptyStrings().trimResults().
         splitToList(portList));
     Set<HandlerKey> out = new HashSet<>();
@@ -141,16 +153,5 @@ public class QueueExporter {
       }
     });
     return out;
-  }
-
-  @VisibleForTesting
-  static List<String> listFiles(String buffer) {
-    String fnPrefix = Iterators.getLast(Splitter.on('/').split(buffer).iterator());
-    File bufferFile = new File(buffer);
-    File[] files = bufferFile.getParentFile().listFiles((dir, name) ->
-        name.endsWith(".spool") && name.startsWith(fnPrefix));
-    return files == null ?
-        Collections.emptyList() :
-        Arrays.stream(files).map(File::getAbsolutePath).collect(Collectors.toList());
   }
 }

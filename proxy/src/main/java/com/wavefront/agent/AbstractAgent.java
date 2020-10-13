@@ -277,9 +277,12 @@ public abstract class AbstractAgent {
       // If we are exporting data from the queue, run export and exit
       if (proxyConfig.getExportQueueOutputFile() != null &&
           proxyConfig.getExportQueuePorts() != null) {
-        TaskQueueFactory tqFactory = new TaskQueueFactoryImpl(proxyConfig.getBufferFile(), false);
+        TaskQueueFactory tqFactory = new TaskQueueFactoryImpl(proxyConfig.getBufferFile(), false,
+            false, proxyConfig.getBufferShardSize());
         EntityPropertiesFactory epFactory = new EntityPropertiesFactoryImpl(proxyConfig);
-        QueueExporter queueExporter = new QueueExporter(proxyConfig, tqFactory, epFactory);
+        QueueExporter queueExporter = new QueueExporter(proxyConfig.getBufferFile(),
+            proxyConfig.getExportQueuePorts(), proxyConfig.getExportQueueOutputFile(),
+            proxyConfig.isExportQueueRetainData(), tqFactory, epFactory);
         logger.info("Starting queue export for ports: " + proxyConfig.getExportQueuePorts());
         queueExporter.export();
         logger.info("Done");
@@ -326,7 +329,8 @@ public abstract class AbstractAgent {
           5000
       );
     } catch (Exception e) {
-      logger.severe(e.getMessage());
+      logger.log(Level.SEVERE, e.getMessage(), e);
+//      logger.severe(e.getMessage());
       System.exit(1);
     }
   }

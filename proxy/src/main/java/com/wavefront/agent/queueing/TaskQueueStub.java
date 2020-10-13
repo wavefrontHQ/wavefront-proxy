@@ -57,11 +57,6 @@ public class TaskQueueStub<T extends DataSubmissionTask<T>> implements TaskQueue
     return null;
   }
 
-  @Override
-  public String getName() {
-    return "stub";
-  }
-
   @NotNull
   @Override
   public Iterator<T> iterator() {
