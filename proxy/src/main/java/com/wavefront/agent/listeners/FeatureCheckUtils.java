@@ -6,7 +6,7 @@ import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.wavefront.common.MessageDedupingLogger;
+import com.wavefront.common.logger.MessageDedupingLogger;
 import com.yammer.metrics.core.Counter;
 
 import io.netty.handler.codec.http.FullHttpRequest;

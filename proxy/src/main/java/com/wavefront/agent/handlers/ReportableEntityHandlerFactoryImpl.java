@@ -1,7 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityPropertiesFactory;
-import com.wavefront.common.SamplingLogger;
+import com.wavefront.common.logger.SamplingLogger;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.data.ReportableEntityType;
 import org.apache.commons.lang.math.NumberUtils;
@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
