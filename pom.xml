@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>10.0-RC1-SNAPSHOT</version>
+  <version>10.0-RC2-SNAPSHOT</version>
   <modules>
     <module>proxy</module>
   </modules>
@@ -50,7 +50,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <!-- Testing library versions -->
-    <junit.version>4.12</junit.version>
+    <junit.version>4.13.1</junit.version>
     <truth.version>0.29</truth.version>
 
     <java.version>1.8</java.version>

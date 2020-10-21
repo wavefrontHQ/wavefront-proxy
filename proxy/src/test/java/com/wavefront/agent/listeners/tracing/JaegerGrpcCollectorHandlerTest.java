@@ -53,12 +53,12 @@ import static org.junit.Assert.assertEquals;
  */
 public class JaegerGrpcCollectorHandlerTest {
   private final static String DEFAULT_SOURCE = "jaeger";
-  private ReportableEntityHandler<Span, String> mockTraceHandler =
+  private final ReportableEntityHandler<Span, String> mockTraceHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
-  private ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
+  private final ReportableEntityHandler<SpanLogs, String> mockTraceLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
-  private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
-  private long startTime = System.currentTimeMillis();
+  private final WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
+  private final long startTime = System.currentTimeMillis();
 
   // Derived RED metrics related.
   private final String PREPROCESSED_APPLICATION_TAG_VALUE = "preprocessedApplication";
@@ -272,19 +272,7 @@ public class JaegerGrpcCollectorHandlerTest {
     Collector.PostSpansRequest batches =
         Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
 
-    handler.postSpans(batches, new StreamObserver<Collector.PostSpansResponse>() {
-      @Override
-      public void onNext(Collector.PostSpansResponse postSpansResponse) {
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-      }
-
-      @Override
-      public void onCompleted() {
-      }
-    });
+    handler.postSpans(batches, emptyStreamObserver);
 
     verify(mockTraceHandler, mockTraceLogsHandler);
   }
@@ -438,20 +426,6 @@ public class JaegerGrpcCollectorHandlerTest {
         addReferences(Model.SpanRef.newBuilder().setRefType(Model.SpanRefType.CHILD_OF).setSpanId(span3ParentId).setTraceId(traceId).build()).
         build();
 
-    StreamObserver<Collector.PostSpansResponse> streamObserver = new StreamObserver<Collector.PostSpansResponse>() {
-      @Override
-      public void onNext(Collector.PostSpansResponse postSpansResponse) {
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-      }
-
-      @Override
-      public void onCompleted() {
-      }
-    };
-
     Model.Batch testBatch = Model.Batch.newBuilder().
         setProcess(Model.Process.newBuilder().setServiceName("frontend").addTags(ipTag).addTags(processLevelAppTag).build()).
         addAllSpans(ImmutableList.of(span1, span2)).
@@ -460,7 +434,7 @@ public class JaegerGrpcCollectorHandlerTest {
     Collector.PostSpansRequest batches =
         Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
 
-    handler.postSpans(batches, streamObserver);
+    handler.postSpans(batches, emptyStreamObserver);
 
     Model.Batch testBatchForProxyLevel = Model.Batch.newBuilder().
         setProcess(Model.Process.newBuilder().setServiceName("frontend").addTags(ipTag).build()).
@@ -470,7 +444,7 @@ public class JaegerGrpcCollectorHandlerTest {
     Collector.PostSpansRequest batchesForProxyLevel =
         Collector.PostSpansRequest.newBuilder().setBatch(testBatchForProxyLevel).build();
 
-    handler.postSpans(batchesForProxyLevel, streamObserver);
+    handler.postSpans(batchesForProxyLevel, emptyStreamObserver);
 
     verify(mockTraceHandler, mockTraceLogsHandler);
   }
@@ -546,19 +520,7 @@ public class JaegerGrpcCollectorHandlerTest {
     Collector.PostSpansRequest batches =
         Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
 
-    handler.postSpans(batches, new StreamObserver<Collector.PostSpansResponse>() {
-      @Override
-      public void onNext(Collector.PostSpansResponse postSpansResponse) {
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-      }
-
-      @Override
-      public void onCompleted() {
-      }
-    });
+    handler.postSpans(batches, emptyStreamObserver);
 
     verify(mockTraceHandler, mockTraceLogsHandler);
   }
@@ -666,19 +628,7 @@ public class JaegerGrpcCollectorHandlerTest {
     Collector.PostSpansRequest batches =
         Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
 
-    handler.postSpans(batches, new StreamObserver<Collector.PostSpansResponse>() {
-      @Override
-      public void onNext(Collector.PostSpansResponse postSpansResponse) {
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-      }
-
-      @Override
-      public void onCompleted() {
-      }
-    });
+    handler.postSpans(batches, emptyStreamObserver);
 
     verify(mockTraceHandler, mockTraceLogsHandler);
   }
@@ -814,20 +764,6 @@ public class JaegerGrpcCollectorHandlerTest {
         setStartTime(fromMillis(startTime)).
         build();
 
-    StreamObserver<Collector.PostSpansResponse> streamObserver = new StreamObserver<Collector.PostSpansResponse>() {
-      @Override
-      public void onNext(Collector.PostSpansResponse postSpansResponse) {
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-      }
-
-      @Override
-      public void onCompleted() {
-      }
-    };
-
     Model.Batch testBatch = Model.Batch.newBuilder().
         setProcess(Model.Process.newBuilder().setServiceName("frontend").addTags(ipTag).addTags(hostNameProcessTag).addTags(customSourceProcessTag).build()).
         addAllSpans(ImmutableList.of(span1, span2)).
@@ -836,7 +772,7 @@ public class JaegerGrpcCollectorHandlerTest {
     Collector.PostSpansRequest batches =
         Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
 
-    handler.postSpans(batches, streamObserver);
+    handler.postSpans(batches, emptyStreamObserver);
 
     Model.Batch testBatchForProxyLevel = Model.Batch.newBuilder().
         setProcess(Model.Process.newBuilder().setServiceName("frontend").addTags(ipTag).addTags(hostNameProcessTag).build()).
@@ -846,7 +782,447 @@ public class JaegerGrpcCollectorHandlerTest {
     Collector.PostSpansRequest batchesSourceAsProcessTagHostName =
         Collector.PostSpansRequest.newBuilder().setBatch(testBatchForProxyLevel).build();
 
-    handler.postSpans(batchesSourceAsProcessTagHostName, streamObserver);
+    handler.postSpans(batchesSourceAsProcessTagHostName, emptyStreamObserver);
+
+    verify(mockTraceHandler, mockTraceLogsHandler);
+  }
+
+  @Test
+  public void testIgnoresServiceTags() throws Exception {
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9000)
+        .setName("HTTP GET /")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(4000)
+        .setName("HTTP GET")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-00000012d687")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(3000)
+        .setName("HTTP GET /test")
+        .setSource("source-processtag")
+        .setSpanId("00000000-0000-0000-0000-0051759bfc69")
+        .setTraceId("0000011e-ab2a-9944-0000-000049631900")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876",
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new RateSampler(1.0D), false),
+        null, null);
+
+    Model.KeyValue ipTag = Model.KeyValue.newBuilder().
+        setKey("ip").
+        setVStr("10.0.0.1").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue sourceProcessTag = Model.KeyValue.newBuilder().
+        setKey("source").
+        setVStr("source-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customServiceProcessTag = Model.KeyValue.newBuilder().
+        setKey("service").
+        setVStr("service-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customServiceSpanTag = Model.KeyValue.newBuilder().
+        setKey("service").
+        setVStr("service-spantag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
+    buffer.putLong(1234567890L);
+    buffer.putLong(1234567890123L);
+    ByteString traceId = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES * 2);
+    buffer.putLong(1231232342340L);
+    buffer.putLong(1231231232L);
+    ByteString trace2Id = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(2345678L);
+    ByteString span1Id = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(1234567L);
+    ByteString span2Id = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(349865507945L);
+    ByteString span3Id = ByteString.copyFrom(buffer.array());
+
+    Model.Span span1 = Model.Span.newBuilder().
+        setTraceId(traceId).
+        setSpanId(span1Id).
+        setDuration(Duration.newBuilder().setSeconds(9L).build()).
+        setOperationName("HTTP GET /").
+        addTags(customServiceSpanTag).
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Span span2 = Model.Span.newBuilder().
+        setTraceId(traceId).
+        setSpanId(span2Id).
+        setDuration(Duration.newBuilder().setSeconds(4L).build()).
+        setOperationName("HTTP GET").
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Span span3 = Model.Span.newBuilder().
+        setTraceId(trace2Id).
+        setSpanId(span3Id).
+        setDuration(Duration.newBuilder().setSeconds(3L).build()).
+        setOperationName("HTTP GET /test").
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Batch testBatch = Model.Batch.newBuilder().
+        setProcess(Model.Process.newBuilder().setServiceName("frontend").addTags(ipTag).addTags(sourceProcessTag).addTags(customServiceProcessTag).build()).
+        addAllSpans(ImmutableList.of(span1, span2)).
+        build();
+
+    Collector.PostSpansRequest batches = Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
+    handler.postSpans(batches, emptyStreamObserver);
+
+    Model.Batch testBatchForProxyLevel = Model.Batch.newBuilder().
+        setProcess(Model.Process.newBuilder().setServiceName("frontend").addTags(ipTag).addTags(sourceProcessTag).build()).
+        addAllSpans(ImmutableList.of(span3)).
+        build();
+
+    handler.postSpans(Collector.PostSpansRequest.newBuilder().setBatch(testBatchForProxyLevel).build(), emptyStreamObserver);
+
+    verify(mockTraceHandler, mockTraceLogsHandler);
+
+  }
+
+  @Test
+  public void testProtectedTagsSpanOverridesProcess() throws Exception {
+    // cluster, shard and service are special tags, because they're indexed by wavefront
+    // The priority order is:
+    // Span Level > Process Level > Proxy Level > Default
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9000)
+        .setName("HTTP GET /")
+        .setSource("source-spantag")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("application", "application-spantag"),
+            new Annotation("cluster", "cluster-spantag"),
+            new Annotation("shard", "shard-spantag")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876",
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new RateSampler(1.0D), false),
+        null, null);
+
+    Model.KeyValue customSourceSpanTag = Model.KeyValue.newBuilder().
+        setKey("source").
+        setVStr("source-spantag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customApplicationProcessTag = Model.KeyValue.newBuilder().
+        setKey("application").
+        setVStr("application-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customApplicationSpanTag = Model.KeyValue.newBuilder().
+        setKey("application").
+        setVStr("application-spantag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customClusterProcessTag = Model.KeyValue.newBuilder().
+        setKey("cluster").
+        setVStr("cluster-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customClusterSpanTag = Model.KeyValue.newBuilder().
+        setKey("cluster").
+        setVStr("cluster-spantag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customShardProcessTag = Model.KeyValue.newBuilder().
+        setKey("shard").
+        setVStr("shard-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customShardSpanTag = Model.KeyValue.newBuilder().
+        setKey("shard").
+        setVStr("shard-spantag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
+    buffer.putLong(1234567890L);
+    buffer.putLong(1234567890123L);
+    ByteString traceId = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(2345678L);
+    ByteString spanId = ByteString.copyFrom(buffer.array());
+
+    Model.Span span = Model.Span.newBuilder().
+        setTraceId(traceId).
+        setSpanId(spanId).
+        setDuration(Duration.newBuilder().setSeconds(9L).build()).
+        setOperationName("HTTP GET /").
+        addTags(customSourceSpanTag).
+        addTags(customApplicationSpanTag).
+        addTags(customClusterSpanTag).
+        addTags(customShardSpanTag).
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Batch testBatch = Model.Batch.newBuilder().
+        setProcess(Model.Process.newBuilder().
+            setServiceName("frontend").
+            addTags(customApplicationProcessTag).
+            addTags(customClusterProcessTag).
+            addTags(customShardProcessTag).
+            build()).
+        addAllSpans(ImmutableList.of(span)).
+        build();
+
+    Collector.PostSpansRequest batches = Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
+    handler.postSpans(batches, emptyStreamObserver);
+
+    verify(mockTraceHandler, mockTraceLogsHandler);
+  }
+
+  @Test
+  public void testProtectedTagsProcessOverridesProxyConfig() throws Exception {
+    // cluster, shard and service are special tags, because they're indexed by wavefront
+    // The priority order is:
+    // Span Level > Process Level > Proxy Level > Default
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9000)
+        .setName("HTTP GET /")
+        .setSource("source-spantag")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("service", "frontend"),
+            new Annotation("application", "application-processtag"),
+            new Annotation("cluster", "cluster-processtag"),
+            new Annotation("shard", "shard-processtag")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876",
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new RateSampler(1.0D), false),
+        null, null);
+
+    Model.KeyValue customSourceSpanTag = Model.KeyValue.newBuilder().
+        setKey("source").
+        setVStr("source-spantag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customApplicationProcessTag = Model.KeyValue.newBuilder().
+        setKey("application").
+        setVStr("application-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customClusterProcessTag = Model.KeyValue.newBuilder().
+        setKey("cluster").
+        setVStr("cluster-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customShardProcessTag = Model.KeyValue.newBuilder().
+        setKey("shard").
+        setVStr("shard-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
+    buffer.putLong(1234567890L);
+    buffer.putLong(1234567890123L);
+    ByteString traceId = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(2345678L);
+    ByteString spanId = ByteString.copyFrom(buffer.array());
+
+    Model.Span span = Model.Span.newBuilder().
+        setTraceId(traceId).
+        setSpanId(spanId).
+        setDuration(Duration.newBuilder().setSeconds(9L).build()).
+        setOperationName("HTTP GET /").
+        addTags(customSourceSpanTag).
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Batch testBatch = Model.Batch.newBuilder().
+        setProcess(Model.Process.newBuilder().
+            setServiceName("frontend").
+            addTags(customApplicationProcessTag).
+            addTags(customClusterProcessTag).
+            addTags(customShardProcessTag).
+            build()).
+        addAllSpans(ImmutableList.of(span)).
+        build();
+
+    Collector.PostSpansRequest batches = Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
+    handler.postSpans(batches, emptyStreamObserver);
+
+    verify(mockTraceHandler, mockTraceLogsHandler);
+  }
+
+  @Test
+  public void testAllProcessTagsPropagated() throws Exception {
+    reset(mockTraceHandler, mockTraceLogsHandler);
+
+    mockTraceHandler.report(Span.newBuilder().setCustomer("dummy").setStartMillis(startTime)
+        .setDuration(9000)
+        .setName("HTTP GET /")
+        .setSource("source-spantag")
+        .setSpanId("00000000-0000-0000-0000-00000023cace")
+        .setTraceId("00000000-4996-02d2-0000-011f71fb04cb")
+        // Note: Order of annotations list matters for this unit test.
+        .setAnnotations(ImmutableList.of(
+            new Annotation("ip", "10.0.0.1"),
+            new Annotation("processTag1", "one"),
+            new Annotation("processTag2", "two"),
+            new Annotation("processTag3", "three"),
+            new Annotation("service", "frontend"),
+            new Annotation("application", "Jaeger"),
+            new Annotation("cluster", "none"),
+            new Annotation("shard", "none")))
+        .build());
+    expectLastCall();
+    replay(mockTraceHandler, mockTraceLogsHandler);
+
+    JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876",
+        mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false, null,
+        new SpanSampler(new RateSampler(1.0D), false),
+        null, null);
+
+    Model.KeyValue ipTag = Model.KeyValue.newBuilder().
+        setKey("ip").
+        setVStr("10.0.0.1").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue hostNameProcessTag = Model.KeyValue.newBuilder().
+        setKey("hostname").
+        setVStr("hostname-processtag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customProcessTag1 = Model.KeyValue.newBuilder().
+        setKey("processTag1").
+        setVStr("one").
+        setVType(Model.ValueType.STRING).
+        build();
+
+   Model.KeyValue customProcessTag2 = Model.KeyValue.newBuilder().
+        setKey("processTag2").
+        setVStr("two").
+        setVType(Model.ValueType.STRING).
+        build();
+
+   Model.KeyValue customProcessTag3 = Model.KeyValue.newBuilder().
+        setKey("processTag3").
+        setVStr("three").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    Model.KeyValue customSourceSpanTag = Model.KeyValue.newBuilder().
+        setKey("source").
+        setVStr("source-spantag").
+        setVType(Model.ValueType.STRING).
+        build();
+
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
+    buffer.putLong(1234567890L);
+    buffer.putLong(1234567890123L);
+    ByteString traceId = ByteString.copyFrom(buffer.array());
+
+    buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(2345678L);
+    ByteString spanId = ByteString.copyFrom(buffer.array());
+
+    Model.Span span = Model.Span.newBuilder().
+        setTraceId(traceId).
+        setSpanId(spanId).
+        setDuration(Duration.newBuilder().setSeconds(9L).build()).
+        setOperationName("HTTP GET /").
+        addTags(customSourceSpanTag).
+        setStartTime(fromMillis(startTime)).
+        build();
+
+    Model.Batch testBatch = Model.Batch.newBuilder().
+        setProcess(Model.Process.newBuilder().setServiceName("frontend").
+            addTags(ipTag).addTags(hostNameProcessTag).
+            addTags(customProcessTag1).addTags(customProcessTag2).addTags(customProcessTag3).
+            build()).
+        addAllSpans(ImmutableList.of(span)).
+        build();
+
+    Collector.PostSpansRequest batches =
+        Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
+
+    handler.postSpans(batches, emptyStreamObserver);
 
     verify(mockTraceHandler, mockTraceLogsHandler);
   }
@@ -920,10 +1296,6 @@ public class JaegerGrpcCollectorHandlerTest {
     ByteString traceId = ByteString.copyFrom(buffer.array());
 
     buffer = ByteBuffer.allocate(Long.BYTES);
-    buffer.putLong(2345678L);
-    ByteString span1Id = ByteString.copyFrom(buffer.array());
-
-    buffer = ByteBuffer.allocate(Long.BYTES);
     buffer.putLong(1234567L);
     ByteString span2Id = ByteString.copyFrom(buffer.array());
 
@@ -943,7 +1315,18 @@ public class JaegerGrpcCollectorHandlerTest {
     Collector.PostSpansRequest batches =
         Collector.PostSpansRequest.newBuilder().setBatch(testBatch).build();
 
-    handler.postSpans(batches, new StreamObserver<Collector.PostSpansResponse>() {
+    handler.postSpans(batches, emptyStreamObserver);
+    handler.run();
+
+    verifyWithTimeout(500, mockTraceHandler, mockWavefrontSender);
+    HashMap<String, String> tagsReturned = tagsCapture.getValue();
+    assertEquals(PREPROCESSED_APPLICATION_TAG_VALUE, tagsReturned.get(APPLICATION_TAG_KEY));
+    assertEquals(PREPROCESSED_SERVICE_TAG_VALUE, tagsReturned.get(SERVICE_TAG_KEY));
+    assertEquals(PREPROCESSED_CLUSTER_TAG_VALUE, tagsReturned.get(CLUSTER_TAG_KEY));
+    assertEquals(PREPROCESSED_SHARD_TAG_VALUE, tagsReturned.get(SHARD_TAG_KEY));
+  }
+
+  private final StreamObserver<Collector.PostSpansResponse> emptyStreamObserver = new StreamObserver<Collector.PostSpansResponse>() {
       @Override
       public void onNext(Collector.PostSpansResponse postSpansResponse) {
       }
@@ -955,14 +1338,6 @@ public class JaegerGrpcCollectorHandlerTest {
       @Override
       public void onCompleted() {
       }
-    });
-    handler.run();
+    };
 
-    verifyWithTimeout(500, mockTraceHandler, mockWavefrontSender);
-    HashMap<String, String> tagsReturned = tagsCapture.getValue();
-    assertEquals(PREPROCESSED_APPLICATION_TAG_VALUE, tagsReturned.get(APPLICATION_TAG_KEY));
-    assertEquals(PREPROCESSED_SERVICE_TAG_VALUE, tagsReturned.get(SERVICE_TAG_KEY));
-    assertEquals(PREPROCESSED_CLUSTER_TAG_VALUE, tagsReturned.get(CLUSTER_TAG_KEY));
-    assertEquals(PREPROCESSED_SHARD_TAG_VALUE, tagsReturned.get(SHARD_TAG_KEY));
-  }
 }

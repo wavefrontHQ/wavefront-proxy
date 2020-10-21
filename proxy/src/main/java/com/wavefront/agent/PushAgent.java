@@ -223,7 +223,8 @@ public class PushAgent extends AbstractAgent {
           proxyConfig.isPurgeBuffer());
     } else {
       taskQueueFactory = new TaskQueueFactoryImpl(proxyConfig.getBufferFile(),
-          proxyConfig.isPurgeBuffer());
+          proxyConfig.isPurgeBuffer(), proxyConfig.isDisableBufferSharding(),
+          proxyConfig.getBufferShardSize());
     }
 
     remoteHostAnnotator = new SharedGraphiteHostAnnotator(proxyConfig.getCustomSourceTags(),

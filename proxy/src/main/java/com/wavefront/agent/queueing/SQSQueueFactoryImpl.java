@@ -74,11 +74,11 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
     final String queueName = getQueueName(handlerKey);
     String queueUrl = queues.computeIfAbsent(queueName, x -> getOrCreateQueue(queueName));
     if (handlerKey.getEntityType() == ReportableEntityType.SOURCE_TAG) {
-      return new SynchronizedTaskQueueWithMetrics<T>(new InMemorySubmissionQueue<>(), "buffer.in-memory",
+      return new InstrumentedTaskQueueDelegate<T>(new InMemorySubmissionQueue<>(), "buffer.in-memory",
           ImmutableMap.of("port", handlerKey.getHandle()), handlerKey.getEntityType());
     }
     if (StringUtils.isNotBlank(queueUrl)) {
-      return new SynchronizedTaskQueueWithMetrics<>(new SQSSubmissionQueue<>(queueUrl,
+      return new InstrumentedTaskQueueDelegate<>(new SQSSubmissionQueue<>(queueUrl,
           AmazonSQSClientBuilder.standard().withRegion(this.region).build(),
           new RetryTaskConverter<T>(handlerKey.getHandle(),
               RetryTaskConverter.CompressionType.LZ4)),

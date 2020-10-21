@@ -29,7 +29,7 @@ import static org.junit.Assert.assertEquals;
  *
  * @author vasily@wavefront.com
  */
-public class SynchronizedTaskQueueWithMetricsTest {
+public class InstrumentedTaskQueueDelegateTest {
 
   @Test
   public void testLineDelimitedTask() throws Exception {
@@ -110,10 +110,10 @@ public class SynchronizedTaskQueueWithMetricsTest {
 
   private <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(
       File file, RetryTaskConverter.CompressionType compressionType) throws Exception {
-    return new SynchronizedTaskQueueWithMetrics<>(new FileBasedTaskQueue<>(
-        new QueueFile.Builder(file).build(),
-        new RetryTaskConverter<T>("2878",
-            compressionType)),
+    return new InstrumentedTaskQueueDelegate<>(new FileBasedTaskQueue<>(
+        new ConcurrentShardedQueueFile(file.getCanonicalPath(), ".spool", 16 * 1024,
+            s -> new TapeQueueFile(new QueueFile.Builder(new File(s)).build())),
+        new RetryTaskConverter<T>("2878", compressionType)),
         null, null, null);
   }
 }

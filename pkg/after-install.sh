@@ -9,6 +9,11 @@ conf_dir="/etc/wavefront"
 log_dir="/var/log/wavefront"
 jre_dir="$wavefront_dir/$service_name/proxy-jre"
 
+if [[ -f /etc/photon-release ]]; then
+  echo "Photon OS installs are container-only - skipping configuring service" >&2
+  exit 0
+fi
+
 # Set up wavefront user.
 if ! groupmod $group &> /dev/null; then
 	groupadd $group &> /dev/null
