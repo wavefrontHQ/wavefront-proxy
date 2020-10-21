@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
 import com.wavefront.agent.queueing.TaskQueue;
-import com.wavefront.common.MessageDedupingLogger;
+import com.wavefront.common.logger.MessageDedupingLogger;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
 import com.yammer.metrics.Metrics;

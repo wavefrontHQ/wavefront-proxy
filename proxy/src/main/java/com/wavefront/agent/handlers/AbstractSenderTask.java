@@ -7,7 +7,7 @@ import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.data.TaskResult;
 import com.wavefront.common.NamedThreadFactory;
-import com.wavefront.common.SharedRateLimitingLogger;
+import com.wavefront.common.logger.SharedRateLimitingLogger;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
