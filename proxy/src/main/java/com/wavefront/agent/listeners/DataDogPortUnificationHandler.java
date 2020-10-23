@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -217,10 +218,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     switch (path) {
       case "/api/v1/series/":
         try {
-          if (!reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest)) {
-            status = HttpResponseStatus.BAD_REQUEST;
-            output.append("At least one data point had error.");
-          }
+          status = reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest,
+              output::append);
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
           output.append(errorMessageWithRootCause(e));
@@ -238,9 +237,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           return;
         }
         try {
-          if (!reportChecks(jsonParser.readTree(requestBody), pointsPerRequest)) {
-            output.append("One or more checks were not valid.");
-          }
+          reportChecks(jsonParser.readTree(requestBody), pointsPerRequest, output::append);
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
           output.append(errorMessageWithRootCause(e));
@@ -261,9 +258,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
           return;
         }
         try {
-          if (!reportSystemMetrics(jsonParser.readTree(requestBody), pointsPerRequest)) {
-            output.append("At least one data point had error.");
-          }
+          status = reportSystemMetrics(jsonParser.readTree(requestBody), pointsPerRequest,
+              output::append);
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
           output.append(errorMessageWithRootCause(e));
@@ -288,27 +284,33 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
    * @param metrics a DataDog-format payload
    * @param pointCounter counter to track the number of points processed in one request
    *
-   * @return true if all metrics added successfully; false o/w
-   * @see #reportMetric(JsonNode, AtomicInteger)
+   * @return final HTTP status code to return to the client
+   * @see #reportMetric(JsonNode, AtomicInteger, Consumer)
    */
-  private boolean reportMetrics(final JsonNode metrics,
-                                @Nullable final AtomicInteger pointCounter) {
-    if (metrics == null || !metrics.isObject() || !metrics.has("series")) {
-      pointHandler.reject((ReportPoint) null, "WF-300: Payload missing 'series' field");
-      return false;
+  private HttpResponseStatus reportMetrics(final JsonNode metrics,
+                                           @Nullable final AtomicInteger pointCounter,
+                                           Consumer<String> outputConsumer) {
+    if (metrics == null || !metrics.isObject()) {
+      error("Empty or malformed /api/v1/series payload - ignoring", outputConsumer);
+      return HttpResponseStatus.BAD_REQUEST;
+    }
+    if (!metrics.has("series")) {
+      error("/api/v1/series payload missing 'series' field", outputConsumer);
+      return HttpResponseStatus.BAD_REQUEST;
     }
     JsonNode series = metrics.get("series");
     if (!series.isArray()) {
-      pointHandler.reject((ReportPoint) null, "WF-300: 'series' field must be an array");
-      return false;
+      error("'series' field must be an array", outputConsumer);
+      return HttpResponseStatus.BAD_REQUEST;
     }
-    boolean successful = true;
+    HttpResponseStatus worstStatus = HttpResponseStatus.ACCEPTED;
     for (final JsonNode metric : series) {
-      if (!reportMetric(metric, pointCounter)) {
-        successful = false;
+      HttpResponseStatus latestStatus = reportMetric(metric, pointCounter, outputConsumer);
+      if (latestStatus.compareTo(worstStatus) > 0) {
+        worstStatus = latestStatus;
       }
     }
-    return successful;
+    return worstStatus;
   }
 
   /**
@@ -319,15 +321,17 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
    *
    * @return True if the metric was reported successfully; False o/w
    */
-  private boolean reportMetric(final JsonNode metric, @Nullable final AtomicInteger pointCounter) {
+  private HttpResponseStatus reportMetric(final JsonNode metric,
+                                          @Nullable final AtomicInteger pointCounter,
+                                          Consumer<String> outputConsumer) {
     if (metric == null) {
-      pointHandler.reject((ReportPoint) null, "Skipping - series object null.");
-      return false;
+      error("Skipping - series object null.", outputConsumer);
+      return HttpResponseStatus.BAD_REQUEST;
     }
     try {
       if (metric.get("metric") == null ) {
-        pointHandler.reject((ReportPoint) null, "Skipping - 'metric' field missing.");
-        return false;
+        error("Skipping - 'metric' field missing.", outputConsumer);
+        return HttpResponseStatus.BAD_REQUEST;
       }
       String metricName = INVALID_METRIC_CHARACTERS.matcher(metric.get("metric").textValue()).
           replaceAll("_");
@@ -358,56 +362,54 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       }
       JsonNode pointsNode = metric.get("points");
       if (pointsNode == null) {
-        pointHandler.reject((ReportPoint) null, "Skipping - 'points' field missing.");
-        return false;
+        error("Skipping - 'points' field missing.", outputConsumer);
+        return HttpResponseStatus.BAD_REQUEST;
       }
       for (JsonNode node : pointsNode) {
         if (node.size() == 2) {
           reportValue(metricName, hostName, tags, node.get(1), node.get(0).longValue() * 1000,
               pointCounter, interval);
         } else {
-          pointHandler.reject((ReportPoint) null,
-              "WF-300: Inconsistent point value size (expected: 2)");
+          error("Inconsistent point value size (expected: 2)", outputConsumer);
         }
       }
-      return true;
+      return HttpResponseStatus.ACCEPTED;
     } catch (final Exception e) {
-      logger.log(Level.WARNING, "WF-300: Failed to add metric", e);
-      return false;
+      logger.log(Level.WARNING, "Failed to add metric", e);
+      outputConsumer.accept("Failed to add metric");
+      return HttpResponseStatus.BAD_REQUEST;
     }
   }
 
-  private boolean reportChecks(final JsonNode checkNode,
-                               @Nullable final AtomicInteger pointCounter) {
+  private void reportChecks(final JsonNode checkNode, @Nullable final AtomicInteger pointCounter,
+                            Consumer<String> outputConsumer) {
     if (checkNode == null) {
-      pointHandler.reject((ReportPoint) null, "Skipping - check object is null.");
-      return false;
+      error("Empty or malformed /api/v1/check_run payload - ignoring", outputConsumer);
+      return;
     }
     if (checkNode.isArray()) {
-      boolean result = true;
       for (JsonNode check : checkNode) {
-        result &= reportCheck(check, pointCounter);
+        reportCheck(check, pointCounter, outputConsumer);
       }
-      return result;
     } else {
-      return reportCheck(checkNode, pointCounter);
+      reportCheck(checkNode, pointCounter, outputConsumer);
     }
   }
 
-  private boolean reportCheck(final JsonNode check,
-                              @Nullable final AtomicInteger pointCounter) {
+  private void reportCheck(final JsonNode check, @Nullable final AtomicInteger pointCounter,
+                           Consumer<String> outputConsumer) {
     try {
       if (check.get("check") == null ) {
-        pointHandler.reject((ReportPoint) null, "Skipping - 'check' field missing.");
-        return false;
+        error("Skipping - 'check' field missing.", outputConsumer);
+        return;
       }
       if (check.get("host_name") == null ) {
-        pointHandler.reject((ReportPoint) null, "Skipping - 'host_name' field missing.");
-        return false;
+        error("Skipping - 'host_name' field missing.", outputConsumer);
+        return;
       }
       if (check.get("status") == null ) {
         // ignore - there is no status to update
-        return true;
+        return;
       }
       String metricName = INVALID_METRIC_CHARACTERS.matcher(check.get("check").textValue()).
           replaceAll("_");
@@ -423,27 +425,33 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       long timestamp = check.get("timestamp") == null ?
           Clock.now() : check.get("timestamp").asLong() * 1000;
       reportValue(metricName, hostName, tags, check.get("status"), timestamp, pointCounter);
-      return true;
     } catch (final Exception e) {
       logger.log(Level.WARNING, "WF-300: Failed to add metric", e);
-      return false;
     }
   }
 
-  private boolean reportSystemMetrics(final JsonNode metrics,
-                                      @Nullable final AtomicInteger pointCounter) {
-    if (metrics == null || !metrics.isObject() || !metrics.has("internalHostname")) {
-      pointHandler.reject((ReportPoint) null, "WF-300: Payload missing 'internalHostname' field");
-      return false;
+  private HttpResponseStatus reportSystemMetrics(final JsonNode metrics,
+                                                 @Nullable final AtomicInteger pointCounter,
+                                                 Consumer<String> outputConsumer) {
+    if (metrics == null || !metrics.isObject()) {
+      error("Empty or malformed /intake payload", outputConsumer);
+      return HttpResponseStatus.BAD_REQUEST;
+    }
+    if (!metrics.has("internalHostname")) {
+      error("Payload missing 'internalHostname' field, ignoring", outputConsumer);
+      return HttpResponseStatus.ACCEPTED;
     }
 
     // Some /api/v1/intake requests only contain host-tag metadata so process it first
     String hostName = metrics.get("internalHostname").textValue().toLowerCase();
-    Map<String, String> systemTags = new HashMap<>();
+    HashMap<String, String> systemTags = new HashMap<>();
     if (metrics.has("host-tags") && metrics.get("host-tags").get("system") != null) {
       extractTags(metrics.get("host-tags").get("system"), systemTags);
       // cache even if map is empty so we know how many unique hosts report metrics.
       tagsCache.put(hostName, systemTags);
+      if (logger.isLoggable(Level.FINE)) {
+        logger.fine("Cached system tags for " + hostName + ": " + systemTags.toString());
+      }
     } else {
       Map<String, String> cachedTags = tagsCache.getIfPresent(hostName);
       if (cachedTags != null) {
@@ -505,7 +513,7 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       reportValue("system.swap.total", hostName, systemTags, metrics.get("memSwapTotal"), timestamp, pointCounter);
       reportValue("system.swap.used", hostName, systemTags, metrics.get("memSwapUsed"), timestamp, pointCounter);
     }
-    return true;
+    return HttpResponseStatus.ACCEPTED;
   }
 
   private void reportValue(String metricName, String hostName, Map<String, String> tags,
@@ -588,5 +596,11 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
             input.substring(tagKvIndex + 1));
       }
     }
+  }
+
+  private void error(String msg, Consumer<String> outputConsumer) {
+    pointHandler.reject((ReportPoint) null, msg);
+    outputConsumer.accept(msg);
+    outputConsumer.accept("\n");
   }
 }
