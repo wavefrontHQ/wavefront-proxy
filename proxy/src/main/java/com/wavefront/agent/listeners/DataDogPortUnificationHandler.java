@@ -71,6 +71,29 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Pattern INVALID_METRIC_CHARACTERS = Pattern.compile("[^-_\\.\\dA-Za-z]");
   private static final Pattern INVALID_TAG_CHARACTERS = Pattern.compile("[^-_:\\.\\\\/\\dA-Za-z]");
 
+  private static final Map<String, String> SYSTEM_METRICS = ImmutableMap.<String, String>builder().
+      put("system.cpu.guest", "cpuGuest").
+      put("system.cpu.idle", "cpuIdle").
+      put("system.cpu.stolen", "cpuStolen").
+      put("system.cpu.system", "cpuSystem").
+      put("system.cpu.user", "cpuUser").
+      put("system.cpu.wait", "cpuWait").
+      put("system.mem.buffers", "memBuffers").
+      put("system.mem.cached", "memCached").
+      put("system.mem.page_tables", "memPageTables").
+      put("system.mem.shared", "memShared").
+      put("system.mem.slab", "memSlab").
+      put("system.mem.free", "memPhysFree").
+      put("system.mem.pct_usable", "memPhysPctUsable").
+      put("system.mem.total", "memPhysTotal").
+      put("system.mem.usable", "memPhysUsable").
+      put("system.mem.used", "memPhysUsed").
+      put("system.swap.cached", "memSwapCached").
+      put("system.swap.free", "memSwapFree").
+      put("system.swap.pct_free", "memSwapPctFree").
+      put("system.swap.total", "memSwapTotal").
+      put("system.swap.used", "memSwapUsed").build();
+
   private final Histogram httpRequestSize;
 
   /**
@@ -251,15 +274,9 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         break;
 
       case "/intake/":
-        if (!processSystemMetrics) {
-          Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port",
-              handle)).inc();
-          writeHttpResponse(ctx, HttpResponseStatus.ACCEPTED, output, request);
-          return;
-        }
         try {
-          status = reportSystemMetrics(jsonParser.readTree(requestBody), pointsPerRequest,
-              output::append);
+          status = processMetadataAndSystemMetrics(jsonParser.readTree(requestBody),
+              processSystemMetrics, pointsPerRequest, output::append);
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
           output.append(errorMessageWithRootCause(e));
@@ -430,9 +447,9 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     }
   }
 
-  private HttpResponseStatus reportSystemMetrics(final JsonNode metrics,
-                                                 @Nullable final AtomicInteger pointCounter,
-                                                 Consumer<String> outputConsumer) {
+  private HttpResponseStatus processMetadataAndSystemMetrics(
+      final JsonNode metrics, boolean reportSystemMetrics,
+      @Nullable final AtomicInteger pointCounter, Consumer<String> outputConsumer) {
     if (metrics == null || !metrics.isObject()) {
       error("Empty or malformed /intake payload", outputConsumer);
       return HttpResponseStatus.BAD_REQUEST;
@@ -458,6 +475,12 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
         systemTags.clear();
         systemTags.putAll(cachedTags);
       }
+    }
+
+    if (!reportSystemMetrics) {
+      Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port",
+          handle)).inc();
+      return HttpResponseStatus.ACCEPTED;
     }
 
     if (metrics.has("collection_timestamp")) {
@@ -491,27 +514,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       });
 
       // Report CPU and memory metrics
-      reportValue("system.cpu.guest", hostName, systemTags, metrics.get("cpuGuest"), timestamp, pointCounter);
-      reportValue("system.cpu.idle", hostName, systemTags, metrics.get("cpuIdle"), timestamp, pointCounter);
-      reportValue("system.cpu.stolen", hostName, systemTags, metrics.get("cpuStolen"), timestamp, pointCounter);
-      reportValue("system.cpu.system", hostName, systemTags, metrics.get("cpuSystem"), timestamp, pointCounter);
-      reportValue("system.cpu.user", hostName, systemTags, metrics.get("cpuUser"), timestamp, pointCounter);
-      reportValue("system.cpu.wait", hostName, systemTags, metrics.get("cpuWait"), timestamp, pointCounter);
-      reportValue("system.mem.buffers", hostName, systemTags, metrics.get("memBuffers"), timestamp, pointCounter);
-      reportValue("system.mem.cached", hostName, systemTags, metrics.get("memCached"), timestamp, pointCounter);
-      reportValue("system.mem.page_tables", hostName, systemTags, metrics.get("memPageTables"), timestamp, pointCounter);
-      reportValue("system.mem.shared", hostName, systemTags, metrics.get("memShared"), timestamp, pointCounter);
-      reportValue("system.mem.slab", hostName, systemTags, metrics.get("memSlab"), timestamp, pointCounter);
-      reportValue("system.mem.free", hostName, systemTags, metrics.get("memPhysFree"), timestamp, pointCounter);
-      reportValue("system.mem.pct_usable", hostName, systemTags, metrics.get("memPhysPctUsable"), timestamp, pointCounter);
-      reportValue("system.mem.total", hostName, systemTags, metrics.get("memPhysTotal"), timestamp, pointCounter);
-      reportValue("system.mem.usable", hostName, systemTags, metrics.get("memPhysUsable"), timestamp, pointCounter);
-      reportValue("system.mem.used", hostName, systemTags, metrics.get("memPhysUsed"), timestamp, pointCounter);
-      reportValue("system.swap.cached", hostName, systemTags, metrics.get("memSwapCached"), timestamp, pointCounter);
-      reportValue("system.swap.free", hostName, systemTags, metrics.get("memSwapFree"), timestamp, pointCounter);
-      reportValue("system.swap.pct_free", hostName, systemTags, metrics.get("memSwapPctFree"), timestamp, pointCounter);
-      reportValue("system.swap.total", hostName, systemTags, metrics.get("memSwapTotal"), timestamp, pointCounter);
-      reportValue("system.swap.used", hostName, systemTags, metrics.get("memSwapUsed"), timestamp, pointCounter);
+      SYSTEM_METRICS.forEach((key, value) -> reportValue(key, hostName, systemTags,
+          metrics.get(value), timestamp, pointCounter));
     }
     return HttpResponseStatus.ACCEPTED;
   }
