@@ -526,7 +526,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   }
 
   private void reportValue(String metricName, String hostName, Map<String, String> tags,
-                           JsonNode valueNode, long timestamp, AtomicInteger pointCounter, int interval) {
+                           JsonNode valueNode, long timestamp, AtomicInteger pointCounter,
+                           int interval) {
     if (valueNode == null || valueNode.isNull()) return;
     double value;
     if (valueNode.isTextual()) {
@@ -543,7 +544,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       value = valueNode.asLong();
     }
 
-    value = value * interval; // interval will normally be 1 unless the metric was a rate type with a specified interval
+    // interval will normally be 1 unless the metric was a rate type with a specified interval
+    value = value * interval;
 
     ReportPoint point = ReportPoint.newBuilder().
         setTable("dummy").
