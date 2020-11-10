@@ -57,13 +57,13 @@ public class PreprocessorRulesTest {
     assertEquals(1, preprocessor.forPointLine().getFilters().size());
     assertEquals(1, preprocessor.forPointLine().getTransformers().size());
     assertEquals(3, preprocessor.forReportPoint().getFilters().size());
-    assertEquals(8, preprocessor.forReportPoint().getTransformers().size());
+    assertEquals(10, preprocessor.forReportPoint().getTransformers().size());
     config.loadFileIfModified(path); // should be no changes
     preprocessor = config.get("2878").get();
     assertEquals(1, preprocessor.forPointLine().getFilters().size());
     assertEquals(1, preprocessor.forPointLine().getTransformers().size());
     assertEquals(3, preprocessor.forReportPoint().getFilters().size());
-    assertEquals(8, preprocessor.forReportPoint().getTransformers().size());
+    assertEquals(10, preprocessor.forReportPoint().getTransformers().size());
     stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_reload.yaml");
     Files.asCharSink(file, Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
     // this is only needed for JDK8. JDK8 has second-level precision of lastModified,
