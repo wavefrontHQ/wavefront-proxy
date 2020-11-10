@@ -59,14 +59,14 @@
   - rule    : example-rule-do-nothing
     action  : count
 
-# rules for port 2879
-'2879':
+## rules that apply only to data received on port 2879
+#'2879':
 
-  # Example rule that count points where metric value is 0 and metric name starts with 'a'
-  #################################################################
-  - rule    : example-count-points-zero-value
-    action  : count
-    if      : "({{metricName}} startsWith 'a') and ($value = 0)"
+  ## Example rule that count points where metric value is 0 and metric name starts with 'a'
+  ##################################################################
+  #- rule    : example-count-points-zero-value
+  #  action  : count
+  #  if      : "({{metricName}} startsWith 'a') and ($value = 0)"
 
   ## replace bad characters ("&", "$", "*") with underscores in the entire point line string
   #################################################################
