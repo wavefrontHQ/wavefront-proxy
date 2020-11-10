@@ -24,6 +24,8 @@
 ##                separate tags.
 ##   - limitLength: enforce custom string length limits for various data point's components (metric name, source,
 ##                  point tag value). Available action sub-types: truncate, truncateWithEllipsis, drop
+##   - count: count the number of points matching an optional "if" condition. When no "if" condition
+##            is specified, the rule is effectively a no-op.
 ##
 ## "Scope" parameter for replaceRegex/allow/block:
 ##   - pointLine: applies to the whole point string before it's parsed, which makes it possible to correct
@@ -49,16 +51,30 @@
 ##
 ##############################################################################
 
-# rules for port 2878
-'2878':
+# rules that apply to all ports
+'global':
 
-  # replace bad characters ("&", "$", "*") with underscores in the entire point line string
-  ################################################################
-  - rule    : example-replace-badchars
-    action  : replaceRegex
-    scope   : pointLine
-    search  : "[&\\$\\*]"
-    replace : "_"
+  # Example no-op rule
+  #################################################################
+  - rule    : example-rule-do-nothing
+    action  : count
+
+# rules for port 2879
+'2879':
+
+  # Example rule that count points where metric value is 0 and metric name starts with 'a'
+  #################################################################
+  - rule    : example-count-points-zero-value
+    action  : count
+    if      : "({{metricName}} startsWith 'a') and ($value = 0)"
+
+  ## replace bad characters ("&", "$", "*") with underscores in the entire point line string
+  #################################################################
+  #- rule    : example-replace-badchars
+  #  action  : replaceRegex
+  #  scope   : pointLine
+  #  search  : "[&\\$\\*]"
+  #  replace : "_"
 
   ## extract Graphite 1.1+ tags from the metric name, i.e. convert
   ## "metric.name;source=src;foo=bar;boo=baz 1.0 1507933795" to
@@ -250,16 +266,16 @@
   #  action: block
   #  if: '{{sourceName}} contains "staging" and {{metricName}} startsWith "k8s." and {{containerId}}.hashCode() % 4 != 0'
 
-# rules for port 4242
-'4242':
+## rules for port 4242
+#'4242':
 
-  # replace bad characters ("&", "$", "!") with underscores in the metric name
+  ## replace bad characters ("&", "$", "!") with underscores in the metric name
   ################################################################
-  - rule    : example-replace-badchars
-    action  : replaceRegex
-    scope   : metricName
-    search  : "[&\\$!]"
-    replace : "_"
+  #- rule    : example-replace-badchars
+  #  action  : replaceRegex
+  #  scope   : metricName
+  #  search  : "[&\\$!]"
+  #  replace : "_"
 
   ## remove "tsdb." from the metric name
   ################################################################
@@ -269,36 +285,24 @@
   #  search  : "tsdb\\."
   #  replace : ""
 
-# rules for port 30001
-'30001':
+## rules for port 30001
+#'30001':
 
   ## truncate 'db.statement' annotation value at 128 characters,
   ## replace last 3 characters with '...'.
   ################################################################
-  - rule          : example-limit-db-statement
-    action        : spanLimitLength
-    scope         : "db.statement"
-    actionSubtype : truncateWithEllipsis
-    maxLength     : "128"
+  #- rule          : example-limit-db-statement
+  #  action        : spanLimitLength
+  #  scope         : "db.statement"
+  #  actionSubtype : truncateWithEllipsis
+  #  maxLength     : "128"
 
+## Multiport preprocessor rules
+## The following rules will apply to ports 2979, 2980 and 4343
+#'2979, 2980, 4343':
 
-# Multiport preprocessor rules
-
-'2878, 4242':
-  # Add k8s cluster name point tag for all points across multiple ports.
-  - rule    : example-renametag-k8s-cluster
-    action  : addTag
-    tag     : k8scluster
-    value   : eks-dev
-
-'global':
-  # Rename k8s cluster name point tag for all points across all ports.
-  - rule    : example-renametag-k8s-cluster
-    action  : renameTag
-    tag     : k8sclustername
-    value   : k8scluster
-
-  - rule    : example-span-renametag-k8s-cluster
-    action  : spanRenameTag
-    key     : k8sclustername
-    newkey  : k8scluster
+  ## Add k8s cluster name point tag for all points across multiple ports.
+  #- rule    : example-rule-delete-merenametag-k8s-cluster
+  #  action  : addTag
+  #  tag     : k8scluster
+  #  value   : eks-dev

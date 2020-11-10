@@ -42,6 +42,12 @@
       scope   : baz
       match   : ".*"
 
+    - rule    : test-count
+      action  : count
+
+    - rule    : test-count-2
+      action  : count
+      if      : '$value = 0'
 
 '2878':
     # only allow points that contain "foo" substring anywhere in the point line
@@ -310,6 +316,10 @@
       action        : spanAllow
       scope         : spanName
       match         : "^spanName.*$"
+
+    - rule          : test-spanCount
+      action        : spanCount
+      if            : '1 = 1'
 
 '30124':
   - rule: test-spanAllowAnnotations
