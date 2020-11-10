@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
+
 import org.apache.commons.lang.StringUtils;
 
 import javax.annotation.Nonnull;
@@ -19,8 +21,6 @@ import java.util.List;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * A placeholder class for miscellaneous utility methods.
@@ -31,8 +31,7 @@ public abstract class Utils {
 
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
   private static final ResourceBundle buildProps = ResourceBundle.getBundle("build");
-  private static final Pattern patternUuid = Pattern.compile(
-      "(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})");
+  private static final List<Integer> UUID_SEGMENTS = ImmutableList.of(8, 4, 4, 4, 12);
 
   /**
    * A lazy initialization wrapper for {@code Supplier}
@@ -66,8 +65,19 @@ public abstract class Utils {
    * @return uuid string encoded in 8-4-4-4-12 (rfc4122) format.
    */
   public static String addHyphensToUuid(String uuid) {
-    Matcher matcherUuid = patternUuid.matcher(uuid);
-    return matcherUuid.replaceAll("$1-$2-$3-$4-$5");
+    if (uuid.length() != 32) {
+      return uuid;
+    }
+    StringBuilder result = new StringBuilder();
+    int startOffset = 0;
+    for (Integer segmentLength : UUID_SEGMENTS) {
+      result.append(uuid, startOffset, startOffset + segmentLength);
+      if (result.length() < 36) {
+        result.append('-');
+      }
+      startOffset += segmentLength;
+    }
+    return result.toString();
   }
 
   /**

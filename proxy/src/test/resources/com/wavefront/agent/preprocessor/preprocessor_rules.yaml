@@ -296,6 +296,7 @@
       scope         : fooBarBaz
       search        : aaa
       replace       : bbb
+      firstMatchOnly: true
 
     - rule          : test-spanforcelowecase
       action        : spanForceLowercase
