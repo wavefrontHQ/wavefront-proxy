@@ -463,16 +463,16 @@ public class PushAgent extends AbstractAgent {
   @Nullable
   protected CorsConfig getCorsConfig(String port) {
     List<String> ports = proxyConfig.getCorsEnabledPorts();
-    if (ports.size() == 1 && ports.get(0).equals("*") || ports.contains(port)) {
-      CorsConfigBuilder builder = null;
-      if (proxyConfig.getCorsOrigin().size() == 1 && proxyConfig.getCorsOrigin().get(0).equals("*")) {
-        builder = CorsConfigBuilder.forOrigin(proxyConfig.getCorsOrigin().get(0));
+    List<String> corsOrigin = proxyConfig.getCorsOrigin();
+    if (ports.equals(ImmutableList.of("*")) || ports.contains(port)) {
+      CorsConfigBuilder builder;
+      if (corsOrigin.equals(ImmutableList.of("*"))) {
+        builder = CorsConfigBuilder.forOrigin(corsOrigin.get(0));
       } else {
-        builder = CorsConfigBuilder.forOrigins(proxyConfig.getCorsOrigin().toArray(new String[proxyConfig.getCorsOrigin().size()]));
+        builder = CorsConfigBuilder.forOrigins(corsOrigin.toArray(new String[0]));
       }
-      builder.allowedRequestHeaders("Content-Type", "Referer","User-Agent");
+      builder.allowedRequestHeaders("Content-Type", "Referer", "User-Agent");
       builder.allowedRequestMethods(HttpMethod.GET, HttpMethod.POST, HttpMethod.PUT);
-    	  
       if (proxyConfig.isCorsAllowNullOrigin()) {
         builder.allowNullOrigin();
       }

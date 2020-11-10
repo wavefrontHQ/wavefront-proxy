@@ -70,11 +70,11 @@ pushListenerPorts=2878
 ## Path to the optional config file with preprocessor rules (advanced regEx replacements and allow/block lists)
 #preprocessorConfigFile=/etc/wavefront/wavefront-proxy/preprocessor_rules.yaml
 
-# When using the Wavefront or TSDB data formats, the proxy will automatically look for a tag named
-# source= or host= (preferring source=) and treat that as the source/host within Wavefront.
-# customSourceTags is a comma-separated, ordered list of additional tag keys to use if neither
-# source= or host= is present
-customSourceTags=fqdn, hostname
+## When using the Wavefront or TSDB data formats, the proxy will automatically look for a tag named
+## source= or host= (preferring source=) and treat that as the source/host within Wavefront.
+## customSourceTags is a comma-separated, ordered list of additional tag keys to use if neither
+## source= or host= is present
+#customSourceTags=fqdn, hostname
 
 ## The prefix should either be left undefined, or can be any  prefix you want
 ## prepended to all data points coming through this proxy (such as `production`).
@@ -93,9 +93,9 @@ customSourceTags=fqdn, hostname
 #dataPrefillCutoffHours=24
 
 ################################################## ADVANCED SETTINGS ###################################################
-## Number of threads that flush data to the server. If not defined in wavefront.conf it defaults to the
-## number of processors (min 4). Setting this value too large will result in sending batches that are
-## too small to the server and wasting connections. This setting is per listening port.
+## Number of threads that flush data to the server. If not defined in wavefront.conf it defaults to
+## the number of available vCPUs (min 4; max 16). Setting this value too large will result in sending
+## batches that are too small to the server and wasting connections. This setting is per listening port.
 #flushThreads=4
 ## Max points per single flush. Default: 40000.
 #pushFlushMaxPoints=40000
@@ -122,12 +122,15 @@ customSourceTags=fqdn, hostname
 ## Set to 1 when doing data backfills. Default: 10
 #pushRateLimitMaxBurstSeconds=10
 
-## Number of threads retrying failed transmissions. Defaults to the number of processors (min. 4)
-## Buffer files are maxed out at 2G each so increasing the number of retry threads effectively governs
-## the maximum amount of space the proxy will use to buffer points locally
-#retryThreads=4
 ## Location of buffer.* files for saving failed transmissions for retry. Default: /var/spool/wavefront-proxy/buffer
 #buffer=/var/spool/wavefront-proxy/buffer
+## Buffer file partition size, in MB. Setting this value too low may reduce the efficiency of disk
+## space utilization, while setting this value too high will allocate disk space in larger
+## increments. Default: 128
+#bufferShardSize=128
+## Use single-file buffer (legacy functionality). Default: false
+#disableBufferSharding=false
+
 ## For exponential backoff when retry threads are throttled, the base (a in a^b) in seconds.  Default 2.0
 #retryBackoffBaseSeconds=2.0
 ## Whether to split the push batch size when the push is rejected by Wavefront due to rate limit.  Default false.
@@ -151,16 +154,20 @@ customSourceTags=fqdn, hostname
 #gzipCompressionLevel=4
 ## Connect timeout (in milliseconds). Default: 5000 (5s)
 #httpConnectTimeout=5000
-## Request timeout (in milliseconds). Default: 10000 (10s)
+## Socket timeout (in milliseconds). Default: 10000 (10s)
 #httpRequestTimeout=10000
 ## Max number of total connections to keep open (Default: 200)
 #httpMaxConnTotal=100
 ## Max connections per route to keep open (Default: 100)
 #httpMaxConnPerRoute=100
+## Number of times to retry http requests before queueing, set to 0 to disable (default: 3)
+#httpAutoRetries=3
 
 ## Close idle inbound connections after specified time in seconds. Default: 300 (5 minutes)
 #listenerIdleConnectionTimeout=300
-
+## When receiving Wavefront-formatted data without source/host specified, use remote IP address as
+## source instead of trying to resolve the DNS name. Default false.
+#disableRdnsLookup=true
 ## The following setting enables SO_LINGER on listening ports with the specified linger time in seconds (Default: off)
 #soLingerTime=0
 
@@ -181,6 +188,9 @@ customSourceTags=fqdn, hostname
 #blockedHistogramsLoggerName=RawBlockedPoints
 ## Logger name for blocked spans. Default: RawBlockedPoints.
 #blockedSpansLoggerName=RawBlockedPoints
+
+## Discard all received data (debug/performance test mode). If enabled, you will lose received data! Default: false
+#useNoopSender=false
 
 ## Settings for incoming HTTP request authentication. Authentication is done by a token, proxy is looking for
 ## tokens in the querystring ("token=" and "api_key=" parameters) and in request headers ("X-AUTH-TOKEN: ",
@@ -205,6 +215,52 @@ customSourceTags=fqdn, hostname
 #authResponseMaxTtl=86400
 ## Static token that is considered valid for all incoming HTTP requests. Required when authMethod = STATIC_TOKEN.
 #authStaticToken=token1234abcd
+
+## Enables intelligent traffic shaping based on received rate over last 5 minutes. Default: disabled
+#trafficShaping=false
+## Sets the width (in seconds) for the sliding time window which would be used to calculate received
+## traffic rate. Default: 600 (10 minutes)
+#trafficShapingWindowSeconds=600
+## Sets the headroom multiplier to use for traffic shaping when there's backlog. Default: 1.15 (15% headroom)
+#trafficShapingHeadroom=1.15
+
+## Enables CORS for specified comma-delimited list of listening ports. Default: none (CORS disabled)
+#corsEnabledPorts=2879
+## Allowed origin for CORS requests, or '*' to allow everything. Default: none
+#corsOrigin=*
+## Allow 'null' origin for CORS requests. Default: false
+#corsAllowNullOrigin=false
+
+## Enables TLS for specified listening ports (comma-separated list). Use '*' to secure all ports. Defaut: none (TLS disabled)
+#tlsPorts=4443
+## TLS certificate path to use for securing all the ports. X.509 certificate chain file in PEM format.
+#privateCertPath=/etc/wavefront/wavefront-proxy/cert.pem
+## TLS private key path to use for securing all the ports. PKCS#8 private key file in PEM format.
+#privateKeyPath=/etc/wavefront/wavefront-proxy/private_key.pem
+
+########################################### MANAGED HEALTHCHECK ENDPOINT ###############################################
+## Comma-delimited list of ports to function as standalone healthchecks. May be used independently of
+## httpHealthCheckAllPorts parameter. Default: none
+#httpHealthCheckPorts=8880
+## When true, all listeners that support HTTP protocol also respond to healthcheck requests. May be
+## used independently of httpHealthCheckPorts parameter. Default: false
+#httpHealthCheckAllPorts=true
+## Healthcheck's path, for example, '/health'. Default: '/'
+#httpHealthCheckPath=/status
+## Optional Content-Type to use in healthcheck response, for example, 'application/json'. Default: none
+#httpHealthCheckResponseContentType=text/plain
+## HTTP status code for 'pass' health checks. Default: 200
+#httpHealthCheckPassStatusCode=200
+## Optional response body to return with 'pass' health checks. Default: none
+#httpHealthCheckPassResponseBody=good to go!
+## HTTP status code for 'fail' health checks. Default: 503
+#httpHealthCheckFailStatusCode=503
+## Optional response body to return with 'fail' health checks. Default: none
+#httpHealthCheckFailResponseBody=try again later...
+## Enables admin port to control healthcheck status per port. Default: none
+#adminApiListenerPort=8888
+## Remote IPs must match this regex to access admin API
+#adminApiRemoteIpAllowRegex=^.*$
 
 ############################################# LOGS TO METRICS SETTINGS #################################################
 ## Port on which to listen for FileBeat data (Lumberjack protocol). Default: none
@@ -234,8 +290,12 @@ customSourceTags=fqdn, hostname
 ## Custom service name for spans received on customTracingListenerPorts. Defaults to defaultService.
 #customTracingServiceName=defaultService
 
-## Comma-separated list of ports on which to listen on for Jaeger Thrift formatted data. Defaults to none.
+## Comma-separated list of ports on which to listen on for Jaeger Thrift formatted data over TChannel protocol. Defaults to none.
 #traceJaegerListenerPorts=14267
+## Comma-separated list of ports on which to listen on for Jaeger Thrift formatted data over HTTP. Defaults to none.
+#traceJaegerHttpListenerPorts=14268
+## Comma-separated list of ports on which to listen on for Jaeger Protobuf formatted data over gRPC. Defaults to none.
+#traceJaegerGrpcListenerPorts=14250
 ## Custom application name for traces received on Jaeger's traceJaegerListenerPorts.
 #traceJaegerApplicationName=Jaeger
 ## Comma-separated list of ports on which to listen on for Zipkin trace data over HTTP. Defaults to none.
