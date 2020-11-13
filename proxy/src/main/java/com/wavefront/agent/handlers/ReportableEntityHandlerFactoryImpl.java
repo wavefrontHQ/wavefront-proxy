@@ -1,11 +1,12 @@
 package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityPropertiesFactory;
-import com.wavefront.common.logger.SamplingLogger;
 import com.wavefront.api.agent.ValidationConfiguration;
+import com.wavefront.common.Utils;
+import com.wavefront.common.logger.SamplingLogger;
 import com.wavefront.data.ReportableEntityType;
+
 import org.apache.commons.lang.math.NumberUtils;
-import wavefront.report.Histogram;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,6 +16,10 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import wavefront.report.Histogram;
+
+import static com.wavefront.data.ReportableEntityType.TRACE_SPAN_LOGS;
 
 /**
  * Caching factory for {@link ReportableEntityHandler} objects. Makes sure there's only one handler
@@ -107,7 +112,9 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
           return new SpanHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey),
               validationConfig, receivedRateSink, blockedSpansLogger, VALID_SPANS_LOGGER,
-              () -> entityPropertiesFactory.getGlobalProperties().getDropSpansDelayedMinutes());
+              () -> entityPropertiesFactory.getGlobalProperties().getDropSpansDelayedMinutes(),
+              Utils.lazySupplier(() -> getHandler(HandlerKey.of(TRACE_SPAN_LOGS,
+                  handlerKey.getHandle()))));
         case TRACE_SPAN_LOGS:
           return new SpanLogsHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey), receivedRateSink,
