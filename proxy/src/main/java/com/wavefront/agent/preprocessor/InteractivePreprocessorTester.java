@@ -6,6 +6,7 @@ import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
+import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.ingester.HistogramDecoder;
@@ -134,7 +135,7 @@ public class InteractivePreprocessorTester implements InteractiveTester {
     String line = stdin.nextLine();
     if (entityType == ReportableEntityType.TRACE) {
       ReportableEntityHandler<Span, String> handler = factory.getHandler(entityType, port);
-      TracePortUnificationHandler.preprocessAndHandleSpan(line, SPAN_DECODER, handler,
+      SpanUtils.preprocessAndHandleSpan(line, SPAN_DECODER, handler,
           handler::report, preprocessorSupplier, null, x -> true);
     } else {
       ReportableEntityHandler<ReportPoint, String> handler = factory.getHandler(entityType, port);
