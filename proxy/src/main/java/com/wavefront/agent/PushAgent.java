@@ -1196,6 +1196,7 @@ public class PushAgent extends AbstractAgent {
           setFeatureDisabled(BooleanUtils.isTrue(config.getTraceDisabled()));
       entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).
           setFeatureDisabled(BooleanUtils.isTrue(config.getSpanLogsDisabled()));
+      preprocessors.processRemoteRules(ObjectUtils.firstNonNull(config.getPreprocessorRules(), ""));
       validationConfiguration.updateFrom(config.getValidationConfiguration());
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die, so just log it.

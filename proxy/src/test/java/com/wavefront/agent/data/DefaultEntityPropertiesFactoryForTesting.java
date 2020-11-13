@@ -7,6 +7,7 @@ import com.wavefront.data.ReportableEntityType;
  */
 public class DefaultEntityPropertiesFactoryForTesting implements EntityPropertiesFactory {
   private final EntityProperties props = new DefaultEntityPropertiesForTesting();
+  private final GlobalProperties globalProps = new DefaultGlobalPropertiesForTesting();
 
   @Override
   public EntityProperties get(ReportableEntityType entityType) {
@@ -14,7 +15,7 @@ public class DefaultEntityPropertiesFactoryForTesting implements EntityPropertie
   }
 
   @Override
-  public EntityProperties.GlobalProperties getGlobalProperties() {
-    return props.getGlobalProperties();
+  public GlobalProperties getGlobalProperties() {
+    return globalProps;
   }
 }
