@@ -22,5 +22,5 @@ public interface EntityPropertiesFactory {
    *
    * @return global properties container
    */
-  EntityProperties.GlobalProperties getGlobalProperties();
+  GlobalProperties getGlobalProperties();
 }

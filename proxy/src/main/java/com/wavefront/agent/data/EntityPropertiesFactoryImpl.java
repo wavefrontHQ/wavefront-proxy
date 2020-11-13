@@ -26,22 +26,22 @@ import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
 
   private final Map<ReportableEntityType, EntityProperties> wrappers;
-  private final EntityProperties.GlobalProperties global;
+  private final GlobalProperties global;
 
   /**
    * @param proxyConfig proxy settings container
    */
   public EntityPropertiesFactoryImpl(ProxyConfig proxyConfig) {
     global = new GlobalPropertiesImpl(proxyConfig);
-    EntityProperties pointProperties = new PointsProperties(proxyConfig, global);
+    EntityProperties pointProperties = new PointsProperties(proxyConfig);
     wrappers = ImmutableMap.<ReportableEntityType, EntityProperties>builder().
         put(ReportableEntityType.POINT, pointProperties).
         put(ReportableEntityType.DELTA_COUNTER, pointProperties).
-        put(ReportableEntityType.HISTOGRAM, new HistogramsProperties(proxyConfig, global)).
-        put(ReportableEntityType.SOURCE_TAG, new SourceTagsProperties(proxyConfig, global)).
-        put(ReportableEntityType.TRACE, new SpansProperties(proxyConfig, global)).
-        put(ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsProperties(proxyConfig, global)).
-        put(ReportableEntityType.EVENT, new EventsProperties(proxyConfig, global)).build();
+        put(ReportableEntityType.HISTOGRAM, new HistogramsProperties(proxyConfig)).
+        put(ReportableEntityType.SOURCE_TAG, new SourceTagsProperties(proxyConfig)).
+        put(ReportableEntityType.TRACE, new SpansProperties(proxyConfig)).
+        put(ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsProperties(proxyConfig)).
+        put(ReportableEntityType.EVENT, new EventsProperties(proxyConfig)).build();
   }
 
   @Override
@@ -50,65 +50,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   }
 
   @Override
-  public EntityProperties.GlobalProperties getGlobalProperties() {
+  public GlobalProperties getGlobalProperties() {
     return global;
-  }
-
-  private static final class GlobalPropertiesImpl implements EntityProperties.GlobalProperties {
-    private final ProxyConfig wrapped;
-    private Double retryBackoffBaseSeconds = null;
-    private short histogramStorageAccuracy = 32;
-    private Double traceSamplingRate = null;
-    private Integer dropSpansDelayedMinutes = null;
-
-    GlobalPropertiesImpl(ProxyConfig wrapped) {
-      this.wrapped = wrapped;
-      reportSettingAsGauge(this::getRetryBackoffBaseSeconds, "dynamic.retryBackoffBaseSeconds");
-    }
-
-    @Override
-    public double getRetryBackoffBaseSeconds() {
-      return firstNonNull(retryBackoffBaseSeconds, wrapped.getRetryBackoffBaseSeconds());
-    }
-
-    @Override
-    public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {
-      this.retryBackoffBaseSeconds = retryBackoffBaseSeconds;
-    }
-
-    @Override
-    public short getHistogramStorageAccuracy() {
-      return histogramStorageAccuracy;
-    }
-
-    @Override
-    public void setHistogramStorageAccuracy(short histogramStorageAccuracy) {
-      this.histogramStorageAccuracy = histogramStorageAccuracy;
-    }
-
-    @Override
-    public double getTraceSamplingRate() {
-      if (traceSamplingRate != null) {
-        // use the minimum of backend provided and local proxy configured sampling rates.
-        return Math.min(traceSamplingRate, wrapped.getTraceSamplingRate());
-      } else {
-        return wrapped.getTraceSamplingRate();
-      }
-    }
-
-    public void setTraceSamplingRate(@Nullable Double traceSamplingRate) {
-      this.traceSamplingRate = traceSamplingRate;
-    }
-
-    @Override
-    public Integer getDropSpansDelayedMinutes() {
-      return dropSpansDelayedMinutes;
-    }
-
-    @Override
-    public void setDropSpansDelayedMinutes(@Nullable Integer dropSpansDelayedMinutes) {
-      this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
-    }
   }
 
   /**
@@ -117,16 +60,14 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   private static abstract class AbstractEntityProperties implements EntityProperties {
     private Integer itemsPerBatch = null;
     protected final ProxyConfig wrapped;
-    protected final GlobalProperties globalProperties;
     private final RecyclableRateLimiter rateLimiter;
     private final LoadingCache<String, AtomicInteger> backlogSizeCache = Caffeine.newBuilder().
         expireAfterAccess(10, TimeUnit.SECONDS).build(x -> new AtomicInteger());
     private final LoadingCache<String, AtomicLong> receivedRateCache = Caffeine.newBuilder().
         expireAfterAccess(10, TimeUnit.SECONDS).build(x -> new AtomicLong());
 
-    public AbstractEntityProperties(ProxyConfig wrapped, GlobalProperties globalProperties) {
+    public AbstractEntityProperties(ProxyConfig wrapped) {
       this.wrapped = wrapped;
-      this.globalProperties = globalProperties;
       this.rateLimiter = getRateLimit() > 0 ?
           new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.create(
               getRateLimit(), getRateLimitMaxBurstSeconds()), getRateLimiterName()) :
@@ -148,11 +89,6 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     @Override
     public boolean isSplitPushWhenRateLimited() {
       return wrapped.isSplitPushWhenRateLimited();
-    }
-
-    @Override
-    public GlobalProperties getGlobalProperties() {
-      return globalProperties;
     }
 
     @Override
@@ -217,8 +153,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
    * Base class for entity types that do not require separate subscriptions.
    */
   private static abstract class CoreEntityProperties extends AbstractEntityProperties {
-    public CoreEntityProperties(ProxyConfig wrapped, GlobalProperties globalProperties) {
-      super(wrapped, globalProperties);
+    public CoreEntityProperties(ProxyConfig wrapped) {
+      super(wrapped);
     }
 
     @Override
@@ -239,9 +175,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   private static abstract class SubscriptionBasedEntityProperties extends AbstractEntityProperties {
     private boolean featureDisabled = false;
 
-    public SubscriptionBasedEntityProperties(ProxyConfig wrapped,
-                                             GlobalProperties globalProperties) {
-      super(wrapped, globalProperties);
+    public SubscriptionBasedEntityProperties(ProxyConfig wrapped) {
+      super(wrapped);
     }
 
     @Override
@@ -259,8 +194,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
    * Runtime properties wrapper for points
    */
   private static final class PointsProperties extends CoreEntityProperties {
-    public PointsProperties(ProxyConfig wrapped, GlobalProperties globalProperties) {
-      super(wrapped, globalProperties);
+    public PointsProperties(ProxyConfig wrapped) {
+      super(wrapped);
       reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxPoints");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
@@ -285,8 +220,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
    * Runtime properties wrapper for histograms
    */
   private static final class HistogramsProperties extends SubscriptionBasedEntityProperties {
-    public HistogramsProperties(ProxyConfig wrapped, GlobalProperties globalProperties) {
-      super(wrapped, globalProperties);
+    public HistogramsProperties(ProxyConfig wrapped) {
+      super(wrapped);
       reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxHistograms");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
@@ -311,8 +246,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
    * Runtime properties wrapper for source tags
    */
   private static final class SourceTagsProperties extends CoreEntityProperties {
-    public SourceTagsProperties(ProxyConfig wrapped, GlobalProperties globalProperties) {
-      super(wrapped, globalProperties);
+    public SourceTagsProperties(ProxyConfig wrapped) {
+      super(wrapped);
       reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxSourceTags");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitSourceTags");
     }
@@ -347,8 +282,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
    * Runtime properties wrapper for spans
    */
   private static final class SpansProperties extends SubscriptionBasedEntityProperties {
-    public SpansProperties(ProxyConfig wrapped, GlobalProperties globalProperties) {
-      super(wrapped, globalProperties);
+    public SpansProperties(ProxyConfig wrapped) {
+      super(wrapped);
       reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxSpans");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
@@ -373,8 +308,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
    * Runtime properties wrapper for span logs
    */
   private static final class SpanLogsProperties extends SubscriptionBasedEntityProperties {
-    public SpanLogsProperties(ProxyConfig wrapped, GlobalProperties globalProperties) {
-      super(wrapped, globalProperties);
+    public SpanLogsProperties(ProxyConfig wrapped) {
+      super(wrapped);
       reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxSpanLogs");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimit");
     }
@@ -399,8 +334,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
    * Runtime properties wrapper for events
    */
   private static final class EventsProperties extends CoreEntityProperties {
-    public EventsProperties(ProxyConfig wrapped, GlobalProperties globalProperties) {
-      super(wrapped, globalProperties);
+    public EventsProperties(ProxyConfig wrapped) {
+      super(wrapped);
       reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxEvents");
       reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitEvents");
     }

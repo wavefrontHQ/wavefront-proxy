@@ -9,10 +9,12 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import org.apache.commons.codec.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.yaml.snakeyaml.Yaml;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -87,6 +89,7 @@ public class PreprocessorConfigManager {
   private volatile long systemPreprocessorsTs = Long.MIN_VALUE;
   private volatile long userPreprocessorsTs;
   private volatile long lastBuild = Long.MIN_VALUE;
+  private String lastProcessedRules = "";
   
   @VisibleForTesting
   int totalInvalidRules = 0;
@@ -182,6 +185,14 @@ public class PreprocessorConfigManager {
       logger.log(Level.SEVERE, "Unable to load preprocessor rules", e);
       failedConfigReloads.inc();
     }
+  }
+
+  public void processRemoteRules(@Nonnull String rules) {
+     if (!rules.equals(lastProcessedRules)) {
+       lastProcessedRules = rules;
+       logger.info("Preprocessor rules received from remote, processing");
+       loadFromStream(IOUtils.toInputStream(rules, Charsets.UTF_8));
+     }
   }
 
   public void loadFile(String filename) throws FileNotFoundException {

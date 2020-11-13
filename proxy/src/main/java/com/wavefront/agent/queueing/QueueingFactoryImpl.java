@@ -71,7 +71,8 @@ public class QueueingFactoryImpl implements QueueingFactory {
     return (QueueProcessor<T>) queueProcessors.computeIfAbsent(handlerKey, x -> new TreeMap<>()).
         computeIfAbsent(threadNum, x -> new QueueProcessor<>(handlerKey, taskQueue,
             getTaskInjector(handlerKey, taskQueue), executorService,
-            entityPropsFactory.get(handlerKey.getEntityType())));
+            entityPropsFactory.get(handlerKey.getEntityType()),
+            entityPropsFactory.getGlobalProperties()));
   }
 
   @SuppressWarnings("unchecked")

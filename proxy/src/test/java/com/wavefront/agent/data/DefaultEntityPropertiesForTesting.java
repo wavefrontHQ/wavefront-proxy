@@ -9,7 +9,6 @@ import javax.annotation.Nullable;
  * @author vasily@wavefront.com
  */
 public class DefaultEntityPropertiesForTesting implements EntityProperties {
-  private final GlobalProperties global = new GlobalPropertiesForTestingImpl();
 
   @Override
   public int getItemsPerBatchOriginal() {
@@ -97,47 +96,4 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   public void reportReceivedRate(String handle, long receivedRate) {
   }
 
-  @Override
-  public GlobalProperties getGlobalProperties() {
-    return global;
-  }
-
-  private static class GlobalPropertiesForTestingImpl implements GlobalProperties {
-
-    @Override
-    public double getRetryBackoffBaseSeconds() {
-      return DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
-    }
-
-    @Override
-    public void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds) {
-    }
-
-    @Override
-    public short getHistogramStorageAccuracy() {
-      return 32;
-    }
-
-    @Override
-    public void setHistogramStorageAccuracy(short histogramStorageAccuracy) {
-    }
-
-    @Override
-    public double getTraceSamplingRate() {
-      return 1.0d;
-    }
-
-    @Override
-    public void setTraceSamplingRate(Double traceSamplingRate) {
-    }
-
-    @Override
-    public Integer getDropSpansDelayedMinutes() {
-      return null;
-    }
-
-    @Override
-    public void setDropSpansDelayedMinutes(Integer dropSpansDelayedMinutes) {
-    }
-  }
 }
