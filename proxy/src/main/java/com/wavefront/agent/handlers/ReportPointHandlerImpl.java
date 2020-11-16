@@ -34,6 +34,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   final ValidationConfiguration validationConfig;
   final Function<Histogram, Histogram> recompressor;
   final com.yammer.metrics.core.Histogram receivedPointLag;
+  final com.yammer.metrics.core.Histogram receivedTagCount;
   final Supplier<Counter> discardedCounterSupplier;
 
   /**
@@ -67,12 +68,15 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     MetricsRegistry registry = setupMetrics ? Metrics.defaultRegistry() : LOCAL_REGISTRY;
     this.receivedPointLag = registry.newHistogram(new MetricName(handlerKey.toString() +
         ".received", "", "lag"), false);
+    this.receivedTagCount = registry.newHistogram(new MetricName(handlerKey.toString() +
+        ".received", "", "tagCount"), false);
     this.discardedCounterSupplier = Utils.lazySupplier(() ->
         Metrics.newCounter(new MetricName(handlerKey.toString(), "", "discarded")));
   }
 
   @Override
   void reportInternal(ReportPoint point) {
+    receivedTagCount.update(point.getAnnotations().size());
     try {
       validatePoint(point, validationConfig);
     } catch (DeltaCounterValueException e) {

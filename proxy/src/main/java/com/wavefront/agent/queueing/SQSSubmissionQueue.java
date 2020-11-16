@@ -171,11 +171,6 @@ public class SQSSubmissionQueue<T extends DataSubmissionTask<T>> implements Task
         "consider using size instead");
   }
 
-  @Override
-  public String getName() {
-    return queueUrl;
-  }
-
   @NotNull
   @Override
   public Iterator<T> iterator() {

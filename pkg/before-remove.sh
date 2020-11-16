@@ -1,10 +1,12 @@
 #!/bin/bash -e
 
+if [[ -f /etc/photon-release ]]; then
+  exit 0
+fi
+
 service_name="wavefront-proxy"
 wavefront_dir="/opt/wavefront"
 jre_dir="$wavefront_dir/$service_name/proxy-jre"
-
-#service wavefront-proxy stop || true
 
 # rpm passes "0", "1" or "2" as a command line argument - due to the order in which scripts are executed by rpm
 # (post-install for new version first and only then before-remove for the old version), we can only stop the

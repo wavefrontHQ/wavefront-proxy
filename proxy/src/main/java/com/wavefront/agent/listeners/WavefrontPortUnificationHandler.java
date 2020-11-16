@@ -50,8 +50,8 @@ import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.handleSpanLogs;
-import static com.wavefront.agent.listeners.tracing.TracePortUnificationHandler.preprocessAndHandleSpan;
+import static com.wavefront.agent.listeners.tracing.SpanUtils.handleSpanLogs;
+import static com.wavefront.agent.listeners.tracing.SpanUtils.preprocessAndHandleSpan;
 
 /**
  * Process incoming Wavefront-formatted data. Also allows sourceTag formatted data and

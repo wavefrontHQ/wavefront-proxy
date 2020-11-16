@@ -1,6 +1,6 @@
 package com.wavefront.agent.histogram;
 
-import com.wavefront.common.MessageDedupingLogger;
+import com.wavefront.common.logger.MessageDedupingLogger;
 import com.wavefront.common.TimeProvider;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.Accumulator;

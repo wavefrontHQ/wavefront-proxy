@@ -223,7 +223,8 @@ public class PushAgent extends AbstractAgent {
           proxyConfig.isPurgeBuffer());
     } else {
       taskQueueFactory = new TaskQueueFactoryImpl(proxyConfig.getBufferFile(),
-          proxyConfig.isPurgeBuffer());
+          proxyConfig.isPurgeBuffer(), proxyConfig.isDisableBufferSharding(),
+          proxyConfig.getBufferShardSize());
     }
 
     remoteHostAnnotator = new SharedGraphiteHostAnnotator(proxyConfig.getCustomSourceTags(),
@@ -462,16 +463,16 @@ public class PushAgent extends AbstractAgent {
   @Nullable
   protected CorsConfig getCorsConfig(String port) {
     List<String> ports = proxyConfig.getCorsEnabledPorts();
-    if (ports.size() == 1 && ports.get(0).equals("*") || ports.contains(port)) {
-      CorsConfigBuilder builder = null;
-      if (proxyConfig.getCorsOrigin().size() == 1 && proxyConfig.getCorsOrigin().get(0).equals("*")) {
-        builder = CorsConfigBuilder.forOrigin(proxyConfig.getCorsOrigin().get(0));
+    List<String> corsOrigin = proxyConfig.getCorsOrigin();
+    if (ports.equals(ImmutableList.of("*")) || ports.contains(port)) {
+      CorsConfigBuilder builder;
+      if (corsOrigin.equals(ImmutableList.of("*"))) {
+        builder = CorsConfigBuilder.forOrigin(corsOrigin.get(0));
       } else {
-        builder = CorsConfigBuilder.forOrigins(proxyConfig.getCorsOrigin().toArray(new String[proxyConfig.getCorsOrigin().size()]));
+        builder = CorsConfigBuilder.forOrigins(corsOrigin.toArray(new String[0]));
       }
-      builder.allowedRequestHeaders("Content-Type", "Referer","User-Agent");
+      builder.allowedRequestHeaders("Content-Type", "Referer", "User-Agent");
       builder.allowedRequestMethods(HttpMethod.GET, HttpMethod.POST, HttpMethod.PUT);
-    	  
       if (proxyConfig.isCorsAllowNullOrigin()) {
         builder.allowNullOrigin();
       }
@@ -1195,10 +1196,16 @@ public class PushAgent extends AbstractAgent {
           setFeatureDisabled(BooleanUtils.isTrue(config.getTraceDisabled()));
       entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).
           setFeatureDisabled(BooleanUtils.isTrue(config.getSpanLogsDisabled()));
+      preprocessors.processRemoteRules(ObjectUtils.firstNonNull(config.getPreprocessorRules(), ""));
       validationConfiguration.updateFrom(config.getValidationConfiguration());
+    } catch (RuntimeException e) {
+      // cannot throw or else configuration update thread would die, so just log it.
+      logger.log(Level.WARNING, "Error during configuration update", e);
+    }
+    try {
       super.processConfiguration(config);
     } catch (RuntimeException e) {
-      // cannot throw or else configuration update thread would die.
+      // cannot throw or else configuration update thread would die. it's ok to ignore these.
     }
   }
 
@@ -1232,7 +1239,8 @@ public class PushAgent extends AbstractAgent {
             logger.warning(entityType.toCapitalizedString() + " rate limit is no longer " +
                 "enforced by remote");
           } else {
-            if (proxyCheckinScheduler.getSuccessfulCheckinCount() > 1) {
+            if (proxyCheckinScheduler != null &&
+                proxyCheckinScheduler.getSuccessfulCheckinCount() > 1) {
               // this will skip printing this message upon init
               logger.warning(entityType.toCapitalizedString() + " rate limit restored to " +
                   rateLimit + entityType.getRateUnit());

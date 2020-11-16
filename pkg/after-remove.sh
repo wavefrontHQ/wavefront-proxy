@@ -1,5 +1,9 @@
 #!/bin/bash -e
 
+if [[ -f /etc/photon-release ]]; then
+  exit 0
+fi
+
 # Remove startup entries for wavefront-proxy if operation is un-install.
 if [[ "$1" == "0" ]] || [[ "$1" == "remove" ]] || [[ "$1" == "purge" ]]; then
 	if [[ -f /etc/debian_version ]]; then

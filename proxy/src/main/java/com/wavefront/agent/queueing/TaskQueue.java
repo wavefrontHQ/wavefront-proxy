@@ -73,12 +73,4 @@ public interface TaskQueue<T extends DataSubmissionTask<T>> extends Iterable<T> 
    */
   @Nullable
   Long getAvailableBytes();
-
-  /**
-   * Returns the unique queue name/identifier, can be anything, like file path name for
-   * file-based queues.
-   *
-   * @return queue name.
-   */
-  String getName();
 }

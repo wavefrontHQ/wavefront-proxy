@@ -42,7 +42,6 @@
       scope   : baz
       match   : ".*"
 
-
 '2878':
     # only allow points that contain "foo" substring anywhere in the point line
     - rule    : test-allow-line
@@ -126,6 +125,12 @@
       search  : "^(some).*"
       replace : "$1"
 
+    - rule    : test-count
+      action  : count
+
+    - rule    : test-count-2
+      action  : count
+      if      : '$value = 0'
 
 '4242':
 
@@ -291,6 +296,7 @@
       scope         : fooBarBaz
       search        : aaa
       replace       : bbb
+      firstMatchOnly: true
 
     - rule          : test-spanforcelowecase
       action        : spanForceLowercase
@@ -328,6 +334,10 @@
       application: "[a-zA-Z]{0,10}"
       key2: "bar[0-9]{1,3}"
       version: "[0-9\\.]{1,10}"
+
+  - rule          : test-spanCount
+    action        : spanCount
+    if            : '1 = 1'
 
 '30126':
     - rule : test-v2Predicate

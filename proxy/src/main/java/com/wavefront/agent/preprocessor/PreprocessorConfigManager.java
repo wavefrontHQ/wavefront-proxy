@@ -9,6 +9,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 
+import org.apache.commons.codec.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.yaml.snakeyaml.Yaml;
@@ -87,6 +88,7 @@ public class PreprocessorConfigManager {
   private volatile long systemPreprocessorsTs = Long.MIN_VALUE;
   private volatile long userPreprocessorsTs;
   private volatile long lastBuild = Long.MIN_VALUE;
+  private String lastProcessedRules = "";
   
   @VisibleForTesting
   int totalInvalidRules = 0;
@@ -184,6 +186,14 @@ public class PreprocessorConfigManager {
     }
   }
 
+  public void processRemoteRules(@Nonnull String rules) {
+     if (!rules.equals(lastProcessedRules)) {
+       lastProcessedRules = rules;
+       logger.info("Preprocessor rules received from remote, processing");
+       loadFromStream(IOUtils.toInputStream(rules, Charsets.UTF_8));
+     }
+  }
+
   public void loadFile(String filename) throws FileNotFoundException {
     loadFromStream(new FileInputStream(new File(filename)));
   }
@@ -263,7 +273,8 @@ public class PreprocessorConfigManager {
                         "' is not valid or cannot be applied to pointLine");
                 }
               } else {
-                switch (Objects.requireNonNull(getString(rule, ACTION))) {
+                String action = Objects.requireNonNull(getString(rule, ACTION));
+                switch (action) {
 
                   // Rules for ReportPoint objects
                   case "replaceRegex":
@@ -343,7 +354,14 @@ public class PreprocessorConfigManager {
                             getString(rule, MATCH), Predicates.getPredicate(rule),
                             ruleMetrics));
                     break;
+                  case "count":
+                    allowArguments(rule, SCOPE, IF);
+                    portMap.get(strPort).forReportPoint().addTransformer(
+                        new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
+                    break;
                   case "blacklistRegex":
+                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
+                        "), use 'action: block' instead!");
                   case "block":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap.get(strPort).forReportPoint().addFilter(
@@ -352,6 +370,8 @@ public class PreprocessorConfigManager {
                             ruleMetrics));
                     break;
                   case "whitelistRegex":
+                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
+                        "), use 'action: allow' instead!");
                   case "allow":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap.get(strPort).forReportPoint().addFilter(
@@ -404,6 +424,8 @@ public class PreprocessorConfigManager {
                     break;
                   case "spanWhitelistAnnotation":
                   case "spanWhitelistTag":
+                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
+                        "), use 'action: spanAllowAnnotation' instead!");
                   case "spanAllowAnnotation":
                   case "spanAllowTag":
                     allowArguments(rule, ALLOW, IF);
@@ -453,7 +475,14 @@ public class PreprocessorConfigManager {
                             getString(rule, MATCH), getBoolean(rule, FIRST_MATCH_ONLY, false),
                             Predicates.getPredicate(rule), ruleMetrics));
                     break;
+                  case "spanCount":
+                    allowArguments(rule, SCOPE, IF);
+                    portMap.get(strPort).forSpan().addTransformer(
+                        new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
+                    break;
                   case "spanBlacklistRegex":
+                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
+                        "), use 'action: spanBlock' instead!");
                   case "spanBlock":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap.get(strPort).forSpan().addFilter(
@@ -463,6 +492,8 @@ public class PreprocessorConfigManager {
                             ruleMetrics));
                     break;
                   case "spanWhitelistRegex":
+                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
+                        "), use 'action: spanAllow' instead!");
                   case "spanAllow":
                     allowArguments(rule, SCOPE, MATCH, IF);
                     portMap.get(strPort).forSpan().addFilter(

@@ -3,6 +3,7 @@ package com.wavefront.agent.queueing;
 import com.google.common.base.Suppliers;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.wavefront.agent.data.EntityProperties;
+import com.wavefront.agent.data.GlobalProperties;
 import com.wavefront.common.Managed;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.TaskInjector;
@@ -30,6 +31,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
   protected final HandlerKey handlerKey;
   protected final TaskQueue<T> taskQueue;
   protected final ScheduledExecutorService scheduler;
+  private final GlobalProperties globalProps;
   protected final TaskInjector<T> taskInjector;
   protected final EntityProperties runtimeProperties;
   protected final RecyclableRateLimiter rateLimiter;
@@ -44,18 +46,21 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
    * @param taskQueue          backing queue
    * @param taskInjector       injects members into task objects after deserialization
    * @param entityProps        container for mutable proxy settings.
+   * @param globalProps        container for mutable global proxy settings.
    */
   public QueueProcessor(final HandlerKey handlerKey,
                         @Nonnull final TaskQueue<T> taskQueue,
                         final TaskInjector<T> taskInjector,
                         final ScheduledExecutorService scheduler,
-                        final EntityProperties entityProps) {
+                        final EntityProperties entityProps,
+                        final GlobalProperties globalProps) {
     this.handlerKey = handlerKey;
     this.taskQueue = taskQueue;
     this.taskInjector = taskInjector;
     this.runtimeProperties = entityProps;
     this.rateLimiter = entityProps.getRateLimiter();
     this.scheduler = scheduler;
+    this.globalProps = globalProps;
   }
 
   @Override
@@ -136,7 +141,7 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
           backoffExponent = 1;
         }
         nextFlush = (long) ((Math.random() + 1.0) * runtimeProperties.getPushFlushInterval() *
-            Math.pow(runtimeProperties.getGlobalProperties().getRetryBackoffBaseSeconds(),
+            Math.pow(globalProps.getRetryBackoffBaseSeconds(),
                 backoffExponent) * schedulerTimingFactor);
         logger.fine("[" + handlerKey.getHandle() + "] Next run scheduled in " + nextFlush + "ms");
       }

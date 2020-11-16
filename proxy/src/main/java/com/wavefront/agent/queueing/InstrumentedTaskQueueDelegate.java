@@ -12,7 +12,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
@@ -24,10 +23,9 @@ import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
  *
  * @author vasily@wavefront.com
  */
-public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
-    implements TaskQueue<T> {
+public class InstrumentedTaskQueueDelegate<T extends DataSubmissionTask<T>> implements TaskQueue<T> {
   private static final Logger log =
-      Logger.getLogger(SynchronizedTaskQueueWithMetrics.class.getCanonicalName());
+      Logger.getLogger(InstrumentedTaskQueueDelegate.class.getCanonicalName());
 
   private final TaskQueue<T> delegate;
   private volatile T head;
@@ -39,19 +37,16 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
   private final Counter tasksRemovedCounter;
   private final Counter itemsRemovedCounter;
 
-  // maintain a fair lock on the queue
-  private final ReentrantLock queueLock = new ReentrantLock(true);
-
   /**
    * @param delegate     delegate {@link TaskQueue<T>}.
    * @param metricPrefix prefix for metric names (default: "buffer")
    * @param metricTags   point tags for metrics (default: none)
    * @param entityType   entity type (default: points)
    */
-  public SynchronizedTaskQueueWithMetrics(TaskQueue<T> delegate,
-                                          @Nullable String metricPrefix,
-                                          @Nullable Map<String, String> metricTags,
-                                          @Nullable ReportableEntityType entityType) {
+  public InstrumentedTaskQueueDelegate(TaskQueue<T> delegate,
+                                       @Nullable String metricPrefix,
+                                       @Nullable Map<String, String> metricTags,
+                                       @Nullable ReportableEntityType entityType) {
     this.delegate = delegate;
     String entityName = entityType == null ? "points" : entityType.toString();
     this.prefix = firstNonNull(metricPrefix, "buffer");
@@ -67,7 +62,6 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
 
   @Override
   public T peek() {
-    queueLock.lock();
     try {
       if (this.head != null) return this.head;
       this.head = delegate.peek();
@@ -82,40 +76,29 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
       } else {
         throw e;
       }
-    } finally {
-      queueLock.unlock();
     }
   }
 
   @Override
   public void add(@Nonnull T t) throws IOException {
-    queueLock.lock();
-    try {
-      delegate.add(t);
-      tasksAddedCounter.inc();
-      itemsAddedCounter.inc(t.weight());
-    } finally {
-      queueLock.unlock();
-    }
+    delegate.add(t);
+    tasksAddedCounter.inc();
+    itemsAddedCounter.inc(t.weight());
   }
 
   @Override
   public void clear() {
-    queueLock.lock();
     try {
-      delegate.clear();
       this.head = null;
+      delegate.clear();
     } catch (IOException e) {
       Metrics.newCounter(new TaggedMetricName(prefix, "failures", tags)).inc();
       log.severe("I/O error clearing queue: " + e.getMessage());
-    } finally {
-      queueLock.unlock();
     }
   }
 
   @Override
   public void remove() {
-    queueLock.lock();
     try {
       T t = this.head == null ? delegate.peek() : head;
       long size = t == null ? 0 : t.weight();
@@ -126,8 +109,6 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
     } catch (IOException e) {
       Metrics.newCounter(new TaggedMetricName(prefix, "failures", tags)).inc();
       log.severe("I/O error removing task from the queue: " + e.getMessage());
-    } finally {
-      queueLock.unlock();
     }
   }
 
@@ -151,11 +132,6 @@ public class SynchronizedTaskQueueWithMetrics<T extends DataSubmissionTask<T>>
   @Override
   public Long getAvailableBytes()  {
     return delegate.getAvailableBytes();
-  }
-
-  @Override
-  public String getName() {
-    return delegate.getName();
   }
 
   @Nonnull
