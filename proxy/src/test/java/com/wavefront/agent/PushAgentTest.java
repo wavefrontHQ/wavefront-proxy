@@ -12,12 +12,14 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.SenderTask;
 import com.wavefront.agent.handlers.SenderTaskFactory;
+import com.wavefront.agent.preprocessor.AgentConfigurationTest;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
 import com.wavefront.agent.preprocessor.SpanReplaceRegexTransformer;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.agent.tls.NaiveTrustManager;
+import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 import com.wavefront.dto.SourceTag;
@@ -1781,5 +1783,19 @@ public class PushAgentTest {
 
   private String escapeSpanData(String spanData) {
     return spanData.replace("\"", "\\\"").replace("\n", "\\n");
+  }
+
+  @Test
+  public void testIgnoreBackendSpanHeadSamplingPercent() {
+    proxy.proxyConfig.backendSpanHeadSamplingPercentIgnored = true;
+    proxy.proxyConfig.traceSamplingRate = 1.0;
+    AgentConfiguration agentConfiguration = new AgentConfiguration();
+    agentConfiguration.setSpanSamplingRate(0.5);
+    proxy.processConfiguration(agentConfiguration);
+    assertEquals(1.0, proxy.entityProps.getGlobalProperties().getTraceSamplingRate(), 1e-3);
+
+    proxy.proxyConfig.backendSpanHeadSamplingPercentIgnored = false;
+    proxy.processConfiguration(agentConfiguration);
+    assertEquals(0.5, proxy.entityProps.getGlobalProperties().getTraceSamplingRate(), 1e-3);
   }
 }
