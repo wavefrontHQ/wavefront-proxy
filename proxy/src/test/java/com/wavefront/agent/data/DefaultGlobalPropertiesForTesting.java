@@ -1,5 +1,9 @@
 package com.wavefront.agent.data;
 
+import com.wavefront.api.agent.SpanSamplingPolicy;
+
+import java.util.List;
+
 import javax.annotation.Nullable;
 
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
@@ -43,5 +47,14 @@ public class DefaultGlobalPropertiesForTesting implements GlobalProperties {
 
   @Override
   public void setDropSpansDelayedMinutes(Integer dropSpansDelayedMinutes) {
+  }
+
+  @Override
+  public List<SpanSamplingPolicy> getActiveSpanSamplingPolicies() {
+    return null;
+  }
+
+  @Override
+  public void setActiveSpanSamplingPolicies(@Nullable List<SpanSamplingPolicy> activeSpanSamplingPolicies) {
   }
 }

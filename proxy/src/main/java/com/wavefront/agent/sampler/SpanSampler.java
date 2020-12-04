@@ -1,24 +1,36 @@
 package com.wavefront.agent.sampler;
 
-import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_KEY;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
-import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
+import com.google.common.annotations.VisibleForTesting;
 
+import com.github.benmanes.caffeine.cache.CacheLoader;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.wavefront.api.agent.SpanSamplingPolicy;
+import com.wavefront.predicates.ExpressionSyntaxException;
+import com.wavefront.predicates.Predicates;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.core.Counter;
+
+import org.checkerframework.checker.nullness.qual.NonNull;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
-import javax.annotation.Nullable;
-
-import java.text.NumberFormat;
-import java.text.ParseException;
-import java.util.List;
-import java.util.UUID;
-import java.util.logging.Level;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
+import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 
 /**
  * Sampler that takes a {@link Span} as input and delegates to a {@link Sampler} when evaluating the
@@ -27,18 +39,45 @@ import java.util.logging.Level;
  * @author Han Zhang (zhanghan@vmware.com)
  */
 public class SpanSampler {
+  private static final int EXPIRE_AFTER_ACCESS_SECONDS = 600;
+  private static final String SPAN_SAMPLING_POLICY_TAG = "_sampledByPolicy";
+  private static final int POLICY_BASED_SAMPLING_MOD_FACTOR = 100;
+  private static final Logger logger = Logger.getLogger(SpanSampler.class.getCanonicalName());
   private final Sampler delegate;
   private final boolean alwaysSampleErrors;
+  private final LoadingCache<String, Predicate<Span>> spanPredicateCache = Caffeine.newBuilder().expireAfterAccess(EXPIRE_AFTER_ACCESS_SECONDS,
+      TimeUnit.SECONDS).build(new CacheLoader<String, Predicate<Span>>() {
+    @Override
+    @Nullable
+    public Predicate<Span> load(@NonNull String key) {
+      try {
+        return Predicates.fromPredicateEvalExpression(key);
+      } catch (ExpressionSyntaxException ex) {
+        logger.severe("Policy expression " + key + " is invalid: " + ex.getMessage());
+        return null;
+      }
+    }
+  });
+  private final Supplier<List<SpanSamplingPolicy>> activeSpanSamplingPoliciesSupplier;
+
+  @VisibleForTesting
+  public SpanSampler(Sampler delegate, boolean alwaysSampleErrors) {
+    this(delegate, alwaysSampleErrors, () -> null);
+  }
 
   /**
    * Creates a new instance from a {@Sampler} delegate.
    *
-   * @param delegate            The delegate {@Sampler}.
-   * @param alwaysSampleErrors  Whether to always sample spans that have error tag set to true.
+   * @param delegate                           The delegate {@Sampler}.
+   * @param alwaysSampleErrors                 Whether to always sample spans that have error tag
+   *                                           set to true.
+   * @param activeSpanSamplingPoliciesSupplier Active span sampling policies to be applied.
    */
-  public SpanSampler(Sampler delegate, boolean alwaysSampleErrors) {
+  public SpanSampler(Sampler delegate, boolean alwaysSampleErrors,
+                     @Nonnull Supplier<List<SpanSamplingPolicy>> activeSpanSamplingPoliciesSupplier) {
     this.delegate = delegate;
     this.alwaysSampleErrors = alwaysSampleErrors;
+    this.activeSpanSamplingPoliciesSupplier = activeSpanSamplingPoliciesSupplier;
   }
 
   /**
@@ -62,6 +101,29 @@ public class SpanSampler {
   public boolean sample(Span span, @Nullable Counter discarded) {
     if (isForceSampled(span)) {
       return true;
+    }
+    // Policy based span sampling
+    List<SpanSamplingPolicy> activeSpanSamplingPolicies = activeSpanSamplingPoliciesSupplier.get();
+    if (activeSpanSamplingPolicies != null) {
+      int samplingPercent = 0;
+      String policyId = null;
+      for (SpanSamplingPolicy policy : activeSpanSamplingPolicies) {
+        Predicate<Span> spanPredicate = spanPredicateCache.get(policy.getExpression());
+        if (spanPredicate != null && spanPredicate.test(span) &&
+            policy.getSamplingPercent() > samplingPercent) {
+          samplingPercent = policy.getSamplingPercent();
+          policyId = policy.getPolicyId();
+        }
+      }
+      if (samplingPercent > 0 &&
+          Math.abs(UUID.fromString(span.getTraceId()).getLeastSignificantBits()) %
+              POLICY_BASED_SAMPLING_MOD_FACTOR <= samplingPercent) {
+        if (span.getAnnotations() == null) {
+          span.setAnnotations(new ArrayList<>());
+        }
+        span.getAnnotations().add(new Annotation(SPAN_SAMPLING_POLICY_TAG, policyId));
+        return true;
+      }
     }
     if (delegate.sample(span.getName(), UUID.fromString(span.getTraceId()).getLeastSignificantBits(),
         span.getDuration())) {

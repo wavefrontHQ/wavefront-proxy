@@ -3,6 +3,9 @@ package com.wavefront.agent.data;
 import javax.annotation.Nullable;
 
 import com.wavefront.agent.ProxyConfig;
+import com.wavefront.api.agent.SpanSamplingPolicy;
+
+import java.util.List;
 
 import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
@@ -18,6 +21,7 @@ public final class GlobalPropertiesImpl implements GlobalProperties {
   private short histogramStorageAccuracy = 32;
   private Double traceSamplingRate = null;
   private Integer dropSpansDelayedMinutes = null;
+  private List<SpanSamplingPolicy> activeSpanSamplingPolicies;
 
   public GlobalPropertiesImpl(ProxyConfig wrapped) {
     this.wrapped = wrapped;
@@ -66,6 +70,16 @@ public final class GlobalPropertiesImpl implements GlobalProperties {
   @Override
   public void setDropSpansDelayedMinutes(@Nullable Integer dropSpansDelayedMinutes) {
     this.dropSpansDelayedMinutes = dropSpansDelayedMinutes;
+  }
+
+  @Override
+  public List<SpanSamplingPolicy> getActiveSpanSamplingPolicies() {
+    return activeSpanSamplingPolicies;
+  }
+
+  @Override
+  public void setActiveSpanSamplingPolicies(@Nullable List<SpanSamplingPolicy> activeSpanSamplingPolicies) {
+    this.activeSpanSamplingPolicies = activeSpanSamplingPolicies;
   }
 }
 
