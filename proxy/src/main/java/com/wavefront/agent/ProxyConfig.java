@@ -587,6 +587,10 @@ public class ProxyConfig extends Configuration {
       "ignoring other sampling configuration. Defaults to true.", arity = 1)
   boolean traceAlwaysSampleErrors = true;
 
+  @Parameter(names = {"--backendSpanHeadSamplingPercentIgnored"}, description = "Ignore " +
+      "spanHeadSamplingPercent config in backend CustomerSettings")
+  boolean backendSpanHeadSamplingPercentIgnored = false;
+
   @Parameter(names = {"--pushRelayListenerPorts"}, description = "Comma-separated list of ports on which to listen " +
       "on for proxy chaining data. For internal use. Defaults to none.")
   String pushRelayListenerPorts;
@@ -1326,6 +1330,10 @@ public class ProxyConfig extends Configuration {
     return traceAlwaysSampleErrors;
   }
 
+  public boolean isBackendSpanHeadSamplingPercentIgnored() {
+    return backendSpanHeadSamplingPercentIgnored;
+  }
+
   public String getPushRelayListenerPorts() {
     return pushRelayListenerPorts;
   }
@@ -1811,6 +1819,8 @@ public class ProxyConfig extends Configuration {
           traceDerivedCustomTagKeys);
       traceAlwaysSampleErrors = config.getBoolean("traceAlwaysSampleErrors",
           traceAlwaysSampleErrors);
+      backendSpanHeadSamplingPercentIgnored = config.getBoolean(
+          "backendSpanHeadSamplingPercentIgnored", backendSpanHeadSamplingPercentIgnored);
       pushRelayListenerPorts = config.getString("pushRelayListenerPorts", pushRelayListenerPorts);
       pushRelayHistogramAggregator = config.getBoolean("pushRelayHistogramAggregator",
           pushRelayHistogramAggregator);
