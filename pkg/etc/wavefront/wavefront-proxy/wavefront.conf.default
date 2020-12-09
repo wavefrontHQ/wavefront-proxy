@@ -313,8 +313,6 @@ pushListenerPorts=2878
 ## The minimum duration threshold (in milliseconds) for the spans to be sampled.
 ## Spans above the given duration are reported. Defaults to 0 (include everything).
 #traceSamplingDuration=0
-## Always sample spans with an error tag (set to true) ignoring other sampling configuration. Defaults to true.
-#traceAlwaysSampleErrors=false
 
 ########################################## HISTOGRAM ACCUMULATION SETTINGS #############################################
 ## Histograms can be ingested in Wavefront scalar and distribution format. For scalar samples ports can be specified for
