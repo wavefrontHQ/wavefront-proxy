@@ -1,27 +1,21 @@
 package com.wavefront.agent.listeners.tracing;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.ReportableEntityDecoder;
 
-import java.text.NumberFormat;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
 import io.netty.channel.ChannelHandlerContext;
-import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
@@ -36,7 +30,6 @@ public final class SpanUtils {
   private static final Logger logger = Logger.getLogger(
       SpanUtils.class.getCanonicalName());
   private static final ObjectMapper JSON_PARSER = new ObjectMapper();
-  private final static String FORCE_SAMPLED_KEY = "sampling.priority";
 
   private SpanUtils() {
   }
@@ -94,7 +87,7 @@ public final class SpanUtils {
           return;
         }
       }
-      if (isForceSampled(object) || samplerFunc.apply(object)) {
+      if (samplerFunc.apply(object)) {
         spanReporter.accept(object);
       }
     }
@@ -170,7 +163,7 @@ public final class SpanUtils {
               return;
             }
           }
-          if (isForceSampled(span) || samplerFunc.apply(span)) {
+          if (samplerFunc.apply(span)) {
             // after sampling, span line data is no longer needed
             spanLogs.setSpan(null);
             handler.report(spanLogs);
@@ -178,26 +171,6 @@ public final class SpanUtils {
         }
       }
     }
-  }
-
-  @VisibleForTesting
-  static boolean isForceSampled(Span span) {
-    List<Annotation> annotations = span.getAnnotations();
-    for (Annotation annotation : annotations) {
-      if (annotation.getKey().equals(FORCE_SAMPLED_KEY)) {
-        try {
-          if (NumberFormat.getInstance().parse(annotation.getValue()).doubleValue() > 0) {
-            return true;
-          }
-        } catch (ParseException e) {
-          if (logger.isLoggable(Level.FINE)) {
-            logger.info("Invalid value :: " + annotation.getValue() +
-                " for span tag key : " + FORCE_SAMPLED_KEY + " for span : " + span.getName());
-          }
-        }
-      }
-    }
-    return false;
   }
 
 }

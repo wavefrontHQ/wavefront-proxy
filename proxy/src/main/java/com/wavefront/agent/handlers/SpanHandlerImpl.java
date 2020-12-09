@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
+import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 import static com.wavefront.data.Validation.validateSpan;
 
 /**
@@ -35,7 +36,6 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
   private final com.yammer.metrics.core.Histogram receivedTagCount;
   private final com.yammer.metrics.core.Counter policySampledSpanCounter;
   private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandler;
-  private static final String SPAN_SAMPLING_POLICY_TAG = "_sampledByPolicy";
 
 
   /**
@@ -83,7 +83,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     validateSpan(span, validationConfig, spanLogsHandler.get()::report);
     if (span.getAnnotations() != null && AnnotationUtils.getValue(span.getAnnotations(),
         SPAN_SAMPLING_POLICY_TAG) != null) {
-      this.policySampledSpanCounter.inc(1);
+      this.policySampledSpanCounter.inc();
     }
     final String strSpan = serializer.apply(span);
     getTask().add(strSpan);

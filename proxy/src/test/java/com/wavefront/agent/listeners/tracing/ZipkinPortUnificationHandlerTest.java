@@ -99,7 +99,7 @@ public class ZipkinPortUnificationHandlerTest {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender,
         () -> false, () -> false, preprocessorSupplier, new SpanSampler(new RateSampler(1.0D),
-        false),
+        () -> null),
         null, null);
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("testService").ip("10.0.0.1")
@@ -171,7 +171,7 @@ public class ZipkinPortUnificationHandlerTest {
   public void testZipkinHandler() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
-        () -> false, () -> false, null, new SpanSampler(new RateSampler(1.0D), false),
+        () -> false, () -> false, null, new SpanSampler(new RateSampler(1.0D), () -> null),
         "ProxyLevelAppTag", null);
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
@@ -367,7 +367,7 @@ public class ZipkinPortUnificationHandlerTest {
   public void testZipkinDurationSampler() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
-        () -> false, () -> false, null, new SpanSampler(new DurationSampler(5), false), null, null);
+        () -> false, () -> false, null, new SpanSampler(new DurationSampler(5), () -> null), null, null);
 
     Endpoint localEndpoint1 = Endpoint.newBuilder().serviceName("frontend").ip("10.0.0.1").build();
     zipkin2.Span spanServer1 = zipkin2.Span.newBuilder().
@@ -463,7 +463,7 @@ public class ZipkinPortUnificationHandlerTest {
   public void testZipkinDebugOverride() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
-        () -> false, () -> false, null, new SpanSampler(new DurationSampler(10), false), null,
+        () -> false, () -> false, null, new SpanSampler(new DurationSampler(10), () -> null), null,
         null);
 
     // take care of mocks.
@@ -619,7 +619,7 @@ public class ZipkinPortUnificationHandlerTest {
   public void testZipkinCustomSource() throws Exception {
     ZipkinPortUnificationHandler handler = new ZipkinPortUnificationHandler("9411",
         new NoopHealthCheckManager(), mockTraceHandler, mockTraceSpanLogsHandler, null,
-        () -> false, () -> false, null, new SpanSampler(new RateSampler(1.0D), false), null, null);
+        () -> false, () -> false, null, new SpanSampler(new RateSampler(1.0D), () -> null), null, null);
 
     // take care of mocks.
     // Reset mock

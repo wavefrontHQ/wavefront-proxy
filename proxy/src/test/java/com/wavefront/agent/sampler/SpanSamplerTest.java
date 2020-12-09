@@ -49,7 +49,7 @@ public class SpanSamplerTest {
         setSpanId("testspanid").
         setTraceId(traceId).
         build();
-    SpanSampler sampler = new SpanSampler(new DurationSampler(5), true);
+    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> null);
     assertTrue(sampler.sample(spanToAllow));
     assertFalse(sampler.sample(spanToDiscard));
 
@@ -62,7 +62,7 @@ public class SpanSamplerTest {
   }
 
   @Test
-  public void testAlwaysSampleErrors() {
+  public void testAlwaysSampleDebug() {
     long startTime = System.currentTimeMillis();
     String traceId = UUID.randomUUID().toString();
     Span span = Span.newBuilder().
@@ -73,12 +73,10 @@ public class SpanSamplerTest {
         setSource("testsource").
         setSpanId("testspanid").
         setTraceId(traceId).
-        setAnnotations(ImmutableList.of(new Annotation("error", "true"))).
+        setAnnotations(ImmutableList.of(new Annotation("debug", "true"))).
         build();
-    SpanSampler sampler = new SpanSampler(new DurationSampler(5), true);
+    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> null);
     assertTrue(sampler.sample(span));
-    sampler = new SpanSampler(new DurationSampler(5), false);
-    assertFalse(sampler.sample(span));
   }
 
   @Test
@@ -117,8 +115,7 @@ public class SpanSamplerTest {
         ImmutableList.of(new SpanSamplingPolicy("SpanNamePolicy", "{{spanName}}='testSpanName'",
             0), new SpanSamplingPolicy("SpanSourcePolicy", "{{sourceName}}='testsource'", 100));
 
-    SpanSampler sampler = new SpanSampler(new DurationSampler(5), true,
-        () -> activeSpanSamplingPolicies);
+    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> activeSpanSamplingPolicies);
     assertTrue(sampler.sample(spanToAllow));
     assertEquals("SpanSourcePolicy", AnnotationUtils.getValue(spanToAllow.getAnnotations(),
         "_sampledByPolicy"));
@@ -145,8 +142,7 @@ public class SpanSamplerTest {
     activeSpanSamplingPolicies.add(new SpanSamplingPolicy(
         "SpanNamePolicy", "{{spanName}}='testSpanName'",
         50));
-    SpanSampler sampler = new SpanSampler(new DurationSampler(5), true,
-        () -> activeSpanSamplingPolicies);
+    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> activeSpanSamplingPolicies);
     int sampledSpans = 0;
     for (int i = 0; i < 1000; i++) {
       if (sampler.sample(Span.newBuilder(span).setTraceId(UUID.randomUUID().toString()).build())) {

@@ -255,7 +255,6 @@ public class PushAgent extends AbstractAgent {
         proxyConfig.getTraceSamplingDuration());
     List<Sampler> samplers = SpanSamplerUtils.fromSamplers(rateSampler, durationSampler);
     SpanSampler spanSampler = new SpanSampler(new CompositeSampler(samplers),
-        proxyConfig.isTraceAlwaysSampleErrors(),
         () -> entityProps.getGlobalProperties().getActiveSpanSamplingPolicies());
 
     if (proxyConfig.getAdminApiListenerPort() > 0) {

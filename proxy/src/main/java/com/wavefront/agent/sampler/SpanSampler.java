@@ -28,9 +28,7 @@ import wavefront.report.Annotation;
 import wavefront.report.Span;
 
 import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 
 /**
  * Sampler that takes a {@link Span} as input and delegates to a {@link Sampler} when evaluating the
@@ -39,12 +37,11 @@ import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
  * @author Han Zhang (zhanghan@vmware.com)
  */
 public class SpanSampler {
-  private static final int EXPIRE_AFTER_ACCESS_SECONDS = 600;
-  private static final String SPAN_SAMPLING_POLICY_TAG = "_sampledByPolicy";
+  public static final String SPAN_SAMPLING_POLICY_TAG = "_sampledByPolicy";
+  private static final int EXPIRE_AFTER_ACCESS_SECONDS = 3600;
   private static final int POLICY_BASED_SAMPLING_MOD_FACTOR = 100;
   private static final Logger logger = Logger.getLogger(SpanSampler.class.getCanonicalName());
   private final Sampler delegate;
-  private final boolean alwaysSampleErrors;
   private final LoadingCache<String, Predicate<Span>> spanPredicateCache = Caffeine.newBuilder().expireAfterAccess(EXPIRE_AFTER_ACCESS_SECONDS,
       TimeUnit.SECONDS).build(new CacheLoader<String, Predicate<Span>>() {
     @Override
@@ -60,23 +57,15 @@ public class SpanSampler {
   });
   private final Supplier<List<SpanSamplingPolicy>> activeSpanSamplingPoliciesSupplier;
 
-  @VisibleForTesting
-  public SpanSampler(Sampler delegate, boolean alwaysSampleErrors) {
-    this(delegate, alwaysSampleErrors, () -> null);
-  }
-
   /**
    * Creates a new instance from a {@Sampler} delegate.
    *
    * @param delegate                           The delegate {@Sampler}.
-   * @param alwaysSampleErrors                 Whether to always sample spans that have error tag
-   *                                           set to true.
    * @param activeSpanSamplingPoliciesSupplier Active span sampling policies to be applied.
    */
-  public SpanSampler(Sampler delegate, boolean alwaysSampleErrors,
+  public SpanSampler(Sampler delegate,
                      @Nonnull Supplier<List<SpanSamplingPolicy>> activeSpanSamplingPoliciesSupplier) {
     this.delegate = delegate;
-    this.alwaysSampleErrors = alwaysSampleErrors;
     this.activeSpanSamplingPoliciesSupplier = activeSpanSamplingPoliciesSupplier;
   }
 
@@ -147,17 +136,10 @@ public class SpanSampler {
   private boolean isForceSampled(Span span) {
     List<Annotation> annotations = span.getAnnotations();
     for (Annotation annotation : annotations) {
-      switch (annotation.getKey()) {
-        case DEBUG_TAG_KEY:
-          if(annotation.getValue().equals(DEBUG_SPAN_TAG_VAL)) {
-            return true;
-          }
-          break;
-        case ERROR_TAG_KEY:
-          if(alwaysSampleErrors && annotation.getValue().equals(ERROR_SPAN_TAG_VAL)) {
-            return true;
-          }
-          break;
+      if (DEBUG_TAG_KEY.equals(annotation.getKey())) {
+        if (annotation.getValue().equals(DEBUG_SPAN_TAG_VAL)) {
+          return true;
+        }
       }
     }
     return false;
