@@ -1,5 +1,9 @@
 package com.wavefront.agent.data;
 
+import com.wavefront.api.agent.SpanSamplingPolicy;
+
+import java.util.List;
+
 import javax.annotation.Nullable;
 
 /**
@@ -67,4 +71,19 @@ public interface GlobalProperties {
    * @param dropSpansDelayedMinutes delay threshold for dropping spans in minutes.
    */
   void setDropSpansDelayedMinutes(@Nullable Integer dropSpansDelayedMinutes);
+
+  /**
+   * Get active span sampling policies for policy based sampling.
+   *
+   * @return list of span sampling policies.
+   */
+  @Nullable
+  List<SpanSamplingPolicy> getActiveSpanSamplingPolicies();
+
+  /**
+   * Set active span sampling policies for policy based sampling.
+   *
+   * @param activeSpanSamplingPolicies list of span sampling policies.
+   */
+  void setActiveSpanSamplingPolicies(@Nullable List<SpanSamplingPolicy> activeSpanSamplingPolicies);
 }

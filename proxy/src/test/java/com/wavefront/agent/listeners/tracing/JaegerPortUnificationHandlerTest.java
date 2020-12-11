@@ -110,7 +110,7 @@ public class JaegerPortUnificationHandlerTest {
     JaegerPortUnificationHandler handler = new JaegerPortUnificationHandler("14268",
         TokenAuthenticatorBuilder.create().build(), new NoopHealthCheckManager(),
         mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender, () -> false, () -> false,
-        preprocessorSupplier, new SpanSampler(new RateSampler(1.0D), false),null, null);
+        preprocessorSupplier, new SpanSampler(new RateSampler(1.0D), () -> null), null, null);
 
     io.jaegertracing.thriftjava.Span span1 = new io.jaegertracing.thriftjava.Span(1234567890123L, 1234567890L,
         1234567L, 0L, "HTTP GET", 1, startTime * 1000, 1234 * 1000);
@@ -269,7 +269,7 @@ public class JaegerPortUnificationHandlerTest {
     JaegerPortUnificationHandler handler = new JaegerPortUnificationHandler("14268",
         TokenAuthenticatorBuilder.create().build(), new NoopHealthCheckManager(),
         mockTraceHandler, mockTraceSpanLogsHandler, null, () -> false, () -> false, null,
-        new SpanSampler(new RateSampler(1.0D), false), null, null);
+        new SpanSampler(new RateSampler(1.0D), () -> null), null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");

@@ -2,6 +2,7 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
+import com.wavefront.data.AnnotationUtils;
 import com.wavefront.ingester.SpanSerializer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
@@ -18,6 +19,7 @@ import javax.annotation.Nullable;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
+import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 import static com.wavefront.data.Validation.validateSpan;
 
 /**
@@ -32,6 +34,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
   private final Logger validItemsLogger;
   private final Supplier<Integer> dropSpansDelayedMinutes;
   private final com.yammer.metrics.core.Histogram receivedTagCount;
+  private final com.yammer.metrics.core.Counter policySampledSpanCounter;
   private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandler;
 
 
@@ -64,6 +67,8 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
     this.receivedTagCount = Metrics.newHistogram(new MetricName(handlerKey.toString() +
         ".received", "", "tagCount"), false);
     this.spanLogsHandler = spanLogsHandler;
+    this.policySampledSpanCounter = Metrics.newCounter(new MetricName(handlerKey.toString(), "",
+        "sampler.policy.saved"));
   }
 
   @Override
@@ -76,6 +81,10 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
       return;
     }
     validateSpan(span, validationConfig, spanLogsHandler.get()::report);
+    if (span.getAnnotations() != null && AnnotationUtils.getValue(span.getAnnotations(),
+        SPAN_SAMPLING_POLICY_TAG) != null) {
+      this.policySampledSpanCounter.inc();
+    }
     final String strSpan = serializer.apply(span);
     getTask().add(strSpan);
     getReceivedCounter().inc();

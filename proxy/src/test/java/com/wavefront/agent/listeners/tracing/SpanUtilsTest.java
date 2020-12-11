@@ -15,12 +15,10 @@ import com.wavefront.ingester.ReportableEntityDecoder;
 import com.wavefront.ingester.SpanDecoder;
 import com.wavefront.ingester.SpanLogsDecoder;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import wavefront.report.Annotation;
@@ -29,7 +27,6 @@ import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.listeners.tracing.SpanUtils.handleSpanLogs;
-import static com.wavefront.agent.listeners.tracing.SpanUtils.isForceSampled;
 import static com.wavefront.agent.listeners.tracing.SpanUtils.preprocessAndHandleSpan;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static org.easymock.EasyMock.expectLastCall;
@@ -129,25 +126,6 @@ public class SpanUtilsTest {
     preprocessAndHandleSpan(spanLine, spanDecoder, mockTraceHandler, mockTraceHandler::report,
         preprocessorSupplier, null, span -> true);
     verify(mockTraceHandler);
-  }
-
-  @Test
-  public void testSpanForceSampled() {
-    Span span = new Span("valid.metric", "4217104a-690d-4927-baff" +
-        "-d9aa779414c2", "d5355bf7-fc8d-48d1-b761-75b170f396e0", startTime, 100L, "localdev",
-        "dummy", ImmutableList.of(new Annotation("application", "app"),
-        new Annotation("service", "test"), new Annotation("sampling.priority", "test")));
-    Assert.assertFalse(isForceSampled(span));
-    span = new Span("valid.metric", "4217104a-690d-4927-baff" +
-        "-d9aa779414c2", "d5355bf7-fc8d-48d1-b761-75b170f396e0", startTime, 100L, "localdev",
-        "dummy", ImmutableList.of(new Annotation("application", "app"),
-        new Annotation("service", "test"), new Annotation("sampling.priority", "0")));
-    Assert.assertFalse(isForceSampled(span));
-    span = new Span("valid.metric", "4217104a-690d-4927-baff" +
-        "-d9aa779414c2", "d5355bf7-fc8d-48d1-b761-75b170f396e0", startTime, 100L, "localdev",
-        "dummy", ImmutableList.of(new Annotation("application", "app"),
-        new Annotation("service", "test"), new Annotation("sampling.priority", "1")));
-    Assert.assertTrue(isForceSampled(span));
   }
 
   @Test

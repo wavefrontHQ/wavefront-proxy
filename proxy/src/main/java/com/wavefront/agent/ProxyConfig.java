@@ -583,10 +583,6 @@ public class ProxyConfig extends Configuration {
       "list of custom tag keys for trace derived RED metrics.")
   String traceDerivedCustomTagKeys;
 
-  @Parameter(names = {"--traceAlwaysSampleErrors"}, description = "Always sample spans with error tag (set to true) " +
-      "ignoring other sampling configuration. Defaults to true.", arity = 1)
-  boolean traceAlwaysSampleErrors = true;
-
   @Parameter(names = {"--backendSpanHeadSamplingPercentIgnored"}, description = "Ignore " +
       "spanHeadSamplingPercent config in backend CustomerSettings")
   boolean backendSpanHeadSamplingPercentIgnored = false;
@@ -1326,10 +1322,6 @@ public class ProxyConfig extends Configuration {
     return customTagKeys;
   }
 
-  public boolean isTraceAlwaysSampleErrors() {
-    return traceAlwaysSampleErrors;
-  }
-
   public boolean isBackendSpanHeadSamplingPercentIgnored() {
     return backendSpanHeadSamplingPercentIgnored;
   }
@@ -1817,8 +1809,6 @@ public class ProxyConfig extends Configuration {
       traceSamplingDuration = config.getInteger("traceSamplingDuration", traceSamplingDuration);
       traceDerivedCustomTagKeys = config.getString("traceDerivedCustomTagKeys",
           traceDerivedCustomTagKeys);
-      traceAlwaysSampleErrors = config.getBoolean("traceAlwaysSampleErrors",
-          traceAlwaysSampleErrors);
       backendSpanHeadSamplingPercentIgnored = config.getBoolean(
           "backendSpanHeadSamplingPercentIgnored", backendSpanHeadSamplingPercentIgnored);
       pushRelayListenerPorts = config.getString("pushRelayListenerPorts", pushRelayListenerPorts);

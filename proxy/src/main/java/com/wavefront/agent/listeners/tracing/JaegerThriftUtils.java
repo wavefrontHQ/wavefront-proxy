@@ -12,8 +12,6 @@ import com.yammer.metrics.core.Counter;
 
 import org.apache.commons.lang.StringUtils;
 
-import java.text.NumberFormat;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,13 +37,11 @@ import wavefront.report.SpanLogs;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.DEBUG_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.COMPONENT_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.DEBUG_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
@@ -63,7 +59,6 @@ public abstract class JaegerThriftUtils {
 
   // TODO: support sampling
   private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
-  private final static String FORCE_SAMPLED_KEY = "sampling.priority";
   private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
 
   private JaegerThriftUtils() {
@@ -180,8 +175,6 @@ public abstract class JaegerThriftUtils {
 
     String componentTagValue = NULL_TAG_VAL;
     boolean isError = false;
-    boolean isDebugSpanTag = false;
-    boolean isForceSampled = false;
 
     if (span.getTags() != null) {
       for (Tag tag : span.getTags()) {
@@ -215,21 +208,6 @@ public abstract class JaegerThriftUtils {
             case ERROR_TAG_KEY:
               // only error=true is supported
               isError = annotation.getValue().equals(ERROR_SPAN_TAG_VAL);
-              break;
-            case DEBUG_TAG_KEY:
-              isDebugSpanTag = annotation.getValue().equals(DEBUG_SPAN_TAG_VAL);
-              break;
-            case FORCE_SAMPLED_KEY:
-              try {
-                if (NumberFormat.getInstance().parse(annotation.getValue()).doubleValue() > 0) {
-                  isForceSampled = true;
-                }
-              } catch (ParseException e) {
-                if (JAEGER_DATA_LOGGER.isLoggable(Level.FINE)) {
-                  JAEGER_DATA_LOGGER.info("Invalid value :: " + annotation.getValue() +
-                      " for span tag key : " + FORCE_SAMPLED_KEY + " for span : " + span.getOperationName());
-                }
-              }
               break;
           }
           annotations.add(annotation);
@@ -295,8 +273,7 @@ public abstract class JaegerThriftUtils {
         return;
       }
     }
-    if (isForceSampled || sampler.sample(wavefrontSpan,
-        discardedSpansBySampler)) {
+    if (sampler.sample(wavefrontSpan, discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
       if (span.getLogs() != null && !span.getLogs().isEmpty() &&
           !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {

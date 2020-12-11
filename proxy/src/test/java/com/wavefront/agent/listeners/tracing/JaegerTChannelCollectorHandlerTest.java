@@ -3,10 +3,13 @@ package com.wavefront.agent.listeners.tracing;
 import com.google.common.collect.ImmutableList;
 
 import com.google.common.collect.ImmutableMap;
+
+import com.sun.tools.javac.util.List;
 import com.uber.tchannel.messages.ThriftRequest;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.sampler.SpanSampler;
+import com.wavefront.api.agent.SpanSamplingPolicy;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
@@ -135,7 +138,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null,
-        new SpanSampler(new RateSampler(1.0D), false), null, null);
+        new SpanSampler(new RateSampler(1.0D), () -> null), null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");
@@ -259,7 +262,7 @@ public class JaegerTChannelCollectorHandlerTest {
     JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
         mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null,
-        new SpanSampler(new RateSampler(1.0D), false), "ProxyLevelAppTag", null);
+        new SpanSampler(new RateSampler(1.0D), () -> null), "ProxyLevelAppTag", null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");
@@ -362,7 +365,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null,
-        new SpanSampler(new DurationSampler(5), false), null, null);
+        new SpanSampler(new DurationSampler(5), () -> null), null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");
@@ -453,7 +456,8 @@ public class JaegerTChannelCollectorHandlerTest {
             new Annotation("application", "Jaeger"),
             new Annotation("cluster", "none"),
             new Annotation("shard", "none"),
-            new Annotation("_spanLogs", "true")))
+            new Annotation("_spanLogs", "true"),
+            new Annotation("_sampledByPolicy", "test")))
         .build();
     mockTraceHandler.report(expectedSpan2);
     expectLastCall();
@@ -475,7 +479,9 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null,
-        new SpanSampler(new DurationSampler(10), false), null, null);
+        new SpanSampler(new DurationSampler(10),
+            () -> List.of(new SpanSamplingPolicy("test", "{{sampling.priority}}='0.3'", 100))),
+        null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");
@@ -581,7 +587,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
         mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
-        null, new SpanSampler(new RateSampler(1.0D), false), null, null);
+        null, new SpanSampler(new RateSampler(1.0D), () -> null), null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");
@@ -702,7 +708,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
         mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
-        null, new SpanSampler(new RateSampler(1.0D), false), null, null);
+        null, new SpanSampler(new RateSampler(1.0D), () -> null), null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");
@@ -788,7 +794,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
         mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
-        null, new SpanSampler(new RateSampler(1.0D), false), null, null);
+        null, new SpanSampler(new RateSampler(1.0D), () -> null), null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");
@@ -863,7 +869,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
         mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
-        null, new SpanSampler(new RateSampler(1.0D), false), null, null);
+        null, new SpanSampler(new RateSampler(1.0D), () -> null), null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");
@@ -930,7 +936,7 @@ public class JaegerTChannelCollectorHandlerTest {
 
     JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876",
         mockTraceHandler, mockTraceLogsHandler, null, () -> false, () -> false,
-        null, new SpanSampler(new RateSampler(1.0D), false), null, null);
+        null, new SpanSampler(new RateSampler(1.0D), () -> null), null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
     ipTag.setVStr("10.0.0.1");

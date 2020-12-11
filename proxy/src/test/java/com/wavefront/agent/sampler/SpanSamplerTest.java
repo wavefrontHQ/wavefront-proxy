@@ -1,19 +1,27 @@
 package com.wavefront.agent.sampler;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import com.google.common.collect.ImmutableList;
+
+import com.wavefront.api.agent.SpanSamplingPolicy;
+import com.wavefront.data.AnnotationUtils;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
+
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
-import java.util.UUID;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Han Zhang (zhanghan@vmware.com)
@@ -41,7 +49,7 @@ public class SpanSamplerTest {
         setSpanId("testspanid").
         setTraceId(traceId).
         build();
-    SpanSampler sampler = new SpanSampler(new DurationSampler(5), true);
+    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> null);
     assertTrue(sampler.sample(spanToAllow));
     assertFalse(sampler.sample(spanToDiscard));
 
@@ -54,7 +62,7 @@ public class SpanSamplerTest {
   }
 
   @Test
-  public void testAlwaysSampleErrors() {
+  public void testAlwaysSampleDebug() {
     long startTime = System.currentTimeMillis();
     String traceId = UUID.randomUUID().toString();
     Span span = Span.newBuilder().
@@ -65,11 +73,102 @@ public class SpanSamplerTest {
         setSource("testsource").
         setSpanId("testspanid").
         setTraceId(traceId).
-        setAnnotations(ImmutableList.of(new Annotation("error", "true"))).
+        setAnnotations(ImmutableList.of(new Annotation("debug", "true"))).
         build();
-    SpanSampler sampler = new SpanSampler(new DurationSampler(5), true);
+    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> null);
     assertTrue(sampler.sample(span));
-    sampler = new SpanSampler(new DurationSampler(5), false);
-    assertFalse(sampler.sample(span));
+  }
+
+  @Test
+  public void testMultipleSpanSamplingPolicies() {
+    long startTime = System.currentTimeMillis();
+    String traceId = UUID.randomUUID().toString();
+    Span spanToAllow = Span.newBuilder().
+        setCustomer("dummy").
+        setStartMillis(startTime).
+        setDuration(4).
+        setName("testSpanName").
+        setSource("testsource").
+        setSpanId("testspanid").
+        setTraceId(traceId).
+        build();
+    Span spanToAllowWithDebugTag = Span.newBuilder().
+        setCustomer("dummy").
+        setStartMillis(startTime).
+        setDuration(4).
+        setName("testSpanName").
+        setSource("testsource").
+        setSpanId("testspanid").
+        setTraceId(traceId).
+        setAnnotations(ImmutableList.of(new Annotation("debug", "true"))).
+        build();
+    Span spanToDiscard = Span.newBuilder().
+        setCustomer("dummy").
+        setStartMillis(startTime).
+        setDuration(4).
+        setName("testSpanName").
+        setSource("source").
+        setSpanId("testspanid").
+        setTraceId(traceId).
+        build();
+    List<SpanSamplingPolicy> activeSpanSamplingPolicies =
+        ImmutableList.of(new SpanSamplingPolicy("SpanNamePolicy", "{{spanName}}='testSpanName'",
+            0), new SpanSamplingPolicy("SpanSourcePolicy", "{{sourceName}}='testsource'", 100));
+
+    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> activeSpanSamplingPolicies);
+    assertTrue(sampler.sample(spanToAllow));
+    assertEquals("SpanSourcePolicy", AnnotationUtils.getValue(spanToAllow.getAnnotations(),
+        "_sampledByPolicy"));
+    assertTrue(sampler.sample(spanToAllowWithDebugTag));
+    assertNull(AnnotationUtils.getValue(spanToAllowWithDebugTag.getAnnotations(),
+        "_sampledByPolicy"));
+    assertFalse(sampler.sample(spanToDiscard));
+    assertTrue(spanToDiscard.getAnnotations().isEmpty());
+  }
+
+  @Test
+  public void testSpanSamplingPolicySamplingPercent() {
+    long startTime = System.currentTimeMillis();
+    Span span = Span.newBuilder().
+        setCustomer("dummy").
+        setStartMillis(startTime).
+        setDuration(4).
+        setName("testSpanName").
+        setSource("testsource").
+        setSpanId("testspanid").
+        setTraceId(UUID.randomUUID().toString()).
+        build();
+    List<SpanSamplingPolicy> activeSpanSamplingPolicies = new ArrayList<>();
+    activeSpanSamplingPolicies.add(new SpanSamplingPolicy(
+        "SpanNamePolicy", "{{spanName}}='testSpanName'",
+        50));
+    SpanSampler sampler = new SpanSampler(new DurationSampler(5), () -> activeSpanSamplingPolicies);
+    int sampledSpans = 0;
+    for (int i = 0; i < 1000; i++) {
+      if (sampler.sample(Span.newBuilder(span).setTraceId(UUID.randomUUID().toString()).build())) {
+        sampledSpans++;
+      }
+    }
+    assertTrue(sampledSpans < 1000 && sampledSpans > 0);
+    activeSpanSamplingPolicies.clear();
+    activeSpanSamplingPolicies.add(new SpanSamplingPolicy("SpanNamePolicy", "{{spanName" +
+        "}}='testSpanName'", 100));
+    sampledSpans = 0;
+    for (int i = 0; i < 1000; i++) {
+      if (sampler.sample(Span.newBuilder(span).setTraceId(UUID.randomUUID().toString()).build())) {
+        sampledSpans++;
+      }
+    }
+    assertEquals(1000, sampledSpans);
+    activeSpanSamplingPolicies.clear();
+    activeSpanSamplingPolicies.add(new SpanSamplingPolicy("SpanNamePolicy", "{{spanName" +
+        "}}='testSpanName'", 0));
+    sampledSpans = 0;
+    for (int i = 0; i < 1000; i++) {
+      if (sampler.sample(Span.newBuilder(span).setTraceId(UUID.randomUUID().toString()).build())) {
+        sampledSpans++;
+      }
+    }
+    assertEquals(0, sampledSpans);
   }
 }
