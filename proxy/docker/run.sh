@@ -3,6 +3,8 @@
 spool_dir="/var/spool/wavefront-proxy"
 mkdir -p $spool_dir
 
+chown -R wavefront:wavefront $spool_dir
+
 # Be receptive to core dumps
 ulimit -c unlimited
 
