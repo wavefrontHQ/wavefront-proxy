@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableList;
 
 import com.google.common.collect.ImmutableMap;
 
-import com.sun.tools.javac.util.List;
 import com.uber.tchannel.messages.ThriftRequest;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -480,7 +479,8 @@ public class JaegerTChannelCollectorHandlerTest {
     JaegerTChannelCollectorHandler handler = new JaegerTChannelCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null,
         new SpanSampler(new DurationSampler(10),
-            () -> List.of(new SpanSamplingPolicy("test", "{{sampling.priority}}='0.3'", 100))),
+            () -> ImmutableList.of(new SpanSamplingPolicy("test", "{{sampling.priority}}='0.3'",
+                100))),
         null, null);
 
     Tag ipTag = new Tag("ip", TagType.STRING);
