@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Duration;
 
-import com.sun.tools.javac.util.List;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
@@ -573,7 +572,8 @@ public class JaegerGrpcCollectorHandlerTest {
     JaegerGrpcCollectorHandler handler = new JaegerGrpcCollectorHandler("9876", mockTraceHandler,
         mockTraceLogsHandler, null, () -> false, () -> false, null,
         new SpanSampler(new DurationSampler(10 * 1000),
-            () -> List.of(new SpanSamplingPolicy("test", "{{sampling.priority}}='0.3'", 100))),
+            () -> ImmutableList.of(new SpanSamplingPolicy("test", "{{sampling.priority}}='0.3'",
+                100))),
         null, null);
 
     Model.KeyValue ipTag = Model.KeyValue.newBuilder().
