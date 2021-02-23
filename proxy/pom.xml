@@ -146,12 +146,6 @@
       <groupId>net.openhft</groupId>
       <artifactId>chronicle-map</artifactId>
       <version>3.17.8</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.sun.java</groupId>
-          <artifactId>tools</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
