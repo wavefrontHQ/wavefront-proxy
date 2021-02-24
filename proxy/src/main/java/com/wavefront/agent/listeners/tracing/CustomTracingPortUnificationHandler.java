@@ -165,7 +165,7 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
           a.getValue())).collect(Collectors.toList());
       discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
           object.getName(), applicationName, serviceName, cluster, shard, object.getSource(),
-          componentTagValue, Boolean.parseBoolean(isError), object.getDuration(),
+          componentTagValue, Boolean.parseBoolean(isError), millisToMicros(object.getDuration()),
           traceDerivedCustomTagKeys, spanTags, true));
       try {
         reportHeartbeats(wfSender, discoveredHeartbeatMetrics, "wavefront-generated");
@@ -173,5 +173,9 @@ public class CustomTracingPortUnificationHandler extends TracePortUnificationHan
         logger.log(Level.WARNING, "Cannot report heartbeat metric to wavefront");
       }
     }
+  }
+
+  private long millisToMicros(long millis) {
+    return millis * 1000;
   }
 }
