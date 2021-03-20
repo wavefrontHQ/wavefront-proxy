@@ -21,8 +21,9 @@ RUN chmod 755 /var
 
 ########### specific lines for Jenkins release process ############
 # replace "wf-proxy" download section to "copy the upstream Jenkins artifact"
-COPY wavefront-proxy*.deb /
-RUN dpkg -x /wavefront-proxy*.deb /
+COPY wavefront-proxy*.rpm /
+RUN tdnf install -y rpm
+RUN rpm --install /wavefront-proxy*.rpm
 
 ENV PATH /usr/lib/jvm/OpenJDK-1.11.0/bin/:$PATH
 
