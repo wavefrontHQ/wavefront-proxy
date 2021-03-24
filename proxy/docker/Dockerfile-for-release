@@ -24,6 +24,7 @@ RUN chmod 755 /var
 COPY wavefront-proxy*.rpm /
 RUN tdnf install -y rpm
 RUN rpm --install /wavefront-proxy*.rpm
+RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
 
 ENV PATH /usr/lib/jvm/OpenJDK-1.11.0/bin/:$PATH
 
