@@ -91,7 +91,7 @@
     <dependency>
       <groupId>org.apache.thrift</groupId>
       <artifactId>libthrift</artifactId>
-      <version>0.13.0</version>
+      <version>0.14.1</version>
     </dependency>
     <dependency>
       <groupId>io.zipkin.zipkin2</groupId>
@@ -152,6 +152,10 @@
         <exclusion>
           <groupId>com.sun.java</groupId>
           <artifactId>tools</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.thoughtworks.xstream</groupId>
+          <artifactId>xstream</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
