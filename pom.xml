@@ -58,7 +58,7 @@
     <log4j.version>2.12.1</log4j.version>
     <jackson.version>2.11.0</jackson.version>
     <jackson-databind.version>2.11.0</jackson-databind.version>
-    <netty.version>4.1.50.Final</netty.version>
+    <netty.version>4.1.60.Final</netty.version>
     <java-lib.version>2020-10.1</java-lib.version>
 
     <doclint>none</doclint>
@@ -112,7 +112,7 @@
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>28.1-jre</version>
+        <version>30.0-jre</version>
       </dependency>
       <dependency>
         <groupId>org.jboss.resteasy</groupId>
@@ -154,7 +154,7 @@
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.12</version>
+        <version>4.5.13</version>
       </dependency>
       <dependency>
         <groupId>org.ops4j.pax.url</groupId>
@@ -253,11 +253,6 @@
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
         <version>2.0.1</version>
-      </dependency>
-      <dependency>
-        <groupId>com.thoughtworks.xstream</groupId>
-        <artifactId>xstream</artifactId>
-        <version>1.4.11.1</version>
       </dependency>
       <dependency>
         <groupId>com.rubiconproject.oss</groupId>
