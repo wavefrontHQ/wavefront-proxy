@@ -83,9 +83,11 @@ public class FileBasedTaskQueue<T extends DataSubmissionTask<T>> implements Task
       this.head = taskConverter.fromBytes(task);
     }
     queueFile.remove();
-    int weight = this.head.weight();
-    currentWeight.getAndUpdate(x -> x > weight ? x - weight : 0);
-    this.head = null;
+    if(this.head != null) {
+      int weight = this.head.weight();
+      currentWeight.getAndUpdate(x -> x > weight ? x - weight : 0);
+      this.head = null;
+    }
   }
 
   @Override
