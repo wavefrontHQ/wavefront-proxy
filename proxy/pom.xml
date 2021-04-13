@@ -5,7 +5,7 @@
   <parent>
     <groupId>com.wavefront</groupId>
     <artifactId>wavefront</artifactId>
-    <version>10.0-RC4-SNAPSHOT</version>
+    <version>11.0-RC2-SNAPSHOT</version>
   </parent>
 
   <properties>
@@ -55,6 +55,12 @@
       <groupId>io.grpc</groupId>
       <artifactId>grpc-protobuf</artifactId>
       <version>1.29.0</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>guava</artifactId>
+          <groupId>com.google.guava</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
@@ -85,7 +91,7 @@
     <dependency>
       <groupId>org.apache.thrift</groupId>
       <artifactId>libthrift</artifactId>
-      <version>0.13.0</version>
+      <version>0.14.1</version>
     </dependency>
     <dependency>
       <groupId>io.zipkin.zipkin2</groupId>
@@ -99,10 +105,6 @@
     <dependency>
       <groupId>commons-collections</groupId>
       <artifactId>commons-collections</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -150,6 +152,10 @@
         <exclusion>
           <groupId>com.sun.java</groupId>
           <artifactId>tools</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.thoughtworks.xstream</groupId>
+          <artifactId>xstream</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
