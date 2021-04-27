@@ -395,3 +395,15 @@
     action        : spanAddTag
     key           : multiPortSpanTagKey
     value         : multiSpanTagVal
+
+  ## obfuscate Tests
+  - rule    : example-obfuscation
+    action  : obfuscate
+    key     : 1234567890123456
+    scope   : metricName
+
+  - rule    : example-obfuscation-2
+    action  : obfuscate
+    key     : 1234567890123456
+    scope   : hostName
+
