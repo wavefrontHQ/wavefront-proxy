@@ -44,4 +44,5 @@ java \
 	--ephemeral true \
 	--buffer ${spool_dir}/buffer \
 	--flushThreads 6 \
+	--retryThreads 6 \
 	$WAVEFRONT_PROXY_ARGS
