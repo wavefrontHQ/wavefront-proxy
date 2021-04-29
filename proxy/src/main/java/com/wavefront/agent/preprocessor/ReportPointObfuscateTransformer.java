@@ -9,6 +9,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -28,7 +29,6 @@ public class ReportPointObfuscateTransformer implements Function<ReportPoint, Re
   private final String scope;
   private final PreprocessorRuleMetrics ruleMetrics;
   private final Cipher cipher;
-
 
   public ReportPointObfuscateTransformer(final String key,
                                          final String scope,
@@ -60,29 +60,36 @@ public class ReportPointObfuscateTransformer implements Function<ReportPoint, Re
           String metric = reportPoint.getMetric();
           metric = encode(metric);
           reportPoint.setMetric(metric);
+          ruleMetrics.incrementRuleAppliedCounter();
           break;
+
         case "sourceName":
+        case "hostName":
           String source = reportPoint.getHost();
           source = encode(source);
           reportPoint.setHost(source);
+          ruleMetrics.incrementRuleAppliedCounter();
           break;
+
         default:
           if (reportPoint.getAnnotations() != null) {
             String tagValue = reportPoint.getAnnotations().get(scope);
-            tagValue = encode(tagValue);
-            reportPoint.getAnnotations().put(scope,tagValue);
+            if (tagValue != null) {
+              tagValue = encode(tagValue);
+              reportPoint.getAnnotations().put(scope, tagValue);
+              ruleMetrics.incrementRuleAppliedCounter();
+            }
           }
       }
-      ruleMetrics.incrementRuleAppliedCounter();
     } catch (IllegalBlockSizeException | BadPaddingException | UnsupportedEncodingException e) {
-      e.printStackTrace();
+      throw new RuntimeException("Error running Obfuscate rule on '" + scope + "' scope", e);
     } finally {
       ruleMetrics.ruleEnd(startNanos);
     }
     return reportPoint;
   }
 
-  private String encode(String value) throws UnsupportedEncodingException, IllegalBlockSizeException, BadPaddingException {
+  private String encode(@Nonnull String value) throws UnsupportedEncodingException, IllegalBlockSizeException, BadPaddingException {
     return Base64.getEncoder().encodeToString(
         cipher.doFinal(value.getBytes(StandardCharsets.UTF_8))
     );
