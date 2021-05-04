@@ -580,19 +580,25 @@ public class PreprocessorRulesTest {
   @Test
   public void testObfuscate() {
     String pointLine = "metric.name.1234567 1 1459527231 source=source.name.test foo=bar bar=bar1234567890";
-    ReportPointObfuscateTransformer rule = new ReportPointObfuscateTransformer("1234567890123456",
-        "metricName", metrics);
-    ReportPointObfuscateTransformer rule2 = new ReportPointObfuscateTransformer("1234567890123456",
-        "sourceName", metrics);
-    ReportPointObfuscateTransformer rule3 = new ReportPointObfuscateTransformer("1234567890123456",
-        "bar", metrics);
+
+    ReportPointObfuscateTransformer rule = new ReportPointObfuscateTransformer(
+        "1234567890123456", "metricName", "metric.*", metrics);
+    ReportPointObfuscateTransformer rule2 = new ReportPointObfuscateTransformer(
+        "1234567890123456", "sourceName", "source.*", metrics);
+    ReportPointObfuscateTransformer rule3 = new ReportPointObfuscateTransformer(
+        "1234567890123456", "bar", "bar.*", metrics);
+    ReportPointObfuscateTransformer rule4 = new ReportPointObfuscateTransformer(
+        "1234567890123456", "foo", "pp.*", metrics);
+
     for (int i = 0; i < 5; i++) {
       ReportPoint point = rule.apply(parsePointLine(pointLine));
       point = rule2.apply(point);
       point = rule3.apply(point);
+      point = rule4.apply(point);
       assertEquals("Eg7OHQxvL9TpxE71Ral5EuEMzausKjrdd9+OgsyA6jI=", point.getMetric());
       assertEquals("8wMgDR4vTQInMzYpA4OIOgUBh6DN5amHLLqwkatz5VM=", point.getHost());
       assertEquals("7aicAZw12I5rQGaHCwjWrw==", point.getAnnotations().get("bar"));
+      assertEquals("bar", point.getAnnotations().get("foo"));
     }
   }
 

@@ -3,11 +3,11 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,16 +29,23 @@ public class ReportPointObfuscateTransformer implements Function<ReportPoint, Re
   private final String scope;
   private final PreprocessorRuleMetrics ruleMetrics;
   private final Cipher cipher;
+  private final Pattern compiledPattern;
 
   public ReportPointObfuscateTransformer(final String key,
                                          final String scope,
+                                         final String patternMatch,
                                          final PreprocessorRuleMetrics ruleMetrics) {
     Preconditions.checkNotNull(key, "[key] can't be null");
-    this.scope = Preconditions.checkNotNull(scope, "[scope] can't be null");
-    Preconditions.checkArgument(!key.isEmpty(), "[key] can't be blank");
-    Preconditions.checkArgument((key.length() == 16), "[key] have to be 16 characters");
+    Preconditions.checkArgument((key.length() == 16) || (key.length() == 32), "[key] have to be 16 " +
+        "or 32 characters");
+    Preconditions.checkNotNull(scope, "[scope] can't be null");
     Preconditions.checkArgument(!scope.isEmpty(), "[scope] can't be blank");
+    Preconditions.checkNotNull(patternMatch, "[match] can't be null");
+    Preconditions.checkArgument(!patternMatch.isEmpty(), "[match] can't be blank");
+
     this.ruleMetrics = ruleMetrics;
+    this.scope = scope;
+    this.compiledPattern = Pattern.compile(patternMatch);
 
     try {
       byte[] aesKey = key.getBytes(StandardCharsets.UTF_8);
@@ -58,16 +65,15 @@ public class ReportPointObfuscateTransformer implements Function<ReportPoint, Re
       switch (scope) {
         case "metricName":
           String metric = reportPoint.getMetric();
-          metric = encode(metric);
-          reportPoint.setMetric(metric);
+          String encMetric = encode(metric);
+          reportPoint.setMetric(encMetric);
           ruleMetrics.incrementRuleAppliedCounter();
           break;
 
         case "sourceName":
-        case "hostName":
           String source = reportPoint.getHost();
-          source = encode(source);
-          reportPoint.setHost(source);
+          String encSource = encode(source);
+          reportPoint.setHost(encSource);
           ruleMetrics.incrementRuleAppliedCounter();
           break;
 
@@ -75,13 +81,13 @@ public class ReportPointObfuscateTransformer implements Function<ReportPoint, Re
           if (reportPoint.getAnnotations() != null) {
             String tagValue = reportPoint.getAnnotations().get(scope);
             if (tagValue != null) {
-              tagValue = encode(tagValue);
-              reportPoint.getAnnotations().put(scope, tagValue);
+              String encTagValue = encode(tagValue);
+              reportPoint.getAnnotations().put(scope, encTagValue);
               ruleMetrics.incrementRuleAppliedCounter();
             }
           }
       }
-    } catch (IllegalBlockSizeException | BadPaddingException | UnsupportedEncodingException e) {
+    } catch (IllegalBlockSizeException | BadPaddingException e) {
       throw new RuntimeException("Error running Obfuscate rule on '" + scope + "' scope", e);
     } finally {
       ruleMetrics.ruleEnd(startNanos);
@@ -89,9 +95,12 @@ public class ReportPointObfuscateTransformer implements Function<ReportPoint, Re
     return reportPoint;
   }
 
-  private String encode(@Nonnull String value) throws UnsupportedEncodingException, IllegalBlockSizeException, BadPaddingException {
-    return Base64.getEncoder().encodeToString(
-        cipher.doFinal(value.getBytes(StandardCharsets.UTF_8))
-    );
+  private String encode(@Nonnull String value) throws IllegalBlockSizeException, BadPaddingException {
+    if (compiledPattern.matcher(value).matches()) {
+      return Base64.getEncoder().encodeToString(
+          cipher.doFinal(value.getBytes(StandardCharsets.UTF_8))
+      );
+    }
+    return value;
   }
 }

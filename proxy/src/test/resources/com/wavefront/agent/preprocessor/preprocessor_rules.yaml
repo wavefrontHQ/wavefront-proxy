@@ -397,13 +397,15 @@
     value         : multiSpanTagVal
 
   ## obfuscate Tests
+'30129':
   - rule    : example-obfuscation
     action  : obfuscate
     key     : 1234567890123456
     scope   : metricName
+    match   : ".*"
 
-  - rule    : example-obfuscation-2
+  - rule    : example-obfuscation
     action  : obfuscate
-    key     : 1234567890123456
-    scope   : hostName
-
+    key     : 12345678901234561234567890123456
+    scope   : metricName
+    match   : ".*"

@@ -344,10 +344,11 @@ public class PreprocessorConfigManager {
                             Predicates.getPredicate(rule), ruleMetrics));
                     break;
                   case "obfuscate":
-                    allowArguments(rule, KEY, SCOPE);
+                    allowArguments(rule, KEY, SCOPE, MATCH);
                     portMap.get(strPort).forReportPoint().addTransformer(
                         new ReportPointObfuscateTransformer(getString(rule, KEY),
-                            getString(rule, SCOPE), ruleMetrics));
+                            getString(rule, SCOPE), getString(rule, MATCH),
+                            ruleMetrics));
                     break;
                   case "limitLength":
                     allowArguments(rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH,
