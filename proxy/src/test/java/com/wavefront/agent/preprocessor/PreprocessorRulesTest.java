@@ -595,9 +595,9 @@ public class PreprocessorRulesTest {
       point = rule2.apply(point);
       point = rule3.apply(point);
       point = rule4.apply(point);
-      assertEquals("Eg7OHQxvL9TpxE71Ral5EuEMzausKjrdd9+OgsyA6jI=", point.getMetric());
-      assertEquals("8wMgDR4vTQInMzYpA4OIOgUBh6DN5amHLLqwkatz5VM=", point.getHost());
-      assertEquals("7aicAZw12I5rQGaHCwjWrw==", point.getAnnotations().get("bar"));
+      assertEquals("120ece1d0c6f2fd4e9c44ef545a97912e10ccdabac2a3add77df8e82cc80ea32", point.getMetric());
+      assertEquals("f303200d1e2f4d02273336290383883a050187a0cde5a9872cbab091ab73e553", point.getHost());
+      assertEquals("eda89c019c35d88e6b4066870b08d6af", point.getAnnotations().get("bar"));
       assertEquals("bar", point.getAnnotations().get("foo"));
     }
   }
