@@ -3,6 +3,8 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
+import org.apache.commons.codec.binary.Hex;
+
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -97,7 +99,7 @@ public class ReportPointObfuscateTransformer implements Function<ReportPoint, Re
 
   private String encode(@Nonnull String value) throws IllegalBlockSizeException, BadPaddingException {
     if (compiledPattern.matcher(value).matches()) {
-      return Base64.getEncoder().encodeToString(
+      return Hex.encodeHexString(
           cipher.doFinal(value.getBytes(StandardCharsets.UTF_8))
       );
     }
