@@ -56,8 +56,8 @@
     <java.version>1.8</java.version>
     <javadoc.sdk.version>8</javadoc.sdk.version>
     <log4j.version>2.13.3</log4j.version>
-    <jackson.version>2.11.0</jackson.version>
-    <jackson-databind.version>2.11.0</jackson-databind.version>
+    <jackson.version>2.12.3</jackson.version>
+    <jackson-databind.version>2.12.3</jackson-databind.version>
     <netty.version>4.1.60.Final</netty.version>
     <java-lib.version>2020-12.1</java-lib.version>
 
@@ -164,12 +164,12 @@
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
-        <version>1.7.25</version>
+        <version>1.8.0-beta4</version>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>jcl-over-slf4j</artifactId>
-        <version>1.7.25</version>
+        <version>1.8.0-beta4</version>
       </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
