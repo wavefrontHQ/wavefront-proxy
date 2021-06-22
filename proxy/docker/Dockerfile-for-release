@@ -22,8 +22,8 @@ RUN chmod 755 /var
 ########### specific lines for Jenkins release process ############
 # replace "wf-proxy" download section to "copy the upstream Jenkins artifact"
 COPY wavefront-proxy*.rpm /
-RUN tdnf install -y rpm
-RUN rpm --install /wavefront-proxy*.rpm
+RUN tdnf install -y yum
+RUN yum install -y /wavefront-proxy*.rpm
 RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
 
 ENV PATH /usr/lib/jvm/OpenJDK-1.11.0/bin/:$PATH
