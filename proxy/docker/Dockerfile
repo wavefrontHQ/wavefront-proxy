@@ -11,7 +11,8 @@ FROM photon:3.0
 
 RUN tdnf install -y \
   openjdk11 \
-  shadow
+  shadow \
+  curl
 
 # Add new group:user "wavefront"
 RUN /usr/sbin/groupadd -g 2000 wavefront
