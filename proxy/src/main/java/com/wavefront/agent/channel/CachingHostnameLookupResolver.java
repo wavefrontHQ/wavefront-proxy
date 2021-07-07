@@ -1,17 +1,20 @@
 package com.wavefront.agent.channel;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.google.common.annotations.VisibleForTesting;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.MetricName;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.function.Function;
+import java.util.logging.Logger;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Convert {@link InetAddress} to {@link String}, either by performing reverse DNS lookups (cached, as
@@ -20,6 +23,8 @@ import java.util.function.Function;
  * @author vasily@wavefront.com
  */
 public class CachingHostnameLookupResolver implements Function<InetAddress, String> {
+  private static final Logger logger =
+      Logger.getLogger(CachingHostnameLookupResolver.class.getCanonicalName());
 
   private final Function<InetAddress, String> resolverFunc;
   private final LoadingCache<InetAddress, String> rdnsCache;
@@ -64,8 +69,15 @@ public class CachingHostnameLookupResolver implements Function<InetAddress, Stri
         maximumSize(cacheSize).
         refreshAfterWrite(cacheRefreshTtl).
         expireAfterAccess(cacheExpiryTtl).
-        build(InetAddress::getHostName);
-
+        removalListener((key, value, cause) -> {
+          logger.info("-- removalListener --> " + key + " ---> " + value + " ---> " + cause);
+        }).
+        build(key -> {
+          String res = InetAddress.getByAddress(key.getAddress()).getHostName();
+          logger.info("-- build --> " + key + " = " + res);
+          return res;
+        });
+//    build(InetAddress::getHostName);
     if (metricName != null) {
       Metrics.newGauge(metricName, new Gauge<Long>() {
         @Override
@@ -78,6 +90,8 @@ public class CachingHostnameLookupResolver implements Function<InetAddress, Stri
 
   @Override
   public String apply(InetAddress addr) {
-    return disableRdnsLookup ? resolverFunc.apply(addr) : rdnsCache.get(addr);
+    String res = disableRdnsLookup ? resolverFunc.apply(addr) : rdnsCache.get(addr);
+//    logger.info("-- apply --> " + addr + "=" + res + "  (" + addr.getClass().getCanonicalName() + ")");
+    return res;
   }
 }
