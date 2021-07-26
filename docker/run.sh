@@ -10,11 +10,6 @@ if [[ -z "$WAVEFRONT_TOKEN" ]]; then
   exit 0
 fi
 
-spool_dir="/var/spool/wavefront-proxy"
-mkdir -p $spool_dir
-
-chown -R wavefront:wavefront $spool_dir
-
 # Be receptive to core dumps
 ulimit -c unlimited
 
@@ -56,10 +51,10 @@ fi
 # run proxy #
 #############
 java \
-    $jvm_container_opts $JAVA_ARGS \
+  $jvm_container_opts $JAVA_ARGS \
 	-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
 	-Dlog4j.configurationFile=/etc/wavefront/wavefront-proxy/log4j2.xml \
-	-jar /opt/wavefront/wavefront-proxy/bin/wavefront-proxy.jar \
+	-jar /wavefront-proxy.jar \
 	-h $WAVEFRONT_URL \
 	-t $WAVEFRONT_TOKEN \
 	--hostname ${WAVEFRONT_HOSTNAME:-$(hostname)} \
