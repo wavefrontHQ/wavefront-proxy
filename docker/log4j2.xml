@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO" monitorInterval="5">
+    <Properties>
+        <Property name="log-path">/var/log/wavefront</Property>
+    </Properties>
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout>
+                <!-- Use the pattern below to output log in the same format as older versions
+                <pattern>%d{MMM d, yyyy h:mm:ss a} %C{10} %M%n%p{WARN=WARNING, DEBUG=FINE, ERROR=SEVERE}: %m%n</pattern>
+                -->
+                <pattern>%d %-5level [%c{1}:%M] %m%n</pattern>
+            </PatternLayout>
+        </Console>
+        <!-- Uncomment the RollingFile section below to log blocked points to a file -->
+        <!--
+        <RollingFile name="BlockedPointsFile" fileName="${log-path}/wavefront-blocked-points.log"
+                     filePattern="${log-path}/wavefront-blocked-points-%d{yyyy-MM-dd}-%i.log" >
+            <PatternLayout>
+                <pattern>%m%n</pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="100 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                    <IfFileName glob="wavefront-blocked*.log" />
+                    <IfLastModified age="31d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        -->
+        <!-- Uncomment the RollingFile section below to log all valid points to a file -->
+        <!--
+        <RollingFile name="ValidPointsFile" fileName="${log-path}/wavefront-valid-points.log"
+                     filePattern="${log-path}/wavefront-valid-points-%d{yyyy-MM-dd}-%i.log" >
+            <PatternLayout>
+                <pattern>%m%n</pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="1024 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10">
+                <Delete basePath="/var/log/wavefront" maxDepth="1">
+                    <IfFileName glob="wavefront-valid*.log" />
+                    <IfLastModified age="7d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        -->
+    </Appenders>
+    <Loggers>
+        <!-- Uncomment AppenderRef to log blocked points to a file.
+             Logger property level="WARN" logs only rejected points, level="INFO"
+             logs points filtered out by allow/block rules as well -->
+        <AsyncLogger name="RawBlockedPoints" level="WARN" additivity="false">
+            <!--
+            <AppenderRef ref="BlockedPointsFile"/>
+            -->
+        </AsyncLogger>
+        <!-- Uncomment AppenderRef and set level="ALL" to log all valid points to a file -->
+        <AsyncLogger name="RawValidPoints" level="DEBUG" additivity="false">
+            <!--
+            <AppenderRef ref="ValidPointsFile"/>
+            -->
+        </AsyncLogger>
+        <Root level="INFO">
+            <AppenderRef ref="Console" />
+        </Root>
+    </Loggers>
+</Configuration>
