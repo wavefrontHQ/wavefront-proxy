@@ -10,6 +10,7 @@ import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.uber.tchannel.api.TChannel;
 import com.uber.tchannel.channels.Connection;
+import com.wavefront.agent.logforwarder.LogForwarderHost;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.CachingHostnameLookupResolver;
@@ -123,6 +124,7 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -146,6 +148,7 @@ import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VA
 import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_POINTS_LOGGER;
 import static com.wavefront.common.Utils.csvToList;
 import static com.wavefront.common.Utils.lazySupplier;
+import static com.wavefront.common.Utils.throwAny;
 
 /**
  * Push-only Agent.
@@ -189,10 +192,12 @@ public class PushAgent extends AbstractAgent {
   private Logger blockedPointsLogger;
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;
+  protected LogForwarderHost logForwarderHost;
 
   public static void main(String[] args) {
     // Start the ssh daemon
     new PushAgent().start(args);
+
   }
 
   protected void setupMemoryGuard() {
@@ -205,6 +210,12 @@ public class PushAgent extends AbstractAgent {
 
   @Override
   protected void startListeners() throws Exception {
+    // start Log Forwarder listeners
+    try {
+      startLogForwarderHost();
+    } catch (Throwable t){
+      throw new Exception("Logforwarder start exception! ", t);
+    }
     blockedPointsLogger = Logger.getLogger(proxyConfig.getBlockedPointsLoggerName());
     blockedHistogramsLogger = Logger.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
     blockedSpansLogger = Logger.getLogger(proxyConfig.getBlockedSpansLoggerName());
@@ -453,6 +464,17 @@ public class PushAgent extends AbstractAgent {
       }
     }
     setupMemoryGuard();
+  }
+
+  @VisibleForTesting
+  protected void startLogForwarderHost() throws Throwable{
+    if (this.logForwarderHost == null){
+      this.logForwarderHost  = new LogForwarderHost();
+    }
+    this.logForwarderHost.startListeners();
+    this.shutdownTasks.add(new Thread(() -> {
+      this.logForwarderHost.stopListeners();
+    }));
   }
 
   @Nullable

@@ -240,6 +240,7 @@ public abstract class AbstractAgent {
        * ------------------------------------------------------------------------------------ */
 
       // Parse commandline arguments and load configuration file
+      LogForwarderUtils.processLogForwarderArgs(args);//TODO Port these settings to ProxyConfig
       parseArguments(args);
       postProcessConfig();
       initSslContext();

@@ -1,0 +1,9 @@
+[
+  {
+    "component": "ON-PREM-RDC-HTTP",
+    "httpPort": 9000,
+    "processors": [
+      {"post-to-log-iq": {"processor":"com.wavefront.agent.logforwarder.ingestion.processors.PostToRDCLogIqProcessor"}}
+    ]
+  }
+]
