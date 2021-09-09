@@ -64,8 +64,7 @@ public class CachingHostnameLookupResolver implements Function<InetAddress, Stri
         maximumSize(cacheSize).
         refreshAfterWrite(cacheRefreshTtl).
         expireAfterAccess(cacheExpiryTtl).
-        build(InetAddress::getHostName);
-
+        build(key -> InetAddress.getByAddress(key.getAddress()).getHostName());
     if (metricName != null) {
       Metrics.newGauge(metricName, new Gauge<Long>() {
         @Override
