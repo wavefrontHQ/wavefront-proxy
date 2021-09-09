@@ -1,6 +1,5 @@
 package com.wavefront.agent.logforwarder.ingestion.client.gateway;
 
-import com.vmware.lemans.client.AgentHost;
 import com.vmware.lemans.client.gateway.CspTokenConfig;
 import com.vmware.lemans.client.gateway.LemansClient;
 import com.vmware.log.forwarder.lemansclient.LemansClientState;
@@ -18,6 +17,9 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 
 /**
+ * A client which hold a single instance which deals with everything to do with creating and
+ * managing the ingestion client and injecting configuration properties.
+ * to backend including creating the singleton client, failure handling, buffering to disk
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/7/21 1:29 PM
  */
