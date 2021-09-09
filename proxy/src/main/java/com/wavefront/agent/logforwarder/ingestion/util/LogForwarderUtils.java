@@ -1,6 +1,8 @@
 package com.wavefront.agent.logforwarder.ingestion.util;
 
 /**
+ * TODO This class is more than a Util and misleading consider renaming it. This starts lifecycle
+ * of REST endpoints etc
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/2/21 4:41 PM
  */
@@ -47,25 +49,17 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.productivity.java.syslog4j.SyslogConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-
 import com.vmware.lemans.client.gateway.LemansClient;
 import com.vmware.log.forwarder.host.LogForwarderArgs;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
 import com.vmware.log.forwarder.httpclient.HttpClientUtils;
 import com.vmware.log.forwarder.lemansclient.LemansClientState;
 import com.vmware.log.forwarder.lemansclient.LogForwarderAgentHost;
-import com.vmware.log.forwarder.restapi.LogInsightAgentPackageDownloadService;
-import com.vmware.log.forwarder.restapi.LogInsightAgentPackageInfoService;
-import com.vmware.log.forwarder.restapi.LogInsightAgentStatusService;
-import com.vmware.log.forwarder.restapi.LogInsightAgentsTelemetryService;
 import com.vmware.log.forwarder.restapi.RestApiVerticle;
 import com.vmware.log.forwarder.services.BaseService;
 import com.vmware.log.forwarder.services.EventForwardingService;
-import com.vmware.log.forwarder.syslog.SyslogIngestionServer;
 import com.vmware.log.forwarder.verticle.VertxUtils;
 import com.vmware.xenon.common.CommandLineArgumentParser;
 import com.vmware.xenon.common.DeferredResult;
