@@ -21,7 +21,6 @@ import org.noggit.JSONUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.vmware.ingestion.metrics.MetricsService;
-import com.vmware.ingestion.service.IngestConstants;
 import com.vmware.lemans.client.gateway.GatewayClient;
 import com.vmware.lemans.client.gateway.GatewayException;
 import com.vmware.lemans.client.gateway.GatewayOperation.Action;
@@ -35,6 +34,7 @@ import com.vmware.log.forwarder.lemansclient.LogForwarderAgentHost;
 import com.vmware.xenon.common.Operation;// TODO Get rid of this xenon dependency
 import com.vmware.xenon.common.Utils;
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
+import com.wavefront.agent.logforwarder.ingestion.constants.IngestConstants;
 import com.wavefront.agent.logforwarder.ingestion.http.client.utils.HttpClientUtils;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.EventBatch;
 import com.wavefront.agent.logforwarder.ingestion.processors.util.JsonUtils;
@@ -278,6 +278,7 @@ public abstract class PostToLogIqProcessor implements Processor {
     if ((LogForwarderConfigProperties.inflightOperationsCount > 0) &&
         (inFlightCount.get() > LogForwarderConfigProperties.inflightOperationsCount)) {
       SystemAlertUtils.updateMessagesDroppedMetric(msgsInBlob);
+      //TODO Replace MetricService with Proxy's MetricsReporter
       MetricsService.getInstance().getMeter("in-flight-operation-queue-full-blobs-dropped-"
           + tenantIdentifier).mark();
       MetricsService.getInstance().getMeter("in-flight-operation-queue-full-messages-dropped-"
