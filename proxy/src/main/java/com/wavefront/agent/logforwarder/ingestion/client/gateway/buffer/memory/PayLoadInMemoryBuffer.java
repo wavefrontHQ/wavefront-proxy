@@ -1,4 +1,4 @@
-package com.wavefront.agent.logforwarder.ingestion.memory.buffer;
+package com.wavefront.agent.logforwarder.ingestion.client.gateway.buffer.memory;
 
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;

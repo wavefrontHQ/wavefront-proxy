@@ -18,7 +18,7 @@ import com.vmware.log.forwarder.services.BaseService;
 import com.wavefront.agent.logforwarder.constants.LogForwarderUris;
 import com.wavefront.agent.logforwarder.ingestion.constants.IngestConstants;
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
-import com.wavefront.agent.logforwarder.ingestion.memory.buffer.PayLoadInMemoryBuffer;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.buffer.memory.PayLoadInMemoryBuffer;
 import com.wavefront.agent.logforwarder.ingestion.processors.config.ComponentConfig;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.EventPayload;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.parser.StructureFactory;
