@@ -3,10 +3,8 @@ package com.wavefront.agent.logforwarder.ingestion.processors;
 import java.util.concurrent.TimeUnit;
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
-
-import com.vmware.log.forwarder.lemansclient.LemansClientUtils;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
-import com.vmware.xenon.common.UriUtils;
+import com.vmware.xenon.common.UriUtils;//TODO MOVE OUT of this dependency
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.IngestionClient;
 import com.wavefront.agent.logforwarder.ingestion.http.client.utils.HttpClientUtils;
@@ -36,7 +34,7 @@ public class PostToRDCLogIqProcessor extends PostToLogIqProcessor implements Pro
     accessKey = LogForwarderUtils.getLemansClientAccessKey();//TODO move this to ProxyConfig
     tenantIdentifier = LogForwarderConstants.RDC_TENANT_IDENTIFIER;
     try {
-      LemansClientUtils.getInstance().initializeVertxLemansClient(url, accessKey);
+      IngestionClient.getInstance().initializeVertxLemansClient(url, accessKey);
     } catch (RuntimeException e) {
       throw e;
     }
