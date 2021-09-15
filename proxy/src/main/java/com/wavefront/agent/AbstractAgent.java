@@ -12,6 +12,7 @@ import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.EntityPropertiesFactoryImpl;
+import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
 import com.wavefront.agent.logsharvesting.InteractiveLogsTester;
 import com.wavefront.agent.preprocessor.InteractivePreprocessorTester;
 import com.wavefront.agent.preprocessor.LineBasedBlockFilter;

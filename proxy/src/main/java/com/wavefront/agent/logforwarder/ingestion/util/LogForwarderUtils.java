@@ -112,7 +112,7 @@ public class LogForwarderUtils {
   public static void processLogForwarderArgs(String[] args) {
     //TODO Are these LogForwarderArgs org types needed? Likely not remove them. Looks like
     // internal vmware requirement
-    LogForwarderConfigProperties.logForwarderArgs = new LogForwarderArgs();
+    LogForwarderConfigProperties.logForwarderArgs = new com.wavefront.agent.logforwarder.config.LogForwarderArgs();
     CommandLineArgumentParser.parse(LogForwarderConfigProperties.logForwarderArgs, args);
 
     LogForwarderConfigProperties.logForwarderArgs.sddcId
@@ -524,14 +524,8 @@ public class LogForwarderUtils {
    * Returns Lemans Agent Id.
    */
   public static String getLemansAgentId() {
-    if (!LogForwarderConfigProperties.logForwarderArgs.enableVertx) {
       LogForwarderAgentHost agentHost = LemansClientState.accessKeyVsLemansClientHost
           .get(LogForwarderUtils.getLemansClientAccessKey());
       return agentHost != null ? agentHost.getAgentId() : null;
-    } else {
-      LemansClient lemansClient = LemansClientState.accessKeyVsLemansClient
-          .get(LogForwarderUtils.getLemansClientAccessKey());
-      return lemansClient != null ? lemansClient.getAgentId() : null;
-    }
   }
 }

@@ -292,11 +292,7 @@ public abstract class PostToLogIqProcessor implements Processor {
     if (Boolean.TRUE.equals(LogForwarderConfigProperties.logForwarderArgs.skipLeMansClient)) {
       postWithAsyncClient(payload);
     } else {
-      if (!LogForwarderConfigProperties.logForwarderArgs.enableVertx) {
-        postWithLogIngestionClientHost(payload);
-      } else {
         postWithLeMansClient(payload);
-      }
     }
   }
 
