@@ -79,7 +79,6 @@ public class LogForwarderHost {
 //    LogForwarderConfigProperties.systemAlertsEvaluatorService.scheduleAlertEvaluator();
     //TODO MOVE THIS TO POST TO WAVEFRONT DIRECTLY as part of proxy metrics?
     LogForwarderConfigProperties.telemetryService.schedulePeriodicTaskToPostMetrics();
-    LogForwarderConfigProperties.autoConfigureHostsScheduler.startScheduler();
     //TODO Figure this out if not needed for sure
 //    LogForwarderConfigProperties.generalSettingsService.scheduleGlobalConfigRefresh();
 
@@ -99,8 +98,6 @@ public class LogForwarderHost {
     logger.info("Started logforwarder shutdown hook..");
     LemansClientState.accessKeyVsLemansClientHost.clear();
     LogForwarderConfigProperties.telemetryService.stopTimerTask();
-
-    LogForwarderConfigProperties.autoConfigureHostsScheduler.shutdownScheduler();
 //    LogForwarderConfigProperties.generalSettingsService.stopGlobalConfigRefresh();
 
     LemansClientState.accessKeyVsLemansClient.forEach((lemansAccessKey, lemansClient) -> {
