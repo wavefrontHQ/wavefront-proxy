@@ -5,6 +5,7 @@ TAG ?= $(TS)
 
 build-jar:
 	mvn -version
+	echo JAVA_HOME: $JAVA_HOME
 	cd ../ && mvn --batch-mode package
 	cp ../proxy/target/proxy-*-uber.jar wavefront-proxy.jar
 
