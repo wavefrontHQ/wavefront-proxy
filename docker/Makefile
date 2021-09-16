@@ -19,3 +19,4 @@ build-multi-arch-docker:
 clean:
 	cd ../ && mvn clean
 	rm wavefront-proxy.jar
+	docker buildx prune -a -f
