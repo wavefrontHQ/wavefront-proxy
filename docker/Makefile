@@ -4,7 +4,7 @@ NAME ?= proxy-dev
 TAG ?= $(TS)
 
 build-jar:
-	cd ../ && mvn package
+	cd ../ && mvn --batch-mode package
 	cp ../proxy/target/proxy-*-uber.jar wavefront-proxy.jar
 
 build-docker:
