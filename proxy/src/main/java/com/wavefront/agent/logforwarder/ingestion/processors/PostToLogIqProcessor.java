@@ -5,10 +5,7 @@ import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -20,26 +17,27 @@ import org.json.simple.JSONAware;
 import org.noggit.JSONUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.vmware.ingestion.metrics.MetricsService;
-import com.vmware.lemans.client.gateway.GatewayClient;
-import com.vmware.lemans.client.gateway.GatewayException;
-import com.vmware.lemans.client.gateway.GatewayOperation.Action;
-import com.vmware.lemans.client.gateway.GatewayRequest;
-import com.vmware.lemans.client.gateway.GatewayResponse;
-import com.vmware.lemans.client.gateway.LemansClient;
-import com.vmware.log.forwarder.systemalerts.SystemAlertUtils;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
-import com.vmware.log.forwarder.lemansclient.LemansClientState;
-import com.vmware.log.forwarder.lemansclient.LogForwarderAgentHost;
-import com.vmware.xenon.common.Operation;// TODO Get rid of this xenon dependency
-import com.vmware.xenon.common.Utils;
+// TODO Get rid of this xenon dependency
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClient;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientManager;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientState;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.metrics.MetricsService;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.model.GatewayOperation;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.model.GatewayRequest;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.model.GatewayResponse;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.model.exception.GatewayException;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.utils.Utils;
 import com.wavefront.agent.logforwarder.ingestion.constants.IngestConstants;
 import com.wavefront.agent.logforwarder.ingestion.http.client.utils.HttpClientUtils;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.EventBatch;
 import com.wavefront.agent.logforwarder.ingestion.processors.util.JsonUtils;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.EventPayload;
 import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
+
+import io.dropwizard.metrics5.Meter;
+import io.dropwizard.metrics5.MetricRegistry;
 
 
 /**
@@ -68,7 +66,8 @@ public abstract class PostToLogIqProcessor implements Processor {
 
   private Meter bytesPostedMeter = MetricsService
       .getInstance()
-      .getMeter(MetricRegistry.name(getClass().getSimpleName(), MetricsService.PAYLOADSIZE_IN_BYTES));
+      .getMeter(MetricRegistry.name(getClass().getSimpleName(),
+          MetricsService.PAYLOADSIZE_IN_BYTES).getKey());
 
   @Override
   public abstract void initializeProcessor(JSONAware json) throws Throwable;
@@ -79,68 +78,12 @@ public abstract class PostToLogIqProcessor implements Processor {
     return eventPayload;
   }
 
-  private Operation getPostOperation(LogForwarderAgentHost lemansClientHost,
-                                     EventPayload payload,
-                                     String agentId) {
-    EventBatch batch = payload.batch;
-    String json = JSONUtil.toJSON(batch, 1);
-    Operation operation = Operation
-        .createPost(lemansClientHost, "/le-mans-client/streams/" + streamName)
-        .setBody(json)
-        .addRequestHeader("timestamp", Instant.now().toString())
-        .addRequestHeader("structure", "default")
-        .addRequestHeader("Accept", "application/json")
-        .addRequestHeader("Content-Type", "application/json")
-        .addRequestHeader("agent", agentId)
-        .addRequestHeader(LogForwarderConstants.BILLABLE, String.valueOf(billable))
-        .setReferer(lemansClientHost.getUri());
-
-    //Compresses body using gzip before sending to le-mans
-    if (Boolean.TRUE.equals(LogForwarderConfigProperties.logForwarderArgs.compressPayload)) {
-      operation.addRequestHeader("Content-Encoding", "gzip");
-    }
-
-    if (payload.getMetaEvent() == null || payload.getMetaEvent().get(IngestConstants.SYSLOG_PARSED) == null) {
-      operation.addRequestHeader("format", "syslog");
-    }
-
-    if (StringUtils.isNotEmpty(chainName)) {
-      operation.addRequestHeader("chain", chainName);
-    }
-
-    if (LogForwarderConfigProperties.orgId != null) {
-      if (reIngestEnabled) {
-        operation.addRequestHeader("vmc-org-id", LogForwarderConfigProperties.orgId);
-      }
-
-      operation.addRequestHeader("lm-tenant-id", Utils.computeHash(LogForwarderConfigProperties.orgId));
-
-      if (StringUtils.isNotEmpty(s3BucketForAuditLogForwarding)
-          && StringUtils.isNotEmpty(LogForwarderConfigProperties.logForwarderArgs.region)) {
-        operation.addRequestHeader("aws-s3-audit-log-bucket", s3BucketForAuditLogForwarding);
-        operation.addRequestHeader("aws-s3-audit-log-region",
-            LogForwarderUtils.getAWSRegion(LogForwarderConfigProperties.logForwarderArgs.region).getName());
-      }
-    }
-
-    if (LogForwarderConfigProperties.logForwarderArgs.sreOrgId != null) {
-      operation.addRequestHeader(LogForwarderConstants.HEADER_ARCTIC_SRE_ORG_ID,
-          LogForwarderConfigProperties.logForwarderArgs.sreOrgId);
-    }
-
-    if (LogForwarderConfigProperties.logForwarderArgs.dimensionMspMasterOrgId != null) {
-      operation.addRequestHeader(LogForwarderConstants.DIMENSION_MSP_MASTER_ORG_ID,
-          LogForwarderConfigProperties.logForwarderArgs.dimensionMspMasterOrgId);
-    }
-
-    return operation;
-  }
 
   GatewayRequest getGatewayRequest(EventPayload payload, String agentId) {
     EventBatch batch = payload.batch;
     String json = JSONUtil.toJSON(batch, 1);
 
-    GatewayRequest gatewayRequest = GatewayRequest.createRequest(Action.POST,
+    GatewayRequest gatewayRequest = GatewayRequest.createRequest(GatewayOperation.Action.POST,
         URI.create("/streams/" + streamName))
         .setBody(json);
     gatewayRequest.addHeader("timestamp", Instant.now().toString());
@@ -193,8 +136,7 @@ public abstract class PostToLogIqProcessor implements Processor {
     return gatewayRequest;
   }
 
-  private HttpPost getHttpPost(LogForwarderAgentHost lemansClientHost,
-                               EventPayload payload,
+  private HttpPost getHttpPost(EventPayload payload,
                                String agentId) {
     EventBatch batch = payload.batch;
 
@@ -277,7 +219,7 @@ public abstract class PostToLogIqProcessor implements Processor {
     /* if the in-flight operations count is = threshold value, drop the message to avoid OOMs */
     if ((LogForwarderConfigProperties.inflightOperationsCount > 0) &&
         (inFlightCount.get() > LogForwarderConfigProperties.inflightOperationsCount)) {
-      SystemAlertUtils.updateMessagesDroppedMetric(msgsInBlob);
+//      SystemAlertUtils.updateMessagesDroppedMetric(msgsInBlob);TODO Figure if we are using this
       //TODO Replace MetricService with Proxy's MetricsReporter
       MetricsService.getInstance().getMeter("in-flight-operation-queue-full-blobs-dropped-"
           + tenantIdentifier).mark();
@@ -292,55 +234,15 @@ public abstract class PostToLogIqProcessor implements Processor {
     if (Boolean.TRUE.equals(LogForwarderConfigProperties.logForwarderArgs.skipLeMansClient)) {
       postWithAsyncClient(payload);
     } else {
-        postWithLeMansClient(payload);
+        postWithGatewayIngestionClient(payload);
     }
   }
 
-  private void postWithLogIngestionClientHost(EventPayload payload) {
+  private void postWithGatewayIngestionClient(EventPayload payload) {
     int msgsInBlob = payload.batch.size();
-    LogForwarderAgentHost logIngestionClientHost = LemansClientState.accessKeyVsLemansClientHost.get(accessKey);
-    //TODO Operation is a xenon primitive; Get rid of this.
-    Operation operation = getPostOperation(logIngestionClientHost, payload, LogForwarderUtils.getForwarderId());
-
-    inFlightCount.incrementAndGet();
-
-    if (httpTimeOutSecs > 0) {
-      operation.setExpiration(
-          Utils.getSystemNowMicrosUtc() + TimeUnit.SECONDS.toMicros(httpTimeOutSecs));
-    }
-
-    long startTime = System.currentTimeMillis();
-
-    if (LogForwarderConfigProperties.logForwarderArgs != null &&
-        Boolean.TRUE.equals(LogForwarderConfigProperties.logForwarderArgs.fakePost)) {
-      inFlightCount.decrementAndGet();
-      updateMetrics(50, true, (System.currentTimeMillis() - startTime), 200);
-      return;
-    }
-
-    logIngestionClientHost.sendWithDeferredResult(operation).thenAccept((op) -> {
-      inFlightCount.decrementAndGet();
-      int responseCode = op.getStatusCode();
-      boolean postSuccessful = false;
-      if ((responseCode >= 200) && (responseCode <= 299)) {
-        postSuccessful = true;
-      } else {
-        logger.error("post to lemans gateway failed responseCode=" + responseCode);
-      }
-      updateMetrics(msgsInBlob, postSuccessful, (System.currentTimeMillis() - startTime), responseCode);
-    }).exceptionally(e -> {
-      logger.error("exception while posting data to lemans-gateway(failed)", e);
-      inFlightCount.decrementAndGet();
-      updateMetrics(msgsInBlob, false, (System.currentTimeMillis() - startTime), -1);
-      return null;
-    });
-
-  }
-
-  private void postWithLeMansClient(EventPayload payload) {
-    int msgsInBlob = payload.batch.size();
-    LemansClient lemansClient = LemansClientState.accessKeyVsLemansClient.get(accessKey);
-    GatewayClient gatewayClient = lemansClient.getGatewayClient();
+    GatewayClientManager gatewayClientManager =
+        GatewayClientState.accessKeyVsLemansClient.get(accessKey);
+    GatewayClient gatewayClient = gatewayClientManager.getGatewayClient();
 
     GatewayRequest gatewayRequest = getGatewayRequest(payload, LogForwarderUtils.getForwarderId());
 
@@ -353,6 +255,9 @@ public abstract class PostToLogIqProcessor implements Processor {
       updateMetrics(50, true, (System.currentTimeMillis() - startTime), 200);
       return;
     }
+
+    int bytesPosted = gatewayRequest.getBody() == null ? 0 : ((String) gatewayRequest.getBody()).length();
+    bytesPostedMeter.mark(bytesPosted);
 
     gatewayClient.sendRequest(gatewayRequest)
         .whenComplete((resp, ex) -> {
@@ -380,20 +285,19 @@ public abstract class PostToLogIqProcessor implements Processor {
             if ((responseCode >= 200) && (responseCode <= 299)) {
               postSuccessful = true;
             } else {
-              logger.error("post to lemans gateway failed responseCode=" + responseCode);
+              logger.error("post to log ingestion gateway failed responseCode=" + responseCode);
             }
             updateMetrics(msgsInBlob, postSuccessful, (System.currentTimeMillis() - startTime),
                 responseCode);
           }
-
         });
   }
 
+  //TODO Check with Guru if this is needed
   private void postWithAsyncClient(EventPayload payload) {
     int msgsInBlob = payload.batch.size();
-    LogForwarderAgentHost lemansClientHost = LemansClientState.accessKeyVsLemansClientHost.get(accessKey);
 
-    HttpPost operation = getHttpPost(lemansClientHost, payload, LogForwarderUtils.getForwarderId());
+    HttpPost operation = getHttpPost(payload, LogForwarderUtils.getForwarderId());
 
     bytesPostedMeter.mark(operation.getEntity().getContentLength());
 
@@ -471,7 +375,7 @@ public abstract class PostToLogIqProcessor implements Processor {
       metricsService.getHistogram("POST-".concat(tenantIdentifier).concat("-time-taken-ms"))
           .update(timeTaken);
     } else {
-      SystemAlertUtils.updatePostToLintFailureMetric(numberOfMessages);
+//      SystemAlertUtils.updatePostToLintFailureMetric(numberOfMessages); TODO
       metricsService.getMeter("POST-".concat(tenantIdentifier).concat("-blobs-failure-"
           + responseCode)).mark();
       metricsService.getMeter("POST-".concat(tenantIdentifier).concat("-messages-failure-")
