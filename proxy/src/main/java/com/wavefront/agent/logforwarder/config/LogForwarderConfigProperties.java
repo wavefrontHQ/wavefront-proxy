@@ -11,8 +11,8 @@ import java.util.Map;
 import io.vertx.core.Vertx;
 import org.apache.commons.lang3.tuple.Pair;
 
-import com.vmware.log.forwarder.generalsettings.GeneralSettingsService;
-import com.vmware.log.forwarder.telemetry.LogForwarderTelemetryServiceV2;//TODO Move this metrics
+//import com.vmware.log.forwarder.generalsettings.GeneralSettingsService;
+//import com.vmware.log.forwarder.telemetry.LogForwarderTelemetryServiceV2;//TODO Move this metrics
 // push to proxy metrics
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
 import com.wavefront.agent.logforwarder.ingestion.processors.config.ComponentConfig;
@@ -32,9 +32,9 @@ public class LogForwarderConfigProperties {
   public static LogForwarderArgs logForwarderArgs;
   //TODO Move the below services out since this is about properties
 //  public static final SystemAlertsEvaluatorService systemAlertsEvaluatorService = new SystemAlertsEvaluatorService();
-  public static final LogForwarderTelemetryServiceV2 telemetryService = new LogForwarderTelemetryServiceV2();
-   // TODO Remove this once finalized settings sync from cloud  will not be needed for MVP.
-  public static final GeneralSettingsService generalSettingsService = new GeneralSettingsService();
+//  public static final LogForwarderTelemetryServiceV2 telemetryService = new LogForwarderTelemetryServiceV2();
+//   // TODO Remove this once finalized settings sync from cloud  will not be needed for MVP.
+//  public static final GeneralSettingsService generalSettingsService = new GeneralSettingsService();
 
   public static Boolean addFwderIdInEvent = false;
 
