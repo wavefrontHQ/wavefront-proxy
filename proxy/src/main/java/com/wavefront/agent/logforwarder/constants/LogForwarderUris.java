@@ -6,4 +6,5 @@ package com.wavefront.agent.logforwarder.constants;
  */
 public class LogForwarderUris {
   public static final String LOF_FORWARDER_INGEST_URI = "/log-forwarder/ingest";
+  public static final String LOG_FORWARDER_CONFIG_URI = "/log-forwarder/forwarder-config";
 }
