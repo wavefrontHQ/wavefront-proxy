@@ -295,7 +295,71 @@
       <artifactId>jafama</artifactId>
       <version>2.1.0</version>
     </dependency>
-  </dependencies>
+
+   <!-- Vertx dependencies for log forwarder-->
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-web</artifactId>
+      <version>3.8.4</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/io.vertx/vertx-web-client -->
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-web-client</artifactId>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.mockito/mockito-all -->
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>3.2.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-unit</artifactId>
+      <version>3.9.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.googlecode.json-simple</groupId>
+      <artifactId>json-simple</artifactId>
+      <version>1.1.1</version>
+    </dependency>
+    <dependency>
+      <groupId>com.esotericsoftware</groupId>
+      <artifactId>kryo-shaded</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.noggit</groupId>
+      <artifactId>noggit</artifactId>
+    </dependency>
+<!--    Log Ingestion gateway processor dependency-->
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpasyncclient</artifactId>
+    </dependency>
+
+    <!-- TODO This is just temporary to get development going. Remove this lib jar dependecnies
+  once all com.vmware and xenon dependencies are ported or removed for log forwarder-->
+        <dependency>
+          <groupId>com.vmware.xenon</groupId>
+          <artifactId>xenon-common</artifactId>
+          <scope>system</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>com.wavefront</groupId>
+              <artifactId>java-lib</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>com.wavefront</groupId>
+              <artifactId>wavefront-sdk-java</artifactId>
+            </exclusion>
+          </exclusions>
+          <version>4.1.19</version>
+          <systemPath>${pom.basedir}/src/lib/xenon-common-1.6.19.jar</systemPath>
+        </dependency>
+ </dependencies>
 
   <build>
     <resources>
