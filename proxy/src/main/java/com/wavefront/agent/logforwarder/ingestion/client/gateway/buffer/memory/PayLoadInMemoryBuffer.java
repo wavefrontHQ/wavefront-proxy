@@ -1,11 +1,10 @@
 package com.wavefront.agent.logforwarder.ingestion.client.gateway.buffer.memory;
 
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.MetricRegistry;
-import com.vmware.ingestion.metrics.MetricsService;
+
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
-import com.vmware.log.forwarder.systemalerts.SystemAlertUtils;
+
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.metrics.MetricsService;
 import com.wavefront.agent.logforwarder.ingestion.constants.IngestConstants;
 import com.wavefront.agent.logforwarder.ingestion.processors.Processor;
 import com.wavefront.agent.logforwarder.ingestion.processors.config.ComponentConfig;
@@ -13,14 +12,15 @@ import com.wavefront.agent.logforwarder.ingestion.processors.model.event.EventPa
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.parser.StructureFactory;
 import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
 import com.wavefront.agent.logforwarder.ingestion.util.RestApiSourcesMetricsUtil;
-
-import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.collections.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import io.dropwizard.metrics5.Histogram;
+import io.dropwizard.metrics5.MetricRegistry;
 
 /**
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
@@ -47,23 +47,28 @@ public class PayLoadInMemoryBuffer {
         LogForwarderConfigProperties.logForwarderArgs.noOfWorkerThreads != null) {
       noOfWorkers = LogForwarderConfigProperties.logForwarderArgs.noOfWorkerThreads;
     }
-    String process = MetricRegistry.name(getClass().getName(), component.component, "process.timetaken-in-millis");
+    String process = MetricRegistry.name(getClass().getName(), component.component, "process" +
+        ".timetaken-in-millis").getKey();
     processingTimeTaken = MetricsService
         .getInstance()
         .getHistogram(process);
-    String total = MetricRegistry.name(getClass().getName(), component.component, "total.timetaken-in-millis");
+    String total = MetricRegistry.name(getClass().getName(), component.component,
+        "total.timetaken-in-millis").getKey();
     totalTimeTaken = MetricsService
         .getInstance()
         .getHistogram(total);
-    String poll = MetricRegistry.name(getClass().getName(), component.component, "poll.timetaken-in-millis");
+    String poll = MetricRegistry.name(getClass().getName(), component.component,
+        "poll.timetaken-in-millis").getKey();
     pollTimeTaken = MetricsService
         .getInstance()
         .getHistogram(poll);
-    String parse = MetricRegistry.name(getClass().getName(), component.component, "parse.timetaken-in-millis");
+    String parse = MetricRegistry.name(getClass().getName(), component.component,
+        "parse.timetaken-in-millis").getKey();
     parseTimeTaken = MetricsService
         .getInstance()
         .getHistogram(parse);
-    String queue = MetricRegistry.name(getClass().getName(), component.component, "queue-size");
+    String queue = MetricRegistry.name(getClass().getName(), component.component,
+        "queue-size").getKey();
     queueSize = MetricsService
         .getInstance()
         .getHistogram(queue);
@@ -71,7 +76,8 @@ public class PayLoadInMemoryBuffer {
     messagesInRequest = MetricsService
         .getInstance()
         .getHistogram(MetricRegistry
-            .name(getClass().getSimpleName(), component.component, "messages-in-request"));
+            .name(getClass().getSimpleName(), component.component, "messages-in-request").
+                getKey());
 
     inMemoryEventPayloadBuffer = new ArrayBlockingQueue<>(getBufferSize());
   }
@@ -94,7 +100,7 @@ public class PayLoadInMemoryBuffer {
       queueSize.update(inMemoryEventPayloadBuffer.size());
     } catch (IllegalStateException e) {
       logger.debug("exception when adding event payload in the inMemoryEventPayloadBuffer", e);
-      SystemAlertUtils.updateMessagesDroppedMetric(payload.batch.size());
+//      SystemAlertUtils.updateMessagesDroppedMetric(payload.batch.size());TODO
       MetricsService.getInstance()
           .getMeter("cfapi-enqueue-failed-blobs-" + component.component).mark();
       MetricsService.getInstance()
