@@ -9,22 +9,23 @@ import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.vmware.log.forwarder.host.LogForwarderConfigProperties;
-import com.vmware.log.forwarder.services.BaseService;
-import com.vmware.log.forwarder.utils.LogForwarderUris;
 
-import com.vmware.log.forwarder.utils.RequestUtils;
-import com.vmware.xenon.common.Operation;//TODO Remove xenon dependencies
+
+import com.vmware.xenon.common.Operation;;//TODO Remove xenon dependencies
 import com.vmware.xenon.common.StatelessService;
+import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
+import com.wavefront.agent.logforwarder.constants.LogForwarderUris;
 import com.wavefront.agent.logforwarder.ingestion.processors.config.ComponentConfig;
+import com.wavefront.agent.logforwarder.ingestion.restapi.BaseHttpEndpoint;
 import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
+import com.wavefront.agent.logforwarder.ingestion.util.RequestUtil;
 
 
 /**
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/3/21 2:36 PM
  */
-public class LogForwarderConfigService extends StatelessService implements BaseService {
+public class LogForwarderConfigService extends StatelessService implements BaseHttpEndpoint {
 
   public static final String SELF_LINK = LogForwarderUris.LOG_FORWARDER_CONFIG_URI;
 
@@ -51,10 +52,10 @@ public class LogForwarderConfigService extends StatelessService implements BaseS
     try {
       String configJSON = post != null ? post.getBody(String.class) : routingContext.getBodyAsString();
       startSyslogAndRestApiServices(configJSON);
-      RequestUtils.setResponse(future, post);
+      RequestUtil.setResponse(future, post);
     } catch (Exception e) {
       logger.error("Exception during POST config, failing the operation", e);
-      RequestUtils.setException(future, post, e);
+      RequestUtil.setException(future, post, e);
     }
   }
 

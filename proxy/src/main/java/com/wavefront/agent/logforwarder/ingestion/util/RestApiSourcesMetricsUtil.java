@@ -4,9 +4,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-import com.codahale.metrics.MetricRegistry;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.parser.StructureFactory;
+import io.dropwizard.metrics5.MetricRegistry;
 
 public class RestApiSourcesMetricsUtil {
 

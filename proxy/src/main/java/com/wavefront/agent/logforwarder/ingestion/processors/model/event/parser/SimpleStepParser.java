@@ -1,12 +1,10 @@
 package com.wavefront.agent.logforwarder.ingestion.processors.model.event.parser;
 
-import com.vmware.ingestion.transformers.CFAPI;
-import com.wavefront.agent.logforwarder.ingestion.processors.model.event.Event;
 
+import com.wavefront.agent.logforwarder.ingestion.processors.model.event.Event;
 import org.noggit.JSONParser;
 import org.noggit.JSONUtil;
 import org.noggit.ObjectBuilder;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -129,8 +127,8 @@ public class SimpleStepParser implements StepParser {
 
   private void objectParser(Event event, String currentPath, Map<String, Object> inputMap) {
     Map<String, Object> flattenedMap = new LinkedHashMap<>();
-    if (currentPath.equals(CFAPI.TEXT_FIELD)) {
-      event.put(CFAPI.TEXT_FIELD, JSONUtil.toJSON(inputMap, -1)); // Retain Text Field
+    if (currentPath.equals(FieldConstants.TEXT_FIELD)) {
+      event.put(FieldConstants.TEXT_FIELD, JSONUtil.toJSON(inputMap, -1)); // Retain Text Field
       addKeys("", inputMap, flattenedMap);
     } else {
       addKeys(currentPath, inputMap, flattenedMap);

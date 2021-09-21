@@ -4,11 +4,11 @@ import java.util.concurrent.TimeUnit;
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
-import com.vmware.xenon.common.UriUtils;//TODO MOVE OUT of this dependency
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
-import com.wavefront.agent.logforwarder.ingestion.client.gateway.IngestionClient;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientFactory;
 import com.wavefront.agent.logforwarder.ingestion.http.client.utils.HttpClientUtils;
 import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
+import com.wavefront.agent.logforwarder.ingestion.util.UriUtils;
 
 /**
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
@@ -17,7 +17,7 @@ import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
 public class PostToRDCLogIqProcessor extends PostToLogIqProcessor implements Processor {
 
   /**
-   *
+   * Initialize the processor with configuration from xml
    * @param json
    * @throws Throwable
    */
@@ -34,7 +34,7 @@ public class PostToRDCLogIqProcessor extends PostToLogIqProcessor implements Pro
     accessKey = LogForwarderUtils.getLemansClientAccessKey();//TODO move this to ProxyConfig
     tenantIdentifier = LogForwarderConstants.RDC_TENANT_IDENTIFIER;
     try {
-      IngestionClient.getInstance().initializeVertxLemansClient(url, accessKey);
+      GatewayClientFactory.getInstance().initializeVertxLemansClient(url, accessKey);
     } catch (RuntimeException e) {
       throw e;
     }
