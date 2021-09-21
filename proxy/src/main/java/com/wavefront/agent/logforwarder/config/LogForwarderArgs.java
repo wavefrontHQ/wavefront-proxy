@@ -1,12 +1,12 @@
 package com.wavefront.agent.logforwarder.config;
 
-import com.vmware.xenon.common.ServiceHost;//TODO Remove xenon and port this
+
 
 /**
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/15/21 1:24 PM
  */
-public class LogForwarderArgs extends ServiceHost.Arguments {
+public class LogForwarderArgs  {
 
   public String addFwderIdInEvent;
 
