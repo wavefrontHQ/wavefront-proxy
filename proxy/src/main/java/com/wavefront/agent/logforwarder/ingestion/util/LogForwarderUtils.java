@@ -6,25 +6,12 @@ package com.wavefront.agent.logforwarder.ingestion.util;
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/2/21 4:41 PM
  */
-/*
- * Copyright (c) 2019 VMware, Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License.  You may obtain a copy of
- * the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, without warranties or
- * conditions of any kind, EITHER EXPRESS OR IMPLIED.  See the License for the
- * specific language governing permissions and limitations under the License.
- */
 
-import static com.vmware.log.forwarder.host.LogForwarderConfigProperties.EVENT_FORWARDING_HTTP_CLIENT;
+
 
 import java.io.FileInputStream;
 import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -40,33 +27,17 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.vertx.core.Vertx;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.concurrent.FutureCallback;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.vmware.lemans.client.gateway.LemansClient;
-import com.vmware.log.forwarder.host.LogForwarderArgs;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
-import com.vmware.log.forwarder.httpclient.HttpClientUtils;
-import com.vmware.log.forwarder.lemansclient.LemansClientState;
-import com.vmware.log.forwarder.lemansclient.LogForwarderAgentHost;
-import com.vmware.log.forwarder.restapi.RestApiVerticle;
-import com.vmware.log.forwarder.services.BaseService;
-import com.vmware.log.forwarder.services.EventForwardingService;
-import com.vmware.log.forwarder.verticle.VertxUtils;
-import com.vmware.xenon.common.CommandLineArgumentParser;
-import com.vmware.xenon.common.DeferredResult;
-import com.vmware.xenon.common.Operation;
-import com.vmware.xenon.common.ServiceHost;
-import com.vmware.xenon.common.UriUtils;
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientManager;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientState;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.verticle.VertxUtils;
 import com.wavefront.agent.logforwarder.ingestion.processors.Processor;
 import com.wavefront.agent.logforwarder.ingestion.processors.config.ComponentConfig;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.Event;
@@ -75,7 +46,9 @@ import com.wavefront.agent.logforwarder.ingestion.processors.model.event.EventPa
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.parser.FieldConstants;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.parser.StructureFactory;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.parser.api.StructureParser;
+import com.wavefront.agent.logforwarder.ingestion.restapi.BaseHttpEndpoint;
 import com.wavefront.agent.logforwarder.ingestion.restapi.LogForwarderRestIngestEndpoint;
+import com.wavefront.agent.logforwarder.ingestion.restapi.RestApiVerticle;
 import com.wavefront.agent.logforwarder.services.LogForwarderConfigService;
 
 public class LogForwarderUtils {
@@ -151,51 +124,6 @@ public class LogForwarderUtils {
     }
     return str;
   }
-
-  public static DeferredResult<Operation> postToEventForwardingService(ServiceHost serviceHost, String body) {
-    Operation operation = Operation
-        .createPost(serviceHost, EventForwardingService.SELF_LINK)
-        .setBody(body)
-        .setReferer(serviceHost.getUri());
-    return serviceHost.sendWithDeferredResult(operation)
-        .exceptionally(e -> {
-          logger.error("BiDirectionalPipeline -- error in call to EventForwardingService worflow", e);
-          return null;
-        });
-  }
-
-  public static void postToEventForwardingService(URI baseUri, String body) {
-    CloseableHttpAsyncClient httpAsyncClient = HttpClientUtils.getHttpClient(EVENT_FORWARDING_HTTP_CLIENT);
-    URI url = UriUtils.extendUri(baseUri, EventForwardingService.SELF_LINK);
-
-    HttpPost httpPost = new HttpPost(url);
-    httpPost.addHeader("Content-Type", "application/json");
-    httpPost.addHeader("Accept", "application/json");
-    httpPost.setEntity(new StringEntity(body, StandardCharsets.UTF_8));
-
-    httpAsyncClient.execute(httpPost, new FutureCallback<HttpResponse>() {
-      @Override
-      public void completed(HttpResponse httpResponse) {
-        int responseCode = httpResponse.getStatusLine().getStatusCode();
-        if (!((responseCode >= 200) && (responseCode <= 299))) {
-          logger.error("BiDirectionalPipeline -- error in call to EventForwardingService work flow, +" +
-              "status code " + responseCode);
-        }
-      }
-
-      @Override
-      public void failed(Exception e) {
-        logger.error("BiDirectionalPipeline -- error in call to EventForwardingService work flow", e);
-      }
-
-      @Override
-      public void cancelled() {
-        logger.error("BiDirectionalPipeline -- error in call to EventForwardingService " +
-            "work flow(request cancelled)");
-      }
-    });
-  }
-
 
   public static void disableHttp2IfNeeded() {
     if (LogForwarderUtils.getLemansServerUrl() != null &&
@@ -287,7 +215,7 @@ public class LogForwarderUtils {
 //    LogInsightAgentPackageDownloadService logInsightAgentPackageDownloadService = new
 //        LogInsightAgentPackageDownloadService();
 
-    Map<String, BaseService> serviceMap = new HashMap<>();
+    Map<String, BaseHttpEndpoint> serviceMap = new HashMap<>();
     serviceMap.put(LogForwarderRestIngestEndpoint.SELF_LINK, liService);
     serviceMap.put(LogForwarderRestIngestEndpoint.SELF_LINK, lfService);
 //    serviceMap.put(LogInsightAgentStatusService.SELF_LINK, logInsightAgentStatusService);
@@ -376,8 +304,8 @@ public class LogForwarderUtils {
   }
 
   /**
-   * auto-initialize the vmc-config if
-   * {@link com.vmware.log.forwarder.host.LogForwarderArgs#autoInitializeConfig} is true
+   * auto-initialize if
+   * {@link com.wavefront.agent.logforwarder.config.LogForwarderArgs} is true
    * <p>
    * the vmc config is loaded from vmc-config.json that is present in the classpath
    */
@@ -524,8 +452,8 @@ public class LogForwarderUtils {
    * Returns Lemans Agent Id.
    */
   public static String getLemansAgentId() {
-      LogForwarderAgentHost agentHost = LemansClientState.accessKeyVsLemansClientHost
+      GatewayClientManager gatewayClientManager = GatewayClientState.accessKeyVsLemansClient
           .get(LogForwarderUtils.getLemansClientAccessKey());
-      return agentHost != null ? agentHost.getAgentId() : null;
+      return gatewayClientManager != null ? gatewayClientManager.getAgentId() : null;
   }
 }
