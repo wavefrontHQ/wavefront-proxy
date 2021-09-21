@@ -1,11 +1,9 @@
 package com.wavefront.agent.logforwarder.ingestion.util;
 
-import com.vmware.log.forwarder.exception.CustomHttpException;
-import com.vmware.log.forwarder.verticle.VertxResponse;
-import com.vmware.xenon.common.Operation;
-import com.vmware.xenon.common.Utils;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.utils.Utils;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.verticle.VertxResponse;
 
-import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.entity.ContentType;
 import org.slf4j.Logger;
@@ -17,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-
+import com.vmware.xenon.common.Operation;
 import io.vertx.ext.web.RoutingContext;
 
 /**
