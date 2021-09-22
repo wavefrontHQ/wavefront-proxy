@@ -48,6 +48,7 @@ import com.wavefront.agent.listeners.HttpHealthCheckEndpointHandler;
 import com.wavefront.agent.listeners.JsonMetricsPortUnificationHandler;
 import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
 import com.wavefront.agent.listeners.OtlpGrpcHandler;
+import com.wavefront.agent.listeners.OtlpHttpHandler;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
@@ -381,6 +382,17 @@ public class PushAgent extends AbstractAgent {
           new SpanSanitizeTransformer(ruleMetrics));
       startOtlpGrpcListener(strPort, handlerFactory,
           new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
+    });
+
+    String otlpHttpPort = "4318";
+    csvToList(otlpHttpPort).forEach(strPort -> {
+      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
+      );
+      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+          new SpanSanitizeTransformer(ruleMetrics));
+      startOtlpHttpListener(strPort, handlerFactory);
     });
 
     csvToList(proxyConfig.getTraceJaegerGrpcListenerPorts()).forEach(strPort -> {
@@ -789,7 +801,27 @@ public class PushAgent extends AbstractAgent {
 
   }
 
-  protected void startTraceZipkinListener(String strPort,
+  protected void startOtlpHttpListener(String strPort,
+                                       ReportableEntityHandlerFactory handlerFactory) {
+    final int port = Integer.parseInt(strPort);
+//    registerPrefixFilter(strPort);
+//    registerTimestampFilter(strPort);
+//    if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
+
+    ChannelHandler channelHandler = new OtlpHttpHandler(handlerFactory, tokenAuthenticator,
+        healthCheckManager,
+        strPort);
+
+    startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
+        proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
+        proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort),
+        getCorsConfig(strPort)), port).
+        withChildChannelOptions(childChannelOptions), "listener-otlphttp-" + port);
+    logger.info("listening on port: " + strPort + " for OTLP JSON data");
+  }
+
+
+    protected void startTraceZipkinListener(String strPort,
                                           ReportableEntityHandlerFactory handlerFactory,
                                           @Nullable WavefrontSender wfSender,
                                           SpanSampler sampler) {

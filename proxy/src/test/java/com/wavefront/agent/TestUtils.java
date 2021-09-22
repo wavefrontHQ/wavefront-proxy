@@ -18,6 +18,7 @@ import javax.net.SocketFactory;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -33,6 +34,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
+import okhttp3.MediaType;
 import wavefront.report.Span;
 
 import static org.easymock.EasyMock.verify;
@@ -152,6 +154,23 @@ public class TestUtils {
     connection.setDoOutput(true);
     connection.setDoInput(true);
     BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream(), "UTF-8"));
+    writer.write(payload);
+    writer.flush();
+    writer.close();
+    int response = connection.getResponseCode();
+    logger.info("HTTP POST response code (plaintext content): " + response);
+    return response;
+  }
+
+  public static int httpPost(String urlGet, byte[] payload, String mediaType) throws Exception {
+    URL url = new URL(urlGet);
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("POST");
+    connection.setRequestProperty("content-type", mediaType);
+    connection.setDoOutput(true);
+    connection.setDoInput(true);
+
+    DataOutputStream writer = new DataOutputStream(connection.getOutputStream());
     writer.write(payload);
     writer.flush();
     writer.close();
