@@ -1,0 +1,22 @@
+{
+  "messages":[
+    {
+      "text":": verbose vpxa[6CAFEB70] [Originator@6876 sub=VpxaHalCnxHostagent opID=WFU-4a548e30] [WaitForUpdatesDone] Received callback",
+      "fields":[
+        {
+          "name":"hostname",
+          "content":"w3-hs1-050301.eng.vmware.com"
+        },
+        {
+          "name":"appname",
+          "content":"Vpxa"
+        },
+        {
+          "name":"source",
+          "content":"prome-1s-ds.com"
+        }
+      ],
+      "time":1491777731145
+    }
+  ]
+}
