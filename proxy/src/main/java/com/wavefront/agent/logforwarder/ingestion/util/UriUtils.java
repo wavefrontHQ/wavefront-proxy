@@ -225,6 +225,11 @@ public class UriUtils {
     }
   }
 
+  public static String getLastPathSegment(URI uri) {
+    String path = uri.getPath();
+    return getLastPathSegment(path);
+  }
+
   public static String getLastPathSegment(String link) {
     if (link == null) {
       throw new IllegalArgumentException("link is required");
