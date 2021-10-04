@@ -284,6 +284,9 @@ public abstract class PostToLogIqProcessor implements Processor {
             boolean postSuccessful = false;
             if ((responseCode >= 200) && (responseCode <= 299)) {
               postSuccessful = true;
+              logger.info("Successfully posted log payload to ingestion gateway requestId: {} " +
+                      "accessKey : {} ",
+                  gatewayRequest.getId(),accessKey);
             } else {
               logger.error("post to log ingestion gateway failed responseCode=" + responseCode);
             }
