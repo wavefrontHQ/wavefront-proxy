@@ -35,8 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
-import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientManager;
-import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientState;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.verticle.VertxUtils;
 import com.wavefront.agent.logforwarder.ingestion.processors.Processor;
 import com.wavefront.agent.logforwarder.ingestion.processors.config.ComponentConfig;
@@ -205,52 +203,16 @@ public class LogForwarderUtils {
 
   public static Vertx deployRestApiVerticle(ComponentConfig componentConfig) {
     /** start log-forwarder ingestion api that accepts simple json format */
-    LogForwarderRestIngestEndpoint lfService = new LogForwarderRestIngestEndpoint(componentConfig.component);
-    /** start log-insight ingestion api that accepts cfapi format */
     LogForwarderRestIngestEndpoint liService = new LogForwarderRestIngestEndpoint(componentConfig.component);
     // TODO remove the below We are not bringing in LI agents remove dependency here
-//    LogInsightAgentStatusService logInsightAgentStatusService = new LogInsightAgentStatusService();
-//    LogInsightAgentsTelemetryService logInsightAgentsTelemetryService = new LogInsightAgentsTelemetryService();
-//    LogInsightAgentPackageInfoService logInsightAgentPackageInfoService = new LogInsightAgentPackageInfoService();
-//    LogInsightAgentPackageDownloadService logInsightAgentPackageDownloadService = new
-//        LogInsightAgentPackageDownloadService();
-
     Map<String, BaseHttpEndpoint> serviceMap = new HashMap<>();
     serviceMap.put(LogForwarderRestIngestEndpoint.SELF_LINK, liService);
-    serviceMap.put(LogForwarderRestIngestEndpoint.SELF_LINK, lfService);
-//    serviceMap.put(LogInsightAgentStatusService.SELF_LINK, logInsightAgentStatusService);
-//    serviceMap.put(LogInsightAgentsTelemetryService.SELF_LINK, logInsightAgentsTelemetryService);
-//    serviceMap.put(LogInsightAgentPackageInfoService.SELF_LINK, logInsightAgentPackageInfoService);
-//    serviceMap.put(LogInsightAgentPackageDownloadService.SELF_LINK, logInsightAgentPackageDownloadService);
 
     // Initialize Vert.X
     Vertx restApiVertx = RestApiVerticle.deploy(serviceMap, Runtime.getRuntime().availableProcessors(),
         VertxUtils.getVertxRestApiPort(componentConfig.httpPort));
     return restApiVertx;
   }
-
-//  public static void startSyslogServers(List<ComponentConfig> componentConfigs) {
-//    logger.info("Starting syslog servers");
-//
-//    componentConfigs
-//        .stream()
-//        .forEach((component) -> {
-//          if (component.syslogPort != -1) {
-//            try {
-//              SyslogIngestionServer tcpServer = new SyslogIngestionServer(
-//                  SyslogConstants.TCP, component);
-//              SyslogIngestionServer udpServer = new SyslogIngestionServer(
-//                  SyslogConstants.UDP, component);
-//              tcpServer.start();
-//              udpServer.start();
-//            } catch (Exception e) {
-//              throw new RuntimeException(e);
-//            }
-//          }
-//        });
-//
-//    logger.info("syslog servers started successfully");
-//  }
 
   @SuppressWarnings("unchecked")
   public static List<ComponentConfig> parseForwarderConfigAndCreateProcessors(String configJSON) throws Exception {
@@ -321,7 +283,7 @@ public class LogForwarderUtils {
         String config = IOUtils.toString(classLoader.getResourceAsStream(configFileName),
             StandardCharsets.UTF_8);
         logger.info("config=" + config);
-        LogForwarderConfigService.startSyslogAndRestApiServices(config);
+        LogForwarderConfigService.startRestApiServices(config);
       } catch (Exception e) {
         logger.error("POST auto-config failed", e);
       }
@@ -446,14 +408,5 @@ public class LogForwarderUtils {
         event.putIfAbsent(LogForwarderConstants.FORWARDER_ID, LogForwarderUtils.getForwarderId());
       });
     }
-  }
-
-  /**
-   * Returns Lemans Agent Id.
-   */
-  public static String getLemansAgentId() {
-      GatewayClientManager gatewayClientManager = GatewayClientState.accessKeyVsLemansClient
-          .get(LogForwarderUtils.getLemansClientAccessKey());
-      return gatewayClientManager != null ? gatewayClientManager.getAgentId() : null;
   }
 }
