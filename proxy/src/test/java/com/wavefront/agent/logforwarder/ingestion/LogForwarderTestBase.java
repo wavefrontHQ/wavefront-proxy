@@ -7,7 +7,7 @@ import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientState;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.metrics.MetricsService;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.utils.Utils;
-import com.wavefront.agent.logforwarder.ingestion.processors.LogInsightIngestionTestProcessor;
+import com.wavefront.agent.logforwarder.ingestion.processors.LogIngestionTestProcessor;
 import com.wavefront.agent.logforwarder.ingestion.util.RestApiSourcesMetricsUtil;
 import com.wavefront.agent.logforwarder.ingestion.utils.TestUtils;
 import com.wavefront.agent.logforwarder.services.LogForwarderConfigService;
@@ -114,7 +114,7 @@ public class LogForwarderTestBase {
                 .getCanonicalPath() + "/src/test/resources/ingestion-data/cfapi-li-agent.json");
         simpleText = readFile(new java.io.File(".")
                 .getCanonicalPath() + "/src/test/resources/ingestion-data/simple.json");
-        LogInsightIngestionTestProcessor.eventPayload = null;
+        LogIngestionTestProcessor.eventPayload = null;
     }
 
     /**
