@@ -4,12 +4,15 @@ package com.wavefront.agent.logforwarder.ingestion.restapi;
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 8/25/21 5:16 PM
  */
+import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
 import io.vertx.ext.web.RoutingContext;
 import org.apache.http.HttpStatus;
 import org.apache.http.entity.ContentType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;//TODO port this to use ProxyConfig
 import com.wavefront.agent.logforwarder.constants.LogForwarderUris;
@@ -27,6 +30,9 @@ import com.wavefront.agent.logforwarder.ingestion.util.RequestUtil;
 public class LogForwarderRestIngestEndpoint implements BaseHttpEndpoint {
 
   public static final String SELF_LINK = LogForwarderUris.LOF_FORWARDER_INGEST_URI;
+  private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+
 
   private PayLoadInMemoryBuffer payloadInMemoryBuffer;
 //TODO Metrics revisit this
@@ -42,6 +48,7 @@ public class LogForwarderRestIngestEndpoint implements BaseHttpEndpoint {
     ComponentConfig componentConfig = LogForwarderConfigProperties.componentConfigMap.get(componentName);
     payloadInMemoryBuffer = new PayLoadInMemoryBuffer(componentConfig);
     payloadInMemoryBuffer.dequeueMessagesAndSend();
+    logger.info("Started LogForwarderRestIngestEndpoint in path : " + LogForwarderUris.LOF_FORWARDER_INGEST_URI);
   }
 
   @Override
