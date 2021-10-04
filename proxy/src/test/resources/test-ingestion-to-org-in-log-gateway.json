@@ -1,0 +1,10 @@
+[
+  {
+    "component": "TEST_RDC_INGESTION_SUCCESS",
+    "syslogPort": 13124,
+    "httpPort": 15125,
+    "processors": [
+      {"post-to-log-iq": {"processor":"com.wavefront.agent.logforwarder.ingestion.processors.PostToRDCLogIqProcessor", "chainName": "defaultChain"}}
+    ]
+  }
+]
