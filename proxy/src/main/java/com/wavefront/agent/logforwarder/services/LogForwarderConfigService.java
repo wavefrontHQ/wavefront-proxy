@@ -51,7 +51,7 @@ public class LogForwarderConfigService extends StatelessService implements BaseH
   private void processPost(CompletableFuture future, RoutingContext routingContext, Operation post) {
     try {
       String configJSON = post != null ? post.getBody(String.class) : routingContext.getBodyAsString();
-      startSyslogAndRestApiServices(configJSON);
+      startRestApiServices(configJSON);
       RequestUtil.setResponse(future, post);
     } catch (Exception e) {
       logger.error("Exception during POST config, failing the operation", e);
@@ -59,7 +59,7 @@ public class LogForwarderConfigService extends StatelessService implements BaseH
     }
   }
 
-  public static void startSyslogAndRestApiServices(String configJSON) throws Exception {
+  public static void startRestApiServices(String configJSON) throws Exception {
     logger.info("Processing component config and created required listeners config: " + configJSON);
     List<ComponentConfig> componentConfigs = LogForwarderUtils.parseForwarderConfigAndCreateProcessors(configJSON);
     //TODO Remove commeented code since we are not going to add syslog support at least for now
