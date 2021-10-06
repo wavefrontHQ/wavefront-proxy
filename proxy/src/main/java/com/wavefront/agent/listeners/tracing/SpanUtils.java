@@ -1,13 +1,19 @@
 package com.wavefront.agent.listeners.tracing;
 
+import com.google.protobuf.ByteString;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.ReportableEntityDecoder;
+import com.wavefront.java_sdk.com.google.common.annotations.VisibleForTesting;
 
+import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -173,4 +179,11 @@ public final class SpanUtils {
     }
   }
 
+  public static String toStringId(ByteString id) {
+    ByteBuffer byteBuffer = ByteBuffer.wrap(id.toByteArray());
+    long mostSigBits = id.toByteArray().length > 8 ? byteBuffer.getLong() : 0L;
+    long leastSigBits = new BigInteger(1, byteBuffer.array()).longValue();
+    UUID uuid = new UUID(mostSigBits, leastSigBits);
+    return uuid.toString();
+  }
 }

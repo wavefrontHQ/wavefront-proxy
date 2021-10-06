@@ -1,4 +1,4 @@
-package com.wavefront.agent.listeners;
+package com.wavefront.agent.listeners.otlp;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -7,6 +7,7 @@ import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.listeners.AbstractHttpOnlyHandler;
 import com.wavefront.data.ReportableEntityType;
 
 import org.jetbrains.annotations.Nullable;
@@ -23,8 +24,8 @@ import wavefront.report.Span;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 
 public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
-  private ReportableEntityHandler<Span, String> spanHandler;
   private final static Logger logger = Logger.getLogger(OtlpHttpHandler.class.getCanonicalName());
+  private ReportableEntityHandler<Span, String> spanHandler;
 
   /**
    * Create new instance.
@@ -49,13 +50,16 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
 
   @Override
   protected void handleHttpMessage(ChannelHandlerContext ctx, FullHttpRequest request) throws URISyntaxException {
+//  TODO:  if request.path == "/v1/traces"
+//        else if request.p[ath == "/v1/metrics"
+//        eslse blow up
     try {
       ExportTraceServiceRequest otlpRequest =
           ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
       logger.info("otlp http request: " + otlpRequest);
 
       for (wavefront.report.Span wfSpan :
-          OtlpUtils.otlpSpanExportRequestParseToWFSpan(otlpRequest)) {
+          OtlpProtobufUtils.otlpSpanExportRequestParseToWFSpan(otlpRequest)) {
         this.spanHandler.report(wfSpan);
       }
       /*

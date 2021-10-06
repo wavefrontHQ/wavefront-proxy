@@ -2,7 +2,6 @@ package com.wavefront.agent;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.ByteString;
 
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.data.QueueingReason;
@@ -13,6 +12,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.SenderTask;
 import com.wavefront.agent.handlers.SenderTaskFactory;
+import com.wavefront.agent.listeners.otlp.OtlpTestHelpers;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
@@ -1471,29 +1471,12 @@ public class PushAgentTest {
 
     reset(mockTraceHandler);
 
-    byte[] spanIdBytes = {0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9};
-    byte[] traceIdBytes = {0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1};
-
-    Span wfSpan = Span.newBuilder()
-        .setName("root")
-        .setSpanId("00000000-0000-0000-0909-090909090909")
-        .setTraceId("01010101-0101-0101-0101-010101010101")
-        .setStartMillis(startTime)
-        .setDuration(50)
-        .setSource("open-telemetry")
-        .setCustomer("wf-proxy")
-        .build();
+    Span wfSpan = OtlpTestHelpers.wfSpanGenerator(null).build();
     mockTraceHandler.report(wfSpan);
     expectLastCall();
 
     replay(mockTraceHandler);
-    io.opentelemetry.proto.trace.v1.Span otelSpan = io.opentelemetry.proto.trace.v1.Span.newBuilder()
-        .setName("root")
-        .setSpanId(ByteString.copyFrom(spanIdBytes))
-        .setTraceId(ByteString.copyFrom(traceIdBytes))
-        .setStartTimeUnixNano(startTime * 1000)
-        .setEndTimeUnixNano(startTime * 1000 + 50000)
-        .build();
+    io.opentelemetry.proto.trace.v1.Span otelSpan = OtlpTestHelpers.otlpSpanGenerator().build();
 
     InstrumentationLibrarySpans instrumentationLibrarySpans =
         InstrumentationLibrarySpans.newBuilder().
@@ -1508,7 +1491,7 @@ public class PushAgentTest {
 
     assertEquals(400, httpPost("http://localhost:" + port, "junk".getBytes(), "application/x-protobuf"));
     assertEquals(200, httpPost("http://localhost:" + port, payloadObj.toByteArray(), "application/x-protobuf"));
-
+    // TODO: Test that "http://localhost:123/anything fails and /v1/traces works
     verify(mockTraceHandler);
   }
 

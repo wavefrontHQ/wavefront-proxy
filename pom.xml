@@ -281,8 +281,8 @@
       </dependency>
       <dependency>
         <groupId>io.opentelemetry</groupId>
-        <artifactId>opentelemetry-bom</artifactId>
-        <version>1.6.0</version>
+        <artifactId>opentelemetry-bom-alpha</artifactId>
+        <version>1.6.0-alpha</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

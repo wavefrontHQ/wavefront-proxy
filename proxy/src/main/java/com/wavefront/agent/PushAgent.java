@@ -47,8 +47,8 @@ import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
 import com.wavefront.agent.listeners.HttpHealthCheckEndpointHandler;
 import com.wavefront.agent.listeners.JsonMetricsPortUnificationHandler;
 import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
-import com.wavefront.agent.listeners.OtlpGrpcHandler;
-import com.wavefront.agent.listeners.OtlpHttpHandler;
+import com.wavefront.agent.listeners.otlp.OtlpGrpcTraceHandler;
+import com.wavefront.agent.listeners.otlp.OtlpHttpHandler;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
@@ -787,7 +787,7 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(port, () -> {
       activeListeners.inc();
       try {
-        io.grpc.Server server = NettyServerBuilder.forPort(port).addService(new OtlpGrpcHandler(strPort, handlerFactory))
+        io.grpc.Server server = NettyServerBuilder.forPort(port).addService(new OtlpGrpcTraceHandler(strPort, handlerFactory))
             .build();
         server.start();
       } catch (Exception e) {
@@ -817,7 +817,7 @@ public class PushAgent extends AbstractAgent {
         proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort),
         getCorsConfig(strPort)), port).
         withChildChannelOptions(childChannelOptions), "listener-otlphttp-" + port);
-    logger.info("listening on port: " + strPort + " for OTLP JSON data");
+    logger.info("listening on port: " + strPort + " for OTLP protobuf data");
   }
 
 
