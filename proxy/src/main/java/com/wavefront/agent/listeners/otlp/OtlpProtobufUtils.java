@@ -9,6 +9,7 @@ import com.wavefront.sdk.common.Constants;
 
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
@@ -156,10 +157,13 @@ public class OtlpProtobufUtils {
       // TODO
       // Golang implementation: https://github.com/open-telemetry/opentelemetry-collector/blob/7ed3f75ef84d9e9d11b175a0859060f765faca0b/model/pdata/common.go#L381-L384
       // ref: https://github.com/open-telemetry/opentelemetry-proto/blob/27a10cd70f63afdbddf460881969f9ad7ae4af5d/opentelemetry/proto/common/v1/common.proto
+      logger.log(Level.SEVERE, "Encountered ArrayValue but cannot convert to String");
     } else if (anyValue.hasKvlistValue()) {
       // TODO: see above for implementation
+      logger.log(Level.SEVERE, "Encountered KvlistValue but cannot convert to String");
     } else if (anyValue.hasBytesValue()) {
       // TODO: see above for implementation
+      logger.log(Level.SEVERE, "Encountered BytesValue but cannot convert to String");
     }
     return "";
   }
