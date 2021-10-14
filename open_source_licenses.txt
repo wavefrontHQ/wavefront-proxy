@@ -1,6 +1,6 @@
 open_source_licenses.txt
 
-Wavefront by VMware 10.7 GA
+Wavefront by VMware 10.9 GA
 
 ======================================================================
 
@@ -90,8 +90,6 @@ SECTION 1: Apache License, V2.0
    >>> com.google.errorprone:error_prone_annotations-2.4.0
    >>> org.apache.logging.log4j:log4j-jul-2.13.3
    >>> commons-codec:commons-codec-1.15
-   >>> io.netty:netty-codec-socks-4.1.52.Final
-   >>> io.netty:netty-handler-proxy-4.1.52.Final
    >>> com.squareup:javapoet-1.12.1
    >>> org.apache.httpcomponents:httpclient-4.5.13
    >>> com.fasterxml.jackson.module:jackson-module-jaxb-annotations-2.11.3
@@ -112,9 +110,11 @@ SECTION 1: Apache License, V2.0
    >>> io.netty:netty-buffer-4.1.65.Final
    >>> io.netty:netty-codec-http2-4.1.65.Final
    >>> io.netty:netty-transport-native-epoll-4.1.65.Final
+   >>> io.netty:netty-handler-proxy-4.1.65.Final
    >>> io.netty:netty-codec-http-4.1.65.Final
    >>> io.netty:netty-transport-native-unix-common-4.1.65.Final
    >>> io.netty:netty-resolver-4.1.65.Final
+   >>> io.netty:netty-codec-socks-4.1.65.Final
    >>> io.netty:netty-transport-4.1.65.Final
    >>> io.netty:netty-common-4.1.65.Final
    >>> io.netty:netty-handler-4.1.65.Final
@@ -200,7 +200,6 @@ APPENDIX. Standard License Files
    >>> GNU Lesser General Public License, V3.0
    >>> Common Development and Distribution License, V1.0
    >>> Mozilla Public License, V2.0
-
 
 -------------------- SECTION 1: Apache License, V2.0 --------------------
 
@@ -2324,392 +2323,6 @@ APPENDIX. Standard License Files
         * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         * See the License for the specific language governing permissions and
         * limitations under the License.
-
-
-   >>> io.netty:netty-codec-socks-4.1.52.Final
-
-       Found in: io/netty/handler/codec/socks/SocksInitRequestDecoder.java
-
-       Copyright 2012 The Netty Project
-
-       licenses this file to you under the Apache License,
-        * version 2.0 (the "License"); you may not use this file except in compliance
-        * with the License. You may obtain a copy of the License at:
-        *
-        *   http://www.apache.org/licenses/LICENSE-2.0
-        *
-        * Unless required by applicable law or agreed to in writing, software
-        * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-        * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-        * License for the specific language governing permissions and limitations
-        * under the License.
-
-       ADDITIONAL LICENSE INFORMATION
-
-       > Apache2.0
-
-       io/netty/handler/codec/socks/package-info.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksAddressType.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socks/SocksAuthRequestDecoder.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksAuthRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksAuthResponseDecoder.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksAuthResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksAuthScheme.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socks/SocksAuthStatus.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socks/SocksCmdRequestDecoder.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksCmdRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksCmdResponseDecoder.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksCmdResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksCmdStatus.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socks/SocksCmdType.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socks/SocksCommonUtils.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksInitRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksInitResponseDecoder.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksInitResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksMessageEncoder.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksMessage.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksMessageType.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socks/SocksProtocolVersion.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socks/SocksRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksRequestType.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socks/SocksResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/SocksResponseType.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socks/SocksSubnegotiationVersion.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socks/UnknownSocksRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socks/UnknownSocksResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/AbstractSocksMessage.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/package-info.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/SocksMessage.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/SocksPortUnificationServerHandler.java
-
-       Copyright 2015 The Netty Project
-
-       io/netty/handler/codec/socksx/SocksVersion.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/AbstractSocks4Message.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/DefaultSocks4CommandRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/DefaultSocks4CommandResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/package-info.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/Socks4ClientDecoder.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/Socks4ClientEncoder.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/Socks4CommandRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/Socks4CommandResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/Socks4CommandStatus.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/Socks4CommandType.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/Socks4Message.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/Socks4ServerDecoder.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v4/Socks4ServerEncoder.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/AbstractSocks5Message.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/DefaultSocks5CommandRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/DefaultSocks5CommandResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/DefaultSocks5InitialRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/DefaultSocks5InitialResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/DefaultSocks5PasswordAuthRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/DefaultSocks5PasswordAuthResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/package-info.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5AddressDecoder.java
-
-       Copyright 2015 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5AddressEncoder.java
-
-       Copyright 2015 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5AddressType.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5AuthMethod.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5ClientEncoder.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5CommandRequestDecoder.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5CommandRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5CommandResponseDecoder.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5CommandResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5CommandStatus.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5CommandType.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5InitialRequestDecoder.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5InitialRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5InitialResponseDecoder.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5InitialResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5Message.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5PasswordAuthRequestDecoder.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5PasswordAuthRequest.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5PasswordAuthResponseDecoder.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5PasswordAuthResponse.java
-
-       Copyright 2012 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5PasswordAuthStatus.java
-
-       Copyright 2013 The Netty Project
-
-       io/netty/handler/codec/socksx/v5/Socks5ServerEncoder.java
-
-       Copyright 2014 The Netty Project
-
-       META-INF/maven/io.netty/netty-codec-socks/pom.xml
-
-       Copyright 2012 The Netty Project
-
-
-   >>> io.netty:netty-handler-proxy-4.1.52.Final
-
-       Found in: META-INF/maven/io.netty/netty-handler-proxy/pom.xml
-
-       Copyright 2014 The Netty Project
-
-       licenses this file to you under the Apache License,
-         ~ version 2.0 (the "License"); you may not use this file except in compliance
-         ~ with the License. You may obtain a copy of the License at:
-         ~
-         ~   http://www.apache.org/licenses/LICENSE-2.0
-         ~
-         ~ Unless required by applicable law or agreed to in writing, software
-         ~ distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-         ~ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-         ~ License for the specific language governing permissions and limitations
-         ~ under the License.
-
-       ADDITIONAL LICENSE INFORMATION
-
-       > Apache2.0
-
-       io/netty/handler/proxy/HttpProxyHandler.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/proxy/package-info.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/proxy/ProxyConnectException.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/proxy/ProxyConnectionEvent.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/proxy/ProxyHandler.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/proxy/Socks4ProxyHandler.java
-
-       Copyright 2014 The Netty Project
-
-       io/netty/handler/proxy/Socks5ProxyHandler.java
-
-       Copyright 2014 The Netty Project
 
 
    >>> com.squareup:javapoet-1.12.1
@@ -8196,18 +7809,12 @@ APPENDIX. Standard License Files
 
        io/netty/handler/codec/http2/HpackHuffmanDecoder.java
 
-       Copyright 2015 The Netty Project
+       Copyright 2014 Twitter, Inc.
 
-       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 6 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/HpackHuffmanDecoder.java
 
-       Copyright 2014 Twitter, Inc.
-
-       See SECTION 6 in 'LICENSE TEXT REFERENCE TABLE'
-
-       io/netty/handler/codec/http2/HpackHuffmanEncoder.java
-
        Copyright 2015 The Netty Project
 
        See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
@@ -8217,6 +7824,12 @@ APPENDIX. Standard License Files
        Copyright 2014 Twitter, Inc.
 
        See SECTION 6 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/http2/HpackHuffmanEncoder.java
+
+       Copyright 2015 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/HpackStaticTable.java
 
@@ -8960,6 +8573,71 @@ APPENDIX. Standard License Files
        Copyright 2013 The Netty Project
 
        See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+
+   >>> io.netty:netty-handler-proxy-4.1.65.Final
+
+       Found in: io/netty/handler/proxy/HttpProxyHandler.java
+
+       Copyright 2014 The Netty Project
+
+        * The Netty Project licenses this file to you under the Apache License,
+        * version 2.0 (the "License"); you may not use this file except in compliance
+        * with the License. You may obtain a copy of the License at:
+        *
+        *   https://www.apache.org/licenses/LICENSE-2.0
+        *
+        * Unless required by applicable law or agreed to in writing, software
+        * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+        * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+        * License for the specific language governing permissions and limitations
+        * under the License.
+
+       ADDITIONAL LICENSE INFORMATION
+
+       > Apache2.0
+
+       io/netty/handler/proxy/package-info.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/proxy/ProxyConnectException.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/proxy/ProxyConnectionEvent.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/proxy/ProxyHandler.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/proxy/Socks4ProxyHandler.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/proxy/Socks5ProxyHandler.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       META-INF/maven/io.netty/netty-handler-proxy/pom.xml
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 20 in 'LICENSE TEXT REFERENCE TABLE'
 
 
    >>> io.netty:netty-codec-http-4.1.65.Final
@@ -10897,6 +10575,497 @@ APPENDIX. Standard License Files
        META-INF/maven/io.netty/netty-resolver/pom.xml
 
        Copyright 2014 The Netty Project
+
+       See SECTION 20 in 'LICENSE TEXT REFERENCE TABLE'
+
+
+   >>> io.netty:netty-codec-socks-4.1.65.Final
+
+       Found in: io/netty/handler/codec/socksx/SocksPortUnificationServerHandler.java
+
+       Copyright 2015 The Netty Project
+
+        * The Netty Project licenses this file to you under the Apache License,
+        * version 2.0 (the "License"); you may not use this file except in compliance
+        * with the License. You may obtain a copy of the License at:
+        *
+        *   https://www.apache.org/licenses/LICENSE-2.0
+        *
+        * Unless required by applicable law or agreed to in writing, software
+        * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+        * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+        * License for the specific language governing permissions and limitations
+        * under the License.
+
+       ADDITIONAL LICENSE INFORMATION
+
+       > Apache2.0
+
+       io/netty/handler/codec/socks/package-info.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksAddressType.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksAuthRequestDecoder.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksAuthRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksAuthResponseDecoder.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksAuthResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksAuthScheme.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksAuthStatus.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksCmdRequestDecoder.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksCmdRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksCmdResponseDecoder.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksCmdResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksCmdStatus.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksCmdType.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksCommonUtils.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksInitRequestDecoder.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksInitRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksInitResponseDecoder.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksInitResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksMessageEncoder.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksMessage.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksMessageType.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksProtocolVersion.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksRequestType.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksResponseType.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/SocksSubnegotiationVersion.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/UnknownSocksRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socks/UnknownSocksResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/AbstractSocksMessage.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/package-info.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/SocksMessage.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/SocksVersion.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/AbstractSocks4Message.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/DefaultSocks4CommandRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/DefaultSocks4CommandResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/package-info.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/Socks4ClientDecoder.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/Socks4ClientEncoder.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/Socks4CommandRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/Socks4CommandResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/Socks4CommandStatus.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/Socks4CommandType.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/Socks4Message.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/Socks4ServerDecoder.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v4/Socks4ServerEncoder.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/AbstractSocks5Message.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/DefaultSocks5CommandRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/DefaultSocks5CommandResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/DefaultSocks5InitialRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/DefaultSocks5InitialResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/DefaultSocks5PasswordAuthRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/DefaultSocks5PasswordAuthResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/package-info.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5AddressDecoder.java
+
+       Copyright 2015 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5AddressEncoder.java
+
+       Copyright 2015 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5AddressType.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5AuthMethod.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5ClientEncoder.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5CommandRequestDecoder.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5CommandRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5CommandResponseDecoder.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5CommandResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5CommandStatus.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5CommandType.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5InitialRequestDecoder.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5InitialRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5InitialResponseDecoder.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5InitialResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5Message.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5PasswordAuthRequestDecoder.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5PasswordAuthRequest.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5PasswordAuthResponseDecoder.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5PasswordAuthResponse.java
+
+       Copyright 2012 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5PasswordAuthStatus.java
+
+       Copyright 2013 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/socksx/v5/Socks5ServerEncoder.java
+
+       Copyright 2014 The Netty Project
+
+       See SECTION 18 in 'LICENSE TEXT REFERENCE TABLE'
+
+       META-INF/maven/io.netty/netty-codec-socks/pom.xml
+
+       Copyright 2012 The Netty Project
 
        See SECTION 20 in 'LICENSE TEXT REFERENCE TABLE'
 
@@ -15058,10 +15227,6 @@ APPENDIX. Standard License Files
 
    >>> org.apache.tomcat.embed:tomcat-embed-core-8.5.66
 
-       License: Apache 2.0
-
-       ADDITIONAL LICENSE INFORMATION
-
        > Apache1.1
 
        META-INF/NOTICE
@@ -16136,8 +16301,10 @@ APPENDIX. Standard License Files
 
 
    >>> net.openhft:chronicle-algorithms-2.20.80
-   
-		License: Apache 2.0
+
+       License: Apache 2.0
+
+       ADDITIONAL LICENSE INFORMATION
 
        > Apache2.0
 
@@ -16316,8 +16483,10 @@ APPENDIX. Standard License Files
 
 
    >>> net.openhft:chronicle-values-2.20.80
-   
-		License: Apache 2.0
+
+       License: Apache 2.0
+
+       ADDITIONAL LICENSE INFORMATION
 
        > LGPL3.0
 
@@ -24683,10 +24852,7 @@ APPENDIX. Standard License Files
        SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 
 
-
 ==================== APPENDIX. Standard License Files ====================
-
-
 
 -------------------- SECTION 1: Apache License, V2.0 --------------------
 
@@ -26990,4 +27156,4 @@ Source Files is valid for three years from the date you acquired or last used th
 Software product. Alternatively, the Source Files may accompany the
 VMware service.
 
-[WAVEFRONTHQPROXY107GAAV062821]
+[WAVEFRONTHQPROXY109GASV100721]
