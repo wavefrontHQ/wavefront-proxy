@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>10.9-SNAPSHOT</version>
+  <version>10.10</version>
   <modules>
     <module>proxy</module>
   </modules>
@@ -59,7 +59,7 @@
     <jackson.version>2.12.3</jackson.version>
     <jackson-databind.version>2.12.3</jackson-databind.version>
     <netty.version>4.1.65.Final</netty.version>
-    <java-lib.version>2020-12.1</java-lib.version>
+    <java-lib.version>2020-12.1-SNAPSHOT</java-lib.version>
 
     <doclint>none</doclint>
   </properties>

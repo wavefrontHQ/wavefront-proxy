@@ -244,6 +244,8 @@ public class ProxyCheckInScheduler {
     try {
       AgentConfiguration config = checkin();
       if (config != null) {
+        logger.info("----> getShutOffAgents: "+config.getShutOffAgents());
+        logger.info("---->  isTruncateQueue: "+config.isTruncateQueue());
         if (config.getShutOffAgents()) {
           logger.severe(firstNonNull(config.getShutOffMessage(),
               "Shutting down: Server side flag indicating proxy has to shut down."));
