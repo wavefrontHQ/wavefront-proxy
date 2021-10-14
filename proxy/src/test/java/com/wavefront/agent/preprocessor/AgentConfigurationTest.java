@@ -23,7 +23,7 @@ public class AgentConfigurationTest {
       fail("Invalid rules did not cause an exception");
     } catch (RuntimeException ex) {
       Assert.assertEquals(0, config.totalValidRules);
-      Assert.assertEquals(136, config.totalInvalidRules);
+      Assert.assertEquals(139, config.totalInvalidRules);
     }
   }
 
@@ -33,7 +33,7 @@ public class AgentConfigurationTest {
     InputStream stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules.yaml");
     config.loadFromStream(stream);
     Assert.assertEquals(0, config.totalInvalidRules);
-    Assert.assertEquals(60, config.totalValidRules);
+    Assert.assertEquals(62, config.totalValidRules);
   }
 
   @Test
