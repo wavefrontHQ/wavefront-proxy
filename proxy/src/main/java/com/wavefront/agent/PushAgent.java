@@ -390,7 +390,8 @@ public class PushAgent extends AbstractAgent {
       );
       preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
           new SpanSanitizeTransformer(ruleMetrics));
-      startOtlpHttpListener(strPort, handlerFactory);
+      startOtlpHttpListener(strPort, handlerFactory,
+          new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
     });
 
     csvToList(proxyConfig.getTraceJaegerGrpcListenerPorts()).forEach(strPort -> {
@@ -785,7 +786,10 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(port, () -> {
       activeListeners.inc();
       try {
-        io.grpc.Server server = NettyServerBuilder.forPort(port).addService(new OtlpGrpcTraceHandler(strPort, handlerFactory))
+        io.grpc.Server server = NettyServerBuilder.forPort(port).addService(
+            new OtlpGrpcTraceHandler(strPort, handlerFactory, wfSender,
+                preprocessors.get(strPort), sampler)
+        )
             .build();
         server.start();
       } catch (Exception e) {
@@ -799,7 +803,9 @@ public class PushAgent extends AbstractAgent {
   }
 
   protected void startOtlpHttpListener(String strPort,
-                                       ReportableEntityHandlerFactory handlerFactory) {
+                                       ReportableEntityHandlerFactory handlerFactory,
+                                       @Nullable WavefrontSender wfSender,
+                                       SpanSampler sampler) {
     final int port = Integer.parseInt(strPort);
 //    registerPrefixFilter(strPort);
 //    registerTimestampFilter(strPort);
@@ -807,7 +813,7 @@ public class PushAgent extends AbstractAgent {
 
     ChannelHandler channelHandler = new OtlpHttpHandler(handlerFactory, tokenAuthenticator,
         healthCheckManager,
-        strPort);
+        strPort, wfSender, preprocessors.get(strPort), sampler);
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),

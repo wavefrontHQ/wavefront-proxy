@@ -34,7 +34,8 @@ public class OtlpGrpcTraceHandlerTest {
 
     EasyMock.replay(mockSpanHandler);
 
-    OtlpGrpcTraceHandler otlpGrpcTraceHandler = new OtlpGrpcTraceHandler("9876", mockSpanHandler);
+    OtlpGrpcTraceHandler otlpGrpcTraceHandler = new OtlpGrpcTraceHandler("9876", mockSpanHandler,
+        null, null, null);
     ResourceSpans resourceSpans = ResourceSpans.newBuilder().
         addInstrumentationLibrarySpans(
             InstrumentationLibrarySpans.

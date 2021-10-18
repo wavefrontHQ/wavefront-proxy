@@ -1466,7 +1466,7 @@ public class PushAgentTest {
   @Test
   public void testOtlpHttpPortHandler() throws Exception {
     port = findAvailablePort(4318);
-    proxy.startOtlpHttpListener(String.valueOf(port), mockHandlerFactory);
+    proxy.startOtlpHttpListener(String.valueOf(port), mockHandlerFactory, null, null);
     waitUntilListenerIsOnline(port);
 
     reset(mockTraceHandler);

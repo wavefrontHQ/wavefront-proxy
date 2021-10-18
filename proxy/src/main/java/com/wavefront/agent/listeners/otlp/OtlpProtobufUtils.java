@@ -1,16 +1,21 @@
 package com.wavefront.agent.listeners.otlp;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 
+import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
-import com.wavefront.sdk.common.Constants;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.annotation.Nullable;
 
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
@@ -45,17 +50,37 @@ public class OtlpProtobufUtils {
    */
   private final static Logger logger = Logger.getLogger(OtlpProtobufUtils.class.getCanonicalName());
 
+  public static void exportToWavefront(ExportTraceServiceRequest request,
+                         ReportableEntityHandler<Span, String> spanHandler,
+                         @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier
+                         ) {
+    ReportableEntityPreprocessor preprocessor = null;
+    if (preprocessorSupplier != null) {
+      preprocessor = preprocessorSupplier.get();
+    }
+
+    for (wavefront.report.Span wfSpan:
+        OtlpProtobufUtils.otlpSpanExportRequestParseToWFSpan(request, preprocessor)) {
+      // TODO: handle sampler
+      if (!wasFilteredByPreprocessor(wfSpan, spanHandler, preprocessor)) {
+        spanHandler.report(wfSpan);
+      }
+    }
+  }
+
   // TODO: consider transforming a single span and returning it for immedidate reporting in
   //   wfSender. This could be more efficient, and also more reliable in the event the loops
   //   below throw an error and we don't report any of the list.
-  public static List<Span> otlpSpanExportRequestParseToWFSpan(ExportTraceServiceRequest request) {
+  private static List<Span> otlpSpanExportRequestParseToWFSpan(ExportTraceServiceRequest request,
+                                                              @Nullable ReportableEntityPreprocessor preprocessor) {
     List<Span> wfSpans = Lists.newArrayList();
     for (ResourceSpans resourceSpans : request.getResourceSpansList()) {
       for (InstrumentationLibrarySpans instrumentationLibrarySpans :
           resourceSpans.getInstrumentationLibrarySpansList()) {
         for (io.opentelemetry.proto.trace.v1.Span otlpSpan : instrumentationLibrarySpans.getSpansList()) {
-          wavefront.report.Span wfSpan = transform(otlpSpan, resourceSpans.getResource().getAttributesList());
+          wavefront.report.Span wfSpan = transform(otlpSpan, resourceSpans.getResource().getAttributesList(), preprocessor);
           logger.info("Transformed OTLP into WF span: " + wfSpan);
+
           wfSpans.add(wfSpan);
         }
       }
@@ -63,8 +88,29 @@ public class OtlpProtobufUtils {
     return wfSpans;
   }
 
+  @VisibleForTesting
+  static boolean wasFilteredByPreprocessor(Span wfSpan,
+                                            ReportableEntityHandler<Span, String> spanHandler,
+                                            @Nullable ReportableEntityPreprocessor preprocessor) {
+    if (preprocessor == null) {
+      return false;
+    }
+
+    String[] messageHolder = new String[1];
+    if (!preprocessor.forSpan().filter(wfSpan, messageHolder)) {
+      if (messageHolder[0] != null) {
+        spanHandler.reject(wfSpan, messageHolder[0]);
+      } else {
+        spanHandler.block(wfSpan);
+      }
+      return true;
+    }
+
+    return false;
+  }
+
   public static wavefront.report.Span transform(io.opentelemetry.proto.trace.v1.Span otlpSpan,
-                                                List<KeyValue> resourceAttrs) {
+                                                List<KeyValue> resourceAttrs, ReportableEntityPreprocessor preprocessor) {
     String wfSpanId = SpanUtils.toStringId(otlpSpan.getSpanId());
     String wfTraceId = SpanUtils.toStringId(otlpSpan.getTraceId());
     long startTimeMs = otlpSpan.getStartTimeUnixNano() / 1000;
@@ -77,7 +123,7 @@ public class OtlpProtobufUtils {
     }
     // TODO: otlpSpan.getAttributesList() should precedes resourceAttrs if has same key
     attributesList.addAll(otlpSpan.getAttributesList());
-    // convert attributions to WF annotations and try to patch WF required annotations
+    // convert OTLP Attributes to WF annotations
     List<Annotation> annotationList = attributesToWFAnnotations(attributesList);
     if (!otlpSpan.getParentSpanId().equals(ByteString.EMPTY)) {
       annotationList.add(
@@ -98,32 +144,44 @@ public class OtlpProtobufUtils {
         .setSource(DEFAULT_SOURCE)
         .setCustomer("dummy")
         .build();
+    // apply preprocessor
+    if (preprocessor != null) {
+      preprocessor.forSpan().transform(toReturn);
+    }
+
+    // set required WF tags that may be missing
+    List<Annotation> processedAnnotationList = setRequiredTags(toReturn.getAnnotations());
+    toReturn.setAnnotations(processedAnnotationList);
     return toReturn;
   }
 
   public static List<Annotation> attributesToWFAnnotations(List<KeyValue> attributesList) {
-    Map<String, String> tags = Maps.newHashMap();
+    List<Annotation> annotations = Lists.newArrayList();
     for (KeyValue attribute : attributesList) {
+      Annotation.Builder annotationBuilder = Annotation.newBuilder().setKey(attribute.getKey());
       if (!attribute.hasValue()) {
-        tags.put(attribute.getKey(), "");
+        annotationBuilder.setValue("");
       } else {
-        tags.put(attribute.getKey(), fromAnyValue(attribute.getValue()));
+        annotationBuilder.setValue(fromAnyValue(attribute.getValue()));
       }
+      annotations.add(annotationBuilder.build());
     }
-    return setRequiredTags(tags);
+    return annotations;
   }
 
-  private static List<Annotation> setRequiredTags(Map<String, String> tags) {
+  @VisibleForTesting
+  static List<Annotation> setRequiredTags(List<Annotation> annotationList) {
+    // TODO: remove conversion to Map and use streaming API
+    Map<String, String> tags = Maps.newHashMap();
+    for (Annotation annotation : annotationList) {
+      tags.put(annotation.getKey(), annotation.getValue());
+    }
     List<Annotation> requiredTags = Lists.newArrayList();
 
     if (!tags.containsKey(SERVICE_TAG_KEY)) {
-      if (tags.containsKey(SERVICE_NAME.getKey())) {
-        tags.put(SERVICE_TAG_KEY, tags.get(SERVICE_NAME.getKey()));
-        tags.remove(SERVICE_NAME.getKey());
-      } else {
-        tags.put(SERVICE_TAG_KEY, DEFAULT_SERVICE_NAME);
-      }
+      tags.put(SERVICE_TAG_KEY, tags.getOrDefault(SERVICE_NAME.getKey(), DEFAULT_SERVICE_NAME));
     }
+    tags.remove(SERVICE_NAME.getKey());
 
     tags.putIfAbsent(APPLICATION_TAG_KEY, DEFAULT_APPLICATION_NAME);
     tags.putIfAbsent(CLUSTER_TAG_KEY, NULL_TAG_VAL);

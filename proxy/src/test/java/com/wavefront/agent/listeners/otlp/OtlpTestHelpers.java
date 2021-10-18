@@ -3,10 +3,16 @@ package com.wavefront.agent.listeners.otlp;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 
+import com.wavefront.agent.preprocessor.AnnotatedPredicate;
+import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
+import com.wavefront.agent.preprocessor.SpanBlockFilter;
 import com.wavefront.common.Pair;
 
 import org.apache.commons.compress.utils.Lists;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -31,37 +37,47 @@ public class OtlpTestHelpers {
   private static final byte[] parentSpanIdBytes = {0x6, 0x6, 0x6, 0x6, 0x6, 0x6, 0x6, 0x6};
   private static final byte[] traceIdBytes = {0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
       0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1};
+  public static final String DEFAULT_SOURCE = "otlp";
 
   public static Span.Builder wfSpanGenerator(@Nullable List<Annotation> extraAttrs) {
-    List<Annotation> annotations = Lists.newArrayList();
-    annotations.add(
-        Annotation.newBuilder()
-            .setKey(APPLICATION_TAG_KEY)
-            .setValue("defaultApplication")
-            .build()
-    );
-    annotations.add(
-        Annotation.newBuilder()
-            .setKey(SERVICE_TAG_KEY)
-            .setValue("defaultService")
-            .build()
-    );
-    annotations.add(
-        Annotation.newBuilder()
-            .setKey("cluster")
-            .setValue("none")
-            .build()
-    );
-    annotations.add(
-        Annotation.newBuilder()
-            .setKey("shard")
-            .setValue("none")
-            .build()
-    );
-
-    if (extraAttrs != null) {
-      annotations.addAll(extraAttrs);
+    if (extraAttrs == null) {
+      extraAttrs = Collections.emptyList();
     }
+    List<Annotation> annotations = Lists.newArrayList();
+    if (extraAttrs.stream().noneMatch(anno -> anno.getKey().equals(APPLICATION_TAG_KEY))) {
+      annotations.add(
+          Annotation.newBuilder()
+              .setKey(APPLICATION_TAG_KEY)
+              .setValue("defaultApplication")
+              .build()
+      );
+    }
+    if (extraAttrs.stream().noneMatch(anno -> anno.getKey().equals(SERVICE_TAG_KEY))) {
+      annotations.add(
+          Annotation.newBuilder()
+              .setKey(SERVICE_TAG_KEY)
+              .setValue("defaultService")
+              .build()
+      );
+    }
+    if (extraAttrs.stream().noneMatch(anno -> anno.getKey().equals("cluster"))) {
+      annotations.add(
+          Annotation.newBuilder()
+              .setKey("cluster")
+              .setValue("none")
+              .build()
+      );
+    }
+    if (extraAttrs.stream().noneMatch(anno -> anno.getKey().equals("shard"))) {
+      annotations.add(
+          Annotation.newBuilder()
+              .setKey("shard")
+              .setValue("none")
+              .build()
+      );
+    }
+
+    annotations.addAll(extraAttrs);
 
     // reorder the annotations
     Map<String, String> map = Maps.newHashMap();
@@ -81,7 +97,7 @@ public class OtlpTestHelpers {
         .setStartMillis(startTimeMs)
         .setDuration(durationMs)
         .setAnnotations(annotations)
-        .setSource("otlp")
+        .setSource(DEFAULT_SOURCE)
         .setCustomer("dummy");
   }
 
@@ -96,6 +112,40 @@ public class OtlpTestHelpers {
 
   public static Pair<ByteString, String> parentSpanIdPair() {
     return Pair.of(ByteString.copyFrom(parentSpanIdBytes), "00000000-0000-0000-0606-060606060606");
+  }
+
+  public static ReportableEntityPreprocessor addTagIfNotExistsPreprocessor(List<Annotation> annotationList) {
+    ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
+    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
+        null);
+    for (Annotation annotation : annotationList) {
+      preprocessor.forSpan().addTransformer(new SpanAddAnnotationIfNotExistsTransformer(
+          annotation.getKey(), annotation.getValue(), x -> true, preprocessorRuleMetrics));
+    }
+
+  return preprocessor;
+  }
+
+  public static ReportableEntityPreprocessor blockSpanPreprocessor() {
+    ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
+    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
+        null);
+      preprocessor.forSpan().addFilter(new SpanBlockFilter(
+          "sourceName", DEFAULT_SOURCE, x -> true, preprocessorRuleMetrics));
+
+  return preprocessor;
+  }
+
+  public static ReportableEntityPreprocessor rejectSpanPreprocessor() {
+    ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
+    preprocessor.forSpan().addFilter((input, messageHolder) -> {
+      if (messageHolder != null && messageHolder.length > 0) {
+        messageHolder[0] = "span rejected for testing purpose";
+      }
+      return false;
+    });
+
+  return preprocessor;
   }
 
   public static void assertWFSpanEquals(wavefront.report.Span s1, wavefront.report.Span s2) {
