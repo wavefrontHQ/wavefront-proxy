@@ -21,6 +21,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import wavefront.report.Span;
 
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 
 public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
@@ -70,8 +71,8 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
       StringBuilder output = new StringBuilder();
       writeHttpResponse(ctx, status, output, request);
     } catch (InvalidProtocolBufferException e) {
-      e.printStackTrace();
+      logWarning("WF-300: Failed to handle incoming OTLP request", e, ctx);
+      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, errorMessageWithRootCause(e), request);
     }
-    writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, new StringBuilder("FAILED"), request);
   }
 }
