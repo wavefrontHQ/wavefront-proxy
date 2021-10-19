@@ -75,6 +75,7 @@ public class OtlpProtobufUtils {
     if (resourceAttrs != null) {
       attributesList.addAll(resourceAttrs);
     }
+    // TODO: otlpSpan.getAttributesList() should precedes resourceAttrs if has same key
     attributesList.addAll(otlpSpan.getAttributesList());
     // convert attributions to WF annotations and try to patch WF required annotations
     List<Annotation> annotationList = attributesToWFAnnotations(attributesList);

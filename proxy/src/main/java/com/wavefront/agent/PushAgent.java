@@ -372,8 +372,7 @@ public class PushAgent extends AbstractAgent {
           new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
     });
 
-    String otlpGrpcPort = "4317";
-    csvToList(otlpGrpcPort).forEach(strPort -> {
+    csvToList(proxyConfig.getOtlpGrpcListenerPorts()).forEach(strPort -> {
       PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
           Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
           null, null
@@ -384,8 +383,7 @@ public class PushAgent extends AbstractAgent {
           new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
     });
 
-    String otlpHttpPort = "4318";
-    csvToList(otlpHttpPort).forEach(strPort -> {
+    csvToList(proxyConfig.getOtlpHttpListenerPorts()).forEach(strPort -> {
       PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
           Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
           null, null
@@ -796,8 +794,7 @@ public class PushAgent extends AbstractAgent {
         activeListeners.dec();
       }
     }, "listener-otlp-grpc-" + strPort);
-    logger.info("listening on port: " + strPort + " for OTLP data " +
-        "(OpenTelemetry Protobuf format over gRPC)");
+    logger.info("listening on port: " + strPort + " for OTLP data over gRPC");
 
   }
 
@@ -816,8 +813,8 @@ public class PushAgent extends AbstractAgent {
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
         proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort),
         getCorsConfig(strPort)), port).
-        withChildChannelOptions(childChannelOptions), "listener-otlphttp-" + port);
-    logger.info("listening on port: " + strPort + " for OTLP protobuf data");
+        withChildChannelOptions(childChannelOptions), "listener-otlp-http-" + port);
+    logger.info("listening on port: " + strPort + " for OTLP data over HTTP");
   }
 
 
