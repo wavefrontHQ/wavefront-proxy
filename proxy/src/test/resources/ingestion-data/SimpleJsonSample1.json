@@ -1,0 +1,14 @@
+  [
+    {
+        "hostname":"w3-hs1-050301.eng.vmware.com",
+        "appname":"Vpxa",
+        "source":"prome-1s-dhcp-133-165.eng.vmware.com" 
+    },
+    {
+        "hostname":"vm1.eng.vmware.com",
+        "appname":"Vpxa",
+        "source":"prome-1s-dhcp-vm1.eng.vmware.com" 
+    }
+  ]
+
+    

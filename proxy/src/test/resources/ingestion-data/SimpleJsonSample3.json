@@ -1,0 +1,18 @@
+[
+    {
+        "text": "2017-04-20T19:43:25.1479 w3-hs1-050301.eng.vmware.com Vpxa[78475]: verbose vpxa[6CAFEB70] [Originator@6876 sub=VpxaHalCnxHostagent opID=WFU-4a548e30] [WaitForUpdatesDone] Received callback host1-dev.eng.vmware.com esx.problem.ip.duplicate 10.2.3.3",
+        "id":"id3",
+        "hostname": "w3-hs1-050301.eng.vmware.com",
+        "appname": "Vpxa",
+        "timestamp":1483667347951,
+        "parse_failed":true
+    },
+    {
+        "text": "2017-04-20T19:43:25.1479 w3-hs1-050301.eng.vmware.com Vpxa[78475]: verbose vpxa[6CAFEB70] [Originator@6876 sub=VpxaHalCnxHostagent opID=WFU-4a548e30] [WaitForUpdatesDone] Received callback",
+        "id":"id4",
+        "hostname": "w3-hs1-050301.eng.vmware.com",
+        "appname": "Vpxa",
+        "timestamp":1483667347952,
+        "parse_failed":false
+    }
+]
