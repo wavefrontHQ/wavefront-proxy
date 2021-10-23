@@ -7,6 +7,7 @@ import com.wavefront.agent.logforwarder.ingestion.processors.model.event.parser.
 import java.util.Iterator;
 
 /**
+ *  An iterator for log event {@link Event}
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/7/21 1:03 PM
  */
