@@ -1,0 +1,42 @@
+[
+  {
+    "text": {
+      "eventVersion": "1.05",
+      "userIdentity": {
+        "type": "IAMUser",
+        "userName": "flands"
+      },
+      "eventTime": "2018-06-14T17:17:56Z",
+      "sourceIPAddress": "13.56.178.189",
+      "userAgent": "aws-sdk-java/1.11.170 Linux/4.4.121-k8s Java_HotSpot(TM)_64-Bit_Server_VM/25.162-b31/1.8.0_162 scala/2.11.8",
+      "array1": [1, 2, 3, 4],
+      "array2": [1, 2, { "someObject": {
+        "filterSet": {
+          "items": [
+            {
+              "value": "vpc-04e3326d"
+            }
+          ]
+        }
+      }}],
+      "nullField": null,
+      "recipientAccountId": "792677813823"
+    },
+    "id":"id3",
+    "hostname": "w3-hs1-050301.eng.vmware.com",
+    "appname": "Vpxa",
+    "timestamp":1483667347951,
+    "parse_failed":true,
+    "eventVersion": "1.05",
+    "userIdentity": {
+      "type": "IAMUser",
+      "userName": "flands"
+    },
+    "eventTime": "2018-06-14T17:17:56Z",
+    "sourceIPAddress": "13.56.178.189",
+    "userAgent": "aws-sdk-java/1.11.170 Linux/4.4.121-k8s Java_HotSpot(TM)_64-Bit_Server_VM/25.162-b31/1.8.0_162 scala/2.11.8",
+    "array1": [1, 2, 3, 4],
+    "nullField": null,
+    "recipientAccountId": "792677813823"
+  }
+]

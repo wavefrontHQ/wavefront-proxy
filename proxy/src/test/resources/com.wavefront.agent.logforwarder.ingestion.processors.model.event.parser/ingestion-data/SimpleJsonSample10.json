@@ -1,0 +1,52 @@
+[
+  {
+    "messages": [
+      {
+        "event": "incident.annotate",
+        "log_entries": [
+          {
+            "type": "create_log_entry",
+            "channel": {
+              "type": "note",
+              "details_omitted": false,
+              "impacted_services": [
+                {
+                  "id": "P3PCEK5",
+                  "type": "service_reference"
+                },
+                {
+                  "id": "P3PCEK5",
+                  "type": "service_reference"
+                }
+              ]
+            },
+            "teams": []
+          }
+        ]
+      },
+      {
+        "event": "incident.annotate",
+        "log_entries": [
+          {
+            "type": "create_log_entry",
+            "channel": {
+              "type": "note",
+              "details_omitted": false,
+              "impacted_services": [
+                {
+                  "id": "P3PCEK5",
+                  "type": "service_reference"
+                },
+                {
+                  "id": "P3PCEK5",
+                  "type": "service_reference"
+                }
+              ]
+            },
+            "teams": []
+          }
+        ]
+      }
+    ]
+  }
+]

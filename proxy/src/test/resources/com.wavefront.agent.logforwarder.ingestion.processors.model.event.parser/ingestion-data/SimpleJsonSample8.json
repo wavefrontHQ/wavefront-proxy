@@ -1,0 +1,29 @@
+[
+  {"text": {
+    "eventVersion": "1.05",
+    "userIdentity": {
+      "type": "IAMUser",
+      "userName": "flands"
+    },
+    "eventTime": "2018-06-14T17:17:55Z",
+    "eventSource": "ec2.amazonaws.com",
+    "requestParameters": {
+      "availabilityZoneSet": {}
+    },
+    "responseElements": null,
+    "recipientAccountId": "792677813823"
+  },
+    "eventVersion": "1.05",
+    "userIdentity": {
+      "type": "IAMUser",
+      "userName": "flands"
+    },
+    "eventTime": "2018-06-14T17:17:55Z",
+    "eventSource": "ec2.amazonaws.com",
+    "requestParameters": {
+      "availabilityZoneSet": {}
+    },
+    "responseElements": null,
+    "recipientAccountId": "792677813823",
+  }
+]

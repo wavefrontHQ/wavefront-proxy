@@ -1,0 +1,10 @@
+[
+  {
+    "hostname": "w3-hs1-050301.eng.vmware.com",
+    "appname": "Vpxa"
+  },
+  {
+    "hostname": "vm1.eng.vmware.com",
+    "appname": "Vpxa"
+  }
+]
