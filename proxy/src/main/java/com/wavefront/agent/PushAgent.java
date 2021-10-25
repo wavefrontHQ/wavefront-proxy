@@ -323,6 +323,8 @@ public class PushAgent extends AbstractAgent {
 
     startDistributedTracingListeners(spanSampler);
 
+    startOtlpListeners(spanSampler);
+
     csvToList(proxyConfig.getPushRelayListenerPorts()).forEach(strPort ->
         startRelayListener(strPort, handlerFactory, remoteHostAnnotator));
     csvToList(proxyConfig.getJsonListenerPorts()).forEach(strPort ->
@@ -372,28 +374,6 @@ public class PushAgent extends AbstractAgent {
           new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
     });
 
-    csvToList(proxyConfig.getOtlpGrpcListenerPorts()).forEach(strPort -> {
-      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
-          null, null
-      );
-      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
-          new SpanSanitizeTransformer(ruleMetrics));
-      startOtlpGrpcListener(strPort, handlerFactory,
-          new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
-    });
-
-    csvToList(proxyConfig.getOtlpHttpListenerPorts()).forEach(strPort -> {
-      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
-          null, null
-      );
-      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
-          new SpanSanitizeTransformer(ruleMetrics));
-      startOtlpHttpListener(strPort, handlerFactory,
-          new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
-    });
-
     csvToList(proxyConfig.getTraceJaegerGrpcListenerPorts()).forEach(strPort -> {
       PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
           Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
@@ -422,6 +402,30 @@ public class PushAgent extends AbstractAgent {
       preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
           new SpanSanitizeTransformer(ruleMetrics));
       startTraceZipkinListener(strPort, handlerFactory,
+          new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
+    });
+  }
+
+  private void startOtlpListeners(SpanSampler spanSampler) {
+    csvToList(proxyConfig.getOtlpGrpcListenerPorts()).forEach(strPort -> {
+      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
+      );
+      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+          new SpanSanitizeTransformer(ruleMetrics));
+      startOtlpGrpcListener(strPort, handlerFactory,
+          new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
+    });
+
+    csvToList(proxyConfig.getOtlpHttpListenerPorts()).forEach(strPort -> {
+      PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
+          Metrics.newCounter(new TaggedMetricName("point.spanSanitize", "count", "port", strPort)),
+          null, null
+      );
+      preprocessors.getSystemPreprocessor(strPort).forSpan().addTransformer(
+          new SpanSanitizeTransformer(ruleMetrics));
+      startOtlpHttpListener(strPort, handlerFactory,
           new InternalProxyWavefrontClient(handlerFactory, strPort), spanSampler);
     });
   }
@@ -807,9 +811,10 @@ public class PushAgent extends AbstractAgent {
                                        @Nullable WavefrontSender wfSender,
                                        SpanSampler sampler) {
     final int port = Integer.parseInt(strPort);
-//    registerPrefixFilter(strPort);
-//    registerTimestampFilter(strPort);
-//    if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
+    // TODO:
+    //    registerPrefixFilter(strPort);
+    //    registerTimestampFilter(strPort);
+    //    if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler = new OtlpHttpHandler(handlerFactory, tokenAuthenticator,
         healthCheckManager,

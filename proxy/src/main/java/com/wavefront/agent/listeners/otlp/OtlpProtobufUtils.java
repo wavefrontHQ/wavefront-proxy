@@ -242,6 +242,6 @@ public class OtlpProtobufUtils {
         OTLP_DATA_LOGGER.severe("Encountered BytesValue but cannot convert to String");
       }
     }
-    return "";
+    return "UnknownOTLPValue";
   }
 }

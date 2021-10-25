@@ -3,7 +3,6 @@ package com.wavefront.agent.listeners.otlp;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 
-import com.wavefront.agent.preprocessor.AnnotatedPredicate;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
@@ -31,13 +30,13 @@ import static org.junit.Assert.assertTrue;
  * @author Glenn Oppegard (goppegard@vmware.com).
  */
 public class OtlpTestHelpers {
+  public static final String DEFAULT_SOURCE = "otlp";
   private static final long startTimeMs = System.currentTimeMillis();
   private static final long durationMs = 50L;
   private static final byte[] spanIdBytes = {0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9};
   private static final byte[] parentSpanIdBytes = {0x6, 0x6, 0x6, 0x6, 0x6, 0x6, 0x6, 0x6};
   private static final byte[] traceIdBytes = {0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
       0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1};
-  public static final String DEFAULT_SOURCE = "otlp";
 
   public static Span.Builder wfSpanGenerator(@Nullable List<Annotation> extraAttrs) {
     if (extraAttrs == null) {
@@ -123,17 +122,17 @@ public class OtlpTestHelpers {
           annotation.getKey(), annotation.getValue(), x -> true, preprocessorRuleMetrics));
     }
 
-  return preprocessor;
+    return preprocessor;
   }
 
   public static ReportableEntityPreprocessor blockSpanPreprocessor() {
     ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
     PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
         null);
-      preprocessor.forSpan().addFilter(new SpanBlockFilter(
-          "sourceName", DEFAULT_SOURCE, x -> true, preprocessorRuleMetrics));
+    preprocessor.forSpan().addFilter(new SpanBlockFilter(
+        "sourceName", DEFAULT_SOURCE, x -> true, preprocessorRuleMetrics));
 
-  return preprocessor;
+    return preprocessor;
   }
 
   public static ReportableEntityPreprocessor rejectSpanPreprocessor() {
@@ -145,23 +144,23 @@ public class OtlpTestHelpers {
       return false;
     });
 
-  return preprocessor;
+    return preprocessor;
   }
 
-  public static void assertWFSpanEquals(wavefront.report.Span s1, wavefront.report.Span s2) {
-    assertEquals(s1.getName(), s2.getName());
-    assertEquals(s1.getSpanId(), s2.getSpanId());
-    assertEquals(s1.getTraceId(), s2.getTraceId());
-    assertEquals(s1.getStartMillis(), s2.getStartMillis());
-    assertEquals(s1.getDuration(), s2.getDuration());
-    assertEquals(s1.getSource(), s2.getSource());
-    assertEquals(s1.getCustomer(), s2.getCustomer());
+  public static void assertWFSpanEquals(wavefront.report.Span expected, wavefront.report.Span actual) {
+    assertEquals(expected.getName(), actual.getName());
+    assertEquals(expected.getSpanId(), actual.getSpanId());
+    assertEquals(expected.getTraceId(), actual.getTraceId());
+    assertEquals(expected.getStartMillis(), actual.getStartMillis());
+    assertEquals(expected.getDuration(), actual.getDuration());
+    assertEquals(expected.getSource(), actual.getSource());
+    assertEquals(expected.getCustomer(), actual.getCustomer());
 
-    Map<String, String> s1AnnotationMap = annotationListToMap(s1.getAnnotations());
-    assertEquals(s1.getAnnotations().size(), s2.getAnnotations().size());
-    for (Annotation s2Annotation : s2.getAnnotations()) {
-      assertTrue(s1AnnotationMap.containsKey(s2Annotation.getKey()));
-      assertEquals(s1AnnotationMap.get(s2Annotation.getKey()), s2Annotation.getValue());
+    Map<String, String> expectedAnnotationMap = annotationListToMap(expected.getAnnotations());
+    assertEquals(expected.getAnnotations().size(), actual.getAnnotations().size());
+    for (Annotation actualAnnotation : actual.getAnnotations()) {
+      assertTrue(expectedAnnotationMap.containsKey(actualAnnotation.getKey()));
+      assertEquals(expectedAnnotationMap.get(actualAnnotation.getKey()), actualAnnotation.getValue());
     }
   }
 

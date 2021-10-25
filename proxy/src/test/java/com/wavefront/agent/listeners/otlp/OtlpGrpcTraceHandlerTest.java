@@ -24,11 +24,8 @@ public class OtlpGrpcTraceHandlerTest {
   @Test
   public void testMinimalSpan() {
     EasyMock.reset(mockSpanHandler);
-
-
     Span otelSpan = OtlpTestHelpers.otlpSpanGenerator().build();
     wavefront.report.Span wfSpan = OtlpTestHelpers.wfSpanGenerator(null).build();
-
     mockSpanHandler.report(wfSpan);
     EasyMock.expectLastCall();
 
@@ -38,14 +35,12 @@ public class OtlpGrpcTraceHandlerTest {
         null, null, null);
     ResourceSpans resourceSpans = ResourceSpans.newBuilder().
         addInstrumentationLibrarySpans(
-            InstrumentationLibrarySpans.
-                newBuilder().
-                addSpans(otelSpan).
-                build()).
-        build();
+            InstrumentationLibrarySpans.newBuilder().addSpans(otelSpan).build()
+        ).build();
     ExportTraceServiceRequest request =
         ExportTraceServiceRequest.newBuilder().addResourceSpans(resourceSpans).build();
     otlpGrpcTraceHandler.export(request, emptyStreamObserver);
+
     EasyMock.verify(mockSpanHandler);
   }
 

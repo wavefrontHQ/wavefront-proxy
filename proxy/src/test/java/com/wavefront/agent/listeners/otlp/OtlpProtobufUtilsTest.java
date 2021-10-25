@@ -10,7 +10,6 @@ import com.wavefront.common.Pair;
 
 import org.apache.commons.compress.utils.Lists;
 import org.easymock.EasyMock;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,7 +46,7 @@ import static org.junit.Assert.assertTrue;
     OtlpProtobufUtilsTest.TransformTests.class,
     OtlpProtobufUtilsTest.WasFilteredByPreprocessorTests.class})
 public class OtlpProtobufUtilsTest {
-  @NotNull
+
   private static Map<String, String> getWfAnnotationAsMap(List<Annotation> wfAnnotations) {
     Map<String, String> wfAnnotationAsMap = Maps.newHashMap();
     for (Annotation annotation : wfAnnotations) {
@@ -73,11 +72,14 @@ public class OtlpProtobufUtilsTest {
       KeyValue doubleAttr = KeyValue.newBuilder().setKey("a-double")
           .setValue(AnyValue.newBuilder().setDoubleValue(2.1138).build())
           .build();
+      KeyValue noValue = KeyValue.newBuilder().setKey("no-value")
+          .setValue(AnyValue.newBuilder().build()).build();
       attributes.add(emptyAttr);
       attributes.add(booleanAttr);
       attributes.add(stringAttr);
       attributes.add(intAttr);
       attributes.add(doubleAttr);
+      attributes.add(noValue);
 
       List<Annotation> wfAnnotations = OtlpProtobufUtils.attributesToWFAnnotations(attributes);
       Map<String, String> wfAnnotationAsMap = getWfAnnotationAsMap(wfAnnotations);
@@ -88,6 +90,7 @@ public class OtlpProtobufUtilsTest {
       assertEquals(wfAnnotationAsMap.get("a-string"), "a-value");
       assertEquals(wfAnnotationAsMap.get("a-int64"), Long.toString(Long.MAX_VALUE));
       assertEquals(wfAnnotationAsMap.get("a-double"), "2.1138");
+      assertEquals(wfAnnotationAsMap.get("no-value"), "UnknownOTLPValue");
     }
 
     @Test
@@ -191,7 +194,7 @@ public class OtlpProtobufUtilsTest {
     public void transformAppliesPreprocessorBeforeSettingRequiredTags() {
       Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
       List<Annotation> wfAttrs = Collections.singletonList(
-          Annotation.newBuilder().setKey("application").setValue("an-app").build()
+          Annotation.newBuilder().setKey(APPLICATION_TAG_KEY).setValue("an-app").build()
       );
       wavefront.report.Span expected = OtlpTestHelpers.wfSpanGenerator(wfAttrs)
           .build();
