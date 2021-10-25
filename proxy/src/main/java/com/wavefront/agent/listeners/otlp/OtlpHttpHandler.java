@@ -73,7 +73,6 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
     try {
       ExportTraceServiceRequest otlpRequest =
           ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
-      logger.info("otlp http request: " + otlpRequest);
       OtlpProtobufUtils.exportToWavefront(otlpRequest, spanHandler, preprocessorSupplier);
       /*
       We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found in

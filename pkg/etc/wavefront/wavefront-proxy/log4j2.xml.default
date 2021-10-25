@@ -138,6 +138,12 @@
             <AppenderRef ref="ZipkinDataFile"/>
             -->
         </AsyncLogger>
+        <!-- Uncomment AppenderRef and set level="ALL" to log OpenTelemetry/OTLP data to a file -->
+        <AsyncLogger name="OTLPDataLogger" level="ALL" additivity="false">
+            <!--
+            <AppenderRef ref="OTLPDataFile"/>
+            -->
+        </AsyncLogger>
         <Root level="INFO">
             <AppenderRef ref="RollingFile"/>
             <AppenderRef ref="Console" />

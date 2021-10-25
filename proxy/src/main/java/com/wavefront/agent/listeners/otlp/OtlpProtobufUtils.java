@@ -20,6 +20,7 @@ import javax.annotation.Nullable;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
+import io.opentelemetry.proto.resource.v1.Resource;
 import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import wavefront.report.Annotation;
@@ -41,6 +42,7 @@ public class OtlpProtobufUtils {
   private final static String DEFAULT_APPLICATION_NAME = "defaultApplication";
   private final static String DEFAULT_SERVICE_NAME = "defaultService";
   private final static String DEFAULT_SOURCE = "otlp";
+  private final static Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
 
   /**
    * OpenTelemetry Span/Trace ID length specification ref: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#spancontext
@@ -48,7 +50,6 @@ public class OtlpProtobufUtils {
    * TraceId A valid trace identifier is a 16-byte array with at least one non-zero byte.
    * SpanId A valid span identifier is an 8-byte array with at least one non-zero byte.
    */
-  private final static Logger logger = Logger.getLogger(OtlpProtobufUtils.class.getCanonicalName());
 
   public static void exportToWavefront(ExportTraceServiceRequest request,
                          ReportableEntityHandler<Span, String> spanHandler,
@@ -75,11 +76,22 @@ public class OtlpProtobufUtils {
                                                               @Nullable ReportableEntityPreprocessor preprocessor) {
     List<Span> wfSpans = Lists.newArrayList();
     for (ResourceSpans resourceSpans : request.getResourceSpansList()) {
+      Resource resource = resourceSpans.getResource();
+      if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
+        OTLP_DATA_LOGGER.info("Inbound OTLP Resource: " + resource);
+      }
       for (InstrumentationLibrarySpans instrumentationLibrarySpans :
           resourceSpans.getInstrumentationLibrarySpansList()) {
+        if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
+          OTLP_DATA_LOGGER.info("Inbound OTLP Instrumentation Library: " +
+              instrumentationLibrarySpans.getInstrumentationLibrary());
+        }
         for (io.opentelemetry.proto.trace.v1.Span otlpSpan : instrumentationLibrarySpans.getSpansList()) {
-          wavefront.report.Span wfSpan = transform(otlpSpan, resourceSpans.getResource().getAttributesList(), preprocessor);
-          logger.info("Transformed OTLP into WF span: " + wfSpan);
+          wavefront.report.Span wfSpan = transform(otlpSpan, resource.getAttributesList(), preprocessor);
+          if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
+            OTLP_DATA_LOGGER.info("Inbound OTLP Span: " + otlpSpan);
+            OTLP_DATA_LOGGER.info("Converted Wavefront Span: " + wfSpan);
+          }
 
           wfSpans.add(wfSpan);
         }
@@ -216,13 +228,19 @@ public class OtlpProtobufUtils {
       // TODO
       // Golang implementation: https://github.com/open-telemetry/opentelemetry-collector/blob/7ed3f75ef84d9e9d11b175a0859060f765faca0b/model/pdata/common.go#L381-L384
       // ref: https://github.com/open-telemetry/opentelemetry-proto/blob/27a10cd70f63afdbddf460881969f9ad7ae4af5d/opentelemetry/proto/common/v1/common.proto
-      logger.log(Level.SEVERE, "Encountered ArrayValue but cannot convert to String");
+      if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
+        OTLP_DATA_LOGGER.severe("Encountered ArrayValue but cannot convert to String");
+      }
     } else if (anyValue.hasKvlistValue()) {
       // TODO: see above for implementation
-      logger.log(Level.SEVERE, "Encountered KvlistValue but cannot convert to String");
+      if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
+        OTLP_DATA_LOGGER.severe("Encountered KvlistValue but cannot convert to String");
+      }
     } else if (anyValue.hasBytesValue()) {
       // TODO: see above for implementation
-      logger.log(Level.SEVERE, "Encountered BytesValue but cannot convert to String");
+      if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
+        OTLP_DATA_LOGGER.severe("Encountered BytesValue but cannot convert to String");
+      }
     }
     return "";
   }

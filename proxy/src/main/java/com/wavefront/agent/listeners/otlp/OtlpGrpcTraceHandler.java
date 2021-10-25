@@ -51,7 +51,6 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
   @Override
   public void export(ExportTraceServiceRequest request,
                      StreamObserver<ExportTraceServiceResponse> responseObserver) {
-    logger.info("Received an OTLP Request: " + request);
     OtlpProtobufUtils.exportToWavefront(request, spanHandler, preprocessorSupplier);
     responseObserver.onNext(ExportTraceServiceResponse.getDefaultInstance());
     responseObserver.onCompleted();
