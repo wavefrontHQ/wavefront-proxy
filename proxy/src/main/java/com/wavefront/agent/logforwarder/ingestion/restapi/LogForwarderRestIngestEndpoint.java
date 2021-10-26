@@ -26,14 +26,13 @@ import com.wavefront.agent.logforwarder.ingestion.util.RequestUtil;
 
 /**
  * Logfowarder's REST based ingestion endpoint for logs.
+ * POST method submits incoming post body to a in memory queue to be processed asynchronously by
+ * the {@link PayLoadInMemoryBuffer}
  */
 public class LogForwarderRestIngestEndpoint implements BaseHttpEndpoint {
 
   public static final String SELF_LINK = LogForwarderUris.LOF_FORWARDER_INGEST_URI;
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-
-
   private PayLoadInMemoryBuffer payloadInMemoryBuffer;
 //TODO Metrics revisit this
 //  private Meter payloadInBytesMeter = MetricsService
