@@ -124,7 +124,6 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -148,7 +147,6 @@ import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VA
 import static com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl.VALID_POINTS_LOGGER;
 import static com.wavefront.common.Utils.csvToList;
 import static com.wavefront.common.Utils.lazySupplier;
-import static com.wavefront.common.Utils.throwAny;
 
 /**
  * Push-only Agent.
@@ -211,11 +209,18 @@ public class PushAgent extends AbstractAgent {
   @Override
   protected void startListeners() throws Exception {
     // start Log Forwarder listeners
-    try {
-      startLogForwarderHost();
-    } catch (Throwable t){
-      throw new Exception("Logforwarder start exception! ", t);
+    if(proxyConfig.isEnableLogForwarder()){
+      logger.log(Level.INFO, "enableLogForwarder is true. Starting log forwarder");
+      try {
+        startLogForwarderHost();
+      } catch (Throwable t){
+        throw new Exception("Logforwarder start exception! ", t);
+      }
+    } else {
+      logger.log(Level.INFO, "enableLogForwarder is false. Not starting log forwarder");
     }
+
+
     blockedPointsLogger = Logger.getLogger(proxyConfig.getBlockedPointsLoggerName());
     blockedHistogramsLogger = Logger.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
     blockedSpansLogger = Logger.getLogger(proxyConfig.getBlockedSpansLoggerName());
@@ -469,9 +474,9 @@ public class PushAgent extends AbstractAgent {
   @VisibleForTesting
   protected void startLogForwarderHost() throws Throwable{
     if (this.logForwarderHost == null){
-      this.logForwarderHost  = new LogForwarderHost();
+      this.logForwarderHost  = new LogForwarderHost(proxyConfig);
     }
-    this.logForwarderHost.startListeners();
+    this.logForwarderHost.startListeners(agentId);
     this.shutdownTasks.add(new Thread(() -> {
       this.logForwarderHost.stopListeners();
     }));

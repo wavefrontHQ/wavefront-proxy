@@ -117,7 +117,7 @@ public class GatewayClientManager {
       if (!Files.exists(queuePath, new LinkOption[0])) {
         Files.createDirectories(queuePath);
       }
-      logger.info("Successfully created backpressure-queue on disk.");
+      logger.info("Successfully created log forwarder backpressure-queue on disk.");
       this.backPressureFilter = new BackPressureFilter(this.gatewayClient, queuePath.toString(), this.metricsManager.metricRegistry);
       this.gatewayClient.addGatewayClientFilter(this.backPressureFilter);
       logger.info("Successfully initialized BackPressureFilter with location {}", queuePath.toString());

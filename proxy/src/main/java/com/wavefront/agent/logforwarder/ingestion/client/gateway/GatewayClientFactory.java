@@ -1,8 +1,5 @@
 package com.wavefront.agent.logforwarder.ingestion.client.gateway;
 
-
-
-import com.wavefront.agent.logforwarder.LogForwarderHost;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.verticle.GatewayAgentVerticle;
 import com.wavefront.agent.logforwarder.ingestion.restapi.BaseHttpEndpoint;
@@ -15,8 +12,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A client factory which hold a single instance which deals with everything to do with creating and
- * managing the ingestion client and injecting configuration properties.
+ * A client factory which holds a single instance which deals with everything to do with creating
+ * and managing the ingestion client and injecting configuration properties.
  * to backend including creating the singleton client, failure handling, buffering to disk
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/7/21 1:29 PM
@@ -47,16 +44,17 @@ public class GatewayClientFactory {
    *
    * @param url       logIq url
    * @param accessKey logIq access key
+   * @param diskBackedQueueLocation location to write buffers for failure while posting to gateway
    * @throws Throwable
    */
-  public void initializeVertxLemansClient(String url, String accessKey) throws Throwable {
+  public void initializeVertxLemansClient(String url, String accessKey, String diskBackedQueueLocation) throws Throwable {
     try {
       if (GatewayClientState.accessKeyVsLemansClient.containsKey(accessKey)) {
         logger.debug(String.format("lemans vertx client already initialized for access key %s", "****"));
         return;
       }
       int port = getLemansClientPort();
-      String diskBackQueueLocation = getDiskBackQueueLocation();
+      String diskBackQueueLocation = diskBackedQueueLocation;
       if (diskBackQueueLocation != null) {
         diskBackQueueLocation += File.separator + port;
       }
@@ -97,6 +95,7 @@ public class GatewayClientFactory {
   private GatewayClientManager startIngestionClient(String url, String accessKey, int port,
                                                     String diskBackQueueLocation) throws Throwable {
     HashMap<String, String> agentProperties = new HashMap<>();
+    //WF proxy does not need this feature so command channel is always disabled
     boolean enableCommandChannel = !LogForwarderConfigProperties.logForwarderArgs.disableBidirectionalCommunication;
 
     logger.info(String.format("lemansServiceUri = %s, lemansAccessKey = %s, " +

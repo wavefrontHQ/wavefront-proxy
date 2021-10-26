@@ -1,9 +1,12 @@
 package com.wavefront.agent.logforwarder.ingestion;
 
 
+import com.wavefront.agent.ProxyConfig;
 import com.wavefront.agent.VertxTestUtils;
+import com.wavefront.agent.logforwarder.LogForwarderHost;
 import com.wavefront.agent.logforwarder.config.LogForwarderArgs;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
+import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientState;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.metrics.MetricsService;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.utils.Utils;
@@ -56,6 +59,8 @@ public class LogForwarderTestBase {
     protected String cfapiTextLiAgent;
     protected String simpleText;
     public static String LF_INGESTION_URI_FORMAT = "http://localhost:%d/log-forwarder/ingest";
+    protected LogForwarderHost logForwarderHost;
+    protected ProxyConfig proxyConfig;
 
     protected void initializeArgs(String orgId, String sddcId, String addFwderIdInEvent) {
         LogForwarderConfigProperties.logForwarderArgs = new LogForwarderArgs();
@@ -69,6 +74,11 @@ public class LogForwarderTestBase {
         LogForwarderConfigProperties.logForwarderArgs.addFwderIdInEvent = addFwderIdInEvent;
         LogForwarderConfigProperties.orgId = orgId;
         LogForwarderConfigProperties.sddcId = sddcId;
+        proxyConfig = new ProxyConfig();
+        proxyConfig.setLemansAccessToken("KJ7nS5mXwmvcwx1LzoPg0JQYSD7k5abV");
+        proxyConfig.setLogForwarderDiskQueueFileLocation("=/opt/vmware/log-forwarder/lemans");
+        proxyConfig.setLogIngestionServerUrl("https://data.staging.symphony-dev.com/le-mans/v1/streams/ingestion-pipeline-stream");
+        logForwarderHost = new LogForwarderHost(proxyConfig);
     }
 
     protected void cleanup() throws Exception {
@@ -95,7 +105,6 @@ public class LogForwarderTestBase {
         LogForwarderConfigProperties.logForwarderArgs = null;
         LogForwarderConfigProperties.orgId = null;
         LogForwarderConfigProperties.sddcId = null;
-        LogForwarderConfigProperties.forwarderType = null;
 
         // Clear metrics
         TestUtils.clearMetrics();
@@ -215,10 +224,27 @@ public class LogForwarderTestBase {
 
     protected void deployRestApiServices(String configFile, int httpPort, int syslogPort)
             throws Exception {
-        String config = TestUtils.readFile(getClass().getClassLoader(), configFile);
+            String config = TestUtils.readFile(getClass().getClassLoader(), configFile);
         config = updatePorts(config, httpPort, syslogPort);
-        LogForwarderConfigService.startRestApiServices(config);
+        config = updateIngestionGatewayParamas(config);
+        logForwarderHost.startRestApiServices(config);
         Thread.sleep(2000L);
+    }
+
+    private String updateIngestionGatewayParamas(String config) throws Exception {
+        System.out.println("Before Json" + config);
+        JSONArray jsonArray = (JSONArray) new JSONParser().parse(config);
+        jsonArray.forEach((componentConfig) -> {
+            JSONObject componentConfigJSON = (JSONObject) componentConfig;
+            componentConfigJSON.put(LogForwarderConstants.INGESTION_DISK_QUEUE_LOCATION,
+                proxyConfig.getLogForwarderDiskQueueFileLocation());
+            componentConfigJSON.put(LogForwarderConstants.INGESTION_GATEWAY_ACCESS_TOKEN,
+                proxyConfig.getLemansAccessToken());
+            componentConfigJSON.put(LogForwarderConstants.INGESTION_GATEWAY_URL,
+                proxyConfig.getLogIngestionServerUrl());
+        });
+        System.out.println("After Json" + Utils.toJson(jsonArray));
+        return Utils.toJson(jsonArray);
     }
 
     // Config contains static ports, replace them with dynamic ports.

@@ -57,16 +57,6 @@ public class LogForwarderUtils {
 
   private static StructureFactory structureFactory = new StructureFactory();
 
-  /**
-   * concatenate the syslog message with priority
-   * the priority is hardcoded as `99`
-   *
-   * @param syslogMsg
-   * @return
-   */
-  public static String concatSyslogMessageWithPriority(String syslogMsg) {
-    return "<99>".concat(syslogMsg);
-  }
 
   /**
    * convert long time to string if time is not null
@@ -85,9 +75,8 @@ public class LogForwarderUtils {
     // internal vmware requirement
     LogForwarderConfigProperties.logForwarderArgs = new com.wavefront.agent.logforwarder.config.LogForwarderArgs();
     CommandLineArgumentParser.parse(LogForwarderConfigProperties.logForwarderArgs, args);
+    //
 
-    LogForwarderConfigProperties.logForwarderArgs.sddcId
-        = removeDoubleQuotesFromBeginningAndEnd(LogForwarderConfigProperties.logForwarderArgs.sddcId);
     LogForwarderConfigProperties.logForwarderArgs.orgId
         = removeDoubleQuotesFromBeginningAndEnd(LogForwarderConfigProperties.logForwarderArgs.orgId);
     LogForwarderConfigProperties.logForwarderArgs.region
@@ -96,11 +85,7 @@ public class LogForwarderUtils {
         = removeDoubleQuotesFromBeginningAndEnd(LogForwarderConfigProperties.logForwarderArgs.orgType);
     LogForwarderConfigProperties.logForwarderArgs.sddcEnv
         = removeDoubleQuotesFromBeginningAndEnd(LogForwarderConfigProperties.logForwarderArgs.sddcEnv);
-    LogForwarderConfigProperties.logForwarderArgs.dimensionMspMasterOrgId
-        = removeDoubleQuotesFromBeginningAndEnd(LogForwarderConfigProperties
-        .logForwarderArgs.dimensionMspMasterOrgId);
 
-    LogForwarderConfigProperties.sddcId = LogForwarderConfigProperties.logForwarderArgs.sddcId;
     LogForwarderConfigProperties.orgId = LogForwarderConfigProperties.logForwarderArgs.orgId;
 
     if (LogForwarderConfigProperties.logForwarderArgs.addFwderIdInEvent != null) {
@@ -160,18 +145,6 @@ public class LogForwarderUtils {
       }
     }
     return forwarderId;
-  }
-
-  public static String getCspGazUri() {
-    return LogForwarderConfigProperties.logForwarderArgs.cspGazUri;
-  }
-
-  public static String getserviceAuthId() {
-    return LogForwarderConfigProperties.logForwarderArgs.cspGazAuthId;
-  }
-
-  public static String getserviceAuthSecret() {
-    return LogForwarderConfigProperties.logForwarderArgs.cspGazAuthSecret;
   }
 
   public static void startRestApiHosts(List<ComponentConfig> componentConfigs) {
@@ -263,58 +236,6 @@ public class LogForwarderUtils {
     processor.initializeProcessor((JSONAware) processorConfig);
     logger.info("created processor " + processor);
     return processor;
-  }
-
-  /**
-   * auto-initialize if
-   * {@link com.wavefront.agent.logforwarder.config.LogForwarderArgs} is true
-   * <p>
-   * the vmc config is loaded from vmc-config.json that is present in the classpath
-   */
-  public static void autoInitConfig(String configFileName) {
-    String autoInitConfig = LogForwarderConfigProperties.logForwarderArgs.autoInitializeConfig;
-    if (autoInitConfig != null) {
-      autoInitConfig = autoInitConfig.trim().toLowerCase();
-    }
-    if (autoInitConfig != null && autoInitConfig.equals("true")) {
-      logger.info("auto-initialize config is true, so initializing the config");
-      ClassLoader classLoader = LogForwarderUtils.class.getClassLoader();
-      try {
-        String config = IOUtils.toString(classLoader.getResourceAsStream(configFileName),
-            StandardCharsets.UTF_8);
-        logger.info("config=" + config);
-        LogForwarderConfigService.startRestApiServices(config);
-      } catch (Exception e) {
-        logger.error("POST auto-config failed", e);
-      }
-    } else {
-      logger.info("auto-initialize config is not required");
-    }
-  }
-
-  public static boolean autoInitializeEnabled() {
-    String autoInitConfig = LogForwarderConfigProperties.logForwarderArgs.autoInitializeConfig;
-    if (autoInitConfig != null) {
-      autoInitConfig = autoInitConfig.trim().toLowerCase();
-    }
-    if (autoInitConfig != null && autoInitConfig.equals("true")) {
-      return true;
-    }
-    return false;
-  }
-
-  public static void setBuildNumberProperty(String fileName) {
-    String buildNumer = "latest";
-    try {
-      Properties codeProperties = new Properties();
-      codeProperties.load(new FileInputStream(fileName));
-      buildNumer = codeProperties.getProperty(LogForwarderConstants.BUILD_NUMBER);
-      logger.info("buildNumber=" + buildNumer + ", build file name=" + fileName +
-          " codeProperties=" + codeProperties);
-    } catch (Exception e) {
-      logger.warn("Resource file not found: " + fileName);
-    }
-    System.setProperty(LogForwarderConstants.BUILD_NUMBER, buildNumer);
   }
 
   /**

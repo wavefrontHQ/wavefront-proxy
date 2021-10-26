@@ -46,6 +46,12 @@ public interface LogForwarderConstants {
 
     String DIMENSION_MSP_MASTER_ORG_ID = "dimension-msp-master-org-id";
 
+    String INGESTION_GATEWAY_ACCESS_TOKEN = "ingestion-gateway-access-token";
+
+    String INGESTION_GATEWAY_URL = "ingestion-gateway-url";
+
+    String INGESTION_DISK_QUEUE_LOCATION = "ingestion-disk-queue-location";
+
     // Time greater than http request timeout of 60secs.
     long LATCH_TIMEOUT_SECS = 65;
 

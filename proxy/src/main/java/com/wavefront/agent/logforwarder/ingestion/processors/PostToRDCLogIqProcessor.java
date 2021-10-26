@@ -11,6 +11,7 @@ import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
 import com.wavefront.agent.logforwarder.ingestion.util.UriUtils;
 
 /**
+ * Processor
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/2/21 4:14 PM
  */
@@ -29,12 +30,16 @@ public class PostToRDCLogIqProcessor extends PostToLogIqProcessor implements Pro
       chainName = jsonObject.get(LogForwarderConstants.CHAIN_NAME).toString();
     }
 
-    url = LogForwarderConfigProperties.logForwarderArgs.lemansServerUrl;//TODO Move this to
+//    url = LogForwarderConfigProperties.logForwarderArgs.lemansServerUrl;//TODO Move this to
     // proxyConfig
-    accessKey = LogForwarderUtils.getLemansClientAccessKey();//TODO move this to ProxyConfig
+    url = jsonObject.get(LogForwarderConstants.INGESTION_GATEWAY_URL).toString();
+
+//    accessKey = LogForwarderUtils.getLemansClientAccessKey();//TODO move this to ProxyConfig
+    accessKey =  jsonObject.get(LogForwarderConstants.INGESTION_GATEWAY_ACCESS_TOKEN).toString();
     tenantIdentifier = LogForwarderConstants.RDC_TENANT_IDENTIFIER;
+    bufferDiskLocation = jsonObject.get(LogForwarderConstants.INGESTION_DISK_QUEUE_LOCATION).toString();
     try {
-      GatewayClientFactory.getInstance().initializeVertxLemansClient(url, accessKey);
+      GatewayClientFactory.getInstance().initializeVertxLemansClient(url, accessKey, bufferDiskLocation);
     } catch (RuntimeException e) {
       throw e;
     }

@@ -52,8 +52,8 @@ public abstract class PostToLogIqProcessor implements Processor {
   protected String url;
   protected URI streamUri;
   protected String accessKey;
+  protected String bufferDiskLocation;
   protected String tenantIdentifier;
-  protected String s3BucketForAuditLogForwarding;
   protected String chainName;
   protected String streamName = INGESTION_STREAM;
   protected int httpTimeOutSecs = 30;
@@ -79,7 +79,7 @@ public abstract class PostToLogIqProcessor implements Processor {
   }
 
 
-  GatewayRequest getGatewayRequest(EventPayload payload, String agentId) {
+  public GatewayRequest getGatewayRequest(EventPayload payload, String agentId) {
     EventBatch batch = payload.batch;
     String json = JSONUtil.toJSON(batch, 1);
 
@@ -100,37 +100,17 @@ public abstract class PostToLogIqProcessor implements Processor {
       gatewayRequest.addHeader("Content-Encoding", "gzip");
     }
 
-    if (payload.getMetaEvent() == null || payload.getMetaEvent().get(IngestConstants.SYSLOG_PARSED) == null) {
-      gatewayRequest.addHeader("format", "syslog");
-    }
-
     if (StringUtils.isNotEmpty(chainName)) {
       gatewayRequest.addHeader("chain", chainName);
     }
 
     if (LogForwarderConfigProperties.orgId != null) {
-      if (reIngestEnabled) {
-        gatewayRequest.addHeader("vmc-org-id", LogForwarderConfigProperties.orgId);
-      }
-
       gatewayRequest.addHeader("lm-tenant-id", Utils.computeHash(LogForwarderConfigProperties.orgId));
-
-      if (StringUtils.isNotEmpty(s3BucketForAuditLogForwarding)
-          && StringUtils.isNotEmpty(LogForwarderConfigProperties.logForwarderArgs.region)) {
-        gatewayRequest.addHeader("aws-s3-audit-log-bucket", s3BucketForAuditLogForwarding);
-        gatewayRequest.addHeader("aws-s3-audit-log-region",
-            LogForwarderUtils.getAWSRegion(LogForwarderConfigProperties.logForwarderArgs.region).getName());
-      }
     }
 
     if (LogForwarderConfigProperties.logForwarderArgs.sreOrgId != null) {
       gatewayRequest.addHeader(LogForwarderConstants.HEADER_ARCTIC_SRE_ORG_ID,
           LogForwarderConfigProperties.logForwarderArgs.sreOrgId);
-    }
-
-    if (LogForwarderConfigProperties.logForwarderArgs.dimensionMspMasterOrgId != null) {
-      gatewayRequest.addHeader(LogForwarderConstants.DIMENSION_MSP_MASTER_ORG_ID,
-          LogForwarderConfigProperties.logForwarderArgs.dimensionMspMasterOrgId);
     }
 
     return gatewayRequest;
@@ -179,30 +159,13 @@ public abstract class PostToLogIqProcessor implements Processor {
     }
 
     if (LogForwarderConfigProperties.orgId != null) {
-      if (reIngestEnabled) {
-        httpPost.addHeader("vmc-org-id", LogForwarderConfigProperties.orgId);
-      }
-
       httpPost.addHeader("lm-tenant-id", Utils.computeHash(LogForwarderConfigProperties.orgId));
-
-      if (StringUtils.isNotEmpty(s3BucketForAuditLogForwarding)
-          && StringUtils.isNotEmpty(LogForwarderConfigProperties.logForwarderArgs.region)) {
-        httpPost.addHeader("aws-s3-audit-log-bucket", s3BucketForAuditLogForwarding);
-        httpPost.addHeader("aws-s3-audit-log-region",
-            LogForwarderUtils.getAWSRegion(LogForwarderConfigProperties.logForwarderArgs.region).getName());
-      }
     }
 
     if (LogForwarderConfigProperties.logForwarderArgs.sreOrgId != null) {
       httpPost.addHeader(LogForwarderConstants.HEADER_ARCTIC_SRE_ORG_ID,
           LogForwarderConfigProperties.logForwarderArgs.sreOrgId);
     }
-
-    if (LogForwarderConfigProperties.logForwarderArgs.dimensionMspMasterOrgId != null) {
-      httpPost.addHeader(LogForwarderConstants.DIMENSION_MSP_MASTER_ORG_ID,
-          LogForwarderConfigProperties.logForwarderArgs.dimensionMspMasterOrgId);
-    }
-
     return httpPost;
   }
 
@@ -225,20 +188,21 @@ public abstract class PostToLogIqProcessor implements Processor {
           + tenantIdentifier).mark();
       MetricsService.getInstance().getMeter("in-flight-operation-queue-full-messages-dropped-"
           + tenantIdentifier).mark(msgsInBlob);
-//            logger.debug(String.format("in-flight operations max reached, dropping the blob. url=%s, accessKey=%s, " +
-//                            "tenantIdentifier=%s, numberOfMessages=%d",
-//                    url, accessKey, tenantIdentifier, msgsInBlob));
+            logger.debug(String.format("in-flight operations max reached, dropping the blob. url=%s, accessKey=%s, " +
+                            "tenantIdentifier=%s, numberOfMessages=%d",
+                    url, accessKey, tenantIdentifier, msgsInBlob));
       return;
     }
 
-    if (Boolean.TRUE.equals(LogForwarderConfigProperties.logForwarderArgs.skipLeMansClient)) {
-      postWithAsyncClient(payload);
-    } else {
+//    if (Boolean.TRUE.equals(LogForwarderConfigProperties.logForwarderArgs.skipLeMansClient)) {
+//      postWithAsyncClient(payload);
+//    } else {
         postWithGatewayIngestionClient(payload);
-    }
+//    }
   }
 
   private void postWithGatewayIngestionClient(EventPayload payload) {
+    logger.debug("posting payload to ingestion gateway payload {}",payload.toString());
     int msgsInBlob = payload.batch.size();
     GatewayClientManager gatewayClientManager =
         GatewayClientState.accessKeyVsLemansClient.get(accessKey);
@@ -297,56 +261,56 @@ public abstract class PostToLogIqProcessor implements Processor {
   }
 
   //TODO Check with Guru if this is needed
-  private void postWithAsyncClient(EventPayload payload) {
-    int msgsInBlob = payload.batch.size();
-
-    HttpPost operation = getHttpPost(payload, LogForwarderUtils.getForwarderId());
-
-    bytesPostedMeter.mark(operation.getEntity().getContentLength());
-
-    inFlightCount.incrementAndGet();
-
-
-    long startTime = System.currentTimeMillis();
-
-    if (LogForwarderConfigProperties.logForwarderArgs != null &&
-        Boolean.TRUE.equals(LogForwarderConfigProperties.logForwarderArgs.fakePost)) {
-      inFlightCount.decrementAndGet();
-      updateMetrics(msgsInBlob, true, (System.currentTimeMillis() - startTime), 200);
-      return;
-    }
-
-
-    httpAsyncClient.execute(operation, new FutureCallback<HttpResponse>() {
-      @Override
-      public void completed(HttpResponse httpResponse) {
-        inFlightCount.decrementAndGet();
-
-        int responseCode = httpResponse.getStatusLine().getStatusCode();
-        boolean postSuccessful = false;
-        if ((responseCode >= 200) && (responseCode <= 299)) {
-          postSuccessful = true;
-        } else {
-          logger.error("post to lemans gateway failed responseCode=" + responseCode);
-        }
-        updateMetrics(msgsInBlob, postSuccessful, (System.currentTimeMillis() - startTime), responseCode);
-      }
-
-      @Override
-      public void failed(Exception e) {
-        logger.error("exception while posting data to lemans-gateway(failed)", e);
-        inFlightCount.decrementAndGet();
-        updateMetrics(msgsInBlob, false, (System.currentTimeMillis() - startTime), -1);
-      }
-
-      @Override
-      public void cancelled() {
-        logger.error("exception while posting data to lemans-gateway(cancelled)");
-        inFlightCount.decrementAndGet();
-        updateMetrics(msgsInBlob, false, (System.currentTimeMillis() - startTime), -1);
-      }
-    });
-  }
+//  private void postWithAsyncClient(EventPayload payload) {
+//    int msgsInBlob = payload.batch.size();
+//
+//    HttpPost operation = getHttpPost(payload, LogForwarderUtils.getForwarderId());
+//
+//    bytesPostedMeter.mark(operation.getEntity().getContentLength());
+//
+//    inFlightCount.incrementAndGet();
+//
+//
+//    long startTime = System.currentTimeMillis();
+//
+//    if (LogForwarderConfigProperties.logForwarderArgs != null &&
+//        Boolean.TRUE.equals(LogForwarderConfigProperties.logForwarderArgs.fakePost)) {
+//      inFlightCount.decrementAndGet();
+//      updateMetrics(msgsInBlob, true, (System.currentTimeMillis() - startTime), 200);
+//      return;
+//    }
+//
+//
+//    httpAsyncClient.execute(operation, new FutureCallback<HttpResponse>() {
+//      @Override
+//      public void completed(HttpResponse httpResponse) {
+//        inFlightCount.decrementAndGet();
+//
+//        int responseCode = httpResponse.getStatusLine().getStatusCode();
+//        boolean postSuccessful = false;
+//        if ((responseCode >= 200) && (responseCode <= 299)) {
+//          postSuccessful = true;
+//        } else {
+//          logger.error("post to lemans gateway failed responseCode=" + responseCode);
+//        }
+//        updateMetrics(msgsInBlob, postSuccessful, (System.currentTimeMillis() - startTime), responseCode);
+//      }
+//
+//      @Override
+//      public void failed(Exception e) {
+//        logger.error("exception while posting data to lemans-gateway(failed)", e);
+//        inFlightCount.decrementAndGet();
+//        updateMetrics(msgsInBlob, false, (System.currentTimeMillis() - startTime), -1);
+//      }
+//
+//      @Override
+//      public void cancelled() {
+//        logger.error("exception while posting data to lemans-gateway(cancelled)");
+//        inFlightCount.decrementAndGet();
+//        updateMetrics(msgsInBlob, false, (System.currentTimeMillis() - startTime), -1);
+//      }
+//    });
+//  }
 
   private void updateMetrics(int numberOfMessages,
                              boolean postSuccessful,

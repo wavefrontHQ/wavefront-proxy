@@ -809,6 +809,39 @@ public class ProxyConfig extends Configuration {
   @Parameter()
   List<String> unparsed_params;
 
+  public void setLemansAccessToken(String lemansAccessToken) {
+    this.lemansAccessToken = lemansAccessToken;
+  }
+
+  //TODO this should be removed once checkin cycle to cloud get log ingestion token from vrli side
+  @Parameter(names = {"--lemansAccessToken"}, description = "lemans ingestion gateway access token")
+  protected String lemansAccessToken = "";
+
+
+  //TODO this should be removed once checkin cycle to cloud can get the csp_org Id
+  @Parameter(names = {"--cspOrgId"}, description = "CSP Org Id for tenant")
+  protected String cspOrgId = "";
+
+  public void setLogIngestionServerUrl(String logIngestionServerUrl) {
+    this.logIngestionServerUrl = logIngestionServerUrl;
+  }
+
+  //TODO this should be removed once checkin cycle to cloud can get the lemans server url
+  @Parameter(names = {"--logIngestionServerUrl"}, description = "Logs ingestion server url")
+  protected String logIngestionServerUrl = "";
+
+  public void setLogForwarderDiskQueueFileLocation(String logForwarderDiskQueueFileLocation) {
+    this.logForwarderDiskQueueFileLocation = logForwarderDiskQueueFileLocation;
+  }
+
+  @Parameter(names = {"--logForwarderDiskQueueFileLocation"}, description = "Disk buffer location for " +
+      "logforwarder buffer files")
+  protected String logForwarderDiskQueueFileLocation = "/opt/vmware/log-forwarder/lemans";
+
+  @Parameter(names = {"--enableLogForwarder"}, description = "Enable log forwarding to wavefront " +
+      "feature")
+  protected boolean enableLogForwarder = true;
+
   TimeProvider timeProvider = System::currentTimeMillis;
 
   public boolean isHelp() {
@@ -1557,6 +1590,23 @@ public class ProxyConfig extends Configuration {
     return corsAllowNullOrigin;
   }
 
+  public String getLemansAccessToken() {
+    return lemansAccessToken;
+  }
+
+
+  public String getLogForwarderDiskQueueFileLocation() {
+    return logForwarderDiskQueueFileLocation;
+  }
+
+  public String getLogIngestionServerUrl() {
+    return logIngestionServerUrl;
+  }
+
+  public boolean isEnableLogForwarder() {
+    return enableLogForwarder;
+  }
+
   @Override
   public void verifyAndInit() {
     if (unparsed_params != null) {
@@ -1939,6 +1989,19 @@ public class ProxyConfig extends Configuration {
     if (pushConfigFile != null) {
       logger.info("Loaded configuration file " + pushConfigFile);
     }
+
+    // log forwarder properties
+    enableLogForwarder = config.getBoolean("enableLogForwarder", true);
+    //TODO remove these
+    cspOrgId = config.getString("cspOrgId", "1c424cab-1c1e-4792-972b-efe74140c9ae");
+    lemansAccessToken = config.getString("lemansAccessToken",
+        "KJ7nS5mXwmvcwx1LzoPg0JQYSD7k5abV");
+    logIngestionServerUrl = config.getString("logIngestionServerUrl",
+        "https://data.staging.symphony-dev.com/le-mans/v1/streams/ingestion-pipeline-stream");
+
+    logForwarderDiskQueueFileLocation = config.getString("logForwarderDiskQueue",
+        "/opt/vmware/log-forwarder/lemans");// defaults to
+    // wf spool file location
   }
 
   /**

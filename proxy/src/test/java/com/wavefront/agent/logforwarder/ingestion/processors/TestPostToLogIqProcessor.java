@@ -75,25 +75,6 @@ public class TestPostToLogIqProcessor extends LogForwarderTestBase {
 //        Assert.assertTrue("Not all the messages are posted to LINT.", (succ200.call() + succ202.call()) == 100L);
     }
 
-    @Test
-    public void testGetGatewayRequestForDimensionMspMasterTenantWorkflow() {
-        EventPayload eventPayload = new EventPayload(new EventBatch());
-
-        PostToLogIqProcessor postToLogIqProcessor = new PostToLogIqProcessor() {
-            @Override
-            public void initializeProcessor(JSONAware json) throws Throwable {
-
-            }
-        };
-
-        LogForwarderConfigProperties.logForwarderArgs = new LogForwarderArgs();
-        LogForwarderConfigProperties.logForwarderArgs.dimensionMspMasterOrgId = "dimensionMspMasterOrgId";
-
-        GatewayRequest gatewayRequest = postToLogIqProcessor.getGatewayRequest(eventPayload, null);
-        Assert.assertEquals("dimensionMspMasterOrgId",
-                gatewayRequest.getHeader(LogForwarderConstants.DIMENSION_MSP_MASTER_ORG_ID));
-    }
-
     private Consumer<RoutingContext> getVerifyingConsumer() {
         return routingContext -> {
             // Assert the headers in the request
