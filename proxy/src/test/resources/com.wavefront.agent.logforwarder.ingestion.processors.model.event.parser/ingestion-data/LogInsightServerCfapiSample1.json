@@ -1,0 +1,34 @@
+{
+  "messages":[
+    {
+      "text":"2017-04-20T19:43:25.1479 w3-hs1-050301.eng.vmware.com Vpxa[78475]: verbose vpxa[6CAFEB70] [Originator@6876 sub=VpxaHalCnxHostagent opID=WFU-4a548e30] [WaitForUpdatesDone] Received callback",
+      "fields":[
+        {
+          "name":"hostname",
+          "content":"w3-hs1-050301.eng.vmware.com"
+        },
+        {
+          "name":"appname",
+          "content":"Vpxa"
+        },
+        {
+          "name":"source",
+          "content":"prome-1s-dhcp-133-165.eng.vmware.com"
+        },
+        {
+          "name":"field_with_integer_value",
+          "content":1
+        },
+        {
+          "name":"field_with_double_value",
+          "content":1.11
+        },
+        {
+          "name":"field_with_boolean_value",
+          "content":false
+        }
+      ],
+      "timestamp":"1491777731145"
+    }
+  ]
+}
