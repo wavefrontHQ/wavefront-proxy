@@ -1,21 +1,9 @@
-/*
- * Copyright (c) 2016 VMware, Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License.  You may obtain a copy of
- * the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, without warranties or
- * conditions of any kind, EITHER EXPRESS OR IMPLIED.  See the License for the
- * specific language governing permissions and limitations under the License.
- */
-
 package com.wavefront.agent.logforwarder.ingestion.client.gateway;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.constants.ClientConstants;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.constants.GatewayConstants;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.constants.IngestionGatewayUris;
@@ -23,12 +11,12 @@ import com.wavefront.agent.logforwarder.ingestion.client.gateway.filter.GatewayC
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.metrics.MetricsManager;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.model.GatewayRequest;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.model.GatewayResponse;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.model.exception.GatewayException;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.utils.Utils;
 import com.wavefront.agent.logforwarder.ingestion.http.client.HttpClientFactory;
 import com.wavefront.agent.logforwarder.ingestion.util.ClientUtils;
 import com.wavefront.agent.logforwarder.ingestion.util.UriUtils;
-import com.wavefront.agent.logforwarder.ingestion.client.gateway.model.exception.GatewayException;
-import io.vertx.ext.web.client.WebClient;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
