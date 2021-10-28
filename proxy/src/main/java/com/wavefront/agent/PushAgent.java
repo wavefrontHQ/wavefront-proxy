@@ -10,7 +10,7 @@ import com.tdunning.math.stats.AgentDigest;
 import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
 import com.uber.tchannel.api.TChannel;
 import com.uber.tchannel.channels.Connection;
-import com.wavefront.agent.logforwarder.LogForwarderHost;
+import com.wavefront.agent.logforwarder.LogForwarderService;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.CachingHostnameLookupResolver;
@@ -190,7 +190,7 @@ public class PushAgent extends AbstractAgent {
   private Logger blockedPointsLogger;
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;
-  protected LogForwarderHost logForwarderHost;
+  protected LogForwarderService logForwarderHost;
 
   public static void main(String[] args) {
     // Start the ssh daemon
@@ -474,7 +474,7 @@ public class PushAgent extends AbstractAgent {
   @VisibleForTesting
   protected void startLogForwarderHost() throws Throwable{
     if (this.logForwarderHost == null){
-      this.logForwarderHost  = new LogForwarderHost(proxyConfig);
+      this.logForwarderHost  = new LogForwarderService(proxyConfig);
     }
     this.logForwarderHost.startListeners(agentId);
     this.shutdownTasks.add(new Thread(() -> {

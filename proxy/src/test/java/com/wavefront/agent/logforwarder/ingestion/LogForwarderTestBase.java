@@ -3,7 +3,7 @@ package com.wavefront.agent.logforwarder.ingestion;
 
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.agent.VertxTestUtils;
-import com.wavefront.agent.logforwarder.LogForwarderHost;
+import com.wavefront.agent.logforwarder.LogForwarderService;
 import com.wavefront.agent.logforwarder.config.LogForwarderArgs;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
@@ -13,7 +13,7 @@ import com.wavefront.agent.logforwarder.ingestion.client.gateway.utils.Utils;
 import com.wavefront.agent.logforwarder.ingestion.processors.LogIngestionTestProcessor;
 import com.wavefront.agent.logforwarder.ingestion.util.RestApiSourcesMetricsUtil;
 import com.wavefront.agent.logforwarder.ingestion.utils.TestUtils;
-import com.wavefront.agent.logforwarder.services.LogForwarderConfigService;
+
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
@@ -59,7 +59,7 @@ public class LogForwarderTestBase {
     protected String cfapiTextLiAgent;
     protected String simpleText;
     public static String LF_INGESTION_URI_FORMAT = "http://localhost:%d/log-forwarder/ingest";
-    protected LogForwarderHost logForwarderHost;
+    protected LogForwarderService logForwarderHost;
     protected ProxyConfig proxyConfig;
 
     protected void initializeArgs(String orgId, String sddcId, String addFwderIdInEvent) {
@@ -78,7 +78,7 @@ public class LogForwarderTestBase {
         proxyConfig.setLemansAccessToken("KJ7nS5mXwmvcwx1LzoPg0JQYSD7k5abV");
         proxyConfig.setLogForwarderDiskQueueFileLocation("=/opt/vmware/log-forwarder/lemans");
         proxyConfig.setLogIngestionServerUrl("https://data.staging.symphony-dev.com/le-mans/v1/streams/ingestion-pipeline-stream");
-        logForwarderHost = new LogForwarderHost(proxyConfig);
+        logForwarderHost = new LogForwarderService(proxyConfig);
     }
 
     protected void cleanup() throws Exception {

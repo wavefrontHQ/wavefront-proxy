@@ -38,18 +38,21 @@ import java.util.logging.Logger;
 import io.vertx.core.Vertx;
 
 /**
- * Log forwarder host does all the setup and managing of services related to log forwarding
+ * Log forwarder service does all the setup and managing of services related to log forwarding
  * functionality from proxy to wavefront cloud backend.
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/8/21 1:33 PM
  */
-public class LogForwarderHost {
+public class LogForwarderService {
   private static final Logger logger = Logger.getLogger("logForwarder");
   private static final String PROCESSOR_CONFIG_FILE = "processor-config.json";
   private ProxyConfig proxyConfig;
 
-  //TEST constructor
-  public LogForwarderHost(ProxyConfig proxyConfig) {
+  /**
+   * Constructor
+   * @param proxyConfig
+   */
+  public LogForwarderService(ProxyConfig proxyConfig) {
     this.proxyConfig = proxyConfig;
   }
 
