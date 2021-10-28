@@ -7,32 +7,7 @@ package com.wavefront.agent.logforwarder.ingestion.util;
  * @since 9/2/21 4:41 PM
  */
 
-
-
-import java.io.FileInputStream;
-import java.io.StringReader;
-import java.lang.invoke.MethodHandles;
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
 import com.amazonaws.regions.Regions;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.vertx.core.Vertx;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONAware;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.verticle.VertxUtils;
@@ -47,7 +22,25 @@ import com.wavefront.agent.logforwarder.ingestion.processors.model.event.parser.
 import com.wavefront.agent.logforwarder.ingestion.restapi.BaseHttpEndpoint;
 import com.wavefront.agent.logforwarder.ingestion.restapi.LogForwarderRestIngestEndpoint;
 import com.wavefront.agent.logforwarder.ingestion.restapi.RestApiVerticle;
-import com.wavefront.agent.logforwarder.services.LogForwarderConfigService;
+import org.apache.commons.lang3.StringUtils;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONAware;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.io.StringReader;
+import java.lang.invoke.MethodHandles;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.vertx.core.Vertx;
 
 public class LogForwarderUtils {
 
@@ -106,30 +99,6 @@ public class LogForwarderUtils {
       }
     }
     return str;
-  }
-
-  public static void disableHttp2IfNeeded() {
-    if (LogForwarderUtils.getLemansServerUrl() != null &&
-        !(LogForwarderUtils.getLemansServerUrl().startsWith("https"))) {
-      System.getProperties().setProperty(LogForwarderConstants.DISABLE_HTTP2_PROPERTY, Boolean.TRUE.toString());
-    }
-  }
-
-  public static String getLemansClientAccessKey() {
-    if (LogForwarderConfigProperties.logForwarderArgs.logIqAccessKey != null) {
-      return LogForwarderConfigProperties.logForwarderArgs.logIqAccessKey;
-    } else if (LogForwarderConfigProperties.logForwarderArgs.lemansAccessKey != null) {
-      return LogForwarderConfigProperties.logForwarderArgs.lemansAccessKey;
-    }
-
-    return LogForwarderConfigProperties.cspAuthenticationKey;
-  }
-
-  public static String getLemansServerUrl() {
-    if (LogForwarderConfigProperties.logForwarderArgs.logIqUrl != null) {
-      return LogForwarderConfigProperties.logForwarderArgs.logIqUrl;
-    }
-    return LogForwarderConfigProperties.logForwarderArgs.lemansServerUrl;
   }
 
   public static String getForwarderId() {

@@ -14,6 +14,8 @@ import com.wavefront.agent.logforwarder.ingestion.http.client.utils.HttpClientUt
 import com.wavefront.agent.logforwarder.ingestion.processors.Processor;
 import com.wavefront.agent.logforwarder.ingestion.processors.config.ComponentConfig;
 import com.wavefront.agent.logforwarder.ingestion.restapi.BaseHttpEndpoint;
+import com.wavefront.agent.logforwarder.ingestion.restapi.LogForwarderRestIngestEndpoint;
+import com.wavefront.agent.logforwarder.ingestion.restapi.RestApiVerticle;
 import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
 import com.wavefront.agent.logforwarder.services.LogForwarderConfigService;
 //import com.wavefront.agent.logforwarder.services.LogForwarderHealthService;
@@ -32,6 +34,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import io.vertx.core.Vertx;
 
 /**
  * Log forwarder host does all the setup and managing of services related to log forwarding
@@ -78,14 +82,11 @@ public class LogForwarderHost {
 
     HttpClientUtils.createAsyncHttpClient(LogForwarderConfigProperties.EVENT_FORWARDING_HTTP_CLIENT, 30_000, Boolean.FALSE);
 
-    if (StringUtils.isNotEmpty(LogForwarderUtils.getLemansServerUrl()) &&
-        StringUtils.isNotEmpty(LogForwarderUtils.getLemansClientAccessKey())) {
-      logger.info("Enabled Vert.x flow for log-forwarder agent.");
+    logger.info("Enabled Vert.x flow for log-forwarder agent.");
 //      GatewayClientFactory.getInstance().initializeVertxLemansClient(LogForwarderUtils.getLemansServerUrl(),
 //          LogForwarderUtils.getLemansClientAccessKey());
-      GatewayClientFactory.getInstance().initializeVertxLemansClient(proxyConfig.getLogIngestionServerUrl(),
-          proxyConfig.getLemansAccessToken(), proxyConfig.getLogForwarderDiskQueueFileLocation());
-    }
+    GatewayClientFactory.getInstance().initializeVertxLemansClient(proxyConfig.getLogIngestionServerUrl(),
+        proxyConfig.getLemansAccessToken(), proxyConfig.getLogForwarderDiskQueueFileLocation());
     //TODO Decide whether following services are needed
 //    DisplayFileContentsService displayFileContentsService = new DisplayFileContentsService();
 //    LogForwarderRuntimeSummary logForwarderRuntimeSummary = new LogForwarderRuntimeSummary();
@@ -146,9 +147,58 @@ public class LogForwarderHost {
   public void startRestApiServices(String configJSON) throws Exception {
     logger.info("Processing component config and created required listeners config: " + configJSON);
     List<ComponentConfig> componentConfigs = parseForwarderConfigAndCreateProcessors(configJSON);
-    LogForwarderUtils.startRestApiHosts(componentConfigs);
+    startRestApiHosts(componentConfigs);
     LogForwarderConfigProperties.logForwarderConfig = configJSON;
     logger.info("config parsed and listeners created successfully");
+  }
+
+  /**
+   * Start Rest protocol Vertx vehicles to listen on config provided ports.
+   * @param componentConfigs
+   */
+  private  void startRestApiHosts(List<ComponentConfig> componentConfigs) {
+    logger.info("Starting Rest API hosts " + componentConfigs);
+
+    Map<Integer, Vertx> respApiVerticles = LogForwarderConfigProperties.respApiVerticles;
+    componentConfigs
+        .stream()
+        .forEach((component) -> {
+          int httpPort = component.httpPort;
+          if (httpPort != -1) {
+            try {
+              if (respApiVerticles.containsKey(httpPort)) {
+                Vertx verticle = respApiVerticles.get(httpPort);
+                verticle.deploymentIDs().forEach(verticle::undeploy);
+                LogForwarderConfigProperties.respApiVerticles.remove(httpPort);
+              }
+              logger.info("Starting Rest API Verticle for port = "+ httpPort);
+              Vertx restApiVerticle = deployRestApiVerticle(component);
+              LogForwarderConfigProperties.respApiVerticles.put(httpPort, restApiVerticle);
+            } catch (Throwable e) {
+              throw new RuntimeException(e);
+            }
+          }
+        });
+
+    logger.info("Rest API Verticles started successfully");
+  }
+
+  /**
+   * Deploy the REST API verticle with appropriate http paths
+   * @param componentConfig
+   * @return
+   */
+  private Vertx deployRestApiVerticle(ComponentConfig componentConfig) {
+    /** start log-forwarder ingestion api that accepts simple json format */
+    LogForwarderRestIngestEndpoint liService = new LogForwarderRestIngestEndpoint(componentConfig.component);
+    // TODO remove the below We are not bringing in LI agents remove dependency here
+    Map<String, BaseHttpEndpoint> serviceMap = new HashMap<>();
+    serviceMap.put(LogForwarderRestIngestEndpoint.SELF_LINK, liService);
+
+    // Initialize Vert.X
+    Vertx restApiVertx = RestApiVerticle.deploy(serviceMap, Runtime.getRuntime().availableProcessors(),
+        VertxUtils.getVertxRestApiPort(componentConfig.httpPort));
+    return restApiVertx;
   }
 
   private List<ComponentConfig> parseForwarderConfigAndCreateProcessors(String configJSON) throws Exception {
@@ -160,9 +210,6 @@ public class LogForwarderHost {
 
       ComponentConfig componentConfigObj = new ComponentConfig();
       componentConfigObj.component = componentConfigJSON.get("component").toString();
-//      componentConfigObj.syslogPort = Integer.parseInt(componentConfigJSON.get("syslogPort") != null
-//          ? componentConfigJSON.get("syslogPort").toString()
-//          : "-1");
       componentConfigObj.httpPort = Integer.parseInt(componentConfigJSON.get("httpPort") != null
           ? componentConfigJSON.get("httpPort").toString()
           : "-1");
