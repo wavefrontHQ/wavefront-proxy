@@ -9,6 +9,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -212,6 +213,14 @@ public class OtlpProtobufUtils {
   }
 
   /**
+   * Converts an OTLP AnyValue object to its equivalent String representation.
+   * The implementation mimics {@code AsString()} from the OpenTelemetry Collector:
+   * https://github.com/open-telemetry/opentelemetry-collector/blob/cffbecb2ac9ee98e6a60d22f910760be48a94c55/model/pdata/common.go#L384
+   *
+   * <p>We do not handle {@code KvlistValue} because the OpenTelemetry Specification for
+   * Attributes does not include maps as an allowed type of value:
+   * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes
+   *
    * @param anyValue OTLP Attributes value in {@link AnyValue} format
    * @return String representation of the {@link AnyValue}
    */
@@ -225,23 +234,26 @@ public class OtlpProtobufUtils {
     } else if (anyValue.hasDoubleValue()) {
       return Double.toString(anyValue.getDoubleValue());
     } else if (anyValue.hasArrayValue()) {
-      // TODO
-      // Golang implementation: https://github.com/open-telemetry/opentelemetry-collector/blob/7ed3f75ef84d9e9d11b175a0859060f765faca0b/model/pdata/common.go#L381-L384
-      // ref: https://github.com/open-telemetry/opentelemetry-proto/blob/27a10cd70f63afdbddf460881969f9ad7ae4af5d/opentelemetry/proto/common/v1/common.proto
-      if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
-        OTLP_DATA_LOGGER.severe("Encountered ArrayValue but cannot convert to String");
+      List<AnyValue> values = anyValue.getArrayValue().getValuesList();
+      StringBuilder sb = new StringBuilder();
+      sb.append('[');
+      for (AnyValue value : values) {
+        // recursive call fromAnyValue()
+        sb.append(fromAnyValue(value));
+        sb.append(", ");
       }
+      // remove the last ", " in the end
+      sb.deleteCharAt(sb.length() - 1);
+      sb.deleteCharAt(sb.length() - 1);
+      sb.append(']');
+      return sb.toString();
     } else if (anyValue.hasKvlistValue()) {
-      // TODO: see above for implementation
       if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
         OTLP_DATA_LOGGER.severe("Encountered KvlistValue but cannot convert to String");
       }
     } else if (anyValue.hasBytesValue()) {
-      // TODO: see above for implementation
-      if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
-        OTLP_DATA_LOGGER.severe("Encountered BytesValue but cannot convert to String");
-      }
+      return Base64.getEncoder().encodeToString(anyValue.getBytesValue().toByteArray());
     }
-    return "UnknownOTLPValue";
+    return "<Unknown OpenTelemetry attribute value type " + anyValue.getValueCase() + ">";
   }
 }

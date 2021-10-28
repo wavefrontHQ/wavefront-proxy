@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.ArrayValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.trace.v1.Span;
 import wavefront.report.Annotation;
@@ -58,39 +59,88 @@ public class OtlpProtobufUtilsTest {
   public static class AnnotationAndAttributeTests {
     @Test
     public void testAttributesToWFAnnotations() {
-      List<KeyValue> attributes = Lists.newArrayList();
       KeyValue emptyAttr = KeyValue.newBuilder().setKey("empty").build();
       KeyValue booleanAttr = KeyValue.newBuilder().setKey("a-boolean")
-          .setValue(AnyValue.newBuilder().setBoolValue(true).build())
-          .build();
+          .setValue(AnyValue.newBuilder().setBoolValue(true).build()).build();
       KeyValue stringAttr = KeyValue.newBuilder().setKey("a-string")
-          .setValue(AnyValue.newBuilder().setStringValue("a-value").build())
-          .build();
-      KeyValue intAttr = KeyValue.newBuilder().setKey("a-int64")
-          .setValue(AnyValue.newBuilder().setIntValue(Long.MAX_VALUE).build())
-          .build();
+          .setValue(AnyValue.newBuilder().setStringValue("a-value").build()).build();
+      KeyValue intAttr = KeyValue.newBuilder().setKey("a-int")
+          .setValue(AnyValue.newBuilder().setIntValue(1234).build()).build();
       KeyValue doubleAttr = KeyValue.newBuilder().setKey("a-double")
-          .setValue(AnyValue.newBuilder().setDoubleValue(2.1138).build())
+          .setValue(AnyValue.newBuilder().setDoubleValue(2.1138).build()).build();
+      KeyValue bytesAttr = KeyValue.newBuilder().setKey("a-bytes")
+          .setValue(AnyValue.newBuilder().setBytesValue(
+              ByteString.copyFromUtf8("any + old & data")).build())
           .build();
-      KeyValue noValue = KeyValue.newBuilder().setKey("no-value")
+      KeyValue noValueAttr = KeyValue.newBuilder().setKey("no-value")
           .setValue(AnyValue.newBuilder().build()).build();
-      attributes.add(emptyAttr);
-      attributes.add(booleanAttr);
-      attributes.add(stringAttr);
-      attributes.add(intAttr);
-      attributes.add(doubleAttr);
-      attributes.add(noValue);
+
+      List<KeyValue> attributes = Arrays.asList(emptyAttr, booleanAttr, stringAttr, intAttr,
+          doubleAttr, noValueAttr, bytesAttr);
 
       List<Annotation> wfAnnotations = OtlpProtobufUtils.attributesToWFAnnotations(attributes);
       Map<String, String> wfAnnotationAsMap = getWfAnnotationAsMap(wfAnnotations);
 
       assertEquals(attributes.size(), wfAnnotationAsMap.size());
-      assertEquals(wfAnnotationAsMap.get("empty"), "");
-      assertEquals(wfAnnotationAsMap.get("a-boolean"), "true");
-      assertEquals(wfAnnotationAsMap.get("a-string"), "a-value");
-      assertEquals(wfAnnotationAsMap.get("a-int64"), Long.toString(Long.MAX_VALUE));
-      assertEquals(wfAnnotationAsMap.get("a-double"), "2.1138");
-      assertEquals(wfAnnotationAsMap.get("no-value"), "UnknownOTLPValue");
+      assertEquals("", wfAnnotationAsMap.get("empty"));
+      assertEquals("true", wfAnnotationAsMap.get("a-boolean"));
+      assertEquals("a-value", wfAnnotationAsMap.get("a-string"));
+      assertEquals("1234", wfAnnotationAsMap.get("a-int"));
+      assertEquals("2.1138", wfAnnotationAsMap.get("a-double"));
+      assertEquals("YW55ICsgb2xkICYgZGF0YQ==", wfAnnotationAsMap.get("a-bytes"));
+      assertEquals("<Unknown OpenTelemetry attribute value type VALUE_NOT_SET>",
+          wfAnnotationAsMap.get("no-value"));
+    }
+
+    @Test
+    public void testArrayAttributesToWFAnnotations() {
+      KeyValue intArrayAttr = KeyValue.newBuilder().setKey("int-array")
+          .setValue(
+              AnyValue.newBuilder().setArrayValue(
+                  ArrayValue.newBuilder()
+                      .addAllValues(Arrays.asList(
+                              AnyValue.newBuilder().setIntValue(-1).build(),
+                              AnyValue.newBuilder().setIntValue(0).build(),
+                              AnyValue.newBuilder().setIntValue(1).build()
+                          )
+                      ).build()
+              ).build()
+          ).build();
+
+      KeyValue boolArrayAttr = KeyValue.newBuilder().setKey("bool-array")
+          .setValue(
+              AnyValue.newBuilder().setArrayValue(
+                  ArrayValue.newBuilder()
+                      .addAllValues(Arrays.asList(
+                              AnyValue.newBuilder().setBoolValue(true).build(),
+                              AnyValue.newBuilder().setBoolValue(false).build(),
+                              AnyValue.newBuilder().setBoolValue(true).build()
+                          )
+                      ).build()
+              ).build()
+          ).build();
+
+      KeyValue dblArrayAttr = KeyValue.newBuilder().setKey("dbl-array")
+          .setValue(
+              AnyValue.newBuilder().setArrayValue(
+                  ArrayValue.newBuilder()
+                      .addAllValues(Arrays.asList(
+                              AnyValue.newBuilder().setDoubleValue(-3.14).build(),
+                              AnyValue.newBuilder().setDoubleValue(0.0).build(),
+                              AnyValue.newBuilder().setDoubleValue(3.14).build()
+                          )
+                      ).build()
+              ).build()
+          ).build();
+
+      List<KeyValue> attributes = Arrays.asList(intArrayAttr, boolArrayAttr, dblArrayAttr);
+
+      List<Annotation> wfAnnotations = OtlpProtobufUtils.attributesToWFAnnotations(attributes);
+      Map<String, String> wfAnnotationAsMap = getWfAnnotationAsMap(wfAnnotations);
+
+      assertEquals("[-1, 0, 1]", wfAnnotationAsMap.get("int-array"));
+      assertEquals("[true, false, true]", wfAnnotationAsMap.get("bool-array"));
+      assertEquals("[-3.14, 0.0, 3.14]", wfAnnotationAsMap.get("dbl-array"));
     }
 
     @Test
