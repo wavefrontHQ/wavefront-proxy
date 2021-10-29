@@ -36,8 +36,8 @@ fi
 ###################
 # import CA certs #
 ###################
-files=$(ls /tmp/ca/*.pem)
-if [ ${#files[@]} -gt 0 ]; then
+if [ -d "/tmp/ca/" ]; then
+  files=$(ls /tmp/ca/*.pem)
   echo
   echo "Adding credentials to JVM store.."
   echo
