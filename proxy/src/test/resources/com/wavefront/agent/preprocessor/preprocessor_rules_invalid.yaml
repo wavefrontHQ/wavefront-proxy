@@ -978,19 +978,3 @@
        invalidComparisonFunction:
          scope: key1
          value: "val1"
-
-  ## obfuscate Tests
-    - rule    : example-obfuscation
-      action  : obfuscate
-      scope   : metricName
-
-    - rule    : example-obfuscation-2
-      action  : obfuscate
-      key : 1234
-
-    - rule    : example-obfuscation
-      action  : obfuscate
-      scope   : metricName
-      key     : 1233
-
-
