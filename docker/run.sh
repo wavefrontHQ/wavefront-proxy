@@ -59,7 +59,7 @@ java \
     $jvm_container_opts $JAVA_ARGS \
 	-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
 	-Dlog4j.configurationFile=/etc/wavefront/wavefront-proxy/log4j2.xml \
-	-jar /opt/wavefront/wavefront-proxy/bin/wavefront-proxy.jar \
+	-jar /opt/wavefront/wavefront-proxy/wavefront-proxy.jar \
 	-h $WAVEFRONT_URL \
 	-t $WAVEFRONT_TOKEN \
 	--hostname ${WAVEFRONT_HOSTNAME:-$(hostname)} \
