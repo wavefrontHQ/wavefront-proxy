@@ -80,7 +80,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
       this.reject(span, "span is older than acceptable delay of " + maxSpanDelay + " minutes");
       return;
     }
-    //PUB-323 convert "*" in span name to "-"
+    //PUB-323 Allow "*" in span name by converting "*" to "-"
     if (span.getName().contains("*")) {
       span.setName(span.getName().replace('*', '-'));
     }
