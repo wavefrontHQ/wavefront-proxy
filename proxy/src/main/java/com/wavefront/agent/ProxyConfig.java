@@ -840,7 +840,7 @@ public class ProxyConfig extends Configuration {
 
   @Parameter(names = {"--enableLogForwarder"}, description = "Enable log forwarding to wavefront " +
       "feature")
-  protected boolean enableLogForwarder = true;
+  protected boolean enableLogForwarder = false;//Default disabled
 
   TimeProvider timeProvider = System::currentTimeMillis;
 
@@ -1991,14 +1991,14 @@ public class ProxyConfig extends Configuration {
     }
 
     // log forwarder properties
-    enableLogForwarder = config.getBoolean("enableLogForwarder", true);
-    //TODO remove these
+    enableLogForwarder = config.getBoolean("enableLogForwarder", false);
+    //TODO remove these after moving to sync these from collector API
     cspOrgId = config.getString("cspOrgId", "1c424cab-1c1e-4792-972b-efe74140c9ae");
     lemansAccessToken = config.getString("lemansAccessToken",
         "KJ7nS5mXwmvcwx1LzoPg0JQYSD7k5abV");
     logIngestionServerUrl = config.getString("logIngestionServerUrl",
         "https://data.staging.symphony-dev.com/le-mans/v1/streams/ingestion-pipeline-stream");
-
+    //NOTE The below will not be needed if log back pressure store moves to tape
     logForwarderDiskQueueFileLocation = config.getString("logForwarderDiskQueue",
         "/opt/vmware/log-forwarder/lemans");// defaults to
     // wf spool file location
