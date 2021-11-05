@@ -17,15 +17,11 @@ import com.wavefront.agent.logforwarder.ingestion.restapi.BaseHttpEndpoint;
 import com.wavefront.agent.logforwarder.ingestion.restapi.LogForwarderRestIngestEndpoint;
 import com.wavefront.agent.logforwarder.ingestion.restapi.RestApiVerticle;
 import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
-import com.wavefront.agent.logforwarder.services.LogForwarderConfigService;
-//import com.wavefront.agent.logforwarder.services.LogForwarderHealthService;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,7 +30,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import io.vertx.core.Vertx;
 
 /**
@@ -61,65 +56,24 @@ public class LogForwarderService {
    * @param agentId this proxy instance unique ID
    * @throws Throwable
    */
-
   public void startListeners(UUID agentId) throws Throwable{
     logger.info("log-forwarder starting args=" + LogForwarderConfigProperties.logForwarderArgs);
-    //    TODO remove after checking with Guru likely not needed
-    //    LogForwarderUtils.setBuildNumberProperty
-    //    ("/opt/vmware/log-forwarder/ops-log-forwarder-build-number.properties");
 
-//    if (org.apache.commons.lang.StringUtils.isBlank(proxyConfig.getPro)) {
-//      if (org.apache.commons.lang.StringUtils.isBlank(LogForwarderConfigProperties.logForwarderArgs.hostId)) {
-//        logger.severe("HOST_ID/PROXY_ID is not present in arguments. Hence generating a random proxyId");
-//        LogForwarderConfigProperties.logForwarderArgs.proxyId = "random-" + UUID.randomUUID().toString();
-//      } else {
-//        LogForwarderConfigProperties.logForwarderArgs.proxyId =
-//            LogForwarderConfigProperties.logForwarderArgs.hostId;
-//      }
-//    }
     LogForwarderConfigProperties.logForwarderArgs.proxyId = agentId.toString();
-
     Map<String, BaseHttpEndpoint> BaseHttpEndpointMap = new HashMap<>();
-
-//    LogForwarderHealthService logForwarderHealthService = new LogForwarderHealthService();
-
     HttpClientUtils.createAsyncHttpClient(LogForwarderConfigProperties.EVENT_FORWARDING_HTTP_CLIENT, 30_000, Boolean.FALSE);
 
     logger.info("Enabled Vert.x flow for log-forwarder agent.");
-//      GatewayClientFactory.getInstance().initializeVertxLemansClient(LogForwarderUtils.getLemansServerUrl(),
-//          LogForwarderUtils.getLemansClientAccessKey());
     GatewayClientFactory.getInstance().initializeVertxLemansClient(proxyConfig.getLogIngestionServerUrl(),
         proxyConfig.getLemansAccessToken(), proxyConfig.getLogForwarderDiskQueueFileLocation());
-    //TODO Decide whether following services are needed
-//    DisplayFileContentsService displayFileContentsService = new DisplayFileContentsService();
-//    LogForwarderRuntimeSummary logForwarderRuntimeSummary = new LogForwarderRuntimeSummary();
-//    AboutInfoServiceV2 aboutInfoService = new AboutInfoServiceV2();
-//    GenerateThreadDumpServiceV2 generateThreadDumpService = new GenerateThreadDumpServiceV2();
-//    MetricsSummaryServiceV2 metricsSummaryService = new MetricsSummaryServiceV2();
-    LogForwarderConfigService logForwarderConfigService = new LogForwarderConfigService();
 
-//    BaseHttpEndpointMap.put(LogForwarderHealthService.SELF_LINK, logForwarderHealthService);
-//    BaseHttpEndpointMap.put(DisplayFileContentsService.SELF_LINK, displayFileContentsService);
-//    BaseHttpEndpointMap.put(LogForwarderRuntimeSummary.SELF_LINK, logForwarderRuntimeSummary);
-//    BaseHttpEndpointMap.put(AboutInfoServiceV2.SELF_LINK, aboutInfoService);
-//    BaseHttpEndpointMap.put(GenerateThreadDumpServiceV2.SELF_LINK, generateThreadDumpService);
-//    BaseHttpEndpointMap.put(MetricsSummaryServiceV2.SELF_LINK, metricsSummaryService);
-//    BaseHttpEndpointMap.put(LogForwarderConfigService.SELF_LINK, logForwarderConfigService);
-    //TODO FIGURE OUT IF THIS IS NEEDED seems like a alert on general health of forwarder
-//    LogForwarderConfigProperties.systemAlertsEvaluatorService.scheduleAlertEvaluator();
     //TODO MOVE THIS TO POST TO WAVEFRONT DIRECTLY as part of proxy metrics?
 //    LogForwarderConfigProperties.telemetryService.schedulePeriodicTaskToPostMetrics();
-    //TODO Figure this out if not needed for sure
-//    LogForwarderConfigProperties.generalSettingsService.scheduleGlobalConfigRefresh();
 
     LogForwarderConfigProperties.logForwarderVertx =
         MainVerticle.deploy(BaseHttpEndpointMap, 1, VertxUtils.getLogForwarderVertxPort());
     // Parse xml and start listener and processor
     startProcessorsFromConfig(PROCESSOR_CONFIG_FILE);
-
-//    if (LogForwarderUtils.autoInitializeEnabled()) {
-//      LogForwarderConfigProperties.vSphereEventCollector.startScheduler();
-//    }
     logger.info("Successfully started the log forwarder....");
   }
 
@@ -263,14 +217,9 @@ public class LogForwarderService {
     return processor;
   }
 
-
-
   public void stopListeners() {
     logger.info("Started logforwarder shutdown hook..");
     GatewayClientState.accessKeyVsLemansClient.clear();
-//    LogForwarderConfigProperties.telemetryService.stopTimerTask();
-//    LogForwarderConfigProperties.generalSettingsService.stopGlobalConfigRefresh();
-
     GatewayClientState.accessKeyVsLemansClient.forEach((lemansAccessKey, lemansClient) -> {
       lemansClient.stop();
     });
