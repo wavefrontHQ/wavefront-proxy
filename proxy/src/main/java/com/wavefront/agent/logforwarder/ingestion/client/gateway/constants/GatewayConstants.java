@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Constants used by
+ * {@link com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClient} and related
+ * classes.
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/16/21 3:04 PM
  */
@@ -47,7 +50,6 @@ public class GatewayConstants {
   public static final String HEADER_EXTRA_PATH = "lemans.extra-path";
   public static final String HEADER_EXTRA_QUERY = "lemans.extra-query";
   public static final List<String> LEMANS_KAFKA_HEADERS;
-  public static final String HOST_TYPE_XENON = "Xenon";
   public static final int DEFAULT_THREAD_COUNT;
   public static final String STREAM_EXTRA_PATH = "requestExtraPath";
   public static final String STREAM_REQUEST_QUERY = "requestQuery";
