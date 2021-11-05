@@ -81,7 +81,6 @@ import static com.wavefront.agent.logforwarder.ingestion.client.gateway.constant
 public class BackPressureFilter implements GatewayClientFilter {
     private static final Logger logger = LoggerFactory.getLogger(BackPressureFilter.class);
     private static final int DEFAULT_SCHEDULER_THREAD_POOL_SIZE = 1;
-
     private final int failuresThresholdPerSecond;
     private final long maintenanceIntervalMillis;
     private final int dispatchNumRequestsBase;
