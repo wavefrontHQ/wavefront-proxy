@@ -14,7 +14,7 @@
 package com.wavefront.agent.logforwarder.ingestion.processors.util;
 
 
-import com.vmware.xenon.common.Utils;
+import com.wavefront.agent.logforwarder.ingestion.client.gateway.utils.Utils;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.Event;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.EventPayload;
 
