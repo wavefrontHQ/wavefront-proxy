@@ -1,7 +1,9 @@
 package com.wavefront.agent.logforwarder.ingestion.client.gateway.buffer.disk;
 
 /**
- * @author Manoj Ramakrishnan (rmanoj@vmware.com).
+ * Queue representation of log payload on disk.
+ * {@link com.wavefront.agent.logforwarder.ingestion.client.gateway.filter.BackPressureFilter
+ * writes payload not accepted by SaaS ingestion backend gateway
  * @since 9/9/21 11:13 AM
  */
 
