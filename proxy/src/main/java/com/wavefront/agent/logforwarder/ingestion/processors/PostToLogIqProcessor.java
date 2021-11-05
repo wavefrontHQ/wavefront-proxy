@@ -1,24 +1,7 @@
 package com.wavefront.agent.logforwarder.ingestion.processors;
 
 
-import java.lang.invoke.MethodHandles;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.concurrent.FutureCallback;
-import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
-import org.json.simple.JSONAware;
-import org.noggit.JSONUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
-// TODO Get rid of this xenon dependency
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClient;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientManager;
@@ -32,10 +15,23 @@ import com.wavefront.agent.logforwarder.ingestion.client.gateway.utils.Utils;
 import com.wavefront.agent.logforwarder.ingestion.constants.IngestConstants;
 import com.wavefront.agent.logforwarder.ingestion.http.client.utils.HttpClientUtils;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.EventBatch;
-import com.wavefront.agent.logforwarder.ingestion.processors.util.JsonUtils;
 import com.wavefront.agent.logforwarder.ingestion.processors.model.event.EventPayload;
+import com.wavefront.agent.logforwarder.ingestion.processors.util.JsonUtils;
 import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
-
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.json.simple.JSONAware;
+import org.noggit.JSONUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.lang.invoke.MethodHandles;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.concurrent.atomic.AtomicInteger;
 import io.dropwizard.metrics5.Meter;
 import io.dropwizard.metrics5.MetricRegistry;
 
@@ -193,12 +189,8 @@ public abstract class PostToLogIqProcessor implements Processor {
                     url, accessKey, tenantIdentifier, msgsInBlob));
       return;
     }
-
-//    if (Boolean.TRUE.equals(LogForwarderConfigProperties.logForwarderArgs.skipLeMansClient)) {
-//      postWithAsyncClient(payload);
-//    } else {
-        postWithGatewayIngestionClient(payload);
-//    }
+    //Push to SaaS backend
+    postWithGatewayIngestionClient(payload);
   }
 
   private void postWithGatewayIngestionClient(EventPayload payload) {
@@ -260,58 +252,6 @@ public abstract class PostToLogIqProcessor implements Processor {
         });
   }
 
-  //TODO Check with Guru if this is needed
-//  private void postWithAsyncClient(EventPayload payload) {
-//    int msgsInBlob = payload.batch.size();
-//
-//    HttpPost operation = getHttpPost(payload, LogForwarderUtils.getForwarderId());
-//
-//    bytesPostedMeter.mark(operation.getEntity().getContentLength());
-//
-//    inFlightCount.incrementAndGet();
-//
-//
-//    long startTime = System.currentTimeMillis();
-//
-//    if (LogForwarderConfigProperties.logForwarderArgs != null &&
-//        Boolean.TRUE.equals(LogForwarderConfigProperties.logForwarderArgs.fakePost)) {
-//      inFlightCount.decrementAndGet();
-//      updateMetrics(msgsInBlob, true, (System.currentTimeMillis() - startTime), 200);
-//      return;
-//    }
-//
-//
-//    httpAsyncClient.execute(operation, new FutureCallback<HttpResponse>() {
-//      @Override
-//      public void completed(HttpResponse httpResponse) {
-//        inFlightCount.decrementAndGet();
-//
-//        int responseCode = httpResponse.getStatusLine().getStatusCode();
-//        boolean postSuccessful = false;
-//        if ((responseCode >= 200) && (responseCode <= 299)) {
-//          postSuccessful = true;
-//        } else {
-//          logger.error("post to lemans gateway failed responseCode=" + responseCode);
-//        }
-//        updateMetrics(msgsInBlob, postSuccessful, (System.currentTimeMillis() - startTime), responseCode);
-//      }
-//
-//      @Override
-//      public void failed(Exception e) {
-//        logger.error("exception while posting data to lemans-gateway(failed)", e);
-//        inFlightCount.decrementAndGet();
-//        updateMetrics(msgsInBlob, false, (System.currentTimeMillis() - startTime), -1);
-//      }
-//
-//      @Override
-//      public void cancelled() {
-//        logger.error("exception while posting data to lemans-gateway(cancelled)");
-//        inFlightCount.decrementAndGet();
-//        updateMetrics(msgsInBlob, false, (System.currentTimeMillis() - startTime), -1);
-//      }
-//    });
-//  }
-
   private void updateMetrics(int numberOfMessages,
                              boolean postSuccessful,
                              long timeTaken,
@@ -342,7 +282,6 @@ public abstract class PostToLogIqProcessor implements Processor {
       metricsService.getHistogram("POST-".concat(tenantIdentifier).concat("-time-taken-ms"))
           .update(timeTaken);
     } else {
-//      SystemAlertUtils.updatePostToLintFailureMetric(numberOfMessages); TODO
       metricsService.getMeter("POST-".concat(tenantIdentifier).concat("-blobs-failure-"
           + responseCode)).mark();
       metricsService.getMeter("POST-".concat(tenantIdentifier).concat("-messages-failure-")
