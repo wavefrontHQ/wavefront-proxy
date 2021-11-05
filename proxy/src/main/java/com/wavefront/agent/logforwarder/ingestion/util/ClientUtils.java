@@ -4,7 +4,6 @@ package com.wavefront.agent.logforwarder.ingestion.util;
 import com.esotericsoftware.kryo.io.Output;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.constants.GatewayConstants;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.model.GatewayOperation;
-import com.wavefront.agent.logforwarder.ingestion.client.gateway.model.ServiceErrorResponse;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.serialization.KryoSerializers;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.utils.Utils;
 import com.wavefront.agent.logforwarder.ingestion.http.client.ProxyConfiguration;
@@ -53,21 +52,6 @@ public class ClientUtils {
       return multiMap;
     } else {
       return multiMap;
-    }
-  }
-
-  public static boolean handleServerErrorResponse(Buffer serverSentEventBuffer) {
-    try {
-      ServiceErrorResponse serviceErrorResponse =
-          Json.decodeValue(serverSentEventBuffer, ServiceErrorResponse.class);
-      boolean error = serviceErrorResponse.message != null || serviceErrorResponse.statusCode > 0;
-      if (error) {
-        logger.error("Lemans gateway returned error: StatusCode: {}, Message: {}",
-            serviceErrorResponse.statusCode, serviceErrorResponse.message);
-      }
-      return error;
-    } catch (Exception e) {
-      return false;
     }
   }
 
