@@ -1,13 +1,15 @@
 package com.wavefront.agent.logforwarder.ingestion.client.gateway.utils;
 
 /**
+ * SaaS Gateway related stream path util.
  * @author Manoj Ramakrishnan (rmanoj@vmware.com).
  * @since 9/17/21 10:03 AM
  */
 
+import com.wavefront.agent.logforwarder.ingestion.util.UriUtils;
+
 import java.net.URI;
 
-import com.vmware.xenon.common.UriUtils;
 
 public class StreamUtils {
   private StreamUtils() {
