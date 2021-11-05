@@ -16,13 +16,11 @@ package com.wavefront.agent.logforwarder.ingestion.client.gateway.model;
 import com.google.gson.JsonSyntaxException;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.serialization.KryoSerializers;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.utils.Utils;
-
-
 import java.net.URI;
 import java.util.concurrent.TimeoutException;
 
 /**
- * This class represents a HTTP response from LeMans GatewayClient
+ * This class represents a HTTP response from Saas Lgg GatewayClient
  */
 
 public class GatewayResponse extends GatewayOperation<GatewayResponse> {
