@@ -34,6 +34,8 @@ import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -253,6 +255,46 @@ public class OtlpProtobufUtilsTest {
           OtlpTestHelpers.addTagIfNotExistsPreprocessor(wfAttrs));
 
       assertWFSpanEquals(expected, actual);
+    }
+
+    @Test
+    public void transformTranslatesSpanKindToAnnotation() {
+      wavefront.report.Span clientSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_CLIENT),
+          Collections.emptyList(), null);
+      assertThat(clientSpan.getAnnotations(), hasItem(new Annotation("span.kind", "client")));
+
+      wavefront.report.Span consumerSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_CONSUMER),
+          Collections.emptyList(), null);
+      assertThat(consumerSpan.getAnnotations(), hasItem(new Annotation("span.kind", "consumer")));
+
+      wavefront.report.Span internalSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_INTERNAL),
+          Collections.emptyList(), null);
+      assertThat(internalSpan.getAnnotations(), hasItem(new Annotation("span.kind", "internal")));
+
+      wavefront.report.Span producerSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_PRODUCER),
+          Collections.emptyList(), null);
+      assertThat(producerSpan.getAnnotations(), hasItem(new Annotation("span.kind", "producer")));
+
+      wavefront.report.Span serverSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_SERVER),
+          Collections.emptyList(), null);
+      assertThat(serverSpan.getAnnotations(), hasItem(new Annotation("span.kind", "server")));
+
+      wavefront.report.Span unspecifiedSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_UNSPECIFIED),
+          Collections.emptyList(), null);
+      assertThat(unspecifiedSpan.getAnnotations(),
+          hasItem(new Annotation("span.kind", "unspecified")));
+
+      wavefront.report.Span noKindSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanGenerator().build(),
+          Collections.emptyList(), null);
+      assertThat(noKindSpan.getAnnotations(),
+          hasItem(new Annotation("span.kind", "unspecified")));
     }
   }
 

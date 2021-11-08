@@ -10,6 +10,7 @@ import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -24,6 +25,7 @@ import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.resource.v1.Resource;
 import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
+import io.opentelemetry.proto.trace.v1.Span.SpanKind;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
@@ -44,24 +46,28 @@ public class OtlpProtobufUtils {
   private final static String DEFAULT_SERVICE_NAME = "defaultService";
   private final static String DEFAULT_SOURCE = "otlp";
   private final static Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
-
-  /**
-   * OpenTelemetry Span/Trace ID length specification ref: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#spancontext
-   * <p>
-   * TraceId A valid trace identifier is a 16-byte array with at least one non-zero byte.
-   * SpanId A valid span identifier is an 8-byte array with at least one non-zero byte.
-   */
+  private final static String SPAN_KIND_TAG_KEY = "span.kind";
+  private final static HashMap<SpanKind, Annotation> SPAN_KIND_ANNOTATION_HASH_MAP =
+      new HashMap<SpanKind, Annotation>() {{
+        put(SpanKind.SPAN_KIND_CLIENT, new Annotation(SPAN_KIND_TAG_KEY, "client"));
+        put(SpanKind.SPAN_KIND_CONSUMER, new Annotation(SPAN_KIND_TAG_KEY, "consumer"));
+        put(SpanKind.SPAN_KIND_INTERNAL, new Annotation(SPAN_KIND_TAG_KEY, "internal"));
+        put(SpanKind.SPAN_KIND_PRODUCER, new Annotation(SPAN_KIND_TAG_KEY, "producer"));
+        put(SpanKind.SPAN_KIND_SERVER, new Annotation(SPAN_KIND_TAG_KEY, "server"));
+        put(SpanKind.SPAN_KIND_UNSPECIFIED, new Annotation(SPAN_KIND_TAG_KEY, "unspecified"));
+        put(SpanKind.UNRECOGNIZED, new Annotation(SPAN_KIND_TAG_KEY, "unknown"));
+      }};
 
   public static void exportToWavefront(ExportTraceServiceRequest request,
-                         ReportableEntityHandler<Span, String> spanHandler,
-                         @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier
-                         ) {
+                                       ReportableEntityHandler<Span, String> spanHandler,
+                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier
+  ) {
     ReportableEntityPreprocessor preprocessor = null;
     if (preprocessorSupplier != null) {
       preprocessor = preprocessorSupplier.get();
     }
 
-    for (wavefront.report.Span wfSpan:
+    for (wavefront.report.Span wfSpan :
         OtlpProtobufUtils.otlpSpanExportRequestParseToWFSpan(request, preprocessor)) {
       // TODO: handle sampler
       if (!wasFilteredByPreprocessor(wfSpan, spanHandler, preprocessor)) {
@@ -74,7 +80,7 @@ public class OtlpProtobufUtils {
   //   wfSender. This could be more efficient, and also more reliable in the event the loops
   //   below throw an error and we don't report any of the list.
   private static List<Span> otlpSpanExportRequestParseToWFSpan(ExportTraceServiceRequest request,
-                                                              @Nullable ReportableEntityPreprocessor preprocessor) {
+                                                               @Nullable ReportableEntityPreprocessor preprocessor) {
     List<Span> wfSpans = Lists.newArrayList();
     for (ResourceSpans resourceSpans : request.getResourceSpansList()) {
       Resource resource = resourceSpans.getResource();
@@ -103,8 +109,8 @@ public class OtlpProtobufUtils {
 
   @VisibleForTesting
   static boolean wasFilteredByPreprocessor(Span wfSpan,
-                                            ReportableEntityHandler<Span, String> spanHandler,
-                                            @Nullable ReportableEntityPreprocessor preprocessor) {
+                                           ReportableEntityHandler<Span, String> spanHandler,
+                                           @Nullable ReportableEntityPreprocessor preprocessor) {
     if (preprocessor == null) {
       return false;
     }
@@ -123,7 +129,8 @@ public class OtlpProtobufUtils {
   }
 
   public static wavefront.report.Span transform(io.opentelemetry.proto.trace.v1.Span otlpSpan,
-                                                List<KeyValue> resourceAttrs, ReportableEntityPreprocessor preprocessor) {
+                                                List<KeyValue> resourceAttrs,
+                                                ReportableEntityPreprocessor preprocessor) {
     String wfSpanId = SpanUtils.toStringId(otlpSpan.getSpanId());
     String wfTraceId = SpanUtils.toStringId(otlpSpan.getTraceId());
     long startTimeMs = otlpSpan.getStartTimeUnixNano() / 1000;
@@ -136,14 +143,15 @@ public class OtlpProtobufUtils {
     }
     // TODO: otlpSpan.getAttributesList() should precedes resourceAttrs if has same key
     attributesList.addAll(otlpSpan.getAttributesList());
-    // convert OTLP Attributes to WF annotations
+
     List<Annotation> annotationList = attributesToWFAnnotations(attributesList);
+
+    annotationList.add(SPAN_KIND_ANNOTATION_HASH_MAP.get(otlpSpan.getKind()));
+
     if (!otlpSpan.getParentSpanId().equals(ByteString.EMPTY)) {
       annotationList.add(
-          Annotation.newBuilder()
-              .setKey(PARENT_KEY)
-              .setValue(SpanUtils.toStringId(otlpSpan.getParentSpanId()))
-              .build());
+          new Annotation(PARENT_KEY, SpanUtils.toStringId(otlpSpan.getParentSpanId()))
+      );
     }
 
     wavefront.report.Span toReturn = wavefront.report.Span.newBuilder()
