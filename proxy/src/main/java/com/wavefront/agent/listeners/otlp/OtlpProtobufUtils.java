@@ -10,12 +10,15 @@ import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -137,19 +140,17 @@ public class OtlpProtobufUtils {
     long durationMs = otlpSpan.getEndTimeUnixNano() == 0 ? 0 :
         (otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano()) / 1000;
 
-    List<KeyValue> attributesList = Lists.newArrayList();
-    if (resourceAttrs != null) {
-      attributesList.addAll(resourceAttrs);
-    }
-    // TODO: otlpSpan.getAttributesList() should precedes resourceAttrs if has same key
-    attributesList.addAll(otlpSpan.getAttributesList());
+    // Order of arguments to Stream.of() matters: when a Resource Attribute and a Span Attribute
+    // happen to share the same key, we want the Span Attribute to "win" and be preserved.
+    List<KeyValue> otlpAttributes = Stream.of(resourceAttrs, otlpSpan.getAttributesList())
+        .flatMap(Collection::stream).collect(Collectors.toList());
 
-    List<Annotation> annotationList = attributesToWFAnnotations(attributesList);
+    List<Annotation> wfAnnotations = attributesToWFAnnotations(otlpAttributes);
 
-    annotationList.add(SPAN_KIND_ANNOTATION_HASH_MAP.get(otlpSpan.getKind()));
+    wfAnnotations.add(SPAN_KIND_ANNOTATION_HASH_MAP.get(otlpSpan.getKind()));
 
     if (!otlpSpan.getParentSpanId().equals(ByteString.EMPTY)) {
-      annotationList.add(
+      wfAnnotations.add(
           new Annotation(PARENT_KEY, SpanUtils.toStringId(otlpSpan.getParentSpanId()))
       );
     }
@@ -160,7 +161,7 @@ public class OtlpProtobufUtils {
         .setTraceId(wfTraceId)
         .setStartMillis(startTimeMs)
         .setDuration(durationMs)
-        .setAnnotations(annotationList)
+        .setAnnotations(wfAnnotations)
         // TODO: Check the precedence about the source tag
         .setSource(DEFAULT_SOURCE)
         .setCustomer("dummy")

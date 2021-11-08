@@ -27,6 +27,7 @@ import io.opentelemetry.proto.trace.v1.Span;
 import wavefront.report.Annotation;
 
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertWFSpanEquals;
+import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.otlpAttribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.parentSpanIdPair;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
@@ -36,6 +37,8 @@ import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -185,6 +188,21 @@ public class OtlpProtobufUtilsTest {
       assertFalse(annotations.containsKey(SERVICE_NAME.getKey()));
       assertEquals("wf-service", annotations.get(SERVICE_TAG_KEY));
     }
+
+    @Test
+    public void testSetRequiredTagsDeduplicatesAnnotations() {
+      Annotation.Builder dupeBuilder = Annotation.newBuilder().setKey("shared-key");
+      Annotation first = dupeBuilder.setValue("first").build();
+      Annotation middle = dupeBuilder.setValue("middle").build();
+      Annotation last = dupeBuilder.setValue("last").build();
+      List<Annotation> duplicates = Arrays.asList(first, middle, last);
+
+      List<Annotation> actual = OtlpProtobufUtils.setRequiredTags(duplicates);
+
+      // We care that the last item "wins" and is preserved when de-duping
+      assertThat(actual, hasItem(last));
+      assertThat(actual, not(hasItems(first, middle)));
+    }
   }
 
   public static class TransformTests {
@@ -226,6 +244,36 @@ public class OtlpProtobufUtilsTest {
 
       assertWFSpanEquals(expected, actual);
     }
+
+    @Test
+    public void convertsResourceAttributesToAnnotations() {
+      List<KeyValue> resourceAttrs = Collections.singletonList(
+          OtlpTestHelpers.otlpAttribute("rsrc-key", "rsrc-value")
+      );
+      wavefront.report.Span expected = OtlpTestHelpers.wfSpanGenerator(
+          Collections.singletonList(new Annotation("rsrc-key", "rsrc-value"))
+      ).build();
+
+      wavefront.report.Span actual = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanGenerator().build(), resourceAttrs, null
+      );
+
+      assertWFSpanEquals(expected, actual);
+    }
+
+    @Test
+    public void spanAttributesHaveHigherPrecedenceThanResourceAttributes() {
+      String key = "the-key";
+      Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator()
+          .addAttributes(otlpAttribute(key, "span-value")).build();
+      List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute(key, "rsrc-value"));
+
+      wavefront.report.Span actual = OtlpProtobufUtils.transform(otlpSpan, resourceAttrs, null);
+
+      assertThat(actual.getAnnotations(), not(hasItem(new Annotation(key, "rsrc-value"))));
+      assertThat(actual.getAnnotations(), hasItem(new Annotation(key, "span-value")));
+    }
+
 
     @Test
     public void transformAppliesPreprocessorRules() {
