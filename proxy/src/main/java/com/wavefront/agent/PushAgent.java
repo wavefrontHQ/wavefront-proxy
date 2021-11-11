@@ -190,7 +190,7 @@ public class PushAgent extends AbstractAgent {
   private Logger blockedPointsLogger;
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;
-  protected LogForwarderService logForwarderHost;
+  protected LogForwarderService logForwarderService;
 
   public static void main(String[] args) {
     // Start the ssh daemon
@@ -473,12 +473,12 @@ public class PushAgent extends AbstractAgent {
 
   @VisibleForTesting
   protected void startLogForwarderHost() throws Throwable{
-    if (this.logForwarderHost == null){
-      this.logForwarderHost  = new LogForwarderService(proxyConfig);
+    if (this.logForwarderService == null){
+      this.logForwarderService = new LogForwarderService(proxyConfig);
     }
-    this.logForwarderHost.startListeners(agentId);
+    this.logForwarderService.startListeners(agentId);
     this.shutdownTasks.add(new Thread(() -> {
-      this.logForwarderHost.stopListeners();
+      this.logForwarderService.stopListeners();
     }));
   }
 
