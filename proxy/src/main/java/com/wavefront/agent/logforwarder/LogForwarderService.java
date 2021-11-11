@@ -64,7 +64,7 @@ public class LogForwarderService {
     HttpClientUtils.createAsyncHttpClient(LogForwarderConfigProperties.EVENT_FORWARDING_HTTP_CLIENT, 30_000, Boolean.FALSE);
 
     logger.info("Enabled Vert.x flow for log-forwarder agent.");
-    GatewayClientFactory.getInstance().initializeVertxLemansClient(proxyConfig.getLogIngestionServerUrl(),
+    GatewayClientFactory.getInstance().initializeVertxGatewayClient(proxyConfig.getLogIngestionServerUrl(),
         proxyConfig.getLemansAccessToken(), proxyConfig.getLogForwarderDiskQueueFileLocation());
 
     //TODO MOVE THIS TO POST TO WAVEFRONT DIRECTLY as part of proxy metrics?

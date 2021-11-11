@@ -47,7 +47,7 @@ public class GatewayClientFactory {
    * @param diskBackedQueueLocation location to write buffers for failure while posting to gateway
    * @throws Throwable
    */
-  public void initializeVertxLemansClient(String url, String accessKey, String diskBackedQueueLocation) throws Throwable {
+  public void initializeVertxGatewayClient(String url, String accessKey, String diskBackedQueueLocation) throws Throwable {
     try {
       if (GatewayClientState.accessKeyVsLemansClient.containsKey(accessKey)) {
         logger.debug(String.format("lemans vertx client already initialized for access key %s", "****"));
