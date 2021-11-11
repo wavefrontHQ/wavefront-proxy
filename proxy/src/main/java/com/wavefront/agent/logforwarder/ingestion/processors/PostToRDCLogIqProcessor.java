@@ -3,11 +3,10 @@ package com.wavefront.agent.logforwarder.ingestion.processors;
 import java.util.concurrent.TimeUnit;
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
-import com.wavefront.agent.logforwarder.config.LogForwarderConfigProperties;
+
 import com.wavefront.agent.logforwarder.constants.LogForwarderConstants;
 import com.wavefront.agent.logforwarder.ingestion.client.gateway.GatewayClientFactory;
 import com.wavefront.agent.logforwarder.ingestion.http.client.utils.HttpClientUtils;
-import com.wavefront.agent.logforwarder.ingestion.util.LogForwarderUtils;
 import com.wavefront.agent.logforwarder.ingestion.util.UriUtils;
 
 /**
@@ -37,7 +36,7 @@ public class PostToRDCLogIqProcessor extends PostToLogIqProcessor implements Pro
     tenantIdentifier = LogForwarderConstants.RDC_TENANT_IDENTIFIER;
     bufferDiskLocation = jsonObject.get(LogForwarderConstants.INGESTION_DISK_QUEUE_LOCATION).toString();
     try {
-      GatewayClientFactory.getInstance().initializeVertxLemansClient(url, accessKey, bufferDiskLocation);
+      GatewayClientFactory.getInstance().initializeVertxGatewayClient(url, accessKey, bufferDiskLocation);
     } catch (RuntimeException e) {
       throw e;
     }
