@@ -11,12 +11,14 @@ FROM photon:3.0
 
 RUN tdnf install -y \
   openjdk11 \
-  shadow
+  shadow \
+  curl
 
 # Add new group:user "wavefront"
 RUN /usr/sbin/groupadd -g 2000 wavefront
 RUN useradd --comment '' --uid 1000 --gid 2000 wavefront
 RUN chown -R wavefront:wavefront /var
+RUN chown -R wavefront:wavefront /usr/lib/jvm/OpenJDK-1.11.0/lib/security/cacerts
 RUN chmod 755 /var
 
 # tdnf doesn't support "download only" so we have to go with a
