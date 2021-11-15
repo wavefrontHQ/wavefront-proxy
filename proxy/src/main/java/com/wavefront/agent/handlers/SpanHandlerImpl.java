@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.data.AnnotationUtils;
@@ -8,14 +9,19 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
@@ -32,7 +38,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
 
   private final ValidationConfiguration validationConfig;
   private final Logger validItemsLogger;
-  private final Supplier<Integer> dropSpansDelayedMinutes;
+  private final Function<String, Integer> dropSpansDelayedMinutes;
   private final com.yammer.metrics.core.Histogram receivedTagCount;
   private final com.yammer.metrics.core.Counter policySampledSpanCounter;
   private final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandler;
@@ -42,7 +48,8 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
    * @param handlerKey              pipeline hanler key.
    * @param blockedItemsPerBatch    controls sample rate of how many blocked points are written into
    *                                the main log file.
-   * @param sendDataTasks           sender tasks.
+   * @param senderTaskMap           map of tenant name and tasks actually handling data transfer to
+   *                                the Wavefront endpoint corresponding to the tenant name
    * @param validationConfig        parameters for data validation.
    * @param receivedRateSink        where to report received rate.
    * @param blockedItemLogger       logger for blocked items.
@@ -52,14 +59,14 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
    */
   SpanHandlerImpl(final HandlerKey handlerKey,
                   final int blockedItemsPerBatch,
-                  final Collection<SenderTask<String>> sendDataTasks,
+                  final Map<String, Collection<SenderTask<String>>> senderTaskMap,
                   @Nonnull final ValidationConfiguration validationConfig,
-                  @Nullable final Consumer<Long> receivedRateSink,
+                  @Nullable final BiConsumer<String, Long> receivedRateSink,
                   @Nullable final Logger blockedItemLogger,
                   @Nullable final Logger validItemsLogger,
-                  @Nonnull final Supplier<Integer> dropSpansDelayedMinutes,
+                  @Nonnull final Function<String, Integer> dropSpansDelayedMinutes,
                   @Nonnull final Supplier<ReportableEntityHandler<SpanLogs, String>> spanLogsHandler) {
-    super(handlerKey, blockedItemsPerBatch, new SpanSerializer(), sendDataTasks, true,
+    super(handlerKey, blockedItemsPerBatch, new SpanSerializer(), senderTaskMap, true,
         receivedRateSink, blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
@@ -74,7 +81,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
   @Override
   protected void reportInternal(Span span) {
     receivedTagCount.update(span.getAnnotations().size());
-    Integer maxSpanDelay = dropSpansDelayedMinutes.get();
+    Integer maxSpanDelay = dropSpansDelayedMinutes.apply(APIContainer.CENTRAL_TENANT_NAME);
     if (maxSpanDelay != null && span.getStartMillis() + span.getDuration() <
         Clock.now() - TimeUnit.MINUTES.toMillis(maxSpanDelay)) {
       this.reject(span, "span is older than acceptable delay of " + maxSpanDelay + " minutes");
@@ -90,8 +97,41 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
       this.policySampledSpanCounter.inc();
     }
     final String strSpan = serializer.apply(span);
-    getTask().add(strSpan);
+    getTask(APIContainer.CENTRAL_TENANT_NAME).add(strSpan);
     getReceivedCounter().inc();
+    // check if span annotations contains the tag key indicating this span should be multicasted
+    if (isMulticastingActive && span.getAnnotations() != null &&
+        AnnotationUtils.getValue(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY) != null) {
+      String[] multicastingTenantNames = AnnotationUtils.getValue(span.getAnnotations(),
+          MULTICASTING_TENANT_TAG_KEY).trim().split(",");
+      removeSpanAnnotation(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY);
+      for (String multicastingTenantName : multicastingTenantNames) {
+        // if the tenant name indicated in span tag is not configured, just ignore
+        if (getTask(multicastingTenantName) != null) {
+          maxSpanDelay = dropSpansDelayedMinutes.apply(multicastingTenantName);
+          if (maxSpanDelay != null && span.getStartMillis() + span.getDuration() <
+              Clock.now() - TimeUnit.MINUTES.toMillis(maxSpanDelay)) {
+            // just ignore, reduce unnecessary cost on multicasting cluster
+            continue;
+          }
+          getTask(multicastingTenantName).add(serializer.apply(span));
+        }
+      }
+    }
     if (validItemsLogger != null) validItemsLogger.info(strSpan);
+  }
+
+  // MONIT-26010: this is a temp helper function to remove MULTICASTING_TENANT_TAG
+  // TODO: refactor this into AnnotationUtils or figure out a better removing implementation
+  private static void removeSpanAnnotation(List<Annotation> annotations, String key) {
+    Annotation toRemove = null;
+    for (Annotation annotation : annotations) {
+      if (annotation.getKey().equals(key)) {
+        toRemove = annotation;
+        // we should have only one matching
+        break;
+      }
+    }
+    annotations.remove(toRemove);
   }
 }

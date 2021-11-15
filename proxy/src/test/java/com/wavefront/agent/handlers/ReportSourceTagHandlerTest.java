@@ -1,6 +1,7 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.DefaultEntityPropertiesFactoryForTesting;
@@ -20,13 +21,16 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 import javax.ws.rs.core.Response;
 
+import edu.emory.mathcs.backport.java.util.Collections;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.SourceOperationType;
 import wavefront.report.SourceTagAction;
@@ -58,7 +62,8 @@ public class ReportSourceTagHandlerTest {
     };
     newAgentId = UUID.randomUUID();
     senderTaskFactory = new SenderTaskFactoryImpl(new APIContainer(null, mockAgentAPI, null),
-        newAgentId, taskQueueFactory, null, new DefaultEntityPropertiesFactoryForTesting());
+        newAgentId, taskQueueFactory, null,
+        Collections.singletonMap(APIContainer.CENTRAL_TENANT_NAME, new DefaultEntityPropertiesFactoryForTesting()));
     handlerKey = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878");
     sourceTagHandler = new ReportSourceTagHandlerImpl(handlerKey, 10,
             senderTaskFactory.createSenderTasks(handlerKey), null, blockedLogger);
@@ -143,8 +148,10 @@ public class ReportSourceTagHandlerTest {
     SourceTagSenderTask task2 = EasyMock.createMock(SourceTagSenderTask.class);
     tasks.add(task1);
     tasks.add(task2);
+    Map<String, Collection<SenderTask<SourceTag>>> taskMap =
+        ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, tasks);
     ReportSourceTagHandlerImpl sourceTagHandler = new ReportSourceTagHandlerImpl(
-        HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"), 10, tasks, null, blockedLogger);
+        HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878"), 10, taskMap, null, blockedLogger);
     task1.add(new SourceTag(sourceTag1));
     EasyMock.expectLastCall();
     task1.add(new SourceTag(sourceTag2));

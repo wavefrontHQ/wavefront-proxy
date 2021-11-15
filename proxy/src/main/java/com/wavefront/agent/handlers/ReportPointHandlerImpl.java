@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.Utils;
@@ -9,12 +10,16 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
+
+import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -43,7 +48,8 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    * @param handlerKey           handler key for the metrics pipeline.
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
    *                             into the main log file.
-   * @param senderTasks          sender tasks.
+   * @param senderTaskMap        map of tenant name and tasks actually handling data transfer to
+   *                             the Wavefront endpoint corresponding to the tenant name
    * @param validationConfig     validation configuration.
    * @param setupMetrics         Whether we should report counter metrics.
    * @param receivedRateSink     Where to report received rate.
@@ -53,14 +59,14 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
    */
   ReportPointHandlerImpl(final HandlerKey handlerKey,
                          final int blockedItemsPerBatch,
-                         @Nullable final Collection<SenderTask<String>> senderTasks,
+                         @Nullable final Map<String, Collection<SenderTask<String>>> senderTaskMap,
                          @Nonnull final ValidationConfiguration validationConfig,
                          final boolean setupMetrics,
-                         @Nullable final Consumer<Long> receivedRateSink,
+                         @Nullable final BiConsumer<String, Long> receivedRateSink,
                          @Nullable final Logger blockedItemLogger,
                          @Nullable final Logger validItemsLogger,
                          @Nullable final Function<Histogram, Histogram> recompressor) {
-    super(handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), senderTasks,
+    super(handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), senderTaskMap,
         setupMetrics, receivedRateSink, blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
@@ -89,8 +95,21 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       point.setValue(recompressor.apply(histogram));
     }
     final String strPoint = serializer.apply(point);
-    getTask().add(strPoint);
+    getTask(APIContainer.CENTRAL_TENANT_NAME).add(strPoint);
     getReceivedCounter().inc();
+    // check if data points contains the tag key indicating this point should be multicasted
+    if (isMulticastingActive && point.getAnnotations() != null &&
+        point.getAnnotations().containsKey(MULTICASTING_TENANT_TAG_KEY)) {
+      String[] multicastingTenantNames =
+          point.getAnnotations().get(MULTICASTING_TENANT_TAG_KEY).trim().split(",");
+      point.getAnnotations().remove(MULTICASTING_TENANT_TAG_KEY);
+      for (String multicastingTenantName : multicastingTenantNames) {
+        // if the tenant name indicated in point tag is not configured, just ignore
+        if (getTask(multicastingTenantName) != null) {
+          getTask(multicastingTenantName).add(serializer.apply(point));
+        }
+      }
+    }
     if (validItemsLogger != null) validItemsLogger.info(strPoint);
   }
 }

@@ -3,6 +3,7 @@ package com.wavefront.agent;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
@@ -138,12 +139,14 @@ public class PushAgentTest {
       MockReportableEntityHandlerFactory.getMockEventHandlerImpl();
   private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private SenderTask<String> mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
-  private Collection<SenderTask<String>> mockSenderTasks = ImmutableList.of(mockSenderTask);
+  private Map<String, Collection<SenderTask<String>>> mockSenderTaskMap =
+      ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, ImmutableList.of(mockSenderTask));
+  
   private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
     @SuppressWarnings("unchecked")
     @Override
-    public Collection<SenderTask<String>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
-      return mockSenderTasks;
+    public Map<String, Collection<SenderTask<String>>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
+      return mockSenderTaskMap;
     }
 
     @Override
@@ -752,13 +755,13 @@ public class PushAgentTest {
     replay(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
         mockSourceTagHandler, mockEventHandler);
 
-    proxy.entityProps.get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/report?format=histogram", histoData));
-    proxy.entityProps.get(ReportableEntityType.TRACE).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.TRACE).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/report?format=trace", spanData));
-    proxy.entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/report?format=spanLogs", spanLogData));
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
@@ -1672,13 +1675,13 @@ public class PushAgentTest {
         "/api/v2/wfproxy/report?format=spanLogs", spanLogData));
     assertEquals(200, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=spanLogs", spanLogDataWithSpanField));
-    proxy.entityProps.get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=histogram", histoData));
-    proxy.entityProps.get(ReportableEntityType.TRACE).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.TRACE).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=trace", spanData));
-    proxy.entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=spanLogs", spanLogData));
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
@@ -1822,11 +1825,11 @@ public class PushAgentTest {
     proxy.proxyConfig.traceSamplingRate = 1.0;
     AgentConfiguration agentConfiguration = new AgentConfiguration();
     agentConfiguration.setSpanSamplingRate(0.5);
-    proxy.processConfiguration(agentConfiguration);
-    assertEquals(1.0, proxy.entityProps.getGlobalProperties().getTraceSamplingRate(), 1e-3);
+    proxy.processConfiguration("cetnral", agentConfiguration);
+    assertEquals(1.0, proxy.entityPropertiesFactoryMap.get("central").getGlobalProperties().getTraceSamplingRate(), 1e-3);
 
     proxy.proxyConfig.backendSpanHeadSamplingPercentIgnored = false;
-    proxy.processConfiguration(agentConfiguration);
-    assertEquals(0.5, proxy.entityProps.getGlobalProperties().getTraceSamplingRate(), 1e-3);
+    proxy.processConfiguration("central", agentConfiguration);
+    assertEquals(0.5, proxy.entityPropertiesFactoryMap.get("central").getGlobalProperties().getTraceSamplingRate(), 1e-3);
   }
 }
