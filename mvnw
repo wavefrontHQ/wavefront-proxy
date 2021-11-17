@@ -1,1 +1,2 @@
-./mvnw -f proxy package -B
+set -x
+./mvnw -f proxy $@
