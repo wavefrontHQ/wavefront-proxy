@@ -102,7 +102,8 @@ public class TestUtils {
   }
 
   public static void waitUntilListenerIsOnline(int port) throws Exception {
-    for (int i = 0; i < 100; i++) {
+    final int maxTries = 100;
+    for (int i = 0; i < maxTries; i++) {
       try {
         Socket socket = SocketFactory.getDefault().createSocket("localhost", port);
         socket.close();
@@ -111,6 +112,8 @@ public class TestUtils {
         TimeUnit.MILLISECONDS.sleep(50);
       }
     }
+    throw new RuntimeException("Giving up connecting to port " + port + " after " + maxTries +
+        " tries.");
   }
 
   public static int gzippedHttpPost(String postUrl, String payload) throws Exception {
