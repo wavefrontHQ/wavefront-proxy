@@ -1,2 +1,2 @@
 set -x
-./mvnw -f proxy $@
+mvn -f proxy $@
