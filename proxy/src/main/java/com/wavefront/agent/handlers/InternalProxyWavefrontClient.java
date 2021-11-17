@@ -11,6 +11,7 @@ import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -133,5 +134,16 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
   @Override
   public String getClientId() {
     return clientId;
+  }
+
+
+  @Override
+  public void sendEvent(String name, long startMillis, long endMillis, String source, Map<String, String> tags, Map<String, String> annotations) throws IOException {
+    throw new UnsupportedOperationException("Not applicable");
+  }
+
+  @Override
+  public void sendLog(String name, double value, Long timestamp, String source, Map<String, String> tags) throws IOException {
+    throw new UnsupportedOperationException("Not applicable");
   }
 }

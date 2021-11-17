@@ -187,8 +187,9 @@ public abstract class AbstractAgent {
     // connection. the alternative is to always validate connections before reuse, but since
     // it happens fairly infrequently, and connection re-validation performance penalty is
     // incurred every time, suppressing that message seems to be a more reasonable approach.
-    org.apache.log4j.Logger.getLogger("org.apache.http.impl.execchain.RetryExec").
-        setLevel(org.apache.log4j.Level.WARN);
+    // org.apache.log4j.Logger.getLogger("org.apache.http.impl.execchain.RetryExec").
+    //     setLevel(org.apache.log4j.Level.WARN);
+    Logger.getLogger("org.apache.http.impl.execchain.RetryExec").setLevel(Level.WARNING);
 
     if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
       throw new IllegalArgumentException("hostname cannot be blank! Please correct your configuration settings.");
