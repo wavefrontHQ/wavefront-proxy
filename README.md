@@ -21,7 +21,7 @@ Please refer to the [project page](https://github.com/wavefrontHQ/wavefront-prox
 ```bash
 git clone https://github.com/wavefronthq/wavefront-proxy
 cd wavefront-proxy
-vn -f proxy clean install -DskipTests
+mvn -f proxy clean install -DskipTests
 ```
 
 ## Contributing
