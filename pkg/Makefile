@@ -12,7 +12,7 @@ prepare-builder:
 	docker build -t builder .
 
 build-packages:
-	docker run -it -v $(shell pwd)/../:/proxy builder /proxy/pkg/build.sh ${VERSION} ${TS}
+	docker run -v $(shell pwd)/../:/proxy builder /proxy/pkg/build.sh ${VERSION} ${TS}
 	
 clean:
 	cd ../ && mvn clean
