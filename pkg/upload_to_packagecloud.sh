@@ -1,3 +1,5 @@
+#!/bin/bash -ex
+
 if [[ $# -ne 3 ]]; then
 	echo "Usage: $0 <packagecloud_repo> <config_file> <packages path>"
 	exit 1
