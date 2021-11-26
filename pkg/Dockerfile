@@ -3,6 +3,7 @@
 FROM ruby
 
 RUN gem install fpm
+RUN gem install package_cloud
 RUN apt-get update
 RUN apt-get install -y openjdk-11-jdk rpm
 
