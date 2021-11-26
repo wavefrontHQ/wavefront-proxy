@@ -15,7 +15,7 @@ build-packages:
 	docker run -v $(shell pwd)/../:/proxy builder /proxy/pkg/build.sh ${VERSION} ${TS}
 	
 push-packages:
-	docker run -v $(shell pwd)/../:/proxy builder /proxy/pkg/upload_to_packagecloud.sh ${REPO} /proxy/pkg/package_cloud.conf /proxy/pkg/
+	docker run -v $(shell pwd)/../:/proxy builder /proxy/pkg/upload_to_packagecloud.sh ${REPO} /proxy/pkg/package_cloud.conf /proxy/pkg
 
 clean:
 	cd ../ && mvn clean
