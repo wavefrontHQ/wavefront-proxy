@@ -5,7 +5,9 @@ if [[ $# -ne 3 ]]; then
 	exit 1
 fi
 
-package_cloud push --config=$2 $1/any_rpm/any_rpm $3/*.rpm &
-package_cloud push --config=$2 $1/any/any $3/*.deb &
+ls -las ${3}
+
+package_cloud push ${1}/any/any ${3}/*.deb --config=${2}
+package_cloud push ${1}/rpm_any/rpm_any ${3}/*.rpm --config=${2}
 
 wait
