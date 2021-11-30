@@ -5,22 +5,25 @@
 The [Wavefront Proxy](https://docs.wavefront.com/proxies.html) is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner.
 
 ## Requirements
-  * Java 8, 9, 10 or 11 (11 recommended)
-  * Maven
+
+* Java 8, 9, 10 or 11 (11 recommended)
+* Maven
 
 ## Overview
-  * pkg: Build and runtime packaging for the Wavefront proxy.
-  * proxy: [Wavefront Proxy](https://docs.wavefront.com/proxies.html) source code.
 
-  Please refer to the [project page](https://github.com/wavefrontHQ/wavefront-proxy/tree/master/proxy) for further details.
+* pkg: Build and runtime packaging for the Wavefront proxy.
+* proxy: [Wavefront Proxy](https://docs.wavefront.com/proxies.html) source code.
+
+Please refer to the [project page](https://github.com/wavefrontHQ/wavefront-proxy/tree/master/proxy) for further details.
 
 ## To start developing
 
-```
-$ git clone https://github.com/wavefronthq/wavefront-proxy
-$ cd wavefront-proxy
-$ mvn clean install -DskipTests
+```bash
+git clone https://github.com/wavefronthq/wavefront-proxy
+cd wavefront-proxy
+mvn -f proxy clean install -DskipTests
 ```
 
 ## Contributing
+
 Public contributions are always welcome. Please feel free to report issues or submit pull requests.
