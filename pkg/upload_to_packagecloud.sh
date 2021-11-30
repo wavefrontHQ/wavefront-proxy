@@ -27,5 +27,6 @@ package_cloud push --config=$2 $1/ubuntu/artful *.deb &
 package_cloud push --config=$2 $1/ubuntu/zesty *.deb &
 package_cloud push --config=$2 $1/ubuntu/xenial *.deb &
 package_cloud push --config=$2 $1/ubuntu/trusty *.deb &
+package_cloud push --config=$2 $1/ubuntu/hirsute *.deb &
 
 wait
