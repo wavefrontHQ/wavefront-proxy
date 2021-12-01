@@ -19,6 +19,13 @@ RUN yum install -y curl
 RUN yum install -y hostname
 RUN yum install -y java-11-openjdk-devel
 
+# Add new group:user "wavefront"
+RUN /usr/sbin/groupadd -g 2000 wavefront
+RUN useradd --comment '' --uid 1000 --gid 2000 wavefront
+RUN chown -R wavefront:wavefront /var
+RUN chown -R wavefront:wavefront /usr/lib/jvm/OpenJDK-1.11.0/lib/security/cacerts
+RUN chmod 755 /var
+
 # Download wavefront proxy (latest release). Merely extract the package, don't want to try running startup scripts.
 RUN curl -s https://packagecloud.io/install/repositories/wavefront/proxy/script.rpm.sh | sudo bash
 RUN yum -y update
@@ -26,13 +33,6 @@ RUN yum -y -q install wavefront-proxy
 
 # Configure agent
 RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
-
-# Add new group:user "wavefront"
-RUN /usr/sbin/groupadd -g 2000 wavefront
-RUN useradd --comment '' --uid 1000 --gid 2000 wavefront
-RUN chown -R wavefront:wavefront /var
-RUN chown -R wavefront:wavefront /usr/lib/jvm/OpenJDK-1.11.0/lib/security/cacerts
-RUN chmod 755 /var
 
 # Run the agent
 EXPOSE 3878
