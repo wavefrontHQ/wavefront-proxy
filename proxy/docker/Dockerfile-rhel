@@ -27,10 +27,19 @@ RUN yum -y -q install wavefront-proxy
 # Configure agent
 RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
 
+# Add new group:user "wavefront"
+RUN /usr/sbin/groupadd -g 2000 wavefront
+RUN useradd --comment '' --uid 1000 --gid 2000 wavefront
+RUN chown -R wavefront:wavefront /var
+RUN chown -R wavefront:wavefront /usr/lib/jvm/OpenJDK-1.11.0/lib/security/cacerts
+RUN chmod 755 /var
+
 # Run the agent
 EXPOSE 3878
 EXPOSE 2878
 EXPOSE 4242
+
+USER 1000:2000
 
 ADD run.sh run.sh
 CMD ["/bin/bash", "/run.sh"]
