@@ -1,6 +1,18 @@
 #This docker file need to be run on RHEL with subscription enabled.
 FROM registry.access.redhat.com/ubi7
-USER root
+
+MAINTAINER wavefront@vmware.com
+
+LABEL name="Wavefront Collector" \
+      vendor="Wavefront by VMware" \
+      version="10.9" \
+      release="10.9" \
+      summary="The Wavefront Proxy is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner." \
+      description="The Wavefront Proxy is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner."
+
+RUN mkdir /licenses
+
+COPY LICENSE /licenses
 
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
@@ -41,5 +53,5 @@ EXPOSE 4242
 
 USER 1000:2000
 
-ADD run.sh run.sh
+ADD ./proxy/docker/run.sh run.sh
 CMD ["/bin/bash", "/run.sh"]
