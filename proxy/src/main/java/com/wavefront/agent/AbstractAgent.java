@@ -296,7 +296,7 @@ public abstract class AbstractAgent {
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       proxyCheckinScheduler = new ProxyCheckInScheduler(agentId, proxyConfig, apiContainer,
-          this::processConfiguration, () -> truncateBacklog());
+          this::processConfiguration, () -> System.exit(1));
       proxyCheckinScheduler.scheduleCheckins();
 
       // Start the listening endpoints
@@ -355,8 +355,7 @@ public abstract class AbstractAgent {
   public void shutdown() {
     if (!shuttingDown.compareAndSet(false, true)) return;
     try {
-      truncateBacklog();
-    try {
+      try {
         logger.info("Shutting down the proxy...");
       } catch (Throwable t) {
         // ignore logging errors
