@@ -17,6 +17,9 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.KeyValue;
+import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
@@ -95,6 +98,18 @@ public class OtlpTestHelpers {
   public static io.opentelemetry.proto.trace.v1.Span otlpSpanWithKind(
       io.opentelemetry.proto.trace.v1.Span.SpanKind kind) {
     return otlpSpanGenerator().setKind(kind).build();
+  }
+
+  public static io.opentelemetry.proto.trace.v1.Span otlpSpanWithStatus(Status.StatusCode code,
+                                                                        String message) {
+    Status status = Status.newBuilder().setCode(code).setMessage(message).build();
+    return otlpSpanGenerator().setStatus(status).build();
+  }
+
+  public static io.opentelemetry.proto.common.v1.KeyValue otlpAttribute(String key, String value) {
+    return KeyValue.newBuilder().setKey(key).setValue(
+        AnyValue.newBuilder().setStringValue(value).build()
+    ).build();
   }
 
   public static Pair<ByteString, String> parentSpanIdPair() {
