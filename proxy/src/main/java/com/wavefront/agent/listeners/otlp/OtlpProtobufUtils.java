@@ -262,18 +262,8 @@ public class OtlpProtobufUtils {
       return Double.toString(anyValue.getDoubleValue());
     } else if (anyValue.hasArrayValue()) {
       List<AnyValue> values = anyValue.getArrayValue().getValuesList();
-      StringBuilder sb = new StringBuilder();
-      sb.append('[');
-      for (AnyValue value : values) {
-        // recursive call fromAnyValue()
-        sb.append(fromAnyValue(value));
-        sb.append(", ");
-      }
-      // remove the last ", " in the end
-      sb.deleteCharAt(sb.length() - 1);
-      sb.deleteCharAt(sb.length() - 1);
-      sb.append(']');
-      return sb.toString();
+      return values.stream().map(OtlpProtobufUtils::fromAnyValue)
+          .collect(Collectors.joining(", ", "[", "]"));
     } else if (anyValue.hasKvlistValue()) {
       if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
         OTLP_DATA_LOGGER.severe("Encountered KvlistValue but cannot convert to String");
