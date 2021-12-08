@@ -11,6 +11,7 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,12 +30,15 @@ import io.opentelemetry.proto.resource.v1.Resource;
 import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.Span.SpanKind;
+import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
 import static com.wavefront.common.TraceConstants.PARENT_KEY;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
@@ -45,6 +49,8 @@ import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SE
  * @author Glenn Oppegard (goppegard@vmware.com).
  */
 public class OtlpProtobufUtils {
+  // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#span-status
+  public final static String OTEL_STATUS_DESCRIPTION_KEY = "otel.status_description";
   private final static String DEFAULT_APPLICATION_NAME = "defaultApplication";
   private final static String DEFAULT_SERVICE_NAME = "defaultService";
   private final static String DEFAULT_SOURCE = "otlp";
@@ -134,26 +140,26 @@ public class OtlpProtobufUtils {
   public static wavefront.report.Span transform(io.opentelemetry.proto.trace.v1.Span otlpSpan,
                                                 List<KeyValue> resourceAttrs,
                                                 ReportableEntityPreprocessor preprocessor) {
-    String wfSpanId = SpanUtils.toStringId(otlpSpan.getSpanId());
-    String wfTraceId = SpanUtils.toStringId(otlpSpan.getTraceId());
-    long startTimeMs = otlpSpan.getStartTimeUnixNano() / 1000;
-    long durationMs = otlpSpan.getEndTimeUnixNano() == 0 ? 0 :
-        (otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano()) / 1000;
-
     // Order of arguments to Stream.of() matters: when a Resource Attribute and a Span Attribute
     // happen to share the same key, we want the Span Attribute to "win" and be preserved.
     List<KeyValue> otlpAttributes = Stream.of(resourceAttrs, otlpSpan.getAttributesList())
         .flatMap(Collection::stream).collect(Collectors.toList());
 
-    List<Annotation> wfAnnotations = attributesToWFAnnotations(otlpAttributes);
-
+    List<Annotation> wfAnnotations = annotationsFromAttributes(otlpAttributes);
     wfAnnotations.add(SPAN_KIND_ANNOTATION_HASH_MAP.get(otlpSpan.getKind()));
+    wfAnnotations.addAll(annotationsFromStatus(otlpSpan.getStatus()));
 
     if (!otlpSpan.getParentSpanId().equals(ByteString.EMPTY)) {
       wfAnnotations.add(
           new Annotation(PARENT_KEY, SpanUtils.toStringId(otlpSpan.getParentSpanId()))
       );
     }
+
+    String wfSpanId = SpanUtils.toStringId(otlpSpan.getSpanId());
+    String wfTraceId = SpanUtils.toStringId(otlpSpan.getTraceId());
+    long startTimeMs = otlpSpan.getStartTimeUnixNano() / 1000;
+    long durationMs = otlpSpan.getEndTimeUnixNano() == 0 ? 0 :
+        (otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano()) / 1000;
 
     wavefront.report.Span toReturn = wavefront.report.Span.newBuilder()
         .setName(otlpSpan.getName())
@@ -171,13 +177,13 @@ public class OtlpProtobufUtils {
       preprocessor.forSpan().transform(toReturn);
     }
 
-    // set required WF tags that may be missing
+    // After preprocessor has run `transform()`, set required WF tags that may still be missing
     List<Annotation> processedAnnotationList = setRequiredTags(toReturn.getAnnotations());
     toReturn.setAnnotations(processedAnnotationList);
     return toReturn;
   }
 
-  public static List<Annotation> attributesToWFAnnotations(List<KeyValue> attributesList) {
+  public static List<Annotation> annotationsFromAttributes(List<KeyValue> attributesList) {
     List<Annotation> annotations = Lists.newArrayList();
     for (KeyValue attribute : attributesList) {
       Annotation.Builder annotationBuilder = Annotation.newBuilder().setKey(attribute.getKey());
@@ -189,6 +195,18 @@ public class OtlpProtobufUtils {
       annotations.add(annotationBuilder.build());
     }
     return annotations;
+  }
+
+  private static List<Annotation> annotationsFromStatus(Status otlpStatus) {
+    if (otlpStatus.getCode() != Status.StatusCode.STATUS_CODE_ERROR) return Collections.emptyList();
+
+    List<Annotation> statusAnnotations = Lists.newArrayList();
+    statusAnnotations.add(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL));
+
+    if (!otlpStatus.getMessage().isEmpty()) {
+      statusAnnotations.add(new Annotation(OTEL_STATUS_DESCRIPTION_KEY, otlpStatus.getMessage()));
+    }
+    return statusAnnotations;
   }
 
   @VisibleForTesting

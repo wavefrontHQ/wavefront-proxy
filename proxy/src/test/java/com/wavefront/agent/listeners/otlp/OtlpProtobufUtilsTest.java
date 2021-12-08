@@ -24,13 +24,17 @@ import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.ArrayValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.trace.v1.Span;
+import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
 
+import static com.wavefront.agent.listeners.otlp.OtlpProtobufUtils.OTEL_STATUS_DESCRIPTION_KEY;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertWFSpanEquals;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.otlpAttribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.parentSpanIdPair;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
@@ -63,7 +67,7 @@ public class OtlpProtobufUtilsTest {
 
   public static class AnnotationAndAttributeTests {
     @Test
-    public void testAttributesToWFAnnotations() {
+    public void testAnnotationsFromSimpleAttributes() {
       KeyValue emptyAttr = KeyValue.newBuilder().setKey("empty").build();
       KeyValue booleanAttr = KeyValue.newBuilder().setKey("a-boolean")
           .setValue(AnyValue.newBuilder().setBoolValue(true).build()).build();
@@ -83,7 +87,7 @@ public class OtlpProtobufUtilsTest {
       List<KeyValue> attributes = Arrays.asList(emptyAttr, booleanAttr, stringAttr, intAttr,
           doubleAttr, noValueAttr, bytesAttr);
 
-      List<Annotation> wfAnnotations = OtlpProtobufUtils.attributesToWFAnnotations(attributes);
+      List<Annotation> wfAnnotations = OtlpProtobufUtils.annotationsFromAttributes(attributes);
       Map<String, String> wfAnnotationAsMap = getWfAnnotationAsMap(wfAnnotations);
 
       assertEquals(attributes.size(), wfAnnotationAsMap.size());
@@ -98,7 +102,7 @@ public class OtlpProtobufUtilsTest {
     }
 
     @Test
-    public void testArrayAttributesToWFAnnotations() {
+    public void testAnnotationsFromArrayAttributes() {
       KeyValue intArrayAttr = KeyValue.newBuilder().setKey("int-array")
           .setValue(
               AnyValue.newBuilder().setArrayValue(
@@ -140,7 +144,7 @@ public class OtlpProtobufUtilsTest {
 
       List<KeyValue> attributes = Arrays.asList(intArrayAttr, boolArrayAttr, dblArrayAttr);
 
-      List<Annotation> wfAnnotations = OtlpProtobufUtils.attributesToWFAnnotations(attributes);
+      List<Annotation> wfAnnotations = OtlpProtobufUtils.annotationsFromAttributes(attributes);
       Map<String, String> wfAnnotationAsMap = getWfAnnotationAsMap(wfAnnotations);
 
       assertEquals("[-1, 0, 1]", wfAnnotationAsMap.get("int-array"));
@@ -343,6 +347,55 @@ public class OtlpProtobufUtilsTest {
           Collections.emptyList(), null);
       assertThat(noKindSpan.getAnnotations(),
           hasItem(new Annotation("span.kind", "unspecified")));
+    }
+
+    @Test
+    public void handlesSpanStatusIfError() {
+      wavefront.report.Span actual;
+
+      // Error Status without Message
+      Span errorSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_ERROR, "");
+
+      actual = OtlpProtobufUtils.transform(errorSpan, Collections.emptyList(), null);
+
+      assertThat(actual.getAnnotations(), hasItem(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL)));
+      assertFalse(actual.getAnnotations().stream()
+          .anyMatch(annotation -> annotation.getKey().equals(OTEL_STATUS_DESCRIPTION_KEY)));
+
+      // Error Status with Message
+      Span errorSpanWithMessage = OtlpTestHelpers.otlpSpanWithStatus(
+          Status.StatusCode.STATUS_CODE_ERROR, "a description");
+
+      actual = OtlpProtobufUtils.transform(errorSpanWithMessage, Collections.emptyList(), null);
+
+      assertThat(actual.getAnnotations(), hasItem(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL)));
+      assertThat(actual.getAnnotations(),
+          hasItem(new Annotation(OTEL_STATUS_DESCRIPTION_KEY, "a description")));
+    }
+
+    @Test
+    public void ignoresSpanStatusIfNotError() {
+      wavefront.report.Span actual;
+
+      // Ok Status
+      Span okSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_OK, "");
+
+      actual = OtlpProtobufUtils.transform(okSpan, Collections.emptyList(), null);
+
+      assertFalse(actual.getAnnotations().stream()
+          .anyMatch(annotation -> annotation.getKey().equals(ERROR_TAG_KEY)));
+      assertFalse(actual.getAnnotations().stream()
+          .anyMatch(annotation -> annotation.getKey().equals(OTEL_STATUS_DESCRIPTION_KEY)));
+
+      // Unset Status
+      Span unsetSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_UNSET, "");
+
+      actual = OtlpProtobufUtils.transform(unsetSpan, Collections.emptyList(), null);
+
+      assertFalse(actual.getAnnotations().stream()
+          .anyMatch(annotation -> annotation.getKey().equals(ERROR_TAG_KEY)));
+      assertFalse(actual.getAnnotations().stream()
+          .anyMatch(annotation -> annotation.getKey().equals(OTEL_STATUS_DESCRIPTION_KEY)));
     }
   }
 
