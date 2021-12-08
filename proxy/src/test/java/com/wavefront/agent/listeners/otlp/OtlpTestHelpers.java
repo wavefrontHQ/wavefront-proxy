@@ -17,6 +17,9 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.KeyValue;
+import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
@@ -44,36 +47,19 @@ public class OtlpTestHelpers {
     }
     List<Annotation> annotations = Lists.newArrayList();
     if (extraAttrs.stream().noneMatch(anno -> anno.getKey().equals(APPLICATION_TAG_KEY))) {
-      annotations.add(
-          Annotation.newBuilder()
-              .setKey(APPLICATION_TAG_KEY)
-              .setValue("defaultApplication")
-              .build()
-      );
+      annotations.add(new Annotation(APPLICATION_TAG_KEY, "defaultApplication"));
     }
     if (extraAttrs.stream().noneMatch(anno -> anno.getKey().equals(SERVICE_TAG_KEY))) {
-      annotations.add(
-          Annotation.newBuilder()
-              .setKey(SERVICE_TAG_KEY)
-              .setValue("defaultService")
-              .build()
-      );
+      annotations.add(new Annotation(SERVICE_TAG_KEY, "defaultService"));
     }
     if (extraAttrs.stream().noneMatch(anno -> anno.getKey().equals("cluster"))) {
-      annotations.add(
-          Annotation.newBuilder()
-              .setKey("cluster")
-              .setValue("none")
-              .build()
-      );
+      annotations.add(new Annotation("cluster", "none"));
     }
     if (extraAttrs.stream().noneMatch(anno -> anno.getKey().equals("shard"))) {
-      annotations.add(
-          Annotation.newBuilder()
-              .setKey("shard")
-              .setValue("none")
-              .build()
-      );
+      annotations.add(new Annotation("shard", "none"));
+    }
+    if (extraAttrs.stream().noneMatch(anno -> anno.getKey().equals("span.kind"))) {
+      annotations.add(new Annotation("span.kind", "unspecified"));
     }
 
     annotations.addAll(extraAttrs);
@@ -107,6 +93,23 @@ public class OtlpTestHelpers {
         .setTraceId(ByteString.copyFrom(traceIdBytes))
         .setStartTimeUnixNano(startTimeMs * 1000)
         .setEndTimeUnixNano((startTimeMs + durationMs) * 1000);
+  }
+
+  public static io.opentelemetry.proto.trace.v1.Span otlpSpanWithKind(
+      io.opentelemetry.proto.trace.v1.Span.SpanKind kind) {
+    return otlpSpanGenerator().setKind(kind).build();
+  }
+
+  public static io.opentelemetry.proto.trace.v1.Span otlpSpanWithStatus(Status.StatusCode code,
+                                                                        String message) {
+    Status status = Status.newBuilder().setCode(code).setMessage(message).build();
+    return otlpSpanGenerator().setStatus(status).build();
+  }
+
+  public static io.opentelemetry.proto.common.v1.KeyValue otlpAttribute(String key, String value) {
+    return KeyValue.newBuilder().setKey(key).setValue(
+        AnyValue.newBuilder().setStringValue(value).build()
+    ).build();
   }
 
   public static Pair<ByteString, String> parentSpanIdPair() {
