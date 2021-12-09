@@ -21,18 +21,28 @@ import java.util.List;
 import java.util.Map;
 
 import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.ArrayValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.trace.v1.Span;
+import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
 
+import static com.wavefront.agent.listeners.otlp.OtlpProtobufUtils.OTEL_STATUS_DESCRIPTION_KEY;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertWFSpanEquals;
+import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.otlpAttribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.parentSpanIdPair;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -57,40 +67,89 @@ public class OtlpProtobufUtilsTest {
 
   public static class AnnotationAndAttributeTests {
     @Test
-    public void testAttributesToWFAnnotations() {
-      List<KeyValue> attributes = Lists.newArrayList();
+    public void testAnnotationsFromSimpleAttributes() {
       KeyValue emptyAttr = KeyValue.newBuilder().setKey("empty").build();
       KeyValue booleanAttr = KeyValue.newBuilder().setKey("a-boolean")
-          .setValue(AnyValue.newBuilder().setBoolValue(true).build())
-          .build();
+          .setValue(AnyValue.newBuilder().setBoolValue(true).build()).build();
       KeyValue stringAttr = KeyValue.newBuilder().setKey("a-string")
-          .setValue(AnyValue.newBuilder().setStringValue("a-value").build())
-          .build();
-      KeyValue intAttr = KeyValue.newBuilder().setKey("a-int64")
-          .setValue(AnyValue.newBuilder().setIntValue(Long.MAX_VALUE).build())
-          .build();
+          .setValue(AnyValue.newBuilder().setStringValue("a-value").build()).build();
+      KeyValue intAttr = KeyValue.newBuilder().setKey("a-int")
+          .setValue(AnyValue.newBuilder().setIntValue(1234).build()).build();
       KeyValue doubleAttr = KeyValue.newBuilder().setKey("a-double")
-          .setValue(AnyValue.newBuilder().setDoubleValue(2.1138).build())
+          .setValue(AnyValue.newBuilder().setDoubleValue(2.1138).build()).build();
+      KeyValue bytesAttr = KeyValue.newBuilder().setKey("a-bytes")
+          .setValue(AnyValue.newBuilder().setBytesValue(
+              ByteString.copyFromUtf8("any + old & data")).build())
           .build();
-      KeyValue noValue = KeyValue.newBuilder().setKey("no-value")
+      KeyValue noValueAttr = KeyValue.newBuilder().setKey("no-value")
           .setValue(AnyValue.newBuilder().build()).build();
-      attributes.add(emptyAttr);
-      attributes.add(booleanAttr);
-      attributes.add(stringAttr);
-      attributes.add(intAttr);
-      attributes.add(doubleAttr);
-      attributes.add(noValue);
 
-      List<Annotation> wfAnnotations = OtlpProtobufUtils.attributesToWFAnnotations(attributes);
+      List<KeyValue> attributes = Arrays.asList(emptyAttr, booleanAttr, stringAttr, intAttr,
+          doubleAttr, noValueAttr, bytesAttr);
+
+      List<Annotation> wfAnnotations = OtlpProtobufUtils.annotationsFromAttributes(attributes);
       Map<String, String> wfAnnotationAsMap = getWfAnnotationAsMap(wfAnnotations);
 
       assertEquals(attributes.size(), wfAnnotationAsMap.size());
-      assertEquals(wfAnnotationAsMap.get("empty"), "");
-      assertEquals(wfAnnotationAsMap.get("a-boolean"), "true");
-      assertEquals(wfAnnotationAsMap.get("a-string"), "a-value");
-      assertEquals(wfAnnotationAsMap.get("a-int64"), Long.toString(Long.MAX_VALUE));
-      assertEquals(wfAnnotationAsMap.get("a-double"), "2.1138");
-      assertEquals(wfAnnotationAsMap.get("no-value"), "UnknownOTLPValue");
+      assertEquals("", wfAnnotationAsMap.get("empty"));
+      assertEquals("true", wfAnnotationAsMap.get("a-boolean"));
+      assertEquals("a-value", wfAnnotationAsMap.get("a-string"));
+      assertEquals("1234", wfAnnotationAsMap.get("a-int"));
+      assertEquals("2.1138", wfAnnotationAsMap.get("a-double"));
+      assertEquals("YW55ICsgb2xkICYgZGF0YQ==", wfAnnotationAsMap.get("a-bytes"));
+      assertEquals("<Unknown OpenTelemetry attribute value type VALUE_NOT_SET>",
+          wfAnnotationAsMap.get("no-value"));
+    }
+
+    @Test
+    public void testAnnotationsFromArrayAttributes() {
+      KeyValue intArrayAttr = KeyValue.newBuilder().setKey("int-array")
+          .setValue(
+              AnyValue.newBuilder().setArrayValue(
+                  ArrayValue.newBuilder()
+                      .addAllValues(Arrays.asList(
+                              AnyValue.newBuilder().setIntValue(-1).build(),
+                              AnyValue.newBuilder().setIntValue(0).build(),
+                              AnyValue.newBuilder().setIntValue(1).build()
+                          )
+                      ).build()
+              ).build()
+          ).build();
+
+      KeyValue boolArrayAttr = KeyValue.newBuilder().setKey("bool-array")
+          .setValue(
+              AnyValue.newBuilder().setArrayValue(
+                  ArrayValue.newBuilder()
+                      .addAllValues(Arrays.asList(
+                              AnyValue.newBuilder().setBoolValue(true).build(),
+                              AnyValue.newBuilder().setBoolValue(false).build(),
+                              AnyValue.newBuilder().setBoolValue(true).build()
+                          )
+                      ).build()
+              ).build()
+          ).build();
+
+      KeyValue dblArrayAttr = KeyValue.newBuilder().setKey("dbl-array")
+          .setValue(
+              AnyValue.newBuilder().setArrayValue(
+                  ArrayValue.newBuilder()
+                      .addAllValues(Arrays.asList(
+                              AnyValue.newBuilder().setDoubleValue(-3.14).build(),
+                              AnyValue.newBuilder().setDoubleValue(0.0).build(),
+                              AnyValue.newBuilder().setDoubleValue(3.14).build()
+                          )
+                      ).build()
+              ).build()
+          ).build();
+
+      List<KeyValue> attributes = Arrays.asList(intArrayAttr, boolArrayAttr, dblArrayAttr);
+
+      List<Annotation> wfAnnotations = OtlpProtobufUtils.annotationsFromAttributes(attributes);
+      Map<String, String> wfAnnotationAsMap = getWfAnnotationAsMap(wfAnnotations);
+
+      assertEquals("[-1, 0, 1]", wfAnnotationAsMap.get("int-array"));
+      assertEquals("[true, false, true]", wfAnnotationAsMap.get("bool-array"));
+      assertEquals("[-3.14, 0.0, 3.14]", wfAnnotationAsMap.get("dbl-array"));
     }
 
     @Test
@@ -132,6 +191,21 @@ public class OtlpProtobufUtilsTest {
 
       assertFalse(annotations.containsKey(SERVICE_NAME.getKey()));
       assertEquals("wf-service", annotations.get(SERVICE_TAG_KEY));
+    }
+
+    @Test
+    public void testSetRequiredTagsDeduplicatesAnnotations() {
+      Annotation.Builder dupeBuilder = Annotation.newBuilder().setKey("shared-key");
+      Annotation first = dupeBuilder.setValue("first").build();
+      Annotation middle = dupeBuilder.setValue("middle").build();
+      Annotation last = dupeBuilder.setValue("last").build();
+      List<Annotation> duplicates = Arrays.asList(first, middle, last);
+
+      List<Annotation> actual = OtlpProtobufUtils.setRequiredTags(duplicates);
+
+      // We care that the last item "wins" and is preserved when de-duping
+      assertThat(actual, hasItem(last));
+      assertThat(actual, not(hasItems(first, middle)));
     }
   }
 
@@ -176,6 +250,36 @@ public class OtlpProtobufUtilsTest {
     }
 
     @Test
+    public void convertsResourceAttributesToAnnotations() {
+      List<KeyValue> resourceAttrs = Collections.singletonList(
+          OtlpTestHelpers.otlpAttribute("rsrc-key", "rsrc-value")
+      );
+      wavefront.report.Span expected = OtlpTestHelpers.wfSpanGenerator(
+          Collections.singletonList(new Annotation("rsrc-key", "rsrc-value"))
+      ).build();
+
+      wavefront.report.Span actual = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanGenerator().build(), resourceAttrs, null
+      );
+
+      assertWFSpanEquals(expected, actual);
+    }
+
+    @Test
+    public void spanAttributesHaveHigherPrecedenceThanResourceAttributes() {
+      String key = "the-key";
+      Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator()
+          .addAttributes(otlpAttribute(key, "span-value")).build();
+      List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute(key, "rsrc-value"));
+
+      wavefront.report.Span actual = OtlpProtobufUtils.transform(otlpSpan, resourceAttrs, null);
+
+      assertThat(actual.getAnnotations(), not(hasItem(new Annotation(key, "rsrc-value"))));
+      assertThat(actual.getAnnotations(), hasItem(new Annotation(key, "span-value")));
+    }
+
+
+    @Test
     public void transformAppliesPreprocessorRules() {
       Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
       List<Annotation> wfAttrs = Collections.singletonList(
@@ -203,6 +307,95 @@ public class OtlpProtobufUtilsTest {
           OtlpTestHelpers.addTagIfNotExistsPreprocessor(wfAttrs));
 
       assertWFSpanEquals(expected, actual);
+    }
+
+    @Test
+    public void transformTranslatesSpanKindToAnnotation() {
+      wavefront.report.Span clientSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_CLIENT),
+          Collections.emptyList(), null);
+      assertThat(clientSpan.getAnnotations(), hasItem(new Annotation("span.kind", "client")));
+
+      wavefront.report.Span consumerSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_CONSUMER),
+          Collections.emptyList(), null);
+      assertThat(consumerSpan.getAnnotations(), hasItem(new Annotation("span.kind", "consumer")));
+
+      wavefront.report.Span internalSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_INTERNAL),
+          Collections.emptyList(), null);
+      assertThat(internalSpan.getAnnotations(), hasItem(new Annotation("span.kind", "internal")));
+
+      wavefront.report.Span producerSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_PRODUCER),
+          Collections.emptyList(), null);
+      assertThat(producerSpan.getAnnotations(), hasItem(new Annotation("span.kind", "producer")));
+
+      wavefront.report.Span serverSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_SERVER),
+          Collections.emptyList(), null);
+      assertThat(serverSpan.getAnnotations(), hasItem(new Annotation("span.kind", "server")));
+
+      wavefront.report.Span unspecifiedSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_UNSPECIFIED),
+          Collections.emptyList(), null);
+      assertThat(unspecifiedSpan.getAnnotations(),
+          hasItem(new Annotation("span.kind", "unspecified")));
+
+      wavefront.report.Span noKindSpan = OtlpProtobufUtils.transform(
+          OtlpTestHelpers.otlpSpanGenerator().build(),
+          Collections.emptyList(), null);
+      assertThat(noKindSpan.getAnnotations(),
+          hasItem(new Annotation("span.kind", "unspecified")));
+    }
+
+    @Test
+    public void handlesSpanStatusIfError() {
+      wavefront.report.Span actual;
+
+      // Error Status without Message
+      Span errorSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_ERROR, "");
+
+      actual = OtlpProtobufUtils.transform(errorSpan, Collections.emptyList(), null);
+
+      assertThat(actual.getAnnotations(), hasItem(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL)));
+      assertFalse(actual.getAnnotations().stream()
+          .anyMatch(annotation -> annotation.getKey().equals(OTEL_STATUS_DESCRIPTION_KEY)));
+
+      // Error Status with Message
+      Span errorSpanWithMessage = OtlpTestHelpers.otlpSpanWithStatus(
+          Status.StatusCode.STATUS_CODE_ERROR, "a description");
+
+      actual = OtlpProtobufUtils.transform(errorSpanWithMessage, Collections.emptyList(), null);
+
+      assertThat(actual.getAnnotations(), hasItem(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL)));
+      assertThat(actual.getAnnotations(),
+          hasItem(new Annotation(OTEL_STATUS_DESCRIPTION_KEY, "a description")));
+    }
+
+    @Test
+    public void ignoresSpanStatusIfNotError() {
+      wavefront.report.Span actual;
+
+      // Ok Status
+      Span okSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_OK, "");
+
+      actual = OtlpProtobufUtils.transform(okSpan, Collections.emptyList(), null);
+
+      assertFalse(actual.getAnnotations().stream()
+          .anyMatch(annotation -> annotation.getKey().equals(ERROR_TAG_KEY)));
+      assertFalse(actual.getAnnotations().stream()
+          .anyMatch(annotation -> annotation.getKey().equals(OTEL_STATUS_DESCRIPTION_KEY)));
+
+      // Unset Status
+      Span unsetSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_UNSET, "");
+
+      actual = OtlpProtobufUtils.transform(unsetSpan, Collections.emptyList(), null);
+
+      assertFalse(actual.getAnnotations().stream()
+          .anyMatch(annotation -> annotation.getKey().equals(ERROR_TAG_KEY)));
+      assertFalse(actual.getAnnotations().stream()
+          .anyMatch(annotation -> annotation.getKey().equals(OTEL_STATUS_DESCRIPTION_KEY)));
     }
   }
 

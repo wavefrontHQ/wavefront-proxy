@@ -9,11 +9,17 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -23,12 +29,16 @@ import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.resource.v1.Resource;
 import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
+import io.opentelemetry.proto.trace.v1.Span.SpanKind;
+import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
 import static com.wavefront.common.TraceConstants.PARENT_KEY;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
@@ -39,28 +49,34 @@ import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SE
  * @author Glenn Oppegard (goppegard@vmware.com).
  */
 public class OtlpProtobufUtils {
+  // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#span-status
+  public final static String OTEL_STATUS_DESCRIPTION_KEY = "otel.status_description";
   private final static String DEFAULT_APPLICATION_NAME = "defaultApplication";
   private final static String DEFAULT_SERVICE_NAME = "defaultService";
   private final static String DEFAULT_SOURCE = "otlp";
   private final static Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
-
-  /**
-   * OpenTelemetry Span/Trace ID length specification ref: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#spancontext
-   * <p>
-   * TraceId A valid trace identifier is a 16-byte array with at least one non-zero byte.
-   * SpanId A valid span identifier is an 8-byte array with at least one non-zero byte.
-   */
+  private final static String SPAN_KIND_TAG_KEY = "span.kind";
+  private final static HashMap<SpanKind, Annotation> SPAN_KIND_ANNOTATION_HASH_MAP =
+      new HashMap<SpanKind, Annotation>() {{
+        put(SpanKind.SPAN_KIND_CLIENT, new Annotation(SPAN_KIND_TAG_KEY, "client"));
+        put(SpanKind.SPAN_KIND_CONSUMER, new Annotation(SPAN_KIND_TAG_KEY, "consumer"));
+        put(SpanKind.SPAN_KIND_INTERNAL, new Annotation(SPAN_KIND_TAG_KEY, "internal"));
+        put(SpanKind.SPAN_KIND_PRODUCER, new Annotation(SPAN_KIND_TAG_KEY, "producer"));
+        put(SpanKind.SPAN_KIND_SERVER, new Annotation(SPAN_KIND_TAG_KEY, "server"));
+        put(SpanKind.SPAN_KIND_UNSPECIFIED, new Annotation(SPAN_KIND_TAG_KEY, "unspecified"));
+        put(SpanKind.UNRECOGNIZED, new Annotation(SPAN_KIND_TAG_KEY, "unknown"));
+      }};
 
   public static void exportToWavefront(ExportTraceServiceRequest request,
-                         ReportableEntityHandler<Span, String> spanHandler,
-                         @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier
-                         ) {
+                                       ReportableEntityHandler<Span, String> spanHandler,
+                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier
+  ) {
     ReportableEntityPreprocessor preprocessor = null;
     if (preprocessorSupplier != null) {
       preprocessor = preprocessorSupplier.get();
     }
 
-    for (wavefront.report.Span wfSpan:
+    for (wavefront.report.Span wfSpan :
         OtlpProtobufUtils.otlpSpanExportRequestParseToWFSpan(request, preprocessor)) {
       // TODO: handle sampler
       if (!wasFilteredByPreprocessor(wfSpan, spanHandler, preprocessor)) {
@@ -73,7 +89,7 @@ public class OtlpProtobufUtils {
   //   wfSender. This could be more efficient, and also more reliable in the event the loops
   //   below throw an error and we don't report any of the list.
   private static List<Span> otlpSpanExportRequestParseToWFSpan(ExportTraceServiceRequest request,
-                                                              @Nullable ReportableEntityPreprocessor preprocessor) {
+                                                               @Nullable ReportableEntityPreprocessor preprocessor) {
     List<Span> wfSpans = Lists.newArrayList();
     for (ResourceSpans resourceSpans : request.getResourceSpansList()) {
       Resource resource = resourceSpans.getResource();
@@ -102,8 +118,8 @@ public class OtlpProtobufUtils {
 
   @VisibleForTesting
   static boolean wasFilteredByPreprocessor(Span wfSpan,
-                                            ReportableEntityHandler<Span, String> spanHandler,
-                                            @Nullable ReportableEntityPreprocessor preprocessor) {
+                                           ReportableEntityHandler<Span, String> spanHandler,
+                                           @Nullable ReportableEntityPreprocessor preprocessor) {
     if (preprocessor == null) {
       return false;
     }
@@ -122,28 +138,28 @@ public class OtlpProtobufUtils {
   }
 
   public static wavefront.report.Span transform(io.opentelemetry.proto.trace.v1.Span otlpSpan,
-                                                List<KeyValue> resourceAttrs, ReportableEntityPreprocessor preprocessor) {
+                                                List<KeyValue> resourceAttrs,
+                                                ReportableEntityPreprocessor preprocessor) {
+    // Order of arguments to Stream.of() matters: when a Resource Attribute and a Span Attribute
+    // happen to share the same key, we want the Span Attribute to "win" and be preserved.
+    List<KeyValue> otlpAttributes = Stream.of(resourceAttrs, otlpSpan.getAttributesList())
+        .flatMap(Collection::stream).collect(Collectors.toList());
+
+    List<Annotation> wfAnnotations = annotationsFromAttributes(otlpAttributes);
+    wfAnnotations.add(SPAN_KIND_ANNOTATION_HASH_MAP.get(otlpSpan.getKind()));
+    wfAnnotations.addAll(annotationsFromStatus(otlpSpan.getStatus()));
+
+    if (!otlpSpan.getParentSpanId().equals(ByteString.EMPTY)) {
+      wfAnnotations.add(
+          new Annotation(PARENT_KEY, SpanUtils.toStringId(otlpSpan.getParentSpanId()))
+      );
+    }
+
     String wfSpanId = SpanUtils.toStringId(otlpSpan.getSpanId());
     String wfTraceId = SpanUtils.toStringId(otlpSpan.getTraceId());
     long startTimeMs = otlpSpan.getStartTimeUnixNano() / 1000;
     long durationMs = otlpSpan.getEndTimeUnixNano() == 0 ? 0 :
         (otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano()) / 1000;
-
-    List<KeyValue> attributesList = Lists.newArrayList();
-    if (resourceAttrs != null) {
-      attributesList.addAll(resourceAttrs);
-    }
-    // TODO: otlpSpan.getAttributesList() should precedes resourceAttrs if has same key
-    attributesList.addAll(otlpSpan.getAttributesList());
-    // convert OTLP Attributes to WF annotations
-    List<Annotation> annotationList = attributesToWFAnnotations(attributesList);
-    if (!otlpSpan.getParentSpanId().equals(ByteString.EMPTY)) {
-      annotationList.add(
-          Annotation.newBuilder()
-              .setKey(PARENT_KEY)
-              .setValue(SpanUtils.toStringId(otlpSpan.getParentSpanId()))
-              .build());
-    }
 
     wavefront.report.Span toReturn = wavefront.report.Span.newBuilder()
         .setName(otlpSpan.getName())
@@ -151,7 +167,7 @@ public class OtlpProtobufUtils {
         .setTraceId(wfTraceId)
         .setStartMillis(startTimeMs)
         .setDuration(durationMs)
-        .setAnnotations(annotationList)
+        .setAnnotations(wfAnnotations)
         // TODO: Check the precedence about the source tag
         .setSource(DEFAULT_SOURCE)
         .setCustomer("dummy")
@@ -161,13 +177,13 @@ public class OtlpProtobufUtils {
       preprocessor.forSpan().transform(toReturn);
     }
 
-    // set required WF tags that may be missing
+    // After preprocessor has run `transform()`, set required WF tags that may still be missing
     List<Annotation> processedAnnotationList = setRequiredTags(toReturn.getAnnotations());
     toReturn.setAnnotations(processedAnnotationList);
     return toReturn;
   }
 
-  public static List<Annotation> attributesToWFAnnotations(List<KeyValue> attributesList) {
+  public static List<Annotation> annotationsFromAttributes(List<KeyValue> attributesList) {
     List<Annotation> annotations = Lists.newArrayList();
     for (KeyValue attribute : attributesList) {
       Annotation.Builder annotationBuilder = Annotation.newBuilder().setKey(attribute.getKey());
@@ -179,6 +195,18 @@ public class OtlpProtobufUtils {
       annotations.add(annotationBuilder.build());
     }
     return annotations;
+  }
+
+  private static List<Annotation> annotationsFromStatus(Status otlpStatus) {
+    if (otlpStatus.getCode() != Status.StatusCode.STATUS_CODE_ERROR) return Collections.emptyList();
+
+    List<Annotation> statusAnnotations = Lists.newArrayList();
+    statusAnnotations.add(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL));
+
+    if (!otlpStatus.getMessage().isEmpty()) {
+      statusAnnotations.add(new Annotation(OTEL_STATUS_DESCRIPTION_KEY, otlpStatus.getMessage()));
+    }
+    return statusAnnotations;
   }
 
   @VisibleForTesting
@@ -212,6 +240,14 @@ public class OtlpProtobufUtils {
   }
 
   /**
+   * Converts an OTLP AnyValue object to its equivalent String representation.
+   * The implementation mimics {@code AsString()} from the OpenTelemetry Collector:
+   * https://github.com/open-telemetry/opentelemetry-collector/blob/cffbecb2ac9ee98e6a60d22f910760be48a94c55/model/pdata/common.go#L384
+   *
+   * <p>We do not handle {@code KvlistValue} because the OpenTelemetry Specification for
+   * Attributes does not include maps as an allowed type of value:
+   * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/common.md#attributes
+   *
    * @param anyValue OTLP Attributes value in {@link AnyValue} format
    * @return String representation of the {@link AnyValue}
    */
@@ -225,23 +261,16 @@ public class OtlpProtobufUtils {
     } else if (anyValue.hasDoubleValue()) {
       return Double.toString(anyValue.getDoubleValue());
     } else if (anyValue.hasArrayValue()) {
-      // TODO
-      // Golang implementation: https://github.com/open-telemetry/opentelemetry-collector/blob/7ed3f75ef84d9e9d11b175a0859060f765faca0b/model/pdata/common.go#L381-L384
-      // ref: https://github.com/open-telemetry/opentelemetry-proto/blob/27a10cd70f63afdbddf460881969f9ad7ae4af5d/opentelemetry/proto/common/v1/common.proto
-      if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
-        OTLP_DATA_LOGGER.severe("Encountered ArrayValue but cannot convert to String");
-      }
+      List<AnyValue> values = anyValue.getArrayValue().getValuesList();
+      return values.stream().map(OtlpProtobufUtils::fromAnyValue)
+          .collect(Collectors.joining(", ", "[", "]"));
     } else if (anyValue.hasKvlistValue()) {
-      // TODO: see above for implementation
       if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
         OTLP_DATA_LOGGER.severe("Encountered KvlistValue but cannot convert to String");
       }
     } else if (anyValue.hasBytesValue()) {
-      // TODO: see above for implementation
-      if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
-        OTLP_DATA_LOGGER.severe("Encountered BytesValue but cannot convert to String");
-      }
+      return Base64.getEncoder().encodeToString(anyValue.getBytesValue().toByteArray());
     }
-    return "UnknownOTLPValue";
+    return "<Unknown OpenTelemetry attribute value type " + anyValue.getValueCase() + ">";
   }
 }
