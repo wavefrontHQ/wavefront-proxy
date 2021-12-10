@@ -53,6 +53,15 @@
 
 ## rules that apply only to data received on port 2879
 #'2879':
+=======
+
+  # Example no-op rule
+  #################################################################
+  - rule    : example-rule-do-nothing
+    action  : count
+
+## rules that apply only to data received on port 2878
+#'2878':
 
   ## Example rule that count points where metric value is 0 and metric name starts with 'a'
   ##################################################################
@@ -290,8 +299,8 @@
   #  maxLength     : "128"
 
 ## Multiport preprocessor rules
-## The following rules will apply to ports 2979, 2980 and 4343
-#'2979, 2980, 4343':
+## The following rules will apply to ports 2878, 2980 and 4343
+#'2878, 2980, 4343':
 
   ## Add k8s cluster name point tag for all points across multiple ports.
   #- rule    : example-rule-delete-merenametag-k8s-cluster
