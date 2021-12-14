@@ -2,7 +2,7 @@
 
 Wavefront proxy version 10.10 and earlier is impacted by a Log4j vulnerability — CVE-2021-44228. VMware Security Advisory (VMSA): CVE-2021-44228 – VMSA-2021-0028 discusses this vulnerability and its impact on VMware products.
  
-Patches
+### Patches
  
 Wavefront proxy version 10.11 and later use a version of Log4j that addresses this vulnerability.
 
