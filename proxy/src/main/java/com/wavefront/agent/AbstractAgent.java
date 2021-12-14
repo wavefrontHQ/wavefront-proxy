@@ -4,10 +4,12 @@ import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
+
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.data.EntityPropertiesFactory;
@@ -29,12 +31,15 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.ObjectUtils;
 
 import javax.net.ssl.SSLException;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -125,11 +130,11 @@ public abstract class AbstractAgent {
   void initSslContext() throws SSLException {
     if (!isEmpty(proxyConfig.getPrivateCertPath()) && !isEmpty(proxyConfig.getPrivateKeyPath())) {
       sslContext = SslContextBuilder.forServer(new File(proxyConfig.getPrivateCertPath()),
-              new File(proxyConfig.getPrivateKeyPath())).build();
+          new File(proxyConfig.getPrivateKeyPath())).build();
     }
     if (!isEmpty(proxyConfig.getTlsPorts()) && sslContext == null) {
       Preconditions.checkArgument(sslContext != null,
-              "Missing TLS certificate/private key configuration.");
+          "Missing TLS certificate/private key configuration.");
     }
     if (StringUtils.equals(proxyConfig.getTlsPorts(), "*")) {
       secureAllPorts = true;
@@ -296,7 +301,7 @@ public abstract class AbstractAgent {
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       proxyCheckinScheduler = new ProxyCheckInScheduler(agentId, proxyConfig, apiContainer,
-          this::processConfiguration, () -> System.exit(1));
+          this::processConfiguration, () -> System.exit(1), this::truncateBacklog);
       proxyCheckinScheduler.scheduleCheckins();
 
       // Start the listening endpoints
@@ -367,7 +372,7 @@ public abstract class AbstractAgent {
       System.out.println("Shutting down: Stopping schedulers...");
       if (proxyCheckinScheduler != null) proxyCheckinScheduler.shutdown();
       managedExecutors.forEach(ExecutorService::shutdownNow);
-        // wait for up to request timeout
+      // wait for up to request timeout
       managedExecutors.forEach(x -> {
         try {
           x.awaitTermination(proxyConfig.getHttpRequestTimeout(), TimeUnit.MILLISECONDS);
