@@ -1,6 +1,6 @@
 open_source_license.txt
 
-Wavefront by VMware 10.12 GA
+Wavefront by VMware 10.11 GA
 ======================================================================
 
 The following copyright statements and licenses apply to various open
@@ -124,11 +124,11 @@ SECTION 1: Apache License, V2.0
    >>> com.beust:jcommander-1.81
    >>> org.apache.tomcat:tomcat-annotations-api-8.5.72
    >>> io.netty:netty-tcnative-classes-2.0.46.final
-   >>> org.apache.logging.log4j:log4j-api-2.16.0
-   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.16.0
-   >>> org.apache.logging.log4j:log4j-core-2.16.0
-   >>> org.apache.logging.log4j:log4j-jul-2.16.0
-   >>> org.apache.logging.log4j:log4j-1.2-api-2.16.0
+   >>> org.apache.logging.log4j:log4j-api-2.15.0
+   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.15.0
+   >>> org.apache.logging.log4j:log4j-core-2.15.0
+   >>> org.apache.logging.log4j:log4j-jul-2.15.0
+   >>> org.apache.logging.log4j:log4j-1.2-api-2.15.0
    >>> io.netty:netty-buffer-4.1.71.Final
    >>> org.jboss.resteasy:resteasy-client-3.15.2.Final
    >>> org.jboss.resteasy:resteasy-jackson2-provider-3.15.2.Final
@@ -141,7 +141,7 @@ SECTION 1: Apache License, V2.0
    >>> io.netty:netty-transport-4.1.71.Final
    >>> io.netty:netty-transport-classes-epoll-4.1.71.Final
    >>> io.netty:netty-codec-http2-4.1.71.Final
-   >>> org.apache.logging.log4j:log4j-web-2.16.0
+   >>> org.apache.logging.log4j:log4j-web-2.15.0
    >>> io.netty:netty-codec-socks-4.1.71.Final
    >>> io.netty:netty-handler-proxy-4.1.71.Final
    >>> io.netty:netty-transport-native-unix-common-4.1.71.Final
@@ -14326,7 +14326,7 @@ APPENDIX. Standard License Files
        See SECTION 19 in 'LICENSE TEXT REFERENCE TABLE'
 
 
-   >>> org.apache.logging.log4j:log4j-api-2.16.0
+   >>> org.apache.logging.log4j:log4j-api-2.15.0
 
        > Apache1.1
 
@@ -14338,7 +14338,7 @@ APPENDIX. Standard License Files
        See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
 
 
-   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.16.0
+   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.15.0
 
        > Apache2.0
 
@@ -14349,7 +14349,7 @@ APPENDIX. Standard License Files
        See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
 
 
-   >>> org.apache.logging.log4j:log4j-core-2.16.0
+   >>> org.apache.logging.log4j:log4j-core-2.15.0
 
        Found in: META-INF/LICENSE
 
@@ -14359,7 +14359,7 @@ APPENDIX. Standard License Files
 
 
 
-   >>> org.apache.logging.log4j:log4j-jul-2.16.0
+   >>> org.apache.logging.log4j:log4j-jul-2.15.0
 
        > Apache2.0
 
@@ -14370,7 +14370,7 @@ APPENDIX. Standard License Files
        See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
 
 
-   >>> org.apache.logging.log4j:log4j-1.2-api-2.16.0
+   >>> org.apache.logging.log4j:log4j-1.2-api-2.15.0
 
        > Apache2.0
 
@@ -21005,7 +21005,7 @@ APPENDIX. Standard License Files
        See SECTION 25 in 'LICENSE TEXT REFERENCE TABLE'
 
 
-   >>> org.apache.logging.log4j:log4j-web-2.16.0
+   >>> org.apache.logging.log4j:log4j-web-2.15.0
 
        Copyright [yyyy] [name of copyright owner]
 
@@ -27450,4 +27450,4 @@ Source Files is valid for three years from the date you acquired or last used th
 Software product. Alternatively, the Source Files may accompany the
 VMware service.
 
-[WAVEFRONTHQPROXY1011GAAB121521]
+[WAVEFRONTHQPROXY1011GAAB121321]
