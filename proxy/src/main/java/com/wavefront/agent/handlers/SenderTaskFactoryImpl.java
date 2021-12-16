@@ -1,7 +1,6 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import com.wavefront.common.Managed;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.EntityPropertiesFactory;
@@ -147,7 +146,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       senderTask.start();
     }
     if (queueingFactory != null) {
-      log.info("---->" + handlerKey);
+      log.info("---->"+handlerKey);
       QueueController<?> controller = queueingFactory.getQueueController(handlerKey, numThreads);
       managedServices.put(handlerKey, controller);
       controller.start();
@@ -201,7 +200,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     System.out.println("-- truncateBuffers --");
     log.info("-- truncateBuffers ---");
     managedServices.entrySet().forEach(handlerKeyManagedEntry -> {
-      System.out.println("---------> " + handlerKeyManagedEntry.getKey());
+      System.out.println("---------> "+handlerKeyManagedEntry.getKey());
       log.info("---------> " + handlerKeyManagedEntry.getKey());
       QueueController pp = handlerKeyManagedEntry.getValue();
       pp.truncateBuffers();

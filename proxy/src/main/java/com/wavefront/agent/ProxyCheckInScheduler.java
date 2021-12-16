@@ -1,11 +1,9 @@
 package com.wavefront.agent;
 
 import com.fasterxml.jackson.databind.JsonNode;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Clock;
@@ -15,7 +13,6 @@ import com.yammer.metrics.Metrics;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
-
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -78,8 +75,6 @@ public class ProxyCheckInScheduler {
    *                                   successful configuration fetch.
    * @param shutdownHook               Invoked when proxy receives a shutdown directive
    *                                   from the back-end.
-   * @param truncateBacklog            Invoked when proxy receives a truncate buffer queue
-   *                                   directive from the back-end.
    */
   public ProxyCheckInScheduler(UUID proxyId,
                                ProxyConfig proxyConfig,
@@ -252,8 +247,8 @@ public class ProxyCheckInScheduler {
     try {
       AgentConfiguration config = checkin();
       if (config != null) {
-        logger.info("----> getShutOffAgents: " + config.getShutOffAgents());
-        logger.info("---->  isTruncateQueue: " + config.isTruncateQueue());
+        logger.info("----> getShutOffAgents: "+config.getShutOffAgents());
+        logger.info("---->  isTruncateQueue: "+config.isTruncateQueue());
         if (config.getShutOffAgents()) {
           logger.severe(firstNonNull(config.getShutOffMessage(),
               "Shutting down: Server side flag indicating proxy has to shut down."));
