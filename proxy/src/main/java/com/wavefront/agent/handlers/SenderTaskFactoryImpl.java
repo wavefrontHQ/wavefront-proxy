@@ -146,7 +146,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       senderTask.start();
     }
     if (queueingFactory != null) {
-      log.info("---->"+handlerKey);
+      log.info("Sender tasks handlerKey:"+handlerKey);
       QueueController<?> controller = queueingFactory.getQueueController(handlerKey, numThreads);
       managedServices.put(handlerKey, controller);
       controller.start();
@@ -197,11 +197,9 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
   @Override
   public void truncateBuffers() {
-    System.out.println("-- truncateBuffers --");
-    log.info("-- truncateBuffers ---");
     managedServices.entrySet().forEach(handlerKeyManagedEntry -> {
-      System.out.println("---------> "+handlerKeyManagedEntry.getKey());
-      log.info("---------> " + handlerKeyManagedEntry.getKey());
+      System.out.println("Truncating buffers: Queue with handlerKey " +handlerKeyManagedEntry.getKey());
+      log.info("Truncating buffers: Queue with handlerKey " + handlerKeyManagedEntry.getKey());
       QueueController pp = handlerKeyManagedEntry.getValue();
       pp.truncateBuffers();
     });
