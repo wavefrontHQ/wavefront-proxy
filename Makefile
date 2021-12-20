@@ -35,7 +35,7 @@ docker: info cp-docker
 # Build multi arch (amd64 & arm64) docker images
 #####
 docker-multi-arch: info cp-docker
-	docker buildx create wfproxy --use
+	docker buildx create --use
 	docker buildx build --platform linux/amd64,linux/arm64 -t $(DOCKER_TAG) --push docker/
 
 
