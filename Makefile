@@ -49,7 +49,7 @@ build-linux: info prepare-builder cp-linux
 # Push rep & deb packages
 #####
 push-linux: info prepare-builder
-	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/upload_to_packagecloud.sh ${REPO} /proxy/pkg/package_cloud.conf /proxy/pkg/out
+	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/upload_to_packagecloud.sh ${REPO} /proxy/pkg/package_cloud.conf /proxy/out
 
 prepare-builder:
 	docker build -t proxy-linux-builder pkg/
