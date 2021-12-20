@@ -42,7 +42,7 @@ docker-multi-arch: info cp-docker
 #####
 # Build rep & deb packages
 #####
-build-linux: info prepare-builder cp-linx
+build-linux: info prepare-builder cp-linux
 	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/build.sh ${VERSION} ${REVISION}
 	
 #####
@@ -57,8 +57,8 @@ prepare-builder:
 cp-docker:
 	cp ${out}/wavefront-proxy.jar docker
 
-cp-linx:
-	cp ${out}/wavefront-proxy.jar docker
+cp-linux:
+	cp ${out}/wavefront-proxy.jar pkg
 
 clean:
 	docker buildx prune -a -f
