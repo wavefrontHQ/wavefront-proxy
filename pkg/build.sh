@@ -47,7 +47,7 @@ do
 		opt etc usr
 
 	[[ -d out ]] || mkdir out
-	mv *.${target} out
+	mv *.${target} ../out
 done 
 
-rpm --delsign out/*.rpm
+rpm --delsign ../out/*.rpm
