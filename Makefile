@@ -6,13 +6,13 @@ FULLVERSION = ${VERSION}${REVISION}
 USER ?= $(LOGNAME)
 REPO ?= proxy-dev
 
-DOCKER_TAG ?= $(USER)/$(REPO):${FULLVERSION}
+DOCKER_TAG = $(USER)/$(REPO):${FULLVERSION}
 
 out = $(shell pwd)/out
 $(shell mkdir -p $(out))
 
 info:
-	@echo "----------\nBuilding Proxy ${FULLVERSION}\n----------\n"
+	@echo "----------\nBuilding Proxy ${FULLVERSION}\Docker tag: ${DOCKER_TAG}\n----------\n"
 
 jenkins: info build-jar docker-multi-arch build-linux push-linux clean
 
