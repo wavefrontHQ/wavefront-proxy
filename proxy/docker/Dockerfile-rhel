@@ -5,14 +5,19 @@ MAINTAINER wavefront@vmware.com
 
 LABEL name="Wavefront Collector" \
       vendor="Wavefront by VMware" \
-      version="10.9" \
-      release="10.9" \
+      version="10.12" \
+      release="10.12" \
       summary="The Wavefront Proxy is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner." \
       description="The Wavefront Proxy is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner."
 
 RUN mkdir /licenses
 
 COPY LICENSE /licenses
+COPY ./proxy/docker/run.sh run.sh
+
+EXPOSE 3878
+EXPOSE 2878
+EXPOSE 4242
 
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
@@ -23,35 +28,25 @@ COPY LICENSE /licenses
 #  WAVEFRONT_PROXY_ARGS    (default is none)
 #  JAVA_ARGS               (default is none)
 
-RUN yum-config-manager --enable rhel-7-server-optional-rpms
-RUN yum update --disableplugin=subscription-manager -y && rm -rf /var/cache/yum
-
-RUN yum install -y sudo
-RUN yum install -y curl
-RUN yum install -y hostname
-RUN yum install -y java-11-openjdk-devel
+RUN yum-config-manager --enable rhel-7-server-optional-rpms \
+    && yum update --disableplugin=subscription-manager -y \
+    && rm -rf /var/cache/yum \
+    && yum install -y sudo curl hostname java-11-openjdk-devel
 
 # Add new group:user "wavefront"
-RUN /usr/sbin/groupadd -g 2000 wavefront
-RUN useradd --comment '' --uid 1000 --gid 2000 wavefront
+RUN /usr/sbin/groupadd -g 2000 wavefront && useradd --comment '' --uid 1000 --gid 2000 wavefront
 RUN chown -R wavefront:wavefront /var
 RUN chown -R wavefront:wavefront /usr/lib/jvm/java-11-openjdk/lib/security/cacerts
 RUN chmod 755 /var
 
 # Download wavefront proxy (latest release). Merely extract the package, don't want to try running startup scripts.
-RUN curl -s https://packagecloud.io/install/repositories/wavefront/proxy/script.rpm.sh | sudo bash
-RUN yum -y update
-RUN yum -y -q install wavefront-proxy
+RUN curl -s https://packagecloud.io/install/repositories/wavefront/proxy/script.rpm.sh | sudo bash \
+    && yum -y update \
+    && yum -y -q install wavefront-proxy
 
 # Configure agent
 RUN cp /etc/wavefront/wavefront-proxy/log4j2-stdout.xml.default /etc/wavefront/wavefront-proxy/log4j2.xml
 
 # Run the agent
-EXPOSE 3878
-EXPOSE 2878
-EXPOSE 4242
-
 USER 1000:2000
-
-ADD ./proxy/docker/run.sh run.sh
 CMD ["/bin/bash", "/run.sh"]
