@@ -1,6 +1,6 @@
-﻿open_source_licenses.txt
+open_source_license.txt
 
-Wavefront by VMware 10.13 GA
+Wavefront by VMware 10.12 GA
 ======================================================================
 
 The following copyright statements and licenses apply to various open
@@ -23,6 +23,7 @@ this document. This list is provided for your convenience; please read
 further if you wish to review the copyright notice(s) and the full text
 of the license associated with each component.
 
+PART 1. APPLICATION LAYER
 
 SECTION 1: Apache License, V2.0
 
@@ -123,6 +124,11 @@ SECTION 1: Apache License, V2.0
    >>> com.beust:jcommander-1.81
    >>> org.apache.tomcat:tomcat-annotations-api-8.5.72
    >>> io.netty:netty-tcnative-classes-2.0.46.final
+   >>> org.apache.logging.log4j:log4j-api-2.16.0
+   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.16.0
+   >>> org.apache.logging.log4j:log4j-core-2.16.0
+   >>> org.apache.logging.log4j:log4j-jul-2.16.0
+   >>> org.apache.logging.log4j:log4j-1.2-api-2.16.0
    >>> io.netty:netty-buffer-4.1.71.Final
    >>> org.jboss.resteasy:resteasy-client-3.15.2.Final
    >>> org.jboss.resteasy:resteasy-jackson2-provider-3.15.2.Final
@@ -135,17 +141,12 @@ SECTION 1: Apache License, V2.0
    >>> io.netty:netty-transport-4.1.71.Final
    >>> io.netty:netty-transport-classes-epoll-4.1.71.Final
    >>> io.netty:netty-codec-http2-4.1.71.Final
+   >>> org.apache.logging.log4j:log4j-web-2.16.0
    >>> io.netty:netty-codec-socks-4.1.71.Final
    >>> io.netty:netty-handler-proxy-4.1.71.Final
    >>> io.netty:netty-transport-native-unix-common-4.1.71.Final
    >>> io.netty:netty-handler-4.1.71.Final
    >>> org.jboss.resteasy:resteasy-jaxrs-3.15.2.Final
-   >>> org.apache.logging.log4j:log4j-jul-2.17.0
-   >>> org.apache.logging.log4j:log4j-core-2.17.0
-   >>> org.apache.logging.log4j:log4j-api-2.17.0
-   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.17.0
-   >>> org.apache.logging.log4j:log4j-1.2-api-2.17.0
-   >>> org.apache.logging.log4j:log4j-web-2.17.0
 
 SECTION 2: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
 
@@ -197,10 +198,13 @@ APPENDIX. Standard License Files
    >>> Common Development and Distribution License, V1.1
    >>> Creative Commons Attribution 2.5 
    >>> Eclipse Public License, V1.0
+   >>> Apache License, V2.0
    >>> Eclipse Public License, V2.0
-   >>> GNU Lesser General Public License, V3.0
    >>> Common Development and Distribution License, V1.0
+   >>> GNU Lesser General Public License, V3.0
    >>> Mozilla Public License, V2.0
+
+==================== PART 1. APPLICATION LAYER ====================
 
 -------------------- SECTION 1: Apache License, V2.0 --------------------
 
@@ -1443,7 +1447,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        avro-1.9.2-sources.jar\META-INF\DEPENDENCIES
 
@@ -6740,7 +6744,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/annotation/ForceInline.java
 
@@ -6758,7 +6762,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/annotation/Negative.java
 
@@ -6782,7 +6786,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/annotation/Positive.java
 
@@ -6800,7 +6804,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/annotation/SingleThreaded.java
 
@@ -6812,7 +6816,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/annotation/UsedViaReflection.java
 
@@ -6830,67 +6834,67 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/cleaner/CleanerServiceLocator.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/cleaner/impl/jdk8/Jdk8ByteBufferCleanerService.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/cleaner/impl/jdk9/Jdk9ByteBufferCleanerService.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/cleaner/impl/reflect/ReflectionBasedByteBufferCleanerService.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/cleaner/spi/ByteBufferCleanerService.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/CleaningRandomAccessFile.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/cooler/CoolerTester.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/cooler/CpuCooler.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/cooler/CpuCoolers.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/io/AbstractCloseable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/io/Closeable.java
 
@@ -6902,7 +6906,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/io/IORuntimeException.java
 
@@ -6920,31 +6924,31 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/io/SimpleCloseable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/io/UnsafeText.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/Jvm.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/LicenceCheck.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/Maths.java
 
@@ -6968,85 +6972,85 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/ExceptionHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/ExceptionKey.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/GoogleExceptionHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/Google.properties
 
        Copyright 2016 higherfrequencytrading.com
 
-       See SECTION 44 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 43 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/LogLevel.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/NullExceptionHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/PrintExceptionHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/RecordingExceptionHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/Slf4jExceptionHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/StackoverflowExceptionHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/Stackoverflow.properties
 
        Copyright 2016 higherfrequencytrading.com
 
-       See SECTION 44 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 43 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/ThreadLocalisedExceptionHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/onoes/WebExceptionHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/OS.java
 
@@ -7070,13 +7074,13 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/pool/EnumCache.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/pool/EnumInterner.java
 
@@ -7094,7 +7098,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/pool/StringBuilderPool.java
 
@@ -7112,7 +7116,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/threads/EventHandler.java
 
@@ -7142,25 +7146,25 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/threads/MonitorProfileAnalyserMain.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/threads/StackSampler.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/threads/ThreadDump.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/threads/ThreadHints.java
 
@@ -7178,25 +7182,25 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/threads/VanillaEventHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/time/Differencer.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/time/RunningMinimum.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/time/SetTimeProvider.java
 
@@ -7220,19 +7224,19 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/time/VanillaDifferencer.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/UnresolvedType.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/UnsafeMemory.java
 
@@ -7250,7 +7254,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/util/BooleanConsumer.java
 
@@ -7406,7 +7410,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/util/ThrowingConsumer.java
 
@@ -7430,25 +7434,25 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/util/ThrowingLongSupplier.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/util/ThrowingRunnable.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/util/ThrowingSupplier.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/util/ThrowingTriFunction.java
 
@@ -7466,13 +7470,13 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/util/URIEncoder.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/values/BooleanValue.java
 
@@ -7526,7 +7530,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/values/MaxBytes.java
 
@@ -7550,67 +7554,67 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/watcher/ClassifyingWatcherListener.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/watcher/FileClassifier.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/watcher/FileManager.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/watcher/FileSystemWatcher.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/watcher/JMXFileManager.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/watcher/JMXFileManagerMBean.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/watcher/PlainFileClassifier.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/watcher/PlainFileManager.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/watcher/PlainFileManagerMBean.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/core/watcher/WatcherListener.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
 
    >>> net.openhft:chronicle-algorithms-2.20.80
@@ -7774,25 +7778,25 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/analytics/internal/AnalyticsConfiguration.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/analytics/internal/HttpUtil.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/analytics/internal/VanillaAnalyticsBuilder.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
 
    >>> net.openhft:chronicle-values-2.20.80
@@ -8804,295 +8808,295 @@ APPENDIX. Standard License Files
 
        Copyright 2016
 
-       See SECTION 41 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/AbstractAnyWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/AbstractBytesMarshallable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/AbstractCommonMarshallable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/AbstractFieldInfo.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/AbstractGeneratedMethodReader.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/AbstractMarshallableCfg.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/AbstractMarshallable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/AbstractMethodWriterInvocationHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/AbstractWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Base128LongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Base32IntConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Base32LongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Base40IntConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Base40LongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Base64LongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Base85IntConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Base85LongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Base95LongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/BinaryMethodWriterInvocationHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/BinaryReadDocumentContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/BinaryWireCode.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/BinaryWireHighCode.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/BinaryWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/BinaryWriteDocumentContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/BitSetUtil.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/BracketType.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/BytesInBinaryMarshallable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/CharConversion.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/CharConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/CharSequenceObjectMap.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/CommentAnnotationNotifier.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Comment.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/CSVWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/DefaultValueIn.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Demarshallable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/DocumentContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/FieldInfo.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/FieldNumberParselet.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/GeneratedProxyClass.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/GenerateMethodReader.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/GeneratingMethodReaderInterceptorReturns.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/HashWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/HeadNumberChecker.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/HexadecimalIntConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/HexadecimalLongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/InputStreamToWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/IntConversion.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/IntConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/internal/FromStringInterner.java
 
@@ -9104,355 +9108,355 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/KeyedMarshallable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/LongConversion.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/LongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/LongValueBitSet.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MarshallableIn.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Marshallable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MarshallableOut.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MarshallableParser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MessageHistory.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MessagePathClassifier.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MethodFilter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MethodFilterOnFirstArg.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MethodWireKey.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MethodWriterInvocationHandlerSupplier.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MethodWriterWithContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MicroDurationLongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MicroTimestampLongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/MilliTimestampLongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/NanoDurationLongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/NanoTimestampLongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/NoDocumentContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ObjectIntObjectConsumer.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/OxHexadecimalLongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ParameterHolderSequenceWriter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ParameterizeWireKey.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/QueryWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Quotes.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/RawText.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/RawWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ReadAnyWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ReadDocumentContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ReadingMarshaller.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ReadMarshallable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ReflectionUtil.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ScalarStrategy.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/SelfDescribingMarshallable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Sequence.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/SerializationStrategies.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/SerializationStrategy.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/SourceContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/TextMethodTester.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/TextMethodWriterInvocationHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/TextReadDocumentContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/TextStopCharsTesters.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/TextStopCharTesters.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/TextWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/TextWriteDocumentContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/TriConsumer.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/UnexpectedFieldHandlingException.java
 
        Copyright 2016-2020 Chronicle Software
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/UnrecoverableTimeoutException.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/UnsignedIntConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/UnsignedLongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ValueIn.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ValueInStack.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ValueInState.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ValueOut.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/ValueWriter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/VanillaFieldInfo.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/VanillaMessageHistory.java
 
@@ -9464,211 +9468,211 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/VanillaMethodReader.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/VanillaMethodWriterBuilder.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/VanillaWireParser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WatermarkedMicroTimestampLongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireCommon.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireDumper.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireIn.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireInternal.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Wire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireKey.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireMarshallerForUnexpectedFields.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireMarshaller.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireObjectInput.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireObjectOutput.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireOut.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireParselet.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireParser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireSerializedLambda.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/Wires.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireToOutputStream.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WireType.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WordsIntConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WordsLongConverter.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WrappedDocumentContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WriteDocumentContext.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WriteMarshallable.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WriteValue.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/WritingMarshaller.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/YamlKeys.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/YamlLogging.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/YamlMethodTester.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/YamlTokeniser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/YamlToken.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/wire/YamlWire.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
 
    >>> net.openhft:chronicle-map-3.20.84
@@ -11343,7 +11347,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016
 
-       See SECTION 43 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 42 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/AbstractBytes.java
 
@@ -11355,7 +11359,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/algo/BytesStoreHash.java
 
@@ -11379,7 +11383,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/AppendableUtil.java
 
@@ -11391,13 +11395,13 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/BinaryWireCode.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/Byteable.java
 
@@ -11409,7 +11413,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/BytesConsumer.java
 
@@ -11421,13 +11425,13 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/BytesIn.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/BytesInternal.java
 
@@ -11457,25 +11461,25 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/BytesMethodWriterInvocationHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/BytesOut.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/BytesParselet.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/BytesPrepender.java
 
@@ -11535,7 +11539,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/ConnectionDroppedException.java
 
@@ -11547,13 +11551,13 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/GuardedNativeBytes.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/HeapBytesStore.java
 
@@ -11565,7 +11569,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MappedBytesStoreFactory.java
 
@@ -11589,73 +11593,73 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MappedUniqueTimeProvider.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodEncoder.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodEncoderLookup.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodId.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodReaderBuilder.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodReaderInterceptor.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodReaderInterceptorReturns.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodReader.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodWriterBuilder.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodWriterInterceptor.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodWriterInterceptorReturns.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MethodWriterInvocationHandler.java
 
@@ -11667,13 +11671,13 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/MultiReaderBytesRingBuffer.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/NativeBytes.java
 
@@ -11703,7 +11707,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/PointerBytesStore.java
 
@@ -11751,7 +11755,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/ref/BinaryIntArrayReference.java
 
@@ -11853,13 +11857,13 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/RingBufferReaderStats.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/StopCharsTester.java
 
@@ -11961,13 +11965,13 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/util/DecoratedBufferUnderflowException.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/util/EscapingStopCharsTester.java
 
@@ -11985,7 +11989,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/bytes/util/StringInternerBytes.java
 
@@ -12086,7 +12090,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 31 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/grpc/netty/GrpcHttp2OutboundHeaders.java
 
@@ -12104,7 +12108,7 @@ APPENDIX. Standard License Files
 
        Copyright 2019 The Netty Project
 
-       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 31 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/grpc/netty/InsecureFromHttp1ChannelCredentials.java
 
@@ -12385,7 +12389,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016
 
-       See SECTION 41 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/compiler/CachedCompiler.java
 
@@ -12735,7 +12739,7 @@ APPENDIX. Standard License Files
 
        Copyright (c) 2002 JSON.org
 
-       See SECTION 42 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 41 in 'LICENSE TEXT REFERENCE TABLE'
 
        org/codehaus/jettison/mapped/Configuration.java
 
@@ -12902,151 +12906,151 @@ APPENDIX. Standard License Files
 
        Copyright 2016
 
-       See SECTION 41 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/BlockingEventLoop.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/BusyPauser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/BusyTimedPauser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/CoreEventLoop.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/DiskSpaceMonitor.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/EventGroup.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/ExecutorFactory.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/internal/EventLoopUtil.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/LightPauser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/LongPauser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/MediumEventLoop.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/MilliPauser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/MonitorEventLoop.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/NamedThreadFactory.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/Pauser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/PauserMode.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/PauserMonitor.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/ThreadMonitorEventHandler.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/Threads.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/TimeoutPauser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/TimingPauser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/VanillaEventLoop.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/VanillaExecutorFactory.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/chronicle/threads/YieldingPauser.java
 
        Copyright 2016-2020
 
-       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 32 in 'LICENSE TEXT REFERENCE TABLE'
 
 
    >>> io.grpc:grpc-api-1.38.0
@@ -13761,151 +13765,151 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        java/lang/ThreadTrackingGroup.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        META-INF/maven/net.openhft/affinity/pom.xml
 
        Copyright 2016
 
-       See SECTION 41 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/Affinity.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/AffinityLock.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/AffinityStrategies.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/AffinityStrategy.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/AffinitySupport.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/AffinityThreadFactory.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/BootClassPath.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/CpuLayout.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/IAffinity.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/LinuxHelper.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/LinuxJNAAffinity.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/NoCpuLayout.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/NullAffinity.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/OSXJNAAffinity.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/PosixJNAAffinity.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/SolarisJNAAffinity.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/Utilities.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/VanillaCpuLayout.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/VersionHelper.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/impl/WindowsJNAAffinity.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/LockCheck.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/LockInventory.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/affinity/MicroJitterSampler.java
 
@@ -13917,37 +13921,37 @@ APPENDIX. Standard License Files
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/ticker/impl/JNIClock.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/ticker/impl/SystemClock.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/ticker/ITicker.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        net/openhft/ticker/Ticker.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
        software/chronicle/enterprise/internals/impl/NativeAffinity.java
 
        Copyright 2016-2020
 
-       See SECTION 40 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
 
 
    >>> org.apache.commons:commons-compress-1.21
@@ -13980,7 +13984,7 @@ APPENDIX. Standard License Files
 
    >>> com.beust:jcommander-1.81
 
-       > Apache2.0
+       > Apache 2.0
 
        jcommander-7cda8048ed5e6651f5da381a8e967a5a7d89a954/src/main/java/com/beust/jcommander/converters/FileConverter.java
 
@@ -14187,7 +14191,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/internal/tcnative/AsyncSSLPrivateKeyMethodAdapter.java
 
@@ -14322,6 +14326,61 @@ APPENDIX. Standard License Files
        See SECTION 19 in 'LICENSE TEXT REFERENCE TABLE'
 
 
+   >>> org.apache.logging.log4j:log4j-api-2.16.0
+
+       > Apache1.1
+
+       META-INF/NOTICE
+       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+       Copyright 1999-2020 The Apache Software Foundation
+
+       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
+
+
+   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.16.0
+
+       > Apache2.0
+
+       META-INF/NOTICE
+
+       Copyright 1999-2020 The Apache Software Foundation
+
+       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
+
+
+   >>> org.apache.logging.log4j:log4j-core-2.16.0
+
+       Found in: META-INF/LICENSE
+
+       Copyright 1999-2005 The Apache Software Foundation
+
+
+
+
+
+   >>> org.apache.logging.log4j:log4j-jul-2.16.0
+
+       > Apache2.0
+
+       META-INF/NOTICE
+
+       Copyright 1999-2020 The Apache Software Foundation
+
+       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
+
+
+   >>> org.apache.logging.log4j:log4j-1.2-api-2.16.0
+
+       > Apache2.0
+
+       META-INF/NOTICE
+
+       Copyright 1999-2020 The Apache Software Foundation
+
+       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
+
+
    >>> io.netty:netty-buffer-4.1.71.Final
 
         Copyright 2012 The Netty Project
@@ -14341,7 +14400,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/buffer/AbstractByteBufAllocator.java
 
@@ -14629,37 +14688,37 @@ APPENDIX. Standard License Files
 
        Copyright 2020 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/buffer/search/AbstractSearchProcessorFactory.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/buffer/search/BitapSearchProcessorFactory.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/buffer/search/KmpSearchProcessorFactory.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/buffer/search/MultiSearchProcessorFactory.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/buffer/search/MultiSearchProcessor.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/buffer/search/package-info.java
 
@@ -14671,13 +14730,13 @@ APPENDIX. Standard License Files
 
        Copyright 2020 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/buffer/search/SearchProcessor.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/buffer/SimpleLeakAwareByteBuf.java
 
@@ -14850,7 +14909,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/util/AbstractConstant.java
 
@@ -14904,13 +14963,13 @@ APPENDIX. Standard License Files
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/ByteProcessorUtils.java
 
        Copyright 2018 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/CharsetUtil.java
 
@@ -14922,91 +14981,91 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/ByteObjectHashMap.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/ByteObjectMap.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/CharCollections.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/CharObjectHashMap.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/CharObjectMap.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/IntCollections.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/IntObjectHashMap.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/IntObjectMap.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/LongCollections.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/LongObjectHashMap.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/LongObjectMap.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/ShortCollections.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/ShortObjectHashMap.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/collection/ShortObjectMap.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/concurrent/AbstractEventExecutorGroup.java
 
@@ -15558,7 +15617,7 @@ APPENDIX. Standard License Files
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/internal/NativeLibraryLoader.java
 
@@ -15594,7 +15653,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/internal/OutOfDirectMemoryError.java
 
@@ -15672,7 +15731,7 @@ APPENDIX. Standard License Files
 
        Copyright 2018 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/util/internal/SocketUtils.java
 
@@ -15993,7 +16052,7 @@ APPENDIX. Standard License Files
 
        See SECTION 5 in 'LICENSE TEXT REFERENCE TABLE'
 
-       > Apache2.0
+       > Apache 2.0
 
        javax/servlet/resources/j2ee_web_services_1_1.xsd
 
@@ -16184,7 +16243,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/resolver/AbstractAddressResolver.java
 
@@ -16325,7 +16384,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        META-INF/maven/io.netty/netty-transport-native-epoll/pom.xml
 
@@ -16364,7 +16423,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/handler/codec/AsciiHeadersEncoder.java
 
@@ -16436,7 +16495,7 @@ APPENDIX. Standard License Files
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/CodecException.java
 
@@ -16838,13 +16897,13 @@ APPENDIX. Standard License Files
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/DefaultHeaders.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/DelimiterBasedFrameDecoder.java
 
@@ -16862,7 +16921,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/EncoderException.java
 
@@ -16880,7 +16939,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/HeadersUtils.java
 
@@ -17258,7 +17317,7 @@ APPENDIX. Standard License Files
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/xml/package-info.java
 
@@ -17297,7 +17356,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/handler/codec/http/ClientCookieEncoder.java
 
@@ -17411,19 +17470,19 @@ APPENDIX. Standard License Files
 
        Copyright 2015 The Netty Project
 
-       See SECTION 36 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http/cors/CorsConfig.java
 
        Copyright 2013 The Netty Project
 
-       See SECTION 36 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http/cors/CorsHandler.java
 
        Copyright 2013 The Netty Project
 
-       See SECTION 36 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http/cors/package-info.java
 
@@ -17531,7 +17590,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http/HttpConstants.java
 
@@ -17723,7 +17782,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http/HttpStatusClass.java
 
@@ -18781,37 +18840,37 @@ APPENDIX. Standard License Files
 
        Copyright (c) 2011, Joe Walnes and contributors
 
-       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http/websocketx/WebSocket07FrameEncoder.java
 
        Copyright (c) 2011, Joe Walnes and contributors
 
-       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http/websocketx/WebSocket08FrameDecoder.java
 
        Copyright (c) 2011, Joe Walnes and contributors
 
-       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http/websocketx/WebSocket08FrameEncoder.java
 
        Copyright (c) 2011, Joe Walnes and contributors
 
-       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http/websocketx/WebSocket13FrameDecoder.java
 
        Copyright (c) 2011, Joe Walnes and contributors
 
-       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http/websocketx/WebSocket13FrameEncoder.java
 
        Copyright (c) 2011, Joe Walnes and contributors
 
-       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 33 in 'LICENSE TEXT REFERENCE TABLE'
 
        > MIT
 
@@ -18819,7 +18878,7 @@ APPENDIX. Standard License Files
 
        Copyright (c) 2008-2009 Bjoern Hoehrmann <bjoern@hoehrmann.de>
 
-       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 36 in 'LICENSE TEXT REFERENCE TABLE'
 
 
    >>> io.netty:netty-transport-4.1.71.Final
@@ -18843,7 +18902,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/bootstrap/AbstractBootstrapConfig.java
 
@@ -18915,7 +18974,7 @@ APPENDIX. Standard License Files
 
        Copyright 2017 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/channel/AbstractEventLoop.java
 
@@ -19131,7 +19190,7 @@ APPENDIX. Standard License Files
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/channel/CombinedChannelDuplexHandler.java
 
@@ -19539,7 +19598,7 @@ APPENDIX. Standard License Files
 
        Copyright 2013 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/channel/oio/OioEventLoopGroup.java
 
@@ -19962,7 +20021,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/channel/epoll/AbstractEpollChannel.java
 
@@ -20175,7 +20234,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/handler/codec/http2/AbstractHttp2ConnectionHandlerBuilder.java
 
@@ -20199,7 +20258,7 @@ APPENDIX. Standard License Files
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/CharSequenceMap.java
 
@@ -20217,43 +20276,43 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DecoratingHttp2ConnectionDecoder.java
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DecoratingHttp2ConnectionEncoder.java
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DecoratingHttp2FrameWriter.java
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2ConnectionDecoder.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2ConnectionEncoder.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2Connection.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2DataFrame.java
 
@@ -20265,13 +20324,13 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2FrameWriter.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2GoAwayFrame.java
 
@@ -20283,13 +20342,13 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2HeadersEncoder.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2HeadersFrame.java
 
@@ -20301,13 +20360,13 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2LocalFlowController.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2PingFrame.java
 
@@ -20331,7 +20390,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/DefaultHttp2ResetFrame.java
 
@@ -20367,37 +20426,37 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/EmptyHttp2Headers.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/HpackDecoder.java
 
        Copyright 2014 Twitter, Inc.
 
-       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/HpackDynamicTable.java
 
        Copyright 2014 Twitter, Inc.
 
-       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/HpackEncoder.java
 
        Copyright 2014 Twitter, Inc.
 
-       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/HpackHeaderField.java
 
        Copyright 2014 Twitter, Inc.
 
-       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/HpackHuffmanDecoder.java
 
@@ -20413,18 +20472,12 @@ APPENDIX. Standard License Files
 
        io/netty/handler/codec/http2/HpackHuffmanEncoder.java
 
-       Copyright 2015 The Netty Project
+       Copyright 2014 Twitter, Inc.
 
-       See SECTION 21 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 6 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/HpackHuffmanEncoder.java
 
-       Copyright 2014 Twitter, Inc.
-
-       See SECTION 6 in 'LICENSE TEXT REFERENCE TABLE'
-
-       io/netty/handler/codec/http2/HpackStaticTable.java
-
        Copyright 2015 The Netty Project
 
        See SECTION 21 in 'LICENSE TEXT REFERENCE TABLE'
@@ -20434,12 +20487,18 @@ APPENDIX. Standard License Files
        Copyright 2014 Twitter, Inc.
 
        See SECTION 6 in 'LICENSE TEXT REFERENCE TABLE'
+
+       io/netty/handler/codec/http2/HpackStaticTable.java
+
+       Copyright 2015 The Netty Project
+
+       See SECTION 21 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/HpackUtil.java
 
        Copyright 2014 Twitter, Inc.
 
-       See SECTION 39 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2ChannelDuplexHandler.java
 
@@ -20451,31 +20510,31 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2CodecUtil.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2ConnectionAdapter.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2ConnectionDecoder.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2ConnectionEncoder.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2ConnectionHandlerBuilder.java
 
@@ -20487,25 +20546,25 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2Connection.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2ConnectionPrefaceAndSettingsFrameWrittenEvent.java
 
        Copyright 2017 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2ControlFrameLimitEncoder.java
 
        Copyright 2019 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2DataFrame.java
 
@@ -20517,55 +20576,55 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2EmptyDataFrameConnectionDecoder.java
 
        Copyright 2019 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2EmptyDataFrameListener.java
 
        Copyright 2019 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2Error.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2EventAdapter.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2Exception.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2Flags.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2FlowController.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2FrameAdapter.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2FrameCodecBuilder.java
 
@@ -20589,13 +20648,13 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2FrameListener.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2FrameLogger.java
 
@@ -20607,13 +20666,13 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2FrameSizePolicy.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2FrameStreamEvent.java
 
@@ -20643,13 +20702,13 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2FrameWriter.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2GoAwayFrame.java
 
@@ -20661,13 +20720,13 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2HeadersEncoder.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2HeadersFrame.java
 
@@ -20679,7 +20738,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2InboundFrameLogger.java
 
@@ -20691,13 +20750,13 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2LocalFlowController.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2MultiplexCodecBuilder.java
 
@@ -20721,7 +20780,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2OutboundFrameLogger.java
 
@@ -20745,7 +20804,7 @@ APPENDIX. Standard License Files
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2PushPromiseFrame.java
 
@@ -20757,7 +20816,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2ResetFrame.java
 
@@ -20775,7 +20834,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2SettingsAckFrame.java
 
@@ -20793,13 +20852,13 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2SettingsReceivedConsumer.java
 
        Copyright 2019 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2StreamChannelBootstrap.java
 
@@ -20835,13 +20894,13 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2StreamVisitor.java
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/Http2UnknownFrame.java
 
@@ -20859,7 +20918,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/HttpToHttp2ConnectionHandlerBuilder.java
 
@@ -20871,19 +20930,19 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/InboundHttp2ToHttpAdapterBuilder.java
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/InboundHttp2ToHttpAdapter.java
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/InboundHttpToHttp2Adapter.java
 
@@ -20901,7 +20960,7 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/ReadOnlyHttp2Headers.java
 
@@ -20913,25 +20972,25 @@ APPENDIX. Standard License Files
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/StreamByteDistributor.java
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/UniformStreamByteDistributor.java
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/codec/http2/WeightedFairQueueByteDistributor.java
 
        Copyright 2015 The Netty Project
 
-       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 34 in 'LICENSE TEXT REFERENCE TABLE'
 
        META-INF/maven/io.netty/netty-codec-http2/pom.xml
 
@@ -20944,6 +21003,35 @@ APPENDIX. Standard License Files
        Copyright 2019 The Netty Project
 
        See SECTION 25 in 'LICENSE TEXT REFERENCE TABLE'
+
+
+   >>> org.apache.logging.log4j:log4j-web-2.16.0
+
+       Copyright [yyyy] [name of copyright owner]
+
+          Licensed under the Apache License, Version 2.0 (the "License");
+          you may not use this file except in compliance with the License.
+          You may obtain a copy of the License at
+
+              http://www.apache.org/licenses/LICENSE-2.0
+
+          Unless required by applicable law or agreed to in writing, software
+          distributed under the License is distributed on an "AS IS" BASIS,
+          WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+          See the License for the specific language governing permissions and
+          limitations under the License.
+
+
+       ADDITIONAL LICENSE INFORMATION
+
+       > Apache1.1
+
+       META-INF/NOTICE
+       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+       Copyright 1999-2020 The Apache Software Foundation
+
+       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
 
 
    >>> io.netty:netty-codec-socks-4.1.71.Final
@@ -20966,7 +21054,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/handler/codec/socks/package-info.java
 
@@ -21455,7 +21543,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/handler/proxy/HttpProxyHandler.java
 
@@ -21518,7 +21606,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/channel/unix/Buffer.java
 
@@ -21797,7 +21885,7 @@ APPENDIX. Standard License Files
 
        ADDITIONAL LICENSE INFORMATION
 
-       > Apache2.0
+       > Apache 2.0
 
        io/netty/handler/address/DynamicAddressConnectHandler.java
 
@@ -21821,7 +21909,7 @@ APPENDIX. Standard License Files
 
        Copyright 2016 The Netty Project
 
-       See SECTION 36 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 35 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/flow/package-info.java
 
@@ -21923,49 +22011,49 @@ APPENDIX. Standard License Files
 
        Copyright 2020 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/pcap/IPPacket.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/pcap/package-info.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/pcap/PcapHeaders.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/pcap/PcapWriteHandler.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/pcap/PcapWriter.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/pcap/TCPPacket.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/pcap/UDPPacket.java
 
        Copyright 2020 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/ssl/AbstractSniHandler.java
 
@@ -22751,13 +22839,13 @@ APPENDIX. Standard License Files
 
        Copyright 2011 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/traffic/ChannelTrafficShapingHandler.java
 
        Copyright 2012 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/traffic/GlobalChannelTrafficCounter.java
 
@@ -22769,25 +22857,25 @@ APPENDIX. Standard License Files
 
        Copyright 2014 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/traffic/GlobalTrafficShapingHandler.java
 
        Copyright 2012 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/traffic/package-info.java
 
        Copyright 2012 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        io/netty/handler/traffic/TrafficCounter.java
 
        Copyright 2012 The Netty Project
 
-       See SECTION 38 in 'LICENSE TEXT REFERENCE TABLE'
+       See SECTION 37 in 'LICENSE TEXT REFERENCE TABLE'
 
        META-INF/maven/io.netty/netty-handler/pom.xml
 
@@ -22819,300 +22907,6 @@ APPENDIX. Standard License Files
         * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         * See the License for the specific language governing permissions and
         * limitations under the License.
-
-
-   >>> org.apache.logging.log4j:log4j-jul-2.17.0
-
-       > Apache1.1
-
-       META-INF/NOTICE
-       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-       Copyright 1999-2020 The Apache Software Foundation
-
-       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
-
-
-   >>> org.apache.logging.log4j:log4j-core-2.17.0
-
-       Found in: META-INF/LICENSE
-
-       Copyright 1999-2005 The Apache Software Foundation
-
-                                        Apache License
-                                  Version 2.0, January 2004
-                               http://www.apache.org/licenses/
-
-          TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-          1. Definitions.
-
-             "License" shall mean the terms and conditions for use, reproduction,
-             and distribution as defined by Sections 1 through 9 of this document.
-
-             "Licensor" shall mean the copyright owner or entity authorized by
-             the copyright owner that is granting the License.
-
-             "Legal Entity" shall mean the union of the acting entity and all
-             other entities that control, are controlled by, or are under common
-             control with that entity. For the purposes of this definition,
-             "control" means (i) the power, direct or indirect, to cause the
-             direction or management of such entity, whether by contract or
-             otherwise, or (ii) ownership of fifty percent (50%) or more of the
-             outstanding shares, or (iii) beneficial ownership of such entity.
-
-             "You" (or "Your") shall mean an individual or Legal Entity
-             exercising permissions granted by this License.
-
-             "Source" form shall mean the preferred form for making modifications,
-             including but not limited to software source code, documentation
-             source, and configuration files.
-
-             "Object" form shall mean any form resulting from mechanical
-             transformation or translation of a Source form, including but
-             not limited to compiled object code, generated documentation,
-             and conversions to other media types.
-
-             "Work" shall mean the work of authorship, whether in Source or
-             Object form, made available under the License, as indicated by a
-             copyright notice that is included in or attached to the work
-             (an example is provided in the Appendix below).
-
-             "Derivative Works" shall mean any work, whether in Source or Object
-             form, that is based on (or derived from) the Work and for which the
-             editorial revisions, annotations, elaborations, or other modifications
-             represent, as a whole, an original work of authorship. For the purposes
-             of this License, Derivative Works shall not include works that remain
-             separable from, or merely link (or bind by name) to the interfaces of,
-             the Work and Derivative Works thereof.
-
-             "Contribution" shall mean any work of authorship, including
-             the original version of the Work and any modifications or additions
-             to that Work or Derivative Works thereof, that is intentionally
-             submitted to Licensor for inclusion in the Work by the copyright owner
-             or by an individual or Legal Entity authorized to submit on behalf of
-             the copyright owner. For the purposes of this definition, "submitted"
-             means any form of electronic, verbal, or written communication sent
-             to the Licensor or its representatives, including but not limited to
-             communication on electronic mailing lists, source code control systems,
-             and issue tracking systems that are managed by, or on behalf of, the
-             Licensor for the purpose of discussing and improving the Work, but
-             excluding communication that is conspicuously marked or otherwise
-             designated in writing by the copyright owner as "Not a Contribution."
-
-             "Contributor" shall mean Licensor and any individual or Legal Entity
-             on behalf of whom a Contribution has been received by Licensor and
-             subsequently incorporated within the Work.
-
-          2. Grant of Copyright License. Subject to the terms and conditions of
-             this License, each Contributor hereby grants to You a perpetual,
-             worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-             copyright license to reproduce, prepare Derivative Works of,
-             publicly display, publicly perform, sublicense, and distribute the
-             Work and such Derivative Works in Source or Object form.
-
-          3. Grant of Patent License. Subject to the terms and conditions of
-             this License, each Contributor hereby grants to You a perpetual,
-             worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-             (except as stated in this section) patent license to make, have made,
-             use, offer to sell, sell, import, and otherwise transfer the Work,
-             where such license applies only to those patent claims licensable
-             by such Contributor that are necessarily infringed by their
-             Contribution(s) alone or by combination of their Contribution(s)
-             with the Work to which such Contribution(s) was submitted. If You
-             institute patent litigation against any entity (including a
-             cross-claim or counterclaim in a lawsuit) alleging that the Work
-             or a Contribution incorporated within the Work constitutes direct
-             or contributory patent infringement, then any patent licenses
-             granted to You under this License for that Work shall terminate
-             as of the date such litigation is filed.
-
-          4. Redistribution. You may reproduce and distribute copies of the
-             Work or Derivative Works thereof in any medium, with or without
-             modifications, and in Source or Object form, provided that You
-             meet the following conditions:
-
-             (a) You must give any other recipients of the Work or
-                 Derivative Works a copy of this License; and
-
-             (b) You must cause any modified files to carry prominent notices
-                 stating that You changed the files; and
-
-             (c) You must retain, in the Source form of any Derivative Works
-                 that You distribute, all copyright, patent, trademark, and
-                 attribution notices from the Source form of the Work,
-                 excluding those notices that do not pertain to any part of
-                 the Derivative Works; and
-
-             (d) If the Work includes a "NOTICE" text file as part of its
-                 distribution, then any Derivative Works that You distribute must
-                 include a readable copy of the attribution notices contained
-                 within such NOTICE file, excluding those notices that do not
-                 pertain to any part of the Derivative Works, in at least one
-                 of the following places: within a NOTICE text file distributed
-                 as part of the Derivative Works; within the Source form or
-                 documentation, if provided along with the Derivative Works; or,
-                 within a display generated by the Derivative Works, if and
-                 wherever such third-party notices normally appear. The contents
-                 of the NOTICE file are for informational purposes only and
-                 do not modify the License. You may add Your own attribution
-                 notices within Derivative Works that You distribute, alongside
-                 or as an addendum to the NOTICE text from the Work, provided
-                 that such additional attribution notices cannot be construed
-                 as modifying the License.
-
-             You may add Your own copyright statement to Your modifications and
-             may provide additional or different license terms and conditions
-             for use, reproduction, or distribution of Your modifications, or
-             for any such Derivative Works as a whole, provided Your use,
-             reproduction, and distribution of the Work otherwise complies with
-             the conditions stated in this License.
-
-          5. Submission of Contributions. Unless You explicitly state otherwise,
-             any Contribution intentionally submitted for inclusion in the Work
-             by You to the Licensor shall be under the terms and conditions of
-             this License, without any additional terms or conditions.
-             Notwithstanding the above, nothing herein shall supersede or modify
-             the terms of any separate license agreement you may have executed
-             with Licensor regarding such Contributions.
-
-          6. Trademarks. This License does not grant permission to use the trade
-             names, trademarks, service marks, or product names of the Licensor,
-             except as required for reasonable and customary use in describing the
-             origin of the Work and reproducing the content of the NOTICE file.
-
-          7. Disclaimer of Warranty. Unless required by applicable law or
-             agreed to in writing, Licensor provides the Work (and each
-             Contributor provides its Contributions) on an "AS IS" BASIS,
-             WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-             implied, including, without limitation, any warranties or conditions
-             of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-             PARTICULAR PURPOSE. You are solely responsible for determining the
-             appropriateness of using or redistributing the Work and assume any
-             risks associated with Your exercise of permissions under this License.
-
-          8. Limitation of Liability. In no event and under no legal theory,
-             whether in tort (including negligence), contract, or otherwise,
-             unless required by applicable law (such as deliberate and grossly
-             negligent acts) or agreed to in writing, shall any Contributor be
-             liable to You for damages, including any direct, indirect, special,
-             incidental, or consequential damages of any character arising as a
-             result of this License or out of the use or inability to use the
-             Work (including but not limited to damages for loss of goodwill,
-             work stoppage, computer failure or malfunction, or any and all
-             other commercial damages or losses), even if such Contributor
-             has been advised of the possibility of such damages.
-
-          9. Accepting Warranty or Additional Liability. While redistributing
-             the Work or Derivative Works thereof, You may choose to offer,
-             and charge a fee for, acceptance of support, warranty, indemnity,
-             or other liability obligations and/or rights consistent with this
-             License. However, in accepting such obligations, You may act only
-             on Your own behalf and on Your sole responsibility, not on behalf
-             of any other Contributor, and only if You agree to indemnify,
-             defend, and hold each Contributor harmless for any liability
-             incurred by, or claims asserted against, such Contributor by reason
-             of your accepting any such warranty or additional liability.
-
-          END OF TERMS AND CONDITIONS
-
-          APPENDIX: How to apply the Apache License to your work.
-
-             To apply the Apache License to your work, attach the following
-             boilerplate notice, with the fields enclosed by brackets "[]"
-             replaced with your own identifying information. (Don't include
-             the brackets!)  The text should be enclosed in the appropriate
-             comment syntax for the file format. We also recommend that a
-             file or class name and description of purpose be included on the
-             same "printed page" as the copyright notice for easier
-             identification within third-party archives.
-
-          Copyright 1999-2005 The Apache Software Foundation
-
-          Licensed under the Apache License, Version 2.0 (the "License");
-          you may not use this file except in compliance with the License.
-          You may obtain a copy of the License at
-
-              http://www.apache.org/licenses/LICENSE-2.0
-
-          Unless required by applicable law or agreed to in writing, software
-          distributed under the License is distributed on an "AS IS" BASIS,
-          WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-          See the License for the specific language governing permissions and
-          limitations under the License.
-
-       ADDITIONAL LICENSE INFORMATION
-
-       > Apache1.1
-
-       META-INF/NOTICE
-       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-       Copyright 1999-2012 Apache Software Foundation
-
-       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
-
-       > Apache2.0
-
-       org/apache/logging/log4j/core/tools/picocli/CommandLine.java
-
-       Copyright (c) 2017 public
-
-       See SECTION 31 in 'LICENSE TEXT REFERENCE TABLE'
-
-       org/apache/logging/log4j/core/util/CronExpression.java
-
-       Copyright Terracotta, Inc.
-
-       See SECTION 31 in 'LICENSE TEXT REFERENCE TABLE'
-
-
-   >>> org.apache.logging.log4j:log4j-api-2.17.0
-
-       > Apache1.1
-
-       META-INF/NOTICE
-       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-       Copyright 1999-2020 The Apache Software Foundation
-
-       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
-
-
-   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.17.0
-
-       > Apache1.1
-
-       META-INF/NOTICE
-       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-       Copyright 1999-2020 The Apache Software Foundation
-
-       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
-
-
-   >>> org.apache.logging.log4j:log4j-1.2-api-2.17.0
-
-       > Apache1.1
-
-       META-INF/NOTICE
-       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-       Copyright 1999-2020 The Apache Software Foundation
-
-       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
-
-
-   >>> org.apache.logging.log4j:log4j-web-2.17.0
-
-       > Apache1.1
-
-       META-INF/NOTICE
-       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-       Copyright 1999-2020 The Apache Software Foundation
-
-       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
 
 
 -------------------- SECTION 2: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES --------------------
@@ -25892,7 +25686,184 @@ to a jury trial in any resulting litigation.
 
 
 
--------------------- SECTION 5: Eclipse Public License, V2.0 --------------------
+-------------------- SECTION 5: Apache License, V2.0 --------------------
+
+Apache License 
+
+Version 2.0, January 2004 
+http://www.apache.org/licenses/ 
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION 
+
+1. Definitions.
+
+"License" shall mean the terms and conditions for use, reproduction,
+and distribution as defined by Sections 1 through 9 of this document.
+
+"Licensor" shall mean the copyright owner or entity authorized by the
+copyright owner that is granting the License.  
+
+"Legal Entity" shall mean the union of the acting entity and all other
+entities that control, are controlled by, or are under common control
+with that entity. For the purposes of this definition, "control" means
+(i) the power, direct or indirect, to cause the direction or management
+of such entity, whether by contract or otherwise, or (ii) ownership
+of fifty percent (50%) or more of the outstanding shares, or (iii)
+beneficial ownership of such entity.
+
+"You" (or "Your") shall mean an individual or Legal Entity exercising
+permissions granted by this License.  
+
+"Source" form shall mean the preferred form for making modifications,
+including but not limited to software source code, documentation source,
+and configuration files.
+
+"Object" form shall mean any form resulting from mechanical transformation
+or translation of a Source form, including but not limited to compiled
+object code, generated documentation, and conversions to other media
+types.  
+
+"Work" shall mean the work of authorship, whether in Source or
+Object form, made available under the License, as indicated by a copyright
+notice that is included in or attached to the work (an example is provided
+in the Appendix below).  
+
+"Derivative Works" shall mean any work, whether in Source or Object form,
+that is based on (or derived from) the Work and for which the editorial
+revisions, annotations, elaborations, or other modifications represent,
+as a whole, an original work of authorship. For the purposes of this
+License, Derivative Works shall not include works that remain separable
+from, or merely link (or bind by name) to the interfaces of, the Work
+and Derivative Works thereof.
+
+"Contribution" shall mean any work of authorship, including the
+original version of the Work and any modifications or additions to
+that Work or Derivative Works thereof, that is intentionally submitted
+to Licensor for inclusion in the Work by the copyright owner or by an
+individual or Legal Entity authorized to submit on behalf of the copyright
+owner. For the purposes of this definition, "submitted" means any form of
+electronic, verbal, or written communication sent to the Licensor or its
+representatives, including but not limited to communication on electronic
+mailing lists, source code control systems, and issue tracking systems
+that are managed by, or on behalf of, the Licensor for the purpose of
+discussing and improving the Work, but excluding communication that is
+conspicuously marked or otherwise designated in writing by the copyright
+owner as "Not a Contribution."
+
+"Contributor" shall mean Licensor and any individual or Legal Entity
+on behalf of whom a Contribution has been received by Licensor and
+subsequently incorporated within the Work.
+
+2. Grant of Copyright License.
+Subject to the terms and conditions of this License, each Contributor
+hereby grants to You a perpetual, worldwide, non-exclusive, no-charge,
+royalty-free, irrevocable copyright license to reproduce, prepare
+Derivative Works of, publicly display, publicly perform, sublicense, and
+distribute the Work and such Derivative Works in Source or Object form.
+
+3. Grant of Patent License.
+Subject to the terms and conditions of this License, each Contributor
+hereby grants to You a perpetual, worldwide, non-exclusive, no-charge,
+royalty- free, irrevocable (except as stated in this section) patent
+license to make, have made, use, offer to sell, sell, import, and
+otherwise transfer the Work, where such license applies only to those
+patent claims licensable by such Contributor that are necessarily
+infringed by their Contribution(s) alone or by combination of
+their Contribution(s) with the Work to which such Contribution(s)
+was submitted. If You institute patent litigation against any entity
+(including a cross-claim or counterclaim in a lawsuit) alleging that the
+Work or a Contribution incorporated within the Work constitutes direct
+or contributory patent infringement, then any patent licenses granted
+to You under this License for that Work shall terminate as of the date
+such litigation is filed.
+
+4. Redistribution.
+You may reproduce and distribute copies of the Work or Derivative Works
+thereof in any medium, with or without modifications, and in Source or
+Object form, provided that You meet the following conditions:
+
+  a. You must give any other recipients of the Work or Derivative Works
+     a copy of this License; and
+
+  b. You must cause any modified files to carry prominent notices stating
+     that You changed the files; and
+
+  c. You must retain, in the Source form of any Derivative Works that
+     You distribute, all copyright, patent, trademark, and attribution
+     notices from the Source form of the Work, excluding those notices
+     that do not pertain to any part of the Derivative Works; and
+
+  d. If the Work includes a "NOTICE" text file as part of its
+     distribution, then any Derivative Works that You distribute must
+     include a readable copy of the attribution notices contained
+     within such NOTICE file, excluding those notices that do not
+     pertain to any part of the Derivative Works, in at least one of
+     the following places: within a NOTICE text file distributed as part
+     of the Derivative Works; within the Source form or documentation,
+     if provided along with the Derivative Works; or, within a display
+     generated by the Derivative Works, if and wherever such third-party
+     notices normally appear. The contents of the NOTICE file are for
+     informational purposes only and do not modify the License. You
+     may add Your own attribution notices within Derivative Works that
+     You distribute, alongside or as an addendum to the NOTICE text
+     from the Work, provided that such additional attribution notices
+     cannot be construed as modifying the License.  You may add Your own
+     copyright statement to Your modifications and may provide additional
+     or different license terms and conditions for use, reproduction, or
+     distribution of Your modifications, or for any such Derivative Works
+     as a whole, provided Your use, reproduction, and distribution of the
+     Work otherwise complies with the conditions stated in this License.
+
+5. Submission of Contributions.
+Unless You explicitly state otherwise, any Contribution intentionally
+submitted for inclusion in the Work by You to the Licensor shall be
+under the terms and conditions of this License, without any additional
+terms or conditions.  Notwithstanding the above, nothing herein shall
+supersede or modify the terms of any separate license agreement you may
+have executed with Licensor regarding such Contributions.
+
+6. Trademarks.
+This License does not grant permission to use the trade names, trademarks,
+service marks, or product names of the Licensor, except as required for
+reasonable and customary use in describing the origin of the Work and
+reproducing the content of the NOTICE file.
+
+7. Disclaimer of Warranty.
+Unless required by applicable law or agreed to in writing, Licensor
+provides the Work (and each Contributor provides its Contributions) on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+express or implied, including, without limitation, any warranties or
+conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR
+A PARTICULAR PURPOSE. You are solely responsible for determining the
+appropriateness of using or redistributing the Work and assume any risks
+associated with Your exercise of permissions under this License.
+
+8. Limitation of Liability.
+In no event and under no legal theory, whether in tort (including
+negligence), contract, or otherwise, unless required by applicable law
+(such as deliberate and grossly negligent acts) or agreed to in writing,
+shall any Contributor be liable to You for damages, including any direct,
+indirect, special, incidental, or consequential damages of any character
+arising as a result of this License or out of the use or inability to
+use the Work (including but not limited to damages for loss of goodwill,
+work stoppage, computer failure or malfunction, or any and all other
+commercial damages or losses), even if such Contributor has been advised
+of the possibility of such damages.
+
+9. Accepting Warranty or Additional Liability.
+While redistributing the Work or Derivative Works thereof, You may
+choose to offer, and charge a fee for, acceptance of support, warranty,
+indemnity, or other liability obligations and/or rights consistent with
+this License. However, in accepting such obligations, You may act only
+on Your own behalf and on Your sole responsibility, not on behalf of
+any other Contributor, and only if You agree to indemnify, defend, and
+hold each Contributor harmless for any liability incurred by, or claims
+asserted against, such Contributor by reason of your accepting any such
+warranty or additional liability.
+
+END OF TERMS AND CONDITIONS
+
+-------------------- SECTION 6: Eclipse Public License, V2.0 --------------------
 
 Eclipse Public License - v 2.0
 THE ACCOMPANYING PROGRAM IS PROVIDED UNDER THE TERMS OF THIS ECLIPSE
@@ -26170,175 +26141,6 @@ file in a relevant directory) where a recipient would be likely to
 look for such a notice.
 
 You may add additional accurate notices of copyright ownership.
-
--------------------- SECTION 6: GNU Lesser General Public License, V3.0 --------------------
-
-		   GNU LESSER GENERAL PUBLIC LICENSE
-                       Version 3, 29 June 2007
-
- Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
- Everyone is permitted to copy and distribute verbatim copies
- of this license document, but changing it is not allowed.
-
-
-  This version of the GNU Lesser General Public License incorporates
-the terms and conditions of version 3 of the GNU General Public
-License, supplemented by the additional permissions listed below.
-
-  0. Additional Definitions.
-
-  As used herein, "this License" refers to version 3 of the GNU Lesser
-General Public License, and the "GNU GPL" refers to version 3 of the GNU
-General Public License.
-
-  "The Library" refers to a covered work governed by this License,
-other than an Application or a Combined Work as defined below.
-
-  An "Application" is any work that makes use of an interface provided
-by the Library, but which is not otherwise based on the Library.
-Defining a subclass of a class defined by the Library is deemed a mode
-of using an interface provided by the Library.
-
-  A "Combined Work" is a work produced by combining or linking an
-Application with the Library.  The particular version of the Library
-with which the Combined Work was made is also called the "Linked
-Version".
-
-  The "Minimal Corresponding Source" for a Combined Work means the
-Corresponding Source for the Combined Work, excluding any source code
-for portions of the Combined Work that, considered in isolation, are
-based on the Application, and not on the Linked Version.
-
-  The "Corresponding Application Code" for a Combined Work means the
-object code and/or source code for the Application, including any data
-and utility programs needed for reproducing the Combined Work from the
-Application, but excluding the System Libraries of the Combined Work.
-
-  1. Exception to Section 3 of the GNU GPL.
-
-  You may convey a covered work under sections 3 and 4 of this License
-without being bound by section 3 of the GNU GPL.
-
-  2. Conveying Modified Versions.
-
-  If you modify a copy of the Library, and, in your modifications, a
-facility refers to a function or data to be supplied by an Application
-that uses the facility (other than as an argument passed when the
-facility is invoked), then you may convey a copy of the modified
-version:
-
-   a) under this License, provided that you make a good faith effort to
-   ensure that, in the event an Application does not supply the
-   function or data, the facility still operates, and performs
-   whatever part of its purpose remains meaningful, or
-
-   b) under the GNU GPL, with none of the additional permissions of
-   this License applicable to that copy.
-
-  3. Object Code Incorporating Material from Library Header Files.
-
-  The object code form of an Application may incorporate material from
-a header file that is part of the Library.  You may convey such object
-code under terms of your choice, provided that, if the incorporated
-material is not limited to numerical parameters, data structure
-layouts and accessors, or small macros, inline functions and templates
-(ten or fewer lines in length), you do both of the following:
-
-   a) Give prominent notice with each copy of the object code that the
-   Library is used in it and that the Library and its use are
-   covered by this License.
-
-   b) Accompany the object code with a copy of the GNU GPL and this license
-   document.
-
-  4. Combined Works.
-
-  You may convey a Combined Work under terms of your choice that,
-taken together, effectively do not restrict modification of the
-portions of the Library contained in the Combined Work and reverse
-engineering for debugging such modifications, if you also do each of
-the following:
-
-   a) Give prominent notice with each copy of the Combined Work that
-   the Library is used in it and that the Library and its use are
-   covered by this License.
-
-   b) Accompany the Combined Work with a copy of the GNU GPL and this license
-   document.
-
-   c) For a Combined Work that displays copyright notices during
-   execution, include the copyright notice for the Library among
-   these notices, as well as a reference directing the user to the
-   copies of the GNU GPL and this license document.
-
-   d) Do one of the following:
-
-       0) Convey the Minimal Corresponding Source under the terms of this
-       License, and the Corresponding Application Code in a form
-       suitable for, and under terms that permit, the user to
-       recombine or relink the Application with a modified version of
-       the Linked Version to produce a modified Combined Work, in the
-       manner specified by section 6 of the GNU GPL for conveying
-       Corresponding Source.
-
-       1) Use a suitable shared library mechanism for linking with the
-       Library.  A suitable mechanism is one that (a) uses at run time
-       a copy of the Library already present on the user's computer
-       system, and (b) will operate properly with a modified version
-       of the Library that is interface-compatible with the Linked
-       Version.
-
-   e) Provide Installation Information, but only if you would otherwise
-   be required to provide such information under section 6 of the
-   GNU GPL, and only to the extent that such information is
-   necessary to install and execute a modified version of the
-   Combined Work produced by recombining or relinking the
-   Application with a modified version of the Linked Version. (If
-   you use option 4d0, the Installation Information must accompany
-   the Minimal Corresponding Source and Corresponding Application
-   Code. If you use option 4d1, you must provide the Installation
-   Information in the manner specified by section 6 of the GNU GPL
-   for conveying Corresponding Source.)
-
-  5. Combined Libraries.
-
-  You may place library facilities that are a work based on the
-Library side by side in a single library together with other library
-facilities that are not Applications and are not covered by this
-License, and convey such a combined library under terms of your
-choice, if you do both of the following:
-
-   a) Accompany the combined library with a copy of the same work based
-   on the Library, uncombined with any other library facilities,
-   conveyed under the terms of this License.
-
-   b) Give prominent notice with the combined library that part of it
-   is a work based on the Library, and explaining where to find the
-   accompanying uncombined form of the same work.
-
-  6. Revised Versions of the GNU Lesser General Public License.
-
-  The Free Software Foundation may publish revised and/or new versions
-of the GNU Lesser General Public License from time to time. Such new
-versions will be similar in spirit to the present version, but may
-differ in detail to address new problems or concerns.
-
-  Each version is given a distinguishing version number. If the
-Library as you received it specifies that a certain numbered version
-of the GNU Lesser General Public License "or any later version"
-applies to it, you have the option of following the terms and
-conditions either of that published version or of any later version
-published by the Free Software Foundation. If the Library as you
-received it does not specify a version number of the GNU Lesser
-General Public License, you may choose any version of the GNU Lesser
-General Public License ever published by the Free Software Foundation.
-
-  If the Library as you received it specifies that a proxy can decide
-whether future versions of the GNU Lesser General Public License shall
-apply, that proxy's public statement of acceptance of any version is
-permanent authorization for you to choose that version for the
-Library.
-
 
 -------------------- SECTION 7: Common Development and Distribution License, V1.0 --------------------
 
@@ -26673,7 +26475,176 @@ constitute any admission of liability.
 
 
 
--------------------- SECTION 8: Mozilla Public License, V2.0 --------------------
+-------------------- SECTION 8: GNU Lesser General Public License, V3.0 --------------------
+
+		   GNU LESSER GENERAL PUBLIC LICENSE
+                       Version 3, 29 June 2007
+
+ Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+
+  This version of the GNU Lesser General Public License incorporates
+the terms and conditions of version 3 of the GNU General Public
+License, supplemented by the additional permissions listed below.
+
+  0. Additional Definitions.
+
+  As used herein, "this License" refers to version 3 of the GNU Lesser
+General Public License, and the "GNU GPL" refers to version 3 of the GNU
+General Public License.
+
+  "The Library" refers to a covered work governed by this License,
+other than an Application or a Combined Work as defined below.
+
+  An "Application" is any work that makes use of an interface provided
+by the Library, but which is not otherwise based on the Library.
+Defining a subclass of a class defined by the Library is deemed a mode
+of using an interface provided by the Library.
+
+  A "Combined Work" is a work produced by combining or linking an
+Application with the Library.  The particular version of the Library
+with which the Combined Work was made is also called the "Linked
+Version".
+
+  The "Minimal Corresponding Source" for a Combined Work means the
+Corresponding Source for the Combined Work, excluding any source code
+for portions of the Combined Work that, considered in isolation, are
+based on the Application, and not on the Linked Version.
+
+  The "Corresponding Application Code" for a Combined Work means the
+object code and/or source code for the Application, including any data
+and utility programs needed for reproducing the Combined Work from the
+Application, but excluding the System Libraries of the Combined Work.
+
+  1. Exception to Section 3 of the GNU GPL.
+
+  You may convey a covered work under sections 3 and 4 of this License
+without being bound by section 3 of the GNU GPL.
+
+  2. Conveying Modified Versions.
+
+  If you modify a copy of the Library, and, in your modifications, a
+facility refers to a function or data to be supplied by an Application
+that uses the facility (other than as an argument passed when the
+facility is invoked), then you may convey a copy of the modified
+version:
+
+   a) under this License, provided that you make a good faith effort to
+   ensure that, in the event an Application does not supply the
+   function or data, the facility still operates, and performs
+   whatever part of its purpose remains meaningful, or
+
+   b) under the GNU GPL, with none of the additional permissions of
+   this License applicable to that copy.
+
+  3. Object Code Incorporating Material from Library Header Files.
+
+  The object code form of an Application may incorporate material from
+a header file that is part of the Library.  You may convey such object
+code under terms of your choice, provided that, if the incorporated
+material is not limited to numerical parameters, data structure
+layouts and accessors, or small macros, inline functions and templates
+(ten or fewer lines in length), you do both of the following:
+
+   a) Give prominent notice with each copy of the object code that the
+   Library is used in it and that the Library and its use are
+   covered by this License.
+
+   b) Accompany the object code with a copy of the GNU GPL and this license
+   document.
+
+  4. Combined Works.
+
+  You may convey a Combined Work under terms of your choice that,
+taken together, effectively do not restrict modification of the
+portions of the Library contained in the Combined Work and reverse
+engineering for debugging such modifications, if you also do each of
+the following:
+
+   a) Give prominent notice with each copy of the Combined Work that
+   the Library is used in it and that the Library and its use are
+   covered by this License.
+
+   b) Accompany the Combined Work with a copy of the GNU GPL and this license
+   document.
+
+   c) For a Combined Work that displays copyright notices during
+   execution, include the copyright notice for the Library among
+   these notices, as well as a reference directing the user to the
+   copies of the GNU GPL and this license document.
+
+   d) Do one of the following:
+
+       0) Convey the Minimal Corresponding Source under the terms of this
+       License, and the Corresponding Application Code in a form
+       suitable for, and under terms that permit, the user to
+       recombine or relink the Application with a modified version of
+       the Linked Version to produce a modified Combined Work, in the
+       manner specified by section 6 of the GNU GPL for conveying
+       Corresponding Source.
+
+       1) Use a suitable shared library mechanism for linking with the
+       Library.  A suitable mechanism is one that (a) uses at run time
+       a copy of the Library already present on the user's computer
+       system, and (b) will operate properly with a modified version
+       of the Library that is interface-compatible with the Linked
+       Version.
+
+   e) Provide Installation Information, but only if you would otherwise
+   be required to provide such information under section 6 of the
+   GNU GPL, and only to the extent that such information is
+   necessary to install and execute a modified version of the
+   Combined Work produced by recombining or relinking the
+   Application with a modified version of the Linked Version. (If
+   you use option 4d0, the Installation Information must accompany
+   the Minimal Corresponding Source and Corresponding Application
+   Code. If you use option 4d1, you must provide the Installation
+   Information in the manner specified by section 6 of the GNU GPL
+   for conveying Corresponding Source.)
+
+  5. Combined Libraries.
+
+  You may place library facilities that are a work based on the
+Library side by side in a single library together with other library
+facilities that are not Applications and are not covered by this
+License, and convey such a combined library under terms of your
+choice, if you do both of the following:
+
+   a) Accompany the combined library with a copy of the same work based
+   on the Library, uncombined with any other library facilities,
+   conveyed under the terms of this License.
+
+   b) Give prominent notice with the combined library that part of it
+   is a work based on the Library, and explaining where to find the
+   accompanying uncombined form of the same work.
+
+  6. Revised Versions of the GNU Lesser General Public License.
+
+  The Free Software Foundation may publish revised and/or new versions
+of the GNU Lesser General Public License from time to time. Such new
+versions will be similar in spirit to the present version, but may
+differ in detail to address new problems or concerns.
+
+  Each version is given a distinguishing version number. If the
+Library as you received it specifies that a certain numbered version
+of the GNU Lesser General Public License "or any later version"
+applies to it, you have the option of following the terms and
+conditions either of that published version or of any later version
+published by the Free Software Foundation. If the Library as you
+received it does not specify a version number of the GNU Lesser
+General Public License, you may choose any version of the GNU Lesser
+General Public License ever published by the Free Software Foundation.
+
+  If the Library as you received it specifies that a proxy can decide
+whether future versions of the GNU Lesser General Public License shall
+apply, that proxy's public statement of acceptance of any version is
+permanent authorization for you to choose that version for the
+Library.
+
+
+-------------------- SECTION 9: Mozilla Public License, V2.0 --------------------
 
 Mozilla Public License
 Version 2.0
@@ -27289,21 +27260,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 -------------------- SECTION 30 --------------------
  * and licensed under the BSD license.
 -------------------- SECTION 31 --------------------
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache license, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the license for the specific language governing permissions and
- * limitations under the license.
--------------------- SECTION 32 --------------------
  * The Netty Project licenses this file to you under the Apache License, version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at:
@@ -27314,7 +27270,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
--------------------- SECTION 33 --------------------
+-------------------- SECTION 32 --------------------
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -27326,11 +27282,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
--------------------- SECTION 34 --------------------
+-------------------- SECTION 33 --------------------
  * under the License.
  */
 // (BSD License: https://www.opensource.org/licenses/bsd-license)
--------------------- SECTION 35 --------------------
+-------------------- SECTION 34 --------------------
  * The Netty Project licenses this file to you under the Apache License, version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at:
@@ -27341,7 +27297,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
--------------------- SECTION 36 --------------------
+-------------------- SECTION 35 --------------------
  * The Netty Project licenses this file to you under the Apache License, version
  * 2.0 (the "License"); you may not use this file except in compliance with the
  * License. You may obtain a copy of the License at:
@@ -27353,7 +27309,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License.
--------------------- SECTION 37 --------------------
+-------------------- SECTION 36 --------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
  * including without limitation the rights to use, copy, modify, merge, publish, distribute,
@@ -27368,7 +27324,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
--------------------- SECTION 38 --------------------
+-------------------- SECTION 37 --------------------
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
@@ -27380,7 +27336,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations
  * under the License.
--------------------- SECTION 39 --------------------
+-------------------- SECTION 38 --------------------
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
@@ -27402,7 +27358,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * You may obtain a copy of the License at
  *
  *     https://www.apache.org/licenses/LICENSE-2.0
--------------------- SECTION 40 --------------------
+-------------------- SECTION 39 --------------------
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -27414,7 +27370,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
--------------------- SECTION 41 --------------------
+-------------------- SECTION 40 --------------------
   ~ Licensed under the *Apache License, Version 2.0* (the "License");
   ~ you may not use this file except in compliance with the License.
   ~ You may obtain a copy of the License at
@@ -27426,7 +27382,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
   ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
--------------------- SECTION 42 --------------------
+-------------------- SECTION 41 --------------------
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -27452,7 +27408,7 @@ you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
    http://www.apache.org/licenses/LICENSE-2.0
--------------------- SECTION 43 --------------------
+-------------------- SECTION 42 --------------------
   ~ Licensed under the *Apache License, Version 2.0* (the "License");
   ~ you may not use this file except in compliance with the License.
   ~ You may obtain a copy of the License at
@@ -27464,7 +27420,7 @@ You may obtain a copy of the License at
   ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License..
--------------------- SECTION 44 --------------------
+-------------------- SECTION 43 --------------------
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27476,7 +27432,6 @@ You may obtain a copy of the License at
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ======================================================================
 
 To the extent any open source components are licensed under the GPL
@@ -27495,4 +27450,4 @@ Source Files is valid for three years from the date you acquired or last used th
 Software product. Alternatively, the Source Files may accompany the
 VMware service.
 
-[WAVEFRONTHQPROXY1013GASR122221]
+[WAVEFRONTHQPROXY1011GAAB121521]
