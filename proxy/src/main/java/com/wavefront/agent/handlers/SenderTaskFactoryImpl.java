@@ -146,7 +146,6 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       senderTask.start();
     }
     if (queueingFactory != null) {
-      log.info("Sender tasks handlerKey:"+handlerKey);
       QueueController<?> controller = queueingFactory.getQueueController(handlerKey, numThreads);
       managedServices.put(handlerKey, controller);
       controller.start();
