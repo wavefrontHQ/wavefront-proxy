@@ -296,7 +296,7 @@ public abstract class AbstractAgent {
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       proxyCheckinScheduler = new ProxyCheckInScheduler(agentId, proxyConfig, apiContainer,
-          this::processConfiguration, () -> System.exit(1));
+          this::processConfiguration, () -> System.exit(1), this::truncateBacklog);
       proxyCheckinScheduler.scheduleCheckins();
 
       // Start the listening endpoints

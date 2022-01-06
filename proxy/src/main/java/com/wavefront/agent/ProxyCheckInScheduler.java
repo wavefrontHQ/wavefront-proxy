@@ -25,8 +25,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import static com.wavefront.common.Utils.getBuildVersion;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
@@ -38,7 +38,7 @@ import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
  * @author vasily@wavefront.com
  */
 public class ProxyCheckInScheduler {
-  private static final Logger logger = Logger.getLogger("proxy");
+  private static final Logger logger = LogManager.getLogger("proxy");
   private static final int MAX_CHECKIN_ATTEMPTS = 5;
 
   /**
@@ -53,6 +53,7 @@ public class ProxyCheckInScheduler {
   private final APIContainer apiContainer;
   private final Consumer<AgentConfiguration> agentConfigurationConsumer;
   private final Runnable shutdownHook;
+  private final Runnable truncateBacklog;
 
   private String serverEndpointUrl = null;
   private volatile JsonNode agentMetrics;
@@ -79,12 +80,14 @@ public class ProxyCheckInScheduler {
                                ProxyConfig proxyConfig,
                                APIContainer apiContainer,
                                Consumer<AgentConfiguration> agentConfigurationConsumer,
-                               Runnable shutdownHook) {
+                               Runnable shutdownHook,
+                               Runnable truncateBacklog) {
     this.proxyId = proxyId;
     this.proxyConfig = proxyConfig;
     this.apiContainer = apiContainer;
     this.agentConfigurationConsumer = agentConfigurationConsumer;
     this.shutdownHook = shutdownHook;
+    this.truncateBacklog = truncateBacklog;
     updateProxyMetrics();
     AgentConfiguration config = checkin();
     if (config == null && retryImmediately) {
@@ -244,18 +247,24 @@ public class ProxyCheckInScheduler {
     try {
       AgentConfiguration config = checkin();
       if (config != null) {
-        logger.info("----> getShutOffAgents: "+config.getShutOffAgents());
-        logger.info("---->  isTruncateQueue: "+config.isTruncateQueue());
+        if (logger.isDebugEnabled()) {
+          logger.debug("Server configuration getShutOffAgents: " + config.getShutOffAgents());
+          logger.debug("Server configuration isTruncateQueue: " + config.isTruncateQueue());
+        }
         if (config.getShutOffAgents()) {
-          logger.severe(firstNonNull(config.getShutOffMessage(),
+          logger.warn(firstNonNull(config.getShutOffMessage(),
               "Shutting down: Server side flag indicating proxy has to shut down."));
           shutdownHook.run();
+        } else if (config.isTruncateQueue()) {
+          logger.warn(
+              "Truncating queue: Server side flag indicating proxy queue has to be truncated.");
+          truncateBacklog.run();
         } else {
           agentConfigurationConsumer.accept(config);
         }
       }
     } catch (Exception e) {
-      logger.log(Level.SEVERE, "Exception occurred during configuration update", e);
+      logger.error("Exception occurred during configuration update", e);
     }
   }
 
@@ -270,13 +279,13 @@ public class ProxyCheckInScheduler {
         retries.set(0);
       }
     } catch (Exception ex) {
-      logger.log(Level.SEVERE, "Could not generate proxy metrics", ex);
+      logger.error("Could not generate proxy metrics", ex);
     }
   }
 
   private void checkinError(String errMsg) {
-    if (successfulCheckIns.get() == 0) logger.severe(Strings.repeat("*", errMsg.length()));
-    logger.severe(errMsg);
-    if (successfulCheckIns.get() == 0) logger.severe(Strings.repeat("*", errMsg.length()));
+    if (successfulCheckIns.get() == 0) logger.error(Strings.repeat("*", errMsg.length()));
+    logger.error(errMsg);
+    if (successfulCheckIns.get() == 0) logger.error(Strings.repeat("*", errMsg.length()));
   }
 }
