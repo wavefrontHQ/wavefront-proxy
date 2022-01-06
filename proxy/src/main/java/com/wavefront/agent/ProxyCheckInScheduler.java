@@ -252,7 +252,7 @@ public class ProxyCheckInScheduler {
           logger.debug("Server configuration isTruncateQueue: " + config.isTruncateQueue());
         }
         if (config.getShutOffAgents()) {
-          logger.error(firstNonNull(config.getShutOffMessage(),
+          logger.warn(firstNonNull(config.getShutOffMessage(),
               "Shutting down: Server side flag indicating proxy has to shut down."));
           shutdownHook.run();
         } else if (config.isTruncateQueue()) {
