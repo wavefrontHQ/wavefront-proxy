@@ -30,6 +30,7 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 
 public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
   private final static Logger logger = Logger.getLogger(OtlpHttpHandler.class.getCanonicalName());
+  private String defaultSource;
   private ReportableEntityHandler<Span, String> spanHandler;
 
   @Nullable
@@ -56,13 +57,14 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
                          @Nullable String handle,
                          @Nullable WavefrontSender wfSender,
                          @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                         SpanSampler sampler
-                         ) {
+                         SpanSampler sampler,
+                         String defaultSource) {
     this(tokenAuthenticator, healthCheckManager, handle);
     this.spanHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle));
     this.sender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
     this.sampler = sampler;
+    this.defaultSource = defaultSource;
   }
 
   @Override
@@ -73,7 +75,9 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
     try {
       ExportTraceServiceRequest otlpRequest =
           ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
-      OtlpProtobufUtils.exportToWavefront(otlpRequest, spanHandler, preprocessorSupplier);
+      OtlpProtobufUtils.exportToWavefront(
+          otlpRequest, spanHandler, preprocessorSupplier, defaultSource
+      );
       /*
       We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found in
       OTel Collector's OTLP Receiver code.

@@ -791,8 +791,8 @@ public class PushAgent extends AbstractAgent {
       activeListeners.inc();
       try {
         io.grpc.Server server = NettyServerBuilder.forPort(port).addService(
-            new OtlpGrpcTraceHandler(strPort, handlerFactory, wfSender,
-                preprocessors.get(strPort), sampler)
+            new OtlpGrpcTraceHandler(strPort, handlerFactory, wfSender, preprocessors.get(strPort),
+                sampler, proxyConfig.getHostname())
         )
             .build();
         server.start();
@@ -816,9 +816,10 @@ public class PushAgent extends AbstractAgent {
     //    registerTimestampFilter(strPort);
     //    if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
-    ChannelHandler channelHandler = new OtlpHttpHandler(handlerFactory, tokenAuthenticator,
-        healthCheckManager,
-        strPort, wfSender, preprocessors.get(strPort), sampler);
+    ChannelHandler channelHandler = new OtlpHttpHandler(
+        handlerFactory, tokenAuthenticator, healthCheckManager, strPort, wfSender,
+        preprocessors.get(strPort), sampler, proxyConfig.getHostname()
+    );
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),

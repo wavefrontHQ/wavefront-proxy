@@ -82,7 +82,7 @@ public class OtlpTestHelpers {
         .setStartMillis(startTimeMs)
         .setDuration(durationMs)
         .setAnnotations(annotations)
-        .setSource(DEFAULT_SOURCE)
+        .setSource("test-source")
         .setCustomer("dummy");
   }
 
@@ -133,7 +133,7 @@ public class OtlpTestHelpers {
     PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
         null);
     preprocessor.forSpan().addFilter(new SpanBlockFilter(
-        "sourceName", DEFAULT_SOURCE, x -> true, preprocessorRuleMetrics));
+        "sourceName", "test-source", x -> true, preprocessorRuleMetrics));
 
     return preprocessor;
   }

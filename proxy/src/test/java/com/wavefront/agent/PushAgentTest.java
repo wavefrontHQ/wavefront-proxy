@@ -1466,12 +1466,13 @@ public class PushAgentTest {
   @Test
   public void testOtlpHttpPortHandler() throws Exception {
     port = findAvailablePort(4318);
+    proxy.proxyConfig.hostname = "defaultLocalHost";
     proxy.startOtlpHttpListener(String.valueOf(port), mockHandlerFactory, null, null);
     waitUntilListenerIsOnline(port);
 
     reset(mockTraceHandler);
 
-    Span wfSpan = OtlpTestHelpers.wfSpanGenerator(null).build();
+    Span wfSpan = OtlpTestHelpers.wfSpanGenerator(null).setSource("defaultLocalHost").build();
     mockTraceHandler.report(wfSpan);
     expectLastCall();
 

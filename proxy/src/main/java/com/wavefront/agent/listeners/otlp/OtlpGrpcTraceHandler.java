@@ -17,41 +17,45 @@ import io.grpc.stub.StreamObserver;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceResponse;
 import io.opentelemetry.proto.collector.trace.v1.TraceServiceGrpc;
+import wavefront.report.Span;
 
 public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase {
   protected static final Logger logger = Logger.getLogger(OtlpGrpcTraceHandler.class.getCanonicalName());
-  private final ReportableEntityHandler<wavefront.report.Span, String> spanHandler;
+  private final ReportableEntityHandler<Span, String> spanHandler;
   @Nullable
   private final WavefrontSender wfSender;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final SpanSampler sampler;
+  private final String defaultSource;
 
 
   public OtlpGrpcTraceHandler(String handle,
-                              ReportableEntityHandler<wavefront.report.Span, String> spanHandler,
+                              ReportableEntityHandler<Span, String> spanHandler,
                               @Nullable WavefrontSender wfSender,
                               @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                              SpanSampler sampler) {
+                              SpanSampler sampler,
+                              String defaultSource) {
     this.spanHandler = spanHandler;
     this.wfSender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
     this.sampler = sampler;
+    this.defaultSource = defaultSource;
   }
 
   public OtlpGrpcTraceHandler(String handle,
                               ReportableEntityHandlerFactory handlerFactory,
                               @Nullable WavefrontSender wfSender,
                               @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                              SpanSampler sampler) {
-    this(handle,
-        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
-        wfSender, preprocessorSupplier, sampler);
+                              SpanSampler sampler,
+                              String defaultSource) {
+    this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
+        wfSender, preprocessorSupplier, sampler, defaultSource);
   }
 
   @Override
   public void export(ExportTraceServiceRequest request,
                      StreamObserver<ExportTraceServiceResponse> responseObserver) {
-    OtlpProtobufUtils.exportToWavefront(request, spanHandler, preprocessorSupplier);
+    OtlpProtobufUtils.exportToWavefront(request, spanHandler, preprocessorSupplier, defaultSource);
     responseObserver.onNext(ExportTraceServiceResponse.getDefaultInstance());
     responseObserver.onCompleted();
   }

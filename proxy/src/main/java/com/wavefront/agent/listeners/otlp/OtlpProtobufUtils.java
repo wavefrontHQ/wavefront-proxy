@@ -8,13 +8,18 @@ import com.google.protobuf.ByteString;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.common.Pair;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -42,6 +47,7 @@ import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
+import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
 
 /**
@@ -53,7 +59,6 @@ public class OtlpProtobufUtils {
   public final static String OTEL_STATUS_DESCRIPTION_KEY = "otel.status_description";
   private final static String DEFAULT_APPLICATION_NAME = "defaultApplication";
   private final static String DEFAULT_SERVICE_NAME = "defaultService";
-  private final static String DEFAULT_SOURCE = "otlp";
   private final static Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
   private final static String SPAN_KIND_TAG_KEY = "span.kind";
   private final static HashMap<SpanKind, Annotation> SPAN_KIND_ANNOTATION_HASH_MAP =
@@ -69,15 +74,14 @@ public class OtlpProtobufUtils {
 
   public static void exportToWavefront(ExportTraceServiceRequest request,
                                        ReportableEntityHandler<Span, String> spanHandler,
-                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier
-  ) {
+                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+                                       String defaultSource) {
     ReportableEntityPreprocessor preprocessor = null;
     if (preprocessorSupplier != null) {
       preprocessor = preprocessorSupplier.get();
     }
 
-    for (wavefront.report.Span wfSpan :
-        OtlpProtobufUtils.otlpSpanExportRequestParseToWFSpan(request, preprocessor)) {
+    for (wavefront.report.Span wfSpan : fromOtlpRequest(request, preprocessor, defaultSource)) {
       // TODO: handle sampler
       if (!wasFilteredByPreprocessor(wfSpan, spanHandler, preprocessor)) {
         spanHandler.report(wfSpan);
@@ -88,9 +92,11 @@ public class OtlpProtobufUtils {
   // TODO: consider transforming a single span and returning it for immedidate reporting in
   //   wfSender. This could be more efficient, and also more reliable in the event the loops
   //   below throw an error and we don't report any of the list.
-  private static List<Span> otlpSpanExportRequestParseToWFSpan(ExportTraceServiceRequest request,
-                                                               @Nullable ReportableEntityPreprocessor preprocessor) {
+  private static List<Span> fromOtlpRequest(ExportTraceServiceRequest request,
+                                            @Nullable ReportableEntityPreprocessor preprocessor,
+                                            String defaultSource) {
     List<Span> wfSpans = Lists.newArrayList();
+
     for (ResourceSpans resourceSpans : request.getResourceSpansList()) {
       Resource resource = resourceSpans.getResource();
       if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
@@ -103,7 +109,8 @@ public class OtlpProtobufUtils {
               instrumentationLibrarySpans.getInstrumentationLibrary());
         }
         for (io.opentelemetry.proto.trace.v1.Span otlpSpan : instrumentationLibrarySpans.getSpansList()) {
-          wavefront.report.Span wfSpan = transform(otlpSpan, resource.getAttributesList(), preprocessor);
+          wavefront.report.Span wfSpan = transform(otlpSpan, resource.getAttributesList(),
+              preprocessor, defaultSource);
           if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
             OTLP_DATA_LOGGER.info("Inbound OTLP Span: " + otlpSpan);
             OTLP_DATA_LOGGER.info("Converted Wavefront Span: " + wfSpan);
@@ -137,15 +144,23 @@ public class OtlpProtobufUtils {
     return false;
   }
 
+  @VisibleForTesting
   public static wavefront.report.Span transform(io.opentelemetry.proto.trace.v1.Span otlpSpan,
                                                 List<KeyValue> resourceAttrs,
-                                                ReportableEntityPreprocessor preprocessor) {
+                                                ReportableEntityPreprocessor preprocessor,
+                                                String defaultSource) {
+    Pair<String, List<KeyValue>> sourceAndResourceAttrs =
+        sourceFromAttributes(resourceAttrs, defaultSource);
+    String source = sourceAndResourceAttrs._1;
+    resourceAttrs = sourceAndResourceAttrs._2;
+
     // Order of arguments to Stream.of() matters: when a Resource Attribute and a Span Attribute
     // happen to share the same key, we want the Span Attribute to "win" and be preserved.
     List<KeyValue> otlpAttributes = Stream.of(resourceAttrs, otlpSpan.getAttributesList())
         .flatMap(Collection::stream).collect(Collectors.toList());
 
     List<Annotation> wfAnnotations = annotationsFromAttributes(otlpAttributes);
+
     wfAnnotations.add(SPAN_KIND_ANNOTATION_HASH_MAP.get(otlpSpan.getKind()));
     wfAnnotations.addAll(annotationsFromStatus(otlpSpan.getStatus()));
 
@@ -168,10 +183,10 @@ public class OtlpProtobufUtils {
         .setStartMillis(startTimeMs)
         .setDuration(durationMs)
         .setAnnotations(wfAnnotations)
-        // TODO: Check the precedence about the source tag
-        .setSource(DEFAULT_SOURCE)
+        .setSource(source)
         .setCustomer("dummy")
         .build();
+
     // apply preprocessor
     if (preprocessor != null) {
       preprocessor.forSpan().transform(toReturn);
@@ -183,10 +198,36 @@ public class OtlpProtobufUtils {
     return toReturn;
   }
 
+  // Returns a String of the source value and the original List<KeyValue> attributes except
+  // with the removal of the KeyValue determined to be the source.
+  @VisibleForTesting
+  public static Pair<String, List<KeyValue>> sourceFromAttributes(List<KeyValue> otlpAttributes,
+                                                                  String defaultSource) {
+    // Order of keys in List matters: it determines precedence when multiple candidates exist.
+    List<String> candidateKeys = Arrays.asList(SOURCE_KEY, "host.name", "hostname", "host.id");
+    Comparator<KeyValue> keySorter = Comparator.comparing(kv -> candidateKeys.indexOf(kv.getKey()));
+
+    Optional<KeyValue> sourceAttr = otlpAttributes.stream()
+        .filter(kv -> candidateKeys.contains(kv.getKey()))
+        .sorted(keySorter)
+        .findFirst();
+
+    if (sourceAttr.isPresent()) {
+      List<KeyValue> attributesWithoutSource = new ArrayList<>(otlpAttributes);
+      attributesWithoutSource.remove(sourceAttr.get());
+
+      return new Pair<>(fromAnyValue(sourceAttr.get().getValue()), attributesWithoutSource);
+    } else {
+      return new Pair<>(defaultSource, otlpAttributes);
+    }
+  }
+
   public static List<Annotation> annotationsFromAttributes(List<KeyValue> attributesList) {
     List<Annotation> annotations = Lists.newArrayList();
     for (KeyValue attribute : attributesList) {
-      Annotation.Builder annotationBuilder = Annotation.newBuilder().setKey(attribute.getKey());
+      String key = attribute.getKey().equals(SOURCE_KEY) ? "_source" : attribute.getKey();
+      Annotation.Builder annotationBuilder = Annotation.newBuilder().setKey(key);
+
       if (!attribute.hasValue()) {
         annotationBuilder.setValue("");
       } else {
@@ -194,6 +235,7 @@ public class OtlpProtobufUtils {
       }
       annotations.add(annotationBuilder.build());
     }
+
     return annotations;
   }
 
