@@ -15,7 +15,7 @@ $(shell mkdir -p $(out))
 info:
 	@echo "\n----------\nBuilding Proxy ${FULLVERSION}\nDocker tag: ${DOCKER_TAG}\nDocker tag RHEL: ${DOCKER_TAG_RHEL}\n----------\n"
 
-jenkins: info build-jar build-linux push-linux docker-multi-arch docker-rhel clean
+jenkins: info build-jar build-linux push-linux docker-multi-arch docker-rhel docker-rhel-push clean
 
 #####
 # Build Proxy jar file
@@ -38,6 +38,13 @@ docker: info cp-docker
 #####
 docker-rhel: info cp-docker
 	docker build -t $(DOCKER_TAG_RHEL) --build-arg BASE=registry.access.redhat.com/ubi7 docker/
+
+
+#####
+# push RedHat docker image
+#####
+docker-rhel-push: info cp-docker
+	docker push $(DOCKER_TAG_RHEL)
 
 
 #####
