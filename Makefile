@@ -1,20 +1,21 @@
-TS = $(shell date +%Y%m%d%H%M%S)
+TS = $(shell date +%Y%m%d-%H%M%S)
 
 VERSION = $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.version}' --non-recursive exec:exec)
 REVISION ?= ${TS}
-FULLVERSION = ${VERSION}${REVISION}
+FULLVERSION = ${VERSION}_${REVISION}
 USER ?= $(LOGNAME)
 REPO ?= proxy-dev
 
 DOCKER_TAG = $(USER)/$(REPO):${FULLVERSION}
+DOCKER_TAG_RHEL = $(USER)/$(REPO):RHEL_${FULLVERSION}
 
 out = $(shell pwd)/out
 $(shell mkdir -p $(out))
 
 info:
-	@echo "\n----------\nBuilding Proxy ${FULLVERSION}\nDocker tag: ${DOCKER_TAG}\n----------\n"
+	@echo "\n----------\nBuilding Proxy ${FULLVERSION}\nDocker tag: ${DOCKER_TAG}\nDocker tag RHEL: ${DOCKER_TAG_RHEL}\n----------\n"
 
-jenkins: info build-jar docker-multi-arch build-linux push-linux clean
+jenkins: info build-jar build-linux push-linux docker-multi-arch docker-rhel clean
 
 #####
 # Build Proxy jar file
@@ -24,11 +25,19 @@ build-jar: info
 	mvn -f proxy --batch-mode package -DskipTests 
 	cp proxy/target/proxy-*-uber.jar ${out}/wavefront-proxy.jar
 
+
 #####
 # Build single docker image
 #####
 docker: info cp-docker
 	docker build -t $(DOCKER_TAG) docker/
+
+
+#####
+# Build RedHat docker image
+#####
+docker-rhel: info cp-docker
+	docker build -t $(DOCKER_TAG_RHEL) --build-arg BASE=registry.access.redhat.com/ubi7 docker/
 
 
 #####
