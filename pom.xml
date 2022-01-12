@@ -37,7 +37,7 @@
   <distributionManagement>
     <snapshotRepository>
       <id>ossrh</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+      <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
     </snapshotRepository>
   </distributionManagement>
 
@@ -55,11 +55,11 @@
 
     <java.version>1.8</java.version>
     <javadoc.sdk.version>8</javadoc.sdk.version>
-    <log4j.version>2.13.3</log4j.version>
+    <log4j.version>2.17.0</log4j.version>
     <jackson.version>2.12.3</jackson.version>
     <jackson-databind.version>2.12.3</jackson-databind.version>
-    <netty.version>4.1.65.Final</netty.version>
-    <java-lib.version>2021-12.1</java-lib.version>
+    <netty.version>4.1.71.Final</netty.version>
+    <java-lib.version>2020-12.1</java-lib.version>
 
     <doclint>none</doclint>
   </properties>
@@ -97,6 +97,11 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-compress</artifactId>
+        <version>1.21</version>
+      </dependency>
       <dependency>
         <groupId>commons-io</groupId>
         <artifactId>commons-io</artifactId>
@@ -354,7 +359,7 @@
             <extensions>true</extensions>
             <configuration>
               <serverId>ossrh</serverId>
-              <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+              <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
               <autoReleaseAfterClose>true</autoReleaseAfterClose>
             </configuration>
           </plugin>
