@@ -1,3 +1,5 @@
+# NOTE: we need this to be a Dockerfile because that's the only option
+# when using the Automated Build Service for Red Hat Build Partners.
 ARG BASE=adoptopenjdk:11-jre-hotspot
 FROM ${BASE}
 
