@@ -25,26 +25,11 @@ build-jar: info
 	mvn -f proxy --batch-mode package -DskipTests 
 	cp proxy/target/proxy-*-uber.jar ${out}/wavefront-proxy.jar
 
-
 #####
 # Build single docker image
 #####
 docker: info cp-docker
 	docker build -t $(DOCKER_TAG) docker/
-
-
-#####
-# Build RedHat docker image
-#####
-docker-rhel: info cp-docker
-	docker build -t $(DOCKER_TAG_RHEL) --build-arg BASE=registry.access.redhat.com/ubi7 docker/
-
-
-#####
-# push RedHat docker image
-#####
-docker-rhel-push: info cp-docker
-	docker push $(DOCKER_TAG_RHEL)
 
 
 #####
