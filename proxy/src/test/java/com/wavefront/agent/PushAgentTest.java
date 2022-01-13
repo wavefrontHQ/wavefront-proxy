@@ -156,6 +156,10 @@ public class PushAgentTest {
     @Override
     public void drainBuffersToQueue(QueueingReason reason) {
     }
+
+    @Override
+    public void truncateBuffers() {
+    }
   };
 
   private ReportableEntityHandlerFactory mockHandlerFactory =

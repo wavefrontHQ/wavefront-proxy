@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
@@ -41,11 +42,12 @@ import static com.wavefront.api.agent.Constants.PUSH_FORMAT_WAVEFRONT;
  * @author vasily@wavefront.com
  */
 public class SenderTaskFactoryImpl implements SenderTaskFactory {
+  private final Logger log = Logger.getLogger(SenderTaskFactoryImpl.class.getCanonicalName());
 
   private final Map<String, List<ReportableEntityType>> entityTypes = new ConcurrentHashMap<>();
   private final Map<HandlerKey, ScheduledExecutorService> executors = new ConcurrentHashMap<>();
   private final Map<HandlerKey, List<SenderTask<?>>> managedTasks = new ConcurrentHashMap<>();
-  private final Map<HandlerKey, Managed> managedServices = new ConcurrentHashMap<>();
+  private final Map<HandlerKey, QueueController> managedServices = new ConcurrentHashMap<>();
 
   /**
    * Keep track of all {@link TaskSizeEstimator} instances to calculate global buffer fill rate.
@@ -190,6 +192,16 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   public void drainBuffersToQueue(QueueingReason reason) {
     managedTasks.values().stream().flatMap(Collection::stream).
         forEach(x -> x.drainBuffersToQueue(reason));
+  }
+
+  @Override
+  public void truncateBuffers() {
+    managedServices.entrySet().forEach(handlerKeyManagedEntry -> {
+      System.out.println("Truncating buffers: Queue with handlerKey " +handlerKeyManagedEntry.getKey());
+      log.info("Truncating buffers: Queue with handlerKey " + handlerKeyManagedEntry.getKey());
+      QueueController pp = handlerKeyManagedEntry.getValue();
+      pp.truncateBuffers();
+    });
   }
 
   @VisibleForTesting
