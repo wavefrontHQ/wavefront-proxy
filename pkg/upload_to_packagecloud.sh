@@ -31,7 +31,8 @@ package_cloud push ${1}/ubuntu/xenial ${3}/*.deb --config=${2} &
 package_cloud push ${1}/ubuntu/trusty ${3}/*.deb --config=${2} &
 package_cloud push ${1}/ubuntu/hirsute ${3}/*.deb --config=${2} &
 
-package_cloud push ${1}/any/any ${3}/*.deb --config=${2} &
-package_cloud push ${1}/rpm_any/rpm_any ${3}/*.rpm --config=${2} &
+wait
 
-exit $(wait)
+package_cloud push ${1}/any/any ${3}/*.deb --config=${2}
+package_cloud push ${1}/rpm_any/rpm_any ${3}/*.rpm --config=${2}
+
