@@ -51,7 +51,7 @@ build-linux: info prepare-builder cp-linux
 #####
 # replace proxy-next
 push-linux: info prepare-builder
-	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/upload_to_packagecloud.sh wavefront/proxy-next /proxy/pkg/package_cloud.conf /proxy/out
+	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/upload_to_packagecloud.sh wavefront/${REPO} /proxy/pkg/package_cloud.conf /proxy/out
 
 prepare-builder:
 	docker build -t proxy-linux-builder pkg/
