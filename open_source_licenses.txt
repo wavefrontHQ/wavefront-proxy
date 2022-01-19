@@ -1,6 +1,6 @@
-﻿open_source_licenses.txt
+open_source_license.txt
 
-Wavefront by VMware 10.13 GA
+Wavefront by VMware 10.14 GA
 ======================================================================
 
 The following copyright statements and licenses apply to various open
@@ -140,12 +140,12 @@ SECTION 1: Apache License, V2.0
    >>> io.netty:netty-transport-native-unix-common-4.1.71.Final
    >>> io.netty:netty-handler-4.1.71.Final
    >>> org.jboss.resteasy:resteasy-jaxrs-3.15.2.Final
-   >>> org.apache.logging.log4j:log4j-jul-2.17.0
-   >>> org.apache.logging.log4j:log4j-core-2.17.0
-   >>> org.apache.logging.log4j:log4j-api-2.17.0
-   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.17.0
-   >>> org.apache.logging.log4j:log4j-1.2-api-2.17.0
-   >>> org.apache.logging.log4j:log4j-web-2.17.0
+   >>> org.apache.logging.log4j:log4j-jul-2.17.1
+   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.17.1
+   >>> org.apache.logging.log4j:log4j-api-2.17.1
+   >>> org.apache.logging.log4j:log4j-core-2.17.1
+   >>> org.apache.logging.log4j:log4j-1.2-api-2.17.1
+   >>> org.apache.logging.log4j:log4j-web-2.17.1
 
 SECTION 2: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
 
@@ -22821,19 +22821,35 @@ APPENDIX. Standard License Files
         * limitations under the License.
 
 
-   >>> org.apache.logging.log4j:log4j-jul-2.17.0
+   >>> org.apache.logging.log4j:log4j-jul-2.17.1
 
        > Apache1.1
 
        META-INF/NOTICE
        [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
-       Copyright 1999-2020 The Apache Software Foundation
+       Copyright 1999-1969 The Apache Software Foundation
 
        See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
 
 
-   >>> org.apache.logging.log4j:log4j-core-2.17.0
+   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.17.1
+
+
+
+   >>> org.apache.logging.log4j:log4j-api-2.17.1
+
+       > Apache1.1
+
+       META-INF/NOTICE
+       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+       Copyright 1999-1969 The Apache Software Foundation
+
+       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
+
+
+   >>> org.apache.logging.log4j:log4j-core-2.17.1
 
        Found in: META-INF/LICENSE
 
@@ -23067,50 +23083,73 @@ APPENDIX. Standard License Files
        See SECTION 31 in 'LICENSE TEXT REFERENCE TABLE'
 
 
-   >>> org.apache.logging.log4j:log4j-api-2.17.0
+   >>> org.apache.logging.log4j:log4j-1.2-api-2.17.1
+
+       
+
+       Copyright 1999-1969 The Apache Software Foundation
+
+       This product includes software developed at
+       The Apache Software Foundation (http://www.apache.org/).
+
+           Licensed to the Apache Software Foundation (ASF) under one or more
+        contributor license agreements.  See the NOTICE file distributed with
+        this work for additional information regarding copyright ownership.
+        The ASF licenses this file to You under the Apache License, Version 2.0
+        (the "License"); you may not use this file except in compliance with
+        the License.  You may obtain a copy of the License at
+
+             http://www.apache.org/licenses/LICENSE-2.0
+
+        Unless required by applicable law or agreed to in writing, software
+        distributed under the License is distributed on an "AS IS" BASIS,
+        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+        See the License for the specific language governing permissions and
+        limitations under the License.
+
+
+       ADDITIONAL LICENSE INFORMATION
 
        > Apache1.1
 
        META-INF/NOTICE
        [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
-       Copyright 1999-2020 The Apache Software Foundation
+       Copyright 1999-1969 The Apache Software Foundation
 
        See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
 
 
-   >>> org.apache.logging.log4j:log4j-slf4j-impl-2.17.0
+   >>> org.apache.logging.log4j:log4j-web-2.17.1
+
+       
+       Apache Log4j Web
+       Copyright 1999-1969 The Apache Software Foundation
+
+       This product includes software developed at
+       The Apache Software Foundation (http://www.apache.org/)
+
+
+          Licensed under the Apache License, Version 2.0 (the "License");
+          you may not use this file except in compliance with the License.
+          You may obtain a copy of the License at
+
+              http://www.apache.org/licenses/LICENSE-2.0
+
+          Unless required by applicable law or agreed to in writing, software
+          distributed under the License is distributed on an "AS IS" BASIS,
+          WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+          See the License for the specific language governing permissions and
+          limitations under the License.
+
+       ADDITIONAL LICENSE INFORMATION
 
        > Apache1.1
 
        META-INF/NOTICE
        [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
-       Copyright 1999-2020 The Apache Software Foundation
-
-       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
-
-
-   >>> org.apache.logging.log4j:log4j-1.2-api-2.17.0
-
-       > Apache1.1
-
-       META-INF/NOTICE
-       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-       Copyright 1999-2020 The Apache Software Foundation
-
-       See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
-
-
-   >>> org.apache.logging.log4j:log4j-web-2.17.0
-
-       > Apache1.1
-
-       META-INF/NOTICE
-       [NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE APACHE1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-       Copyright 1999-2020 The Apache Software Foundation
+       Copyright 1999-1969 The Apache Software Foundation
 
        See SECTION 8 in 'LICENSE TEXT REFERENCE TABLE'
 
@@ -25088,15 +25127,15 @@ APPENDIX. Standard License Files
 
        META-INF/maven/org.jboss.spec.javax.xml.bind/jboss-jaxb-api_2.3_spec/pom.xml
 
-       Copyright (c) 2019 Eclipse Foundation
-
-       See SECTION 26 in 'LICENSE TEXT REFERENCE TABLE'
-
-       META-INF/maven/org.jboss.spec.javax.xml.bind/jboss-jaxb-api_2.3_spec/pom.xml
-
        Copyright (c) 2018, 2019 Oracle and/or its affiliates
 
        See SECTION 13 in 'LICENSE TEXT REFERENCE TABLE'
+
+       META-INF/maven/org.jboss.spec.javax.xml.bind/jboss-jaxb-api_2.3_spec/pom.xml
+
+       Copyright (c) 2019 Eclipse Foundation
+
+       See SECTION 26 in 'LICENSE TEXT REFERENCE TABLE'
 
        META-INF/NOTICE.md
 
@@ -27476,7 +27515,6 @@ You may obtain a copy of the License at
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ======================================================================
 
 To the extent any open source components are licensed under the GPL
@@ -27495,4 +27533,5 @@ Source Files is valid for three years from the date you acquired or last used th
 Software product. Alternatively, the Source Files may accompany the
 VMware service.
 
-[WAVEFRONTHQPROXY1013GASR122221]
+
+[WAVEFRONTHQPROXY1014GAAT011921]
