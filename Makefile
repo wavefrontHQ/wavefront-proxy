@@ -7,15 +7,14 @@ USER ?= $(LOGNAME)
 REPO ?= proxy-dev
 
 DOCKER_TAG = $(USER)/$(REPO):${FULLVERSION}
-DOCKER_TAG_RHEL = $(USER)/$(REPO):RHEL_${FULLVERSION}
 
 out = $(shell pwd)/out
 $(shell mkdir -p $(out))
 
 info:
-	@echo "\n----------\nBuilding Proxy ${FULLVERSION}\nDocker tag: ${DOCKER_TAG}\nDocker tag RHEL: ${DOCKER_TAG_RHEL}\n----------\n"
+	@echo "\n----------\nBuilding Proxy ${FULLVERSION}\nDocker tag: ${DOCKER_TAG}\n----------\n"
 
-jenkins: info build-jar build-linux push-linux docker-multi-arch docker-rhel docker-rhel-push clean
+jenkins: info build-jar build-linux push-linux docker-multi-arch clean
 
 #####
 # Build Proxy jar file
@@ -23,7 +22,7 @@ jenkins: info build-jar build-linux push-linux docker-multi-arch docker-rhel doc
 # !!! REMOVE `-DskipTests`
 build-jar: info
 	mvn -f proxy --batch-mode package -DskipTests 
-	cp proxy/target/proxy-*-uber.jar ${out}/wavefront-proxy.jar
+	cp proxy/target/proxy-${VERSION}-uber.jar ${out}
 
 #####
 # Build single docker image
@@ -49,7 +48,6 @@ build-linux: info prepare-builder cp-linux
 #####
 # Push rep & deb packages
 #####
-# replace proxy-next
 push-linux: info prepare-builder
 	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/upload_to_packagecloud.sh wavefront/${REPO} /proxy/pkg/package_cloud.conf /proxy/out
 
@@ -57,10 +55,10 @@ prepare-builder:
 	docker build -t proxy-linux-builder pkg/
 
 cp-docker:
-	cp ${out}/wavefront-proxy.jar docker
+	cp ${out}/proxy-${VERSION}-uber.jar docker/wavefront-proxy.jar
 
 cp-linux:
-	cp ${out}/wavefront-proxy.jar pkg
+	cp ${out}/proxy-${VERSION}-uber.jar pkg/wavefront-proxy.jar
 
 clean:
 	docker buildx prune -a -f
