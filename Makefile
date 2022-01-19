@@ -14,7 +14,7 @@ $(shell mkdir -p $(out))
 info:
 	@echo "\n----------\nBuilding Proxy ${FULLVERSION}\nDocker tag: ${DOCKER_TAG}\n----------\n"
 
-jenkins: info build-jar build-linux push-linux docker-multi-arch docker-rhel docker-rhel-push clean
+jenkins: info build-jar build-linux push-linux docker-multi-arch clean
 
 #####
 # Build Proxy jar file
