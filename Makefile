@@ -5,6 +5,7 @@ REVISION ?= ${TS}
 FULLVERSION = ${VERSION}_${REVISION}
 USER ?= $(LOGNAME)
 REPO ?= proxy-dev
+PACKAGECLOUD_USER ?= wavefront
 
 DOCKER_TAG = $(USER)/$(REPO):${FULLVERSION}
 
@@ -49,7 +50,7 @@ build-linux: info prepare-builder cp-linux
 # Push rep & deb packages
 #####
 push-linux: info prepare-builder
-	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/upload_to_packagecloud.sh wavefront/${REPO} /proxy/pkg/package_cloud.conf /proxy/out
+	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/upload_to_packagecloud.sh ${PACKAGECLOUD_USER}/${REPO} /proxy/pkg/package_cloud.conf /proxy/out
 
 prepare-builder:
 	docker build -t proxy-linux-builder pkg/
