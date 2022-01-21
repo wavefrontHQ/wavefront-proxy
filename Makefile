@@ -28,14 +28,14 @@ build-jar: info
 #####
 # Build single docker image
 #####
-docker: info cp-docker
+docker: info .cp-docker
 	docker build -t $(DOCKER_TAG) docker/
 
 
 #####
 # Build multi arch (amd64 & arm64) docker images
 #####
-docker-multi-arch: info cp-docker
+docker-multi-arch: info .cp-docker
 	docker buildx create --use
 	docker buildx build --platform linux/amd64,linux/arm64 -t $(DOCKER_TAG) --push docker/
 
@@ -43,7 +43,7 @@ docker-multi-arch: info cp-docker
 #####
 # Build rep & deb packages
 #####
-build-linux: info prepare-builder cp-linux
+build-linux: info prepare-builder .cp-linux
 	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/build.sh ${VERSION} ${REVISION}
 	
 #####
@@ -55,12 +55,19 @@ push-linux: info prepare-builder
 prepare-builder:
 	docker build -t proxy-linux-builder pkg/
 
-cp-docker:
+.cp-docker:
 	cp ${out}/proxy-${VERSION}-uber.jar docker/wavefront-proxy.jar
+	${MAKE} .set_package JAR=docker/wavefront-proxy.jar PKG=docker
 
-cp-linux:
+.cp-linux:
 	cp ${out}/proxy-${VERSION}-uber.jar pkg/wavefront-proxy.jar
+	${MAKE} .set_package JAR=docker/wavefront-proxy.jar PKG=linux_rpm_deb
 
 clean:
 	docker buildx prune -a -f
 
+.set_package:
+	jar -xvf ${JAR} build.properties
+	sed -i '' 's/\(build.package=\).*/\1${PKG}/' build.properties
+	jar -uvf ${JAR} build.properties
+	rm build.properties

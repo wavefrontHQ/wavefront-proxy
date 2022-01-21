@@ -52,9 +52,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.wavefront.agent.ProxyUtil.getOrCreateProxyId;
-import static com.wavefront.common.Utils.csvToList;
-import static com.wavefront.common.Utils.getBuildVersion;
-import static com.wavefront.common.Utils.getJavaVersion;
+import static com.wavefront.common.Utils.*;
 import static java.util.Collections.EMPTY_LIST;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
@@ -211,6 +209,7 @@ public abstract class AbstractAgent {
   void parseArguments(String[] args) {
     // read build information and print version.
     String versionStr = "Wavefront Proxy version " + getBuildVersion() +
+            " (pkg:" + getPackage() + ")" +
         ", runtime: " + getJavaVersion();
     try {
       if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
