@@ -39,4 +39,6 @@ public interface SenderTaskFactory {
    * @param reason reason for queueing
    */
   void drainBuffersToQueue(@Nullable QueueingReason reason);
+
+  void truncateBuffers();
 }

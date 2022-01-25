@@ -1407,4 +1407,9 @@ public class PushAgent extends AbstractAgent {
     handlerFactory.shutdown(String.valueOf(port));
     senderTaskFactory.shutdown(String.valueOf(port));
   }
+
+  @Override
+  protected void truncateBacklog() {
+    senderTaskFactory.truncateBuffers();
+  }
 }
