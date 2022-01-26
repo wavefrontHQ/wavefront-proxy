@@ -47,6 +47,8 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
     expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
+    apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
+    expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);
@@ -77,6 +79,8 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
     expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
+    apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
+    expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setShutOffAgents(true);
@@ -107,6 +111,8 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
     expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
+    apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
+    expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     replay(proxyConfig);
@@ -182,6 +188,8 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
     expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
+    apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
+    expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     replay(proxyConfig);
@@ -244,6 +252,8 @@ public class ProxyCheckInSchedulerTest {
     expect(proxyConfig.getHostname()).andReturn("proxyHost").anyTimes();
     expect(proxyConfig.isEphemeral()).andReturn(true).anyTimes();
     expect(proxyConfig.getAgentMetricsPointTags()).andReturn(Collections.emptyMap()).anyTimes();
+    apiContainer.updateLogServerEndpointURLandToken(anyObject(), anyObject());
+    expectLastCall().anyTimes();
     String authHeader = "Bearer abcde12345";
     AgentConfiguration returnConfig = new AgentConfiguration();
     returnConfig.setPointsPerBatch(1234567L);

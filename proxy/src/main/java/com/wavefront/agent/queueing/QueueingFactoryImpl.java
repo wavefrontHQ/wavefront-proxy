@@ -6,6 +6,7 @@ import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.data.EventDataSubmissionTask;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
+import com.wavefront.agent.data.LogDataSubmissionTask;
 import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.agent.data.TaskInjector;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -112,6 +113,10 @@ public class QueueingFactoryImpl implements QueueingFactory {
         return task -> ((EventDataSubmissionTask) task).injectMembers(
             apiContainer.getEventAPI(), proxyId, entityPropsFactory.get(entityType),
             (TaskQueue<EventDataSubmissionTask>) queue);
+      case LOGS:
+        return task -> ((LogDataSubmissionTask) task).injectMembers(
+            apiContainer.getLogAPI(), proxyId, entityPropsFactory.get(entityType),
+            (TaskQueue<LogDataSubmissionTask>) queue);
       default:
         throw new IllegalArgumentException("Unexpected entity type: " + entityType);
     }

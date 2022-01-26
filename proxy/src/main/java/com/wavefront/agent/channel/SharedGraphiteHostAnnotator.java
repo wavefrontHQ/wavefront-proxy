@@ -43,6 +43,10 @@ public class SharedGraphiteHostAnnotator {
   }
 
   public String apply(ChannelHandlerContext ctx, String msg) {
+    return apply(ctx, msg, false);
+  }
+
+  public String apply(ChannelHandlerContext ctx, String msg, boolean addAsJsonProperty) {
     for (int i = 0; i < sourceTags.size(); i++) {
       String tag = sourceTags.get(i);
       int strIndex = msg.indexOf(tag);
@@ -52,6 +56,13 @@ public class SharedGraphiteHostAnnotator {
         return msg;
       }
     }
-    return msg + " source=\"" + hostnameResolver.apply(getRemoteAddress(ctx)) + "\"";
+
+    String sourceValue = "\"" + hostnameResolver.apply(getRemoteAddress(ctx)) + "\"";
+
+    if (addAsJsonProperty) {
+      return msg.replaceFirst("\\{", "{ \"source\":" + sourceValue + ",");
+    } else {
+      return msg + " source=" + sourceValue;
+    }
   }
 }

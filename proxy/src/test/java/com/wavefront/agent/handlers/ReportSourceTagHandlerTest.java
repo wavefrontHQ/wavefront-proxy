@@ -57,7 +57,7 @@ public class ReportSourceTagHandlerTest {
       }
     };
     newAgentId = UUID.randomUUID();
-    senderTaskFactory = new SenderTaskFactoryImpl(new APIContainer(null, mockAgentAPI, null),
+    senderTaskFactory = new SenderTaskFactoryImpl(new APIContainer(null, mockAgentAPI, null, null),
         newAgentId, taskQueueFactory, null, new DefaultEntityPropertiesFactoryForTesting());
     handlerKey = HandlerKey.of(ReportableEntityType.SOURCE_TAG, "4878");
     sourceTagHandler = new ReportSourceTagHandlerImpl(handlerKey, 10,

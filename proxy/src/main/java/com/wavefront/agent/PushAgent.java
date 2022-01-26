@@ -78,6 +78,7 @@ import com.wavefront.ingester.EventDecoder;
 import com.wavefront.ingester.HistogramDecoder;
 import com.wavefront.ingester.OpenTSDBDecoder;
 import com.wavefront.ingester.PickleProtocolDecoder;
+import com.wavefront.ingester.ReportLogDecoder;
 import com.wavefront.ingester.ReportPointDecoder;
 import com.wavefront.ingester.ReportPointDecoderWrapper;
 import com.wavefront.ingester.ReportSourceTagDecoder;
@@ -183,12 +184,16 @@ public class PushAgent extends AbstractAgent {
               new HistogramDecoder("unknown"))).
           put(ReportableEntityType.TRACE, new SpanDecoder("unknown")).
           put(ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsDecoder()).
-          put(ReportableEntityType.EVENT, new EventDecoder()).build());
+          put(ReportableEntityType.EVENT, new EventDecoder()).
+          put(ReportableEntityType.LOGS, new ReportLogDecoder(() -> "unknown",
+              proxyConfig.getCustomSourceTags(), proxyConfig.getCustomTimestampTags(),
+              proxyConfig.getCustomMessageTags())).build());
   // default rate sampler which always samples.
   protected final RateSampler rateSampler = new RateSampler(1.0d);
   private Logger blockedPointsLogger;
   private Logger blockedHistogramsLogger;
   private Logger blockedSpansLogger;
+  private Logger blockedLogsLogger;
 
   public static void main(String[] args) {
     // Start the ssh daemon
@@ -208,6 +213,7 @@ public class PushAgent extends AbstractAgent {
     blockedPointsLogger = Logger.getLogger(proxyConfig.getBlockedPointsLoggerName());
     blockedHistogramsLogger = Logger.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
     blockedSpansLogger = Logger.getLogger(proxyConfig.getBlockedSpansLoggerName());
+    blockedLogsLogger = Logger.getLogger(proxyConfig.getBlockedLogsLoggerName());
 
     if (proxyConfig.getSoLingerTime() >= 0) {
       childChannelOptions.put(ChannelOption.SO_LINGER, proxyConfig.getSoLingerTime());
@@ -238,7 +244,7 @@ public class PushAgent extends AbstractAgent {
     }
     handlerFactory = new ReportableEntityHandlerFactoryImpl(senderTaskFactory,
         proxyConfig.getPushBlockedSamples(), validationConfiguration, blockedPointsLogger,
-        blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor, entityProps);
+        blockedHistogramsLogger, blockedSpansLogger, histogramRecompressor, entityProps, blockedLogsLogger);
     if (proxyConfig.isTrafficShaping()) {
       new TrafficShapingRateLimitAdjuster(entityProps, proxyConfig.getTrafficShapingWindowSeconds(),
           proxyConfig.getTrafficShapingHeadroom()).start();
@@ -777,7 +783,8 @@ public class PushAgent extends AbstractAgent {
             () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
             () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
             () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
-            sampler);
+            sampler,
+            () -> entityProps.get(ReportableEntityType.LOGS).isFeatureDisabled());
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -829,7 +836,8 @@ public class PushAgent extends AbstractAgent {
     WavefrontPortUnificationHandler wavefrontPortUnificationHandler =
         new WavefrontPortUnificationHandler(strPort, tokenAuthenticator, healthCheckManager,
             decoderSupplier.get(), deltaCounterHandlerFactory, hostAnnotator,
-            preprocessors.get(strPort), () -> false, () -> false, () -> false, sampler);
+            preprocessors.get(strPort), () -> false, () -> false, () -> false, sampler,
+            () -> false);
 
     startAsManagedThread(port,
         new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -892,7 +900,8 @@ public class PushAgent extends AbstractAgent {
         hostAnnotator,
         () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
         () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
-        () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled());
+        () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
+        () -> entityProps.get(ReportableEntityType.LOGS).isFeatureDisabled());
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
         proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort),
@@ -1101,7 +1110,8 @@ public class PushAgent extends AbstractAgent {
               () -> entityProps.get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
               () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
               () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
-              sampler);
+              sampler,
+              () -> entityProps.get(ReportableEntityType.LOGS).isFeatureDisabled());
 
       startAsManagedThread(port,
           new TcpIngester(createInitializer(wavefrontPortUnificationHandler, port,
@@ -1179,6 +1189,8 @@ public class PushAgent extends AbstractAgent {
           config.getSpanLogsRateLimit(), config.getGlobalSpanLogsRateLimit());
       updateRateLimiter(ReportableEntityType.EVENT, config.getCollectorSetsRateLimit(),
           config.getEventsRateLimit(), config.getGlobalEventRateLimit());
+      updateRateLimiter(ReportableEntityType.LOGS, config.getCollectorSetsRateLimit(),
+          config.getLogsRateLimit(), config.getGlobalLogsRateLimit());
 
       if (BooleanUtils.isTrue(config.getCollectorSetsRetryBackoff())) {
         if (config.getRetryBackoffBaseSeconds() != null) {
@@ -1200,6 +1212,8 @@ public class PushAgent extends AbstractAgent {
           setFeatureDisabled(BooleanUtils.isTrue(config.getTraceDisabled()));
       entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).
           setFeatureDisabled(BooleanUtils.isTrue(config.getSpanLogsDisabled()));
+      entityProps.get(ReportableEntityType.LOGS).
+          setFeatureDisabled(BooleanUtils.isTrue(config.getLogsDisabled()));
       preprocessors.processRemoteRules(ObjectUtils.firstNonNull(config.getPreprocessorRules(), ""));
       validationConfiguration.updateFrom(config.getValidationConfiguration());
     } catch (RuntimeException e) {

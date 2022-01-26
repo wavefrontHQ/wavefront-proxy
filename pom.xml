@@ -59,7 +59,7 @@
     <jackson.version>2.12.3</jackson.version>
     <jackson-databind.version>2.12.3</jackson-databind.version>
     <netty.version>4.1.71.Final</netty.version>
-    <java-lib.version>2021-12.1</java-lib.version>
+    <java-lib.version>2021-12.2</java-lib.version>
 
     <doclint>none</doclint>
   </properties>

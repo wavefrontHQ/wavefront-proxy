@@ -48,6 +48,9 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private static final Logger VALID_EVENTS_LOGGER = new SamplingLogger(
       ReportableEntityType.EVENT, Logger.getLogger("RawValidEvents"),
       getSystemPropertyAsDouble("wavefront.proxy.logevents.sample-rate"), false, logger::info);
+  private static final Logger VALID_LOGS_LOGGER = new SamplingLogger(
+      ReportableEntityType.LOGS, Logger.getLogger("RawValidLogs"),
+      getSystemPropertyAsDouble("wavefront.proxy.loglogs.sample-rate"), false, logger::info);
 
   protected final Map<String, Map<ReportableEntityType, ReportableEntityHandler<?, ?>>> handlers =
       new ConcurrentHashMap<>();
@@ -58,6 +61,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final Logger blockedPointsLogger;
   private final Logger blockedHistogramsLogger;
   private final Logger blockedSpansLogger;
+  private final Logger blockedLogsLogger;
   private final Function<Histogram, Histogram> histogramRecompressor;
   private final EntityPropertiesFactory entityPropertiesFactory;
 
@@ -75,7 +79,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       @Nonnull final ValidationConfiguration validationConfig, final Logger blockedPointsLogger,
       final Logger blockedHistogramsLogger, final Logger blockedSpansLogger,
       @Nullable Function<Histogram, Histogram> histogramRecompressor,
-      EntityPropertiesFactory entityPropertiesFactory) {
+      EntityPropertiesFactory entityPropertiesFactory, final Logger blockedLogsLogger) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.validationConfig = validationConfig;
@@ -84,6 +88,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
     this.blockedSpansLogger = blockedSpansLogger;
     this.histogramRecompressor = histogramRecompressor;
     this.entityPropertiesFactory = entityPropertiesFactory;
+    this.blockedLogsLogger = blockedLogsLogger;
   }
 
   @SuppressWarnings("unchecked")
@@ -123,6 +128,10 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
           return new EventHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey), receivedRateSink,
               blockedPointsLogger, VALID_EVENTS_LOGGER);
+        case LOGS:
+          return new ReportLogHandlerImpl(handlerKey, blockedItemsPerBatch,
+              senderTaskFactory.createSenderTasks(handlerKey), validationConfig, true,
+              receivedRateSink, blockedLogsLogger, VALID_LOGS_LOGGER);
         default:
           throw new IllegalArgumentException("Unexpected entity type " +
               handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());
