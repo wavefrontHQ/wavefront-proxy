@@ -61,7 +61,7 @@ prepare-builder:
 
 .cp-linux:
 	cp ${out}/proxy-${VERSION}-uber.jar pkg/wavefront-proxy.jar
-	${MAKE} .set_package JAR=docker/wavefront-proxy.jar PKG=linux_rpm_deb
+	${MAKE} .set_package JAR=pkg/wavefront-proxy.jar PKG=linux_rpm_deb
 
 clean:
 	docker buildx prune -a -f
