@@ -68,6 +68,6 @@ clean:
 
 .set_package:
 	jar -xvf ${JAR} build.properties
-	sed -i '' 's/\(build.package=\).*/\1${PKG}/' build.properties
+	sed -i 's/\(build.package=\).*/\1${PKG}/' build.properties
 	jar -uvf ${JAR} build.properties
 	rm build.properties
