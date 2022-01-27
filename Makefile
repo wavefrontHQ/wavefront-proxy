@@ -1,4 +1,4 @@
-TS = $(shell date +%Y%m%d-%H%M%S)
+TS = $(shell date +%Y%m%d%H%M%S)
 
 VERSION = $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.version}' --non-recursive exec:exec)
 REVISION ?= ${TS}
