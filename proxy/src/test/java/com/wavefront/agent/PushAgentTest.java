@@ -49,8 +49,8 @@ import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,8 +67,6 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
-import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
-import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -96,6 +94,7 @@ import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static org.easymock.EasyMock.anyLong;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.anyString;
+import static org.easymock.EasyMock.capture;
 import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
@@ -1474,30 +1473,30 @@ public class PushAgentTest {
     proxy.startOtlpHttpListener(String.valueOf(port), mockHandlerFactory, null, null);
     waitUntilListenerIsOnline(port);
 
-    reset(mockTraceHandler);
+    reset(mockTraceHandler, mockTraceSpanLogsHandler);
+    Capture<wavefront.report.Span> actualSpan = Capture.newInstance();
+    Capture<wavefront.report.SpanLogs> actualLogs = Capture.newInstance();
+    mockTraceHandler.report(capture(actualSpan));
+    mockTraceSpanLogsHandler.report(capture(actualLogs));
+    replay(mockTraceHandler, mockTraceSpanLogsHandler);
 
-    Span wfSpan = OtlpTestHelpers.wfSpanGenerator(null).setSource("defaultLocalHost").build();
-    mockTraceHandler.report(wfSpan);
-    expectLastCall();
-
-    replay(mockTraceHandler);
-    io.opentelemetry.proto.trace.v1.Span otelSpan = OtlpTestHelpers.otlpSpanGenerator().build();
-
-    InstrumentationLibrarySpans instrumentationLibrarySpans =
-        InstrumentationLibrarySpans.newBuilder().
-            addSpans(otelSpan).
-            build();
-    ResourceSpans resourceSpans = ResourceSpans.newBuilder().
-        addInstrumentationLibrarySpans(instrumentationLibrarySpans).
-        build();
-    ExportTraceServiceRequest payloadObj =  ExportTraceServiceRequest.newBuilder()
-        .addAllResourceSpans(Collections.singleton(resourceSpans))
-        .build();
+    io.opentelemetry.proto.trace.v1.Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent();
+    io.opentelemetry.proto.trace.v1.Span otlpSpan =
+        OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
+    ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
 
     assertEquals(400, httpPost("http://localhost:" + port, "junk".getBytes(), "application/x-protobuf"));
-    assertEquals(200, httpPost("http://localhost:" + port, payloadObj.toByteArray(), "application/x-protobuf"));
-    // TODO: Test that "http://localhost:123/anything fails and /v1/traces works
-    verify(mockTraceHandler);
+    assertEquals(200, httpPost("http://localhost:" + port, otlpRequest.toByteArray(), "application/x-protobuf"));
+    verify(mockTraceHandler, mockTraceSpanLogsHandler);
+
+    Span expectedSpan = OtlpTestHelpers
+        .wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true")))
+        .setSource("defaultLocalHost")
+        .build();
+    SpanLogs expectedLogs = OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan).build();
+
+    OtlpTestHelpers.assertWFSpanEquals(expectedSpan, actualSpan.getValue());
+    assertEquals(expectedLogs, actualLogs.getValue());
   }
 
   @Test

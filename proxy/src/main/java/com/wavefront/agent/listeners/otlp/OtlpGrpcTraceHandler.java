@@ -18,10 +18,12 @@ import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceResponse;
 import io.opentelemetry.proto.collector.trace.v1.TraceServiceGrpc;
 import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase {
   protected static final Logger logger = Logger.getLogger(OtlpGrpcTraceHandler.class.getCanonicalName());
   private final ReportableEntityHandler<Span, String> spanHandler;
+  private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   @Nullable
   private final WavefrontSender wfSender;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
@@ -31,11 +33,13 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
 
   public OtlpGrpcTraceHandler(String handle,
                               ReportableEntityHandler<Span, String> spanHandler,
+                              ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
                               @Nullable WavefrontSender wfSender,
                               @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
                               SpanSampler sampler,
                               String defaultSource) {
     this.spanHandler = spanHandler;
+    this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
     this.sampler = sampler;
@@ -49,13 +53,16 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
                               SpanSampler sampler,
                               String defaultSource) {
     this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
         wfSender, preprocessorSupplier, sampler, defaultSource);
   }
 
   @Override
   public void export(ExportTraceServiceRequest request,
                      StreamObserver<ExportTraceServiceResponse> responseObserver) {
-    OtlpProtobufUtils.exportToWavefront(request, spanHandler, preprocessorSupplier, defaultSource);
+    OtlpProtobufUtils.exportToWavefront(
+        request, spanHandler, spanLogsHandler, preprocessorSupplier, defaultSource
+    );
     responseObserver.onNext(ExportTraceServiceResponse.getDefaultInstance());
     responseObserver.onCompleted();
   }

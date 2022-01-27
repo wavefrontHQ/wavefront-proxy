@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import wavefront.report.Span;
+import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
@@ -32,6 +33,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
   private final static Logger logger = Logger.getLogger(OtlpHttpHandler.class.getCanonicalName());
   private String defaultSource;
   private ReportableEntityHandler<Span, String> spanHandler;
+  private ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
 
   @Nullable
   private WavefrontSender sender;
@@ -61,6 +63,8 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
                          String defaultSource) {
     this(tokenAuthenticator, healthCheckManager, handle);
     this.spanHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle));
+    this.spanLogsHandler =
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle));
     this.sender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
     this.sampler = sampler;
@@ -76,7 +80,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler {
       ExportTraceServiceRequest otlpRequest =
           ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
       OtlpProtobufUtils.exportToWavefront(
-          otlpRequest, spanHandler, preprocessorSupplier, defaultSource
+          otlpRequest, spanHandler, spanLogsHandler, preprocessorSupplier, defaultSource
       );
       /*
       We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found in

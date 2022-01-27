@@ -1,6 +1,5 @@
 package com.wavefront.agent.listeners.otlp;
 
-import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
@@ -10,36 +9,55 @@ import com.wavefront.agent.preprocessor.SpanBlockFilter;
 import com.wavefront.common.Pair;
 
 import org.apache.commons.compress.utils.Lists;
+import org.hamcrest.FeatureMatcher;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
+import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
+import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
+import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
+import wavefront.report.SpanLog;
+import wavefront.report.SpanLogs;
 
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * @author Xiaochen Wang (xiaochenw@vmware.com).
  * @author Glenn Oppegard (goppegard@vmware.com).
  */
 public class OtlpTestHelpers {
-  public static final String DEFAULT_SOURCE = "otlp";
   private static final long startTimeMs = System.currentTimeMillis();
   private static final long durationMs = 50L;
   private static final byte[] spanIdBytes = {0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9};
   private static final byte[] parentSpanIdBytes = {0x6, 0x6, 0x6, 0x6, 0x6, 0x6, 0x6, 0x6};
   private static final byte[] traceIdBytes = {0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
       0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1};
+
+  public static FeatureMatcher<List<Annotation>, Iterable<String>> hasKey(String key) {
+    return new FeatureMatcher<List<Annotation>, Iterable<String>>(hasItem(key),
+        "Annotations with Keys", "Annotation Key") {
+      @Override
+      protected Iterable<String> featureValueOf(List<Annotation> actual) {
+        return actual.stream().map(Annotation::getKey).collect(Collectors.toList());
+      }
+    };
+  }
 
   public static Span.Builder wfSpanGenerator(@Nullable List<Annotation> extraAttrs) {
     if (extraAttrs == null) {
@@ -64,17 +82,6 @@ public class OtlpTestHelpers {
 
     annotations.addAll(extraAttrs);
 
-    // reorder the annotations
-    Map<String, String> map = Maps.newHashMap();
-    for (Annotation annotation : annotations) {
-      map.put(annotation.getKey(), annotation.getValue());
-    }
-    assertEquals(annotations.size(), map.size());
-    annotations.clear();
-    for (Map.Entry<String, String> mapEntry : map.entrySet()) {
-      annotations.add(Annotation.newBuilder().setKey(mapEntry.getKey()).setValue(mapEntry.getValue()).build());
-    }
-
     return wavefront.report.Span.newBuilder()
         .setName("root")
         .setSpanId("00000000-0000-0000-0909-090909090909")
@@ -85,6 +92,22 @@ public class OtlpTestHelpers {
         .setSource("test-source")
         .setCustomer("dummy");
   }
+
+  public static SpanLogs.Builder wfSpanLogsGenerator(Span span) {
+    long logTimestamp = span.getStartMillis() + (span.getDuration() / 2);
+    Map<String, String> logFields = new HashMap<String, String>() {{
+      put("name", "eventName");
+      put("attrKey", "attrValue");
+    }};
+    SpanLog spanLog = SpanLog.newBuilder().setFields(logFields).setTimestamp(logTimestamp).build();
+
+    return SpanLogs.newBuilder()
+        .setLogs(Collections.singletonList(spanLog))
+        .setSpanId(span.getSpanId())
+        .setTraceId(span.getTraceId())
+        .setCustomer(span.getCustomer());
+  }
+
 
   public static io.opentelemetry.proto.trace.v1.Span.Builder otlpSpanGenerator() {
     return io.opentelemetry.proto.trace.v1.Span.newBuilder()
@@ -110,6 +133,16 @@ public class OtlpTestHelpers {
     return KeyValue.newBuilder().setKey(key).setValue(
         AnyValue.newBuilder().setStringValue(value).build()
     ).build();
+  }
+
+  public static io.opentelemetry.proto.trace.v1.Span.Event otlpSpanEvent() {
+    long eventTimestamp = (startTimeMs + (durationMs / 2)) * 1_000;
+    KeyValue attr = otlpAttribute("attrKey", "attrValue");
+    return io.opentelemetry.proto.trace.v1.Span.Event.newBuilder()
+        .setName("eventName")
+        .setTimeUnixNano(eventTimestamp)
+        .addAttributes(attr)
+        .build();
   }
 
   public static Pair<ByteString, String> parentSpanIdPair() {
@@ -159,20 +192,15 @@ public class OtlpTestHelpers {
     assertEquals(expected.getSource(), actual.getSource());
     assertEquals(expected.getCustomer(), actual.getCustomer());
 
-    Map<String, String> expectedAnnotationMap = annotationListToMap(expected.getAnnotations());
-    assertEquals(expected.getAnnotations().size(), actual.getAnnotations().size());
-    for (Annotation actualAnnotation : actual.getAnnotations()) {
-      assertTrue(expectedAnnotationMap.containsKey(actualAnnotation.getKey()));
-      assertEquals(expectedAnnotationMap.get(actualAnnotation.getKey()), actualAnnotation.getValue());
-    }
+    assertThat("Annotations match in any order", actual.getAnnotations(),
+        containsInAnyOrder(expected.getAnnotations().toArray()));
   }
 
-  private static Map<String, String> annotationListToMap(List<Annotation> annotationList) {
-    Map<String, String> annotationMap = Maps.newHashMap();
-    for (Annotation annotation : annotationList) {
-      annotationMap.put(annotation.getKey(), annotation.getValue());
-    }
-    assertEquals(annotationList.size(), annotationMap.size());
-    return annotationMap;
+  public static ExportTraceServiceRequest otlpTraceRequest(io.opentelemetry.proto.trace.v1.Span otlpSpan) {
+    InstrumentationLibrarySpans ilSpans = InstrumentationLibrarySpans.newBuilder().addSpans(otlpSpan).build();
+    ResourceSpans rSpans = ResourceSpans.newBuilder().addInstrumentationLibrarySpans(ilSpans).build();
+    ExportTraceServiceRequest request = ExportTraceServiceRequest.newBuilder().addResourceSpans(rSpans).build();
+    return request;
   }
+
 }
