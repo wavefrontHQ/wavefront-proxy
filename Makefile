@@ -65,10 +65,10 @@ prepare-builder:
 	${MAKE} .set_package JAR=pkg/wavefront-proxy.jar PKG=linux_rpm_deb
 
 clean:
-	docker buildx prune -a -f
+	docker buildx prune -a -f	
 
 .set_package:
 	jar -xvf ${JAR} build.properties
-	sed -i 's/\(build.package=\).*/\1${PKG}/' build.properties
+	sed 's/\(build.package=\).*/\1${PKG}/' build.properties > build.tmp && mv build.tmp build.properties
 	jar -uvf ${JAR} build.properties
 	rm build.properties

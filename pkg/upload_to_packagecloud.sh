@@ -5,6 +5,11 @@ if [[ $# -ne 3 ]]; then
 	exit 1
 fi
 
+echo "============="
+echo "ls -l ${3}"
+ls -l  ${3}
+echo "============="
+
 package_cloud push ${1}/el/7 ${3}/*.rpm --config=${2} &
 package_cloud push ${1}/el/8 ${3}/*.rpm --config=${2} &
 package_cloud push ${1}/el/6 ${3}/*.rpm --config=${2} &
