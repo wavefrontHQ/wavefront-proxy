@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
@@ -94,7 +95,8 @@ public class OtlpTestHelpers {
   }
 
   public static SpanLogs.Builder wfSpanLogsGenerator(Span span) {
-    long logTimestamp = span.getStartMillis() + (span.getDuration() / 2);
+    long logTimestamp =
+        TimeUnit.MILLISECONDS.toMicros(span.getStartMillis() + (span.getDuration() / 2));
     Map<String, String> logFields = new HashMap<String, String>() {{
       put("name", "eventName");
       put("attrKey", "attrValue");
@@ -114,8 +116,8 @@ public class OtlpTestHelpers {
         .setName("root")
         .setSpanId(ByteString.copyFrom(spanIdBytes))
         .setTraceId(ByteString.copyFrom(traceIdBytes))
-        .setStartTimeUnixNano(startTimeMs * 1000)
-        .setEndTimeUnixNano((startTimeMs + durationMs) * 1000);
+        .setStartTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(startTimeMs))
+        .setEndTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(startTimeMs + durationMs));
   }
 
   public static io.opentelemetry.proto.trace.v1.Span otlpSpanWithKind(
@@ -136,7 +138,7 @@ public class OtlpTestHelpers {
   }
 
   public static io.opentelemetry.proto.trace.v1.Span.Event otlpSpanEvent() {
-    long eventTimestamp = (startTimeMs + (durationMs / 2)) * 1_000;
+    long eventTimestamp = TimeUnit.MILLISECONDS.toNanos(startTimeMs + (durationMs / 2));
     KeyValue attr = otlpAttribute("attrKey", "attrValue");
     return io.opentelemetry.proto.trace.v1.Span.Event.newBuilder()
         .setName("eventName")

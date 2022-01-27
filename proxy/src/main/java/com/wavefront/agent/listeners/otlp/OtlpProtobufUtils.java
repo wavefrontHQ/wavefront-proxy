@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -195,9 +196,9 @@ public class OtlpProtobufUtils {
 
     String wfSpanId = SpanUtils.toStringId(otlpSpan.getSpanId());
     String wfTraceId = SpanUtils.toStringId(otlpSpan.getTraceId());
-    long startTimeMs = otlpSpan.getStartTimeUnixNano() / 1000;
+    long startTimeMs = TimeUnit.NANOSECONDS.toMillis(otlpSpan.getStartTimeUnixNano());
     long durationMs = otlpSpan.getEndTimeUnixNano() == 0 ? 0 :
-        (otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano()) / 1000;
+        TimeUnit.NANOSECONDS.toMillis(otlpSpan.getEndTimeUnixNano() - otlpSpan.getStartTimeUnixNano());
 
     wavefront.report.Span toReturn = wavefront.report.Span.newBuilder()
         .setName(otlpSpan.getName())
@@ -228,7 +229,7 @@ public class OtlpProtobufUtils {
 
     for (io.opentelemetry.proto.trace.v1.Span.Event event : otlpSpan.getEventsList()) {
       SpanLog log = new SpanLog();
-      log.setTimestamp(event.getTimeUnixNano() / 1000);
+      log.setTimestamp(TimeUnit.NANOSECONDS.toMicros(event.getTimeUnixNano()));
       Map<String, String> fields = mapFromAttributes(event.getAttributesList());
       fields.put(SPAN_EVENT_TAG_KEY, event.getName());
       log.setFields(fields);
