@@ -34,7 +34,6 @@
     <jackson.version>2.12.3</jackson.version>
     <jackson-databind.version>2.12.3</jackson-databind.version>
     <netty.version>4.1.70.Final</netty.version>
-    <java-lib.version>2020-12.1</java-lib.version>
 
     <doclint>none</doclint>
   </properties>
@@ -469,7 +468,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>java-lib</artifactId>
-      <version>2020-12.1</version>
+      <version>2021-12.1</version>
     </dependency>
     <dependency>
       <groupId>org.jboss.resteasy</groupId>

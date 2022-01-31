@@ -13,30 +13,29 @@ DOCKER_TAG = $(USER)/$(REPO):${FULLVERSION}
 out = $(shell pwd)/out
 $(shell mkdir -p $(out))
 
-info:
+.info:
 	@echo "\n----------\nBuilding Proxy ${FULLVERSION}\nDocker tag: ${DOCKER_TAG}\n----------\n"
 
-jenkins: info build-jar build-linux push-linux docker-multi-arch clean
+jenkins: .info build-jar build-linux push-linux docker-multi-arch clean
 
 #####
 # Build Proxy jar file
 #####
-# !!! REMOVE `-DskipTests`
-build-jar: info
-	mvn -f proxy --batch-mode package -DskipTests 
+build-jar: .info
+	mvn -f proxy --batch-mode package 
 	cp proxy/target/proxy-${VERSION}-uber.jar ${out}
 
 #####
 # Build single docker image
 #####
-docker: info .cp-docker
+docker: .info .cp-docker
 	docker build -t $(DOCKER_TAG) docker/
 
 
 #####
 # Build multi arch (amd64 & arm64) docker images
 #####
-docker-multi-arch: info .cp-docker
+docker-multi-arch: .info .cp-docker
 	docker buildx create --use
 	docker buildx build --platform linux/amd64,linux/arm64 -t $(DOCKER_TAG) --push docker/
 
@@ -44,16 +43,16 @@ docker-multi-arch: info .cp-docker
 #####
 # Build rep & deb packages
 #####
-build-linux: info prepare-builder .cp-linux
+build-linux: .info .prepare-builder .cp-linux
 	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/build.sh ${VERSION} ${REVISION}
 	
 #####
 # Push rep & deb packages
 #####
-push-linux: info prepare-builder
+push-linux: .info .prepare-builder
 	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/upload_to_packagecloud.sh ${PACKAGECLOUD_USER}/${PACKAGECLOUD_REPO} /proxy/pkg/package_cloud.conf /proxy/out
 
-prepare-builder:
+.prepare-builder:
 	docker build -t proxy-linux-builder pkg/
 
 .cp-docker:
