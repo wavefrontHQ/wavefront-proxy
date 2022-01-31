@@ -459,7 +459,7 @@ public class PushAgent extends AbstractAgent {
   protected SslContext getSslContext(String port) {
     return (secureAllPorts || tlsPorts.contains(port)) ? sslContext : null;
   }
-  
+
   @Nullable
   protected CorsConfig getCorsConfig(String port) {
     List<String> ports = proxyConfig.getCorsEnabledPorts();
@@ -1316,5 +1316,10 @@ public class PushAgent extends AbstractAgent {
     }
     handlerFactory.shutdown(String.valueOf(port));
     senderTaskFactory.shutdown(String.valueOf(port));
+  }
+
+  @Override
+  protected void truncateBacklog() {
+    senderTaskFactory.truncateBuffers();
   }
 }

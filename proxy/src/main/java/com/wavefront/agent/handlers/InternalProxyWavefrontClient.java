@@ -136,7 +136,6 @@ public class InternalProxyWavefrontClient implements WavefrontSender {
     return clientId;
   }
 
-
   @Override
   public void sendEvent(String name, long startMillis, long endMillis, String source, Map<String, String> tags, Map<String, String> annotations) throws IOException {
     throw new UnsupportedOperationException("Not applicable");

@@ -81,6 +81,7 @@ public abstract class AbstractAgent {
   protected final EntityPropertiesFactory entityProps =
       new EntityPropertiesFactoryImpl(proxyConfig);
   protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);
+  protected final AtomicBoolean truncate = new AtomicBoolean(false);
   protected ProxyCheckInScheduler proxyCheckinScheduler;
   protected UUID agentId;
   protected SslContext sslContext;
@@ -295,7 +296,7 @@ public abstract class AbstractAgent {
 
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       proxyCheckinScheduler = new ProxyCheckInScheduler(agentId, proxyConfig, apiContainer,
-          this::processConfiguration, () -> System.exit(1));
+          this::processConfiguration, () -> System.exit(1), this::truncateBacklog);
       proxyCheckinScheduler.scheduleCheckins();
 
       // Start the listening endpoints
@@ -405,4 +406,7 @@ public abstract class AbstractAgent {
    * @param port port number.
    */
   protected abstract void stopListener(int port);
+
+  protected abstract void truncateBacklog();
 }
+

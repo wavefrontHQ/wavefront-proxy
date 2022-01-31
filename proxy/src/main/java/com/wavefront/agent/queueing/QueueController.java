@@ -11,6 +11,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Timer;
@@ -195,5 +196,17 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
       timer.cancel();
       processorTasks.forEach(QueueProcessor::stop);
     }
+  }
+
+  public void truncateBuffers() {
+    processorTasks.forEach(tQueueProcessor -> {
+      System.out.print("-- size: "+tQueueProcessor.getTaskQueue().size());
+      try {
+        tQueueProcessor.getTaskQueue().clear();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+      System.out.println("--> size: "+tQueueProcessor.getTaskQueue().size());
+    });
   }
 }
