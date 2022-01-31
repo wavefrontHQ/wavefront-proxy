@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>wavefront</artifactId>
-  <version>11.0-RC3-SNAPSHOT</version>
+  <version>10.12</version>
   <modules>
     <module>proxy</module>
   </modules>
@@ -31,7 +31,7 @@
     <connection>scm:git:git@github.com:wavefronthq/java.git</connection>
     <developerConnection>scm:git:git@github.com:wavefronthq/java.git</developerConnection>
     <url>git@github.com:wavefronthq/java.git</url>
-    <tag>release-10.x</tag>
+    <tag>wavefront-10.12</tag>
   </scm>
 
   <distributionManagement>
@@ -55,11 +55,11 @@
 
     <java.version>1.8</java.version>
     <javadoc.sdk.version>8</javadoc.sdk.version>
-    <log4j.version>2.17.1</log4j.version>
+    <log4j.version>2.16.0</log4j.version>
     <jackson.version>2.12.3</jackson.version>
     <jackson-databind.version>2.12.3</jackson-databind.version>
     <netty.version>4.1.71.Final</netty.version>
-    <java-lib.version>2021-12.1</java-lib.version>
+    <java-lib.version>2020-12.1</java-lib.version>
 
     <doclint>none</doclint>
   </properties>
