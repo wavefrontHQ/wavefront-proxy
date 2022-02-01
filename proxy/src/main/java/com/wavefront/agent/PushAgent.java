@@ -792,9 +792,8 @@ public class PushAgent extends AbstractAgent {
       try {
         io.grpc.Server server = NettyServerBuilder.forPort(port).addService(
             new OtlpGrpcTraceHandler(strPort, handlerFactory, wfSender, preprocessors.get(strPort),
-                sampler, proxyConfig.getHostname())
-        )
-            .build();
+                sampler, proxyConfig.getHostname(), proxyConfig.getTraceDerivedCustomTagKeys())
+        ).build();
         server.start();
       } catch (Exception e) {
         logger.log(Level.SEVERE, "OTLP gRPC collector exception", e);
@@ -818,7 +817,8 @@ public class PushAgent extends AbstractAgent {
 
     ChannelHandler channelHandler = new OtlpHttpHandler(
         handlerFactory, tokenAuthenticator, healthCheckManager, strPort, wfSender,
-        preprocessors.get(strPort), sampler, proxyConfig.getHostname()
+        preprocessors.get(strPort), sampler, proxyConfig.getHostname(),
+        proxyConfig.getTraceDerivedCustomTagKeys()
     );
 
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,

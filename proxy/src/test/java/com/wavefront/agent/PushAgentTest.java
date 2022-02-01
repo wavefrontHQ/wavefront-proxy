@@ -1470,14 +1470,15 @@ public class PushAgentTest {
   public void testOtlpHttpPortHandler() throws Exception {
     port = findAvailablePort(4318);
     proxy.proxyConfig.hostname = "defaultLocalHost";
-    proxy.startOtlpHttpListener(String.valueOf(port), mockHandlerFactory, null, null);
+    proxy.startOtlpHttpListener(String.valueOf(port), mockHandlerFactory, mockWavefrontSender, null);
     waitUntilListenerIsOnline(port);
 
-    reset(mockTraceHandler, mockTraceSpanLogsHandler);
-    Capture<wavefront.report.Span> actualSpan = Capture.newInstance();
-    Capture<wavefront.report.SpanLogs> actualLogs = Capture.newInstance();
+    reset(mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender);
+    Capture<wavefront.report.Span> actualSpan = EasyMock.newCapture();
+    Capture<wavefront.report.SpanLogs> actualLogs = EasyMock.newCapture();
     mockTraceHandler.report(capture(actualSpan));
     mockTraceSpanLogsHandler.report(capture(actualLogs));
+
     replay(mockTraceHandler, mockTraceSpanLogsHandler);
 
     io.opentelemetry.proto.trace.v1.Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent();

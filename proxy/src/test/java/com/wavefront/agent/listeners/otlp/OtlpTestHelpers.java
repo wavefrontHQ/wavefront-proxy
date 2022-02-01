@@ -6,7 +6,7 @@ import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
 import com.wavefront.agent.preprocessor.SpanBlockFilter;
-import com.wavefront.common.Pair;
+import com.wavefront.sdk.common.Pair;
 
 import org.apache.commons.compress.utils.Lists;
 import org.hamcrest.FeatureMatcher;
