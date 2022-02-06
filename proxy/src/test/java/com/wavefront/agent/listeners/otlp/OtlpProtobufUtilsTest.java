@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.ArrayValue;
+import io.opentelemetry.proto.common.v1.InstrumentationLibrary;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
@@ -256,7 +257,7 @@ public class OtlpProtobufUtilsTest {
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
     wavefront.report.Span expectedSpan = OtlpTestHelpers.wfSpanGenerator(null).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertWFSpanEquals(expectedSpan, actualSpan);
   }
@@ -267,7 +268,7 @@ public class OtlpProtobufUtilsTest {
     wavefront.report.Span expectedSpan =
         OtlpTestHelpers.wfSpanGenerator(null).setDuration(0).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertWFSpanEquals(expectedSpan, actualSpan);
   }
@@ -286,7 +287,7 @@ public class OtlpProtobufUtilsTest {
     );
     wavefront.report.Span expectedSpan = OtlpTestHelpers.wfSpanGenerator(wfAttrs).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertWFSpanEquals(expectedSpan, actualSpan);
   }
@@ -299,7 +300,7 @@ public class OtlpProtobufUtilsTest {
     ).build();
 
     actualSpan = OtlpProtobufUtils.transformSpan(
-        OtlpTestHelpers.otlpSpanGenerator().build(), resourceAttrs, null, "test-source"
+        OtlpTestHelpers.otlpSpanGenerator().build(), resourceAttrs, null, null, "test-source"
     );
 
     assertWFSpanEquals(expectedSpan, actualSpan);
@@ -312,10 +313,24 @@ public class OtlpProtobufUtilsTest {
         .addAttributes(otlpAttribute(key, "span-value")).build();
     List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute(key, "rsrc-value"));
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, resourceAttrs, null, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, resourceAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), not(hasItem(new Annotation(key, "rsrc-value"))));
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation(key, "span-value")));
+  }
+
+  @Test
+  public void transformSpanHandlesInstrumentationLibrary() {
+    InstrumentationLibrary library = InstrumentationLibrary.newBuilder()
+        .setName("grpc").setVersion("1.0").build();
+
+    Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
+
+
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, library, null, "test-source");
+
+    assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("otel.library.name", "grpc")));
+    assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("otel.library.version", "1.0")));
   }
 
   @Test
@@ -327,7 +342,7 @@ public class OtlpProtobufUtilsTest {
     ReportableEntityPreprocessor preprocessor = OtlpTestHelpers.addTagIfNotExistsPreprocessor(wfAttrs);
     wavefront.report.Span expectedSpan = OtlpTestHelpers.wfSpanGenerator(wfAttrs).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, preprocessor, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, preprocessor, "test-source");
 
     assertWFSpanEquals(expectedSpan, actualSpan);
   }
@@ -341,7 +356,7 @@ public class OtlpProtobufUtilsTest {
     ReportableEntityPreprocessor preprocessor = OtlpTestHelpers.addTagIfNotExistsPreprocessor(wfAttrs);
     wavefront.report.Span expectedSpan = OtlpTestHelpers.wfSpanGenerator(wfAttrs).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, preprocessor, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, preprocessor, "test-source");
 
     assertWFSpanEquals(expectedSpan, actualSpan);
   }
@@ -350,38 +365,38 @@ public class OtlpProtobufUtilsTest {
   public void transformSpanTranslatesSpanKindToAnnotation() {
     wavefront.report.Span clientSpan = OtlpProtobufUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_CLIENT),
-        emptyAttrs, null, "test-source");
+        emptyAttrs, null, null, "test-source");
     assertThat(clientSpan.getAnnotations(), hasItem(new Annotation("span.kind", "client")));
 
     wavefront.report.Span consumerSpan = OtlpProtobufUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_CONSUMER),
-        emptyAttrs, null, "test-source");
+        emptyAttrs, null, null, "test-source");
     assertThat(consumerSpan.getAnnotations(), hasItem(new Annotation("span.kind", "consumer")));
 
     wavefront.report.Span internalSpan = OtlpProtobufUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_INTERNAL),
-        emptyAttrs, null, "test-source");
+        emptyAttrs, null, null, "test-source");
     assertThat(internalSpan.getAnnotations(), hasItem(new Annotation("span.kind", "internal")));
 
     wavefront.report.Span producerSpan = OtlpProtobufUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_PRODUCER),
-        emptyAttrs, null, "test-source");
+        emptyAttrs, null, null, "test-source");
     assertThat(producerSpan.getAnnotations(), hasItem(new Annotation("span.kind", "producer")));
 
     wavefront.report.Span serverSpan = OtlpProtobufUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_SERVER),
-        emptyAttrs, null, "test-source");
+        emptyAttrs, null, null, "test-source");
     assertThat(serverSpan.getAnnotations(), hasItem(new Annotation("span.kind", "server")));
 
     wavefront.report.Span unspecifiedSpan = OtlpProtobufUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_UNSPECIFIED),
-        emptyAttrs, null, "test-source");
+        emptyAttrs, null, null, "test-source");
     assertThat(unspecifiedSpan.getAnnotations(),
         hasItem(new Annotation("span.kind", "unspecified")));
 
     wavefront.report.Span noKindSpan = OtlpProtobufUtils.transformSpan(
         OtlpTestHelpers.otlpSpanGenerator().build(),
-        emptyAttrs, null, "test-source");
+        emptyAttrs, null, null, "test-source");
     assertThat(noKindSpan.getAnnotations(),
         hasItem(new Annotation("span.kind", "unspecified")));
   }
@@ -391,7 +406,7 @@ public class OtlpProtobufUtilsTest {
     // Error Status without Message
     Span errorSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_ERROR, "");
 
-    actualSpan = OtlpProtobufUtils.transformSpan(errorSpan, emptyAttrs, null, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(errorSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL)));
     assertThat(actualSpan.getAnnotations(), not(hasKey(OTEL_STATUS_DESCRIPTION_KEY)));
@@ -400,7 +415,7 @@ public class OtlpProtobufUtilsTest {
     Span errorSpanWithMessage = OtlpTestHelpers.otlpSpanWithStatus(
         Status.StatusCode.STATUS_CODE_ERROR, "a description");
 
-    actualSpan = OtlpProtobufUtils.transformSpan(errorSpanWithMessage, emptyAttrs, null, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(errorSpanWithMessage, emptyAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL)));
     assertThat(actualSpan.getAnnotations(),
@@ -412,7 +427,7 @@ public class OtlpProtobufUtilsTest {
     // Ok Status
     Span okSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_OK, "");
 
-    actualSpan = OtlpProtobufUtils.transformSpan(okSpan, emptyAttrs, null, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(okSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), not(hasKey(ERROR_TAG_KEY)));
     assertThat(actualSpan.getAnnotations(), not(hasKey(OTEL_STATUS_DESCRIPTION_KEY)));
@@ -420,7 +435,7 @@ public class OtlpProtobufUtilsTest {
     // Unset Status
     Span unsetSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_UNSET, "");
 
-    actualSpan = OtlpProtobufUtils.transformSpan(unsetSpan, emptyAttrs, null, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(unsetSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), not(hasKey(ERROR_TAG_KEY)));
     assertThat(actualSpan.getAnnotations(), not(hasKey(OTEL_STATUS_DESCRIPTION_KEY)));
@@ -433,7 +448,7 @@ public class OtlpProtobufUtilsTest {
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator()
         .addAttributes(otlpAttribute("source", "span-level")).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, resourceAttrs, null, "ignored");
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, resourceAttrs, null, null, "ignored");
 
     assertEquals("a-src", actualSpan.getSource());
     assertThat(actualSpan.getAnnotations(), not(hasItem(new Annotation("source", "a-src"))));
@@ -445,7 +460,7 @@ public class OtlpProtobufUtilsTest {
   public void transformSpanUsesDefaultSourceWhenNoAttributesMatch() {
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, "defaultSource");
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "defaultSource");
 
     assertEquals("defaultSource", actualSpan.getSource());
   }
@@ -467,7 +482,7 @@ public class OtlpProtobufUtilsTest {
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
 
     Pair<wavefront.report.Span, SpanLogs> actual =
-        transformAll(otlpSpan, emptyAttrs, null, "test-source");
+        transformAll(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actual._1.getAnnotations(), hasKey("_spanLogs"));
     assertThat(actual._2.getLogs(), not(empty()));
@@ -479,7 +494,7 @@ public class OtlpProtobufUtilsTest {
     assertThat(otlpSpan.getEventsList(), empty());
 
     Pair<wavefront.report.Span, SpanLogs> actual =
-        transformAll(otlpSpan, emptyAttrs, null, "test-source");
+        transformAll(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actual._1.getAnnotations(), not(hasKey("_spanLogs")));
     assertThat(actual._2.getLogs(), empty());
@@ -640,5 +655,32 @@ public class OtlpProtobufUtilsTest {
     assertFalse(isError.getValue());
     assertEquals(NULL_TAG_VAL, componentTag.getValue());
     PowerMock.verify(SpanDerivedMetricsUtils.class);
+  }
+
+  @Test
+  public void annotationsFromInstrumentationLibraryWithNullOrEmptyLibrary() {
+    assertEquals(Collections.emptyList(),
+        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(null));
+
+    InstrumentationLibrary emptyLibrary = InstrumentationLibrary.newBuilder().build();
+    assertEquals(Collections.emptyList(),
+        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(emptyLibrary));
+  }
+
+  @Test
+  public void annotationsFromInstrumentationLibraryWithLibraryData() {
+    InstrumentationLibrary library =
+        InstrumentationLibrary.newBuilder().setName("net/http").build();
+
+    assertEquals(Collections.singletonList(new Annotation("otel.library.name", "net/http")),
+        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(library));
+
+    library = library.toBuilder().setVersion("1.0.0").build();
+
+    assertEquals(
+        Arrays.asList(new Annotation("otel.library.name", "net/http"),
+            new Annotation("otel.library.version", "1.0.0")),
+        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(library)
+    );
   }
 }

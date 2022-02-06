@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.InstrumentationLibrary;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.resource.v1.Resource;
 import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
@@ -125,14 +126,14 @@ public class OtlpProtobufUtils {
       OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Resource: " + resource);
 
       for (InstrumentationLibrarySpans ilSpans : rSpans.getInstrumentationLibrarySpansList()) {
-        OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Instrumentation Library: " +
-            ilSpans.getInstrumentationLibrary());
+        InstrumentationLibrary iLibrary = ilSpans.getInstrumentationLibrary();
+        OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Instrumentation Library: " + iLibrary);
 
         for (io.opentelemetry.proto.trace.v1.Span otlpSpan : ilSpans.getSpansList()) {
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Span: " + otlpSpan);
 
-          Pair<Span, SpanLogs> pair =
-              transformAll(otlpSpan, resource.getAttributesList(), preprocessor, defaultSource);
+          Pair<Span, SpanLogs> pair = transformAll(otlpSpan, resource.getAttributesList(),
+              iLibrary, preprocessor, defaultSource);
           OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront Span: " + pair._1);
           if (!pair._2.getLogs().isEmpty()) {
             OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront SpanLogs: " + pair._2);
@@ -168,10 +169,11 @@ public class OtlpProtobufUtils {
 
   @VisibleForTesting
   static Pair<Span, SpanLogs> transformAll(io.opentelemetry.proto.trace.v1.Span otlpSpan,
-                                                  List<KeyValue> resourceAttributes,
-                                                  @Nullable ReportableEntityPreprocessor preprocessor,
-                                                  String defaultSource) {
-    Span span = transformSpan(otlpSpan, resourceAttributes, preprocessor, defaultSource);
+                                           List<KeyValue> resourceAttributes,
+                                           InstrumentationLibrary iLibrary,
+                                           @Nullable ReportableEntityPreprocessor preprocessor,
+                                           String defaultSource) {
+    Span span = transformSpan(otlpSpan, resourceAttributes, iLibrary, preprocessor, defaultSource);
     SpanLogs logs = transformEvents(otlpSpan, span);
     if (!logs.getLogs().isEmpty()) {
       span.getAnnotations().add(new Annotation(SPAN_LOG_KEY, "true"));
@@ -182,9 +184,10 @@ public class OtlpProtobufUtils {
 
   @VisibleForTesting
   static Span transformSpan(io.opentelemetry.proto.trace.v1.Span otlpSpan,
-                                   List<KeyValue> resourceAttrs,
-                                   ReportableEntityPreprocessor preprocessor,
-                                   String defaultSource) {
+                            List<KeyValue> resourceAttrs,
+                            InstrumentationLibrary iLibrary,
+                            ReportableEntityPreprocessor preprocessor,
+                            String defaultSource) {
     Pair<String, List<KeyValue>> sourceAndResourceAttrs =
         sourceFromAttributes(resourceAttrs, defaultSource);
     String source = sourceAndResourceAttrs._1;
@@ -199,6 +202,7 @@ public class OtlpProtobufUtils {
 
     wfAnnotations.add(SPAN_KIND_ANNOTATION_HASH_MAP.get(otlpSpan.getKind()));
     wfAnnotations.addAll(annotationsFromStatus(otlpSpan.getStatus()));
+    wfAnnotations.addAll(annotationsFromInstrumentationLibrary(iLibrary));
 
     if (!otlpSpan.getParentSpanId().equals(ByteString.EMPTY)) {
       wfAnnotations.add(
@@ -293,6 +297,21 @@ public class OtlpProtobufUtils {
         annotationBuilder.setValue(fromAnyValue(attribute.getValue()));
       }
       annotations.add(annotationBuilder.build());
+    }
+
+    return annotations;
+  }
+
+  @VisibleForTesting
+  static List<Annotation> annotationsFromInstrumentationLibrary(InstrumentationLibrary iLibrary) {
+    if (iLibrary == null || iLibrary.getName().isEmpty()) return Collections.emptyList();
+
+    List<Annotation> annotations = new ArrayList<>();
+
+    // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md
+    annotations.add(new Annotation("otel.library.name", iLibrary.getName()));
+    if (!iLibrary.getVersion().isEmpty()) {
+      annotations.add(new Annotation("otel.library.version", iLibrary.getVersion()));
     }
 
     return annotations;
