@@ -125,6 +125,19 @@ public abstract class Utils {
   }
 
   /**
+   * Attempts to retrieve build.package from system build properties.
+   *
+   * @return package as string
+   */
+  public static String getPackage() {
+    try {
+      return buildProps.getString("build.package");
+    } catch (MissingResourceException ex) {
+      return "unknown";
+    }
+  }
+
+  /**
    * Returns current java runtime version information (name/vendor/version) as a string.
    *
    * @return java runtime version as string

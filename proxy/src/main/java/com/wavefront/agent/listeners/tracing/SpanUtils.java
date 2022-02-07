@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.ingester.ReportableEntityDecoder;
-import com.wavefront.java_sdk.com.google.common.annotations.VisibleForTesting;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;

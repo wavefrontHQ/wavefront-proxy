@@ -52,9 +52,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.wavefront.agent.ProxyUtil.getOrCreateProxyId;
-import static com.wavefront.common.Utils.csvToList;
-import static com.wavefront.common.Utils.getBuildVersion;
-import static com.wavefront.common.Utils.getJavaVersion;
+import static com.wavefront.common.Utils.*;
 import static java.util.Collections.EMPTY_LIST;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
@@ -188,8 +186,9 @@ public abstract class AbstractAgent {
     // connection. the alternative is to always validate connections before reuse, but since
     // it happens fairly infrequently, and connection re-validation performance penalty is
     // incurred every time, suppressing that message seems to be a more reasonable approach.
-    org.apache.log4j.Logger.getLogger("org.apache.http.impl.execchain.RetryExec").
-        setLevel(org.apache.log4j.Level.WARN);
+    // org.apache.log4j.Logger.getLogger("org.apache.http.impl.execchain.RetryExec").
+    //     setLevel(org.apache.log4j.Level.WARN);
+    // Logger.getLogger("org.apache.http.impl.execchain.RetryExec").setLevel(Level.WARNING);
 
     if (StringUtils.isBlank(proxyConfig.getHostname().trim())) {
       throw new IllegalArgumentException("hostname cannot be blank! Please correct your configuration settings.");
@@ -211,6 +210,7 @@ public abstract class AbstractAgent {
   void parseArguments(String[] args) {
     // read build information and print version.
     String versionStr = "Wavefront Proxy version " + getBuildVersion() +
+            " (pkg:" + getPackage() + ")" +
         ", runtime: " + getJavaVersion();
     try {
       if (!proxyConfig.parseArguments(args, this.getClass().getCanonicalName())) {
