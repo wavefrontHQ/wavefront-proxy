@@ -635,9 +635,10 @@ public class OtlpProtobufUtilsTest {
 
     assertThat(wfMinimalSpan.getAnnotations(), not(hasKey(ERROR_TAG_KEY)));
     assertThat(wfMinimalSpan.getAnnotations(), not(hasKey(COMPONENT_TAG_KEY)));
-    OtlpProtobufUtils.reportREDMetrics(wfMinimalSpan, anyObject(), anyObject());
+    OtlpProtobufUtils.reportREDMetrics(wfMinimalSpan, null, null);
 
     assertFalse(isError.getValue());
     assertEquals(NULL_TAG_VAL, componentTag.getValue());
+    PowerMock.verify(SpanDerivedMetricsUtils.class);
   }
 }
