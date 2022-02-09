@@ -55,7 +55,7 @@ public class OtlpGrpcTraceHandlerTest {
 
     EasyMock.replay(mockSpanHandler, mockSpanLogsHandler, mockSender);
 
-    Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent();
+    Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent(0);
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
     ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
 
@@ -71,7 +71,7 @@ public class OtlpGrpcTraceHandlerTest {
     wavefront.report.Span expectedSpan =
         OtlpTestHelpers.wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true"))).build();
     wavefront.report.SpanLogs expectedLogs =
-        OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan).build();
+        OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0).build();
 
     OtlpTestHelpers.assertWFSpanEquals(expectedSpan, actualSpan.getValue());
     assertEquals(expectedLogs, actualLogs.getValue());

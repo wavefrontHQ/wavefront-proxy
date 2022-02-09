@@ -63,6 +63,9 @@ import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SE
  */
 public class OtlpProtobufUtils {
   // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#span-status
+  public static final String OTEL_DROPPED_ATTRS_KEY = "otel.dropped_attributes_count";
+  public static final String OTEL_DROPPED_EVENTS_KEY = "otel.dropped_events_count";
+  public static final String OTEL_DROPPED_LINKS_KEY = "otel.dropped_links_count";
   public final static String OTEL_STATUS_DESCRIPTION_KEY = "otel.status_description";
   private final static String DEFAULT_APPLICATION_NAME = "defaultApplication";
   private final static String DEFAULT_SERVICE_NAME = "defaultService";
@@ -203,6 +206,7 @@ public class OtlpProtobufUtils {
     wfAnnotations.add(SPAN_KIND_ANNOTATION_HASH_MAP.get(otlpSpan.getKind()));
     wfAnnotations.addAll(annotationsFromStatus(otlpSpan.getStatus()));
     wfAnnotations.addAll(annotationsFromInstrumentationLibrary(iLibrary));
+    wfAnnotations.addAll(annotationsFromDroppedCounts(otlpSpan));
 
     if (!otlpSpan.getParentSpanId().equals(ByteString.EMPTY)) {
       wfAnnotations.add(
@@ -248,6 +252,9 @@ public class OtlpProtobufUtils {
       log.setTimestamp(TimeUnit.NANOSECONDS.toMicros(event.getTimeUnixNano()));
       Map<String, String> fields = mapFromAttributes(event.getAttributesList());
       fields.put(SPAN_EVENT_TAG_KEY, event.getName());
+      if (event.getDroppedAttributesCount() != 0) {
+        fields.put(OTEL_DROPPED_ATTRS_KEY, String.valueOf(event.getDroppedAttributesCount()));
+      }
       log.setFields(fields);
       logs.add(log);
     }
@@ -312,6 +319,25 @@ public class OtlpProtobufUtils {
     annotations.add(new Annotation("otel.library.name", iLibrary.getName()));
     if (!iLibrary.getVersion().isEmpty()) {
       annotations.add(new Annotation("otel.library.version", iLibrary.getVersion()));
+    }
+
+    return annotations;
+  }
+
+  @VisibleForTesting
+  static List<Annotation> annotationsFromDroppedCounts(io.opentelemetry.proto.trace.v1.Span otlpSpan) {
+    List<Annotation> annotations = new ArrayList<>();
+    if (otlpSpan.getDroppedAttributesCount() != 0) {
+      annotations.add(new Annotation(OTEL_DROPPED_ATTRS_KEY,
+          String.valueOf(otlpSpan.getDroppedAttributesCount())));
+    }
+    if (otlpSpan.getDroppedEventsCount() != 0) {
+      annotations.add(new Annotation(OTEL_DROPPED_EVENTS_KEY,
+          String.valueOf(otlpSpan.getDroppedEventsCount())));
+    }
+    if (otlpSpan.getDroppedLinksCount() != 0 ) {
+      annotations.add(new Annotation(OTEL_DROPPED_LINKS_KEY,
+          String.valueOf(otlpSpan.getDroppedLinksCount())));
     }
 
     return annotations;

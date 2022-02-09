@@ -94,13 +94,18 @@ public class OtlpTestHelpers {
         .setCustomer("dummy");
   }
 
-  public static SpanLogs.Builder wfSpanLogsGenerator(Span span) {
+  public static SpanLogs.Builder wfSpanLogsGenerator(Span span, int droppedAttrsCount) {
     long logTimestamp =
         TimeUnit.MILLISECONDS.toMicros(span.getStartMillis() + (span.getDuration() / 2));
     Map<String, String> logFields = new HashMap<String, String>() {{
       put("name", "eventName");
       put("attrKey", "attrValue");
     }};
+
+    // otel spec says it's invalid to add the tag if the count is zero
+    if (droppedAttrsCount > 0) {
+      logFields.put("otel.dropped_attributes_count", String.valueOf(droppedAttrsCount));
+    }
     SpanLog spanLog = SpanLog.newBuilder().setFields(logFields).setTimestamp(logTimestamp).build();
 
     return SpanLogs.newBuilder()
@@ -137,14 +142,19 @@ public class OtlpTestHelpers {
     ).build();
   }
 
-  public static io.opentelemetry.proto.trace.v1.Span.Event otlpSpanEvent() {
+  public static io.opentelemetry.proto.trace.v1.Span.Event otlpSpanEvent(int droppedAttrsCount) {
     long eventTimestamp = TimeUnit.MILLISECONDS.toNanos(startTimeMs + (durationMs / 2));
     KeyValue attr = otlpAttribute("attrKey", "attrValue");
-    return io.opentelemetry.proto.trace.v1.Span.Event.newBuilder()
+    io.opentelemetry.proto.trace.v1.Span.Event.Builder builder =
+        io.opentelemetry.proto.trace.v1.Span.Event.newBuilder()
         .setName("eventName")
         .setTimeUnixNano(eventTimestamp)
-        .addAttributes(attr)
-        .build();
+        .addAttributes(attr);
+
+    if (droppedAttrsCount > 0) {
+      builder.setDroppedAttributesCount(droppedAttrsCount);
+    }
+    return builder.build();
   }
 
   public static Pair<ByteString, String> parentSpanIdPair() {

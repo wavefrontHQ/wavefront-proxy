@@ -63,6 +63,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -323,14 +324,22 @@ public class OtlpProtobufUtilsTest {
   public void transformSpanHandlesInstrumentationLibrary() {
     InstrumentationLibrary library = InstrumentationLibrary.newBuilder()
         .setName("grpc").setVersion("1.0").build();
-
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
-
 
     actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, library, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("otel.library.name", "grpc")));
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("otel.library.version", "1.0")));
+  }
+
+  @Test
+  public void transformSpanAddsDroppedCountTags() {
+    Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().setDroppedEventsCount(1).build();
+
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
+
+    assertThat(actualSpan.getAnnotations(),
+        hasItem(new Annotation("otel.dropped_events_count", "1")));
   }
 
   @Test
@@ -467,9 +476,12 @@ public class OtlpProtobufUtilsTest {
 
   @Test
   public void transformEventsConvertsToWFSpanLogs() {
-    Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent();
+    int droppedAttrsCount = 1;
+    Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent(droppedAttrsCount);
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
-    wavefront.report.SpanLogs expected = OtlpTestHelpers.wfSpanLogsGenerator(wfMinimalSpan).build();
+
+    wavefront.report.SpanLogs expected =
+        OtlpTestHelpers.wfSpanLogsGenerator(wfMinimalSpan, droppedAttrsCount).build();
 
     SpanLogs actual = OtlpProtobufUtils.transformEvents(otlpSpan, wfMinimalSpan);
 
@@ -478,7 +490,7 @@ public class OtlpProtobufUtilsTest {
 
   @Test
   public void transformAllSetsAttributeWhenOtlpEventsExists() {
-    Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent();
+    Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent(0);
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
 
     Pair<wavefront.report.Span, SpanLogs> actual =
@@ -682,5 +694,31 @@ public class OtlpProtobufUtilsTest {
             new Annotation("otel.library.version", "1.0.0")),
         OtlpProtobufUtils.annotationsFromInstrumentationLibrary(library)
     );
+  }
+
+  @Test
+  public void annotationsFromDroppedCountsWithZeroValues() {
+    Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
+
+    assertEquals(0, otlpSpan.getDroppedAttributesCount());
+    assertEquals(0, otlpSpan.getDroppedEventsCount());
+    assertEquals(0, otlpSpan.getDroppedLinksCount());
+
+    assertThat(OtlpProtobufUtils.annotationsFromDroppedCounts(otlpSpan), empty());
+  }
+
+  @Test
+  public void annotationsFromDroppedCountsWithNonZeroValues() {
+    Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator()
+        .setDroppedAttributesCount(1)
+        .setDroppedEventsCount(2)
+        .setDroppedLinksCount(3)
+        .build();
+
+    List<Annotation> actual = OtlpProtobufUtils.annotationsFromDroppedCounts(otlpSpan);
+    assertThat(actual, hasSize(3));
+    assertThat(actual, hasItem(new Annotation("otel.dropped_attributes_count", "1")));
+    assertThat(actual, hasItem(new Annotation("otel.dropped_events_count", "2")));
+    assertThat(actual, hasItem(new Annotation("otel.dropped_links_count", "3")));
   }
 }

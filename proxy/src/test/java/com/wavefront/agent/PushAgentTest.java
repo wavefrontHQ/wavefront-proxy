@@ -1481,7 +1481,7 @@ public class PushAgentTest {
 
     replay(mockTraceHandler, mockTraceSpanLogsHandler);
 
-    io.opentelemetry.proto.trace.v1.Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent();
+    io.opentelemetry.proto.trace.v1.Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent(0);
     io.opentelemetry.proto.trace.v1.Span otlpSpan =
         OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
     ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
@@ -1494,7 +1494,7 @@ public class PushAgentTest {
         .wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true")))
         .setSource("defaultLocalHost")
         .build();
-    SpanLogs expectedLogs = OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan).build();
+    SpanLogs expectedLogs = OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0).build();
 
     OtlpTestHelpers.assertWFSpanEquals(expectedSpan, actualSpan.getValue());
     assertEquals(expectedLogs, actualLogs.getValue());
