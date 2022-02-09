@@ -116,9 +116,8 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
       // fail if tryLock() returns null (lock couldn't be acquired)
       Preconditions.checkNotNull(channel.tryLock());
     } catch (Exception e) {
-      logger.severe("WF-005: Error requesting exclusive access to the buffer " +
-          "lock file " + lockFileName + " - please make sure that no other processes " +
-          "access this file and restart the proxy");
+      logger.severe("WF-005: Error writing to the buffer lock file " + lockFileName +
+          " - please make sure write permissions are correct for this file path and restart the proxy");
       return new TaskQueueStub<>();
     }
     try {
