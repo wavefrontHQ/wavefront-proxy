@@ -1,6 +1,5 @@
 package com.wavefront.agent.queueing;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.squareup.tape2.QueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
@@ -13,8 +12,10 @@ import com.yammer.metrics.core.Gauge;
 
 import javax.annotation.Nonnull;
 import java.io.File;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.nio.channels.OverlappingFileLockException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -110,14 +111,31 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
     try {
       File lockFile = new File(lockFileName);
       if (lockFile.exists()) {
-        Preconditions.checkArgument(true, lockFile.delete());
+        if (!lockFile.delete()) {
+          throw new LogFilePathException();
+        }
       }
       FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
-      // fail if tryLock() returns null (lock couldn't be acquired)
-      Preconditions.checkNotNull(channel.tryLock());
-    } catch (Exception e) {
-      logger.severe("WF-005: Error writing to the buffer lock file " + lockFileName +
-          " - please make sure write permissions are correct for this file path and restart the proxy");
+      if (channel.tryLock() == null) {
+        throw new OverlappingFileLockException();
+      }
+    } catch (LogFilePathException e){
+      logger.severe("Error finding buffer lock file " + lockFileName +
+          " - please make sure file path is correct and restart the proxy");
+      return new TaskQueueStub<>();
+    } catch (SecurityException e) {
+      logger.severe("Error writing to the buffer lock file " + lockFileName +
+          " - please make sure write permissions are correct for this file path and restart the " +
+          "proxy");
+      return new TaskQueueStub<>();
+    } catch (OverlappingFileLockException e) {
+      logger.severe("Error requesting exclusive access to the buffer " +
+          "lock file " + lockFileName + " - please make sure that no other processes " +
+          "access this file and restart the proxy");
+      return new TaskQueueStub<>();
+    } catch (IOException e) {
+      logger.severe("Error requesting access to buffer lock file " + lockFileName + " Channel is " +
+          "closed or an I/O error has occurred - please restart the proxy");
       return new TaskQueueStub<>();
     }
     try {
@@ -144,6 +162,11 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
       logger.severe("WF-006: Unable to open or create queue file " + spoolFileName + ": " +
           e.getMessage());
       return new TaskQueueStub<>();
+    }
+  }
+
+  public class LogFilePathException extends Exception {
+    LogFilePathException() {
     }
   }
 }
