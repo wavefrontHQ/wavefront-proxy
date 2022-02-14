@@ -8,9 +8,11 @@ import com.google.protobuf.ByteString;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.internal.SpanDerivedMetricsUtils;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
+import com.yammer.metrics.core.Counter;
 
 import org.easymock.Capture;
 import org.easymock.EasyMock;
@@ -27,9 +29,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.ArrayValue;
 import io.opentelemetry.proto.common.v1.InstrumentationLibrary;
@@ -74,10 +78,11 @@ import static org.junit.Assert.assertTrue;
  * @author Glenn Oppegard (goppegard@vmware.com).
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(SpanDerivedMetricsUtils.class)
+@PrepareForTest({SpanDerivedMetricsUtils.class, OtlpProtobufUtils.class})
 public class OtlpProtobufUtilsTest {
 
   private final static List<KeyValue> emptyAttrs = Collections.unmodifiableList(new ArrayList<>());
+  private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final ReportableEntityHandler<wavefront.report.Span, String> mockSpanHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private final wavefront.report.Span wfMinimalSpan = OtlpTestHelpers.wfSpanGenerator(null).build();
@@ -94,7 +99,101 @@ public class OtlpProtobufUtilsTest {
   @Before
   public void setup() {
     actualSpan = null;
-    EasyMock.reset(mockSpanHandler);
+    EasyMock.reset(mockSampler, mockSpanHandler);
+  }
+
+  @Test
+  public void exportToWavefrontDoesNotReportIfPreprocessorFilteredSpan() {
+    // Arrange
+    ReportableEntityPreprocessor mockPreprocessor =
+        EasyMock.createMock(ReportableEntityPreprocessor.class);
+    ExportTraceServiceRequest otlpRequest =
+        OtlpTestHelpers.otlpTraceRequest(OtlpTestHelpers.otlpSpanGenerator().build());
+
+    PowerMock.mockStaticPartial(
+        OtlpProtobufUtils.class, "fromOtlpRequest", "wasFilteredByPreprocessor"
+    );
+    EasyMock.expect(
+        OtlpProtobufUtils.fromOtlpRequest(otlpRequest, mockPreprocessor, "test-source")
+    ).andReturn(Arrays.asList(Pair.of(wfMinimalSpan, null)));
+    EasyMock.expect(
+        OtlpProtobufUtils.wasFilteredByPreprocessor(eq(wfMinimalSpan), eq(mockSpanHandler),
+            eq(mockPreprocessor))
+    ).andReturn(true);
+
+    EasyMock.replay(mockPreprocessor, mockSpanHandler);
+    PowerMock.replay(OtlpProtobufUtils.class);
+
+    // Act
+    OtlpProtobufUtils.exportToWavefront(otlpRequest, mockSpanHandler, null, () -> mockPreprocessor,
+        null, "test-source", null, null, null);
+
+    // Assert
+    EasyMock.verify(mockPreprocessor, mockSpanHandler);
+    PowerMock.verify(OtlpProtobufUtils.class);
+  }
+
+  @Test
+  public void exportToWavefrontReportsSpanIfSamplerReturnsTrue() {
+    // Arrange
+    Counter mockCounter = EasyMock.createMock(Counter.class);
+    Capture<wavefront.report.Span> samplerCapture = EasyMock.newCapture();
+    EasyMock.expect(mockSampler.sample(capture(samplerCapture), eq(mockCounter)))
+        .andReturn(true);
+
+    Capture<wavefront.report.Span> handlerCapture = EasyMock.newCapture();
+    mockSpanHandler.report(capture(handlerCapture));
+    EasyMock.expectLastCall();
+
+    PowerMock.mockStaticPartial(OtlpProtobufUtils.class, "reportREDMetrics");
+    Pair<Map<String, String>, String> heartbeat = Pair.of(ImmutableMap.of("foo", "bar"), "src");
+    EasyMock.expect(OtlpProtobufUtils.reportREDMetrics(anyObject(), anyObject(), anyObject()))
+        .andReturn(heartbeat);
+
+    EasyMock.replay(mockCounter, mockSampler, mockSpanHandler);
+    PowerMock.replay(OtlpProtobufUtils.class);
+
+    // Act
+    ExportTraceServiceRequest otlpRequest =
+        OtlpTestHelpers.otlpTraceRequest(OtlpTestHelpers.otlpSpanGenerator().build());
+    Set<Pair<Map<String, String>, String>> discoveredHeartbeats = Sets.newConcurrentHashSet();
+
+    OtlpProtobufUtils.exportToWavefront(otlpRequest, mockSpanHandler, null, null,
+        Pair.of(mockSampler, mockCounter), "test-source", discoveredHeartbeats, null, null);
+
+    // Assert
+    EasyMock.verify(mockCounter, mockSampler, mockSpanHandler);
+    PowerMock.verify(OtlpProtobufUtils.class);
+    assertEquals(samplerCapture.getValue(), handlerCapture.getValue());
+    assertTrue(discoveredHeartbeats.contains(heartbeat));
+  }
+
+  @Test
+  public void exportToWavefrontReportsREDMetricsEvenWhenSpanNotSampled() {
+    // Arrange
+    EasyMock.expect(mockSampler.sample(anyObject(), anyObject()))
+        .andReturn(false);
+
+    PowerMock.mockStaticPartial(OtlpProtobufUtils.class, "reportREDMetrics");
+    Pair<Map<String, String>, String> heartbeat = Pair.of(ImmutableMap.of("foo", "bar"), "src");
+    EasyMock.expect(OtlpProtobufUtils.reportREDMetrics(anyObject(), anyObject(), anyObject()))
+        .andReturn(heartbeat);
+
+    EasyMock.replay(mockSampler, mockSpanHandler);
+    PowerMock.replay(OtlpProtobufUtils.class);
+
+    // Act
+    ExportTraceServiceRequest otlpRequest =
+        OtlpTestHelpers.otlpTraceRequest(OtlpTestHelpers.otlpSpanGenerator().build());
+    Set<Pair<Map<String, String>, String>> discoveredHeartbeats = Sets.newConcurrentHashSet();
+
+    OtlpProtobufUtils.exportToWavefront(otlpRequest, mockSpanHandler, null, null,
+        Pair.of(mockSampler, null), "test-source", discoveredHeartbeats, null, null);
+
+    // Assert
+    EasyMock.verify(mockSampler, mockSpanHandler);
+    PowerMock.verify(OtlpProtobufUtils.class);
+    assertTrue(discoveredHeartbeats.contains(heartbeat));
   }
 
   @Test

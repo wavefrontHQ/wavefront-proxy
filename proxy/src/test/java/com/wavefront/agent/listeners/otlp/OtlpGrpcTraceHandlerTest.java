@@ -2,6 +2,7 @@ package com.wavefront.agent.listeners.otlp;
 
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.sdk.common.WavefrontSender;
 
 import org.easymock.Capture;
@@ -24,7 +25,9 @@ import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static org.easymock.EasyMock.anyLong;
+import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.junit.Assert.assertEquals;
 
@@ -37,12 +40,14 @@ public class OtlpGrpcTraceHandlerTest {
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private final ReportableEntityHandler<wavefront.report.SpanLogs, String> mockSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
+  private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);
 
   @Test
   public void testMinimalSpanAndEventAndHeartbeat() throws Exception {
     // 1. Arrange
-    EasyMock.reset(mockSpanHandler, mockSpanLogsHandler, mockSender);
+    EasyMock.reset(mockSpanHandler, mockSpanLogsHandler, mockSampler, mockSender);
+    expect(mockSampler.sample(anyObject(), anyObject())).andReturn(true);
     Capture<wavefront.report.Span> actualSpan = EasyMock.newCapture();
     Capture<wavefront.report.SpanLogs> actualLogs = EasyMock.newCapture();
     mockSpanHandler.report(EasyMock.capture(actualSpan));
@@ -53,7 +58,7 @@ public class OtlpGrpcTraceHandlerTest {
         EasyMock.capture(heartbeatTagsCapture));
     expectLastCall().times(2);
 
-    EasyMock.replay(mockSpanHandler, mockSpanLogsHandler, mockSender);
+    EasyMock.replay(mockSampler, mockSpanHandler, mockSpanLogsHandler, mockSender);
 
     Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent(0);
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
@@ -61,12 +66,12 @@ public class OtlpGrpcTraceHandlerTest {
 
     // 2. Act
     OtlpGrpcTraceHandler otlpGrpcTraceHandler = new OtlpGrpcTraceHandler("9876", mockSpanHandler,
-        mockSpanLogsHandler, mockSender, null, null, "test-source", null);
+        mockSpanLogsHandler, mockSender, null, mockSampler, "test-source", null);
     otlpGrpcTraceHandler.export(otlpRequest, emptyStreamObserver);
     otlpGrpcTraceHandler.run();
 
     // 3. Assert
-    EasyMock.verify(mockSpanHandler, mockSpanLogsHandler, mockSender);
+    EasyMock.verify(mockSampler, mockSpanHandler, mockSpanLogsHandler, mockSender);
 
     wavefront.report.Span expectedSpan =
         OtlpTestHelpers.wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true"))).build();

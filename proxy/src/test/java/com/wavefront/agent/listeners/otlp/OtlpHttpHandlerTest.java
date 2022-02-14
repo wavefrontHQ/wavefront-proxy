@@ -3,6 +3,7 @@ package com.wavefront.agent.listeners.otlp;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.sdk.common.WavefrontSender;
 
 import org.easymock.Capture;
@@ -48,6 +49,7 @@ public class OtlpHttpHandlerTest {
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private final ReportableEntityHandler<SpanLogs, String> mockSpanLogsHandler =
       MockReportableEntityHandlerFactory.getMockTraceSpanLogsHandler();
+  private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final WavefrontSender mockSender = EasyMock.createMock(WavefrontSender.class);
   private final ReportableEntityHandlerFactory mockHandlerFactory =
       MockReportableEntityHandlerFactory.createMockHandlerFactory(null, null, null,
@@ -56,19 +58,20 @@ public class OtlpHttpHandlerTest {
 
   @Before
   public void setup() {
-    EasyMock.reset(mockTraceHandler, mockSpanLogsHandler, mockSender, mockCtx);
+    EasyMock.reset(mockTraceHandler, mockSpanLogsHandler, mockSampler, mockSender, mockCtx);
   }
 
   @Test
   public void testHeartbeatEmitted() throws Exception {
+    EasyMock.expect(mockSampler.sample(EasyMock.anyObject(), EasyMock.anyObject())).andReturn(true);
     Capture<HashMap<String, String>> heartbeatTagsCapture = EasyMock.newCapture();
     mockSender.sendMetric(eq(HEART_BEAT_METRIC), eq(1.0), anyLong(),
         eq("defaultSource"), EasyMock.capture(heartbeatTagsCapture));
     expectLastCall().times(2);
-    EasyMock.replay(mockSender, mockCtx);
+    EasyMock.replay(mockSampler, mockSender, mockCtx);
 
     OtlpHttpHandler handler = new OtlpHttpHandler(mockHandlerFactory, null, null, "4318",
-        mockSender, null, null, "defaultSource", null);
+        mockSender, null, mockSampler, "defaultSource", null);
     io.opentelemetry.proto.trace.v1.Span otlpSpan =
         OtlpTestHelpers.otlpSpanGenerator().build();
     ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
@@ -80,7 +83,7 @@ public class OtlpHttpHandlerTest {
     handler.handleHttpMessage(mockCtx, request);
     handler.run();
 
-    EasyMock.verify(mockSender);
+    EasyMock.verify(mockSampler, mockSender);
     HashMap<String, String> actualHeartbeatTags = heartbeatTagsCapture.getValue();
     assertEquals(6, actualHeartbeatTags.size());
     assertEquals("defaultApplication", actualHeartbeatTags.get(APPLICATION_TAG_KEY));

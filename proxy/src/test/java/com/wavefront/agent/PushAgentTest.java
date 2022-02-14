@@ -1470,16 +1470,20 @@ public class PushAgentTest {
   public void testOtlpHttpPortHandler() throws Exception {
     port = findAvailablePort(4318);
     proxy.proxyConfig.hostname = "defaultLocalHost";
-    proxy.startOtlpHttpListener(String.valueOf(port), mockHandlerFactory, mockWavefrontSender, null);
+    SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
+    proxy.startOtlpHttpListener(
+        String.valueOf(port), mockHandlerFactory, mockWavefrontSender, mockSampler
+    );
     waitUntilListenerIsOnline(port);
 
-    reset(mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender);
+    reset(mockSampler, mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender);
+    expect(mockSampler.sample(anyObject(), anyObject())).andReturn(true);
     Capture<wavefront.report.Span> actualSpan = EasyMock.newCapture();
     Capture<wavefront.report.SpanLogs> actualLogs = EasyMock.newCapture();
     mockTraceHandler.report(capture(actualSpan));
     mockTraceSpanLogsHandler.report(capture(actualLogs));
 
-    replay(mockTraceHandler, mockTraceSpanLogsHandler);
+    replay(mockSampler, mockTraceHandler, mockTraceSpanLogsHandler);
 
     io.opentelemetry.proto.trace.v1.Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent(0);
     io.opentelemetry.proto.trace.v1.Span otlpSpan =
@@ -1488,7 +1492,7 @@ public class PushAgentTest {
 
     assertEquals(400, httpPost("http://localhost:" + port, "junk".getBytes(), "application/x-protobuf"));
     assertEquals(200, httpPost("http://localhost:" + port, otlpRequest.toByteArray(), "application/x-protobuf"));
-    verify(mockTraceHandler, mockTraceSpanLogsHandler);
+    verify(mockSampler, mockTraceHandler, mockTraceSpanLogsHandler);
 
     Span expectedSpan = OtlpTestHelpers
         .wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true")))

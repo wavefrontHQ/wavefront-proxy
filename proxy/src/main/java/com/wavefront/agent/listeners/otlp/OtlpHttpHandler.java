@@ -16,6 +16,9 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -48,7 +51,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   private final WavefrontInternalReporter internalReporter;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
-  private final SpanSampler sampler;
+  private final Pair<SpanSampler, Counter> spanSamplerAndCounter;
   private final ScheduledExecutorService scheduledExecutorService;
   private final ReportableEntityHandler<Span, String> spanHandler;
   @Nullable
@@ -71,7 +74,8 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle));
     this.sender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
-    this.sampler = sampler;
+    this.spanSamplerAndCounter = Pair.of(sampler,
+        Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded")));
     this.defaultSource = defaultSource;
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
@@ -100,8 +104,9 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
       ExportTraceServiceRequest otlpRequest =
           ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
       OtlpProtobufUtils.exportToWavefront(
-          otlpRequest, spanHandler, spanLogsHandler, preprocessorSupplier, defaultSource,
-          discoveredHeartbeatMetrics, internalReporter, traceDerivedCustomTagKeys);
+          otlpRequest, spanHandler, spanLogsHandler, preprocessorSupplier, spanSamplerAndCounter,
+          defaultSource, discoveredHeartbeatMetrics, internalReporter, traceDerivedCustomTagKeys
+      );
       /*
       We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found in
       OTel Collector's OTLP Receiver code.

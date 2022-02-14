@@ -12,6 +12,9 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.MetricName;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -43,7 +46,7 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
   @Nullable
   private final WavefrontSender wfSender;
   private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
-  private final SpanSampler sampler;
+  private final Pair<SpanSampler, Counter> spanSamplerAndCounter;
   private final String defaultSource;
   private final WavefrontInternalReporter internalReporter;
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
@@ -63,7 +66,8 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
-    this.sampler = sampler;
+    this.spanSamplerAndCounter = Pair.of(sampler,
+        Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded")));
     this.defaultSource = defaultSource;
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
@@ -97,8 +101,9 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
   public void export(ExportTraceServiceRequest request,
                      StreamObserver<ExportTraceServiceResponse> responseObserver) {
     OtlpProtobufUtils.exportToWavefront(
-        request, spanHandler, spanLogsHandler, preprocessorSupplier, defaultSource,
-        discoveredHeartbeatMetrics, internalReporter, traceDerivedCustomTagKeys);
+        request, spanHandler, spanLogsHandler, preprocessorSupplier, spanSamplerAndCounter,
+        defaultSource, discoveredHeartbeatMetrics, internalReporter, traceDerivedCustomTagKeys
+    );
     responseObserver.onNext(ExportTraceServiceResponse.getDefaultInstance());
     responseObserver.onCompleted();
   }

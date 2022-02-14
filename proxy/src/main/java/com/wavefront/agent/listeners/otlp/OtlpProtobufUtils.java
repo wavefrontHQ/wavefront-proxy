@@ -7,8 +7,10 @@ import com.google.protobuf.ByteString;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.listeners.tracing.SpanUtils;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
+import com.yammer.metrics.core.Counter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -87,6 +89,7 @@ public class OtlpProtobufUtils {
                                        ReportableEntityHandler<Span, String> spanHandler,
                                        ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
                                        @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+                                       Pair<SpanSampler, Counter> samplerAndCounter,
                                        String defaultSource,
                                        Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics,
                                        WavefrontInternalReporter internalReporter,
@@ -96,28 +99,30 @@ public class OtlpProtobufUtils {
       preprocessor = preprocessorSupplier.get();
     }
 
-    for (Pair<Span, SpanLogs> wfSpanAndLogs : fromOtlpRequest(request, preprocessor,
-        defaultSource)) {
-      // TODO: commenting out `wasFilteredByPreprocessor` check doesn't fail any tests
-      if (!wasFilteredByPreprocessor(wfSpanAndLogs._1, spanHandler, preprocessor)) {
-        // TODO: handle span sampling
-        spanHandler.report(wfSpanAndLogs._1);
-        if (!wfSpanAndLogs._2.getLogs().isEmpty()) {
-          spanLogsHandler.report(wfSpanAndLogs._2);
-        }
-
-        // always report RED metrics irrespective of span sampling
-        discoveredHeartbeatMetrics.add(
-            reportREDMetrics(wfSpanAndLogs._1, internalReporter, traceDerivedCustomTagKeys)
-        );
+    for (Pair<Span, SpanLogs> spanAndLogs : fromOtlpRequest(request, preprocessor, defaultSource)) {
+      if (wasFilteredByPreprocessor(spanAndLogs._1, spanHandler, preprocessor)) {
+        continue;
       }
+
+      if (samplerAndCounter._1.sample(spanAndLogs._1, samplerAndCounter._2)) {
+        spanHandler.report(spanAndLogs._1);
+        if (!spanAndLogs._2.getLogs().isEmpty()) {
+          spanLogsHandler.report(spanAndLogs._2);
+        }
+      }
+
+      // always report RED metrics irrespective of span sampling
+      discoveredHeartbeatMetrics.add(
+          reportREDMetrics(spanAndLogs._1, internalReporter, traceDerivedCustomTagKeys)
+      );
     }
   }
 
   // TODO: consider transforming a single span and returning it for immedidate reporting in
   //   wfSender. This could be more efficient, and also more reliable in the event the loops
   //   below throw an error and we don't report any of the list.
-  private static List<Pair<Span, SpanLogs>> fromOtlpRequest(
+  @VisibleForTesting
+  static List<Pair<Span, SpanLogs>> fromOtlpRequest(
       ExportTraceServiceRequest request,
       @Nullable ReportableEntityPreprocessor preprocessor,
       String defaultSource
