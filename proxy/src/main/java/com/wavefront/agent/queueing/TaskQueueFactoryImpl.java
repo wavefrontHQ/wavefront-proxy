@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.OverlappingFileLockException;
+import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.Files;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -111,7 +113,8 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
     try {
       File lockFile = new File(lockFileName);
       if (lockFile.exists()) {
-        if (!lockFile.delete()) {
+        if (!Files.deleteIfExists(lockFile.toPath())) {
+          // no file with name found
           throw new LogFilePathException();
         }
       }
@@ -120,22 +123,26 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
         throw new OverlappingFileLockException();
       }
     } catch (LogFilePathException e){
-      logger.severe("Error finding buffer lock file " + lockFileName +
-          " - please make sure file path is correct and restart the proxy");
+          logger.severe("Error finding buffer lock file " + lockFileName +
+          " - please make sure file path is correct and restart the proxy: " + e);
+      return new TaskQueueStub<>();
+    } catch (DirectoryNotEmptyException e) {
+      logger.severe("Error finding buffer lock file " + lockFileName + " - please make sure file " +
+          "path provided is not a directory and restart the proxy: " + e);
       return new TaskQueueStub<>();
     } catch (SecurityException e) {
       logger.severe("Error writing to the buffer lock file " + lockFileName +
           " - please make sure write permissions are correct for this file path and restart the " +
-          "proxy");
+          "proxy: " + e);
       return new TaskQueueStub<>();
     } catch (OverlappingFileLockException e) {
       logger.severe("Error requesting exclusive access to the buffer " +
           "lock file " + lockFileName + " - please make sure that no other processes " +
-          "access this file and restart the proxy");
+          "access this file and restart the proxy: " + e);
       return new TaskQueueStub<>();
     } catch (IOException e) {
       logger.severe("Error requesting access to buffer lock file " + lockFileName + " Channel is " +
-          "closed or an I/O error has occurred - please restart the proxy");
+          "closed or an I/O error has occurred - please restart the proxy: " + e);
       return new TaskQueueStub<>();
     }
     try {
@@ -165,7 +172,7 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
     }
   }
 
-  public class LogFilePathException extends Exception {
+  public static class LogFilePathException extends Exception {
     LogFilePathException() {
     }
   }
