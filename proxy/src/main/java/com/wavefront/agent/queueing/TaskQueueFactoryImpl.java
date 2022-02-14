@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.OverlappingFileLockException;
-import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.Objects;
@@ -113,23 +112,12 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
     try {
       File lockFile = new File(lockFileName);
       if (lockFile.exists()) {
-        if (!Files.deleteIfExists(lockFile.toPath())) {
-          // no file with name found
-          throw new LogFilePathException();
-        }
+        Files.deleteIfExists(lockFile.toPath());
       }
       FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
       if (channel.tryLock() == null) {
         throw new OverlappingFileLockException();
       }
-    } catch (LogFilePathException e){
-          logger.severe("Error finding buffer lock file " + lockFileName +
-          " - please make sure file path is correct and restart the proxy: " + e);
-      return new TaskQueueStub<>();
-    } catch (DirectoryNotEmptyException e) {
-      logger.severe("Error finding buffer lock file " + lockFileName + " - please make sure file " +
-          "path provided is not a directory and restart the proxy: " + e);
-      return new TaskQueueStub<>();
     } catch (SecurityException e) {
       logger.severe("Error writing to the buffer lock file " + lockFileName +
           " - please make sure write permissions are correct for this file path and restart the " +
@@ -169,11 +157,6 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
       logger.severe("WF-006: Unable to open or create queue file " + spoolFileName + ": " +
           e.getMessage());
       return new TaskQueueStub<>();
-    }
-  }
-
-  public static class LogFilePathException extends Exception {
-    LogFilePathException() {
     }
   }
 }
