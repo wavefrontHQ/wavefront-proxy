@@ -97,9 +97,6 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
               case DELIVERED:
                 successes++;
                 break;
-              case REMOVED:
-                failures++;
-                break;
               case PERSISTED:
                 rateLimiter.recyclePermits(taskSize);
                 failures++;
