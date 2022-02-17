@@ -227,6 +227,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
 
   private TaskResult checkStatusAndQueue(QueueingReason reason,
                                          boolean requeue) {
+    if (reason == QueueingReason.AUTH) return TaskResult.REMOVED;
     if (enqueuedTimeMillis == Long.MAX_VALUE) {
       if (properties.getTaskQueueLevel().isLessThan(TaskQueueLevel.ANY_ERROR)) {
         return TaskResult.RETRY_LATER;
