@@ -8,7 +8,7 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
-import com.wavefront.java_sdk.com.google.common.annotations.VisibleForTesting;
+import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.sdk.common.Pair;
 import com.yammer.metrics.core.Counter;
 
