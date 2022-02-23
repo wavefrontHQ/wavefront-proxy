@@ -6,11 +6,13 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import io.grpc.stub.StreamObserver;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse;
+import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
 import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics;
 import io.opentelemetry.proto.metrics.v1.Metric;
 import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
 import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
+import io.opentelemetry.proto.metrics.v1.Sum;
 import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,7 +38,7 @@ public class OtlpMetricsTest {
     }
   };
   private OtlpGrpcMetricsHandler subject;
-  private ReportableEntityHandler<ReportPoint, String> mockMetricsHandler = MockReportableEntityHandlerFactory.getMockReportPointHandler();
+  private final ReportableEntityHandler<ReportPoint, String> mockMetricsHandler = MockReportableEntityHandlerFactory.getMockReportPointHandler();
 
   @Before
   public void setup() {
@@ -57,6 +59,66 @@ public class OtlpMetricsTest {
         .build();
     wavefront.report.ReportPoint wfMetric = OtlpTestHelpers.wfReportPointGenerator()
         .setMetric("test-gauge")
+        .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
+        .setValue(12.3)
+        .build();
+    mockMetricsHandler.report(wfMetric);
+    EasyMock.expectLastCall();
+
+    EasyMock.replay(mockMetricsHandler);
+
+    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
+    subject.export(request, emptyStreamObserver);
+
+    EasyMock.verify(mockMetricsHandler);
+  }
+
+  @Test
+  public void monotonicCumulativeSum() {
+    long epochTime = 1515151515L;
+    EasyMock.reset(mockMetricsHandler);
+    Sum otelSum = Sum.newBuilder()
+        .setIsMonotonic(true)
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+        .addDataPoints(NumberDataPoint.newBuilder().setAsDouble(12.3).setTimeUnixNano(TimeUnit.SECONDS.toNanos(epochTime)).build())
+        .build();
+    Metric otelMetric = Metric.newBuilder()
+        .setSum(otelSum)
+        .setName("test-sum")
+        .build();
+    wavefront.report.ReportPoint wfMetric = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-sum")
+        .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
+        .setValue(12.3)
+        .build();
+    mockMetricsHandler.report(wfMetric);
+    EasyMock.expectLastCall();
+
+    EasyMock.replay(mockMetricsHandler);
+
+    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
+    subject.export(request, emptyStreamObserver);
+
+    EasyMock.verify(mockMetricsHandler);
+  }
+
+  @Test
+  public void nonmonotonicCumulativeSum() {
+    long epochTime = 1515151515L;
+    EasyMock.reset(mockMetricsHandler);
+    Sum otelSum = Sum.newBuilder()
+        .setIsMonotonic(false)
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+        .addDataPoints(NumberDataPoint.newBuilder().setAsDouble(12.3).setTimeUnixNano(TimeUnit.SECONDS.toNanos(epochTime)).build())
+        .build();
+    Metric otelMetric = Metric.newBuilder()
+        .setSum(otelSum)
+        .setName("test-sum")
+        .build();
+    wavefront.report.ReportPoint wfMetric = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-sum")
         .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
         .setValue(12.3)
         .build();

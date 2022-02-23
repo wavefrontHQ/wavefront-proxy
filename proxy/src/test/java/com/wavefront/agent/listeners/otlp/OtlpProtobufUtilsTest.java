@@ -20,9 +20,11 @@ import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.ArrayValue;
 import io.opentelemetry.proto.common.v1.InstrumentationLibrary;
 import io.opentelemetry.proto.common.v1.KeyValue;
+import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
 import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.Metric;
 import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
+import io.opentelemetry.proto.metrics.v1.Sum;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
 import org.easymock.Capture;
@@ -945,6 +947,93 @@ public class OtlpProtobufUtilsTest {
     actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void rejectsSumWithZeroDataPoints() {
+    Sum emptySum = Sum.newBuilder().build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(emptySum).build();
+
+    Assert.assertThrows(IllegalArgumentException.class, () -> {
+      OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+    });
+  }
+
+  @Test
+  public void transformsMinimalSum() {
+    Sum otlpSum = Sum.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+        .addDataPoints(NumberDataPoint.newBuilder().build())
+        .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).build();
+    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator().build());
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+
+    assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void transformsSumTimestampToEpochMilliseconds() {
+    long timeInNanos = TimeUnit.MILLISECONDS.toNanos(startTimeMs);
+    Sum otlpSum = Sum.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+        .addDataPoints(NumberDataPoint.newBuilder().setTimeUnixNano(timeInNanos).build())
+        .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).build();
+    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator().setTimestamp(startTimeMs).build());
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+
+    assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void acceptsSumWithMultipleDataPoints() {
+    List<NumberDataPoint> points = ImmutableList.of(
+        NumberDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(1)).setAsDouble(1.0).build(),
+        NumberDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(2)).setAsDouble(2.0).build()
+    );
+    Metric otlpMetric = OtlpProtobufPointUtils.otlpSumGenerator(points).build();
+
+    expectedPoints = ImmutableList.of(
+        OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1.0).build(),
+        OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2.0).build()
+    );
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+
+    assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void handlesSumAttributes() {
+    KeyValue booleanAttr = KeyValue.newBuilder().setKey("a-boolean")
+        .setValue(AnyValue.newBuilder().setBoolValue(true).build())
+        .build();
+
+    Sum otlpSum = Sum.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+        .addDataPoints(NumberDataPoint.newBuilder().addAttributes(booleanAttr).build())
+        .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).build();
+
+    List<Annotation> wfAttrs = Collections.singletonList(
+        Annotation.newBuilder().setKey("a-boolean").setValue("true").build()
+    );
+    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator(wfAttrs).build());
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+
+    assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void rejectsDeltaSums() {
+    Sum deltaSum = Sum.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
+        .addDataPoints(NumberDataPoint.newBuilder().build()).build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(deltaSum).build();
+
+    Assert.assertThrows(IllegalArgumentException.class, () -> {
+      OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+    });
   }
 
   @Test

@@ -1,13 +1,22 @@
 package com.wavefront.agent.listeners.otlp;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
-
+import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
+import io.opentelemetry.proto.common.v1.KeyValue;
+import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
+import io.opentelemetry.proto.metrics.v1.Gauge;
+import io.opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics;
+import io.opentelemetry.proto.metrics.v1.Metric;
+import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
+import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
+import io.opentelemetry.proto.metrics.v1.Sum;
+import io.opentelemetry.proto.resource.v1.Resource;
 import org.jetbrains.annotations.NotNull;
+import wavefront.report.Annotation;
+import wavefront.report.ReportPoint;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -22,17 +31,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
-import io.opentelemetry.proto.common.v1.KeyValue;
-import io.opentelemetry.proto.metrics.v1.Gauge;
-import io.opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics;
-import io.opentelemetry.proto.metrics.v1.Metric;
-import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
-import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
-import io.opentelemetry.proto.resource.v1.Resource;
-import wavefront.report.Annotation;
-import wavefront.report.ReportPoint;
-
 public class OtlpProtobufPointUtils {
   public final static Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
 
@@ -40,6 +38,15 @@ public class OtlpProtobufPointUtils {
     return Metric.newBuilder()
         .setName("test")
         .setGauge(Gauge.newBuilder().addAllDataPoints(points).build());
+  }
+
+  public static Metric.Builder otlpSumGenerator(List<NumberDataPoint> points) {
+    return Metric.newBuilder()
+        .setName("test")
+        .setSum(Sum.newBuilder()
+            .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+            .addAllDataPoints(points)
+            .build());
   }
 
   public static void exportToWavefront(ExportMetricsServiceRequest request,
@@ -120,6 +127,14 @@ public class OtlpProtobufPointUtils {
         }
         points.add(point);
       }
+    } else if (otlpMetric.hasSum()) {
+      for (ReportPoint point : transformSum(otlpMetric.getName(), otlpMetric.getSum(), resourceAttrs)) {
+        // apply preprocessor
+        if (preprocessor != null) {
+          preprocessor.forReportPoint().transform(point);
+        }
+        points.add(point);
+      }
     } else {
       throw new IllegalArgumentException("Otel: unsupported metric type for " + otlpMetric.getName());
     }
@@ -127,7 +142,23 @@ public class OtlpProtobufPointUtils {
     return points;
   }
 
-  private static List<ReportPoint> transformGauge(String name, Gauge gauge, List<KeyValue> resourceAttrs) {
+  private static Collection<ReportPoint> transformSum(String name, Sum sum, List<KeyValue> resourceAttrs) {
+    if (sum.getDataPointsCount() == 0) {
+      throw new IllegalArgumentException("OTel: sum with no data points");
+    }
+
+    // TODO support delta sums
+    if (sum.getAggregationTemporality() != AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE) {
+      throw new IllegalArgumentException("OTel: sum with unsupported aggregation temporality " + sum.getAggregationTemporality().name());
+    }
+
+    List<ReportPoint> points = new ArrayList<>(sum.getDataPointsCount());
+    for (NumberDataPoint p : sum.getDataPointsList()) {
+      points.add(transformNumberDataPoint(name, p, resourceAttrs));
+    }
+    return points;  }
+
+  private static Collection<ReportPoint> transformGauge(String name, Gauge gauge, List<KeyValue> resourceAttrs) {
     if (gauge.getDataPointsCount() == 0) {
       throw new IllegalArgumentException("OTel: gauge with no data points");
     }
