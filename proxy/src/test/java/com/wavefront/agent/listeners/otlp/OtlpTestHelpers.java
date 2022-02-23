@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.otlp;
 
+import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
@@ -25,6 +26,7 @@ import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
+import io.opentelemetry.proto.metrics.v1.Metric;
 import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
@@ -37,6 +39,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Xiaochen Wang (xiaochenw@vmware.com).
@@ -215,4 +218,45 @@ public class OtlpTestHelpers {
     return request;
   }
 
+  public static void assertWFReportPointEquals(wavefront.report.ReportPoint expected, wavefront.report.ReportPoint actual) {
+    assertEquals("metric name", expected.getMetric(), actual.getMetric());
+    assertEquals("value", expected.getValue(), actual.getValue());
+    assertEquals("timestamp", expected.getTimestamp(), actual.getTimestamp());
+    assertEquals("number of annotations", expected.getAnnotations().size(), actual.getAnnotations().size());
+    // TODO use a better assert instead of iterating manually?
+    for (String key : expected.getAnnotations().keySet()) {
+      assertTrue(actual.getAnnotations().containsKey(key));
+      assertEquals(expected.getAnnotations().get(key), actual.getAnnotations().get(key));
+    }
+  }
+
+  public static void assertAllPointsEqual(List<wavefront.report.ReportPoint> expected, List<wavefront.report.ReportPoint> actual) {
+    assertEquals("same number of points", expected.size(), actual.size());
+    for (int i = 0; i < expected.size(); i++) {
+      assertWFReportPointEquals(expected.get(i), actual.get(i));
+    }
+  }
+
+  private static Map<String, String> annotationListToMap(List<Annotation> annotationList) {
+    Map<String, String> annotationMap = Maps.newHashMap();
+    for (Annotation annotation : annotationList) {
+      annotationMap.put(annotation.getKey(), annotation.getValue());
+  }
+    assertEquals(annotationList.size(), annotationMap.size());
+    return annotationMap;
+  }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpMetricGenerator() {
+    Metric.Builder builder = io.opentelemetry.proto.metrics.v1.Metric.newBuilder();
+    builder.setName("test");
+    return builder;
+  }
+
+  public static wavefront.report.ReportPoint.Builder wfReportPointGenerator() {
+    return wavefront.report.ReportPoint.newBuilder().setMetric("test").setTimestamp(0).setValue(0.0);
+  }
+
+  public static wavefront.report.ReportPoint.Builder wfReportPointGenerator(List<Annotation> annotations) {
+    return wfReportPointGenerator().setAnnotations(annotationListToMap(annotations));
+  }
 }

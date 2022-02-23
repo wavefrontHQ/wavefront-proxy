@@ -6,10 +6,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
-import com.tdunning.math.stats.AgentDigest;
-import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
-import com.uber.tchannel.api.TChannel;
-import com.uber.tchannel.channels.Connection;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.CachingHostnameLookupResolver;
@@ -52,6 +48,7 @@ import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
+import com.wavefront.agent.listeners.otlp.OtlpGrpcMetricsHandler;
 import com.wavefront.agent.listeners.otlp.OtlpGrpcTraceHandler;
 import com.wavefront.agent.listeners.otlp.OtlpHttpHandler;
 import com.wavefront.agent.listeners.tracing.CustomTracingPortUnificationHandler;
@@ -98,8 +95,6 @@ import com.wavefront.sdk.entities.tracing.sampling.Sampler;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 
-import net.openhft.chronicle.map.ChronicleMap;
-
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -109,6 +104,8 @@ import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.logstash.beats.Server;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.File;
 import java.net.BindException;
 import java.net.InetAddress;
@@ -128,9 +125,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
+import com.tdunning.math.stats.AgentDigest;
+import com.tdunning.math.stats.AgentDigest.AgentDigestMarshaller;
+import com.uber.tchannel.api.TChannel;
+import com.uber.tchannel.channels.Connection;
 import io.grpc.netty.NettyServerBuilder;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
@@ -140,6 +138,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.handler.ssl.SslContext;
+import net.openhft.chronicle.map.ChronicleMap;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
@@ -262,6 +261,7 @@ public class PushAgent extends AbstractAgent {
     shutdownTasks.add(() -> senderTaskFactory.drainBuffersToQueue(null));
 
     SpanSampler spanSampler = createSpanSampler();
+
     if (proxyConfig.getAdminApiListenerPort() > 0) {
       startAdminListener(proxyConfig.getAdminApiListenerPort());
     }
@@ -639,8 +639,8 @@ public class PushAgent extends AbstractAgent {
         preprocessors.get(strPort), blockedPointsLogger);
 
     startAsManagedThread(port, new TcpIngester(createInitializer(ImmutableList.of(
-        () -> new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false),
-        ByteArrayDecoder::new, () -> channelHandler), port,
+          () -> new LengthFieldBasedFrameDecoder(ByteOrder.BIG_ENDIAN, 1000000, 0, 4, 0, 4, false),
+          ByteArrayDecoder::new, () -> channelHandler), port,
         proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort)), port).
             withChildChannelOptions(childChannelOptions), "listener-binary-pickle-" + strPort);
     logger.info("listening on port: " + strPort + " for Graphite/pickle protocol metrics");
@@ -807,7 +807,11 @@ public class PushAgent extends AbstractAgent {
             () -> entityPropertiesFactoryMap.get(CENTRAL_TENANT_NAME).get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
             proxyConfig.getHostname(), proxyConfig.getTraceDerivedCustomTagKeys()
         );
-        io.grpc.Server server = NettyServerBuilder.forPort(port).addService(traceHandler).build();
+        OtlpGrpcMetricsHandler metricsHandler = new OtlpGrpcMetricsHandler(strPort, handlerFactory, preprocessors.get(strPort));
+        io.grpc.Server server = NettyServerBuilder.forPort(port)
+            .addService(traceHandler)
+            .addService(metricsHandler)
+            .build();
         server.start();
       } catch (Exception e) {
         logger.log(Level.SEVERE, "OTLP gRPC collector exception", e);
@@ -846,7 +850,7 @@ public class PushAgent extends AbstractAgent {
   }
 
 
-    protected void startTraceZipkinListener(String strPort,
+  protected void startTraceZipkinListener(String strPort,
                                           ReportableEntityHandlerFactory handlerFactory,
                                           @Nullable WavefrontSender wfSender,
                                           SpanSampler sampler) {
@@ -1183,6 +1187,7 @@ public class PushAgent extends AbstractAgent {
     ReportableEntityHandlerFactory histogramHandlerFactory = new ReportableEntityHandlerFactory() {
       private final Map<HandlerKey, ReportableEntityHandler<?, ?>> handlers =
           new ConcurrentHashMap<>();
+
       @SuppressWarnings("unchecked")
       @Override
       public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
