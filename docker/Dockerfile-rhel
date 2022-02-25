@@ -8,8 +8,8 @@ MAINTAINER wavefront@vmware.com
 
 LABEL name="Wavefront Collector" \
     vendor="Wavefront by VMware" \
-    version="10.13" \
-    release="10.13" \
+    version="10.14" \
+    release="10.14" \
     summary="The Wavefront Proxy is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner." \
     description="The Wavefront Proxy is a light-weight Java application that you send your metrics, histograms, and trace data to. It handles batching and transmission of your data to the Wavefront service in a secure, fast, and reliable manner."
 
