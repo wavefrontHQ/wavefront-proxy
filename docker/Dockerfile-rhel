@@ -16,7 +16,7 @@ LABEL name="Wavefront Collector" \
 RUN mkdir /licenses
 
 COPY LICENSE /licenses
-COPY ./proxy/docker/run.sh run.sh
+COPY ./docker/run.sh run.sh
 
 EXPOSE 3878
 EXPOSE 2878
