@@ -47,5 +47,8 @@ public class SharedGraphiteHostAnnotatorTest {
     point = "request.count 1 tag4=test.wavefront.com";
     assertEquals("request.count 1 tag4=test.wavefront.com source=\"default\"",
         annotator.apply(ctx, point));
+    String log = "{\"tag4\":\"test.wavefront.com\"}";
+    assertEquals("{\"source\":\"default\", \"tag4\":\"test.wavefront.com\"}",
+        annotator.apply(ctx, log, true));
   }
 }
