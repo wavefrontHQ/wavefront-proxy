@@ -604,20 +604,18 @@ public class HttpEndToEndTest {
     proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
     proxy.proxyConfig.flushThreads = 1;
     proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
-    proxy.proxyConfig.pushFlushInterval = 50;
     proxy.proxyConfig.bufferFile = buffer;
-    proxy.proxyConfig.gzipCompression = false;
-    proxy.proxyConfig.allowRegex = "^.*$";
-    proxy.proxyConfig.flushThreadsLogs = 1;
     proxy.proxyConfig.pushRateLimitLogs = 100;
+    proxy.proxyConfig.pushFlushIntervalLogs = 50;
+
     proxy.start(new String[]{});
     waitUntilListenerIsOnline(proxyPort);
     if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
     if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
 
-    long timestamp1 = time * 1000 + 12345;
-    String payload = "[{\"source\": \"myHost\",\n \"timestamp\": \"" + timestamp1 + "\"}]";
-    String expectedLog = "[{\"source\":\"myHost\",\"log_timestamp\":" + timestamp1 +
+    long timestamp = time * 1000 + 12345;
+    String payload = "[{\"source\": \"myHost\",\n \"timestamp\": \"" + timestamp + "\"}]";
+    String expectedLog = "[{\"source\":\"myHost\",\"log_timestamp\":" + timestamp +
         ",\"text\":\"\"}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
     server.update(req -> {

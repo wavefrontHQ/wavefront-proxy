@@ -31,7 +31,7 @@ public class SharedGraphiteHostAnnotator {
 
   private final Function<InetAddress, String> hostnameResolver;
   private final List<String> sourceTags;
-  private final List<String> sourceTagsLogs;
+  private final List<String> sourceTagsJson;
 
   public SharedGraphiteHostAnnotator(@Nullable List<String> customSourceTags,
                                      @Nonnull Function<InetAddress, String> hostnameResolver) {
@@ -41,8 +41,9 @@ public class SharedGraphiteHostAnnotator {
     this.hostnameResolver = hostnameResolver;
     this.sourceTags = Streams.concat(DEFAULT_SOURCE_TAGS.stream(), customSourceTags.stream()).
         map(customTag -> customTag + "=").collect(Collectors.toList());
-    this.sourceTagsLogs = Streams.concat(DEFAULT_SOURCE_TAGS.stream(), customSourceTags.stream()).
-        map(customTag -> customTag + ":").collect(Collectors.toList());
+    this.sourceTagsJson = Streams.concat(DEFAULT_SOURCE_TAGS.subList(2, 4).stream(),
+            customSourceTags.stream().
+        map(customTag -> "\"" + customTag + "\"")).collect(Collectors.toList());
   }
 
   public String apply(ChannelHandlerContext ctx, String msg) {
@@ -50,7 +51,7 @@ public class SharedGraphiteHostAnnotator {
   }
 
   public String apply(ChannelHandlerContext ctx, String msg, boolean addAsJsonProperty) {
-    List<String> defaultSourceTags = addAsJsonProperty ? sourceTagsLogs : sourceTags;
+    List<String> defaultSourceTags = addAsJsonProperty ? sourceTagsJson : sourceTags;
     for (int i = 0; i < defaultSourceTags.size(); i++) {
       String tag = defaultSourceTags.get(i);
       int strIndex = msg.indexOf(tag);
