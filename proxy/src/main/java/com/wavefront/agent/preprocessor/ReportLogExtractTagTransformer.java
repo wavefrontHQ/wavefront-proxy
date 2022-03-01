@@ -3,6 +3,8 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,7 +57,8 @@ public class ReportLogExtractTagTransformer implements Function<ReportLog, Repor
     this.v2Predicate = v2Predicate != null ? v2Predicate : x -> true;
   }
 
-  protected boolean extractTag(@Nonnull ReportLog reportLog, final String extractFrom) {
+  protected boolean extractTag(@Nonnull ReportLog reportLog, final String extractFrom,
+                               List<Annotation> buffer) {
     Matcher patternMatcher;
     if (extractFrom == null || (compiledMatchPattern != null && !compiledMatchPattern.matcher(extractFrom).matches())) {
       return false;
@@ -66,22 +69,23 @@ public class ReportLogExtractTagTransformer implements Function<ReportLog, Repor
     }
     String value = patternMatcher.replaceAll(expandPlaceholders(patternReplace, reportLog));
     if (!value.isEmpty()) {
-      reportLog.getAnnotations().add(new Annotation(tag, value));
+      buffer.add(new Annotation(tag, value));
       ruleMetrics.incrementRuleAppliedCounter();
     }
     return true;
   }
 
   protected void internalApply(@Nonnull ReportLog reportLog) {
+    List<Annotation> buffer = new ArrayList<>();
     switch (input) {
       case "message":
-        if (extractTag(reportLog, reportLog.getMessage()) && patternReplaceInput != null) {
+        if (extractTag(reportLog, reportLog.getMessage(), buffer) && patternReplaceInput != null) {
           reportLog.setMessage(compiledSearchPattern.matcher(reportLog.getMessage()).
               replaceAll(expandPlaceholders(patternReplaceInput, reportLog)));
         }
         break;
       case "sourceName":
-        if (extractTag(reportLog, reportLog.getHost()) && patternReplaceInput != null) {
+        if (extractTag(reportLog, reportLog.getHost(), buffer) && patternReplaceInput != null) {
           reportLog.setHost(compiledSearchPattern.matcher(reportLog.getHost()).
               replaceAll(expandPlaceholders(patternReplaceInput, reportLog)));
         }
@@ -89,7 +93,7 @@ public class ReportLogExtractTagTransformer implements Function<ReportLog, Repor
       default:
         for (Annotation logTagKV : reportLog.getAnnotations()) {
           if (logTagKV.getKey().equals(input)) {
-            if (extractTag(reportLog, logTagKV.getValue())) {
+            if (extractTag(reportLog, logTagKV.getValue(), buffer)) {
               if (patternReplaceInput != null) {
                 logTagKV.setValue(compiledSearchPattern.matcher(logTagKV.getValue()).
                     replaceAll(expandPlaceholders(patternReplaceInput, reportLog)));
@@ -98,6 +102,7 @@ public class ReportLogExtractTagTransformer implements Function<ReportLog, Repor
           }
         }
     }
+    reportLog.getAnnotations().addAll(buffer);
   }
 
   @Nullable
