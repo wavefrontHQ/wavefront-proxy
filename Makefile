@@ -7,14 +7,20 @@ USER ?= $(LOGNAME)
 REPO ?= proxy-dev
 PACKAGECLOUD_USER ?= wavefront
 PACKAGECLOUD_REPO ?= proxy-next
+IS_GA ?= false
 
-DOCKER_TAG = $(USER)/$(REPO):${FULLVERSION}
+ifeq ($(IS_GA), true)
+  DOCKER_TAG = $(USER)/$(REPO):${VERSION}
+else
+  DOCKER_TAG = $(USER)/$(REPO):${FULLVERSION}
+endif
+
 
 out = $(shell pwd)/out
 $(shell mkdir -p $(out))
 
 .info:
-	@echo "\n----------\nBuilding Proxy ${FULLVERSION}\nDocker tag: ${DOCKER_TAG}\n----------\n"
+	@echo "\n----------\nBuilding Proxy ${VERSION}\nDocker tag: ${DOCKER_TAG}\n----------\n"
 
 jenkins: .info build-jar build-linux push-linux docker-multi-arch clean
 
@@ -44,7 +50,7 @@ docker-multi-arch: .info .cp-docker
 # Build rep & deb packages
 #####
 build-linux: .info .prepare-builder .cp-linux
-	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/build.sh ${VERSION} ${REVISION}
+	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/build.sh ${VERSION} 1
 	
 #####
 # Push rep & deb packages
