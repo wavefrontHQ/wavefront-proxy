@@ -71,7 +71,7 @@ public class OtlpHttpHandlerTest {
     EasyMock.replay(mockSampler, mockSender, mockCtx);
 
     OtlpHttpHandler handler = new OtlpHttpHandler(mockHandlerFactory, null, null, "4318",
-        mockSender, null, mockSampler, "defaultSource", null);
+        mockSender, null, mockSampler, () -> false, () -> false, "defaultSource", null);
     io.opentelemetry.proto.trace.v1.Span otlpSpan =
         OtlpTestHelpers.otlpSpanGenerator().build();
     ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
@@ -82,6 +82,7 @@ public class OtlpHttpHandlerTest {
 
     handler.handleHttpMessage(mockCtx, request);
     handler.run();
+    handler.close();
 
     EasyMock.verify(mockSampler, mockSender);
     HashMap<String, String> actualHeartbeatTags = heartbeatTagsCapture.getValue();

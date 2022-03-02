@@ -47,12 +47,12 @@ import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
 import com.wavefront.agent.listeners.HttpHealthCheckEndpointHandler;
 import com.wavefront.agent.listeners.JsonMetricsPortUnificationHandler;
 import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
-import com.wavefront.agent.listeners.otlp.OtlpGrpcTraceHandler;
-import com.wavefront.agent.listeners.otlp.OtlpHttpHandler;
 import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
 import com.wavefront.agent.listeners.RelayPortUnificationHandler;
 import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
 import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
+import com.wavefront.agent.listeners.otlp.OtlpGrpcTraceHandler;
+import com.wavefront.agent.listeners.otlp.OtlpHttpHandler;
 import com.wavefront.agent.listeners.tracing.CustomTracingPortUnificationHandler;
 import com.wavefront.agent.listeners.tracing.JaegerGrpcCollectorHandler;
 import com.wavefront.agent.listeners.tracing.JaegerPortUnificationHandler;
@@ -790,10 +790,13 @@ public class PushAgent extends AbstractAgent {
     startAsManagedThread(port, () -> {
       activeListeners.inc();
       try {
-        io.grpc.Server server = NettyServerBuilder.forPort(port).addService(
-            new OtlpGrpcTraceHandler(strPort, handlerFactory, wfSender, preprocessors.get(strPort),
-                sampler, proxyConfig.getHostname(), proxyConfig.getTraceDerivedCustomTagKeys())
-        ).build();
+        OtlpGrpcTraceHandler traceHandler = new OtlpGrpcTraceHandler(
+            strPort, handlerFactory, wfSender, preprocessors.get(strPort), sampler,
+            () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
+            () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
+            proxyConfig.getHostname(), proxyConfig.getTraceDerivedCustomTagKeys()
+        );
+        io.grpc.Server server = NettyServerBuilder.forPort(port).addService(traceHandler).build();
         server.start();
       } catch (Exception e) {
         logger.log(Level.SEVERE, "OTLP gRPC collector exception", e);
@@ -817,7 +820,10 @@ public class PushAgent extends AbstractAgent {
 
     ChannelHandler channelHandler = new OtlpHttpHandler(
         handlerFactory, tokenAuthenticator, healthCheckManager, strPort, wfSender,
-        preprocessors.get(strPort), sampler, proxyConfig.getHostname(),
+        preprocessors.get(strPort), sampler,
+        () -> entityProps.get(ReportableEntityType.TRACE).isFeatureDisabled(),
+        () -> entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
+        proxyConfig.getHostname(),
         proxyConfig.getTraceDerivedCustomTagKeys()
     );
 

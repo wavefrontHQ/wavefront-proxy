@@ -71,13 +71,50 @@ public abstract class FeatureCheckUtils {
                                           @Nullable Counter discardedCounter,
                                           @Nullable StringBuilder output,
                                           @Nullable FullHttpRequest request) {
+    return isFeatureDisabled(featureDisabledFlag, message, discardedCounter, 1, output, request);
+  }
+
+  /**
+   * Check whether feature disabled flag is set, log a warning message, increment the counter by
+   * increment.
+   *
+   * @param featureDisabledFlag Supplier for feature disabled flag.
+   * @param message             Warning message to log if feature is disabled.
+   * @param discardedCounter    Counter for discarded items.
+   * @param increment           The amount by which the counter will be increased.
+   * @return true if feature is disabled
+   */
+  public static boolean isFeatureDisabled(Supplier<Boolean> featureDisabledFlag,
+                                          String message,
+                                          Counter discardedCounter,
+                                          long increment) {
+    return isFeatureDisabled(featureDisabledFlag, message, discardedCounter, increment, null, null);
+  }
+
+  /**
+   * Check whether feature disabled flag is set, log a warning message, increment the counter
+   * either by increment or by number of \n characters in request payload, if provided.
+   *
+   * @param featureDisabledFlag Supplier for feature disabled flag.
+   * @param message             Warning message to log if feature is disabled.
+   * @param discardedCounter    Optional counter for discarded items.
+   * @param increment           The amount by which the counter will be increased.
+   * @param output              Optional stringbuilder for messages
+   * @param request             Optional http request to use payload size
+   * @return true if feature is disabled
+   */
+  public static boolean isFeatureDisabled(Supplier<Boolean> featureDisabledFlag, String message,
+                                          @Nullable Counter discardedCounter,
+                                          long increment,
+                                          @Nullable StringBuilder output,
+                                          @Nullable FullHttpRequest request) {
     if (featureDisabledFlag.get()) {
       featureDisabledLogger.warning(message);
       if (output != null) {
         output.append(message);
       }
       if (discardedCounter != null) {
-        discardedCounter.inc(request == null ? 1 :
+        discardedCounter.inc(request == null ? increment :
             StringUtils.countMatches(request.content().toString(CharsetUtil.UTF_8), "\n") + 1);
       }
       return true;

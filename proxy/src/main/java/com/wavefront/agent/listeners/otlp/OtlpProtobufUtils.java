@@ -10,6 +10,7 @@ import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
+import com.wavefront.sdk.common.WavefrontSender;
 import com.yammer.metrics.core.Counter;
 
 import java.util.ArrayList;
@@ -45,8 +46,11 @@ import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import static com.wavefront.common.TraceConstants.PARENT_KEY;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.TRACING_DERIVED_PREFIX;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.reportWavefrontGeneratedData;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
@@ -85,10 +89,29 @@ public class OtlpProtobufUtils {
         put(SpanKind.UNRECOGNIZED, new Annotation(SPAN_KIND_TAG_KEY, "unknown"));
       }};
 
+  static class WavefrontSpanAndLogs {
+    Span span;
+    SpanLogs spanLogs;
+
+    public WavefrontSpanAndLogs(Span span, SpanLogs spanLogs) {
+      this.span = span;
+      this.spanLogs = spanLogs;
+    }
+
+    public Span getSpan() {
+      return span;
+    }
+
+    public SpanLogs getSpanLogs() {
+      return spanLogs;
+    }
+  }
+
   public static void exportToWavefront(ExportTraceServiceRequest request,
                                        ReportableEntityHandler<Span, String> spanHandler,
                                        ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
                                        @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+                                       Pair<Supplier<Boolean>, Counter> spanLogsDisabled,
                                        Pair<SpanSampler, Counter> samplerAndCounter,
                                        String defaultSource,
                                        Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics,
@@ -99,21 +122,23 @@ public class OtlpProtobufUtils {
       preprocessor = preprocessorSupplier.get();
     }
 
-    for (Pair<Span, SpanLogs> spanAndLogs : fromOtlpRequest(request, preprocessor, defaultSource)) {
-      if (wasFilteredByPreprocessor(spanAndLogs._1, spanHandler, preprocessor)) {
-        continue;
-      }
+    for (WavefrontSpanAndLogs spanAndLogs : fromOtlpRequest(request, preprocessor, defaultSource)) {
+      Span span = spanAndLogs.getSpan();
+      SpanLogs spanLogs = spanAndLogs.getSpanLogs();
 
-      if (samplerAndCounter._1.sample(spanAndLogs._1, samplerAndCounter._2)) {
-        spanHandler.report(spanAndLogs._1);
-        if (!spanAndLogs._2.getLogs().isEmpty()) {
-          spanLogsHandler.report(spanAndLogs._2);
+      if (wasFilteredByPreprocessor(span, spanHandler, preprocessor)) continue;
+
+      if (samplerAndCounter._1.sample(span, samplerAndCounter._2)) {
+        spanHandler.report(span);
+
+        if (shouldReportSpanLogs(spanLogs.getLogs().size(), spanLogsDisabled)) {
+          spanLogsHandler.report(spanLogs);
         }
       }
 
       // always report RED metrics irrespective of span sampling
       discoveredHeartbeatMetrics.add(
-          reportREDMetrics(spanAndLogs._1, internalReporter, traceDerivedCustomTagKeys)
+          reportREDMetrics(span, internalReporter, traceDerivedCustomTagKeys)
       );
     }
   }
@@ -122,12 +147,10 @@ public class OtlpProtobufUtils {
   //   wfSender. This could be more efficient, and also more reliable in the event the loops
   //   below throw an error and we don't report any of the list.
   @VisibleForTesting
-  static List<Pair<Span, SpanLogs>> fromOtlpRequest(
-      ExportTraceServiceRequest request,
-      @Nullable ReportableEntityPreprocessor preprocessor,
-      String defaultSource
-  ) {
-    List<Pair<Span, SpanLogs>> wfSpansAndLogs = Lists.newArrayList();
+  static List<WavefrontSpanAndLogs> fromOtlpRequest(ExportTraceServiceRequest request,
+                                                    @Nullable ReportableEntityPreprocessor preprocessor,
+                                                    String defaultSource) {
+    List<WavefrontSpanAndLogs> wfSpansAndLogs = Lists.newArrayList();
 
     for (ResourceSpans rSpans : request.getResourceSpansList()) {
       Resource resource = rSpans.getResource();
@@ -140,14 +163,8 @@ public class OtlpProtobufUtils {
         for (io.opentelemetry.proto.trace.v1.Span otlpSpan : ilSpans.getSpansList()) {
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Span: " + otlpSpan);
 
-          Pair<Span, SpanLogs> pair = transformAll(otlpSpan, resource.getAttributesList(),
-              iLibrary, preprocessor, defaultSource);
-          OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront Span: " + pair._1);
-          if (!pair._2.getLogs().isEmpty()) {
-            OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront SpanLogs: " + pair._2);
-          }
-
-          wfSpansAndLogs.add(pair);
+          wfSpansAndLogs.add(transformAll(otlpSpan, resource.getAttributesList(), iLibrary,
+              preprocessor, defaultSource));
         }
       }
     }
@@ -176,7 +193,7 @@ public class OtlpProtobufUtils {
   }
 
   @VisibleForTesting
-  static Pair<Span, SpanLogs> transformAll(io.opentelemetry.proto.trace.v1.Span otlpSpan,
+  static WavefrontSpanAndLogs transformAll(io.opentelemetry.proto.trace.v1.Span otlpSpan,
                                            List<KeyValue> resourceAttributes,
                                            InstrumentationLibrary iLibrary,
                                            @Nullable ReportableEntityPreprocessor preprocessor,
@@ -187,7 +204,12 @@ public class OtlpProtobufUtils {
       span.getAnnotations().add(new Annotation(SPAN_LOG_KEY, "true"));
     }
 
-    return Pair.of(span, logs);
+    OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront Span: " + span);
+    if (!logs.getLogs().isEmpty()) {
+      OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront SpanLogs: " + logs);
+    }
+
+    return new WavefrontSpanAndLogs(span, logs);
   }
 
   @VisibleForTesting
@@ -249,7 +271,7 @@ public class OtlpProtobufUtils {
 
   @VisibleForTesting
   static SpanLogs transformEvents(io.opentelemetry.proto.trace.v1.Span otlpSpan,
-                                         Span wfSpan) {
+                                  Span wfSpan) {
     ArrayList<SpanLog> logs = new ArrayList<>();
 
     for (io.opentelemetry.proto.trace.v1.Span.Event event : otlpSpan.getEventsList()) {
@@ -276,7 +298,7 @@ public class OtlpProtobufUtils {
   // with the removal of the KeyValue determined to be the source.
   @VisibleForTesting
   static Pair<String, List<KeyValue>> sourceFromAttributes(List<KeyValue> otlpAttributes,
-                                                                  String defaultSource) {
+                                                           String defaultSource) {
     // Order of keys in List matters: it determines precedence when multiple candidates exist.
     List<String> candidateKeys = Arrays.asList(SOURCE_KEY, "host.name", "hostname", "host.id");
     Comparator<KeyValue> keySorter = Comparator.comparing(kv -> candidateKeys.indexOf(kv.getKey()));
@@ -321,9 +343,9 @@ public class OtlpProtobufUtils {
     List<Annotation> annotations = new ArrayList<>();
 
     // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md
-    annotations.add(new Annotation("otel.library.name", iLibrary.getName()));
+    annotations.add(new Annotation("otel.scope.name", iLibrary.getName()));
     if (!iLibrary.getVersion().isEmpty()) {
-      annotations.add(new Annotation("otel.library.version", iLibrary.getVersion()));
+      annotations.add(new Annotation("otel.scope.version", iLibrary.getVersion()));
     }
 
     return annotations;
@@ -349,11 +371,9 @@ public class OtlpProtobufUtils {
   }
 
   @VisibleForTesting
-  static Pair<Map<String, String>, String> reportREDMetrics(
-      Span span,
-      WavefrontInternalReporter internalReporter,
-      Set<String> traceDerivedCustomTagKeys
-  ) {
+  static Pair<Map<String, String>, String> reportREDMetrics(Span span,
+                                                            WavefrontInternalReporter internalReporter,
+                                                            Set<String> traceDerivedCustomTagKeys) {
     Map<String, String> annotations = mapFromAnnotations(span.getAnnotations());
     List<Pair<String, String>> spanTags = span.getAnnotations().stream()
         .map(a -> Pair.of(a.getKey(), a.getValue())).collect(Collectors.toList());
@@ -398,6 +418,35 @@ public class OtlpProtobufUtils {
     }
 
     return requiredTags;
+  }
+
+  static long getSpansCount(ExportTraceServiceRequest request) {
+    return request.getResourceSpansList().stream()
+        .flatMapToLong(r -> r.getInstrumentationLibrarySpansList().stream()
+            .mapToLong(InstrumentationLibrarySpans::getSpansCount))
+        .sum();
+  }
+
+  @VisibleForTesting
+  static boolean shouldReportSpanLogs(int logsCount,
+                                      Pair<Supplier<Boolean>, Counter> spanLogsDisabled) {
+    return logsCount > 0 && !isFeatureDisabled(spanLogsDisabled._1, SPANLOGS_DISABLED,
+        spanLogsDisabled._2, logsCount);
+  }
+
+  @Nullable
+  static WavefrontInternalReporter createAndStartInternalReporter(@Nullable  WavefrontSender sender) {
+    if (sender == null) return null;
+
+    /*
+    Internal reporter should have a custom source identifying where the internal metrics came from.
+    This mirrors the behavior in the Custom Tracing Listener and Jaeger Listeners.
+     */
+    WavefrontInternalReporter reporter = new WavefrontInternalReporter.Builder()
+        .prefixedWith(TRACING_DERIVED_PREFIX).withSource("otlp").reportMinuteDistribution()
+        .build(sender);
+    reporter.start(1, TimeUnit.MINUTES);
+    return reporter;
   }
 
   private static Map<String, String> mapFromAttributes(List<KeyValue> attributes) {
