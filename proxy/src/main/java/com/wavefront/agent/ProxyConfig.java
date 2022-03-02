@@ -89,7 +89,7 @@ public class ProxyConfig extends Configuration {
 
   @Parameter(names = {"--buffer"}, description = "File name prefix to use for buffering " +
       "transmissions to be retried. Defaults to /var/spool/wavefront-proxy/buffer.", order = 7)
-  String bufferFile = "/tmp/wf-proxy-buffer"; // TODO: change to "/var/spool/wavefront-proxy/buffer";
+  String bufferFile = "/var/spool/wavefront-proxy/buffer";
 
   @Parameter(names = {"--bufferShardSize"}, description = "Buffer file partition size, in MB. " +
       "Setting this value too low may reduce the efficiency of disk space utilization, " +
