@@ -1,6 +1,5 @@
 package com.wavefront.agent.queueing;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.squareup.tape2.QueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
@@ -13,8 +12,11 @@ import com.yammer.metrics.core.Gauge;
 
 import javax.annotation.Nonnull;
 import java.io.File;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.nio.channels.OverlappingFileLockException;
+import java.nio.file.Files;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -110,15 +112,25 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
     try {
       File lockFile = new File(lockFileName);
       if (lockFile.exists()) {
-        Preconditions.checkArgument(true, lockFile.delete());
+        Files.deleteIfExists(lockFile.toPath());
       }
       FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
-      // fail if tryLock() returns null (lock couldn't be acquired)
-      Preconditions.checkNotNull(channel.tryLock());
-    } catch (Exception e) {
-      logger.severe("WF-005: Error requesting exclusive access to the buffer " +
+      if (channel.tryLock() == null) {
+        throw new OverlappingFileLockException();
+      }
+    } catch (SecurityException e) {
+      logger.severe("Error writing to the buffer lock file " + lockFileName +
+          " - please make sure write permissions are correct for this file path and restart the " +
+          "proxy: " + e);
+      return new TaskQueueStub<>();
+    } catch (OverlappingFileLockException e) {
+      logger.severe("Error requesting exclusive access to the buffer " +
           "lock file " + lockFileName + " - please make sure that no other processes " +
-          "access this file and restart the proxy");
+          "access this file and restart the proxy: " + e);
+      return new TaskQueueStub<>();
+    } catch (IOException e) {
+      logger.severe("Error requesting access to buffer lock file " + lockFileName + " Channel is " +
+          "closed or an I/O error has occurred - please restart the proxy: " + e);
       return new TaskQueueStub<>();
     }
     try {
