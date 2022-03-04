@@ -2,6 +2,8 @@ package com.wavefront.agent.listeners.otlp;
 
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.rpc.Code;
+import com.google.rpc.Status;
 
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -22,6 +24,7 @@ import com.yammer.metrics.core.MetricName;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.Set;
@@ -33,14 +36,21 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
 import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
@@ -103,33 +113,42 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
 
   @Override
   protected void handleHttpMessage(ChannelHandlerContext ctx, FullHttpRequest request) throws URISyntaxException {
-//  TODO:  if request.path == "/v1/traces"
-//        else if request.p[ath == "/v1/metrics"
-//        eslse blow up
+    URI uri = new URI(request.uri());
+    String path = uri.getPath().endsWith("/") ? uri.getPath() : uri.getPath() + "/";
     try {
-      ExportTraceServiceRequest otlpRequest =
-          ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
-      long spanCount = OtlpProtobufUtils.getSpansCount(otlpRequest);
-      receivedSpans.inc(spanCount);
+      switch (path) {
+        case "/v1/traces/":
+          ExportTraceServiceRequest otlpRequest =
+              ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
+          long spanCount = OtlpProtobufUtils.getSpansCount(otlpRequest);
+          receivedSpans.inc(spanCount);
 
-      if (isFeatureDisabled(spansDisabled._1, SPAN_DISABLED, spansDisabled._2, spanCount)) {
-        writeHttpResponse(ctx, HttpResponseStatus.ACCEPTED, SPAN_DISABLED, request);
-        return;
+          if (isFeatureDisabled(spansDisabled._1, SPAN_DISABLED, spansDisabled._2, spanCount)) {
+            HttpResponse response = makeErrorResponse(Code.FAILED_PRECONDITION, SPAN_DISABLED);
+            writeHttpResponse(ctx, response, request);
+            return;
+          }
+
+          OtlpProtobufUtils.exportToWavefront(
+              otlpRequest, spanHandler, spanLogsHandler, preprocessorSupplier, spanLogsDisabled,
+              spanSamplerAndCounter, defaultSource, discoveredHeartbeatMetrics, internalReporter,
+              traceDerivedCustomTagKeys
+          );
+          break;
+
+        default:
+          String msg = "Unknown OTLP endpoint " + uri.getPath();
+          logWarning("WF-300: " + msg, null, ctx);
+          HttpResponse response = makeErrorResponse(Code.NOT_FOUND, msg);
+          writeHttpResponse(ctx, response, request);
+          return;
       }
 
-      OtlpProtobufUtils.exportToWavefront(
-          otlpRequest, spanHandler, spanLogsHandler, preprocessorSupplier, spanLogsDisabled,
-          spanSamplerAndCounter, defaultSource, discoveredHeartbeatMetrics, internalReporter,
-          traceDerivedCustomTagKeys
-      );
-      /*
-      We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found in
-      OTel Collector's OTLP Receiver code.
-     */
       writeHttpResponse(ctx, HttpResponseStatus.OK, "", request);
     } catch (InvalidProtocolBufferException e) {
       logWarning("WF-300: Failed to handle incoming OTLP request", e, ctx);
-      writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, errorMessageWithRootCause(e), request);
+      HttpResponse response = makeErrorResponse(Code.INVALID_ARGUMENT, e.getMessage());
+      writeHttpResponse(ctx, response, request);
     }
   }
 
@@ -145,5 +164,24 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   @Override
   public void close() throws IOException {
     scheduledExecutorService.shutdownNow();
+  }
+
+  /*
+  Build an OTLP HTTP error response per the spec:
+  https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/otlp.md#otlphttp-response
+   */
+  private HttpResponse makeErrorResponse(Code rpcCode, String msg) {
+    Status pbStatus = Status.newBuilder().setCode(rpcCode.getNumber()).setMessage(msg).build();
+    ByteBuf content = Unpooled.copiedBuffer(pbStatus.toByteArray());
+
+    HttpHeaders headers = new DefaultHttpHeaders()
+        .set(HttpHeaderNames.CONTENT_TYPE, "application/x-protobuf")
+        .set(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
+
+    HttpResponseStatus httpStatus = (rpcCode == Code.NOT_FOUND) ? HttpResponseStatus.NOT_FOUND :
+        HttpResponseStatus.BAD_REQUEST;
+
+    return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, httpStatus, content, headers,
+        new DefaultHttpHeaders());
   }
 }

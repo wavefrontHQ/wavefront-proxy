@@ -1490,8 +1490,11 @@ public class PushAgentTest {
         OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
     ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
 
-    assertEquals(400, httpPost("http://localhost:" + port, "junk".getBytes(), "application/x-protobuf"));
-    assertEquals(200, httpPost("http://localhost:" + port, otlpRequest.toByteArray(), "application/x-protobuf"));
+    String validUrl = "http://localhost:" + port + "/v1/traces";
+    assertEquals(200, httpPost(validUrl, otlpRequest.toByteArray(), "application/x-protobuf"));
+    assertEquals(400, httpPost(validUrl, "junk".getBytes(), "application/x-protobuf"));
+    assertEquals(404, httpPost("http://localhost:" + port + "/unknown", otlpRequest.toByteArray(),
+        "application/x-protobuf"));
     verify(mockSampler, mockTraceHandler, mockTraceSpanLogsHandler);
 
     Span expectedSpan = OtlpTestHelpers
