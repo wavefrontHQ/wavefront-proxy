@@ -1,13 +1,15 @@
 package com.wavefront.agent.config;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wavefront.agent.logsharvesting.LogsMessage;
 import com.wavefront.data.Validation;
-
+import io.thekraken.grok.api.Grok;
+import io.thekraken.grok.api.Match;
+import io.thekraken.grok.api.exception.GrokException;
 import org.apache.commons.lang3.StringUtils;
+import wavefront.report.TimeSeries;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -16,11 +18,6 @@ import java.util.Map;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import oi.thekraken.grok.api.Grok;
-import oi.thekraken.grok.api.Match;
-import oi.thekraken.grok.api.exception.GrokException;
-import wavefront.report.TimeSeries;
 
 /**
  * Object defining transformation between a log line into structured telemetry data.
