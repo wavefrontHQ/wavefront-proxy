@@ -1,15 +1,14 @@
-TS = $(shell date +%Y%m%d-%H%M%S)
+TS := $(shell date +%Y%m%d-%H%M%S)
 
-VERSION = $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.version}' --non-recursive exec:exec)
-ARTIFACT_ID = $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.artifactId}' --non-recursive exec:exec)
+VERSION := $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.version}' --non-recursive exec:exec)
+ARTIFACT_ID := $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.artifactId}' --non-recursive exec:exec)
 REVISION ?= ${TS}
-FULLVERSION = ${VERSION}_${REVISION}
 USER ?= $(LOGNAME)
 REPO ?= proxy-dev
 PACKAGECLOUD_USER ?= wavefront
 PACKAGECLOUD_REPO ?= proxy-next
 
-DOCKER_TAG ?= $(USER)/$(REPO):${FULLVERSION}
+DOCKER_TAG ?= $(USER)/$(REPO):${VERSION}_${REVISION}
 
 out = $(shell pwd)/out
 $(shell mkdir -p $(out))
