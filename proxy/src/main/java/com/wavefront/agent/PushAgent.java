@@ -787,6 +787,8 @@ public class PushAgent extends AbstractAgent {
                                        @Nullable WavefrontSender wfSender,
                                        SpanSampler sampler) {
     final int port = Integer.parseInt(strPort);
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
     startAsManagedThread(port, () -> {
       activeListeners.inc();
       try {
@@ -813,10 +815,9 @@ public class PushAgent extends AbstractAgent {
                                        @Nullable WavefrontSender wfSender,
                                        SpanSampler sampler) {
     final int port = Integer.parseInt(strPort);
-    // TODO:
-    //    registerPrefixFilter(strPort);
-    //    registerTimestampFilter(strPort);
-    //    if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
+    registerPrefixFilter(strPort);
+    registerTimestampFilter(strPort);
+    if (proxyConfig.isHttpHealthCheckAllPorts()) healthCheckManager.enableHealthcheck(port);
 
     ChannelHandler channelHandler = new OtlpHttpHandler(
         handlerFactory, tokenAuthenticator, healthCheckManager, strPort, wfSender,
