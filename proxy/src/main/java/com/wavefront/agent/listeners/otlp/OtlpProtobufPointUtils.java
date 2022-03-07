@@ -34,21 +34,6 @@ import java.util.stream.Stream;
 public class OtlpProtobufPointUtils {
   public final static Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
 
-  public static Metric.Builder otlpGaugeGenerator(List<NumberDataPoint> points) {
-    return Metric.newBuilder()
-        .setName("test")
-        .setGauge(Gauge.newBuilder().addAllDataPoints(points).build());
-  }
-
-  public static Metric.Builder otlpSumGenerator(List<NumberDataPoint> points) {
-    return Metric.newBuilder()
-        .setName("test")
-        .setSum(Sum.newBuilder()
-            .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
-            .addAllDataPoints(points)
-            .build());
-  }
-
   public static void exportToWavefront(ExportMetricsServiceRequest request,
                                        ReportableEntityHandler<ReportPoint, String> handler,
                                        @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier) {

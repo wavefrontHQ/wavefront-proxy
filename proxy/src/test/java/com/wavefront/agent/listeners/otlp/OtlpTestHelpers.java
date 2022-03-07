@@ -10,7 +10,7 @@ import com.wavefront.sdk.common.Pair;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
-import io.opentelemetry.proto.metrics.v1.Metric;
+import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
 import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.Status;
@@ -243,10 +243,24 @@ public class OtlpTestHelpers {
   }
 
   public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpMetricGenerator() {
-    Metric.Builder builder = io.opentelemetry.proto.metrics.v1.Metric.newBuilder();
-    builder.setName("test");
-    return builder;
+    return io.opentelemetry.proto.metrics.v1.Metric.newBuilder().setName("test");
   }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpGaugeGenerator(List<NumberDataPoint> points) {
+    return io.opentelemetry.proto.metrics.v1.Metric.newBuilder()
+        .setName("test")
+        .setGauge(io.opentelemetry.proto.metrics.v1.Gauge.newBuilder().addAllDataPoints(points).build());
+  }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpSumGenerator(List<NumberDataPoint> points) {
+    return io.opentelemetry.proto.metrics.v1.Metric.newBuilder()
+        .setName("test")
+        .setSum(io.opentelemetry.proto.metrics.v1.Sum.newBuilder()
+            .setAggregationTemporality(io.opentelemetry.proto.metrics.v1.AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+            .addAllDataPoints(points)
+            .build());
+  }
+
 
   public static wavefront.report.ReportPoint.Builder wfReportPointGenerator() {
     return wavefront.report.ReportPoint.newBuilder().setMetric("test").setTimestamp(0).setValue(0.0);

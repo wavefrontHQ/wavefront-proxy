@@ -919,7 +919,7 @@ public class OtlpProtobufUtilsTest {
         NumberDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(1)).setAsDouble(1.0).build(),
         NumberDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(2)).setAsDouble(2.0).build()
     );
-    Metric otlpMetric = OtlpProtobufPointUtils.otlpGaugeGenerator(points).build();
+    Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(points).build();
 
     expectedPoints = ImmutableList.of(
         OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1.0).build(),
@@ -992,7 +992,7 @@ public class OtlpProtobufUtilsTest {
         NumberDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(1)).setAsDouble(1.0).build(),
         NumberDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(2)).setAsDouble(2.0).build()
     );
-    Metric otlpMetric = OtlpProtobufPointUtils.otlpSumGenerator(points).build();
+    Metric otlpMetric = OtlpTestHelpers.otlpSumGenerator(points).build();
 
     expectedPoints = ImmutableList.of(
         OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1.0).build(),
@@ -1043,7 +1043,7 @@ public class OtlpProtobufUtilsTest {
         Collections.singletonList(new Annotation("r-key", "r-value"))
     ).build());
     NumberDataPoint point = NumberDataPoint.newBuilder().setTimeUnixNano(0).build();
-    Metric otlpMetric = OtlpProtobufPointUtils.otlpGaugeGenerator(Collections.singletonList(point)).build();
+    Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(Collections.singletonList(point)).build();
 
     actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, resourceAttrs, null);
 
@@ -1054,7 +1054,7 @@ public class OtlpProtobufUtilsTest {
   public void dataPointAttributesHaveHigherPrecedenceThanResourceAttributes() {
     String key = "the-key";
     NumberDataPoint point = NumberDataPoint.newBuilder().addAttributes(otlpAttribute(key, "gauge-value")).build();
-    Metric otlpMetric = OtlpProtobufPointUtils.otlpGaugeGenerator(Collections.singletonList(point)).build();
+    Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(Collections.singletonList(point)).build();
     List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute(key, "rsrc-value"));
 
     actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, resourceAttrs, null);
@@ -1065,7 +1065,7 @@ public class OtlpProtobufUtilsTest {
   @Test
   public void appliesPreprocessorRules() {
     List<NumberDataPoint> dataPoints = Collections.singletonList(NumberDataPoint.newBuilder().setTimeUnixNano(0).build());
-    Metric otlpMetric = OtlpProtobufPointUtils.otlpGaugeGenerator(dataPoints).build();
+    Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(dataPoints).build();
     List<Annotation> wfAttrs = Collections.singletonList(
         Annotation.newBuilder().setKey("my-key").setValue("my-value").build()
     );
