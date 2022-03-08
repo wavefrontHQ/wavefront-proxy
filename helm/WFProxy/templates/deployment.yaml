@@ -1,0 +1,60 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.appname }}
+  namespace: {{ .Values.namespace }}
+spec:
+  serviceName: proxy
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: wavefront-proxy
+  template:
+    metadata:
+      labels:
+        app: wavefront-proxy
+    spec:
+      containers:
+        - name: wavefront-proxy
+          image: projects.registry.vmware.com/tanzu_observability/proxy:{{ .Values.image.version }}
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              memory: "1Gi"
+          env:
+            - name: WAVEFRONT_URL
+              value: {{ .Values.wavefront.url }}
+            - name: WAVEFRONT_TOKEN
+              value: {{ .Values.wavefront.token }}
+            - name: WAVEFRONT_PROXY_ARGS
+              value: "-f /cfg/wfproxy.conf"
+          ports:
+            {{- range $ports := .Values.config.ports }}
+            {{- range $i,$port := .values }}
+            - name: {{ $ports.option | lower | trunc 13 }}-{{ $i }}
+              containerPort: {{ $port }}
+              protocol: TCP
+            {{- end }}
+            {{- end }}
+          volumeMounts:
+            - name: config-files
+              mountPath: /cfg
+            - name: data
+              mountPath: /var/spool/wavefront-proxy/
+      volumes:
+        - name: config-files
+          configMap:
+            name: config-files
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        resources:
+          requests:
+            storage: 1Gi
+          limits:
+            storage: 1Gi
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ .Values.storageClass }}

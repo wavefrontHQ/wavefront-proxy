@@ -1,0 +1,17 @@
+appname: wf-proxy
+namespace: wavefront
+replicaCount: 3
+storageClass: aws-efs
+
+wavefront:
+  url: https://facke/api/
+  token: facke
+
+image:
+  version: latest
+
+config:
+  ports:
+    - option: pushListenerPorts
+      values:
+        - 2878
