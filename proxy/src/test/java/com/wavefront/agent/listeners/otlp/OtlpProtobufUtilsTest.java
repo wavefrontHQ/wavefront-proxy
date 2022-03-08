@@ -554,7 +554,6 @@ public class OtlpProtobufUtilsTest {
     assertThat(actualSpan.getAnnotations(), not(hasKey(ERROR_TAG_KEY)));
     assertThat(actualSpan.getAnnotations(), not(hasKey(OTEL_STATUS_DESCRIPTION_KEY)));
   }
-//  }
 
   @Test
   public void transformSpanSetsSourceFromResourceAttributesNotSpanAttributes() {
@@ -568,7 +567,6 @@ public class OtlpProtobufUtilsTest {
     assertThat(actualSpan.getAnnotations(), not(hasItem(new Annotation("source", "a-src"))));
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("_source", "span-level")));
   }
-//  }
 
   @Test
   public void transformSpanUsesDefaultSourceWhenNoAttributesMatch() {
@@ -577,6 +575,15 @@ public class OtlpProtobufUtilsTest {
     actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "defaultSource");
 
     assertEquals("defaultSource", actualSpan.getSource());
+  }
+
+  @Test
+  public void transformSpanHandlesTraceState() {
+    Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().setTraceState("key=val").build();
+
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "defaultSource");
+
+    assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("w3c.tracestate", "key=val")));
   }
 
   @Test

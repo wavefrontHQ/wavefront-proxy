@@ -1,7 +1,6 @@
 package com.wavefront.agent.listeners.otlp;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -150,7 +149,7 @@ public class OtlpProtobufUtils {
   static List<WavefrontSpanAndLogs> fromOtlpRequest(ExportTraceServiceRequest request,
                                                     @Nullable ReportableEntityPreprocessor preprocessor,
                                                     String defaultSource) {
-    List<WavefrontSpanAndLogs> wfSpansAndLogs = Lists.newArrayList();
+    List<WavefrontSpanAndLogs> wfSpansAndLogs = new ArrayList<>();
 
     for (ResourceSpans rSpans : request.getResourceSpansList()) {
       Resource resource = rSpans.getResource();
@@ -234,12 +233,8 @@ public class OtlpProtobufUtils {
     wfAnnotations.addAll(annotationsFromStatus(otlpSpan.getStatus()));
     wfAnnotations.addAll(annotationsFromInstrumentationLibrary(iLibrary));
     wfAnnotations.addAll(annotationsFromDroppedCounts(otlpSpan));
-
-    if (!otlpSpan.getParentSpanId().equals(ByteString.EMPTY)) {
-      wfAnnotations.add(
-          new Annotation(PARENT_KEY, SpanUtils.toStringId(otlpSpan.getParentSpanId()))
-      );
-    }
+    wfAnnotations.addAll(annotationsFromTraceState(otlpSpan.getTraceState()));
+    wfAnnotations.addAll(annotationsFromParentSpanID(otlpSpan.getParentSpanId()));
 
     String wfSpanId = SpanUtils.toStringId(otlpSpan.getSpanId());
     String wfTraceId = SpanUtils.toStringId(otlpSpan.getTraceId());
@@ -320,7 +315,7 @@ public class OtlpProtobufUtils {
 
   @VisibleForTesting
   static List<Annotation> annotationsFromAttributes(List<KeyValue> attributesList) {
-    List<Annotation> annotations = Lists.newArrayList();
+    List<Annotation> annotations = new ArrayList<>();
     for (KeyValue attribute : attributesList) {
       String key = attribute.getKey().equals(SOURCE_KEY) ? "_source" : attribute.getKey();
       Annotation.Builder annotationBuilder = Annotation.newBuilder().setKey(key);
@@ -397,7 +392,7 @@ public class OtlpProtobufUtils {
   @VisibleForTesting
   static List<Annotation> setRequiredTags(List<Annotation> annotationList) {
     Map<String, String> tags = mapFromAnnotations(annotationList);
-    List<Annotation> requiredTags = Lists.newArrayList();
+    List<Annotation> requiredTags = new ArrayList<>();
 
     if (!tags.containsKey(SERVICE_TAG_KEY)) {
       tags.put(SERVICE_TAG_KEY, tags.getOrDefault(SERVICE_NAME.getKey(), DEFAULT_SERVICE_NAME));
@@ -468,7 +463,7 @@ public class OtlpProtobufUtils {
   private static List<Annotation> annotationsFromStatus(Status otlpStatus) {
     if (otlpStatus.getCode() != Status.StatusCode.STATUS_CODE_ERROR) return Collections.emptyList();
 
-    List<Annotation> statusAnnotations = Lists.newArrayList();
+    List<Annotation> statusAnnotations = new ArrayList<>();
     statusAnnotations.add(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL));
 
     if (!otlpStatus.getMessage().isEmpty()) {
@@ -476,6 +471,21 @@ public class OtlpProtobufUtils {
     }
     return statusAnnotations;
   }
+
+  private static List<Annotation> annotationsFromTraceState(String state) {
+    if (state == null || state.isEmpty()) return Collections.emptyList();
+
+    return Collections.singletonList(new Annotation("w3c.tracestate", state));
+  }
+
+  private static List<Annotation> annotationsFromParentSpanID(ByteString parentSpanId) {
+    if (parentSpanId == null || parentSpanId.equals(ByteString.EMPTY))
+      return Collections.emptyList();
+
+    return Collections.singletonList(
+        new Annotation(PARENT_KEY, SpanUtils.toStringId(parentSpanId)));
+  }
+
 
   /**
    * Converts an OTLP AnyValue object to its equivalent String representation.
