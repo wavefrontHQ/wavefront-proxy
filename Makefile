@@ -1,20 +1,20 @@
-TS = $(shell date +%Y%m%d-%H%M%S)
+TS := $(shell date +%Y%m%d-%H%M%S)
 
-VERSION = $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.version}' --non-recursive exec:exec)
+VERSION := $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.version}' --non-recursive exec:exec)
+ARTIFACT_ID := $(shell mvn -f proxy -q -Dexec.executable=echo -Dexec.args='$${project.artifactId}' --non-recursive exec:exec)
 REVISION ?= ${TS}
-FULLVERSION = ${VERSION}_${REVISION}
 USER ?= $(LOGNAME)
 REPO ?= proxy-dev
 PACKAGECLOUD_USER ?= wavefront
 PACKAGECLOUD_REPO ?= proxy-next
 
-DOCKER_TAG = $(USER)/$(REPO):${FULLVERSION}
+DOCKER_TAG ?= $(USER)/$(REPO):${VERSION}_${REVISION}
 
 out = $(shell pwd)/out
 $(shell mkdir -p $(out))
 
 .info:
-	@echo "\n----------\nBuilding Proxy ${FULLVERSION}\nDocker tag: ${DOCKER_TAG}\n----------\n"
+	@echo "\n----------\nBuilding Proxy ${VERSION}\nDocker tag: ${DOCKER_TAG}\n----------\n"
 
 jenkins: .info build-jar build-linux push-linux docker-multi-arch clean
 
@@ -23,7 +23,7 @@ jenkins: .info build-jar build-linux push-linux docker-multi-arch clean
 #####
 build-jar: .info
 	mvn -f proxy --batch-mode package 
-	cp proxy/target/proxy-${VERSION}-uber.jar ${out}
+	cp proxy/target/${ARTIFACT_ID}-${VERSION}-uber.jar ${out}
 
 #####
 # Build single docker image
@@ -56,11 +56,11 @@ push-linux: .info .prepare-builder
 	docker build -t proxy-linux-builder pkg/
 
 .cp-docker:
-	cp ${out}/proxy-${VERSION}-uber.jar docker/wavefront-proxy.jar
+	cp ${out}/${ARTIFACT_ID}-${VERSION}-uber.jar docker/wavefront-proxy.jar
 	${MAKE} .set_package JAR=docker/wavefront-proxy.jar PKG=docker
 
 .cp-linux:
-	cp ${out}/proxy-${VERSION}-uber.jar pkg/wavefront-proxy.jar
+	cp ${out}/${ARTIFACT_ID}-${VERSION}-uber.jar pkg/wavefront-proxy.jar
 	${MAKE} .set_package JAR=pkg/wavefront-proxy.jar PKG=linux_rpm_deb
 
 clean:
