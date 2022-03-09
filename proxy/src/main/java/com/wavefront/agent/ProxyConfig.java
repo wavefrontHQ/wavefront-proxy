@@ -481,6 +481,16 @@ public class ProxyConfig extends Configuration {
       "of ports to listen on for json metrics from collectd write_http json format data. Binds, by default, to none.")
   String writeHttpJsonListenerPorts = "";
 
+  @Parameter(names = {"--otlpGrpcListenerPorts"}, description = "Comma-separated list of ports to" +
+      " listen on for OpenTelemetry/OTLP Protobuf formatted data over gRPC. Binds, by default, to" +
+      " none (4317 is recommended).")
+  String otlpGrpcListenerPorts = "";
+
+  @Parameter(names = {"--otlpHttpListenerPorts"}, description = "Comma-separated list of ports to" +
+      " listen on for OpenTelemetry/OTLP Protobuf formatted data over HTTP. Binds, by default, to" +
+      " none (4318 is recommended).")
+  String otlpHttpListenerPorts = "";
+
   // logs ingestion
   @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
   Integer filebeatPort = 0;
@@ -1215,6 +1225,14 @@ public class ProxyConfig extends Configuration {
     return writeHttpJsonListenerPorts;
   }
 
+  public String getOtlpGrpcListenerPorts() {
+    return otlpGrpcListenerPorts;
+  }
+
+  public String getOtlpHttpListenerPorts() {
+    return otlpHttpListenerPorts;
+  }
+
   public Integer getFilebeatPort() {
     return filebeatPort;
   }
@@ -1757,6 +1775,8 @@ public class ProxyConfig extends Configuration {
       graphiteFormat = config.getString("graphiteFormat", graphiteFormat);
       graphiteFieldsToRemove = config.getString("graphiteFieldsToRemove", graphiteFieldsToRemove);
       graphiteDelimiters = config.getString("graphiteDelimiters", graphiteDelimiters);
+      otlpGrpcListenerPorts = config.getString("otlpGrpcListenerPorts", otlpGrpcListenerPorts);
+      otlpHttpListenerPorts = config.getString("otlpHttpListenerPorts", otlpHttpListenerPorts);
       allowRegex = config.getString("allowRegex", config.getString("whitelistRegex", allowRegex));
       blockRegex = config.getString("blockRegex", config.getString("blacklistRegex", blockRegex));
       opentsdbPorts = config.getString("opentsdbPorts", opentsdbPorts);

@@ -18,6 +18,7 @@ import javax.net.SocketFactory;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -33,6 +34,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
+import okhttp3.MediaType;
 import wavefront.report.Span;
 
 import static org.easymock.EasyMock.verify;
@@ -102,7 +104,8 @@ public class TestUtils {
   }
 
   public static void waitUntilListenerIsOnline(int port) throws Exception {
-    for (int i = 0; i < 100; i++) {
+    final int maxTries = 100;
+    for (int i = 0; i < maxTries; i++) {
       try {
         Socket socket = SocketFactory.getDefault().createSocket("localhost", port);
         socket.close();
@@ -111,6 +114,8 @@ public class TestUtils {
         TimeUnit.MILLISECONDS.sleep(50);
       }
     }
+    throw new RuntimeException("Giving up connecting to port " + port + " after " + maxTries +
+        " tries.");
   }
 
   public static int gzippedHttpPost(String postUrl, String payload) throws Exception {
@@ -149,6 +154,23 @@ public class TestUtils {
     connection.setDoOutput(true);
     connection.setDoInput(true);
     BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream(), "UTF-8"));
+    writer.write(payload);
+    writer.flush();
+    writer.close();
+    int response = connection.getResponseCode();
+    logger.info("HTTP POST response code (plaintext content): " + response);
+    return response;
+  }
+
+  public static int httpPost(String urlGet, byte[] payload, String mediaType) throws Exception {
+    URL url = new URL(urlGet);
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("POST");
+    connection.setRequestProperty("content-type", mediaType);
+    connection.setDoOutput(true);
+    connection.setDoInput(true);
+
+    DataOutputStream writer = new DataOutputStream(connection.getOutputStream());
     writer.write(payload);
     writer.flush();
     writer.close();

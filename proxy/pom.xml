@@ -49,6 +49,8 @@
 
     <java.version>1.8</java.version>
     <netty.version>4.1.71.Final</netty.version>
+    <opentelemetry.version>1.6.0-alpha</opentelemetry.version>
+    <powermock.version>2.0.9</powermock.version>
 
     <doclint>none</doclint>
   </properties>
@@ -509,6 +511,13 @@
         <artifactId>avro</artifactId>
         <version>1.11.0</version>
       </dependency>
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom-alpha</artifactId>
+        <version>${opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -608,6 +617,16 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-proto</artifactId>
+      <version>${opentelemetry.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-semconv</artifactId>
+      <version>${opentelemetry.version}</version>
+    </dependency>
+    <dependency>
       <groupId>com.uber.tchannel</groupId>
       <artifactId>tchannel-core</artifactId>
       <version>0.8.29</version>
@@ -641,6 +660,18 @@
       <groupId>org.easymock</groupId>
       <artifactId>easymock</artifactId>
       <version>4.3</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-module-junit4</artifactId>
+      <version>${powermock.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-api-easymock</artifactId>
+      <version>${powermock.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
