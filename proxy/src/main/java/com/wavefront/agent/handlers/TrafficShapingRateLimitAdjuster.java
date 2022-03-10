@@ -29,7 +29,7 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
   private static final int MIN_RATE_LIMIT = 10; // 10 pps
   private static final double TOLERANCE_PERCENT = 5.0;
 
-  private final EntityPropertiesFactory entityProps;
+  private final Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
   private final double headroom;
   private final Map<ReportableEntityType, EvictingRingBuffer<Long>> perEntityStats =
       new EnumMap<>(ReportableEntityType.class);
@@ -37,16 +37,16 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
   private final int windowSeconds;
 
   /**
-   * @param entityProps       entity properties factory (to control rate limiters)
-   * @param windowSeconds     size of the moving time window to average point rate
-   * @param headroom          headroom multiplier
+   * @param entityPropsFactoryMap  map of factory for entity properties factory (to control rate limiters)
+   * @param windowSeconds          size of the moving time window to average point rate
+   * @param headroom               headroom multiplier
    */
-  public TrafficShapingRateLimitAdjuster(EntityPropertiesFactory entityProps,
+  public TrafficShapingRateLimitAdjuster(Map<String, EntityPropertiesFactory> entityPropsFactoryMap,
                                          int windowSeconds, double headroom) {
     this.windowSeconds = windowSeconds;
     Preconditions.checkArgument(headroom >= 1.0, "headroom can't be less than 1!");
     Preconditions.checkArgument(windowSeconds > 0, "windowSeconds needs to be > 0!");
-    this.entityProps = entityProps;
+    this.entityPropsFactoryMap = entityPropsFactoryMap;
     this.headroom = headroom;
     this.timer = new Timer("traffic-shaping-adjuster-timer");
   }
@@ -54,15 +54,17 @@ public class TrafficShapingRateLimitAdjuster extends TimerTask implements Manage
   @Override
   public void run() {
     for (ReportableEntityType type : ReportableEntityType.values()) {
-      EntityProperties props = entityProps.get(type);
-      long rate = props.getTotalReceivedRate();
-      EvictingRingBuffer<Long> stats = perEntityStats.computeIfAbsent(type, x ->
-          new SynchronizedEvictingRingBuffer<>(windowSeconds));
-      if (rate > 0 || stats.size() > 0) {
-        stats.add(rate);
-        if (stats.size() >= 60) { // need at least 1 minute worth of stats to enable the limiter
-          RecyclableRateLimiter rateLimiter = props.getRateLimiter();
-          adjustRateLimiter(type, stats, rateLimiter);
+      for (EntityPropertiesFactory propsFactory : entityPropsFactoryMap.values()) {
+        EntityProperties props = propsFactory.get(type);
+        long rate = props.getTotalReceivedRate();
+        EvictingRingBuffer<Long> stats = perEntityStats.computeIfAbsent(type, x ->
+            new SynchronizedEvictingRingBuffer<>(windowSeconds));
+        if (rate > 0 || stats.size() > 0) {
+          stats.add(rate);
+          if (stats.size() >= 60) { // need at least 1 minute worth of stats to enable the limiter
+            RecyclableRateLimiter rateLimiter = props.getRateLimiter();
+            adjustRateLimiter(type, stats, rateLimiter);
+          }
         }
       }
     }

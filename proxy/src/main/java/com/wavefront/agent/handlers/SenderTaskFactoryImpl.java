@@ -1,14 +1,18 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.wavefront.common.Managed;
+import com.google.common.collect.Maps;
+
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.queueing.QueueController;
 import com.wavefront.agent.queueing.QueueingFactory;
-import com.wavefront.agent.queueing.TaskSizeEstimator;
 import com.wavefront.agent.queueing.TaskQueueFactory;
+import com.wavefront.agent.queueing.TaskSizeEstimator;
+import com.wavefront.api.ProxyV2API;
+import com.wavefront.common.Managed;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
@@ -58,27 +62,28 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   private final UUID proxyId;
   private final TaskQueueFactory taskQueueFactory;
   private final QueueingFactory queueingFactory;
-  private final EntityPropertiesFactory entityPropsFactory;
+  private final Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
 
   /**
    * Create new instance.
    *
-   * @param apiContainer       handles interaction with Wavefront servers as well as queueing.
-   * @param proxyId            proxy ID.
-   * @param taskQueueFactory   factory for backing queues.
-   * @param queueingFactory    factory for queueing.
-   * @param entityPropsFactory factory for entity-specific wrappers for mutable proxy settings.
+   * @param apiContainer          handles interaction with Wavefront servers as well as queueing.
+   * @param proxyId               proxy ID.
+   * @param taskQueueFactory      factory for backing queues.
+   * @param queueingFactory       factory for queueing.
+   * @param entityPropsFactoryMap map of factory for entity-specific wrappers for multiple
+   *                              multicasting mutable proxy settings.
    */
   public SenderTaskFactoryImpl(final APIContainer apiContainer,
                                final UUID proxyId,
                                final TaskQueueFactory taskQueueFactory,
                                @Nullable final QueueingFactory queueingFactory,
-                               final EntityPropertiesFactory entityPropsFactory) {
+                               final Map<String, EntityPropertiesFactory> entityPropsFactoryMap) {
     this.apiContainer = apiContainer;
     this.proxyId = proxyId;
     this.taskQueueFactory = taskQueueFactory;
     this.queueingFactory = queueingFactory;
-    this.entityPropsFactory = entityPropsFactory;
+    this.entityPropsFactoryMap = entityPropsFactoryMap;
     // global `~proxy.buffer.fill-rate` metric aggregated from all task size estimators
     Metrics.newGauge(new TaggedMetricName("buffer", "fill-rate"),
         new Gauge<Long>() {
@@ -93,56 +98,82 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   }
 
   @SuppressWarnings("unchecked")
-  public Collection<SenderTask<?>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
+  public Map<String, Collection<SenderTask<?>>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
     ReportableEntityType entityType = handlerKey.getEntityType();
-    int numThreads = entityPropsFactory.get(entityType).getFlushThreads();
-    List<SenderTask<?>> toReturn = new ArrayList<>(numThreads);
+    String handle = handlerKey.getHandle();
+
+    ScheduledExecutorService scheduler;
+    Map<String, Collection<SenderTask<?>>> toReturn = Maps.newHashMap();
+    // MONIT-25479: HandlerKey(EntityType, Port) --> HandlerKey(EntityType, Port, TenantName)
+    // Every SenderTask is tenant specific from this point
+    for (String tenantName : apiContainer.getTenantNameList()) {
+      int numThreads = entityPropsFactoryMap.get(tenantName).get(entityType).getFlushThreads();
+      HandlerKey tenantHandlerKey = HandlerKey.of(entityType, handle, tenantName);
+
+      scheduler = executors.computeIfAbsent(tenantHandlerKey, x ->
+          Executors.newScheduledThreadPool(numThreads, new NamedThreadFactory(
+              "submitter-" + tenantHandlerKey.getEntityType() + "-" + tenantHandlerKey.getHandle())));
+
+      toReturn.put(tenantName, generateSenderTaskList(tenantHandlerKey, numThreads, scheduler));
+    }
+    return toReturn;
+  }
+
+  private Collection<SenderTask<?>> generateSenderTaskList(HandlerKey handlerKey,
+                                                           int numThreads,
+                                                           ScheduledExecutorService scheduler) {
+    String tenantName = handlerKey.getTenantName();
+    if (tenantName == null) {
+      throw new IllegalArgumentException("Tenant name in handlerKey should not be null when " +
+          "generating sender task list.");
+    }
     TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getHandle());
     taskSizeEstimators.put(handlerKey, taskSizeEstimator);
-
-    ScheduledExecutorService scheduler = executors.computeIfAbsent(handlerKey, x ->
-        Executors.newScheduledThreadPool(numThreads, new NamedThreadFactory("submitter-" +
-            handlerKey.getEntityType() + "-" + handlerKey.getHandle())));
-
+    ReportableEntityType entityType = handlerKey.getEntityType();
+    List<SenderTask<?>> senderTaskList = new ArrayList<>(numThreads);
+    ProxyV2API proxyV2API = apiContainer.getProxyV2APIForTenant(tenantName);
+    EntityProperties properties = entityPropsFactoryMap.get(tenantName).get(entityType);
     for (int threadNo = 0; threadNo < numThreads; threadNo++) {
       SenderTask<?> senderTask;
       switch (entityType) {
         case POINT:
         case DELTA_COUNTER:
           senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_WAVEFRONT,
-              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
-              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              proxyV2API, proxyId, properties, scheduler, threadNo, taskSizeEstimator,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case HISTOGRAM:
           senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_HISTOGRAM,
-              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
-              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              proxyV2API, proxyId, properties, scheduler, threadNo, taskSizeEstimator,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case SOURCE_TAG:
-          senderTask = new SourceTagSenderTask(handlerKey, apiContainer.getSourceTagAPI(),
-              threadNo, entityPropsFactory.get(entityType), scheduler,
-              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+          // In MONIT-25479, SOURCE_TAG does not support tag based multicasting. But still
+          // generated tasks for each tenant in case we have other multicasting mechanism
+          senderTask = new SourceTagSenderTask(handlerKey, apiContainer.getSourceTagAPIForTenant(tenantName),
+              threadNo, properties, scheduler, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE:
           senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_TRACING,
-              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
-              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              proxyV2API, proxyId, properties, scheduler, threadNo, taskSizeEstimator,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case TRACE_SPAN_LOGS:
+          // In MONIT-25479, TRACE_SPAN_LOGS does not support tag based multicasting. But still
+          // generated tasks for each tenant in case we have other multicasting mechanism
           senderTask = new LineDelimitedSenderTask(handlerKey, PUSH_FORMAT_TRACING_SPAN_LOGS,
-              apiContainer.getProxyV2API(), proxyId, entityPropsFactory.get(entityType), scheduler,
-              threadNo, taskSizeEstimator, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+              proxyV2API, proxyId, properties, scheduler, threadNo, taskSizeEstimator,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         case EVENT:
-          senderTask = new EventSenderTask(handlerKey, apiContainer.getEventAPI(), proxyId,
-              threadNo, entityPropsFactory.get(entityType), scheduler,
-              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+          senderTask = new EventSenderTask(handlerKey, apiContainer.getEventAPIForTenant(tenantName),
+              proxyId, threadNo, properties, scheduler, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
         default:
           throw new IllegalArgumentException("Unexpected entity type " +
               handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());
       }
-      toReturn.add(senderTask);
+      senderTaskList.add(senderTask);
       senderTask.start();
     }
     if (queueingFactory != null) {
@@ -150,10 +181,10 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
       managedServices.put(handlerKey, controller);
       controller.start();
     }
-    managedTasks.put(handlerKey, toReturn);
+    managedTasks.put(handlerKey, senderTaskList);
     entityTypes.computeIfAbsent(handlerKey.getHandle(), x -> new ArrayList<>()).
         add(handlerKey.getEntityType());
-    return toReturn;
+    return senderTaskList;
   }
 
   @Override
@@ -171,20 +202,30 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     });
   }
 
+  /**
+   * shutdown() is called from outside layer where handle is not tenant specific
+   * in order to properly shut down all tenant specific tasks, iterate through the tenant list
+   * and shut down correspondingly.
+   *
+   * @param handle pipeline's handle
+   */
   @Override
   public void shutdown(@Nonnull String handle) {
-    List<ReportableEntityType> types = entityTypes.get(handle);
-    if (types == null) return;
-    try {
-      types.forEach(x -> taskSizeEstimators.remove(HandlerKey.of(x, handle)).shutdown());
-      types.forEach(x -> managedServices.remove(HandlerKey.of(x, handle)).stop());
-      types.forEach(x -> managedTasks.remove(HandlerKey.of(x, handle)).forEach(t -> {
-        t.stop();
-        t.drainBuffersToQueue(null);
-      }));
-      types.forEach(x -> executors.remove(HandlerKey.of(x, handle)).shutdown());
-    } finally {
-      entityTypes.remove(handle);
+    for (String tenantName : apiContainer.getTenantNameList()) {
+      String tenantHandlerKey = HandlerKey.generateTenantSpecificHandle(handle, tenantName);
+      List<ReportableEntityType> types = entityTypes.get(tenantHandlerKey);
+      if (types == null) return;
+      try {
+        types.forEach(x -> taskSizeEstimators.remove(HandlerKey.of(x, handle, tenantName)).shutdown());
+        types.forEach(x -> managedServices.remove(HandlerKey.of(x, handle, tenantName)).stop());
+        types.forEach(x -> managedTasks.remove(HandlerKey.of(x, handle, tenantName)).forEach(t -> {
+          t.stop();
+          t.drainBuffersToQueue(null);
+        }));
+        types.forEach(x -> executors.remove(HandlerKey.of(x, handle, tenantName)).shutdown());
+      } finally {
+        entityTypes.remove(tenantHandlerKey);
+      }
     }
   }
 
@@ -206,10 +247,16 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
   @VisibleForTesting
   public void flushNow(@Nonnull HandlerKey handlerKey) {
-    managedTasks.get(handlerKey).forEach(task -> {
-      if (task instanceof AbstractSenderTask) {
-        ((AbstractSenderTask<?>) task).run();
-      }
-    });
+    HandlerKey tenantHandlerKey;
+    ReportableEntityType entityType = handlerKey.getEntityType();
+    String handle = handlerKey.getHandle();
+    for (String tenantName : apiContainer.getTenantNameList()) {
+      tenantHandlerKey = HandlerKey.of(entityType, handle, tenantName);
+      managedTasks.get(tenantHandlerKey).forEach(task -> {
+        if (task instanceof AbstractSenderTask) {
+          ((AbstractSenderTask<?>) task).run();
+        }
+      });
+    }
   }
 }

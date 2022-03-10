@@ -1,9 +1,11 @@
 package com.wavefront.agent;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
+
+import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Clock;
@@ -11,8 +13,6 @@ import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.metrics.JsonMetricsGenerator;
 import com.yammer.metrics.Metrics;
 
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ProcessingException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -24,9 +24,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.ProcessingException;
 
 import static com.wavefront.common.Utils.getBuildVersion;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
@@ -51,7 +55,7 @@ public class ProxyCheckInScheduler {
   private final UUID proxyId;
   private final ProxyConfig proxyConfig;
   private final APIContainer apiContainer;
-  private final Consumer<AgentConfiguration> agentConfigurationConsumer;
+  private final BiConsumer<String, AgentConfiguration> agentConfigurationConsumer;
   private final Runnable shutdownHook;
   private final Runnable truncateBacklog;
 
@@ -79,7 +83,7 @@ public class ProxyCheckInScheduler {
   public ProxyCheckInScheduler(UUID proxyId,
                                ProxyConfig proxyConfig,
                                APIContainer apiContainer,
-                               Consumer<AgentConfiguration> agentConfigurationConsumer,
+                               BiConsumer<String, AgentConfiguration> agentConfigurationConsumer,
                                Runnable shutdownHook,
                                Runnable truncateBacklog) {
     this.proxyId = proxyId;
@@ -89,17 +93,19 @@ public class ProxyCheckInScheduler {
     this.shutdownHook = shutdownHook;
     this.truncateBacklog = truncateBacklog;
     updateProxyMetrics();
-    AgentConfiguration config = checkin();
-    if (config == null && retryImmediately) {
+    Map<String, AgentConfiguration> configList = checkin();
+    if (configList == null && retryImmediately) {
       // immediately retry check-ins if we need to re-attempt
       // due to changing the server endpoint URL
       updateProxyMetrics();
-      config = checkin();
+      configList = checkin();
     }
-    if (config != null) {
+    if (configList != null && !configList.isEmpty()) {
       logger.info("initial configuration is available, setting up proxy");
-      agentConfigurationConsumer.accept(config);
-      successfulCheckIns.incrementAndGet();
+      for (Map.Entry<String, AgentConfiguration> configEntry: configList.entrySet()) {
+        agentConfigurationConsumer.accept(configEntry.getKey(), configEntry.getValue());
+        successfulCheckIns.incrementAndGet();
+      }
     }
   }
 
@@ -131,10 +137,11 @@ public class ProxyCheckInScheduler {
   /**
    * Perform agent check-in and fetch configuration of the daemon from remote server.
    *
-   * @return Fetched configuration. {@code null} if the configuration is invalid.
+   * @return Fetched configuration map {tenant_name: config instance}. {@code null} if the
+   * configuration is invalid.
    */
-  private AgentConfiguration checkin() {
-    AgentConfiguration newConfig;
+  private Map<String, AgentConfiguration> checkin() {
+    Map<String, AgentConfiguration> configurationList = Maps.newHashMap();
     JsonNode agentMetricsWorkingCopy;
     synchronized (executor) {
       if (agentMetrics == null) return null;
@@ -142,11 +149,24 @@ public class ProxyCheckInScheduler {
       agentMetrics = null;
       if (retries.incrementAndGet() > MAX_CHECKIN_ATTEMPTS) return null;
     }
-    logger.info("Checking in: " + firstNonNull(serverEndpointUrl, proxyConfig.getServer()));
+    // MONIT-25479: check-in for central and multicasting tenants / clusters
+    Map<String, Map<String, String>> multicastingTenantList = proxyConfig.getMulticastingTenantList();
+    // Initialize tenantName and multicastingTenantProxyConfig here to track current checking
+    // tenant for better exception handling message
+    String tenantName = APIContainer.CENTRAL_TENANT_NAME;
+    Map<String, String> multicastingTenantProxyConfig = multicastingTenantList.get(APIContainer.CENTRAL_TENANT_NAME);
     try {
-      newConfig = apiContainer.getProxyV2API().proxyCheckin(proxyId,
-          "Bearer " + proxyConfig.getToken(), proxyConfig.getHostname(), getBuildVersion(),
-          System.currentTimeMillis(), agentMetricsWorkingCopy, proxyConfig.isEphemeral());
+      AgentConfiguration multicastingConfig;
+      for (Map.Entry<String, Map<String, String>> multicastingTenantEntry : multicastingTenantList.entrySet()) {
+        tenantName = multicastingTenantEntry.getKey();
+        multicastingTenantProxyConfig = multicastingTenantEntry.getValue();
+        logger.info("Checking in tenants: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER));
+        multicastingConfig = apiContainer.getProxyV2APIForTenant(tenantName).proxyCheckin(proxyId,
+            "Bearer " + multicastingTenantProxyConfig.get(APIContainer.API_TOKEN),
+            proxyConfig.getHostname() + (multicastingTenantList.size() > 1 ? "-multi_tenant" : ""),
+            getBuildVersion(), System.currentTimeMillis(), agentMetricsWorkingCopy, proxyConfig.isEphemeral());
+        configurationList.put(tenantName, multicastingConfig);
+      }
       agentMetricsWorkingCopy = null;
     } catch (ClientErrorException ex) {
       agentMetricsWorkingCopy = null;
@@ -167,19 +187,19 @@ public class ProxyCheckInScheduler {
           break;
         case 404:
         case 405:
-          String serverUrl = proxyConfig.getServer().replaceAll("/$", "");
+          String serverUrl = multicastingTenantProxyConfig.get(APIContainer.API_SERVER).replaceAll("/$", "");
           if (successfulCheckIns.get() == 0 && !retryImmediately && !serverUrl.endsWith("/api")) {
             this.serverEndpointUrl = serverUrl + "/api/";
             checkinError("Possible server endpoint misconfiguration detected, attempting to use " +
                 serverEndpointUrl);
-            apiContainer.updateServerEndpointURL(serverEndpointUrl);
+            apiContainer.updateServerEndpointURL(tenantName, serverEndpointUrl);
             retryImmediately = true;
             return null;
           }
           String secondaryMessage = serverUrl.endsWith("/api") ?
-              "Current setting: " + proxyConfig.getServer() :
+              "Current setting: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER) :
               "Server endpoint URLs normally end with '/api/'. Current setting: " +
-                  proxyConfig.getServer();
+                  multicastingTenantProxyConfig.get(APIContainer.API_SERVER);
           checkinError("HTTP " + ex.getResponse().getStatus() + ": Misconfiguration detected, " +
               "please verify that your server setting is correct. " + secondaryMessage);
           if (successfulCheckIns.get() == 0) {
@@ -199,33 +219,33 @@ public class ProxyCheckInScheduler {
           return null;
         default:
           checkinError("HTTP " + ex.getResponse().getStatus() +
-              " error: Unable to check in with Wavefront! " + proxyConfig.getServer() + ": " +
-              Throwables.getRootCause(ex).getMessage());
+              " error: Unable to check in with Wavefront! " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER)
+              + ": " + Throwables.getRootCause(ex).getMessage());
       }
-      return new AgentConfiguration(); // return empty configuration to prevent checking in every 1s
+      return Maps.newHashMap(); // return empty configuration to prevent checking in every 1s
     } catch (ProcessingException ex) {
       Throwable rootCause = Throwables.getRootCause(ex);
       if (rootCause instanceof UnknownHostException) {
-        checkinError("Unknown host: " + proxyConfig.getServer() +
+        checkinError("Unknown host: " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER) +
             ". Please verify your DNS and network settings!");
         return null;
       }
       if (rootCause instanceof ConnectException) {
-        checkinError("Unable to connect to " + proxyConfig.getServer() + ": " +
+        checkinError("Unable to connect to " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER) + ": " +
             rootCause.getMessage() + " Please verify your network/firewall settings!");
         return null;
       }
       if (rootCause instanceof SocketTimeoutException) {
-        checkinError("Unable to check in with " + proxyConfig.getServer() + ": " +
+        checkinError("Unable to check in with " + multicastingTenantProxyConfig.get(APIContainer.API_SERVER) + ": " +
             rootCause.getMessage() + " Please verify your network/firewall settings!");
         return null;
       }
       checkinError("Request processing error: Unable to retrieve proxy configuration! " +
-          proxyConfig.getServer() + ": " + rootCause);
+          multicastingTenantProxyConfig.get(APIContainer.API_SERVER) + ": " + rootCause);
       return null;
     } catch (Exception ex) {
       checkinError("Unable to retrieve proxy configuration from remote server! " +
-          proxyConfig.getServer() + ": " + Throwables.getRootCause(ex));
+          multicastingTenantProxyConfig.get(APIContainer.API_SERVER) + ": " + Throwables.getRootCause(ex));
       return null;
     } finally {
       synchronized (executor) {
@@ -236,31 +256,40 @@ public class ProxyCheckInScheduler {
         }
       }
     }
-    if (newConfig.currentTime != null) {
-      Clock.set(newConfig.currentTime);
+    if (configurationList.get(APIContainer.CENTRAL_TENANT_NAME).currentTime != null) {
+      Clock.set(configurationList.get(APIContainer.CENTRAL_TENANT_NAME).currentTime);
     }
-    return newConfig;
+    return configurationList;
   }
 
   @VisibleForTesting
   void updateConfiguration() {
     try {
-      AgentConfiguration config = checkin();
-      if (config != null) {
-        if (logger.isDebugEnabled()) {
-          logger.debug("Server configuration getShutOffAgents: " + config.getShutOffAgents());
-          logger.debug("Server configuration isTruncateQueue: " + config.isTruncateQueue());
-        }
-        if (config.getShutOffAgents()) {
-          logger.warn(firstNonNull(config.getShutOffMessage(),
-              "Shutting down: Server side flag indicating proxy has to shut down."));
-          shutdownHook.run();
-        } else if (config.isTruncateQueue()) {
-          logger.warn(
-              "Truncating queue: Server side flag indicating proxy queue has to be truncated.");
-          truncateBacklog.run();
-        } else {
-          agentConfigurationConsumer.accept(config);
+      Map<String, AgentConfiguration> configList = checkin();
+      if (configList != null && !configList.isEmpty()) {
+        AgentConfiguration config;
+        for (Map.Entry<String, AgentConfiguration> configEntry : configList.entrySet()) {
+          config = configEntry.getValue();
+          // For shutdown the proxy / truncate queue, only check the central tenant's flag
+          if (config == null) {
+            continue;
+          }
+          if (configEntry.getKey().equals(APIContainer.CENTRAL_TENANT_NAME)) {
+            if (logger.isDebugEnabled()) {
+              logger.debug("Server configuration getShutOffAgents: " + config.getShutOffAgents());
+              logger.debug("Server configuration isTruncateQueue: " + config.isTruncateQueue());
+            }
+            if (config.getShutOffAgents()) {
+              logger.warn(firstNonNull(config.getShutOffMessage(),
+                  "Shutting down: Server side flag indicating proxy has to shut down."));
+              shutdownHook.run();
+            } else if (config.isTruncateQueue()) {
+              logger.warn(
+                  "Truncating queue: Server side flag indicating proxy queue has to be truncated.");
+              truncateBacklog.run();
+            }
+          }
+          agentConfigurationConsumer.accept(configEntry.getKey(), config);
         }
       }
     } catch (Exception e) {
