@@ -1025,15 +1025,17 @@ public class OtlpProtobufUtilsTest {
   }
 
   @Test
-  public void rejectsDeltaSums() {
-    Sum deltaSum = Sum.newBuilder()
+  public void addsPrefixToDeltaSums() {
+    Sum otlpSum = Sum.newBuilder()
         .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
-        .addDataPoints(NumberDataPoint.newBuilder().build()).build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(deltaSum).build();
+        .addDataPoints(NumberDataPoint.newBuilder().build())
+        .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).setName("testSum").build();
+    ReportPoint reportPoint = OtlpTestHelpers.wfReportPointGenerator().setMetric("∆testSum").build();
+    expectedPoints = ImmutableList.of(reportPoint);
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
 
-    Assert.assertThrows(IllegalArgumentException.class, () -> {
-      OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
-    });
+    assertAllPointsEqual(expectedPoints, actualPoints);
   }
 
   @Test

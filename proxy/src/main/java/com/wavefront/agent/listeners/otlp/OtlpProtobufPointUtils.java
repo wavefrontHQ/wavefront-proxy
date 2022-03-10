@@ -4,9 +4,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.common.MetricConstants;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.common.v1.KeyValue;
-import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
 import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics;
 import io.opentelemetry.proto.metrics.v1.Metric;
@@ -113,7 +113,18 @@ public class OtlpProtobufPointUtils {
         points.add(point);
       }
     } else if (otlpMetric.hasSum()) {
-      for (ReportPoint point : transformSum(otlpMetric.getName(), otlpMetric.getSum(), resourceAttrs)) {
+      String prefix = "";
+      switch (otlpMetric.getSum().getAggregationTemporality()) {
+        case AGGREGATION_TEMPORALITY_CUMULATIVE:
+          // no prefix
+          break;
+        case AGGREGATION_TEMPORALITY_DELTA:
+          prefix = MetricConstants.DELTA_PREFIX;
+          break;
+        default:
+          throw new IllegalArgumentException("OTel: sum with unsupported aggregation temporality " + otlpMetric.getSum().getAggregationTemporality().name());
+      }
+      for (ReportPoint point : transformSum(prefix + otlpMetric.getName(), otlpMetric.getSum(), resourceAttrs)) {
         // apply preprocessor
         if (preprocessor != null) {
           preprocessor.forReportPoint().transform(point);
@@ -127,21 +138,17 @@ public class OtlpProtobufPointUtils {
     return points;
   }
 
-  private static Collection<ReportPoint> transformSum(String name, Sum sum, List<KeyValue> resourceAttrs) {
+  private static List<ReportPoint> transformSum(String name, Sum sum, List<KeyValue> resourceAttrs) {
     if (sum.getDataPointsCount() == 0) {
       throw new IllegalArgumentException("OTel: sum with no data points");
-    }
-
-    // TODO support delta sums
-    if (sum.getAggregationTemporality() != AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE) {
-      throw new IllegalArgumentException("OTel: sum with unsupported aggregation temporality " + sum.getAggregationTemporality().name());
     }
 
     List<ReportPoint> points = new ArrayList<>(sum.getDataPointsCount());
     for (NumberDataPoint p : sum.getDataPointsList()) {
       points.add(transformNumberDataPoint(name, p, resourceAttrs));
     }
-    return points;  }
+    return points;
+  }
 
   private static Collection<ReportPoint> transformGauge(String name, Gauge gauge, List<KeyValue> resourceAttrs) {
     if (gauge.getDataPointsCount() == 0) {
