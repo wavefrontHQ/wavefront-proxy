@@ -8,7 +8,11 @@ wavefront:
   token: facke
 
 image:
+  name: wavefronthq/proxy
   version: latest
+
+proxy:
+  javaargs: ""
 
 config:
   ports:

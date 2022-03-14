@@ -17,12 +17,14 @@ spec:
     spec:
       containers:
         - name: wavefront-proxy
-          image: projects.registry.vmware.com/tanzu_observability/proxy:{{ .Values.image.version }}
+          image: {{ .Values.image.name }}:{{ .Values.image.version }}
           imagePullPolicy: IfNotPresent
           resources:
             limits:
-              memory: "1Gi"
+              memory: "2Gi"
           env:
+            - name: JAVA_ARGS
+              value: {{ .Values.proxy.javaargs }}
             - name: WAVEFRONT_URL
               value: {{ .Values.wavefront.url }}
             - name: WAVEFRONT_TOKEN
