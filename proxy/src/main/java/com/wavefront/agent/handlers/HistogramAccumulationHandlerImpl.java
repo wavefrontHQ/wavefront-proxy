@@ -13,6 +13,8 @@ import wavefront.report.ReportPoint;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -57,7 +59,7 @@ public class HistogramAccumulationHandlerImpl extends ReportPointHandlerImpl {
                                           @Nullable Granularity granularity,
                                           @Nonnull final ValidationConfiguration validationConfig,
                                           boolean isHistogramInput,
-                                          @Nullable final Consumer<Long> receivedRateSink,
+                                          @Nullable final BiConsumer<String, Long> receivedRateSink,
                                           @Nullable final Logger blockedItemLogger,
                                           @Nullable final Logger validItemsLogger) {
     super(handlerKey, blockedItemsPerBatch, null, validationConfig, !isHistogramInput,

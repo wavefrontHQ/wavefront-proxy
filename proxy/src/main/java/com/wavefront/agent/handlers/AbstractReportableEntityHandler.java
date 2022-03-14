@@ -12,10 +12,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -34,6 +37,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   private static final Logger logger = Logger.getLogger(
       AbstractReportableEntityHandler.class.getCanonicalName());
   protected static final MetricsRegistry LOCAL_REGISTRY = new MetricsRegistry();
+  protected static final String MULTICASTING_TENANT_TAG_KEY = "multicastingTenantName";
 
   private final Logger blockedItemsLogger;
 
@@ -46,7 +50,8 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   @SuppressWarnings("UnstableApiUsage")
   final RateLimiter blockedItemsLimiter;
   final Function<T, String> serializer;
-  final List<SenderTask<U>> senderTasks;
+  final Map<String, Collection<SenderTask<U>>> senderTaskMap;
+  protected final boolean isMulticastingActive;
   final boolean reportReceivedStats;
   final String rateUnit;
 
@@ -64,24 +69,26 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
    *                             into the main log file.
    * @param serializer           helper function to convert objects to string. Used when writing
    *                             blocked points to logs.
-   * @param senderTasks          tasks actually handling data transfer to the Wavefront endpoint.
+   * @param senderTaskMap        map of tenant name and tasks actually handling data transfer to
+   *                             the Wavefront endpoint corresponding to the tenant name
    * @param reportReceivedStats  Whether we should report a .received counter metric.
-   * @param receivedRateSink     Where to report received rate.
+   * @param receivedRateSink     Where to report received rate (tenant specific).
    * @param blockedItemsLogger   a {@link Logger} instance for blocked items
    */
   AbstractReportableEntityHandler(HandlerKey handlerKey,
                                   final int blockedItemsPerBatch,
                                   final Function<T, String> serializer,
-                                  @Nullable final Collection<SenderTask<U>> senderTasks,
+                                  @Nullable final Map<String, Collection<SenderTask<U>>> senderTaskMap,
                                   boolean reportReceivedStats,
-                                  @Nullable final Consumer<Long> receivedRateSink,
+                                  @Nullable final BiConsumer<String, Long> receivedRateSink,
                                   @Nullable final Logger blockedItemsLogger) {
     this.handlerKey = handlerKey;
     //noinspection UnstableApiUsage
     this.blockedItemsLimiter = blockedItemsPerBatch == 0 ? null :
         RateLimiter.create(blockedItemsPerBatch / 10d);
     this.serializer = serializer;
-    this.senderTasks = senderTasks == null ? new ArrayList<>() : new ArrayList<>(senderTasks);
+    this.senderTaskMap = senderTaskMap == null ? new HashMap<>() : new HashMap<>(senderTaskMap);
+    this.isMulticastingActive = this.senderTaskMap.size() > 1;
     this.reportReceivedStats = reportReceivedStats;
     this.rateUnit = handlerKey.getEntityType().getRateUnit();
     this.blockedItemsLogger = blockedItemsLogger;
@@ -107,7 +114,9 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       timer.scheduleAtFixedRate(new TimerTask() {
         @Override
         public void run() {
-          receivedRateSink.accept(receivedStats.getCurrentRate());
+          for (String tenantName : senderTaskMap.keySet()) {
+            receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
+          }
         }
       }, 1000, 1000);
     }
@@ -193,10 +202,14 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
     return receivedCounter;
   }
 
-  protected SenderTask<U> getTask() {
-    if (senderTasks == null) {
+  protected SenderTask<U> getTask(String tenantName) {
+    if (senderTaskMap == null) {
       throw new IllegalStateException("getTask() cannot be called on null senderTasks");
     }
+    if (!senderTaskMap.containsKey(tenantName)) {
+      return null;
+    }
+    List<SenderTask<U>> senderTasks = new ArrayList<>(senderTaskMap.get(tenantName));
     // roundrobin all tasks, skipping the worst one (usually with the highest number of points)
     int nextTaskId = (int)(roundRobinCounter.getAndIncrement() % senderTasks.size());
     long worstScore = 0L;
