@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: wavefront-proxy
-          image: {{ .Values.image.name }}:{{ .Values.image.version }}
+          image: {{ .Values.image }}
           imagePullPolicy: IfNotPresent
           resources:
             limits:
