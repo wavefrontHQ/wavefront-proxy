@@ -1,21 +1,16 @@
 package com.wavefront.agent.api;
 
 import com.google.common.annotations.VisibleForTesting;
-
-import com.fasterxml.jackson.core.Version;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.Maps;
 import com.wavefront.agent.JsonNodeWriter;
+import com.wavefront.agent.ProxyConfig;
 import com.wavefront.agent.SSLConnectionSocketFactoryImpl;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.channel.GZIPEncodingInterceptorWithVariableCompression;
-import com.wavefront.agent.ProxyConfig;
 import com.wavefront.api.EventAPI;
 import com.wavefront.api.LogAPI;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.SourceTagAPI;
-import com.wavefront.dto.Log;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpRequest;
 import org.apache.http.client.HttpClient;
@@ -39,6 +34,8 @@ import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.ext.WriterInterceptor;
 import java.net.Authenticator;
 import java.net.PasswordAuthentication;
+import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -47,13 +44,19 @@ import java.util.concurrent.TimeUnit;
  * @author vasily@wavefront.com
  */
 public class APIContainer {
+  public final static String CENTRAL_TENANT_NAME = "central";
+  public final static String API_SERVER = "server";
+  public final static String API_TOKEN = "token";
+
   private final ProxyConfig proxyConfig;
   private final ResteasyProviderFactory resteasyProviderFactory;
   private final ClientHttpEngine clientHttpEngine;
   private final boolean discardData;
-  private ProxyV2API proxyV2API;
-  private SourceTagAPI sourceTagAPI;
-  private EventAPI eventAPI;
+
+  private Map<String, ProxyV2API> proxyV2APIsForMulticasting;
+  private Map<String, SourceTagAPI> sourceTagAPIsForMulticasting;
+  private Map<String, EventAPI> eventAPIsForMulticasting;
+
   private LogAPI logAPI;
   private String logServerToken;
   private String logServerEndpointUrl;
@@ -69,14 +72,32 @@ public class APIContainer {
     this.resteasyProviderFactory = createProviderFactory();
     this.clientHttpEngine = createHttpEngine();
     this.discardData = discardData;
-    this.proxyV2API = createService(proxyConfig.getServer(), ProxyV2API.class);
-    this.sourceTagAPI = createService(proxyConfig.getServer(), SourceTagAPI.class);
-    this.eventAPI = createService(proxyConfig.getServer(), EventAPI.class);
     this.logAPI = createService(logServerEndpointUrl, LogAPI.class);
+
+    // config the multicasting tenants / clusters
+    proxyV2APIsForMulticasting = Maps.newHashMap();
+    sourceTagAPIsForMulticasting = Maps.newHashMap();
+    eventAPIsForMulticasting = Maps.newHashMap();
+    // tenantInfo: {<tenant_name> : {"token": <wf_token>, "server": <wf_sever_url>}}
+    String tenantName;
+    String tenantServer;
+    for (Map.Entry<String, Map<String, String>> tenantInfo:
+        proxyConfig.getMulticastingTenantList().entrySet()) {
+      tenantName = tenantInfo.getKey();
+      tenantServer = tenantInfo.getValue().get(API_SERVER);
+      proxyV2APIsForMulticasting.put(tenantName, createService(tenantServer, ProxyV2API.class));
+      sourceTagAPIsForMulticasting.put(tenantName, createService(tenantServer, SourceTagAPI.class));
+      eventAPIsForMulticasting.put(tenantName, createService(tenantServer, EventAPI.class));
+    }
+
     if (discardData) {
-      this.proxyV2API = new NoopProxyV2API(proxyV2API);
-      this.sourceTagAPI = new NoopSourceTagAPI();
-      this.eventAPI = new NoopEventAPI();
+      ProxyV2API proxyV2API = this.proxyV2APIsForMulticasting.get(CENTRAL_TENANT_NAME);
+      this.proxyV2APIsForMulticasting = Maps.newHashMap();
+      this.proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopProxyV2API(proxyV2API));
+      this.sourceTagAPIsForMulticasting = Maps.newHashMap();
+      this.sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopSourceTagAPI());
+      this.eventAPIsForMulticasting = Maps.newHashMap();
+      this.eventAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopEventAPI());
       this.logAPI = new NoopLogAPI();
     }
     configureHttpProxy();
@@ -96,37 +117,50 @@ public class APIContainer {
     this.resteasyProviderFactory = null;
     this.clientHttpEngine = null;
     this.discardData = false;
-    this.proxyV2API = proxyV2API;
-    this.sourceTagAPI = sourceTagAPI;
-    this.eventAPI = eventAPI;
     this.logAPI = logAPI;
+    proxyV2APIsForMulticasting = Maps.newHashMap();
+    proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, proxyV2API);
+    sourceTagAPIsForMulticasting = Maps.newHashMap();
+    sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, sourceTagAPI);
+    eventAPIsForMulticasting = Maps.newHashMap();
+    eventAPIsForMulticasting.put(CENTRAL_TENANT_NAME, eventAPI);
   }
 
   /**
-   * Get RESTeasy proxy for {@link ProxyV2API}.
-   *
-   * @return proxy object
+   * Provide the collection of loaded tenant name list
+   * @return tenant name collection
    */
-  public ProxyV2API getProxyV2API() {
-    return proxyV2API;
+  public Collection<String> getTenantNameList() {
+    return proxyV2APIsForMulticasting.keySet();
   }
 
   /**
-   * Get RESTeasy proxy for {@link SourceTagAPI}.
+   * Get RESTeasy proxy for {@link ProxyV2API} with given tenant name.
    *
-   * @return proxy object
+   * @param tenantName tenant name
+   * @return proxy object corresponding to tenant
    */
-  public SourceTagAPI getSourceTagAPI() {
-    return sourceTagAPI;
+  public ProxyV2API getProxyV2APIForTenant(String tenantName) {
+    return proxyV2APIsForMulticasting.get(tenantName);
   }
 
   /**
-   * Get RESTeasy proxy for {@link EventAPI}.
+   * Get RESTeasy proxy for {@link SourceTagAPI} with given tenant name.
    *
-   * @return proxy object
+   * @param tenantName tenant name
+   * @return proxy object corresponding to the tenant name
    */
-  public EventAPI getEventAPI() {
-    return eventAPI;
+  public SourceTagAPI getSourceTagAPIForTenant(String tenantName) {
+    return sourceTagAPIsForMulticasting.get(tenantName);
+  }
+
+  /**
+   * Get RESTeasy proxy for {@link EventAPI} with given tenant name.
+   * @param tenantName tenant name
+   * @return proxy object corresponding to the tenant name
+   */
+  public EventAPI getEventAPIForTenant(String tenantName) {
+    return eventAPIsForMulticasting.get(tenantName);
   }
 
   /**
@@ -164,19 +198,25 @@ public class APIContainer {
   /**
    * Re-create RESTeasy proxies with new server endpoint URL (allows changing URL at runtime).
    *
+   * @param tenantName the tenant to be updated
    * @param serverEndpointUrl new server endpoint URL.
    */
-  public void updateServerEndpointURL(String serverEndpointUrl) {
+  public void updateServerEndpointURL(String tenantName, String serverEndpointUrl) {
     if (proxyConfig == null) {
       throw new IllegalStateException("Can't invoke updateServerEndpointURL with this constructor");
     }
-    this.proxyV2API = createService(serverEndpointUrl, ProxyV2API.class);
-    this.sourceTagAPI = createService(serverEndpointUrl, SourceTagAPI.class);
-    this.eventAPI = createService(serverEndpointUrl, EventAPI.class);
+    proxyV2APIsForMulticasting.put(tenantName, createService(serverEndpointUrl, ProxyV2API.class));
+    sourceTagAPIsForMulticasting.put(tenantName, createService(serverEndpointUrl, SourceTagAPI.class));
+    eventAPIsForMulticasting.put(tenantName, createService(serverEndpointUrl, EventAPI.class));
+
     if (discardData) {
-      this.proxyV2API = new NoopProxyV2API(proxyV2API);
-      this.sourceTagAPI = new NoopSourceTagAPI();
-      this.eventAPI = new NoopEventAPI();
+      ProxyV2API proxyV2API = this.proxyV2APIsForMulticasting.get(CENTRAL_TENANT_NAME);
+      this.proxyV2APIsForMulticasting = Maps.newHashMap();
+      this.proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopProxyV2API(proxyV2API));
+      this.sourceTagAPIsForMulticasting = Maps.newHashMap();
+      this.sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopSourceTagAPI());
+      this.eventAPIsForMulticasting = Maps.newHashMap();
+      this.eventAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopEventAPI());
     }
   }
 

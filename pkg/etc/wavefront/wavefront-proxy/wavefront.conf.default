@@ -48,6 +48,12 @@ pushListenerPorts=2878
 ## Comma-separated list of fields (metric segments) to remove (1-based). This is an optional setting. (Default: none)
 #graphiteFieldsToRemove=3,4,5
 
+## OTLP/OpenTelemetry input settings.
+## Comma-separated list of ports to listen on for OTLP formatted data over gRPC (Default: none)
+#otlpGrpcListenerPorts=4317
+## Comma-separated list of ports to listen on for OTLP formatted data over HTTP (Default: none)
+#otlpHttpListenerPorts=4318
+
 ## DDI/Relay endpoint: in environments where no direct outbound connections to Wavefront servers are possible, you can
 ## use another Wavefront proxy that has outbound access to act as a relay and forward all the data received on that
 ## endpoint (from direct data ingestion clients and/or other proxies) to Wavefront servers.

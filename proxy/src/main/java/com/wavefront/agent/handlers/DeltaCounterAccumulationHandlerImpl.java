@@ -5,6 +5,8 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AtomicDouble;
+
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.HostMetricTagsPair;
@@ -23,12 +25,14 @@ import wavefront.report.ReportPoint;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -60,7 +64,8 @@ public class DeltaCounterAccumulationHandlerImpl
    * @param handlerKey                 metrics pipeline key.
    * @param blockedItemsPerBatch       controls sample rate of how many blocked
    *                                   points are written into the main log file.
-   * @param senderTasks                sender tasks.
+     * @param senderTaskMap            map of tenant name and tasks actually handling data transfer to
+     *                                 the Wavefront endpoint corresponding to the tenant name
    * @param validationConfig           validation configuration.
    * @param aggregationIntervalSeconds aggregation interval for delta counters.
    * @param receivedRateSink           where to report received rate.
@@ -69,12 +74,12 @@ public class DeltaCounterAccumulationHandlerImpl
    */
   public DeltaCounterAccumulationHandlerImpl(
       final HandlerKey handlerKey, final int blockedItemsPerBatch,
-      @Nullable final Collection<SenderTask<String>> senderTasks,
+      @Nullable final Map<String, Collection<SenderTask<String>>> senderTaskMap,
       @Nonnull final ValidationConfiguration validationConfig,
-      long aggregationIntervalSeconds, @Nullable final Consumer<Long> receivedRateSink,
+      long aggregationIntervalSeconds, @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
-    super(handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), senderTasks, true,
+    super(handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), senderTaskMap, true,
         null, blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
@@ -108,7 +113,9 @@ public class DeltaCounterAccumulationHandlerImpl
       this.receivedRateTimer.scheduleAtFixedRate(new TimerTask() {
         @Override
         public void run() {
-          receivedRateSink.accept(reportedStats.getCurrentRate());
+          for (String tenantName : senderTaskMap.keySet()) {
+            receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
+          }
         }
       }, 1000, 1000);
     }
@@ -129,7 +136,23 @@ public class DeltaCounterAccumulationHandlerImpl
     if (reportedValue == 0) return;
     String strPoint = metricToLineData(hostMetricTagsPair.metric, reportedValue, Clock.now(),
         hostMetricTagsPair.getHost(), hostMetricTagsPair.getTags(), "wavefront-proxy");
-    getTask().add(strPoint);
+    getTask(APIContainer.CENTRAL_TENANT_NAME).add(strPoint);
+    // check if delta tag contains the tag key indicating this delta point should be multicasted
+    if (isMulticastingActive && hostMetricTagsPair.getTags() != null &&
+        hostMetricTagsPair.getTags().containsKey(MULTICASTING_TENANT_TAG_KEY)) {
+      String[] multicastingTenantNames =
+          hostMetricTagsPair.getTags().get(MULTICASTING_TENANT_TAG_KEY).trim().split(",");
+      hostMetricTagsPair.getTags().remove(MULTICASTING_TENANT_TAG_KEY);
+      for (String multicastingTenantName : multicastingTenantNames) {
+        // if the tenant name indicated in delta point tag is not configured, just ignore
+        if (getTask(multicastingTenantName) != null) {
+          getTask(multicastingTenantName).add(
+              metricToLineData(hostMetricTagsPair.metric, reportedValue, Clock.now(),
+              hostMetricTagsPair.getHost(), hostMetricTagsPair.getTags(), "wavefront-proxy")
+          );
+        }
+      }
+    }
   }
 
   @Override

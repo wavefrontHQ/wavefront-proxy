@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Utils;
@@ -10,6 +11,7 @@ import org.apache.commons.lang.math.NumberUtils;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Logger;
@@ -63,7 +65,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
   private final Logger blockedSpansLogger;
   private final Logger blockedLogsLogger;
   private final Function<Histogram, Histogram> histogramRecompressor;
-  private final EntityPropertiesFactory entityPropertiesFactory;
+  private final Map<String, EntityPropertiesFactory> entityPropsFactoryMap;
 
   /**
    * Create new instance.
@@ -79,7 +81,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
       @Nonnull final ValidationConfiguration validationConfig, final Logger blockedPointsLogger,
       final Logger blockedHistogramsLogger, final Logger blockedSpansLogger,
       @Nullable Function<Histogram, Histogram> histogramRecompressor,
-      EntityPropertiesFactory entityPropertiesFactory, final Logger blockedLogsLogger) {
+      final Map<String, EntityPropertiesFactory> entityPropsFactoryMap, final Logger blockedLogsLogger) {
     this.senderTaskFactory = senderTaskFactory;
     this.blockedItemsPerBatch = blockedItemsPerBatch;
     this.validationConfig = validationConfig;
@@ -87,15 +89,15 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
     this.blockedHistogramsLogger = blockedHistogramsLogger;
     this.blockedSpansLogger = blockedSpansLogger;
     this.histogramRecompressor = histogramRecompressor;
-    this.entityPropertiesFactory = entityPropertiesFactory;
     this.blockedLogsLogger = blockedLogsLogger;
+    this.entityPropsFactoryMap = entityPropsFactoryMap;
   }
 
   @SuppressWarnings("unchecked")
   @Override
   public <T, U> ReportableEntityHandler<T, U> getHandler(HandlerKey handlerKey) {
-    Consumer<Long> receivedRateSink = rate ->
-        entityPropertiesFactory.get(handlerKey.getEntityType()).
+    BiConsumer<String, Long> receivedRateSink = (tenantName, rate) ->
+        entityPropsFactoryMap.get(tenantName).get(handlerKey.getEntityType()).
             reportReceivedRate(handlerKey.getHandle(), rate);
     return (ReportableEntityHandler<T, U>) handlers.computeIfAbsent(handlerKey.getHandle(),
         h -> new ConcurrentHashMap<>()).computeIfAbsent(handlerKey.getEntityType(), k -> {
@@ -117,7 +119,7 @@ public class ReportableEntityHandlerFactoryImpl implements ReportableEntityHandl
           return new SpanHandlerImpl(handlerKey, blockedItemsPerBatch,
               senderTaskFactory.createSenderTasks(handlerKey),
               validationConfig, receivedRateSink, blockedSpansLogger, VALID_SPANS_LOGGER,
-              () -> entityPropertiesFactory.getGlobalProperties().getDropSpansDelayedMinutes(),
+              (tenantName) -> entityPropsFactoryMap.get(tenantName).getGlobalProperties().getDropSpansDelayedMinutes(),
               Utils.lazySupplier(() -> getHandler(HandlerKey.of(TRACE_SPAN_LOGS,
                   handlerKey.getHandle()))));
         case TRACE_SPAN_LOGS:

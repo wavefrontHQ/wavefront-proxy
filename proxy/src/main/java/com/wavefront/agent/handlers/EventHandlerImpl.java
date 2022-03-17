@@ -1,12 +1,16 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.Event;
 import wavefront.report.ReportEvent;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -29,17 +33,18 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
    * @param handlerKey           pipeline key.
    * @param blockedItemsPerBatch number of blocked items that are allowed to be written into the
    *                             main log.
-   * @param senderTasks          sender tasks.
+   * @param senderTaskMap        map of tenant name and tasks actually handling data transfer to
+   *                             the Wavefront endpoint corresponding to the tenant name
    * @param receivedRateSink     where to report received rate.
    * @param blockedEventsLogger  logger for blocked events.
    * @param validEventsLogger    logger for valid events.
    */
   public EventHandlerImpl(final HandlerKey handlerKey, final int blockedItemsPerBatch,
-                          @Nullable final Collection<SenderTask<Event>> senderTasks,
-                          @Nullable final Consumer<Long> receivedRateSink,
+                          @Nullable final Map<String, Collection<SenderTask<Event>>> senderTaskMap,
+                          @Nullable final BiConsumer<String, Long> receivedRateSink,
                           @Nullable final Logger blockedEventsLogger,
                           @Nullable final Logger validEventsLogger) {
-    super(handlerKey, blockedItemsPerBatch, EVENT_SERIALIZER, senderTasks, true, receivedRateSink,
+    super(handlerKey, blockedItemsPerBatch, EVENT_SERIALIZER, senderTaskMap, true, receivedRateSink,
         blockedEventsLogger);
     this.validItemsLogger = validEventsLogger;
   }
@@ -49,8 +54,22 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
     if (!annotationKeysAreValid(event)) {
       throw new IllegalArgumentException("WF-401: Event annotation key has illegal characters.");
     }
-    getTask().add(new Event(event));
+    Event eventToAdd = new Event(event);
+    getTask(APIContainer.CENTRAL_TENANT_NAME).add(eventToAdd);
     getReceivedCounter().inc();
+    // check if event annotations contains the tag key indicating this event should be multicasted
+    if (isMulticastingActive && event.getAnnotations() != null &&
+        event.getAnnotations().containsKey(MULTICASTING_TENANT_TAG_KEY)) {
+      String[] multicastingTenantNames =
+          event.getAnnotations().get(MULTICASTING_TENANT_TAG_KEY).trim().split(",");
+      event.getAnnotations().remove(MULTICASTING_TENANT_TAG_KEY);
+      for (String multicastingTenantName : multicastingTenantNames) {
+        // if the tenant name indicated in event tag is not configured, just ignore
+        if (getTask(multicastingTenantName) != null) {
+          getTask(multicastingTenantName).add(new Event(event));
+        }
+      }
+    }
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(EVENT_SERIALIZER.apply(event));
     }

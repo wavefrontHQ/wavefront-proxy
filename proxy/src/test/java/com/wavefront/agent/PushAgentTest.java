@@ -3,6 +3,7 @@ package com.wavefront.agent;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
@@ -12,6 +13,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.SenderTask;
 import com.wavefront.agent.handlers.SenderTaskFactory;
+import com.wavefront.agent.listeners.otlp.OtlpTestHelpers;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
@@ -48,6 +50,7 @@ import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -64,6 +67,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 
+import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -91,6 +95,7 @@ import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static org.easymock.EasyMock.anyLong;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.anyString;
+import static org.easymock.EasyMock.capture;
 import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
@@ -106,7 +111,13 @@ import static org.junit.Assert.fail;
 @NotThreadSafe
 public class PushAgentTest {
   protected static final Logger logger = Logger.getLogger(PushAgentTest.class.getCanonicalName());
-
+  private static SSLSocketFactory sslSocketFactory;
+  // Derived RED metrics related.
+  private final String PREPROCESSED_APPLICATION_TAG_VALUE = "preprocessedApplication";
+  private final String PREPROCESSED_SERVICE_TAG_VALUE = "preprocessedService";
+  private final String PREPROCESSED_CLUSTER_TAG_VALUE = "preprocessedCluster";
+  private final String PREPROCESSED_SHARD_TAG_VALUE = "preprocessedShard";
+  private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
   private PushAgent proxy;
   private long startTime = System.currentTimeMillis() / 1000 / 60 * 60;
   private int port;
@@ -114,7 +125,6 @@ public class PushAgentTest {
   private int customTracePort;
   private int ddPort;
   private int deltaPort;
-  private static SSLSocketFactory sslSocketFactory;
   private ReportableEntityHandler<ReportPoint, String> mockPointHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
   private ReportableEntityHandler<ReportSourceTag, SourceTag> mockSourceTagHandler =
@@ -129,20 +139,14 @@ public class PushAgentTest {
       MockReportableEntityHandlerFactory.getMockEventHandlerImpl();
   private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
   private SenderTask<String> mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
-  private Collection<SenderTask<String>> mockSenderTasks = ImmutableList.of(mockSenderTask);
-
-  // Derived RED metrics related.
-  private final String PREPROCESSED_APPLICATION_TAG_VALUE = "preprocessedApplication";
-  private final String PREPROCESSED_SERVICE_TAG_VALUE = "preprocessedService";
-  private final String PREPROCESSED_CLUSTER_TAG_VALUE = "preprocessedCluster";
-  private final String PREPROCESSED_SHARD_TAG_VALUE = "preprocessedShard";
-  private final String PREPROCESSED_SOURCE_VALUE = "preprocessedSource";
-
+  private Map<String, Collection<SenderTask<String>>> mockSenderTaskMap =
+      ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, ImmutableList.of(mockSenderTask));
+  
   private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
     @SuppressWarnings("unchecked")
     @Override
-    public Collection<SenderTask<String>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
-      return mockSenderTasks;
+    public Map<String, Collection<SenderTask<String>>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
+      return mockSenderTaskMap;
     }
 
     @Override
@@ -212,10 +216,10 @@ public class PushAgentTest {
     waitUntilListenerIsOnline(securePort2);
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
+        setMetric("metric.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+        setMetric("metric.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
     expectLastCall();
     replay(mockPointHandler);
 
@@ -223,7 +227,7 @@ public class PushAgentTest {
     Socket socket = sslSocketFactory.createSocket("localhost", securePort1);
     BufferedOutputStream stream = new BufferedOutputStream(socket.getOutputStream());
     String payloadStr = "metric.test 0 " + startTime + " source=test1\n" +
-            "metric.test 1 " + (startTime + 1) + " source=test2\n";
+        "metric.test 1 " + (startTime + 1) + " source=test2\n";
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
@@ -231,10 +235,10 @@ public class PushAgentTest {
 
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric.test").setHost("test3").setTimestamp(startTime * 1000).setValue(0.0d).build());
+        setMetric("metric.test").setHost("test3").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric.test").setHost("test4").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+        setMetric("metric.test").setHost("test4").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
     expectLastCall();
     replay(mockPointHandler);
 
@@ -242,7 +246,7 @@ public class PushAgentTest {
     socket = sslSocketFactory.createSocket("localhost", securePort2);
     stream = new BufferedOutputStream(socket.getOutputStream());
     payloadStr = "metric.test 0 " + startTime + " source=test3\n" +
-            "metric.test 1 " + (startTime + 1) + " source=test4\n";
+        "metric.test 1 " + (startTime + 1) + " source=test4\n";
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
@@ -255,7 +259,7 @@ public class PushAgentTest {
     int securePort = findAvailablePort(2889);
     proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
-    proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
+    proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort + "  ,6";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = port + "," + securePort;
     SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null);
@@ -284,10 +288,10 @@ public class PushAgentTest {
 
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric.test").setHost("test3").setTimestamp(startTime * 1000).setValue(0.0d).build());
+        setMetric("metric.test").setHost("test3").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric.test").setHost("test4").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+        setMetric("metric.test").setHost("test4").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
     expectLastCall();
     replay(mockPointHandler);
 
@@ -295,7 +299,7 @@ public class PushAgentTest {
     socket = sslSocketFactory.createSocket("localhost", securePort);
     stream = new BufferedOutputStream(socket.getOutputStream());
     payloadStr = "metric.test 0 " + startTime + " source=test3\n" +
-            "metric.test 1 " + (startTime + 1) + " source=test4\n";
+        "metric.test 1 " + (startTime + 1) + " source=test4\n";
     stream.write(payloadStr.getBytes());
     stream.flush();
     socket.close();
@@ -308,7 +312,7 @@ public class PushAgentTest {
     int securePort = findAvailablePort(2889);
     proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
-    proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
+    proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort + "  ,6";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = port + "," + securePort;
     SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null);
@@ -341,16 +345,16 @@ public class PushAgentTest {
     // secure test
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric2.test").setHost("test3").setTimestamp(startTime * 1000).setValue(0.0d).build());
+        setMetric("metric2.test").setHost("test3").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric2.test").setHost("test4").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+        setMetric("metric2.test").setHost("test4").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
     expectLastCall();
     replay(mockPointHandler);
 
     // try gzipped plaintext stream over tcp
     payloadStr = "metric2.test 0 " + startTime + " source=test3\n" +
-            "metric2.test 1 " + (startTime + 1) + " source=test4\n";
+        "metric2.test 1 " + (startTime + 1) + " source=test4\n";
     socket = sslSocketFactory.createSocket("localhost", securePort);
     baos = new ByteArrayOutputStream(payloadStr.length());
     gzip = new GZIPOutputStream(baos);
@@ -369,7 +373,7 @@ public class PushAgentTest {
     int healthCheckPort = findAvailablePort(8881);
     proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
-    proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
+    proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort + "  ,6";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = port + "," + securePort;
     proxy.proxyConfig.httpHealthCheckPath = "/health";
@@ -408,20 +412,20 @@ public class PushAgentTest {
     //secure test
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric3.test").setHost("test4").setTimestamp(startTime * 1000).setValue(0.0d).build());
+        setMetric("metric3.test").setHost("test4").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric3.test").setHost("test5").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+        setMetric("metric3.test").setHost("test5").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
     expectLastCall();
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric3.test").setHost("test6").setTimestamp((startTime + 2) * 1000).setValue(2.0d).build());
+        setMetric("metric3.test").setHost("test6").setTimestamp((startTime + 2) * 1000).setValue(2.0d).build());
     expectLastCall();
     replay(mockPointHandler);
 
     // try http connection
     payloadStr = "metric3.test 0 " + startTime + " source=test4\n" +
-            "metric3.test 1 " + (startTime + 1) + " source=test5\n" +
-            "metric3.test 2 " + (startTime + 2) + " source=test6"; // note the lack of newline at the end!
+        "metric3.test 1 " + (startTime + 1) + " source=test5\n" +
+        "metric3.test 2 " + (startTime + 2) + " source=test6"; // note the lack of newline at the end!
     assertEquals(202, httpPost("https://localhost:" + securePort, payloadStr));
     verify(mockPointHandler);
   }
@@ -432,7 +436,7 @@ public class PushAgentTest {
     int securePort = findAvailablePort(2889);
     proxy.proxyConfig.privateCertPath = getClass().getClassLoader().getResource("demo.cert").getPath();
     proxy.proxyConfig.privateKeyPath = getClass().getClassLoader().getResource("demo.key").getPath();
-    proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort +"  ,6";
+    proxy.proxyConfig.tlsPorts = "1,23 , 4,   , " + securePort + "  ,6";
     proxy.initSslContext();
     proxy.proxyConfig.pushListenerPorts = port + "," + securePort;
     SpanSampler sampler = new SpanSampler(new RateSampler(1.0D), () -> null);
@@ -461,20 +465,20 @@ public class PushAgentTest {
 
     reset(mockPointHandler);
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric_4.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
+        setMetric("metric_4.test").setHost("test1").setTimestamp(startTime * 1000).setValue(0.0d).build());
     expectLastCall();
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric_4.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
+        setMetric("metric_4.test").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(1.0d).build());
     expectLastCall();
     mockPointHandler.report(ReportPoint.newBuilder().setTable("dummy").
-            setMetric("metric_4.test").setHost("test3").setTimestamp((startTime + 2) * 1000).setValue(2.0d).build());
+        setMetric("metric_4.test").setHost("test3").setTimestamp((startTime + 2) * 1000).setValue(2.0d).build());
     expectLastCall();
     replay(mockPointHandler);
 
     // try secure http connection with gzip
     payloadStr = "metric_4.test 0 " + startTime + " source=test1\n" +
-            "metric_4.test 1 " + (startTime + 1) + " source=test2\n" +
-            "metric_4.test 2 " + (startTime + 2) + " source=test3"; // note the lack of newline at the end!
+        "metric_4.test 1 " + (startTime + 1) + " source=test2\n" +
+        "metric_4.test 2 " + (startTime + 2) + " source=test3"; // note the lack of newline at the end!
     gzippedHttpPost("https://localhost:" + securePort, payloadStr);
     verify(mockPointHandler);
   }
@@ -490,21 +494,21 @@ public class PushAgentTest {
     reset(mockHistogramHandler);
     mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test.histo").setHost("test1").setTimestamp(startTime * 1000).setValue(
-        Histogram.newBuilder()
-            .setType(HistogramType.TDIGEST)
-            .setDuration(60000)
-            .setBins(ImmutableList.of(10.0d, 100.0d))
-            .setCounts(ImmutableList.of(5, 10))
-            .build())
+            Histogram.newBuilder()
+                .setType(HistogramType.TDIGEST)
+                .setDuration(60000)
+                .setBins(ImmutableList.of(10.0d, 100.0d))
+                .setCounts(ImmutableList.of(5, 10))
+                .build())
         .build());
     mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test.histo").setHost("test2").setTimestamp((startTime + 60) * 1000).setValue(
-        Histogram.newBuilder()
-            .setType(HistogramType.TDIGEST)
-            .setDuration(60000)
-            .setBins(ImmutableList.of(20.0d, 30.0d, 40.0d))
-            .setCounts(ImmutableList.of(5, 6, 7))
-            .build())
+            Histogram.newBuilder()
+                .setType(HistogramType.TDIGEST)
+                .setDuration(60000)
+                .setBins(ImmutableList.of(20.0d, 30.0d, 40.0d))
+                .setCounts(ImmutableList.of(5, 6, 7))
+                .build())
         .build());
     expectLastCall();
     replay(mockHistogramHandler);
@@ -535,12 +539,12 @@ public class PushAgentTest {
         setMetric("metric.test.mixed").setHost("test2").setTimestamp((startTime + 1) * 1000).setValue(10d).build());
     mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test.mixed").setHost("test1").setTimestamp(startTime * 1000).setValue(
-        Histogram.newBuilder()
-            .setType(HistogramType.TDIGEST)
-            .setDuration(60000)
-            .setBins(ImmutableList.of(10.0d, 100.0d))
-            .setCounts(ImmutableList.of(5, 10))
-            .build())
+            Histogram.newBuilder()
+                .setType(HistogramType.TDIGEST)
+                .setDuration(60000)
+                .setBins(ImmutableList.of(10.0d, 100.0d))
+                .setCounts(ImmutableList.of(5, 10))
+                .build())
         .build());
     mockEventHandler.report(ReportEvent.newBuilder().
         setStartTime(startTime * 1000).
@@ -608,9 +612,9 @@ public class PushAgentTest {
         "\"span\":\"" + escapeSpanData(spanData) + "\"}\n";
     String spanLogDataWithSpanFieldToDiscard =
         "{\"spanId\":\"testspanid\",\"traceId\":\"" + traceId +
-        "\",\"logs\":[{\"timestamp\":" + timestamp1 +
-        ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}}]," +
-        "\"span\":\"" + escapeSpanData(spanDataToDiscard) + "\"}\n";
+            "\",\"logs\":[{\"timestamp\":" + timestamp1 +
+            ",\"fields\":{\"key\":\"value\",\"key2\":\"value2\"}}]," +
+            "\"span\":\"" + escapeSpanData(spanDataToDiscard) + "\"}\n";
     String mixedData = "@SourceTag action=save source=testSource newtag1 newtag2\n" +
         "@Event " + startTime + " \"Event name for testing\" host=host1 host=host2 tag=tag1 " +
         "severity=INFO multi=bar multi=baz\n" +
@@ -647,12 +651,12 @@ public class PushAgentTest {
         mockSourceTagHandler, mockEventHandler);
     mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test.histo").setHost("test1").setTimestamp(startTime * 1000).setValue(
-        Histogram.newBuilder()
-            .setType(HistogramType.TDIGEST)
-            .setDuration(60000)
-            .setBins(ImmutableList.of(10.0d, 100.0d))
-            .setCounts(ImmutableList.of(5, 10))
-            .build())
+            Histogram.newBuilder()
+                .setType(HistogramType.TDIGEST)
+                .setDuration(60000)
+                .setBins(ImmutableList.of(10.0d, 100.0d))
+                .setCounts(ImmutableList.of(5, 10))
+                .build())
         .build());
     expectLastCall();
     mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
@@ -751,13 +755,13 @@ public class PushAgentTest {
     replay(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
         mockSourceTagHandler, mockEventHandler);
 
-    proxy.entityProps.get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/report?format=histogram", histoData));
-    proxy.entityProps.get(ReportableEntityType.TRACE).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.TRACE).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/report?format=trace", spanData));
-    proxy.entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/report?format=spanLogs", spanLogData));
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
@@ -788,7 +792,7 @@ public class PushAgentTest {
     mockPointHandler.reject(eq("metric.name"), anyString());
     expectLastCall();
     mockPointHandler.reject(eq(ReportPoint.newBuilder().setTable("dummy").setMetric("metric5.test").
-        setHost("test1").setTimestamp(1234567890000L).setValue(0.0d).build()),
+            setHost("test1").setTimestamp(1234567890000L).setValue(0.0d).build()),
         startsWith("WF-402: Point outside of reasonable timeframe"));
     expectLastCall();
     replay(mockPointHandler, mockHistogramHandler, mockTraceHandler, mockTraceSpanLogsHandler,
@@ -1134,7 +1138,7 @@ public class PushAgentTest {
     assertTrue(proxy3.proxyConfig.isDataDogProcessServiceChecks());
 
     proxy3.startDataDogListener(proxy3.proxyConfig.getDataDogJsonPorts(), mockHandlerFactory,
-            mockHttpClient);
+        mockHttpClient);
     waitUntilListenerIsOnline(ddPort3);
 
     // test 1: post to /intake with system metrics enabled and http relay enabled
@@ -1215,7 +1219,7 @@ public class PushAgentTest {
         setTimestamp(1531176936000L).
         setValue(0.0d).
         setAnnotations(ImmutableMap.of("_source", "Launcher", "env", "prod",
-                "app", "openstack", "role", "control")).
+            "app", "openstack", "role", "control")).
         build());
     expectLastCall().once();
     mockPointHandler.report(ReportPoint.newBuilder().
@@ -1228,13 +1232,13 @@ public class PushAgentTest {
         build());
     expectLastCall().once();
     mockPointHandler.report(ReportPoint.newBuilder().
-            setTable("dummy").
-            setMetric("test.metric").
-            setHost("testhost").
-            setTimestamp(1531176936000L).
-            setValue(400.0d).
-            setAnnotations(ImmutableMap.of("app", "closedstack", "role", "control")).
-            build());
+        setTable("dummy").
+        setMetric("test.metric").
+        setHost("testhost").
+        setTimestamp(1531176936000L).
+        setValue(400.0d).
+        setAnnotations(ImmutableMap.of("app", "closedstack", "role", "control")).
+        build());
     expectLastCall().once();
     replay(mockPointHandler);
     gzippedHttpPost("http://localhost:" + ddPort3 + "/intake", getResource("ddTestSystemMetadataOnly.json"));
@@ -1294,9 +1298,9 @@ public class PushAgentTest {
     }
     verify(mockSenderTask);
     assertEquals(3, capturedArgument.getValues().size());
-    assertTrue(capturedArgument.getValues().get(0).startsWith("\"∆test.mixed1\" 1.0" ));
-    assertTrue(capturedArgument.getValues().get(1).startsWith("\"∆test.mixed2\" 4.0" ));
-    assertTrue(capturedArgument.getValues().get(2).startsWith("\"∆test.mixed3\" 3.0" ));
+    assertTrue(capturedArgument.getValues().get(0).startsWith("\"∆test.mixed1\" 1.0"));
+    assertTrue(capturedArgument.getValues().get(1).startsWith("\"∆test.mixed2\" 4.0"));
+    assertTrue(capturedArgument.getValues().get(2).startsWith("\"∆test.mixed3\" 3.0"));
   }
 
   @Test
@@ -1325,8 +1329,8 @@ public class PushAgentTest {
     ((DeltaCounterAccumulationHandlerImpl) handler).flushDeltaCounters();
     verify(mockSenderTask);
     assertEquals(2, capturedArgument.getValues().size());
-    assertTrue(capturedArgument.getValues().get(0).startsWith("\"∆test.mixed\" 2.0" ));
-    assertTrue(capturedArgument.getValues().get(1).startsWith("\"∆test.mixed\" 3.0" ));
+    assertTrue(capturedArgument.getValues().get(0).startsWith("\"∆test.mixed\" 2.0"));
+    assertTrue(capturedArgument.getValues().get(1).startsWith("\"∆test.mixed\" 3.0"));
   }
 
   @Test
@@ -1450,7 +1454,7 @@ public class PushAgentTest {
     String payloadStr2 = "{\n" +
         "  \"cpu.usage\": {\n" +
         "    \"idle\": 99.0,\n" +
-       "    \"user\": 0.5,\n" +
+        "    \"user\": 0.5,\n" +
         "    \"system\": 0.7\n" +
         "  },\n" +
         "  \"disk.free\": 0.0,\n" +
@@ -1463,6 +1467,47 @@ public class PushAgentTest {
     assertEquals(200, gzippedHttpPost("http://localhost:" + port + "/?h=testSource&p=metric.test&" +
         "d=" + startTime * 1000, payloadStr2));
     verify(mockPointHandler);
+  }
+
+  @Test
+  public void testOtlpHttpPortHandler() throws Exception {
+    port = findAvailablePort(4318);
+    proxy.proxyConfig.hostname = "defaultLocalHost";
+    SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
+    proxy.startOtlpHttpListener(
+        String.valueOf(port), mockHandlerFactory, mockWavefrontSender, mockSampler
+    );
+    waitUntilListenerIsOnline(port);
+
+    reset(mockSampler, mockTraceHandler, mockTraceSpanLogsHandler, mockWavefrontSender);
+    expect(mockSampler.sample(anyObject(), anyObject())).andReturn(true);
+    Capture<wavefront.report.Span> actualSpan = EasyMock.newCapture();
+    Capture<wavefront.report.SpanLogs> actualLogs = EasyMock.newCapture();
+    mockTraceHandler.report(capture(actualSpan));
+    mockTraceSpanLogsHandler.report(capture(actualLogs));
+
+    replay(mockSampler, mockTraceHandler, mockTraceSpanLogsHandler);
+
+    io.opentelemetry.proto.trace.v1.Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent(0);
+    io.opentelemetry.proto.trace.v1.Span otlpSpan =
+        OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
+    ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
+
+    String validUrl = "http://localhost:" + port + "/v1/traces";
+    assertEquals(200, httpPost(validUrl, otlpRequest.toByteArray(), "application/x-protobuf"));
+    assertEquals(400, httpPost(validUrl, "junk".getBytes(), "application/x-protobuf"));
+    assertEquals(404, httpPost("http://localhost:" + port + "/unknown", otlpRequest.toByteArray(),
+        "application/x-protobuf"));
+    verify(mockSampler, mockTraceHandler, mockTraceSpanLogsHandler);
+
+    Span expectedSpan = OtlpTestHelpers
+        .wfSpanGenerator(Arrays.asList(new Annotation("_spanLogs", "true")))
+        .setSource("defaultLocalHost")
+        .build();
+    SpanLogs expectedLogs = OtlpTestHelpers.wfSpanLogsGenerator(expectedSpan, 0).build();
+
+    OtlpTestHelpers.assertWFSpanEquals(expectedSpan, actualSpan.getValue());
+    assertEquals(expectedLogs, actualLogs.getValue());
   }
 
   @Test
@@ -1521,7 +1566,7 @@ public class PushAgentTest {
         "\"type_instance\": \"\"\n" +
         "}]\n";
 
-        // should be an array
+    // should be an array
     assertEquals(400, gzippedHttpPost("http://localhost:" + port, "{}"));
     assertEquals(200, gzippedHttpPost("http://localhost:" + port, payloadStr));
     verify(mockPointHandler);
@@ -1630,13 +1675,13 @@ public class PushAgentTest {
         "/api/v2/wfproxy/report?format=spanLogs", spanLogData));
     assertEquals(200, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=spanLogs", spanLogDataWithSpanField));
-    proxy.entityProps.get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.HISTOGRAM).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=histogram", histoData));
-    proxy.entityProps.get(ReportableEntityType.TRACE).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.TRACE).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=trace", spanData));
-    proxy.entityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
+    proxy.entityPropertiesFactoryMap.get("central").get(ReportableEntityType.TRACE_SPAN_LOGS).setFeatureDisabled(true);
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=spanLogs", spanLogData));
     assertEquals(403, gzippedHttpPost("http://localhost:" + port +
@@ -1747,12 +1792,12 @@ public class PushAgentTest {
     for (int i = 0; i < 200; i++) counts.add(1);
     mockHistogramHandler.report(ReportPoint.newBuilder().setTable("dummy").
         setMetric("metric.test.histo").setHost("test1").setTimestamp(startTime * 1000).setValue(
-        Histogram.newBuilder()
-            .setType(HistogramType.TDIGEST)
-            .setDuration(60000)
-            .setBins(bins)
-            .setCounts(counts)
-            .build())
+            Histogram.newBuilder()
+                .setType(HistogramType.TDIGEST)
+                .setDuration(60000)
+                .setBins(bins)
+                .setCounts(counts)
+                .build())
         .build());
     expectLastCall();
     replay(mockHistogramHandler);
@@ -1780,11 +1825,11 @@ public class PushAgentTest {
     proxy.proxyConfig.traceSamplingRate = 1.0;
     AgentConfiguration agentConfiguration = new AgentConfiguration();
     agentConfiguration.setSpanSamplingRate(0.5);
-    proxy.processConfiguration(agentConfiguration);
-    assertEquals(1.0, proxy.entityProps.getGlobalProperties().getTraceSamplingRate(), 1e-3);
+    proxy.processConfiguration("cetnral", agentConfiguration);
+    assertEquals(1.0, proxy.entityPropertiesFactoryMap.get("central").getGlobalProperties().getTraceSamplingRate(), 1e-3);
 
     proxy.proxyConfig.backendSpanHeadSamplingPercentIgnored = false;
-    proxy.processConfiguration(agentConfiguration);
-    assertEquals(0.5, proxy.entityProps.getGlobalProperties().getTraceSamplingRate(), 1e-3);
+    proxy.processConfiguration("central", agentConfiguration);
+    assertEquals(0.5, proxy.entityPropertiesFactoryMap.get("central").getGlobalProperties().getTraceSamplingRate(), 1e-3);
   }
 }

@@ -1,13 +1,20 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.SourceTag;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.SourceOperationType;
 
 import javax.annotation.Nullable;
+
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Logger;
@@ -24,10 +31,10 @@ class ReportSourceTagHandlerImpl
       new SourceTag(value).toString();
 
   public ReportSourceTagHandlerImpl(HandlerKey handlerKey, final int blockedItemsPerBatch,
-                                    @Nullable final Collection<SenderTask<SourceTag>> senderTasks,
-                                    @Nullable final Consumer<Long> receivedRateSink,
+                                    @Nullable final Map<String, Collection<SenderTask<SourceTag>>> senderTaskMap,
+                                    @Nullable final BiConsumer<String, Long> receivedRateSink,
                                     final Logger blockedItemLogger) {
-    super(handlerKey, blockedItemsPerBatch, SOURCE_TAG_SERIALIZER, senderTasks, true,
+    super(handlerKey, blockedItemsPerBatch, SOURCE_TAG_SERIALIZER, senderTaskMap, true,
         receivedRateSink, blockedItemLogger);
   }
 
@@ -38,6 +45,7 @@ class ReportSourceTagHandlerImpl
     }
     getTask(sourceTag).add(new SourceTag(sourceTag));
     getReceivedCounter().inc();
+    // tagK=tagV based multicasting is not support
   }
 
   @VisibleForTesting
@@ -48,6 +56,7 @@ class ReportSourceTagHandlerImpl
 
   private SenderTask<SourceTag> getTask(ReportSourceTag sourceTag) {
     // we need to make sure the we preserve the order of operations for each source
+    List<SenderTask<SourceTag> > senderTasks = new ArrayList<>(senderTaskMap.get(APIContainer.CENTRAL_TENANT_NAME));
     return senderTasks.get(Math.abs(sourceTag.getSource().hashCode()) % senderTasks.size());
   }
 }

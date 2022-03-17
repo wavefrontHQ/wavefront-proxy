@@ -97,6 +97,11 @@ public class QueueProcessor<T extends DataSubmissionTask<T>> implements Runnable
               case DELIVERED:
                 successes++;
                 break;
+              case REMOVED:
+                failures++;
+                logger.warning("[" + handlerKey.getHandle() + "] " + handlerKey.getEntityType() +
+                    " will be dropped from backlog!");
+                break;
               case PERSISTED:
                 rateLimiter.recyclePermits(taskSize);
                 failures++;
