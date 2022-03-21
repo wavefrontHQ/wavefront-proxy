@@ -1,19 +1,24 @@
 package com.wavefront.agent;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
+
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
-import com.google.common.collect.Iterables;
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.auth.TokenValidationMethod;
 import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TimeProvider;
+
 import org.apache.commons.lang3.ObjectUtils;
 
 import java.util.ArrayList;
@@ -39,9 +44,8 @@ import static com.wavefront.agent.data.EntityProperties.DEFAULT_MIN_SPLIT_BATCH_
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
 import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
-import static com.wavefront.common.Utils.getLocalHostName;
 import static com.wavefront.common.Utils.getBuildVersion;
-
+import static com.wavefront.common.Utils.getLocalHostName;
 import static io.opentracing.tag.Tags.SPAN_KIND;
 
 /**
@@ -509,6 +513,16 @@ public class ProxyConfig extends Configuration {
       "of ports to listen on for json metrics from collectd write_http json format data. Binds, by default, to none.")
   String writeHttpJsonListenerPorts = "";
 
+  @Parameter(names = {"--otlpGrpcListenerPorts"}, description = "Comma-separated list of ports to" +
+      " listen on for OpenTelemetry/OTLP Protobuf formatted data over gRPC. Binds, by default, to" +
+      " none (4317 is recommended).")
+  String otlpGrpcListenerPorts = "";
+
+  @Parameter(names = {"--otlpHttpListenerPorts"}, description = "Comma-separated list of ports to" +
+      " listen on for OpenTelemetry/OTLP Protobuf formatted data over HTTP. Binds, by default, to" +
+      " none (4318 is recommended).")
+  String otlpHttpListenerPorts = "";
+
   // logs ingestion
   @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
   Integer filebeatPort = 0;
@@ -843,6 +857,14 @@ public class ProxyConfig extends Configuration {
       "keys that should be treated as the source in Wavefront in the absence of a tag named " +
       "`message` or `text`. Default: none")
   String customMessageTags = "";
+
+  @Parameter(names = {"--multicastingTenants"}, description = "The number of tenants to data " +
+      "points" +
+      " multicasting. Default: 0")
+  protected int multicastingTenants = 0;
+  // the multicasting tenant list is parsed separately
+  // {tenant_name : {"token": <wf_token>, "server": <wf_sever_url>}}
+  protected Map<String, Map<String, String>> multicastingTenantList = Maps.newHashMap();
 
   @Parameter()
   List<String> unparsed_params;
@@ -1271,6 +1293,14 @@ public class ProxyConfig extends Configuration {
     return writeHttpJsonListenerPorts;
   }
 
+  public String getOtlpGrpcListenerPorts() {
+    return otlpGrpcListenerPorts;
+  }
+
+  public String getOtlpHttpListenerPorts() {
+    return otlpHttpListenerPorts;
+  }
+
   public Integer getFilebeatPort() {
     return filebeatPort;
   }
@@ -1623,6 +1653,14 @@ public class ProxyConfig extends Configuration {
     return trafficShapingHeadroom;
   }
 
+  public int getMulticastingTenants() {
+    return multicastingTenants;
+  }
+
+  public Map<String, Map<String, String>> getMulticastingTenantList() {
+    return multicastingTenantList;
+  }
+
   public List<String> getCorsEnabledPorts() {
     return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(corsEnabledPorts);
   }
@@ -1837,6 +1875,8 @@ public class ProxyConfig extends Configuration {
       graphiteFormat = config.getString("graphiteFormat", graphiteFormat);
       graphiteFieldsToRemove = config.getString("graphiteFieldsToRemove", graphiteFieldsToRemove);
       graphiteDelimiters = config.getString("graphiteDelimiters", graphiteDelimiters);
+      otlpGrpcListenerPorts = config.getString("otlpGrpcListenerPorts", otlpGrpcListenerPorts);
+      otlpHttpListenerPorts = config.getString("otlpHttpListenerPorts", otlpHttpListenerPorts);
       allowRegex = config.getString("allowRegex", config.getString("whitelistRegex", allowRegex));
       blockRegex = config.getString("blockRegex", config.getString("blacklistRegex", blockRegex));
       opentsdbPorts = config.getString("opentsdbPorts", opentsdbPorts);
@@ -1952,6 +1992,25 @@ public class ProxyConfig extends Configuration {
           httpHealthCheckFailStatusCode);
       httpHealthCheckFailResponseBody = config.getString("httpHealthCheckFailResponseBody",
           httpHealthCheckFailResponseBody);
+
+      // Multicasting configurations
+      multicastingTenantList.put(APIContainer.CENTRAL_TENANT_NAME,
+          ImmutableMap.of(APIContainer.API_SERVER, server, APIContainer.API_TOKEN, token));
+      multicastingTenants = config.getInteger("multicastingTenants", multicastingTenants);
+      String tenantName;
+      String tenantServer;
+      String tenantToken;
+      for (int i = 1; i <= multicastingTenants; i++) {
+        tenantName = config.getString(String.format("multicastingTenantName_%d", i), "");
+        if (tenantName.equals(APIContainer.CENTRAL_TENANT_NAME)) {
+          throw new IllegalArgumentException("Error in multicasting endpoints initiation: " +
+              "\"central\" is the reserved tenant name.");
+        }
+        tenantServer = config.getString(String.format("multicastingServer_%d", i), "");
+        tenantToken = config.getString(String.format("multicastingToken_%d", i), "");
+        multicastingTenantList.put(tenantName, ImmutableMap.of(APIContainer.API_SERVER, tenantServer,
+            APIContainer.API_TOKEN, tenantToken));
+      }
 
       // TLS configurations
       privateCertPath = config.getString("privateCertPath", privateCertPath);

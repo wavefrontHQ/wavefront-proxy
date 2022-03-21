@@ -8,6 +8,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
+
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.config.LogsIngestionConfig;
 import com.wavefront.agent.data.EntityPropertiesFactory;
@@ -22,6 +24,7 @@ import com.wavefront.agent.queueing.QueueExporter;
 import com.wavefront.agent.queueing.SQSQueueFactoryImpl;
 import com.wavefront.agent.queueing.TaskQueueFactory;
 import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
+import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.TaggedMetricName;
@@ -39,6 +42,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -65,7 +69,6 @@ public abstract class AbstractAgent {
   protected static final Logger logger = Logger.getLogger("proxy");
   final Counter activeListeners =
       Metrics.newCounter(ExpectedAgentMetric.ACTIVE_LISTENERS.metricName);
-
   /**
    * A set of commandline parameters to hide when echoing command line arguments
    */
@@ -78,8 +81,7 @@ public abstract class AbstractAgent {
   protected final List<Runnable> shutdownTasks = new ArrayList<>();
   protected final PreprocessorConfigManager preprocessors = new PreprocessorConfigManager();
   protected final ValidationConfiguration validationConfiguration = new ValidationConfiguration();
-  protected final EntityPropertiesFactory entityProps =
-      new EntityPropertiesFactoryImpl(proxyConfig);
+  protected final Map<String, EntityPropertiesFactory> entityPropertiesFactoryMap = Maps.newHashMap();
   protected final AtomicBoolean shuttingDown = new AtomicBoolean(false);
   protected final AtomicBoolean truncate = new AtomicBoolean(false);
   protected ProxyCheckInScheduler proxyCheckinScheduler;
@@ -94,6 +96,8 @@ public abstract class AbstractAgent {
   }
 
   public AbstractAgent() {
+    entityPropertiesFactoryMap.put(APIContainer.CENTRAL_TENANT_NAME,
+        new EntityPropertiesFactoryImpl(proxyConfig));
   }
 
   private void addPreprocessorFilters(String ports, String allowList, String blockList) {
@@ -293,7 +297,10 @@ public abstract class AbstractAgent {
       // 2. Read or create the unique Id for the daemon running on this machine.
       agentId = getOrCreateProxyId(proxyConfig);
       apiContainer = new APIContainer(proxyConfig, proxyConfig.isUseNoopSender());
-
+      // config the entityPropertiesFactoryMap
+      for (String tenantName : proxyConfig.getMulticastingTenantList().keySet()) {
+        entityPropertiesFactoryMap.put(tenantName, new EntityPropertiesFactoryImpl(proxyConfig));
+      }
       // Perform initial proxy check-in and schedule regular check-ins (once a minute)
       proxyCheckinScheduler = new ProxyCheckInScheduler(agentId, proxyConfig, apiContainer,
           this::processConfiguration, () -> System.exit(1), this::truncateBacklog);
@@ -339,11 +346,15 @@ public abstract class AbstractAgent {
   /**
    * Actual agents can do additional configuration.
    *
+   * @param tenantName The tenant name
    * @param config The configuration to process.
    */
-  protected void processConfiguration(AgentConfiguration config) {
+  protected void processConfiguration(String tenantName, AgentConfiguration config) {
     try {
-      apiContainer.getProxyV2API().proxyConfigProcessed(agentId);
+      // for all ProxyV2API
+      for (String tn : proxyConfig.getMulticastingTenantList().keySet()) {
+        apiContainer.getProxyV2APIForTenant(tn).proxyConfigProcessed(agentId);
+      }
     } catch (RuntimeException e) {
       // cannot throw or else configuration update thread would die.
     }

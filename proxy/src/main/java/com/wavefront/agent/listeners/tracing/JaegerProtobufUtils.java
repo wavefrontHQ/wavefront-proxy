@@ -1,27 +1,22 @@
 package com.wavefront.agent.listeners.tracing;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.protobuf.ByteString;
 
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.common.TraceConstants;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
-import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.sdk.common.Pair;
 import com.yammer.metrics.core.Counter;
 
 import org.apache.commons.lang.StringUtils;
 
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -222,13 +217,13 @@ public abstract class JaegerProtobufUtils {
           case CHILD_OF:
             if (!reference.getSpanId().isEmpty()) {
               annotations.add(new Annotation(TraceConstants.PARENT_KEY,
-                  toStringId(reference.getSpanId())));
+                  SpanUtils.toStringId(reference.getSpanId())));
             }
             break;
           case FOLLOWS_FROM:
             if (!reference.getSpanId().isEmpty()) {
               annotations.add(new Annotation(TraceConstants.FOLLOWS_FROM_KEY,
-                  toStringId(reference.getSpanId())));
+                  SpanUtils.toStringId(reference.getSpanId())));
             }
           default:
         }
@@ -243,8 +238,8 @@ public abstract class JaegerProtobufUtils {
         .setCustomer("dummy")
         .setName(span.getOperationName())
         .setSource(sourceName)
-        .setSpanId(toStringId(span.getSpanId()))
-        .setTraceId(toStringId(span.getTraceId()))
+        .setSpanId(SpanUtils.toStringId(span.getSpanId()))
+        .setTraceId(SpanUtils.toStringId(span.getTraceId()))
         .setStartMillis(toMillis(span.getStartTime()))
         .setDuration(toMillis(span.getDuration()))
         .setAnnotations(annotations)
@@ -340,15 +335,6 @@ public abstract class JaegerProtobufUtils {
           componentTagValue, isError, toMicros(span.getDuration()), traceDerivedCustomTagKeys,
           spanTags, true));
     }
-  }
-
-  @VisibleForTesting
-  protected static String toStringId(ByteString id) {
-    ByteBuffer byteBuffer = ByteBuffer.wrap(id.toByteArray());
-    long mostSigBits = id.toByteArray().length > 8 ? byteBuffer.getLong() : 0L;
-    long leastSigBits = new BigInteger(1, byteBuffer.array()).longValue();
-    UUID uuid = new UUID(mostSigBits, leastSigBits);
-    return uuid.toString();
   }
 
   @Nullable

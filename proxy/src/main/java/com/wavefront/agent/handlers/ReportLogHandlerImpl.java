@@ -1,5 +1,6 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.dto.Log;
@@ -8,7 +9,8 @@ import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 
 import java.util.Collection;
-import java.util.function.Consumer;
+import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -35,10 +37,10 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   final com.yammer.metrics.core.Histogram receivedByteCount;
 
   /**
+   * @param senderTaskMap          sender tasks.
    * @param handlerKey           pipeline key.
    * @param blockedItemsPerBatch number of blocked items that are allowed to be written into the
-   *                             main log.
-   * @param senderTasks          sender tasks.
+ *                             main log.
    * @param validationConfig     validation configuration.
    * @param setupMetrics         Whether we should report counter metrics.
    * @param receivedRateSink     where to report received rate.
@@ -46,13 +48,13 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
    * @param validLogsLogger      logger for valid logs.
    */
   public ReportLogHandlerImpl(final HandlerKey handlerKey, final int blockedItemsPerBatch,
-                          @Nullable final Collection<SenderTask<Log>> senderTasks,
+                          @Nullable final Map<String, Collection<SenderTask<Log>>> senderTaskMap,
                           @Nonnull final ValidationConfiguration validationConfig,
                           final boolean setupMetrics,
-                          @Nullable final Consumer<Long> receivedRateSink,
+                          @Nullable final BiConsumer<String, Long> receivedRateSink,
                           @Nullable final Logger blockedLogsLogger,
                           @Nullable final Logger validLogsLogger) {
-    super(handlerKey, blockedItemsPerBatch, LOG_SERIALIZER, senderTasks, true, receivedRateSink,
+    super(handlerKey, blockedItemsPerBatch, LOG_SERIALIZER, senderTaskMap, true, receivedRateSink,
         blockedLogsLogger);
     this.validItemsLogger = validLogsLogger;
     this.validationConfig = validationConfig;
@@ -72,7 +74,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     receivedLogLag.update(Clock.now() - log.getTimestamp());
     Log logObj = new Log(log);
     receivedByteCount.update(logObj.toString().length());
-    getTask().add(logObj);
+    getTask(APIContainer.CENTRAL_TENANT_NAME).add(logObj);
     getReceivedCounter().inc();
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(LOG_SERIALIZER.apply(log));

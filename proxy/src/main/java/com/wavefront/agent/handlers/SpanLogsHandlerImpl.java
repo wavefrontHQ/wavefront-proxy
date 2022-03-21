@@ -1,10 +1,13 @@
 package com.wavefront.agent.handlers;
 
+import com.wavefront.agent.api.APIContainer;
 import com.wavefront.ingester.SpanLogsSerializer;
 import wavefront.report.SpanLogs;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
@@ -23,19 +26,20 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
    * @param handlerKey           pipeline handler key.
    * @param blockedItemsPerBatch controls sample rate of how many blocked points are written
    *                             into the main log file.
-   * @param sendDataTasks        sender tasks.
+   * @param senderTaskMap        map of tenant name and tasks actually handling data transfer to
+   *                             the Wavefront endpoint corresponding to the tenant name
    * @param receivedRateSink     where to report received rate.
    * @param blockedItemLogger    logger for blocked items.
    * @param validItemsLogger     logger for valid items.
    */
   SpanLogsHandlerImpl(final HandlerKey handlerKey,
                       final int blockedItemsPerBatch,
-                      @Nullable final Collection<SenderTask<String>> sendDataTasks,
-                      @Nullable final Consumer<Long> receivedRateSink,
+                      @Nullable final Map<String, Collection<SenderTask<String>>> senderTaskMap,
+                      @Nullable final BiConsumer<String, Long> receivedRateSink,
                       @Nullable final Logger blockedItemLogger,
                       @Nullable final Logger validItemsLogger) {
     super(handlerKey, blockedItemsPerBatch, new SpanLogsSerializer(),
-        sendDataTasks, true, receivedRateSink, blockedItemLogger);
+        senderTaskMap, true, receivedRateSink, blockedItemLogger);
     this.validItemsLogger = validItemsLogger;
   }
 
@@ -43,9 +47,10 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
   protected void reportInternal(SpanLogs spanLogs) {
     String strSpanLogs = serializer.apply(spanLogs);
     if (strSpanLogs != null) {
-      getTask().add(strSpanLogs);
+      getTask(APIContainer.CENTRAL_TENANT_NAME).add(strSpanLogs);
       getReceivedCounter().inc();
       if (validItemsLogger != null) validItemsLogger.info(strSpanLogs);
+      // tagK=tagV based multicasting is not supported
     }
   }
 }
