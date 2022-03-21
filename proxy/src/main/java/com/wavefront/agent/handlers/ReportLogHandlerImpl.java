@@ -32,6 +32,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   final ValidationConfiguration validationConfig;
   final com.yammer.metrics.core.Histogram receivedLogLag;
   final com.yammer.metrics.core.Histogram receivedTagCount;
+  final com.yammer.metrics.core.Histogram receivedByteCount;
 
   /**
    * @param handlerKey           pipeline key.
@@ -60,6 +61,8 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
         ".received", "", "lag"), false);
     this.receivedTagCount = registry.newHistogram(new MetricName(handlerKey.toString() +
         ".received", "", "tagCount"), false);
+    this.receivedByteCount = registry.newHistogram(new MetricName(handlerKey.toString() +
+        ".received", "", "byteCount"), false);
   }
 
   @Override
@@ -67,7 +70,9 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     receivedTagCount.update(log.getAnnotations().size());
     validateLog(log, validationConfig);
     receivedLogLag.update(Clock.now() - log.getTimestamp());
-    getTask().add(new Log(log));
+    Log logObj = new Log(log);
+    receivedByteCount.update(logObj.toString().length());
+    getTask().add(logObj);
     getReceivedCounter().inc();
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(LOG_SERIALIZER.apply(log));
