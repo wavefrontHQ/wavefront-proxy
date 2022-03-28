@@ -64,7 +64,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     this.receivedTagCount = registry.newHistogram(new MetricName(handlerKey.toString() +
         ".received", "", "tagCount"), false);
     this.receivedByteCount = registry.newCounter(new MetricName(handlerKey.toString() +
-        ".received", "", "byteCount"));
+        ".received", "", "bytes"));
   }
 
   @Override
@@ -73,7 +73,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     validateLog(log, validationConfig);
     receivedLogLag.update(Clock.now() - log.getTimestamp());
     Log logObj = new Log(log);
-    receivedByteCount.inc(logObj.toString().length());
+    receivedByteCount.inc(logObj.toString().getBytes().length);
     getTask(APIContainer.CENTRAL_TENANT_NAME).add(logObj);
     getReceivedCounter().inc();
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
