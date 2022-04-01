@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Splitter;
+import com.wavefront.agent.ProxyConfig;
+import com.wavefront.agent.api.APIContainer;
+import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.Utils;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
@@ -26,12 +29,15 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -72,6 +78,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
 
   private final Map<ReportableEntityType, ReportableEntityDecoder<?, ?>> decoders;
   private final ReportableEntityDecoder<String, ReportPoint> wavefrontDecoder;
+  private ProxyConfig proxyConfig;
   private final ReportableEntityHandler<ReportPoint, String> wavefrontHandler;
   private final Supplier<ReportableEntityHandler<ReportPoint, String>> histogramHandlerSupplier;
   private final Supplier<ReportableEntityHandler<Span, String>> spanHandlerSupplier;
@@ -88,6 +95,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private final Supplier<Counter> discardedSpanLogs;
   private final Supplier<Counter> receivedSpansTotal;
 
+  private final APIContainer apiContainer;
   /**
    * Create new instance with lazy initialization for handlers.
    *
@@ -110,11 +118,14 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
       @Nullable final SharedGraphiteHostAnnotator annotator,
       final Supplier<Boolean> histogramDisabled, final Supplier<Boolean> traceDisabled,
-      final Supplier<Boolean> spanLogsDisabled) {
+      final Supplier<Boolean> spanLogsDisabled,
+      final APIContainer apiContainer,
+      final ProxyConfig proxyConfig) {
     super(tokenAuthenticator, healthCheckManager, handle);
     this.decoders = decoders;
     this.wavefrontDecoder = (ReportableEntityDecoder<String, ReportPoint>) decoders.
         get(ReportableEntityType.POINT);
+    this.proxyConfig = proxyConfig;
     this.wavefrontHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT,
         handle));
     this.histogramHandlerSupplier = Utils.lazySupplier(() -> handlerFactory.getHandler(
@@ -137,6 +148,8 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         "spans." + handle, "", "discarded")));
     this.discardedSpanLogs = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
         "spanLogs." + handle, "", "discarded")));
+
+    this.apiContainer = apiContainer;
   }
 
   @Override
@@ -147,11 +160,26 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
     String path = uri.getPath();
     final boolean isDirectIngestion = path.startsWith("/report");
     if (path.endsWith("/checkin") && (path.startsWith("/api/daemon") || path.contains("wfproxy"))) {
-      // simulate checkin response for proxy chaining
+      // /v2/wfproxy/checkin?hostname=f54f67bd3c4c&version=11.0&currentMillis=1648504791768&ephemeral=true
+
+      Map<String, String> query = URLEncodedUtils.parse(uri, Charset.forName("UTF-8")).
+              stream().collect( Collectors.toMap(NameValuePair::getName, NameValuePair::getValue));
+
+      AgentConfiguration agentConfiguration = apiContainer.getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME).proxyCheckin(
+              UUID.fromString(request.headers().get("X-WF-PROXY-ID")),
+              "Bearer " + proxyConfig.getToken(),
+              query.get("hostname"),
+              query.get("version"),
+              Long.parseLong(query.get("currentMillis")),
+              null,
+              Boolean.parseBoolean(query.get("ephemeral"))
+      );
+
+//      // simulate checkin response for proxy chaining
       ObjectNode jsonResponse = JsonNodeFactory.instance.objectNode();
       jsonResponse.put("currentTime", Clock.now());
       jsonResponse.put("allowAnyHostKeys", true);
-      writeHttpResponse(ctx, HttpResponseStatus.OK, jsonResponse, request);
+      writeHttpResponse(ctx, HttpResponseStatus.OK, agentConfiguration, request);
       return;
     }
     String format = URLEncodedUtils.parse(uri, CharsetUtil.UTF_8).stream().
