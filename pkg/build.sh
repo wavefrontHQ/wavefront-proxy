@@ -17,7 +17,6 @@ mkdir -p build/opt/wavefront/wavefront-proxy
 
 cp ../open_source_licenses.txt build/usr/share/doc/wavefront-proxy/
 cp ../open_source_licenses.txt build/opt/wavefront/wavefront-proxy
-cp /opt/commons-daemon/src/native/unix/jsvc build/opt/wavefront/wavefront-proxy/bin
 cp wavefront-proxy.jar build/opt/wavefront/wavefront-proxy/bin
 
 for target in deb rpm
