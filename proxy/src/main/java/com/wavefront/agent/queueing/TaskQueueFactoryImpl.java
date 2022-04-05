@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import com.squareup.tape2.QueueFile;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.common.Pair;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
@@ -15,11 +16,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.Files;
-import java.util.Map;
-import java.util.Objects;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
@@ -33,6 +33,7 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
   private static final Logger logger =
       Logger.getLogger(TaskQueueFactoryImpl.class.getCanonicalName());
   private final Map<HandlerKey, Map<Integer, TaskQueue<?>>> taskQueues = new ConcurrentHashMap<>();
+  private final List<Pair<FileChannel, FileLock>> taskQueuesLocks = new ArrayList<>();
 
   private final String bufferFile;
   private final boolean purgeBuffer;
@@ -111,13 +112,14 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
     // iron-clad guarantee, but it works well in most cases.
     try {
       File lockFile = new File(lockFileName);
-      if (lockFile.exists()) {
-        Files.deleteIfExists(lockFile.toPath());
-      }
       FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
-      if (channel.tryLock() == null) {
+      FileLock lock = channel.tryLock();
+      logger.severe("lockFile: "+lockFile);
+      if (lock == null) {
         throw new OverlappingFileLockException();
       }
+      logger.severe("lock isValid: "+lock.isValid()+" - isShared: "+lock.isShared());
+      taskQueuesLocks.add(new Pair<>(channel, lock));
     } catch (SecurityException e) {
       logger.severe("Error writing to the buffer lock file " + lockFileName +
           " - please make sure write permissions are correct for this file path and restart the " +

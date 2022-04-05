@@ -1,0 +1,21 @@
+services:
+  proxy-1:
+    build: .
+    environment:
+      WAVEFRONT_URL: http://host.docker.internal:8080
+      WAVEFRONT_TOKEN: dhgjfdhgsjlkdf22340007-8fc6-4fc6-affa-b000ffa590ef
+      WAVEFRONT_PROXY_ARGS: --ephemeral false --idFile /var/spool/wavefront-proxy/id-1
+    volumes:
+      - /Users/glaullon/tmp:/var/spool/wavefront-proxy
+    ports:
+      - "2878:2878"
+  proxy-2:
+    build: .
+    environment:
+      WAVEFRONT_URL: http://host.docker.internal:8080
+      WAVEFRONT_TOKEN: dhgjfdhgsjlkdf22340007-8fc6-4fc6-affa-b000ffa590ef
+      WAVEFRONT_PROXY_ARGS: --ephemeral false --idFile /var/spool/wavefront-proxy/id-2
+    volumes:
+      - /Users/glaullon/tmp:/var/spool/wavefront-proxy
+    ports:
+      - "2879:2878"
