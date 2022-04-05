@@ -113,7 +113,7 @@
             <configuration>
               <rules>
                 <requireJavaVersion>
-                  <version>[1.8,12)</version>
+                  <version>[1.8,18)</version>
                 </requireJavaVersion>
               </rules>
             </configuration>
@@ -128,6 +128,17 @@
           <forkCount>4</forkCount>
           <reuseForks>true</reuseForks>
           <argLine>${jacocoArgLine} -Xmx512m -Duser.country=US</argLine>
+<!--          <argLine>${jacocoArgLine} -Xmx512m -Duser.country=US-->
+<!--          &#45;&#45;add-exports java.base/jdk.internal.ref=ALL-UNNAMED-->
+<!--          &#45;&#45;add-exports=java.base/sun.nio.ch=ALL-UNNAMED-->
+<!--          &#45;&#45;add-exports=jdk.unsupported/sun.misc=ALL-UNNAMED-->
+<!--          &#45;&#45;add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED-->
+<!--          &#45;&#45;add-opens=jdk.compiler/com.sun.tools.javac=ALL-UNNAMED-->
+<!--          &#45;&#45;add-opens=java.base/java.lang=ALL-UNNAMED-->
+<!--          &#45;&#45;add-opens=java.base/java.lang.reflect=ALL-UNNAMED-->
+<!--          &#45;&#45;add-opens=java.base/java.io=ALL-UNNAMED-->
+<!--          &#45;&#45;add-opens=java.base/java.util=ALL-UNNAMED-->
+<!--          </argLine>-->
           <rerunFailingTestsCount>3</rerunFailingTestsCount>
           <systemProperties>
             <property>
