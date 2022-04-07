@@ -22,7 +22,7 @@ jenkins: .info build-jar build-linux push-linux docker-multi-arch clean
 # Build Proxy jar file
 #####
 build-jar: .info
-	mvn -f proxy --batch-mode package -DskipTests
+	mvn -f proxy --batch-mode clean package -DskipTests
 	cp proxy/target/${ARTIFACT_ID}-${VERSION}-uber.jar ${out}
 
 #####
@@ -32,10 +32,10 @@ docker: .info .cp-docker
 	docker build -t $(USER)/$(REPO):$(DOCKER_TAG) docker/
 
 #####
-# docker-compose
+# Run Proxy complex Tests
 #####
-docker-compose: .info .cp-docker
-	cd docker-test && docker-compose up --build
+tests: .info .cp-docker
+	$(MAKE) -C tests/buffer-lock all
 
 #####
 # Build multi arch (amd64 & arm64) docker images

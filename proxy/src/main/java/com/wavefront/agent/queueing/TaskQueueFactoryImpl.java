@@ -116,6 +116,7 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
       FileLock lock = channel.tryLock();
       logger.severe("lockFile: "+lockFile);
       if (lock == null) {
+        channel.close();
         throw new OverlappingFileLockException();
       }
       logger.severe("lock isValid: "+lock.isValid()+" - isShared: "+lock.isShared());
