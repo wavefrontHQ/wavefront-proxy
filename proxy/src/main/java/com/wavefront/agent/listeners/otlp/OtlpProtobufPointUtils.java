@@ -6,6 +6,7 @@ import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.MetricConstants;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
+import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics;
@@ -13,6 +14,8 @@ import io.opentelemetry.proto.metrics.v1.Metric;
 import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
 import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
 import io.opentelemetry.proto.metrics.v1.Sum;
+import io.opentelemetry.proto.metrics.v1.Summary;
+import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import io.opentelemetry.proto.resource.v1.Resource;
 import org.jetbrains.annotations.NotNull;
 import wavefront.report.Annotation;
@@ -131,10 +134,25 @@ public class OtlpProtobufPointUtils {
         }
         points.add(point);
       }
+    } else if (otlpMetric.hasSummary()) {
+      for (ReportPoint point : transformSummary(otlpMetric.getName(), otlpMetric.getSummary(), resourceAttrs)) {
+        if (preprocessor != null) {
+          preprocessor.forReportPoint().transform(point);
+        }
+        points.add(point);
+      }
     } else {
       throw new IllegalArgumentException("Otel: unsupported metric type for " + otlpMetric.getName());
     }
 
+    return points;
+  }
+
+  private static List<ReportPoint> transformSummary(String name, Summary summary, List<KeyValue> resourceAttrs) {
+    List<ReportPoint> points = new ArrayList<>(summary.getDataPointsCount());
+    for (SummaryDataPoint p : summary.getDataPointsList()) {
+      points.addAll(transformSummaryDataPoint(name, p, resourceAttrs));
+    }
     return points;
   }
 
@@ -164,17 +182,48 @@ public class OtlpProtobufPointUtils {
 
   @NotNull
   private static ReportPoint transformNumberDataPoint(String name, NumberDataPoint point, List<KeyValue> resourceAttrs) {
-    ReportPoint.Builder toReturn = ReportPoint.newBuilder().setMetric(name);
+    return pointWithAnnotations(name, point.getAttributesList(), resourceAttrs)
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(point.getTimeUnixNano()))
+        .setValue(point.getAsDouble())
+        .build();
+  }
+
+  @NotNull
+  private static List<ReportPoint> transformSummaryDataPoint(String name, SummaryDataPoint point, List<KeyValue> resourceAttrs) {
+    List<ReportPoint> toReturn = new ArrayList<>();
+    toReturn.add(pointWithAnnotations(name + "_sum", point.getAttributesList(), resourceAttrs)
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(point.getTimeUnixNano()))
+        .setValue(point.getSum())
+        .build());
+    toReturn.add(pointWithAnnotations(name + "_count", point.getAttributesList(), resourceAttrs)
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(point.getTimeUnixNano()))
+        .setValue(point.getCount())
+        .build());
+    for (SummaryDataPoint.ValueAtQuantile q : point.getQuantileValuesList()) {
+      List<KeyValue> attributes = new ArrayList<>(point.getAttributesList());
+      KeyValue quantileTag = KeyValue.newBuilder()
+          .setKey("quantile")
+          .setValue(AnyValue.newBuilder().setDoubleValue(q.getQuantile()).build())
+          .build();
+      attributes.add(quantileTag);
+      toReturn.add(pointWithAnnotations(name, attributes, resourceAttrs)
+          .setTimestamp(TimeUnit.NANOSECONDS.toMillis(point.getTimeUnixNano()))
+          .setValue(q.getValue())
+          .build());
+    }
+    return toReturn;
+  }
+
+  @NotNull
+  private static ReportPoint.Builder pointWithAnnotations(String name, List<KeyValue> pointAttributes, List<KeyValue> resourceAttrs) {
+    ReportPoint.Builder builder = ReportPoint.newBuilder().setMetric(name);
     Map<String, String> annotations = new HashMap<>();
-    List<KeyValue> otlpAttributes = Stream.of(resourceAttrs, point.getAttributesList())
+    List<KeyValue> otlpAttributes = Stream.of(resourceAttrs, pointAttributes)
         .flatMap(Collection::stream).collect(Collectors.toList());
     for (Annotation a : OtlpProtobufUtils.annotationsFromAttributes(otlpAttributes)) {
       annotations.put(a.getKey(), a.getValue());
     }
-
-    toReturn.setTimestamp(TimeUnit.NANOSECONDS.toMillis(point.getTimeUnixNano()))
-        .setValue(point.getAsDouble())
-        .setAnnotations(annotations);
-    return toReturn.build();
+    builder.setAnnotations(annotations);
+    return builder;
   }
 }

@@ -25,6 +25,8 @@ import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.Metric;
 import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
 import io.opentelemetry.proto.metrics.v1.Sum;
+import io.opentelemetry.proto.metrics.v1.Summary;
+import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
 import org.easymock.Capture;
@@ -57,6 +59,7 @@ import static com.wavefront.agent.listeners.otlp.OtlpProtobufUtils.transformAll;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertAllPointsEqual;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertWFSpanEquals;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.hasKey;
+import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.justThePointsNamed;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.otlpAttribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.parentSpanIdPair;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
@@ -1036,6 +1039,115 @@ public class OtlpProtobufUtilsTest {
     actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void transformsMinimalSummary() {
+    SummaryDataPoint point = SummaryDataPoint.newBuilder()
+        .addQuantileValues(SummaryDataPoint.ValueAtQuantile.newBuilder()
+            .setQuantile(.5)
+            .setValue(12.3)
+            .build())
+        .setSum(24.5)
+        .setCount(3)
+        .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(point).setName("testSummary").build();
+
+    expectedPoints = ImmutableList.of(
+        OtlpTestHelpers.wfReportPointGenerator().setMetric("testSummary_sum").setValue(24.5).build(),
+        OtlpTestHelpers.wfReportPointGenerator().setMetric("testSummary_count").setValue(3).build(),
+        OtlpTestHelpers.wfReportPointGenerator().setMetric("testSummary").setValue(12.3).setAnnotations(ImmutableMap.of("quantile", "0.5")).build()
+    );
+    transformedPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+
+    assertAllPointsEqual(expectedPoints, transformedPoints);
+  }
+
+  @Test
+  public void transformsSummaryTimestampToEpochMilliseconds() {
+    SummaryDataPoint point = SummaryDataPoint.newBuilder()
+        .addQuantileValues(SummaryDataPoint.ValueAtQuantile.newBuilder().build())
+        .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(startTimeMs))
+        .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(point).build();
+    transformedPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+
+    for (ReportPoint p : transformedPoints) {
+      assertEquals(startTimeMs, p.getTimestamp());
+    }
+  }
+
+  @Test
+  public void acceptsSummaryWithMultipleDataPoints() {
+    List<SummaryDataPoint> points = ImmutableList.of(
+        SummaryDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(1)).setSum(1.0).setCount(1).build(),
+        SummaryDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(2)).setSum(2.0).setCount(2).build()
+    );
+    Summary otlpSummary = Summary.newBuilder().addAllDataPoints(points).build();
+    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSummary(otlpSummary).build();
+
+    expectedPoints = ImmutableList.of(
+        // SummaryDataPoint 1
+        OtlpTestHelpers.wfReportPointGenerator().setMetric("test_sum").setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1.0).build(),
+        OtlpTestHelpers.wfReportPointGenerator().setMetric("test_count").setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1).build(),
+        // SummaryDataPoint 2
+        OtlpTestHelpers.wfReportPointGenerator().setMetric("test_sum").setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2.0).build(),
+        OtlpTestHelpers.wfReportPointGenerator().setMetric("test_count").setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2).build()
+    );
+    transformedPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+
+    assertAllPointsEqual(expectedPoints, transformedPoints);
+  }
+
+  @Test
+  public void createsMetricsForEachSummaryQuantile() {
+    Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(ImmutableList.of(
+            SummaryDataPoint.ValueAtQuantile.newBuilder()
+                .setQuantile(.2)
+                .setValue(2.2)
+                .build(),
+            SummaryDataPoint.ValueAtQuantile.newBuilder()
+                .setQuantile(.4)
+                .setValue(4.4)
+                .build(),
+            SummaryDataPoint.ValueAtQuantile.newBuilder()
+                .setQuantile(.6)
+                .setValue(6.6)
+                .build()
+        )).build();
+
+    expectedPoints = ImmutableList.of(
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setAnnotations(ImmutableMap.of("quantile", "0.2"))
+            .setValue(2.2)
+            .build(),
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setAnnotations(ImmutableMap.of("quantile", "0.4"))
+            .setValue(4.4)
+            .build(),
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setAnnotations(ImmutableMap.of("quantile", "0.6"))
+            .setValue(6.6)
+            .build()
+    );
+    transformedPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+
+    assertAllPointsEqual(expectedPoints, justThePointsNamed("test", transformedPoints));
+  }
+
+
+  @Test
+  public void handlesSummaryAttributes() {
+    KeyValue booleanAttr = KeyValue.newBuilder().setKey("a-boolean")
+        .setValue(AnyValue.newBuilder().setBoolValue(true).build())
+        .build();
+
+    SummaryDataPoint dataPoint = SummaryDataPoint.newBuilder().addAttributes(booleanAttr).build();
+    Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(dataPoint).build();
+
+    for (ReportPoint p : OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null)) {
+      assertEquals("true", p.getAnnotations().get("a-boolean"));
+    }
   }
 
   @Test

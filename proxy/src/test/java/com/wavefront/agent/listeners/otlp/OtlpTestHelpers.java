@@ -11,6 +11,7 @@ import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
+import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.Status;
@@ -22,6 +23,7 @@ import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
 
 import javax.annotation.Nullable;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -268,5 +270,21 @@ public class OtlpTestHelpers {
 
   public static wavefront.report.ReportPoint.Builder wfReportPointGenerator(List<Annotation> annotations) {
     return wfReportPointGenerator().setAnnotations(annotationListToMap(annotations));
+  }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpSummaryGenerator(SummaryDataPoint point) {
+    return io.opentelemetry.proto.metrics.v1.Metric.newBuilder()
+        .setName("test")
+        .setSummary(io.opentelemetry.proto.metrics.v1.Summary.newBuilder()
+            .addDataPoints(point)
+            .build());
+  }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpSummaryGenerator(Collection<SummaryDataPoint.ValueAtQuantile> quantiles) {
+    return otlpSummaryGenerator(SummaryDataPoint.newBuilder().addAllQuantileValues(quantiles).build());
+  }
+
+  public static List<wavefront.report.ReportPoint> justThePointsNamed(String name, Collection<wavefront.report.ReportPoint> points) {
+    return points.stream().filter(p -> p.getMetric().equals(name)).collect(Collectors.toList());
   }
 }
