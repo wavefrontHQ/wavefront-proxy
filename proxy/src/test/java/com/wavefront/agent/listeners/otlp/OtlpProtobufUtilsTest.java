@@ -1058,9 +1058,9 @@ public class OtlpProtobufUtilsTest {
         OtlpTestHelpers.wfReportPointGenerator().setMetric("testSummary_count").setValue(3).build(),
         OtlpTestHelpers.wfReportPointGenerator().setMetric("testSummary").setValue(12.3).setAnnotations(ImmutableMap.of("quantile", "0.5")).build()
     );
-    transformedPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
 
-    assertAllPointsEqual(expectedPoints, transformedPoints);
+    assertAllPointsEqual(expectedPoints, actualPoints);
   }
 
   @Test
@@ -1070,9 +1070,9 @@ public class OtlpProtobufUtilsTest {
         .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(startTimeMs))
         .build();
     Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(point).build();
-    transformedPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
 
-    for (ReportPoint p : transformedPoints) {
+    for (ReportPoint p : actualPoints) {
       assertEquals(startTimeMs, p.getTimestamp());
     }
   }
@@ -1094,9 +1094,9 @@ public class OtlpProtobufUtilsTest {
         OtlpTestHelpers.wfReportPointGenerator().setMetric("test_sum").setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2.0).build(),
         OtlpTestHelpers.wfReportPointGenerator().setMetric("test_count").setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2).build()
     );
-    transformedPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
 
-    assertAllPointsEqual(expectedPoints, transformedPoints);
+    assertAllPointsEqual(expectedPoints, actualPoints);
   }
 
   @Test
@@ -1130,9 +1130,32 @@ public class OtlpProtobufUtilsTest {
             .setValue(6.6)
             .build()
     );
-    transformedPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null);
 
-    assertAllPointsEqual(expectedPoints, justThePointsNamed("test", transformedPoints));
+    assertAllPointsEqual(expectedPoints, justThePointsNamed("test", actualPoints));
+  }
+
+  @Test
+  public void preservesOverriddenQuantileTag() {
+    KeyValue quantileTag = KeyValue.newBuilder()
+        .setKey("quantile")
+        .setValue(AnyValue.newBuilder().setStringValue("half").build())
+        .build();
+    SummaryDataPoint point = SummaryDataPoint.newBuilder()
+        .addQuantileValues(SummaryDataPoint.ValueAtQuantile.newBuilder()
+            .setQuantile(.5)
+            .setValue(12.3)
+            .build())
+        .addAttributes(quantileTag)
+        .build();
+    Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(point).setName("testSummary").build();
+
+    for (ReportPoint p : OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null)) {
+      assertEquals("half", p.getAnnotations().get("_quantile"));
+      if (p.getMetric().equals("testSummary")) {
+        assertEquals("0.5", p.getAnnotations().get("quantile"));
+      }
+    }
   }
 
 

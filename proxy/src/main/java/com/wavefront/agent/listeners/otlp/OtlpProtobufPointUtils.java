@@ -191,16 +191,17 @@ public class OtlpProtobufPointUtils {
   @NotNull
   private static List<ReportPoint> transformSummaryDataPoint(String name, SummaryDataPoint point, List<KeyValue> resourceAttrs) {
     List<ReportPoint> toReturn = new ArrayList<>();
-    toReturn.add(pointWithAnnotations(name + "_sum", point.getAttributesList(), resourceAttrs)
+    List<KeyValue> pointAttributes = replaceQuantileTag(point.getAttributesList());
+    toReturn.add(pointWithAnnotations(name + "_sum", pointAttributes, resourceAttrs)
         .setTimestamp(TimeUnit.NANOSECONDS.toMillis(point.getTimeUnixNano()))
         .setValue(point.getSum())
         .build());
-    toReturn.add(pointWithAnnotations(name + "_count", point.getAttributesList(), resourceAttrs)
+    toReturn.add(pointWithAnnotations(name + "_count", pointAttributes, resourceAttrs)
         .setTimestamp(TimeUnit.NANOSECONDS.toMillis(point.getTimeUnixNano()))
         .setValue(point.getCount())
         .build());
     for (SummaryDataPoint.ValueAtQuantile q : point.getQuantileValuesList()) {
-      List<KeyValue> attributes = new ArrayList<>(point.getAttributesList());
+      List<KeyValue> attributes = new ArrayList<>(pointAttributes);
       KeyValue quantileTag = KeyValue.newBuilder()
           .setKey("quantile")
           .setValue(AnyValue.newBuilder().setDoubleValue(q.getQuantile()).build())
@@ -212,6 +213,24 @@ public class OtlpProtobufPointUtils {
           .build());
     }
     return toReturn;
+  }
+
+  @NotNull
+  private static List<KeyValue> replaceQuantileTag(List<KeyValue> pointAttributes) {
+    if (pointAttributes.isEmpty()) return pointAttributes;
+
+    List<KeyValue> modifiableAttributes = new ArrayList<>();
+    for (KeyValue pointAttribute : pointAttributes) {
+      if (pointAttribute.getKey().equals("quantile")) {
+        modifiableAttributes.add(KeyValue.newBuilder()
+            .setKey("_quantile")
+            .setValue(pointAttribute.getValue())
+            .build());
+      } else {
+        modifiableAttributes.add(pointAttribute);
+      }
+    }
+    return modifiableAttributes;
   }
 
   @NotNull
