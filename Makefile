@@ -55,6 +55,12 @@ build-linux: .info .prepare-builder .cp-linux
 push-linux: .info .prepare-builder
 	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/upload_to_packagecloud.sh ${PACKAGECLOUD_USER}/${PACKAGECLOUD_REPO} /proxy/pkg/package_cloud.conf /proxy/out
 
+#####
+# Run Proxy complex Tests
+#####
+tests: .info .cp-docker
+	$(MAKE) -C tests/chain-checking all
+
 .prepare-builder:
 	docker build -t proxy-linux-builder pkg/
 

@@ -170,7 +170,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       try {
         AgentConfiguration agentConfiguration = apiContainer.getProxyV2APIForTenant(APIContainer.CENTRAL_TENANT_NAME).proxyCheckin(
                 UUID.fromString(request.headers().get("X-WF-PROXY-ID")),
-                "Bearer ss" + proxyConfig.getToken(),
+                "Bearer " + proxyConfig.getToken(),
                 query.get("hostname"),
                 query.get("version"),
                 Long.parseLong(query.get("currentMillis")),
