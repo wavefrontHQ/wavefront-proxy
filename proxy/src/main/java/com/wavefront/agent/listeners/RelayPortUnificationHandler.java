@@ -187,6 +187,13 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         Throwable rootCause = Throwables.getRootCause(e);
         String error = "Request processing error: Unable to retrieve proxy configuration from '" + proxyConfig.getServer() + "' :" + rootCause;
         writeHttpResponse(ctx, new HttpResponseStatus(444, error), error, request);
+      } catch (Throwable e) {
+        logger.warning("Problem while checking a chained proxy: " + e);
+        if (logger.isLoggable(Level.FINE)) {
+          logger.log(Level.WARNING, "Exception: ", e);
+        }
+        String error = "Request processing error: Unable to retrieve proxy configuration from '" + proxyConfig.getServer() + "'";
+        writeHttpResponse(ctx, new HttpResponseStatus(500, error), error, request);
       }
       return;
     }
