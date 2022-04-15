@@ -19,6 +19,8 @@ import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
@@ -60,6 +62,8 @@ public class APIContainer {
   private LogAPI logAPI;
   private String logServerToken;
   private String logServerEndpointUrl;
+
+  private static final Logger logger = LogManager.getLogger(APIContainer.class.getCanonicalName());
 
   /**
    * @param proxyConfig proxy configuration settings
@@ -179,6 +183,10 @@ public class APIContainer {
    * @param logServerToken new server token.
    */
   public void updateLogServerEndpointURLandToken(String logServerEndpointUrl, String logServerToken) {
+    // if one of the values is blank but not the other, something has gone wrong
+    if (StringUtils.isBlank(logServerEndpointUrl) != StringUtils.isBlank(logServerToken)) {
+      logger.warn("mismatch between logServerEndPointUrl and logServerToken during checkin");
+    }
     // if either are null or empty, just return
     if (StringUtils.isBlank(logServerEndpointUrl) || StringUtils.isBlank(logServerToken)) {
       return;
