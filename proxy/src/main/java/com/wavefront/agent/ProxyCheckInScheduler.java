@@ -30,6 +30,7 @@ import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ProcessingException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import static com.wavefront.common.Utils.getLocalHostName;
 
 /**
  * Registers the proxy with the back-end, sets up regular "check-ins" (every minute), transmits
@@ -56,6 +57,7 @@ public class ProxyCheckInScheduler {
   private final Runnable truncateBacklog;
 
   private String serverEndpointUrl = null;
+  private final String hostname = getLocalHostName();
   private volatile JsonNode agentMetrics;
   private final AtomicInteger retries = new AtomicInteger(0);
   private final AtomicLong successfulCheckIns = new AtomicLong(0);
@@ -163,6 +165,7 @@ public class ProxyCheckInScheduler {
                     "Bearer " + multicastingTenantProxyConfig.get(APIContainer.API_TOKEN),
                     proxyConfig.getHostname()
                         + (multicastingTenantList.size() > 1 ? "-multi_tenant" : ""),
+                    proxyConfig.getProxyname(),
                     getBuildVersion(),
                     System.currentTimeMillis(),
                     agentMetricsWorkingCopy,
@@ -341,6 +344,8 @@ public class ProxyCheckInScheduler {
     try {
       Map<String, String> pointTags = new HashMap<>(proxyConfig.getAgentMetricsPointTags());
       pointTags.put("processId", ID);
+      // MONIT-27856 Adds real hostname (fqdn if possible) as internal metric tag
+      pointTags.put("hostname", hostname);
       synchronized (executor) {
         agentMetrics =
             JsonMetricsGenerator.generateJsonMetrics(
