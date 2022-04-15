@@ -206,6 +206,10 @@ public abstract class AbstractAgent {
           "hostname cannot be blank! Please correct your configuration settings.");
     }
 
+    if (StringUtils.isBlank(proxyConfig.getProxyname().trim())) {
+      throw new IllegalArgumentException("proxyname cannot be blank! Please correct your configuration settings.");
+    }
+
     if (proxyConfig.isSqsQueueBuffer()) {
       if (StringUtils.isBlank(proxyConfig.getSqsQueueIdentifier())) {
         throw new IllegalArgumentException(
