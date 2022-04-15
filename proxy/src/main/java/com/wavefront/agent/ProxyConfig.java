@@ -858,6 +858,16 @@ public class ProxyConfig extends Configuration {
       "`message` or `text`. Default: none")
   String customMessageTags = "";
 
+  @Parameter(names = {"--customApplicationTags"}, description = "Comma separated list of log tag " +
+      "keys that should be treated as the application in Wavefront in the absence of a tag named " +
+      "`application`. Default: none")
+  String customApplicationTags = "";
+
+  @Parameter(names = {"--customServiceTags"}, description = "Comma separated list of log tag " +
+      "keys that should be treated as the service in Wavefront in the absence of a tag named " +
+      "`service`. Default: none")
+  String customServiceTags = "";
+
   @Parameter(names = {"--multicastingTenants"}, description = "The number of tenants to data " +
       "points" +
       " multicasting. Default: 0")
@@ -1468,6 +1478,28 @@ public class ProxyConfig extends Configuration {
     Splitter.on(",").trimResults().omitEmptyStrings().split(customMessageTags).forEach(x -> {
       if (!tagSet.add(x)) {
         logger.warning("Duplicate tag " + x + " specified in customMessageTags config setting");
+      }
+    });
+    return new ArrayList<>(tagSet);
+  }
+
+  public List<String> getCustomApplicationTags() {
+    // create List of application tags from the configuration string
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",").trimResults().omitEmptyStrings().split(customApplicationTags).forEach(x -> {
+      if (!tagSet.add(x)) {
+        logger.warning("Duplicate tag " + x + " specified in customApplicationTags config setting");
+      }
+    });
+    return new ArrayList<>(tagSet);
+  }
+
+  public List<String> getCustomServiceTags() {
+    // create List of service tags from the configuration string
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",").trimResults().omitEmptyStrings().split(customServiceTags).forEach(x -> {
+      if (!tagSet.add(x)) {
+        logger.warning("Duplicate tag " + x + " specified in customServiceTags config setting");
       }
     });
     return new ArrayList<>(tagSet);
