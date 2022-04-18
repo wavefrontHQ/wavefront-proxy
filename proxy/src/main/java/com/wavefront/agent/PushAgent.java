@@ -4,7 +4,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 
 import com.tdunning.math.stats.AgentDigest;
@@ -1002,8 +1001,8 @@ public class PushAgent extends AbstractAgent {
         () -> entityPropertiesFactoryMap.get(CENTRAL_TENANT_NAME).get(ReportableEntityType.HISTOGRAM).isFeatureDisabled(),
         () -> entityPropertiesFactoryMap.get(CENTRAL_TENANT_NAME).get(ReportableEntityType.TRACE).isFeatureDisabled(),
         () -> entityPropertiesFactoryMap.get(CENTRAL_TENANT_NAME).get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
-        () -> entityPropertiesFactoryMap.get(CENTRAL_TENANT_NAME).get(ReportableEntityType.LOGS).isFeatureDisabled());
-
+        () -> entityPropertiesFactoryMap.get(CENTRAL_TENANT_NAME).get(ReportableEntityType.LOGS).isFeatureDisabled(),
+        apiContainer, proxyConfig);
     startAsManagedThread(port, new TcpIngester(createInitializer(channelHandler, port,
         proxyConfig.getPushListenerMaxReceivedLength(), proxyConfig.getPushListenerHttpBufferSize(),
         proxyConfig.getListenerIdleConnectionTimeout(), getSslContext(strPort),

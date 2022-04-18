@@ -8,7 +8,7 @@ Wavefront proxy version 10.11 and later use a version of Log4j that addresses th
 
 -----
 
-# Wavefront Proxy Project [![Build Status](https://travis-ci.org/wavefrontHQ/wavefront-proxy.svg?branch=master)](https://travis-ci.org/wavefrontHQ/wavefront-proxy)
+# Wavefront Proxy Project
 
 [Wavefront](https://docs.wavefront.com/) is a high-performance streaming analytics platform for monitoring and optimizing your environment and applications.
 
