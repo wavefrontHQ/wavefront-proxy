@@ -87,6 +87,11 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
       this.reject(span, "span is older than acceptable delay of " + maxSpanDelay + " minutes");
       return;
     }
+    // Spans cannot exceed 24 hours future fill
+    if (span.getStartMillis() > Clock.now() + TimeUnit.HOURS.toMillis(24)) {
+      this.reject(span, "Span outside of reasonable timeframe");
+      return;
+    }
     //PUB-323 Allow "*" in span name by converting "*" to "-"
     if (span.getName().contains("*")) {
       span.setName(span.getName().replace('*', '-'));
