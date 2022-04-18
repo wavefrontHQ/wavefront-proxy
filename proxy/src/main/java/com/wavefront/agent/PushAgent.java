@@ -191,7 +191,8 @@ public class PushAgent extends AbstractAgent {
           put(ReportableEntityType.EVENT, new EventDecoder()).
           put(ReportableEntityType.LOGS, new ReportLogDecoder(() -> "unknown",
               proxyConfig.getCustomSourceTags(), proxyConfig.getCustomTimestampTags(),
-              proxyConfig.getCustomMessageTags())).build());
+              proxyConfig.getCustomMessageTags(), proxyConfig.getCustomApplicationTags(),
+              proxyConfig.getCustomServiceTags())).build());
   // default rate sampler which always samples.
   protected final RateSampler rateSampler = new RateSampler(1.0d);
   private Logger blockedPointsLogger;
