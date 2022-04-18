@@ -615,8 +615,8 @@ public class HttpEndToEndTest {
 
     long timestamp = time * 1000 + 12345;
     String payload = "[{\"source\": \"myHost\",\n \"timestamp\": \"" + timestamp + "\"}]";
-    String expectedLog = "[{\"source\":\"myHost\",\"log_timestamp\":" + timestamp +
-        ",\"text\":\"\"}]";
+    String expectedLog = "[{\"source\":\"myHost\",\"timestamp\":" + timestamp +
+        ",\"text\":\"\",\"application\":\"*\",\"service\":\"*\"}]";
     AtomicBoolean gotLog = new AtomicBoolean(false);
     server.update(req -> {
       String content = req.content().toString(CharsetUtil.UTF_8);
