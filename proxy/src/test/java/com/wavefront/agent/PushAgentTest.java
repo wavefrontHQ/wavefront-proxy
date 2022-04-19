@@ -1663,8 +1663,8 @@ public class PushAgentTest {
         "severity=INFO multi=bar multi=baz\n" +
         "!M " + (startTime + 60) + " #5 20.0 #6 30.0 #7 40.0 metric.test.histo source=test2";
 
-    assertEquals(200, gzippedHttpPost("http://localhost:" + port + "/api/v2/wfproxy/checkin",
-        "{}"));
+    assertEquals(500, gzippedHttpPost("http://localhost:" + port + "/api/v2/wfproxy/checkin",
+        "{}")); // apiContainer not available
     assertEquals(200, gzippedHttpPost("http://localhost:" + port +
         "/api/v2/wfproxy/report?format=wavefront", payloadStr));
     assertEquals(200, gzippedHttpPost("http://localhost:" + port +
