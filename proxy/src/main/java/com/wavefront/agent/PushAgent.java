@@ -1320,7 +1320,7 @@ public class PushAgent extends AbstractAgent {
           setFeatureDisabled(BooleanUtils.isTrue(config.getTraceDisabled()));
       tenantSpecificEntityProps.get(ReportableEntityType.TRACE_SPAN_LOGS).
           setFeatureDisabled(BooleanUtils.isTrue(config.getSpanLogsDisabled()));
-      entityPropertiesFactoryMap.get(CENTRAL_TENANT_NAME).get(ReportableEntityType.LOGS).
+      tenantSpecificEntityProps.get(ReportableEntityType.LOGS).
           setFeatureDisabled(BooleanUtils.isTrue(config.getLogsDisabled()));
       preprocessors.processRemoteRules(ObjectUtils.firstNonNull(config.getPreprocessorRules(), ""));
       validationConfiguration.updateFrom(config.getValidationConfiguration());
