@@ -28,7 +28,7 @@ do
 		--architecture amd64 \
 		--deb-no-default-config-files \
 		--deb-priority optional \
-		--depends curl,tar \
+		--depends java-11-openjdk \
 		--description "Proxy for sending data to Wavefront." \
 		--exclude "*/.git" \
 		--iteration $ITERATION \
