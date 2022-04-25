@@ -2,15 +2,16 @@ package com.wavefront.agent.api;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
-
 import com.wavefront.agent.JsonNodeWriter;
+import com.wavefront.agent.ProxyConfig;
 import com.wavefront.agent.SSLConnectionSocketFactoryImpl;
 import com.wavefront.agent.channel.DisableGZIPEncodingInterceptor;
 import com.wavefront.agent.channel.GZIPEncodingInterceptorWithVariableCompression;
-import com.wavefront.agent.ProxyConfig;
 import com.wavefront.api.EventAPI;
+import com.wavefront.api.LogAPI;
 import com.wavefront.api.ProxyV2API;
 import com.wavefront.api.SourceTagAPI;
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpRequest;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
@@ -18,6 +19,8 @@ import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
@@ -51,9 +54,16 @@ public class APIContainer {
   private final ResteasyProviderFactory resteasyProviderFactory;
   private final ClientHttpEngine clientHttpEngine;
   private final boolean discardData;
+
   private Map<String, ProxyV2API> proxyV2APIsForMulticasting;
   private Map<String, SourceTagAPI> sourceTagAPIsForMulticasting;
   private Map<String, EventAPI> eventAPIsForMulticasting;
+
+  private LogAPI logAPI;
+  private String logServerToken;
+  private String logServerEndpointUrl;
+
+  private static final Logger logger = LogManager.getLogger(APIContainer.class.getCanonicalName());
 
   /**
    * @param proxyConfig proxy configuration settings
@@ -61,9 +71,12 @@ public class APIContainer {
    */
   public APIContainer(ProxyConfig proxyConfig, boolean discardData) {
     this.proxyConfig = proxyConfig;
+    this.logServerToken = "NOT_SET";
+    this.logServerEndpointUrl = "NOT_SET";
     this.resteasyProviderFactory = createProviderFactory();
     this.clientHttpEngine = createHttpEngine();
     this.discardData = discardData;
+    this.logAPI = createService(logServerEndpointUrl, LogAPI.class);
 
     // config the multicasting tenants / clusters
     proxyV2APIsForMulticasting = Maps.newHashMap();
@@ -89,6 +102,7 @@ public class APIContainer {
       this.sourceTagAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopSourceTagAPI());
       this.eventAPIsForMulticasting = Maps.newHashMap();
       this.eventAPIsForMulticasting.put(CENTRAL_TENANT_NAME, new NoopEventAPI());
+      this.logAPI = new NoopLogAPI();
     }
     configureHttpProxy();
   }
@@ -99,13 +113,15 @@ public class APIContainer {
    * @param proxyV2API   RESTeasy proxy for ProxyV2API
    * @param sourceTagAPI RESTeasy proxy for SourceTagAPI
    * @param eventAPI     RESTeasy proxy for EventAPI
+   * @param logAPI       RESTeasy proxy for LogAPI
    */
   @VisibleForTesting
-  public APIContainer(ProxyV2API proxyV2API, SourceTagAPI sourceTagAPI, EventAPI eventAPI) {
+  public APIContainer(ProxyV2API proxyV2API, SourceTagAPI sourceTagAPI, EventAPI eventAPI, LogAPI logAPI) {
     this.proxyConfig = null;
     this.resteasyProviderFactory = null;
     this.clientHttpEngine = null;
     this.discardData = false;
+    this.logAPI = logAPI;
     proxyV2APIsForMulticasting = Maps.newHashMap();
     proxyV2APIsForMulticasting.put(CENTRAL_TENANT_NAME, proxyV2API);
     sourceTagAPIsForMulticasting = Maps.newHashMap();
@@ -149,6 +165,42 @@ public class APIContainer {
    */
   public EventAPI getEventAPIForTenant(String tenantName) {
     return eventAPIsForMulticasting.get(tenantName);
+  }
+
+  /**
+   * Get RESTeasy proxy for {@link LogAPI}.
+   *
+   * @return proxy object
+   */
+  public LogAPI getLogAPI() {
+    return logAPI;
+  }
+
+  /**
+   * Re-create RESTeasy proxies with new server endpoint URL (allows changing URL at runtime).
+   *
+   * @param logServerEndpointUrl new log server endpoint URL.
+   * @param logServerToken new server token.
+   */
+  public void updateLogServerEndpointURLandToken(String logServerEndpointUrl, String logServerToken) {
+    // if one of the values is blank but not the other, something has gone wrong
+    if (StringUtils.isBlank(logServerEndpointUrl) != StringUtils.isBlank(logServerToken)) {
+      logger.warn("mismatch between logServerEndPointUrl and logServerToken during checkin");
+    }
+    // if either are null or empty, just return
+    if (StringUtils.isBlank(logServerEndpointUrl) || StringUtils.isBlank(logServerToken)) {
+      return;
+    }
+    // Only recreate if either the url or token have changed
+    if (!StringUtils.equals(logServerEndpointUrl, this.logServerEndpointUrl) ||
+        !StringUtils.equals(logServerToken, this.logServerToken)) {
+      this.logServerEndpointUrl = logServerEndpointUrl;
+      this.logServerToken = logServerToken;
+      this.logAPI = createService(logServerEndpointUrl, LogAPI.class, createProviderFactory());
+      if (discardData) {
+        this.logAPI = new NoopLogAPI();
+      }
+    }
   }
 
   /**
@@ -225,6 +277,8 @@ public class APIContainer {
               context.getUri().getPath().contains("/event")) &&
               !context.getUri().getPath().endsWith("checkin")) {
             context.getHeaders().add("Authorization", "Bearer " + proxyConfig.getToken());
+          } else if (context.getUri().getPath().contains("/le-mans")) {
+            context.getHeaders().add("Authorization", "Bearer " + logServerToken);
           }
         });
     return factory;
@@ -269,6 +323,20 @@ public class APIContainer {
    * Create RESTeasy proxies for remote calls via HTTP.
    */
   private <T> T createService(String serverEndpointUrl, Class<T> apiClass) {
+    return createServiceInternal(serverEndpointUrl, apiClass, resteasyProviderFactory);
+  }
+
+  /**
+   * Create RESTeasy proxies for remote calls via HTTP.
+   */
+  private <T> T createService(String serverEndpointUrl, Class<T> apiClass, ResteasyProviderFactory resteasyProviderFactory) {
+    return createServiceInternal(serverEndpointUrl, apiClass, resteasyProviderFactory);
+  }
+
+  /**
+   * Create RESTeasy proxies for remote calls via HTTP.
+   */
+  private <T> T createServiceInternal(String serverEndpointUrl, Class<T> apiClass, ResteasyProviderFactory resteasyProviderFactory) {
     ResteasyClient client = new ResteasyClientBuilder().
         httpEngine(clientHttpEngine).
         providerFactory(resteasyProviderFactory).

@@ -45,6 +45,8 @@ import static com.wavefront.agent.TestUtils.gzippedHttpPost;
 import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
 import static com.wavefront.agent.channel.ChannelUtils.makeResponse;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
+import static com.wavefront.api.agent.Constants.PUSH_FORMAT_LOGS_JSON_ARR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -593,6 +595,42 @@ public class HttpEndToEndTest {
     assertTrueWithTimeout(50, gotSpanLog::get);
   }
 
+  @Test
+  public void testEndToEndLogs() throws Exception {
+    long time = Clock.now() / 1000;
+    proxyPort = findAvailablePort(2898);
+    String buffer = File.createTempFile("proxyTestBuffer", null).getPath();
+    proxy = new PushAgent();
+    proxy.proxyConfig.server = "http://localhost:" + backendPort + "/api/";
+    proxy.proxyConfig.flushThreads = 1;
+    proxy.proxyConfig.pushListenerPorts = String.valueOf(proxyPort);
+    proxy.proxyConfig.bufferFile = buffer;
+    proxy.proxyConfig.pushRateLimitLogs = 100;
+    proxy.proxyConfig.pushFlushIntervalLogs = 50;
+
+    proxy.start(new String[]{});
+    waitUntilListenerIsOnline(proxyPort);
+    if (!(proxy.senderTaskFactory instanceof SenderTaskFactoryImpl)) fail();
+    if (!(proxy.queueingFactory instanceof QueueingFactoryImpl)) fail();
+
+    long timestamp = time * 1000 + 12345;
+    String payload = "[{\"source\": \"myHost\",\n \"timestamp\": \"" + timestamp + "\"}]";
+    String expectedLog = "[{\"source\":\"myHost\",\"timestamp\":" + timestamp +
+        ",\"text\":\"\",\"application\":\"*\",\"service\":\"*\"}]";
+    AtomicBoolean gotLog = new AtomicBoolean(false);
+    server.update(req -> {
+      String content = req.content().toString(CharsetUtil.UTF_8);
+      logger.fine("Content received: " + content);
+      if (content.equals(expectedLog)) gotLog.set(true);
+      return makeResponse(HttpResponseStatus.OK, "");
+    });
+    gzippedHttpPost("http://localhost:" + proxyPort + "/?f=" + PUSH_FORMAT_LOGS_JSON_ARR, payload);
+    HandlerKey key = HandlerKey.of(ReportableEntityType.LOGS, String.valueOf(proxyPort));
+    ((SenderTaskFactoryImpl) proxy.senderTaskFactory).flushNow(key);
+    ((QueueingFactoryImpl) proxy.queueingFactory).flushNow(key);
+    assertTrueWithTimeout(50, gotLog::get);
+  }
+
   private static class WrappingHttpHandler extends AbstractHttpOnlyHandler {
     private final Function<FullHttpRequest, HttpResponse> func;
     public WrappingHttpHandler(@Nullable TokenAuthenticator tokenAuthenticator,
@@ -619,6 +657,8 @@ public class HttpEndToEndTest {
         ObjectNode jsonResponse = JsonNodeFactory.instance.objectNode();
         jsonResponse.put("currentTime", Clock.now());
         jsonResponse.put("allowAnyHostKeys", true);
+        jsonResponse.put("logServerEndpointUrl", "http://localhost:" + handle + "/api/");
+        jsonResponse.put("logServerToken", "12345");
         writeHttpResponse(ctx, HttpResponseStatus.OK, jsonResponse, request);
         return;
       } else if (path.endsWith("/config/processed")){
