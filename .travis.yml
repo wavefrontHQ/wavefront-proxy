@@ -1,4 +1,0 @@
-language: java
-script: mvn -f proxy test -B
-jdk:
-  - openjdk11

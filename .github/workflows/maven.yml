@@ -1,0 +1,27 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ master, 'release-**' ]
+  pull_request:
+    branches: [ master, 'release-**' ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: ["11"]
+        # java: ["11", "16", "17"]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up JDK
+      uses: actions/setup-java@v2
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: 'temurin'
+        cache: maven
+    - name: Build with Maven
+      run: mvn -f proxy test -B
