@@ -35,6 +35,14 @@ import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
+import static com.wavefront.agent.channel.ChannelUtils.formatErrorMessage;
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.HISTO_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPANLOGS_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.LOGS_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
 import javax.annotation.Nullable;
 import java.net.URI;
 import java.nio.charset.Charset;
@@ -57,7 +65,8 @@ import static com.wavefront.agent.listeners.WavefrontPortUnificationHandler.prep
  * incoming HTTP requests from other proxies (i.e. act as a relay for proxy chaining), as well as
  * serve as a DDI (Direct Data Ingestion) endpoint.
  * All the data received on this endpoint will register as originating from this proxy.
- * Supports metric, histogram and distributed trace data (no source tag support at this moment).
+ * Supports metric, histogram and distributed trace data (no source tag support or log support at
+ * this moment).
  * Intended for internal use.
  *
  * @author vasily@wavefront.com
@@ -82,11 +91,14 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
   private final Supplier<Boolean> histogramDisabled;
   private final Supplier<Boolean> traceDisabled;
   private final Supplier<Boolean> spanLogsDisabled;
+  private final Supplier<Boolean> logsDisabled;
 
   private final Supplier<Counter> discardedHistograms;
   private final Supplier<Counter> discardedSpans;
   private final Supplier<Counter> discardedSpanLogs;
   private final Supplier<Counter> receivedSpansTotal;
+  private final Supplier<Counter> discardedLogs;
+  private final Supplier<Counter> receivedLogsTotal;
 
   private final APIContainer apiContainer;
   /**
@@ -101,6 +113,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
    * @param histogramDisabled    supplier for backend-controlled feature flag for histograms.
    * @param traceDisabled        supplier for backend-controlled feature flag for spans.
    * @param spanLogsDisabled     supplier for backend-controlled feature flag for span logs.
+   * @param logsDisabled         supplier for backend-controlled feature flag for logs.
    */
   @SuppressWarnings("unchecked")
   public RelayPortUnificationHandler(
@@ -112,6 +125,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
       @Nullable final SharedGraphiteHostAnnotator annotator,
       final Supplier<Boolean> histogramDisabled, final Supplier<Boolean> traceDisabled,
       final Supplier<Boolean> spanLogsDisabled,
+      final Supplier<Boolean> logsDisabled,
       final APIContainer apiContainer,
       final ProxyConfig proxyConfig) {
     super(tokenAuthenticator, healthCheckManager, handle);
@@ -134,6 +148,7 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
     this.histogramDisabled = histogramDisabled;
     this.traceDisabled = traceDisabled;
     this.spanLogsDisabled = spanLogsDisabled;
+    this.logsDisabled = logsDisabled;
 
     this.discardedHistograms = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
         "histogram", "", "discarded_points")));
@@ -141,6 +156,10 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         "spans." + handle, "", "discarded")));
     this.discardedSpanLogs = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
         "spanLogs." + handle, "", "discarded")));
+    this.discardedLogs = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
+        "logs." + handle, "", "discarded")));
+    this.receivedLogsTotal = Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(
+        "logs." + handle, "", "received.total")));
 
     this.apiContainer = apiContainer;
   }
@@ -317,6 +336,12 @@ public class RelayPortUnificationHandler extends AbstractHttpOnlyHandler {
         spanLogs.forEach(spanLogsHandler::report);
         status = okStatus;
         break;
+      case Constants.PUSH_FORMAT_LOGS_JSON_ARR:
+        if (isFeatureDisabled(logsDisabled, LOGS_DISABLED, discardedLogs.get(),
+            output, request)) {
+          status = HttpResponseStatus.FORBIDDEN;
+          break;
+        }
       default:
         status = HttpResponseStatus.BAD_REQUEST;
         logger.warning("Unexpected format for incoming HTTP request: " + format);
