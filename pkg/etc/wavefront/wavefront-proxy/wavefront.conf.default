@@ -6,7 +6,7 @@
 ########################################################################################################################
 # Wavefront API endpoint URL. Usually the same as the URL of your Wavefront instance, with an `api`
 # suffix -- or Wavefront provides the URL.
-server=https://try.wavefront.com/api/
+server=CHANGE_ME
 
 # The hostname will be used to identify the internal proxy statistics around point rates, JVM info, etc.
 # We strongly recommend setting this to a name that is unique among your entire infrastructure, to make this
@@ -18,7 +18,7 @@ server=https://try.wavefront.com/api/
 # 1. Click the gear icon at the top right in the Wavefront UI.
 # 2. Click your account name (usually your email)
 # 3. Click *API access*.
-#token=
+token=CHANGE_ME
 
 ####################################################### INPUTS #########################################################
 # Comma-separated list of ports to listen on for Wavefront formatted data (Default: 2878)

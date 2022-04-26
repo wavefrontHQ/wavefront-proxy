@@ -7,8 +7,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 /**
- * A no-op rule that simply counts points or spans. Optionally, can count only
- * points/spans matching the {@code if} predicate.
+ * A no-op rule that simply counts points or spans or logs. Optionally, can count only
+ * points/spans/logs matching the {@code if} predicate.
  *
  * @author vasily@wavefront.com
  */

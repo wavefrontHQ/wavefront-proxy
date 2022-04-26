@@ -169,6 +169,11 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
           senderTask = new EventSenderTask(handlerKey, apiContainer.getEventAPIForTenant(tenantName),
               proxyId, threadNo, properties, scheduler, taskQueueFactory.getTaskQueue(handlerKey, threadNo));
           break;
+        case LOGS:
+          senderTask = new LogSenderTask(handlerKey, apiContainer.getLogAPI(), proxyId,
+              threadNo, entityPropsFactoryMap.get(tenantName).get(entityType), scheduler,
+              taskQueueFactory.getTaskQueue(handlerKey, threadNo));
+          break;
         default:
           throw new IllegalArgumentException("Unexpected entity type " +
               handlerKey.getEntityType().name() + " for " + handlerKey.getHandle());
