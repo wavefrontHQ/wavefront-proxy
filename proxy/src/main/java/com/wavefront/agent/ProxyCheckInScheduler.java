@@ -259,6 +259,11 @@ public class ProxyCheckInScheduler {
     if (configurationList.get(APIContainer.CENTRAL_TENANT_NAME).currentTime != null) {
       Clock.set(configurationList.get(APIContainer.CENTRAL_TENANT_NAME).currentTime);
     }
+
+    // Always update the log server url / token in case they've changed
+    apiContainer.updateLogServerEndpointURLandToken(
+            configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerEndpointUrl(),
+            configurationList.get(APIContainer.CENTRAL_TENANT_NAME).getLogServerToken());
     return configurationList;
   }
 

@@ -1,0 +1,139 @@
+## set of log preprocessor rules for unit tests
+
+'106':
+  - rule          : test-logreplaceregex
+    action        : logReplaceRegex
+    scope         : fooBarBaz
+    search        : aaa
+    replace       : bbb
+
+  - rule          : test-logforcelowercase
+    action        : logForceLowercase
+    scope         : fooBarBaz
+
+  - rule          : test-logaddannotation
+    action        : logAddAnnotation
+    key           : customtag1
+    value         : val1
+
+  - rule          : test-logaddtag
+    action        : logAddTag
+    key           : customtag1
+    value         : val1
+
+  - rule          : test-logaddtagifnotexists
+    action        : logAddTagIfNotExists
+    key           : testExtractTag
+    value         : "Oi! This should never happen!"
+
+  - rule          : test-logaddAnnotationifnotexists
+    action        : logAddAnnotationIfNotExists
+    key           : testAddTag
+    value         : "extra annotation added"
+
+  - rule          : test-logDropTag
+    action        : logDropTag
+    key           : datacenter
+    match         : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
+
+  - rule          : test-logDropAnnotation
+    action        : logDropAnnotation
+    key           : datacenter
+    match         : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
+
+  - rule          : test-logExtractAnnotation
+    action        : logExtractAnnotation
+    key           : fromSource
+    input         : spanName
+    match         : "^.*testExtractTag.*"
+    search        : "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
+    replace       : "$2"
+    replaceInput  : "$1$3"
+
+  - rule          : test-logExtractTag
+    action        : logExtractTag
+    key           : fromSource
+    input         : spanName
+    match         : "^.*testExtractTag.*"
+    search        : "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
+    replace       : "$2"
+    replaceInput  : "$1$3"
+
+  - rule          : test-logextracttagifnotexists
+    action        : logExtractAnnotationIfNotExists
+    key           : fromSource  # should not work because such tag already exists!
+    input         : testExtractTag
+    search        : "^.*$"
+    replace       : "Oi! This should never happen!"
+
+  - rule          : test-logextracttagifnotexists
+    action        : logExtractTagIfNotExists
+    key           : fromSource  # should not work because such tag already exists!
+    input         : testExtractTag
+    search        : "^.*$"
+    replace       : "Oi! This should never happen!"
+
+  - rule          : test-logrenametag
+    action        : logRenameTag
+    key           : myDevice
+    newkey        : device
+    match         : "^\\d*$"
+
+  - rule          : test-logrenameannotation
+    action        : logRenameAnnotation
+    key           : myDevice
+    newkey        : device
+    match         : "^\\d*$"
+
+  - rule          : test-loglimitlength
+    action        : logLimitLength
+    maxLength     : 1000
+    scope         : message
+    actionSubtype : truncate
+    match         : "^.*"
+
+  - rule          : test-logcount
+    action        : logCount
+    if            : "1=1"
+
+  - rule          : test-logBlacklistRegex
+    action        : logBlacklistRegex
+    match         : "^.*"
+    scope         : message
+    if            : "1=1"
+
+  - rule          : test-logBlock
+    action        : logBlock
+    match         : "^.*"
+    scope         : message
+    if            : "1=1"
+
+  - rule          : test-logWhiteListRegex
+    action        : logWhitelistRegex
+    match         : "^.*"
+    scope         : message
+    if            : "1=1"
+
+  - rule          : test-logAllow
+    action        : logAllow
+    match         : "^.*"
+    scope         : message
+    if            : "1=1"
+
+  - rule: test-logAllowAnnotations
+    action: logAllowAnnotation
+    allow:
+      - key1
+      - key2
+      - foo
+      - application
+      - shard
+
+  - rule: test-logAllowTags
+    action: logAllowTag
+    allow:
+      - key1
+      - key2
+      - foo
+      - application
+      - shard

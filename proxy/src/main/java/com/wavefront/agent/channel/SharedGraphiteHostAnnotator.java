@@ -31,6 +31,7 @@ public class SharedGraphiteHostAnnotator {
 
   private final Function<InetAddress, String> hostnameResolver;
   private final List<String> sourceTags;
+  private final List<String> sourceTagsJson;
 
   public SharedGraphiteHostAnnotator(@Nullable List<String> customSourceTags,
                                      @Nonnull Function<InetAddress, String> hostnameResolver) {
@@ -40,11 +41,19 @@ public class SharedGraphiteHostAnnotator {
     this.hostnameResolver = hostnameResolver;
     this.sourceTags = Streams.concat(DEFAULT_SOURCE_TAGS.stream(), customSourceTags.stream()).
         map(customTag -> customTag + "=").collect(Collectors.toList());
+    this.sourceTagsJson = Streams.concat(DEFAULT_SOURCE_TAGS.subList(2, 4).stream(),
+            customSourceTags.stream().
+        map(customTag -> "\"" + customTag + "\"")).collect(Collectors.toList());
   }
 
   public String apply(ChannelHandlerContext ctx, String msg) {
-    for (int i = 0; i < sourceTags.size(); i++) {
-      String tag = sourceTags.get(i);
+    return apply(ctx, msg, false);
+  }
+
+  public String apply(ChannelHandlerContext ctx, String msg, boolean addAsJsonProperty) {
+    List<String> defaultSourceTags = addAsJsonProperty ? sourceTagsJson : sourceTags;
+    for (int i = 0; i < defaultSourceTags.size(); i++) {
+      String tag = defaultSourceTags.get(i);
       int strIndex = msg.indexOf(tag);
       // if a source tags is found and is followed by a non-whitespace tag value, add without change
       if (strIndex > -1 && msg.length() - strIndex - tag.length() > 0 &&
@@ -52,6 +61,13 @@ public class SharedGraphiteHostAnnotator {
         return msg;
       }
     }
-    return msg + " source=\"" + hostnameResolver.apply(getRemoteAddress(ctx)) + "\"";
+
+    String sourceValue = "\"" + hostnameResolver.apply(getRemoteAddress(ctx)) + "\"";
+
+    if (addAsJsonProperty) {
+      return msg.replaceFirst("\\{", "{\"source\":" + sourceValue + ", ");
+    } else {
+      return msg + " source=" + sourceValue;
+    }
   }
 }
