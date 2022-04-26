@@ -41,7 +41,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
         put(ReportableEntityType.SOURCE_TAG, new SourceTagsProperties(proxyConfig)).
         put(ReportableEntityType.TRACE, new SpansProperties(proxyConfig)).
         put(ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsProperties(proxyConfig)).
-        put(ReportableEntityType.EVENT, new EventsProperties(proxyConfig)).build();
+        put(ReportableEntityType.EVENT, new EventsProperties(proxyConfig)).
+        put(ReportableEntityType.LOGS, new LogsProperties(proxyConfig)).build();
   }
 
   @Override
@@ -364,5 +365,48 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public int getFlushThreads() {
       return wrapped.getFlushThreadsEvents();
     }
+  }
+
+
+  /**
+   * Runtime properties wrapper for logs
+   */
+  private static final class LogsProperties extends SubscriptionBasedEntityProperties {
+    public LogsProperties(ProxyConfig wrapped) {
+      super(wrapped);
+      reportSettingAsGauge(this::getItemsPerBatch, "dynamic.pushFlushMaxLogs");
+      reportSettingAsGauge(this::getMemoryBufferLimit, "dynamic.pushMemoryBufferLimitLogs");
+    }
+
+    @Override
+    protected String getRateLimiterName() {
+      return "limiter.logs";
+    }
+
+    @Override
+    public int getItemsPerBatchOriginal() {
+      return wrapped.getPushFlushMaxLogs();
+    }
+
+    @Override
+    public int getMemoryBufferLimit() {
+      return 16 * wrapped.getPushMemoryBufferLimitLogs();
+    }
+
+    @Override
+    public double getRateLimit() {
+      return wrapped.getPushRateLimitLogs();
+    }
+
+    @Override
+    public int getFlushThreads() {
+      return wrapped.getFlushThreadsLogs();
+    }
+
+    @Override
+    public int getPushFlushInterval() {
+      return wrapped.getPushFlushIntervalLogs();
+    }
+
   }
 }
