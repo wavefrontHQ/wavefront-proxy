@@ -2,9 +2,9 @@ package com.wavefront.agent.queueing;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
-import com.wavefront.common.Managed;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
+import com.wavefront.common.Managed;
 import com.wavefront.common.Pair;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
@@ -17,8 +17,6 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -29,8 +27,6 @@ import java.util.stream.Collectors;
  * adjusting priority across queues.
  *
  * @param <T> submission task type
- *
- * @author vasily@wavefront.com
  */
 public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask implements Managed {
   private static final Logger logger =
@@ -51,10 +47,10 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
   @SuppressWarnings("UnstableApiUsage")
   protected final RateLimiter reportRateLimiter = RateLimiter.create(0.1);
 
-  private AtomicLong currentWeight = null;
-  private final AtomicInteger queueSize = new AtomicInteger();
+  private long currentWeight;
+  private int queueSize;
+
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
-  private boolean outputQueueingStats = false;
 
   /**
    * @param handlerKey     Pipeline handler key
@@ -82,58 +78,55 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
     this.timeProvider = timeProvider == null ? System::currentTimeMillis : timeProvider;
     this.timer = new Timer("timer-queuedservice-" + handlerKey.toString());
 
-    Metrics.newGauge(new TaggedMetricName("buffer", "task-count", "port", handlerKey.getHandle(),
-            "content", handlerKey.getEntityType().toString()),
-        new Gauge<Integer>() {
-          @Override
-          public Integer value() {
-            return queueSize.get();
-          }
-        });
+    Metrics.newGauge(new TaggedMetricName("buffer", "task-count",
+                    "port", handlerKey.getHandle(),
+                    "content", handlerKey.getEntityType().toString()),
+            new Gauge<Integer>() {
+              @Override
+              public Integer value() {
+                return queueSize;
+              }
+            });
+    Metrics.newGauge(new TaggedMetricName("buffer", handlerKey.getEntityType() + "-count",
+                    "port", handlerKey.getHandle()),
+            new Gauge<Long>() {
+              @Override
+              public Long value() {
+                return currentWeight;
+              }
+            });
   }
 
   @Override
   public void run() {
     // 1. grab current queue sizes (tasks count) and report to EntityProperties
     int backlog = processorTasks.stream().mapToInt(x -> x.getTaskQueue().size()).sum();
-    queueSize.set(backlog);
+    queueSize = backlog;
     if (backlogSizeSink != null) {
       backlogSizeSink.accept(backlog);
     }
 
     // 2. grab queue sizes (points/etc count)
-    Long totalWeight = 0L;
+    long totalWeight = 0L;
     for (QueueProcessor<T> task : processorTasks) {
       TaskQueue<T> taskQueue = task.getTaskQueue();
-      //noinspection ConstantConditions
-      totalWeight = taskQueue.weight() == null ? null : taskQueue.weight() + totalWeight;
-      if (totalWeight == null) break;
-    }
-    if (totalWeight != null) {
-      if (currentWeight == null) {
-        currentWeight = new AtomicLong();
-        Metrics.newGauge(new TaggedMetricName("buffer", handlerKey.getEntityType() + "-count",
-                "port", handlerKey.getHandle()),
-            new Gauge<Long>() {
-              @Override
-              public Long value() {
-                return currentWeight.get();
-              }
-            });
+      if ((taskQueue != null) && (taskQueue.weight() != null)) {
+        totalWeight += taskQueue.weight();
       }
-      currentWeight.set(totalWeight);
     }
+    long previousWeight = currentWeight;
+    currentWeight = totalWeight;
 
     // 3. adjust timing
     adjustTimingFactors(processorTasks);
 
     // 4. print stats when there's backlog
-    if (backlog > 0) {
+    if ((previousWeight!=0) || (currentWeight!=0)){
       printQueueStats();
-    } else if (outputQueueingStats) {
-      outputQueueingStats = false;
-      logger.info("[" + handlerKey.getHandle() + "] " + handlerKey.getEntityType() +
-          " backlog has been cleared!");
+      if (currentWeight==0){
+        logger.info("[" + handlerKey.getHandle() + "] " + handlerKey.getEntityType() +
+                " backlog has been cleared!");
+      }
     }
   }
 
@@ -174,11 +167,10 @@ public class QueueController<T extends DataSubmissionTask<T>> extends TimerTask 
       //noinspection UnstableApiUsage
       if ((oldestTaskTimestamp < timeProvider.get() - REPORT_QUEUE_STATS_DELAY_SECS * 1000) &&
           (reportRateLimiter.tryAcquire())) {
-        outputQueueingStats = true;
-        String queueWeightStr = currentWeight == null ? "" :
-            ", " + currentWeight.get() + " " + handlerKey.getEntityType();
-        logger.info("[" + handlerKey.getHandle() + "] " + handlerKey.getEntityType() +
-            " backlog status: " + queueSize.get() + " tasks" + queueWeightStr);
+        logger.info("[" + handlerKey.getHandle() + "] " + handlerKey.getEntityType()
+                + " backlog status: "
+                + queueSize + " tasks, "
+                + currentWeight + " " + handlerKey.getEntityType());
       }
     }
 
