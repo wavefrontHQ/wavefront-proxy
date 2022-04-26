@@ -9,6 +9,7 @@ import com.yammer.metrics.core.Gauge;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import static com.wavefront.agent.preprocessor.PreprocessorConfigManager.*;
@@ -18,9 +19,10 @@ public class MetricsFilter implements AnnotatedPredicate<String> {
   private final boolean allow;
   private final List<Pattern> regexList = new ArrayList<>();
   private final PreprocessorRuleMetrics ruleMetrics;
-  private final Map<String, Boolean> cacheMetrics = new HashMap<>();
+  private final Map<String, Boolean> cacheMetrics = new ConcurrentHashMap<>();
   private final Cache<String, Boolean> cacheRegexMatchs;
   private final Counter miss;
+  private final Counter queries;
 
   public MetricsFilter(final Map<String, Object> rule, final PreprocessorRuleMetrics ruleMetrics, String ruleName, String strPort) {
     this.ruleMetrics = ruleMetrics;
@@ -53,12 +55,14 @@ public class MetricsFilter implements AnnotatedPredicate<String> {
     names.stream().filter(s -> !s.startsWith("/") && !s.endsWith("/"))
             .forEach(s -> cacheMetrics.put(s, allow));
 
+    queries = Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName, "regexCache.queries", "port", strPort));
     miss = Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName, "regexCache.miss", "port", strPort));
-    Metrics.newGauge(new TaggedMetricName("preprocessor." + ruleName, "regexCache.size", "port", strPort),
-            new Gauge<Integer>() {
+    TaggedMetricName sizeMetrics = new TaggedMetricName("preprocessor." + ruleName, "regexCache.size", "port", strPort);
+    Metrics.defaultRegistry().removeMetric(sizeMetrics);
+    Metrics.newGauge(sizeMetrics, new Gauge<Integer>() {
               @Override
               public Integer value() {
-                return regexList.size();
+                return (int)cacheRegexMatchs.estimatedSize();
               }
             });
   }
@@ -68,13 +72,18 @@ public class MetricsFilter implements AnnotatedPredicate<String> {
     long startNanos = ruleMetrics.ruleStart();
     try {
       String name = pointLine.substring(0, pointLine.indexOf(" "));
-      return cacheMetrics.computeIfAbsent(name, s -> testRegex(s));
+      Boolean res = cacheMetrics.get(name);
+      if (res == null) {
+        res = testRegex(name);
+      }
+      return res;
     } finally {
       ruleMetrics.ruleEnd(startNanos);
     }
   }
 
   private boolean testRegex(String name) {
+    queries.inc();
     return Boolean.TRUE.equals(cacheRegexMatchs.get(name, s -> {
       miss.inc();
       for (Pattern regex : regexList) {
