@@ -15,137 +15,93 @@
 # File any issues here: https://github.com/wavefrontHQ/java/issues.
 ################################################################################
 
-if [ -f /.dockerenv ]; then
-    >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    >&2 echo "WARNING: Attempting to start Wavefront Proxy as a system daemon in a container environment."
-    >&2 echo "'service wavefront-proxy' commands are for stand-alone installations ONLY."
-    >&2 echo "Please follow Docker-specific install instructions in the 'Add a Wavefront Proxy' workflow"
-    >&2 echo "(In Wavefront UI go to Browse menu -> Proxies -> Add -> select 'Docker' tab)"
-    >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-fi
-
 service_name="wavefront-proxy"
-# Source custom settings
 sysconfig="/etc/sysconfig/$service_name"
-# shellcheck source=/dev/null
 [[ -f "$sysconfig" ]] && . $sysconfig
 
 desc=${DESC:-Wavefront Proxy}
-user="wavefront"
-wavefront_dir="/opt/wavefront"
-proxy_dir=${PROXY_DIR:-$wavefront_dir/wavefront-proxy}
-config_dir=${CONFIG_DIR:-/etc/wavefront/wavefront-proxy}
-proxy_jre_dir="$proxy_dir/proxy-jre"
-JAVA_HOME=${PROXY_JAVA_HOME:-$proxy_jre_dir}
-bundled_jre_version="11.0.9"
-conf_file=$CONF_FILE
-if [[ -z $conf_file ]]; then
-    legacy_config_dir=$proxy_dir/conf
-    if [[ -r "$legacy_config_dir/wavefront.conf" ]]; then
-        conf_file="$legacy_config_dir/wavefront.conf"
-        >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        >&2 echo "WARNING: Using wavefront.conf file found in its old location ($legacy_config_dir)."
-        >&2 echo "To suppress this warning message, please move wavefront.conf to $config_dir."
-        >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    else
-        conf_file="$config_dir/wavefront.conf"
-    fi
-fi
-daemon_log_file=${DAEMON_LOG_FILE:-/var/log/wavefront/wavefront-daemon.log}
-err_file="/var/log/wavefront/wavefront-error.log"
 pid_file=${PID_FILE:-/var/run/$service_name.pid}
-proxy_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-proxy.jar}
-class="com.wavefront.agent.WavefrontProxyService"
-app_args=${APP_ARGS:--f $conf_file}
 
-# If JAVA_ARGS is not set, try to detect memory size and set heap to 8GB if machine has more than 8GB.
-# Fall back to using AggressiveHeap (old behavior) if less than 8GB.
-if [[ -z "$JAVA_ARGS" ]]; then
-    if [ `grep MemTotal /proc/meminfo | awk '{print $2}'` -gt "8388607" ]; then
-        java_args=-Xmx8g
-        >&2 echo "Using default heap size (8GB), please set JAVA_ARGS in /etc/sysconfig/wavefront-proxy to use a different value"
-    else
-        java_args=-XX:+AggressiveHeap
-    fi
-else
-    java_args=$JAVA_ARGS
-fi
-
-# Legacy support for overrding JVM args in wavefront_proxy_launch.conf. We don't ship this starting in 3.25,
-# use /etc/sysconfig/wavefront-proxy for all configuration instead (this is a RHEL idiom, but it will work
-# just as well in debian flavors).
-proxy_launch_conf="/opt/wavefront/wavefront-proxy/conf/wavefront_proxy_launch.conf"
-if [[ -r $proxy_launch_conf ]]; then
-	replacement_java_args=$(grep -ve '[[:space:]]*#' $proxy_launch_conf | tr '\n' ' ' | sed -e 's/^[[:space:]]*//' | sed -e 's/[[:space:]]*$//')
-	if [[ "$replacement_java_args" != "-XX:+AggressiveHeap" ]]; then
-		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-		>&2 echo "Using wavefront_proxy_launch.conf for JAVA_ARGS, which will override anything specified in $sysconfig."
-		>&2 echo "To suppress this warning message, please specify java args in $sysconfig."
-		>&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-		java_args=$replacement_java_args
-	fi
-fi
-
-# Workaround for environments with locked-down internet access where approved traffic goes through HTTP proxy.
-# If JRE cannot be found in $proxy_jre_dir (most likely because its download failed during installation), and
-# $PROXY_JAVA_HOME pointing to a user-defined JRE is not defined either, we'll try to read HTTP proxy settings
-# from wavefront.conf, if any, and try to download the JRE again. Ideally we should go back to bundling JRE
-# and not having to worry about accessibility of external resources.
-download_jre() {
-    [[ -d $proxy_jre_dir ]] || mkdir -p $proxy_jre_dir
-    JAVA_HOME=$proxy_jre_dir
-
-    echo "Checking $conf_file for HTTP proxy settings" >&2
-    proxy_host=$(grep "^\s*proxyHost=" $conf_file | cut -d'=' -f2)
-    proxy_port=$(grep "^\s*proxyPort=" $conf_file | cut -d'=' -f2)
-    proxy_user=$(grep "^\s*proxyUser=" $conf_file | cut -d'=' -f2)
-    proxy_password=$(grep "^\s*proxyPassword=" $conf_file | cut -d'=' -f2)
-
-    if [[ -n $proxy_host && -n $proxy_port ]]; then
-        echo "Using HTTP proxy $proxy_host:$proxy_port" >&2
-        proxy_args="--proxy $proxy_host:$proxy_port"
-        if [[ -n $proxy_user && -n $proxy_password ]]; then
-            echo "Authenticating as $proxy_user" >&2
-            proxy_args+=" --proxy-user $proxy_user:$proxy_password"
-        fi
-    fi
-    echo "Downloading and installing JRE $bundled_jre_version" >&2
-    curl -L --silent -o /tmp/jre.tar.gz $proxy_args https://s3-us-west-2.amazonaws.com/wavefront-misc/proxy-jre-$bundled_jre_version-linux_x64.tar.gz || true
-    tar -xf /tmp/jre.tar.gz --strip 1 -C $proxy_jre_dir || true
-    rm /tmp/jre.tar.gz || true
+badConfig() {
+    echo "Proxy configuration incorrect"
+    echo "setup 'server' and 'token' in '${conf_file}' file."
+    exit -1 
 }
 
-# If $PROXY_JAVA_HOME is not defined and there is no JRE in $proxy_jre_dir, try to auto-detect
-# locally installed JDK first. We will accept 8, 9, 10, 11.
-if [[ -z "$PROXY_JAVA_HOME" && ! -r $proxy_jre_dir/bin/java ]]; then
-    # if java found in path
-    if type -p java > /dev/null 2>&1; then
-        JAVA_VERSION=$(java -XshowSettings:properties -version 2>&1 > /dev/null | grep "java.specification.version" | awk -F " = " '{ print $2 }') || true
-        if [[ -z "$JAVA_VERSION" ]]; then
-          JAVA_VERSION="(unknown version)"
-        fi
-        if [[ $JAVA_VERSION == "11" || $JAVA_VERSION == "10" || $JAVA_VERSION == "9" || $JAVA_VERSION == "1.8" ]]; then
-            JAVA_HOME=$(java -XshowSettings:properties -version 2>&1 > /dev/null | grep 'java.home' | awk -F " = " '{ print $2 }') || true
-            if [[ -z "$JAVA_HOME" ]]; then
-              echo "Unable to detect JAVA_HOME for pre-installed Java runtime" >&2
-              download_jre
-            else
-              echo "Using Java runtime $JAVA_VERSION detected in $JAVA_HOME (set PROXY_JAVA_HOME in /etc/sysconfig/wavefront-proxy to override)" >&2
-            fi
+setupEnv(){
+    if [ -f /.dockerenv ]; then
+        >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        >&2 echo "WARNING: Attempting to start Wavefront Proxy as a system daemon in a container environment."
+        >&2 echo "'service wavefront-proxy' commands are for stand-alone installations ONLY."
+        >&2 echo "Please follow Docker-specific install instructions in the 'Add a Wavefront Proxy' workflow"
+        >&2 echo "(In Wavefront UI go to Browse menu -> Proxies -> Add -> select 'Docker' tab)"
+        >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    fi
+
+    if [ -n "${PROXY_JAVA_HOME}" ]; then
+        echo "using JRE in `${PROXY_JAVA_HOME}`(PROXY_JAVA_HOME) as JAVA_HOME"
+        JAVA_HOME = ${PROXY_JAVA_HOME}
+    else
+        if [ -n "${JAVA_HOME}" ]; then
+            echo "using JRE in \"${JAVA_HOME}\" (JAVA_HOME)"
         else
-            echo "Found Java runtime $JAVA_VERSION, needs 8, 9, 10 or 11 to run" >&2
-            download_jre
+            JAVA_HOME=$(readlink -f $(which java) | sed "s:/bin/java::")
+            if [ -d "${JAVA_HOME}" ]; then
+                echo "using JRE in \"${JAVA_HOME}\" ($(which java))"
+            else 
+                echo "Error! JAVA_HOME (or PROXY_JAVA_HOME) not defined, use `${sysconfig}` file to define it"
+                exit -1
+            fi
+        fi
+    fi
+
+    user="wavefront"
+    wavefront_dir="/opt/wavefront"
+    proxy_dir=${PROXY_DIR:-$wavefront_dir/wavefront-proxy}
+    config_dir=${CONFIG_DIR:-/etc/wavefront/wavefront-proxy}
+
+    conf_file=$CONF_FILE
+    if [[ -z $conf_file ]]; then
+        legacy_config_dir=$proxy_dir/conf
+        if [[ -r "$legacy_config_dir/wavefront.conf" ]]; then
+            conf_file="$legacy_config_dir/wavefront.conf"
+            >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            >&2 echo "WARNING: Using wavefront.conf file found in its old location ($legacy_config_dir)."
+            >&2 echo "To suppress this warning message, please move wavefront.conf to $config_dir."
+            >&2 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        else
+            conf_file="$config_dir/wavefront.conf"
+        fi
+    fi
+    echo "Using \"${conf_file}\" as config file"
+    grep -q CHANGE_ME ${conf_file} && badConfig
+
+    daemon_log_file=${DAEMON_LOG_FILE:-/var/log/wavefront/wavefront-daemon.log}
+    err_file="/var/log/wavefront/wavefront-error.log"
+    proxy_jar=${AGENT_JAR:-$proxy_dir/bin/wavefront-proxy.jar}
+    class="com.wavefront.agent.WavefrontProxyService"
+    app_args=${APP_ARGS:--f $conf_file}
+
+    # If JAVA_ARGS is not set, try to detect memory size and set heap to 8GB if machine has more than 8GB.
+    # Fall back to using AggressiveHeap (old behavior) if less than 8GB.
+    if [[ -z "$JAVA_ARGS" ]]; then
+        if [ `grep MemTotal /proc/meminfo | awk '{print $2}'` -gt "8388607" ]; then
+            java_args=-Xmx8g
+            >&2 echo "Using default heap size (8GB), please set JAVA_ARGS in /etc/sysconfig/wavefront-proxy to use a different value"
+        else
+            java_args=-XX:+AggressiveHeap
         fi
     else
-        echo "No preinstalled Java runtime found" >&2
-        download_jre
+        java_args=$JAVA_ARGS
     fi
-fi
 
-jsvc=$proxy_dir/bin/jsvc
+    jsvc=$proxy_dir/bin/jsvc
+}
 
 jsvc_exec()
 {
+    setupEnv
+
     if [[ ! $1 == "-stop" ]]; then
         : > $daemon_log_file
         : > $err_file
@@ -173,7 +129,7 @@ jsvc_exec()
 		$class \
 		$app_args &> $daemon_log_file
 	if [[ $? -ne 0 ]]; then
-		echo "There was a problem, see $err_file and $daemon_log_file" >&2
+		echo "There was a problem, see logs on '$(dirname $err_file)'" >&2
 	fi
 }
 
@@ -214,15 +170,14 @@ condrestart()
 {
     [ -f "$pid_file" ] && restart || :
 }
+
 case "$1" in
 start) start ;;
 status) status ;;
 stop) stop ;;
 restart) restart ;;
 condrestart) condrestart ;;
-force_java_install) download_jre ;;
-
 *)
-	echo "Usage: $0 {status | start | stop | restart | condrestart | force_java_install}"
+	echo "Usage: $0 {status | start | stop | restart | condrestart}"
 	exit 1
 esac
