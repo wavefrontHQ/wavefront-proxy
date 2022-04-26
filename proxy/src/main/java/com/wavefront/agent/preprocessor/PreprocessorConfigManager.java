@@ -502,6 +502,116 @@ public class PreprocessorConfigManager {
                             getString(rule, MATCH), Predicates.getPredicate(rule),
                             ruleMetrics));
                     break;
+
+                  // Rules for Log objects
+                  case "logReplaceRegex":
+                    allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        new ReportLogReplaceRegexTransformer(scope,
+                            getString(rule, SEARCH), getString(rule, REPLACE),
+                            getString(rule, MATCH), getInteger(rule, ITERATIONS, 1),
+                            Predicates.getPredicate(rule), ruleMetrics));
+                    break;
+                  case "logForceLowercase":
+                    allowArguments(rule, SCOPE, MATCH, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        new ReportLogForceLowercaseTransformer(scope,
+                            getString(rule, MATCH),
+                            Predicates.getPredicate(rule), ruleMetrics));
+                    break;
+                  case "logAddAnnotation":
+                  case "logAddTag":
+                    allowArguments(rule, KEY, VALUE, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        new ReportLogAddTagTransformer(getString(rule, KEY),
+                            getString(rule, VALUE), Predicates.getPredicate(rule),
+                            ruleMetrics));
+                    break;
+                  case "logAddAnnotationIfNotExists":
+                  case "logAddTagIfNotExists":
+                    allowArguments(rule, KEY, VALUE, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        new ReportLogAddTagIfNotExistsTransformer(getString(rule, KEY),
+                            getString(rule, VALUE), Predicates.getPredicate(rule),
+                            ruleMetrics));
+                    break;
+                  case "logDropAnnotation":
+                  case "logDropTag":
+                    allowArguments(rule, KEY, MATCH, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        new ReportLogDropTagTransformer(getString(rule, KEY),
+                            getString(rule, MATCH), Predicates.getPredicate(rule), ruleMetrics));
+                    break;
+                  case "logAllowAnnotation":
+                  case "logAllowTag":
+                    allowArguments(rule, ALLOW, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        ReportLogAllowTagTransformer.create(rule,
+                            Predicates.getPredicate(rule), ruleMetrics));
+                    break;
+                  case "logExtractAnnotation":
+                  case "logExtractTag":
+                    allowArguments(rule, KEY, INPUT, SEARCH, REPLACE, REPLACE_INPUT, MATCH, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        new ReportLogExtractTagTransformer(getString(rule, KEY),
+                            getString(rule, INPUT), getString(rule, SEARCH),
+                            getString(rule, REPLACE), getString(rule, REPLACE_INPUT),
+                            getString(rule, MATCH), Predicates.getPredicate(rule), ruleMetrics));
+                    break;
+                  case "logExtractAnnotationIfNotExists":
+                  case "logExtractTagIfNotExists":
+                    allowArguments(rule, KEY, INPUT, SEARCH, REPLACE, REPLACE_INPUT, MATCH, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        new ReportLogExtractTagIfNotExistsTransformer(getString(rule, KEY),
+                            getString(rule, INPUT), getString(rule, SEARCH),
+                            getString(rule, REPLACE), getString(rule, REPLACE_INPUT),
+                            getString(rule, MATCH), Predicates.getPredicate(rule), ruleMetrics));
+                    break;
+                  case "logRenameAnnotation":
+                  case "logRenameTag":
+                    allowArguments(rule, KEY, NEWKEY, MATCH, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        new ReportLogRenameTagTransformer(
+                            getString(rule, KEY), getString(rule, NEWKEY),
+                            getString(rule, MATCH), Predicates.getPredicate(rule), ruleMetrics));
+                    break;
+                  case "logLimitLength":
+                    allowArguments(rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        new ReportLogLimitLengthTransformer(
+                            Objects.requireNonNull(scope),
+                            getInteger(rule, MAX_LENGTH, 0),
+                            LengthLimitActionType.fromString(getString(rule, ACTION_SUBTYPE)),
+                            getString(rule, MATCH), Predicates.getPredicate(rule), ruleMetrics));
+                    break;
+                  case "logCount":
+                    allowArguments(rule, SCOPE, IF);
+                    portMap.get(strPort).forReportLog().addTransformer(
+                        new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
+                    break;
+
+                  case "logBlacklistRegex":
+                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
+                        "), use 'action: logBlock' instead!");
+                  case "logBlock":
+                    allowArguments(rule, SCOPE, MATCH, IF);
+                    portMap.get(strPort).forReportLog().addFilter(
+                        new ReportLogBlockFilter(
+                            scope,
+                            getString(rule, MATCH), Predicates.getPredicate(rule),
+                            ruleMetrics));
+                    break;
+                  case "logWhitelistRegex":
+                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
+                        "), use 'action: spanAllow' instead!");
+                  case "logAllow":
+                    allowArguments(rule, SCOPE, MATCH, IF);
+                    portMap.get(strPort).forReportLog().addFilter(
+                        new ReportLogAllowFilter(scope,
+                            getString(rule, MATCH), Predicates.getPredicate(rule),
+                            ruleMetrics));
+                    break;
+
                   default:
                     throw new IllegalArgumentException("Action '" + getString(rule, ACTION) +
                         "' is not valid");

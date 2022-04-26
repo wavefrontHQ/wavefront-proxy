@@ -33,6 +33,7 @@ import java.util.logging.Logger;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_EVENTS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_HISTOGRAMS;
+import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_LOGS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SOURCE_TAGS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPANS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_BATCH_SIZE_SPAN_LOGS;
@@ -153,6 +154,11 @@ public class ProxyConfig extends Configuration {
       "event data to the server. Default: 2")
   int flushThreadsEvents = DEFAULT_FLUSH_THREADS_EVENTS;
 
+  @Parameter(names = {"--flushThreadsLogs"}, description = "Number of threads that flush data to " +
+      "the server. Defaults to the number of processors (min. 4). Setting this value too large " +
+      "will result in sending batches that are too small to the server and wasting connections. This setting is per listening port.", order = 5)
+  Integer flushThreadsLogs = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
+
   @Parameter(names = {"--purgeBuffer"}, description = "Whether to purge the retry buffer on start-up. Defaults to " +
       "false.", arity = 1)
   boolean purgeBuffer = false;
@@ -160,6 +166,9 @@ public class ProxyConfig extends Configuration {
   @Parameter(names = {"--pushFlushInterval"}, description = "Milliseconds between batches. " +
       "Defaults to 1000 ms")
   int pushFlushInterval = DEFAULT_FLUSH_INTERVAL;
+
+  @Parameter(names = {"--pushFlushIntervalLogs"}, description = "Milliseconds between batches. Defaults to 1000 ms")
+  int pushFlushIntervalLogs = DEFAULT_FLUSH_INTERVAL;
 
   @Parameter(names = {"--pushFlushMaxPoints"}, description = "Maximum allowed points " +
       "in a single flush. Defaults: 40000")
@@ -185,6 +194,10 @@ public class ProxyConfig extends Configuration {
       "in a single flush. Default: 50")
   int pushFlushMaxEvents = DEFAULT_BATCH_SIZE_EVENTS;
 
+  @Parameter(names = {"--pushFlushMaxLogs"}, description = "Maximum allowed logs " +
+      "in a single flush. Default: 50")
+  int pushFlushMaxLogs = DEFAULT_BATCH_SIZE_LOGS;
+
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +
       "do not throttle.")
   double pushRateLimit = NO_RATE_LIMIT;
@@ -209,6 +222,10 @@ public class ProxyConfig extends Configuration {
       "for events at the proxy. Default: 5 events/s")
   double pushRateLimitEvents = 5.0d;
 
+  @Parameter(names = {"--pushRateLimitLogs"}, description = "Limit the outgoing logs " +
+      "rate at the proxy. Default: do not throttle.")
+  double pushRateLimitLogs = NO_RATE_LIMIT;
+
   @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
       "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")
   Integer pushRateLimitMaxBurstSeconds = 10;
@@ -218,6 +235,13 @@ public class ProxyConfig extends Configuration {
       " value lower than default reduces memory usage but will force the proxy to spool to disk more frequently if " +
       " you have points arriving at the proxy in short bursts")
   int pushMemoryBufferLimit = 16 * pushFlushMaxPoints;
+
+  @Parameter(names = {"--pushMemoryBufferLimitLogs"}, description = "Max number of logs that " +
+      "can stay in memory buffers before spooling to disk. Defaults to 16 * pushFlushMaxLogs, " +
+      "minimum size: pushFlushMaxLogs. Setting this value lower than default reduces memory usage " +
+      "but will force the proxy to spool to disk more frequently if you have points arriving at the " +
+      "proxy in short bursts")
+  int pushMemoryBufferLimitLogs = 16 * pushFlushMaxLogs;
 
   @Parameter(names = {"--pushBlockedSamples"}, description = "Max number of blocked samples to print to log. Defaults" +
       " to 5.")
@@ -234,6 +258,10 @@ public class ProxyConfig extends Configuration {
   @Parameter(names = {"--blockedSpansLoggerName"}, description =
       "Logger Name for blocked spans" + "Default: RawBlockedPoints")
   String blockedSpansLoggerName = "RawBlockedPoints";
+
+  @Parameter(names = {"--blockedLogsLoggerName"}, description =
+      "Logger Name for blocked logs" + "Default: RawBlockedLogs")
+  String blockedLogsLoggerName = "RawBlockedLogs";
 
   @Parameter(names = {"--pushListenerPorts"}, description = "Comma-separated list of ports to listen on. Defaults to " +
       "2878.", order = 4)
@@ -820,6 +848,26 @@ public class ProxyConfig extends Configuration {
       "requests. Default: false")
   protected boolean corsAllowNullOrigin = false;
 
+  @Parameter(names = {"--customTimestampTags"}, description = "Comma separated list of log tag " +
+      "keys that should be treated as the timestamp in Wavefront in the absence of a tag named " +
+      "`timestamp` or `log_timestamp`. Default: none")
+  String customTimestampTags = "";
+
+  @Parameter(names = {"--customMessageTags"}, description = "Comma separated list of log tag " +
+      "keys that should be treated as the source in Wavefront in the absence of a tag named " +
+      "`message` or `text`. Default: none")
+  String customMessageTags = "";
+
+  @Parameter(names = {"--customApplicationTags"}, description = "Comma separated list of log tag " +
+      "keys that should be treated as the application in Wavefront in the absence of a tag named " +
+      "`application`. Default: none")
+  String customApplicationTags = "";
+
+  @Parameter(names = {"--customServiceTags"}, description = "Comma separated list of log tag " +
+      "keys that should be treated as the service in Wavefront in the absence of a tag named " +
+      "`service`. Default: none")
+  String customServiceTags = "";
+
   @Parameter(names = {"--multicastingTenants"}, description = "The number of tenants to data " +
       "points" +
       " multicasting. Default: 0")
@@ -925,6 +973,12 @@ public class ProxyConfig extends Configuration {
     return flushThreadsEvents;
   }
 
+  public int getFlushThreadsLogs() { return flushThreadsLogs; }
+
+  public int getPushFlushIntervalLogs() {
+    return pushFlushIntervalLogs;
+  }
+
   public boolean isPurgeBuffer() {
     return purgeBuffer;
   }
@@ -957,6 +1011,8 @@ public class ProxyConfig extends Configuration {
     return pushFlushMaxEvents;
   }
 
+  public int getPushFlushMaxLogs() { return pushFlushMaxLogs; }
+
   public double getPushRateLimit() {
     return pushRateLimit;
   }
@@ -981,12 +1037,20 @@ public class ProxyConfig extends Configuration {
     return pushRateLimitEvents;
   }
 
+  public double getPushRateLimitLogs() {
+    return pushRateLimitLogs;
+  }
+
   public int getPushRateLimitMaxBurstSeconds() {
     return pushRateLimitMaxBurstSeconds;
   }
 
   public int getPushMemoryBufferLimit() {
     return pushMemoryBufferLimit;
+  }
+
+  public int getPushMemoryBufferLimitLogs() {
+    return pushMemoryBufferLimitLogs;
   }
 
   public Integer getPushBlockedSamples() {
@@ -1004,6 +1068,8 @@ public class ProxyConfig extends Configuration {
   public String getBlockedSpansLoggerName() {
     return blockedSpansLoggerName;
   }
+
+  public String getBlockedLogsLoggerName() { return blockedLogsLoggerName; }
 
   public String getPushListenerPorts() {
     return pushListenerPorts;
@@ -1395,6 +1461,50 @@ public class ProxyConfig extends Configuration {
     return new ArrayList<>(tagSet);
   }
 
+  public List<String> getCustomTimestampTags() {
+    // create List of timestamp tags from the configuration string
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",").trimResults().omitEmptyStrings().split(customTimestampTags).forEach(x -> {
+      if (!tagSet.add(x)) {
+        logger.warning("Duplicate tag " + x + " specified in customTimestampTags config setting");
+      }
+    });
+    return new ArrayList<>(tagSet);
+  }
+
+  public List<String> getCustomMessageTags() {
+    // create List of message tags from the configuration string
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",").trimResults().omitEmptyStrings().split(customMessageTags).forEach(x -> {
+      if (!tagSet.add(x)) {
+        logger.warning("Duplicate tag " + x + " specified in customMessageTags config setting");
+      }
+    });
+    return new ArrayList<>(tagSet);
+  }
+
+  public List<String> getCustomApplicationTags() {
+    // create List of application tags from the configuration string
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",").trimResults().omitEmptyStrings().split(customApplicationTags).forEach(x -> {
+      if (!tagSet.add(x)) {
+        logger.warning("Duplicate tag " + x + " specified in customApplicationTags config setting");
+      }
+    });
+    return new ArrayList<>(tagSet);
+  }
+
+  public List<String> getCustomServiceTags() {
+    // create List of service tags from the configuration string
+    Set<String> tagSet = new LinkedHashSet<>();
+    Splitter.on(",").trimResults().omitEmptyStrings().split(customServiceTags).forEach(x -> {
+      if (!tagSet.add(x)) {
+        logger.warning("Duplicate tag " + x + " specified in customServiceTags config setting");
+      }
+    });
+    return new ArrayList<>(tagSet);
+  }
+
   public Map<String, String> getAgentMetricsPointTags() {
     //noinspection UnstableApiUsage
     return agentMetricsPointTags == null ? Collections.emptyMap() :
@@ -1632,6 +1742,8 @@ public class ProxyConfig extends Configuration {
           blockedHistogramsLoggerName);
       blockedSpansLoggerName = config.getString("blockedSpansLoggerName",
           blockedSpansLoggerName);
+      blockedLogsLoggerName = config.getString("blockedLogsLoggerName",
+          blockedLogsLoggerName);
       pushListenerPorts = config.getString("pushListenerPorts", pushListenerPorts);
       pushListenerMaxReceivedLength = config.getInteger("pushListenerMaxReceivedLength",
           pushListenerMaxReceivedLength);
@@ -1968,6 +2080,10 @@ public class ProxyConfig extends Configuration {
           (int) pushRateLimitSpanLogs), DEFAULT_MIN_SPLIT_BATCH_SIZE);
       pushFlushMaxEvents = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxEvents",
           pushFlushMaxEvents), 1), DEFAULT_BATCH_SIZE_EVENTS), (int) (pushRateLimitEvents + 1));
+
+      pushFlushMaxLogs = Math.max(Math.min(Math.min(config.getInteger("pushFlushMaxLogs",
+          pushFlushMaxLogs), DEFAULT_BATCH_SIZE_LOGS),
+          (int) pushRateLimitLogs), DEFAULT_MIN_SPLIT_BATCH_SIZE);
 
       /*
         default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of

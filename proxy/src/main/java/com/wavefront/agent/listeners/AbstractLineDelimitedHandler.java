@@ -1,9 +1,20 @@
 package com.wavefront.agent.listeners;
 
 import com.google.common.base.Splitter;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.formatter.DataFormat;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -16,6 +27,7 @@ import io.netty.util.CharsetUtil;
 
 import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
 import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+import static com.wavefront.agent.formatter.DataFormat.LOGS_JSON_ARR;
 
 /**
  * Base class for all line-based protocols. Supports TCP line protocol as well as HTTP POST
@@ -26,6 +38,7 @@ import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
 @ChannelHandler.Sharable
 public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificationHandler {
 
+  public final static ObjectMapper JSON_PARSER = new ObjectMapper();
   /**
    * @param tokenAuthenticator {@link TokenAuthenticator} for incoming requests.
    * @param healthCheckManager shared health check endpoint handler.
@@ -47,9 +60,22 @@ public abstract class AbstractLineDelimitedHandler extends AbstractPortUnificati
     HttpResponseStatus status;
     try {
       DataFormat format = getFormat(request);
-      Splitter.on('\n').trimResults().omitEmptyStrings().
-          split(request.content().toString(CharsetUtil.UTF_8)).
-          forEach(line -> processLine(ctx, line, format));
+      // Log batches may contain new lines as part of the message payload so we special case
+      // handling breaking up the batches
+      Iterable<String> lines = (format == LOGS_JSON_ARR)?
+          JSON_PARSER.readValue(request.content().toString(CharsetUtil.UTF_8),
+              new TypeReference<List<Map<String,Object>>>(){})
+              .stream().map(json -> {
+                try {
+                  return JSON_PARSER.writeValueAsString(json);
+                } catch (JsonProcessingException e) {
+                  return null;
+                }
+              })
+              .filter(Objects::nonNull).collect(Collectors.toList()) :
+          Splitter.on('\n').trimResults().omitEmptyStrings().
+              split(request.content().toString(CharsetUtil.UTF_8));
+      lines.forEach(line -> processLine(ctx, line, format));
       status = HttpResponseStatus.ACCEPTED;
     } catch (Exception e) {
       status = HttpResponseStatus.BAD_REQUEST;

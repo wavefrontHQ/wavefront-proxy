@@ -17,8 +17,9 @@ mkdir -p build/opt/wavefront/wavefront-proxy
 
 cp ../open_source_licenses.txt build/usr/share/doc/wavefront-proxy/
 cp ../open_source_licenses.txt build/opt/wavefront/wavefront-proxy
-cp /opt/commons-daemon/src/native/unix/jsvc build/opt/wavefront/wavefront-proxy/bin
 cp wavefront-proxy.jar build/opt/wavefront/wavefront-proxy/bin
+
+declare -A deps=(["deb"]="openjdk-11-jre" ["rpm"]="java-11-openjdk")
 
 for target in deb rpm
 do
@@ -29,7 +30,7 @@ do
 		--architecture amd64 \
 		--deb-no-default-config-files \
 		--deb-priority optional \
-		--depends curl,tar \
+		--depends ${deps[$target]} \
 		--description "Proxy for sending data to Wavefront." \
 		--exclude "*/.git" \
 		--iteration $ITERATION \

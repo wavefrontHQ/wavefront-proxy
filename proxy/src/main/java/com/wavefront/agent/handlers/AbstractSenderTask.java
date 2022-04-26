@@ -11,6 +11,8 @@ import com.wavefront.common.logger.SharedRateLimitingLogger;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 
 import javax.annotation.Nullable;
@@ -28,8 +30,6 @@ import java.util.logging.Logger;
 
 /**
  * Base class for all {@link SenderTask} implementations.
- *
- * @author vasily@wavefront.com
  *
  * @param <T> the type of input objects handled.
  */
@@ -55,6 +55,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   final Counter blockedCounter;
   final Counter bufferFlushCounter;
   final Counter bufferCompletedFlushCounter;
+  private final Histogram metricSize;
 
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
   final AtomicBoolean isBuffering = new AtomicBoolean(false);
@@ -93,6 +94,15 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         "port", handlerKey.getHandle()));
     this.bufferCompletedFlushCounter = Metrics.newCounter(new TaggedMetricName("buffer",
         "completed-flush-count", "port", handlerKey.getHandle()));
+
+    this.metricSize = Metrics.newHistogram(new MetricName(handlerKey.toString() + "." + threadId, "", "metric_length"));
+    Metrics.newGauge(new MetricName(handlerKey.toString() + "." + threadId, "", "size"), new Gauge<Integer>() {
+      @Override
+      public Integer value() {
+        return datum.size();
+      }
+    });
+
   }
 
   abstract TaskResult processSingleBatch(List<T> batch);
@@ -156,6 +166,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
 
   @Override
   public void add(T metricString) {
+    metricSize.update(metricString.toString().length());
     synchronized (mutex) {
       this.datum.add(metricString);
     }

@@ -11,7 +11,7 @@ import com.wavefront.ingester.AbstractIngesterFormatter;
  * @author vasily@wavefront.com
  */
 public enum DataFormat {
-  DEFAULT, WAVEFRONT, HISTOGRAM, SOURCE_TAG, EVENT, SPAN, SPAN_LOG;
+  DEFAULT, WAVEFRONT, HISTOGRAM, SOURCE_TAG, EVENT, SPAN, SPAN_LOG, LOGS_JSON_ARR;
 
   public static DataFormat autodetect(final String input) {
     if (input.length() < 2) return DEFAULT;
@@ -32,6 +32,9 @@ public enum DataFormat {
           return HISTOGRAM;
         }
         break;
+      case '[':
+        if (input.charAt(input.length() - 1) == ']') return LOGS_JSON_ARR;
+        break;
     }
     return DEFAULT;
   }
@@ -49,6 +52,8 @@ public enum DataFormat {
         return DataFormat.SPAN;
       case Constants.PUSH_FORMAT_TRACING_SPAN_LOGS:
         return DataFormat.SPAN_LOG;
+      case Constants.PUSH_FORMAT_LOGS_JSON_ARR:
+        return DataFormat.LOGS_JSON_ARR;
       default:
         return null;
     }

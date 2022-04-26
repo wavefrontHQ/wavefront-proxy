@@ -27,6 +27,8 @@ public abstract class FeatureCheckUtils {
       "tracing feature has not been enabled for your account.";
   public static final String SPANLOGS_DISABLED = "Ingested span log discarded because " +
       "this feature has not been enabled for your account.";
+  public static final String LOGS_DISABLED = "Ingested logs discarded because " +
+      "this feature has not been enabled for your account.";
 
   /**
    * Check whether feature disabled flag is set, log a warning message, increment the counter by 1.
