@@ -2289,6 +2289,10 @@ public class ProxyConfig extends Configuration {
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
       server = config.getString("server", server);
       hostname = config.getString("hostname", hostname);
+      if (hostname != null) {
+        logger.warning("Deprecated field hostname specified in config setting. Please use " +
+            "proxyname config field to set proxy name.");
+      }
       proxyname = config.getString("proxyname", proxyname);
       idFile = config.getString("idFile", idFile);
       pushRateLimit = config.getInteger("pushRateLimit", pushRateLimit);

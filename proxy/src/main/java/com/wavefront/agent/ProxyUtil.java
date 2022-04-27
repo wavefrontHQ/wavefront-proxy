@@ -51,13 +51,6 @@ abstract class ProxyUtil {
     }
   }
 
-  static String getOrCreateProxyName(@Nullable String proxyName) {
-    if (proxyName == null || proxyName.isEmpty()) {
-     return getLocalHostName();
-    } else {
-     return proxyName;
-    }
-  }
 
   /**
    * Read or create proxy id for this machine. Reads the UUID from specified file, or from
