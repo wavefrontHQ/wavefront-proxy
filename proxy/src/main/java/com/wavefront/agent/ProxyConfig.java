@@ -38,6 +38,10 @@ import com.wavefront.agent.config.Configuration;
 import com.wavefront.agent.config.ReportableConfig;
 import com.wavefront.agent.data.TaskQueueLevel;
 import com.wavefront.common.TimeProvider;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ObjectUtils;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -46,7 +50,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
-import org.apache.commons.lang3.ObjectUtils;
 
 /**
  * Proxy configuration (refactored from {@link com.wavefront.agent.AbstractAgent}).
@@ -803,7 +806,7 @@ public class ProxyConfig extends Configuration {
   @Parameter(
       names = {"--proxyname"},
       description = "Name for the proxy. Defaults to hostname.")
-  String proxyname = hostname;
+  String proxyname = getLocalHostName();
 
   @Parameter(
       names = {"--idFile"},
@@ -2289,11 +2292,17 @@ public class ProxyConfig extends Configuration {
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
       server = config.getString("server", server);
       hostname = config.getString("hostname", hostname);
-      if (hostname != null) {
-        logger.warning("Deprecated field hostname specified in config setting. Please use " +
-            "proxyname config field to set proxy name.");
+
+      if (StringUtils.isNotBlank(config.getString("hostname", ""))) {
+        logger.warning(
+            "Deprecated field hostname specified in config setting. Please use "
+                + "proxyname config field to set proxy name.");
+        hostname = config.getString("hostname", hostname);
+        proxyname = hostname;
       }
       proxyname = config.getString("proxyname", proxyname);
+      logger.info("Using proxyname:'" + proxyname + "' hostname:'" + hostname + "'");
+
       idFile = config.getString("idFile", idFile);
       pushRateLimit = config.getInteger("pushRateLimit", pushRateLimit);
       pushRateLimitHistograms =
