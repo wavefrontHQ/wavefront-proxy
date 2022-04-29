@@ -792,6 +792,7 @@ public class ProxyConfig extends Configuration {
   String logsIngestionConfigFile = "/etc/wavefront/wavefront-proxy/logsingestion.yaml";
 
   /**
+   * Deprecated property, please use proxyname config field to set proxy name.
    * Default hostname to FQDN of machine. Sent as internal metric tag with checkin.
    */
   @Parameter(
@@ -801,7 +802,7 @@ public class ProxyConfig extends Configuration {
 
 
   /**
-   * MONIT-27856 new configuration property to hold the proxy name, hostname by default,
+   * This property holds the proxy name. Default proxyname to FQDN of machine.
    */
   @Parameter(
       names = {"--proxyname"},
