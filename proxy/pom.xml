@@ -773,26 +773,6 @@
             </executions>
           </plugin>
 
-          <!-- Create javadocs for sonatype -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <version>3.2.0</version>
-            <executions>
-              <execution>
-                <id>attach-javadocs</id>
-                <goals>
-                  <goal>jar</goal>
-                </goals>
-                <configuration>
-                  <doclint>none</doclint>
-                  <release>${javadoc.sdk.version}</release>
-                  <source>${javadoc.sdk.version}</source>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-gpg-plugin</artifactId>
