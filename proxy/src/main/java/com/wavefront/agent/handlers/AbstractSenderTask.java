@@ -116,7 +116,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     isSending = true;
     try {
       List<T> current = createBatch();
-      int currentBatchSize = rateLimitOnBytes ? current.size() : getBatchSizeInBytes(current);
+      int currentBatchSize = rateLimitOnBytes ? getBatchSizeInBytes(current) : current.size();
       if (currentBatchSize == 0) return;
       if (rateLimiter == null || rateLimiter.tryAcquire(currentBatchSize)) {
         TaskResult result = processSingleBatch(current);
