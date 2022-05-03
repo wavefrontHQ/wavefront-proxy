@@ -8,7 +8,6 @@ import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.LogAPI;
 import com.wavefront.dto.Log;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;

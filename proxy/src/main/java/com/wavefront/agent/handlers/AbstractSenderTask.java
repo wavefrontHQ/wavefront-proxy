@@ -34,8 +34,7 @@ import java.util.logging.Logger;
  * @param <T> the type of input objects handled.
  */
 abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
-  protected static final Logger logger =
-      Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
+  private static final Logger logger = Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
 
   /**
    * Warn about exceeding the rate limit no more than once every 5 seconds
