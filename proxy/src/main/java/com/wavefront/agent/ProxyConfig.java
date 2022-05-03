@@ -44,6 +44,7 @@ import static com.wavefront.agent.data.EntityProperties.DEFAULT_MIN_SPLIT_BATCH_
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_RETRY_BACKOFF_BASE_SECONDS;
 import static com.wavefront.agent.data.EntityProperties.DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED;
 import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT;
+import static com.wavefront.agent.data.EntityProperties.NO_RATE_LIMIT_BYTES;
 import static com.wavefront.common.Utils.getBuildVersion;
 import static com.wavefront.common.Utils.getLocalHostName;
 import static io.opentracing.tag.Tags.SPAN_KIND;
@@ -224,7 +225,7 @@ public class ProxyConfig extends Configuration {
 
   @Parameter(names = {"--pushRateLimitLogs"}, description = "Limit the outgoing logs " +
       "rate at the proxy. Default: do not throttle.")
-  double pushRateLimitLogs = NO_RATE_LIMIT;
+  double pushRateLimitLogs = NO_RATE_LIMIT_BYTES;
 
   @Parameter(names = {"--pushRateLimitMaxBurstSeconds"}, description = "Max number of burst seconds to allow " +
       "when rate limiting to smooth out uneven traffic. Set to 1 when doing data backfills. Default: 10")

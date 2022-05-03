@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 public interface EntityProperties {
   // what we consider "unlimited"
   int NO_RATE_LIMIT = 10_000_000;
+  int NO_RATE_LIMIT_BYTES = 1_000_000_000;
 
   // default values for dynamic properties
   boolean DEFAULT_SPLIT_PUSH_WHEN_RATE_LIMITED = false;

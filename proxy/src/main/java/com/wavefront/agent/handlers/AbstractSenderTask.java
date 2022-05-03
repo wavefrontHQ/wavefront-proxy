@@ -34,7 +34,8 @@ import java.util.logging.Logger;
  * @param <T> the type of input objects handled.
  */
 abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
-  private static final Logger logger = Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
+  protected static final Logger logger =
+      Logger.getLogger(AbstractSenderTask.class.getCanonicalName());
 
   /**
    * Warn about exceeding the rate limit no more than once every 5 seconds
@@ -61,6 +62,8 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   final AtomicBoolean isBuffering = new AtomicBoolean(false);
   volatile boolean isSending = false;
 
+  protected boolean rateLimitOnBytes = false;
+
   /**
    * Attempt to schedule drainBuffersToQueueTask no more than once every 100ms to reduce
    * scheduler overhead under memory pressure.
@@ -77,7 +80,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
    * @param scheduler  executor service for running this task
    */
   AbstractSenderTask(HandlerKey handlerKey, int threadId, EntityProperties properties,
-                     ScheduledExecutorService scheduler) {
+                     ScheduledExecutorService scheduler, boolean rateLimitOnBytes) {
     this.handlerKey = handlerKey;
     this.threadId = threadId;
     this.properties = properties;
@@ -114,7 +117,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     isSending = true;
     try {
       List<T> current = createBatch();
-      int currentBatchSize = current.size();
+      int currentBatchSize = rateLimitOnBytes ? current.size() : getBatchSizeInBytes(current);
       if (currentBatchSize == 0) return;
       if (rateLimiter == null || rateLimiter.tryAcquire(currentBatchSize)) {
         TaskResult result = processSingleBatch(current);
@@ -185,8 +188,18 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     List<T> current;
     int blockSize;
     synchronized (mutex) {
+      int rateLimit = (int)rateLimiter.getRate();
+      if (rateLimitOnBytes) {
+        int currentByteSize = 0;
+        for (int i = 0; i < datum.size(); i++) {
+          currentByteSize += datum.get(i).toString().length();
+          if (currentByteSize >= rateLimiter.getRate()) {
+            rateLimit = i;
+          }
+        }
+      }
       blockSize = Math.min(datum.size(), Math.min(properties.getItemsPerBatch(),
-          (int)rateLimiter.getRate()));
+          rateLimit));
       current = datum.subList(0, blockSize);
       datum = new ArrayList<>(datum.subList(blockSize, datum.size()));
     }
@@ -260,5 +273,13 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   public long getTaskRelativeScore() {
     return datum.size() + (isBuffering.get() ? properties.getMemoryBufferLimit() :
         (isSending ? properties.getItemsPerBatch() / 2 : 0));
+  }
+
+  private int getBatchSizeInBytes(List<T> batch) {
+    int batchSize = 0;
+    for (T object : batch) {
+      batchSize += object.toString().length();
+    }
+    return batchSize;
   }
 }

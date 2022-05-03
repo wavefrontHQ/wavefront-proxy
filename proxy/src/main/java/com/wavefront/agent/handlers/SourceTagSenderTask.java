@@ -45,7 +45,7 @@ class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
                       int threadId, EntityProperties properties,
                       ScheduledExecutorService scheduler,
                       TaskQueue<SourceTagSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties, scheduler);
+    super(handlerKey, threadId, properties, scheduler, false);
     this.proxyAPI = proxyAPI;
     this.backlog = backlog;
   }

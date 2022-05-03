@@ -8,6 +8,7 @@ import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.api.LogAPI;
 import com.wavefront.dto.Log;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
@@ -36,10 +37,11 @@ public class LogSenderTask extends AbstractSenderTask<Log> {
   LogSenderTask(HandlerKey handlerKey, LogAPI logAPI, UUID proxyId, int threadId,
                   EntityProperties properties, ScheduledExecutorService scheduler,
                   TaskQueue<LogDataSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties, scheduler);
+    super(handlerKey, threadId, properties, scheduler, true);
     this.logAPI = logAPI;
     this.proxyId = proxyId;
     this.backlog = backlog;
+    this.rateLimitOnBytes = true;
   }
 
   @Override

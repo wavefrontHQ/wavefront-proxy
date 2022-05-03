@@ -37,7 +37,7 @@ class EventSenderTask extends AbstractSenderTask<Event> {
   EventSenderTask(HandlerKey handlerKey, EventAPI proxyAPI, UUID proxyId, int threadId,
                   EntityProperties properties, ScheduledExecutorService scheduler,
                   TaskQueue<EventDataSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties, scheduler);
+    super(handlerKey, threadId, properties, scheduler, false);
     this.proxyAPI = proxyAPI;
     this.proxyId = proxyId;
     this.backlog = backlog;

@@ -43,7 +43,7 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
                           ScheduledExecutorService scheduler, int threadId,
                           @Nullable final TaskSizeEstimator taskSizeEstimator,
                           TaskQueue<LineDelimitedDataSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties, scheduler);
+    super(handlerKey, threadId, properties, scheduler, false);
     this.pushFormat = pushFormat;
     this.proxyId = proxyId;
     this.proxyAPI = proxyAPI;
