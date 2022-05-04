@@ -1527,6 +1527,7 @@ public class PushAgentTest {
         .setMetric("test-gauge")
         .setTimestamp(TimeUnit.SECONDS.toMillis(alignedStartTimeEpochSeconds))
         .setValue(2.3)
+        .setHost("defaultLocalHost")
         .build());
     expectLastCall();
 

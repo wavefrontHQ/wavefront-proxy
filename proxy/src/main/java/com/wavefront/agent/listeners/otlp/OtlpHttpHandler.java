@@ -138,7 +138,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
           );
           break;
         case "/v1/metrics/":
-          OtlpProtobufPointUtils.exportToWavefront(ExportMetricsServiceRequest.parseFrom(request.content().nioBuffer()), metricsHandler, preprocessorSupplier);
+          OtlpProtobufPointUtils.exportToWavefront(ExportMetricsServiceRequest.parseFrom(request.content().nioBuffer()), metricsHandler, preprocessorSupplier, defaultSource);
           break;
         default:
           /*

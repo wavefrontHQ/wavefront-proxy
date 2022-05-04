@@ -5,6 +5,8 @@ import com.google.common.collect.Lists;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.MetricConstants;
+import com.wavefront.sdk.common.Pair;
+
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
@@ -22,6 +24,7 @@ import wavefront.report.Annotation;
 import wavefront.report.ReportPoint;
 
 import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -29,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -39,13 +41,13 @@ public class OtlpProtobufPointUtils {
 
   public static void exportToWavefront(ExportMetricsServiceRequest request,
                                        ReportableEntityHandler<ReportPoint, String> handler,
-                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier) {
+                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier, String defaultSource) {
     ReportableEntityPreprocessor preprocessor = null;
     if (preprocessorSupplier != null) {
       preprocessor = preprocessorSupplier.get();
     }
 
-    for (ReportPoint point : fromOtlpRequest(request, preprocessor)) {
+    for (ReportPoint point : fromOtlpRequest(request, preprocessor, defaultSource)) {
       // TODO: handle sampler
       if (!wasFilteredByPreprocessor(point, handler, preprocessor)) {
         handler.report(point);
@@ -54,23 +56,22 @@ public class OtlpProtobufPointUtils {
   }
 
   private static List<ReportPoint> fromOtlpRequest(ExportMetricsServiceRequest request,
-                                                   @Nullable ReportableEntityPreprocessor preprocessor) {
+                                                   @Nullable ReportableEntityPreprocessor preprocessor,
+                                                   String defaultSource) {
     List<ReportPoint> wfPoints = Lists.newArrayList();
 
     for (ResourceMetrics resourceMetrics : request.getResourceMetricsList()) {
       Resource resource = resourceMetrics.getResource();
-      if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
-        OTLP_DATA_LOGGER.info("Inbound OTLP Resource: " + resource);
-      }
+      Pair<String, List<KeyValue>> sourceAndResourceAttrs =
+          OtlpProtobufUtils.sourceFromAttributes(resource.getAttributesList(), defaultSource);
+      OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Resource: " + resource);
       for (InstrumentationLibraryMetrics instrumentationLibraryMetrics :
           resourceMetrics.getInstrumentationLibraryMetricsList()) {
-        if (OTLP_DATA_LOGGER.isLoggable(Level.FINEST)) {
-          OTLP_DATA_LOGGER.info("Inbound OTLP Instrumentation Library: " +
-              instrumentationLibraryMetrics.getInstrumentationLibrary());
-        }
+        OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Instrumentation Library: " +
+            instrumentationLibraryMetrics.getInstrumentationLibrary());
         for (Metric otlpMetric : instrumentationLibraryMetrics.getMetricsList()) {
-          List<ReportPoint> points = transform(otlpMetric, resource.getAttributesList(),
-              preprocessor);
+          List<ReportPoint> points = transform(otlpMetric, sourceAndResourceAttrs._2,
+              preprocessor, sourceAndResourceAttrs._1);
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
           OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront Metric: " + points);
 
@@ -105,46 +106,26 @@ public class OtlpProtobufPointUtils {
   @VisibleForTesting
   public static List<ReportPoint> transform(Metric otlpMetric,
                                             List<KeyValue> resourceAttrs,
-                                            ReportableEntityPreprocessor preprocessor) {
+                                            ReportableEntityPreprocessor preprocessor,
+                                            String source) {
     List<ReportPoint> points = new ArrayList<>();
     if (otlpMetric.hasGauge()) {
-      for (ReportPoint point : transformGauge(otlpMetric.getName(), otlpMetric.getGauge(), resourceAttrs)) {
-        // apply preprocessor
-        if (preprocessor != null) {
-          preprocessor.forReportPoint().transform(point);
-        }
-        points.add(point);
-      }
+      points.addAll(transformGauge(otlpMetric.getName(), otlpMetric.getGauge(), resourceAttrs));
     } else if (otlpMetric.hasSum()) {
-      String prefix = "";
-      switch (otlpMetric.getSum().getAggregationTemporality()) {
-        case AGGREGATION_TEMPORALITY_CUMULATIVE:
-          // no prefix
-          break;
-        case AGGREGATION_TEMPORALITY_DELTA:
-          prefix = MetricConstants.DELTA_PREFIX;
-          break;
-        default:
-          throw new IllegalArgumentException("OTel: sum with unsupported aggregation temporality " + otlpMetric.getSum().getAggregationTemporality().name());
-      }
-      for (ReportPoint point : transformSum(prefix + otlpMetric.getName(), otlpMetric.getSum(), resourceAttrs)) {
-        // apply preprocessor
-        if (preprocessor != null) {
-          preprocessor.forReportPoint().transform(point);
-        }
-        points.add(point);
-      }
+      points.addAll(transformSum(otlpMetric.getName(), otlpMetric.getSum(), resourceAttrs));
     } else if (otlpMetric.hasSummary()) {
-      for (ReportPoint point : transformSummary(otlpMetric.getName(), otlpMetric.getSummary(), resourceAttrs)) {
-        if (preprocessor != null) {
-          preprocessor.forReportPoint().transform(point);
-        }
-        points.add(point);
-      }
+      points.addAll(transformSummary(otlpMetric.getName(), otlpMetric.getSummary(), resourceAttrs));
     } else {
       throw new IllegalArgumentException("Otel: unsupported metric type for " + otlpMetric.getName());
     }
 
+    for (ReportPoint point : points) {
+      point.setHost(source);
+      // preprocessor rule transformations should run last
+      if (preprocessor != null) {
+        preprocessor.forReportPoint().transform(point);
+      }
+    }
     return points;
   }
 
@@ -156,19 +137,33 @@ public class OtlpProtobufPointUtils {
     return points;
   }
 
-  private static List<ReportPoint> transformSum(String name, Sum sum, List<KeyValue> resourceAttrs) {
+  private static List<ReportPoint> transformSum(String name, Sum sum,
+                                                List<KeyValue> resourceAttrs) {
     if (sum.getDataPointsCount() == 0) {
       throw new IllegalArgumentException("OTel: sum with no data points");
     }
 
+    String prefix = "";
+    switch (sum.getAggregationTemporality()) {
+      case AGGREGATION_TEMPORALITY_CUMULATIVE:
+        // no prefix
+        break;
+      case AGGREGATION_TEMPORALITY_DELTA:
+        prefix = MetricConstants.DELTA_PREFIX;
+        break;
+      default:
+        throw new IllegalArgumentException("OTel: sum with unsupported aggregation temporality " + sum.getAggregationTemporality().name());
+    }
+
     List<ReportPoint> points = new ArrayList<>(sum.getDataPointsCount());
     for (NumberDataPoint p : sum.getDataPointsList()) {
-      points.add(transformNumberDataPoint(name, p, resourceAttrs));
+      points.add(transformNumberDataPoint(prefix + name, p, resourceAttrs));
     }
     return points;
   }
 
-  private static Collection<ReportPoint> transformGauge(String name, Gauge gauge, List<KeyValue> resourceAttrs) {
+  private static Collection<ReportPoint> transformGauge(String name, Gauge gauge,
+                                                        List<KeyValue> resourceAttrs) {
     if (gauge.getDataPointsCount() == 0) {
       throw new IllegalArgumentException("OTel: gauge with no data points");
     }

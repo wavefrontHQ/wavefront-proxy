@@ -61,6 +61,8 @@ public class OtlpTestHelpers {
     };
   }
 
+  public static final String DEFAULT_SOURCE = "test-source";
+
   public static Span.Builder wfSpanGenerator(@Nullable List<Annotation> extraAttrs) {
     if (extraAttrs == null) {
       extraAttrs = Collections.emptyList();
@@ -91,7 +93,7 @@ public class OtlpTestHelpers {
         .setStartMillis(startTimeMs)
         .setDuration(durationMs)
         .setAnnotations(annotations)
-        .setSource("test-source")
+        .setSource(DEFAULT_SOURCE)
         .setCustomer("dummy");
   }
 
@@ -164,8 +166,7 @@ public class OtlpTestHelpers {
 
   public static ReportableEntityPreprocessor addTagIfNotExistsPreprocessor(List<Annotation> annotationList) {
     ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
-    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
-        null);
+    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null, null);
     for (Annotation annotation : annotationList) {
       preprocessor.forSpan().addTransformer(new SpanAddAnnotationIfNotExistsTransformer(
           annotation.getKey(), annotation.getValue(), x -> true, preprocessorRuleMetrics));
@@ -176,10 +177,10 @@ public class OtlpTestHelpers {
 
   public static ReportableEntityPreprocessor blockSpanPreprocessor() {
     ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
-    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
-        null);
-    preprocessor.forSpan().addFilter(new SpanBlockFilter(
-        "sourceName", "test-source", x -> true, preprocessorRuleMetrics));
+    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null, null);
+    preprocessor.forSpan().addFilter(
+        new SpanBlockFilter("sourceName", DEFAULT_SOURCE, x -> true, preprocessorRuleMetrics)
+    );
 
     return preprocessor;
   }
@@ -221,6 +222,7 @@ public class OtlpTestHelpers {
     assertEquals("value", expected.getValue(), actual.getValue());
     assertEquals("timestamp", expected.getTimestamp(), actual.getTimestamp());
     assertEquals("number of annotations", expected.getAnnotations().size(), actual.getAnnotations().size());
+    assertEquals("source/host", expected.getHost(), actual.getHost());
     // TODO use a better assert instead of iterating manually?
     for (String key : expected.getAnnotations().keySet()) {
       assertTrue(actual.getAnnotations().containsKey(key));
@@ -249,32 +251,26 @@ public class OtlpTestHelpers {
   }
 
   public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpGaugeGenerator(List<NumberDataPoint> points) {
-    return io.opentelemetry.proto.metrics.v1.Metric.newBuilder()
-        .setName("test")
+    return otlpMetricGenerator()
         .setGauge(io.opentelemetry.proto.metrics.v1.Gauge.newBuilder().addAllDataPoints(points).build());
   }
 
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpGaugeGenerator(NumberDataPoint point) {
+    return otlpMetricGenerator()
+        .setGauge(io.opentelemetry.proto.metrics.v1.Gauge.newBuilder().addDataPoints(point).build());
+  }
+
   public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpSumGenerator(List<NumberDataPoint> points) {
-    return io.opentelemetry.proto.metrics.v1.Metric.newBuilder()
-        .setName("test")
+    return otlpMetricGenerator()
         .setSum(io.opentelemetry.proto.metrics.v1.Sum.newBuilder()
             .setAggregationTemporality(io.opentelemetry.proto.metrics.v1.AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+            .setIsMonotonic(true)
             .addAllDataPoints(points)
             .build());
   }
 
-
-  public static wavefront.report.ReportPoint.Builder wfReportPointGenerator() {
-    return wavefront.report.ReportPoint.newBuilder().setMetric("test").setTimestamp(0).setValue(0.0);
-  }
-
-  public static wavefront.report.ReportPoint.Builder wfReportPointGenerator(List<Annotation> annotations) {
-    return wfReportPointGenerator().setAnnotations(annotationListToMap(annotations));
-  }
-
   public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpSummaryGenerator(SummaryDataPoint point) {
-    return io.opentelemetry.proto.metrics.v1.Metric.newBuilder()
-        .setName("test")
+    return otlpMetricGenerator()
         .setSummary(io.opentelemetry.proto.metrics.v1.Summary.newBuilder()
             .addDataPoints(point)
             .build());
@@ -282,6 +278,15 @@ public class OtlpTestHelpers {
 
   public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpSummaryGenerator(Collection<SummaryDataPoint.ValueAtQuantile> quantiles) {
     return otlpSummaryGenerator(SummaryDataPoint.newBuilder().addAllQuantileValues(quantiles).build());
+  }
+
+  public static wavefront.report.ReportPoint.Builder wfReportPointGenerator() {
+    return wavefront.report.ReportPoint.newBuilder().setMetric("test").setHost(DEFAULT_SOURCE)
+        .setTimestamp(0).setValue(0.0);
+  }
+
+  public static wavefront.report.ReportPoint.Builder wfReportPointGenerator(List<Annotation> annotations) {
+    return wfReportPointGenerator().setAnnotations(annotationListToMap(annotations));
   }
 
   public static List<wavefront.report.ReportPoint> justThePointsNamed(String name, Collection<wavefront.report.ReportPoint> points) {

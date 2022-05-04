@@ -807,7 +807,8 @@ public class PushAgent extends AbstractAgent {
             () -> entityPropertiesFactoryMap.get(CENTRAL_TENANT_NAME).get(ReportableEntityType.TRACE_SPAN_LOGS).isFeatureDisabled(),
             proxyConfig.getHostname(), proxyConfig.getTraceDerivedCustomTagKeys()
         );
-        OtlpGrpcMetricsHandler metricsHandler = new OtlpGrpcMetricsHandler(strPort, handlerFactory, preprocessors.get(strPort));
+        OtlpGrpcMetricsHandler metricsHandler = new OtlpGrpcMetricsHandler(strPort,
+            handlerFactory, preprocessors.get(strPort), proxyConfig.getHostname());
         io.grpc.Server server = NettyServerBuilder.forPort(port)
             .addService(traceHandler)
             .addService(metricsHandler)

@@ -19,10 +19,16 @@ import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
+
+import io.opentelemetry.proto.resource.v1.Resource;
 import wavefront.report.ReportPoint;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+
+import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.DEFAULT_SOURCE;
 
 public class OtlpMetricsTest {
 
@@ -40,13 +46,13 @@ public class OtlpMetricsTest {
     public void onCompleted() {
     }
   };
-  private final ReportableEntityHandler<ReportPoint, String> mockMetricsHandler = MockReportableEntityHandlerFactory.getMockReportPointHandler();
+    private final ReportableEntityHandler<ReportPoint, String> mockMetricsHandler = MockReportableEntityHandlerFactory.getMockReportPointHandler();
   private OtlpGrpcMetricsHandler subject;
 
   @Before
   public void setup() {
     Supplier<ReportableEntityPreprocessor> preprocessorSupplier = ReportableEntityPreprocessor::new;
-    subject = new OtlpGrpcMetricsHandler(mockMetricsHandler, preprocessorSupplier);
+    subject = new OtlpGrpcMetricsHandler(mockMetricsHandler, preprocessorSupplier, DEFAULT_SOURCE);
   }
 
   @Test
@@ -64,6 +70,7 @@ public class OtlpMetricsTest {
         .setMetric("test-gauge")
         .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
         .setValue(12.3)
+        .setHost(DEFAULT_SOURCE)
         .build();
     mockMetricsHandler.report(wfMetric);
     EasyMock.expectLastCall();
@@ -94,6 +101,7 @@ public class OtlpMetricsTest {
         .setMetric("test-sum")
         .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
         .setValue(12.3)
+        .setHost(DEFAULT_SOURCE)
         .build();
     mockMetricsHandler.report(wfMetric);
     EasyMock.expectLastCall();
@@ -124,6 +132,7 @@ public class OtlpMetricsTest {
         .setMetric("test-sum")
         .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
         .setValue(12.3)
+        .setHost(DEFAULT_SOURCE)
         .build();
     mockMetricsHandler.report(wfMetric);
     EasyMock.expectLastCall();
@@ -160,12 +169,14 @@ public class OtlpMetricsTest {
         .setMetric("test-summary_sum")
         .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
         .setValue(12.3)
+        .setHost(DEFAULT_SOURCE)
         .build());
     EasyMock.expectLastCall();
     mockMetricsHandler.report(OtlpTestHelpers.wfReportPointGenerator()
         .setMetric("test-summary_count")
         .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
         .setValue(21)
+        .setHost(DEFAULT_SOURCE)
         .build());
     EasyMock.expectLastCall();
     mockMetricsHandler.report(OtlpTestHelpers.wfReportPointGenerator()
@@ -173,6 +184,7 @@ public class OtlpMetricsTest {
         .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
         .setValue(242.3)
         .setAnnotations(ImmutableMap.of("quantile", "0.5"))
+        .setHost(DEFAULT_SOURCE)
         .build());
     EasyMock.expectLastCall();
 
@@ -202,6 +214,7 @@ public class OtlpMetricsTest {
         .setMetric("∆test-sum")
         .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
         .setValue(12.3)
+        .setHost(DEFAULT_SOURCE)
         .build();
     mockMetricsHandler.report(wfMetric);
     EasyMock.expectLastCall();
@@ -232,6 +245,7 @@ public class OtlpMetricsTest {
         .setMetric("∆test-sum")
         .setTimestamp(TimeUnit.SECONDS.toMillis(epochTime))
         .setValue(12.3)
+        .setHost(DEFAULT_SOURCE)
         .build();
     mockMetricsHandler.report(wfMetric);
     EasyMock.expectLastCall();
@@ -239,6 +253,37 @@ public class OtlpMetricsTest {
     EasyMock.replay(mockMetricsHandler);
 
     ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
+    subject.export(request, emptyStreamObserver);
+
+    EasyMock.verify(mockMetricsHandler);
+  }
+
+  @Test
+  public void setsSourceFromResourceAttributesNotPointAttributes() {
+    EasyMock.reset(mockMetricsHandler);
+
+    Map<String, String> annotations = new HashMap<>();
+    annotations.put("_source", "at-point");
+
+    ReportPoint wfMetric = OtlpTestHelpers.wfReportPointGenerator()
+        .setAnnotations(annotations)
+        .setHost("at-resrc")
+        .build();
+    mockMetricsHandler.report(wfMetric);
+    EasyMock.expectLastCall();
+
+    EasyMock.replay(mockMetricsHandler);
+
+    NumberDataPoint otelPoint = NumberDataPoint.newBuilder()
+        .addAttributes(OtlpTestHelpers.otlpAttribute("source", "at-point")).build();
+    Metric otelMetric = OtlpTestHelpers.otlpGaugeGenerator(otelPoint).build();
+
+    Resource otelResource = Resource.newBuilder().addAttributes(OtlpTestHelpers.otlpAttribute("source", "at-resrc")).build();
+
+    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().setResource(otelResource)
+        .addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build())
+        .build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 
