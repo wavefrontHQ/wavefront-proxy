@@ -32,6 +32,13 @@
     <tag>release-11.x</tag>
   </scm>
 
+  <distributionManagement>
+    <snapshotRepository>
+      <id>ossrh</id>
+      <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
+  </distributionManagement>
+
   <properties>
     <!-- jdk 11 can be used for building -->
     <jdk.version>11</jdk.version>
