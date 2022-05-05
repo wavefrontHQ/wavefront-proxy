@@ -1733,6 +1733,7 @@ public class ProxyConfig extends Configuration {
           pushRateLimitSourceTags);
       pushRateLimitSpans = config.getInteger("pushRateLimitSpans", pushRateLimitSpans);
       pushRateLimitSpanLogs = config.getInteger("pushRateLimitSpanLogs", pushRateLimitSpanLogs);
+      pushRateLimitLogs = config.getInteger("pushRateLimitLogs", pushRateLimitLogs);
       pushRateLimitEvents = config.getDouble("pushRateLimitEvents", pushRateLimitEvents);
       pushRateLimitMaxBurstSeconds = config.getInteger("pushRateLimitMaxBurstSeconds",
           pushRateLimitMaxBurstSeconds);
@@ -2082,9 +2083,8 @@ public class ProxyConfig extends Configuration {
       pushFlushMaxEvents = Math.min(Math.min(Math.max(config.getInteger("pushFlushMaxEvents",
           pushFlushMaxEvents), 1), DEFAULT_BATCH_SIZE_EVENTS), (int) (pushRateLimitEvents + 1));
 
-      pushFlushMaxLogs = Math.max(Math.min(Math.min(config.getInteger("pushFlushMaxLogs",
-          pushFlushMaxLogs), DEFAULT_BATCH_SIZE_LOGS),
-          (int) pushRateLimitLogs), DEFAULT_MIN_SPLIT_BATCH_SIZE);
+      pushFlushMaxLogs = Math.max(Math.min(config.getInteger("pushFlushMaxLogs",
+          pushFlushMaxLogs), DEFAULT_BATCH_SIZE_LOGS), DEFAULT_MIN_SPLIT_BATCH_SIZE);
 
       /*
         default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of

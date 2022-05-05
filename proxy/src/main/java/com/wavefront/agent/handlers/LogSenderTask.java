@@ -36,11 +36,10 @@ public class LogSenderTask extends AbstractSenderTask<Log> {
   LogSenderTask(HandlerKey handlerKey, LogAPI logAPI, UUID proxyId, int threadId,
                   EntityProperties properties, ScheduledExecutorService scheduler,
                   TaskQueue<LogDataSubmissionTask> backlog) {
-    super(handlerKey, threadId, properties, scheduler, true);
+    super(handlerKey, threadId, properties, scheduler);
     this.logAPI = logAPI;
     this.proxyId = proxyId;
     this.backlog = backlog;
-    this.rateLimitOnBytes = true;
   }
 
   @Override
@@ -55,5 +54,29 @@ public class LogSenderTask extends AbstractSenderTask<Log> {
     LogDataSubmissionTask task = new LogDataSubmissionTask(logAPI, proxyId, properties,
         backlog, handlerKey.getHandle(), batch, null);
     task.enqueue(reason);
+  }
+
+  @Override
+  protected int getBatchSize(List<Log> batch) {
+    int size = 0;
+    for (Log l : batch) {
+      size += l.getDataSize();
+    }
+    return size;
+  }
+
+  @Override
+  protected int getDataIndex(List<Log> datum, int rateLimit) {
+    if (datum.size() > 50) {
+      System.out.println("reached");
+    }
+    int size = 0;
+    for (int i = 0; i < datum.size(); i++) {
+      size += datum.get(i).getDataSize();
+      if (size > rateLimit) {
+        return i;
+      }
+    }
+    return datum.size();
   }
 }
