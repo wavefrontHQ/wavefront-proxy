@@ -139,7 +139,7 @@ public class OtlpTestHelpers {
     return otlpSpanGenerator().setStatus(status).build();
   }
 
-  public static io.opentelemetry.proto.common.v1.KeyValue otlpAttribute(String key, String value) {
+  public static io.opentelemetry.proto.common.v1.KeyValue attribute(String key, String value) {
     return KeyValue.newBuilder().setKey(key).setValue(
         AnyValue.newBuilder().setStringValue(value).build()
     ).build();
@@ -147,7 +147,7 @@ public class OtlpTestHelpers {
 
   public static io.opentelemetry.proto.trace.v1.Span.Event otlpSpanEvent(int droppedAttrsCount) {
     long eventTimestamp = TimeUnit.MILLISECONDS.toNanos(startTimeMs + (durationMs / 2));
-    KeyValue attr = otlpAttribute("attrKey", "attrValue");
+    KeyValue attr = attribute("attrKey", "attrValue");
     io.opentelemetry.proto.trace.v1.Span.Event.Builder builder =
         io.opentelemetry.proto.trace.v1.Span.Event.newBuilder()
         .setName("eventName")

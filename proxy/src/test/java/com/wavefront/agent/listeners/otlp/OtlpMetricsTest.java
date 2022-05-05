@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.otlp;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
@@ -9,6 +10,8 @@ import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse;
 import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
 import io.opentelemetry.proto.metrics.v1.Gauge;
+import io.opentelemetry.proto.metrics.v1.Histogram;
+import io.opentelemetry.proto.metrics.v1.HistogramDataPoint;
 import io.opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics;
 import io.opentelemetry.proto.metrics.v1.Metric;
 import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
@@ -22,6 +25,10 @@ import org.junit.Test;
 
 import io.opentelemetry.proto.resource.v1.Resource;
 import wavefront.report.ReportPoint;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -276,14 +283,73 @@ public class OtlpMetricsTest {
     EasyMock.replay(mockMetricsHandler);
 
     NumberDataPoint otelPoint = NumberDataPoint.newBuilder()
-        .addAttributes(OtlpTestHelpers.otlpAttribute("source", "at-point")).build();
+
+        .addAttributes(OtlpTestHelpers.attribute("source", "at-point")).build();
     Metric otelMetric = OtlpTestHelpers.otlpGaugeGenerator(otelPoint).build();
 
-    Resource otelResource = Resource.newBuilder().addAttributes(OtlpTestHelpers.otlpAttribute("source", "at-resrc")).build();
-
+    Resource otelResource = Resource.newBuilder().addAttributes(OtlpTestHelpers.attribute("source", "at-resrc")).build();
     ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().setResource(otelResource)
         .addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build())
         .build();
+    ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
+    subject.export(request, emptyStreamObserver);
+
+    EasyMock.verify(mockMetricsHandler);
+  }
+
+  @Test
+  public void cumulativeHistogram() {
+    long epochTime = 1515151515L;
+    EasyMock.reset(mockMetricsHandler);
+
+    HistogramDataPoint point = HistogramDataPoint.newBuilder()
+        .addAllExplicitBounds(ImmutableList.of(1.0, 2.0))
+        .addAllBucketCounts(ImmutableList.of(1L, 2L, 3L))
+        .setTimeUnixNano(epochTime)
+        .build();
+
+    Histogram otelHistogram = Histogram.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+        .addAllDataPoints(Collections.singletonList(point))
+        .build();
+
+    Metric otelMetric = Metric.newBuilder()
+        .setHistogram(otelHistogram)
+        .setName("test-cumulative-histogram")
+        .build();
+
+    wavefront.report.ReportPoint wfMetric1 = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-cumulative-histogram")
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(epochTime))
+        .setValue(1)
+        .setHost(DEFAULT_SOURCE)
+        .setAnnotations(Collections.singletonMap("le", "1.0"))
+        .build();
+
+    wavefront.report.ReportPoint wfMetric2 = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-cumulative-histogram")
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(epochTime))
+        .setValue(3)
+        .setHost(DEFAULT_SOURCE)
+        .setAnnotations(Collections.singletonMap("le", "2.0"))
+        .build();
+
+    wavefront.report.ReportPoint wfMetric3 = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-cumulative-histogram")
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(epochTime))
+        .setValue(6)
+        .setHost(DEFAULT_SOURCE)
+        .setAnnotations(Collections.singletonMap("le", "+Inf"))
+        .build();
+
+    mockMetricsHandler.report(wfMetric1);
+    mockMetricsHandler.report(wfMetric2);
+    mockMetricsHandler.report(wfMetric3);
+    EasyMock.expectLastCall();
+
+    EasyMock.replay(mockMetricsHandler);
+
+    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 

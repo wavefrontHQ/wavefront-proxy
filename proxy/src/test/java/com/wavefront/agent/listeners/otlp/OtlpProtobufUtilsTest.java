@@ -5,33 +5,18 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
+
 import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
-import com.wavefront.agent.preprocessor.ReportPointAddTagIfNotExistsTransformer;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.internal.SpanDerivedMetricsUtils;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.yammer.metrics.core.Counter;
-import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
-import io.opentelemetry.proto.common.v1.AnyValue;
-import io.opentelemetry.proto.common.v1.ArrayValue;
-import io.opentelemetry.proto.common.v1.InstrumentationLibrary;
-import io.opentelemetry.proto.common.v1.KeyValue;
-import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
-import io.opentelemetry.proto.metrics.v1.Gauge;
-import io.opentelemetry.proto.metrics.v1.Metric;
-import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
-import io.opentelemetry.proto.metrics.v1.Sum;
-import io.opentelemetry.proto.metrics.v1.Summary;
-import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
-import io.opentelemetry.proto.trace.v1.Span;
-import io.opentelemetry.proto.trace.v1.Status;
+
 import org.easymock.Capture;
 import org.easymock.EasyMock;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,9 +24,6 @@ import org.powermock.api.easymock.PowerMock;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import wavefront.report.Annotation;
-import wavefront.report.ReportPoint;
-import wavefront.report.SpanLogs;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,14 +36,22 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
+import io.opentelemetry.proto.common.v1.AnyValue;
+import io.opentelemetry.proto.common.v1.ArrayValue;
+import io.opentelemetry.proto.common.v1.InstrumentationLibrary;
+import io.opentelemetry.proto.common.v1.KeyValue;
+import io.opentelemetry.proto.trace.v1.Span;
+import io.opentelemetry.proto.trace.v1.Status;
+import wavefront.report.Annotation;
+import wavefront.report.ReportPoint;
+import wavefront.report.SpanLogs;
+
 import static com.wavefront.agent.listeners.otlp.OtlpProtobufUtils.OTEL_STATUS_DESCRIPTION_KEY;
 import static com.wavefront.agent.listeners.otlp.OtlpProtobufUtils.transformAll;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.DEFAULT_SOURCE;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertAllPointsEqual;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertWFSpanEquals;
+import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.hasKey;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.justThePointsNamed;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.otlpAttribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.parentSpanIdPair;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
@@ -310,7 +300,7 @@ public class OtlpProtobufUtilsTest {
        `wfSpanBuilder.setSource(...)`, which arguably seems like a bug. Since we determine the WF
        source in `sourceAndResourceAttrs()`, rename any remaining OTLP Attribute to `_source`.
        */
-    List<KeyValue> attrs = Collections.singletonList(otlpAttribute("source", "a-source"));
+    List<KeyValue> attrs = Collections.singletonList(attribute("source", "a-source"));
 
     List<Annotation> actual = OtlpProtobufUtils.annotationsFromAttributes(attrs);
 
@@ -415,7 +405,7 @@ public class OtlpProtobufUtilsTest {
 
   @Test
   public void transformSpanConvertsResourceAttributesToAnnotations() {
-    List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute("r-key", "r-value"));
+    List<KeyValue> resourceAttrs = Collections.singletonList(attribute("r-key", "r-value"));
     wavefront.report.Span expectedSpan = OtlpTestHelpers.wfSpanGenerator(
         Collections.singletonList(new Annotation("r-key", "r-value"))
     ).build();
@@ -431,8 +421,8 @@ public class OtlpProtobufUtilsTest {
   public void transformSpanGivesSpanAttributesHigherPrecedenceThanResourceAttributes() {
     String key = "the-key";
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator()
-        .addAttributes(otlpAttribute(key, "span-value")).build();
-    List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute(key, "rsrc-value"));
+        .addAttributes(attribute(key, "span-value")).build();
+    List<KeyValue> resourceAttrs = Collections.singletonList(attribute(key, "rsrc-value"));
 
     actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, resourceAttrs, null, null, "test-source");
 
@@ -572,9 +562,9 @@ public class OtlpProtobufUtilsTest {
 
   @Test
   public void transformSpanSetsSourceFromResourceAttributesNotSpanAttributes() {
-    List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute("source", "a-src"));
+    List<KeyValue> resourceAttrs = Collections.singletonList(attribute("source", "a-src"));
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator()
-        .addAttributes(otlpAttribute("source", "span-level")).build();
+        .addAttributes(attribute("source", "span-level")).build();
 
     actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, resourceAttrs, null, null, "ignored");
 
@@ -686,33 +676,33 @@ public class OtlpProtobufUtilsTest {
     // "source" attribute has highest precedence
     actual = OtlpProtobufUtils.sourceFromAttributes(
         Arrays.asList(
-            otlpAttribute("hostname", "a-hostname"),
-            otlpAttribute("host.id", "a-host.id"),
-            otlpAttribute("source", "a-src"),
-            otlpAttribute("host.name", "a-host.name")
+            attribute("hostname", "a-hostname"),
+            attribute("host.id", "a-host.id"),
+            attribute("source", "a-src"),
+            attribute("host.name", "a-host.name")
         ), "ignore");
     assertEquals("a-src", actual._1);
 
     // "host.name" next highest
     actual = OtlpProtobufUtils.sourceFromAttributes(
         Arrays.asList(
-            otlpAttribute("hostname", "a-hostname"),
-            otlpAttribute("host.id", "a-host.id"),
-            otlpAttribute("host.name", "a-host.name")
+            attribute("hostname", "a-hostname"),
+            attribute("host.id", "a-host.id"),
+            attribute("host.name", "a-host.name")
         ), "ignore");
     assertEquals("a-host.name", actual._1);
 
     // "hostname" next highest
     actual = OtlpProtobufUtils.sourceFromAttributes(
         Arrays.asList(
-            otlpAttribute("hostname", "a-hostname"),
-            otlpAttribute("host.id", "a-host.id")
+            attribute("hostname", "a-hostname"),
+            attribute("host.id", "a-host.id")
         ), "ignore");
     assertEquals("a-hostname", actual._1);
 
     // "host.id" has lowest precedence
     actual = OtlpProtobufUtils.sourceFromAttributes(
-        Arrays.asList(otlpAttribute("host.id", "a-host.id")), "ignore"
+        Arrays.asList(attribute("host.id", "a-host.id")), "ignore"
     );
     assertEquals("a-host.id", actual._1);
   }
@@ -730,9 +720,9 @@ public class OtlpProtobufUtilsTest {
   @Test
   public void sourceFromAttributesDeletesCandidateUsedAsSource() {
     List<KeyValue> attrs = Arrays.asList(
-        otlpAttribute("hostname", "a-hostname"),
-        otlpAttribute("some-key", "some-val"),
-        otlpAttribute("host.id", "a-host.id")
+        attribute("hostname", "a-hostname"),
+        attribute("some-key", "some-val"),
+        attribute("host.id", "a-host.id")
     );
 
     Pair<String, List<KeyValue>> actual = OtlpProtobufUtils.sourceFromAttributes(attrs, "ignore");
@@ -740,8 +730,8 @@ public class OtlpProtobufUtilsTest {
     assertEquals("a-hostname", actual._1);
 
     List<KeyValue> expectedAttrs = Arrays.asList(
-        otlpAttribute("some-key", "some-val"),
-        otlpAttribute("host.id", "a-host.id")
+        attribute("some-key", "some-val"),
+        attribute("host.id", "a-host.id")
     );
     assertEquals(expectedAttrs, actual._2);
   }
@@ -875,357 +865,5 @@ public class OtlpProtobufUtilsTest {
   public void shouldReportSpanLogsTrueIfNonZeroLogsAndFeatureEnabled() {
     Supplier<Boolean> spanLogsFeatureDisabled = () -> false;
     assertTrue(OtlpProtobufUtils.shouldReportSpanLogs(1, Pair.of(spanLogsFeatureDisabled, null)));
-  }
-
-  @Test
-  public void rejectsEmptyMetric() {
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().build();
-
-    Assert.assertThrows(IllegalArgumentException.class, () -> {
-      OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-    });
-  }
-
-  @Test
-  public void rejectsGaugeWithZeroDataPoints() {
-    Gauge emptyGauge = Gauge.newBuilder().build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setGauge(emptyGauge).build();
-
-    Assert.assertThrows(IllegalArgumentException.class, () -> {
-      OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-    });
-  }
-
-  @Test
-  public void transformsMinimalGauge() {
-    Gauge otlpGauge = Gauge.newBuilder().addDataPoints(NumberDataPoint.newBuilder().build()).build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setGauge(otlpGauge).build();
-    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator().build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void transformsGaugeTimestampToEpochMilliseconds() {
-    long timeInNanos = TimeUnit.MILLISECONDS.toNanos(startTimeMs);
-    Gauge otlpGauge = Gauge.newBuilder().addDataPoints(NumberDataPoint.newBuilder().setTimeUnixNano(timeInNanos).build()).build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setGauge(otlpGauge).build();
-    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator().setTimestamp(startTimeMs).build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void acceptsGaugeWithMultipleDataPoints() {
-    List<NumberDataPoint> points = ImmutableList.of(
-        NumberDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(1)).setAsDouble(1.0).build(),
-        NumberDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(2)).setAsDouble(2.0).build()
-    );
-    Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(points).build();
-
-    expectedPoints = ImmutableList.of(
-        OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1.0).build(),
-        OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2.0).build()
-    );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void handlesGaugeAttributes() {
-    KeyValue booleanAttr = KeyValue.newBuilder().setKey("a-boolean")
-        .setValue(AnyValue.newBuilder().setBoolValue(true).build())
-        .build();
-
-    Gauge otlpGauge = Gauge.newBuilder().addDataPoints(NumberDataPoint.newBuilder().addAttributes(booleanAttr).build())
-        .build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setGauge(otlpGauge).build();
-
-    List<Annotation> wfAttrs = Collections.singletonList(
-        Annotation.newBuilder().setKey("a-boolean").setValue("true").build()
-    );
-    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator(wfAttrs).build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void rejectsSumWithZeroDataPoints() {
-    Sum emptySum = Sum.newBuilder().build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(emptySum).build();
-
-    Assert.assertThrows(IllegalArgumentException.class, () -> {
-      OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-    });
-  }
-
-  @Test
-  public void transformsMinimalSum() {
-    Sum otlpSum = Sum.newBuilder()
-        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
-        .addDataPoints(NumberDataPoint.newBuilder().build())
-        .build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).build();
-    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator().build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void transformsSumTimestampToEpochMilliseconds() {
-    long timeInNanos = TimeUnit.MILLISECONDS.toNanos(startTimeMs);
-    Sum otlpSum = Sum.newBuilder()
-        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
-        .addDataPoints(NumberDataPoint.newBuilder().setTimeUnixNano(timeInNanos).build())
-        .build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).build();
-    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator().setTimestamp(startTimeMs).build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void acceptsSumWithMultipleDataPoints() {
-    List<NumberDataPoint> points = ImmutableList.of(
-        NumberDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(1)).setAsDouble(1.0).build(),
-        NumberDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(2)).setAsDouble(2.0).build()
-    );
-    Metric otlpMetric = OtlpTestHelpers.otlpSumGenerator(points).build();
-
-    expectedPoints = ImmutableList.of(
-        OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1.0).build(),
-        OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2.0).build()
-    );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void handlesSumAttributes() {
-    KeyValue booleanAttr = KeyValue.newBuilder().setKey("a-boolean")
-        .setValue(AnyValue.newBuilder().setBoolValue(true).build())
-        .build();
-
-    Sum otlpSum = Sum.newBuilder()
-        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
-        .addDataPoints(NumberDataPoint.newBuilder().addAttributes(booleanAttr).build())
-        .build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).build();
-
-    List<Annotation> wfAttrs = Collections.singletonList(
-        Annotation.newBuilder().setKey("a-boolean").setValue("true").build()
-    );
-    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator(wfAttrs).build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void addsPrefixToDeltaSums() {
-    Sum otlpSum = Sum.newBuilder()
-        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
-        .addDataPoints(NumberDataPoint.newBuilder().build())
-        .build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).setName("testSum").build();
-    ReportPoint reportPoint = OtlpTestHelpers.wfReportPointGenerator().setMetric("∆testSum").build();
-    expectedPoints = ImmutableList.of(reportPoint);
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void transformsMinimalSummary() {
-    SummaryDataPoint point = SummaryDataPoint.newBuilder()
-        .addQuantileValues(SummaryDataPoint.ValueAtQuantile.newBuilder()
-            .setQuantile(.5)
-            .setValue(12.3)
-            .build())
-        .setSum(24.5)
-        .setCount(3)
-        .build();
-    Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(point).setName("testSummary").build();
-
-    expectedPoints = ImmutableList.of(
-        OtlpTestHelpers.wfReportPointGenerator().setMetric("testSummary_sum").setValue(24.5).build(),
-        OtlpTestHelpers.wfReportPointGenerator().setMetric("testSummary_count").setValue(3).build(),
-        OtlpTestHelpers.wfReportPointGenerator().setMetric("testSummary").setValue(12.3).setAnnotations(ImmutableMap.of("quantile", "0.5")).build()
-    );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void transformsSummaryTimestampToEpochMilliseconds() {
-    SummaryDataPoint point = SummaryDataPoint.newBuilder()
-        .addQuantileValues(SummaryDataPoint.ValueAtQuantile.newBuilder().build())
-        .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(startTimeMs))
-        .build();
-    Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(point).build();
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    for (ReportPoint p : actualPoints) {
-      assertEquals(startTimeMs, p.getTimestamp());
-    }
-  }
-
-  @Test
-  public void acceptsSummaryWithMultipleDataPoints() {
-    List<SummaryDataPoint> points = ImmutableList.of(
-        SummaryDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(1)).setSum(1.0).setCount(1).build(),
-        SummaryDataPoint.newBuilder().setTimeUnixNano(TimeUnit.SECONDS.toNanos(2)).setSum(2.0).setCount(2).build()
-    );
-    Summary otlpSummary = Summary.newBuilder().addAllDataPoints(points).build();
-    Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSummary(otlpSummary).build();
-
-    expectedPoints = ImmutableList.of(
-        // SummaryDataPoint 1
-        OtlpTestHelpers.wfReportPointGenerator().setMetric("test_sum").setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1.0).build(),
-        OtlpTestHelpers.wfReportPointGenerator().setMetric("test_count").setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1).build(),
-        // SummaryDataPoint 2
-        OtlpTestHelpers.wfReportPointGenerator().setMetric("test_sum").setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2.0).build(),
-        OtlpTestHelpers.wfReportPointGenerator().setMetric("test_count").setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2).build()
-    );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void createsMetricsForEachSummaryQuantile() {
-    Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(ImmutableList.of(
-            SummaryDataPoint.ValueAtQuantile.newBuilder()
-                .setQuantile(.2)
-                .setValue(2.2)
-                .build(),
-            SummaryDataPoint.ValueAtQuantile.newBuilder()
-                .setQuantile(.4)
-                .setValue(4.4)
-                .build(),
-            SummaryDataPoint.ValueAtQuantile.newBuilder()
-                .setQuantile(.6)
-                .setValue(6.6)
-                .build()
-        )).build();
-
-    expectedPoints = ImmutableList.of(
-        OtlpTestHelpers.wfReportPointGenerator()
-            .setAnnotations(ImmutableMap.of("quantile", "0.2"))
-            .setValue(2.2)
-            .build(),
-        OtlpTestHelpers.wfReportPointGenerator()
-            .setAnnotations(ImmutableMap.of("quantile", "0.4"))
-            .setValue(4.4)
-            .build(),
-        OtlpTestHelpers.wfReportPointGenerator()
-            .setAnnotations(ImmutableMap.of("quantile", "0.6"))
-            .setValue(6.6)
-            .build()
-    );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, justThePointsNamed("test", actualPoints));
-  }
-
-  @Test
-  public void preservesOverriddenQuantileTag() {
-    KeyValue quantileTag = KeyValue.newBuilder()
-        .setKey("quantile")
-        .setValue(AnyValue.newBuilder().setStringValue("half").build())
-        .build();
-    SummaryDataPoint point = SummaryDataPoint.newBuilder()
-        .addQuantileValues(SummaryDataPoint.ValueAtQuantile.newBuilder()
-            .setQuantile(.5)
-            .setValue(12.3)
-            .build())
-        .addAttributes(quantileTag)
-        .build();
-    Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(point).setName("testSummary").build();
-
-    for (ReportPoint p : OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE)) {
-      assertEquals("half", p.getAnnotations().get("_quantile"));
-      if (p.getMetric().equals("testSummary")) {
-        assertEquals("0.5", p.getAnnotations().get("quantile"));
-      }
-    }
-  }
-
-
-  @Test
-  public void handlesSummaryAttributes() {
-    KeyValue booleanAttr = KeyValue.newBuilder().setKey("a-boolean")
-        .setValue(AnyValue.newBuilder().setBoolValue(true).build())
-        .build();
-
-    SummaryDataPoint dataPoint = SummaryDataPoint.newBuilder().addAttributes(booleanAttr).build();
-    Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(dataPoint).build();
-
-    for (ReportPoint p : OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE)) {
-      assertEquals("true", p.getAnnotations().get("a-boolean"));
-    }
-  }
-
-  @Test
-  public void convertsResourceAttributesToAnnotations() {
-    List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute("r-key", "r-value"));
-    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator(
-        Collections.singletonList(new Annotation("r-key", "r-value"))
-    ).build());
-    NumberDataPoint point = NumberDataPoint.newBuilder().setTimeUnixNano(0).build();
-    Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(point).build();
-
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, resourceAttrs, null, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
-  }
-
-  @Test
-  public void dataPointAttributesHaveHigherPrecedenceThanResourceAttributes() {
-    String key = "the-key";
-    NumberDataPoint point = NumberDataPoint.newBuilder().addAttributes(otlpAttribute(key, "gauge-value")).build();
-    Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(point).build();
-    List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute(key, "rsrc-value"));
-
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, resourceAttrs, null, DEFAULT_SOURCE);
-
-    assertEquals("gauge-value", actualPoints.get(0).getAnnotations().get(key));
-  }
-
-  @Test
-  public void setsSource() {
-    Metric otlpMetric =
-        OtlpTestHelpers.otlpGaugeGenerator(NumberDataPoint.newBuilder().build()).build();
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, "a-src");
-
-    assertEquals("a-src", actualPoints.get(0).getHost());
-  }
-
-  @Test
-  public void appliesPreprocessorRules() {
-    List<NumberDataPoint> dataPoints = Collections.singletonList(NumberDataPoint.newBuilder().setTimeUnixNano(0).build());
-    Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(dataPoints).build();
-    List<Annotation> wfAttrs = Collections.singletonList(
-        Annotation.newBuilder().setKey("my-key").setValue("my-value").build()
-    );
-    ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
-    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
-        null);
-    for (Annotation annotation : wfAttrs) {
-      preprocessor.forReportPoint().addTransformer(new ReportPointAddTagIfNotExistsTransformer(
-          annotation.getKey(), annotation.getValue(), x -> true, preprocessorRuleMetrics));
-    }
-    expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator(wfAttrs).build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, preprocessor, DEFAULT_SOURCE);
-
-    assertAllPointsEqual(expectedPoints, actualPoints);
   }
 }
