@@ -57,7 +57,7 @@ public class LogSenderTask extends AbstractSenderTask<Log> {
   }
 
   @Override
-  protected int getBatchSize(List<Log> batch) {
+  protected int getDataSize(List<Log> batch) {
     int size = 0;
     for (Log l : batch) {
       size += l.getDataSize();
@@ -66,14 +66,12 @@ public class LogSenderTask extends AbstractSenderTask<Log> {
   }
 
   @Override
-  protected int getDataIndex(List<Log> datum, int rateLimit) {
-    if (datum.size() > 50) {
-      System.out.println("reached");
-    }
+  protected int getBlockSize(List<Log> datum, int rateLimit, int batchSize) {
+    int maxDataSize = Math.min(rateLimit, batchSize);
     int size = 0;
     for (int i = 0; i < datum.size(); i++) {
       size += datum.get(i).getDataSize();
-      if (size > rateLimit) {
+      if (size > maxDataSize) {
         return i;
       }
     }

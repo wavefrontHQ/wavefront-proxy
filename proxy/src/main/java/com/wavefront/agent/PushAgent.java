@@ -1255,14 +1255,14 @@ public class PushAgent extends AbstractAgent {
       if (BooleanUtils.isTrue(config.getCollectorSetsPointsPerBatch())) {
         if (pointsPerBatch != null) {
           // if the collector is in charge and it provided a setting, use it
-          tenantSpecificEntityProps.get(ReportableEntityType.POINT).setItemsPerBatch(pointsPerBatch.intValue());
+          tenantSpecificEntityProps.get(ReportableEntityType.POINT).setDataPerBatch(pointsPerBatch.intValue());
           logger.fine("Proxy push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
       } else {
         // restore the original setting
-        tenantSpecificEntityProps.get(ReportableEntityType.POINT).setItemsPerBatch(null);
+        tenantSpecificEntityProps.get(ReportableEntityType.POINT).setDataPerBatch(null);
         logger.fine("Proxy push batch set to (locally) " +
-            tenantSpecificEntityProps.get(ReportableEntityType.POINT).getItemsPerBatch());
+            tenantSpecificEntityProps.get(ReportableEntityType.POINT).getDataPerBatch());
       }
       if (config.getHistogramStorageAccuracy() != null) {
         tenantSpecificEntityProps.getGlobalProperties().
@@ -1347,8 +1347,8 @@ public class PushAgent extends AbstractAgent {
         if (collectorRateLimit != null &&
             rateLimiter.getRate() != collectorRateLimit.doubleValue()) {
           rateLimiter.setRate(collectorRateLimit.doubleValue());
-          entityProperties.setItemsPerBatch(Math.min(collectorRateLimit.intValue(),
-              entityProperties.getItemsPerBatch()));
+          entityProperties.setDataPerBatch(Math.min(collectorRateLimit.intValue(),
+              entityProperties.getDataPerBatch()));
           logger.warning("[" + tenantName + "]: " + entityType.toCapitalizedString() +
               " rate limit set to " + collectorRateLimit + entityType.getRateUnit() + " remotely");
         }
@@ -1357,10 +1357,10 @@ public class PushAgent extends AbstractAgent {
             ObjectUtils.firstNonNull(globalRateLimit, NO_RATE_LIMIT).intValue());
         if (rateLimiter.getRate() != rateLimit) {
           rateLimiter.setRate(rateLimit);
-          if (entityProperties.getItemsPerBatchOriginal() > rateLimit) {
-            entityProperties.setItemsPerBatch((int) rateLimit);
+          if (entityProperties.getDataPerBatchOriginal() > rateLimit) {
+            entityProperties.setDataPerBatch((int) rateLimit);
           } else {
-            entityProperties.setItemsPerBatch(null);
+            entityProperties.setDataPerBatch(null);
           }
           if (rateLimit >= NO_RATE_LIMIT) {
             logger.warning(entityType.toCapitalizedString() + " rate limit is no longer " +

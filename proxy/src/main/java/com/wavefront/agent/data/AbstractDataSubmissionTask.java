@@ -129,7 +129,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
           }
           if (properties.isSplitPushWhenRateLimited()) {
             List<T> splitTasks =
-                splitTask(properties.getMinBatchSplitSize(), properties.getItemsPerBatch());
+                splitTask(properties.getMinBatchSplitSize(), properties.getDataPerBatch());
             if (splitTasks.size() == 1) return TaskResult.RETRY_LATER;
             splitTasks.forEach(x -> x.enqueue(null));
             return TaskResult.PERSISTED;
@@ -153,7 +153,7 @@ abstract class AbstractDataSubmissionTask<T extends DataSubmissionTask<T>>
           }
           return checkStatusAndQueue(QueueingReason.RETRY, false);
         case 413:
-          splitTask(1, properties.getItemsPerBatch()).
+          splitTask(1, properties.getDataPerBatch()).
               forEach(x -> x.enqueue(enqueuedTimeMillis == Long.MAX_VALUE ?
                   QueueingReason.SPLIT : null));
           return TaskResult.PERSISTED_RETRY;

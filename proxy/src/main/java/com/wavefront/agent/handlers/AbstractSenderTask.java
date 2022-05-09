@@ -114,7 +114,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     isSending = true;
     try {
       List<T> current = createBatch();
-      int currentBatchSize = getBatchSize(current);
+      int currentBatchSize = getDataSize(current);
       if (currentBatchSize == 0) return;
       if (rateLimiter == null || rateLimiter.tryAcquire(currentBatchSize)) {
         TaskResult result = processSingleBatch(current);
@@ -171,7 +171,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
       this.datum.add(metricString);
     }
     //noinspection UnstableApiUsage
-    if (datum.size() >= properties.getMemoryBufferLimit() && !isBuffering.get() &&
+    if (getDataSize(datum) >= properties.getMemoryBufferLimit() && !isBuffering.get() &&
         drainBuffersRateLimiter.tryAcquire()) {
       try {
         flushExecutor.submit(drainBuffersToQueueTask);
@@ -185,8 +185,8 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     List<T> current;
     int blockSize;
     synchronized (mutex) {
-      blockSize = Math.min(properties.getItemsPerBatch(), getDataIndex(datum,
-          (int)rateLimiter.getRate()));
+      blockSize = getBlockSize(datum,
+          (int)rateLimiter.getRate(), properties.getDataPerBatch());
       current = datum.subList(0, blockSize);
       datum = new ArrayList<>(datum.subList(blockSize, datum.size()));
     }
@@ -206,13 +206,13 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   private final Runnable drainBuffersToQueueTask = new Runnable() {
     @Override
     public void run() {
-      if (datum.size() > properties.getMemoryBufferLimit()) {
+      if (getDataSize(datum) > properties.getMemoryBufferLimit()) {
         // there are going to be too many points to be able to flush w/o the agent blowing up
         // drain the leftovers straight to the retry queue (i.e. to disk)
         // don't let anyone add any more to points while we're draining it.
         logger.warning("[" + handlerKey.getHandle() + " thread " + threadId +
             "]: WF-3 Too many pending " + handlerKey.getEntityType() + " (" + datum.size() +
-            "), block size: " + properties.getItemsPerBatch() + ". flushing to retry queue");
+            "), block size: " + properties.getDataPerBatch() + ". flushing to retry queue");
         drainBuffersToQueue(QueueingReason.BUFFER_SIZE);
         logger.info("[" + handlerKey.getHandle() + " thread " + threadId +
             "]: flushing to retry queue complete. Pending " + handlerKey.getEntityType() +
@@ -258,24 +258,25 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
 
   @Override
   public long getTaskRelativeScore() {
-    return datum.size() + (isBuffering.get() ? properties.getMemoryBufferLimit() :
-        (isSending ? properties.getItemsPerBatch() / 2 : 0));
+    return getDataSize(datum) + (isBuffering.get() ? properties.getMemoryBufferLimit() :
+        (isSending ? properties.getDataPerBatch() / 2 : 0));
   }
 
   /**
    * @param datum     list from which to calculate the sub-list
    * @param ratelimit the rate limit
-   * @return index i such that datum[0:i] falls within the rate limit
+   * @param batchSize the size of the batch
+   * @return index i such that datum[0:i) falls within the rate limit
    */
-  protected int getDataIndex(List<T> datum, int ratelimit) {
-    return Math.min(getBatchSize(datum), ratelimit);
+  protected int getBlockSize(List<T> datum, int ratelimit, int batchSize) {
+    return Math.min(Math.min(getDataSize(datum), ratelimit), batchSize);
   }
 
   /**
-   * @param batch the batch to get the size of
-   * @return the size of the batch in regard to the rate limiter
+   * @param data the data to get the size of
+   * @return the size of the data in regard to the rate limiter
    */
-  protected int getBatchSize(List<T> batch) {
-    return batch.size();
+  protected int getDataSize(List<T> data) {
+    return data.size();
   }
 }
