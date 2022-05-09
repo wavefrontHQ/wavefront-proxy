@@ -12,7 +12,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         ref: 'master'
-    - name: before_install:
+    - name: before_install
       run: |
         echo "received name of zip_file: ${{ github.event.inputs.zip_name }}"
         ls; pwd; pip3 install awscli; chmod +x ./macos_proxy_notarization/create_credentials.sh; ./macos_proxy_notarization/create_credentials.sh; cat ~/.aws/credentials;
