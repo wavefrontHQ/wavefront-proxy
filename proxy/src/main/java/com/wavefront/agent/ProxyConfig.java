@@ -2292,7 +2292,6 @@ public class ProxyConfig extends Configuration {
       // don't track token in proxy config metrics
       token = ObjectUtils.firstNonNull(config.getRawProperty("token", token), "undefined").trim();
       server = config.getString("server", server);
-      hostname = config.getString("hostname", hostname);
 
       if (StringUtils.isNotBlank(config.getString("hostname", ""))) {
         logger.warning(
