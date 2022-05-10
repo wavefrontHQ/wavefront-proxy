@@ -198,7 +198,7 @@ public class ProxyConfig extends Configuration {
   int pushFlushMaxEvents = DEFAULT_BATCH_SIZE_EVENTS;
 
   @Parameter(names = {"--pushFlushMaxLogs"}, description = "Maximum size of a log payload " +
-      "in a single flush between 1mb and 5mb. Default: 4mb")
+      "in a single flush between 1mb (1048576) and 5mb (5242880). Default: 4mb (4194304)")
   int pushFlushMaxLogs = DEFAULT_BATCH_SIZE_LOGS_PAYLOAD;
 
   @Parameter(names = {"--pushRateLimit"}, description = "Limit the outgoing point rate at the proxy. Default: " +

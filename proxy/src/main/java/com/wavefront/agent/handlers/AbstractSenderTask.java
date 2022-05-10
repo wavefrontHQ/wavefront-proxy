@@ -266,7 +266,7 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
    * @param datum     list from which to calculate the sub-list
    * @param ratelimit the rate limit
    * @param batchSize the size of the batch
-   * @return index i such that datum[0:i) falls within the rate limit
+   * @return size of sublist such that datum[0:i) falls within the rate limit
    */
   protected int getBlockSize(List<T> datum, int ratelimit, int batchSize) {
     return Math.min(Math.min(getDataSize(datum), ratelimit), batchSize);
