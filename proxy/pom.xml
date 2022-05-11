@@ -49,7 +49,7 @@
 
     <java.version>1.8</java.version>
     <netty.version>4.1.71.Final</netty.version>
-    <opentelemetry.version>1.6.0-alpha</opentelemetry.version>
+    <opentelemetry.version>1.13.0-alpha</opentelemetry.version>
     <powermock.version>2.0.9</powermock.version>
 
     <doclint>none</doclint>
@@ -619,7 +619,7 @@
     <dependency>
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-proto</artifactId>
-      <version>${opentelemetry.version}</version>
+      <version>1.7.1-alpha</version>
     </dependency>
     <dependency>
       <groupId>io.opentelemetry</groupId>
