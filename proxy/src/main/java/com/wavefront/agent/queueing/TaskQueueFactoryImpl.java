@@ -114,12 +114,12 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
       File lockFile = new File(lockFileName);
       FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
       FileLock lock = channel.tryLock();
-      logger.severe("lockFile: "+lockFile);
+      logger.fine(() -> "lockFile: " + lockFile);
       if (lock == null) {
         channel.close();
         throw new OverlappingFileLockException();
       }
-      logger.severe("lock isValid: "+lock.isValid()+" - isShared: "+lock.isShared());
+      logger.fine(() -> "lock isValid: " + lock.isValid() + " - isShared: " + lock.isShared());
       taskQueuesLocks.add(new Pair<>(channel, lock));
     } catch (SecurityException e) {
       logger.severe("Error writing to the buffer lock file " + lockFileName +
