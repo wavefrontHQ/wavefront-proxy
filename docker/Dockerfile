@@ -1,4 +1,4 @@
-FROM eclipse-temurin:11.0.13_8-jre
+FROM eclipse-temurin:11
 
 # This script may automatically configure wavefront without prompting, based on
 # these variables:
