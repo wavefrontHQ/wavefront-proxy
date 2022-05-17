@@ -34,6 +34,7 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
 
   @JsonProperty
   private List<Log> logs;
+  private int weight;
 
   @SuppressWarnings("unused")
   LogDataSubmissionTask() {}
@@ -55,6 +56,9 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
     this.api = api;
     this.proxyId = proxyId;
     this.logs = new ArrayList<>(logs);
+    for (Log l : logs) {
+      weight += l.getDataSize();
+    }
   }
 
   @Override
@@ -63,7 +67,7 @@ public class LogDataSubmissionTask extends AbstractDataSubmissionTask<LogDataSub
   }
 
   @Override
-  public int weight() { return logs.size(); }
+  public int weight() { return weight; }
 
   @Override
   public List<LogDataSubmissionTask> splitTask(int minSplitSize, int maxSplitSize) {

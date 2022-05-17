@@ -2088,6 +2088,9 @@ public class ProxyConfig extends Configuration {
       pushFlushMaxLogs = Math.max(Math.min(Math.min(config.getInteger("pushFlushMaxLogs",
           pushFlushMaxLogs), MAX_BATCH_SIZE_LOGS_PAYLOAD),
           (int) pushRateLimitLogs), DEFAULT_MIN_SPLIT_BATCH_SIZE_LOGS_PAYLOAD);
+      pushMemoryBufferLimitLogs = Math.max(config.getInteger("pushMemoryBufferLimitLogs",
+          pushMemoryBufferLimitLogs), pushFlushMaxLogs);
+
 
       /*
         default value for pushMemoryBufferLimit is 16 * pushFlushMaxPoints, but no more than 25% of

@@ -77,4 +77,9 @@ public class LogSenderTask extends AbstractSenderTask<Log> {
     }
     return datum.size();
   }
+
+  @Override
+  protected int getObjectSize(Log object) {
+    return object.getDataSize();
+  }
 }
