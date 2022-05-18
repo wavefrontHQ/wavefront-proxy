@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>proxy</artifactId>
-  <version>11.1</version>
+  <version>11.2-SNAPSHOT</version>
 
   <name>Wavefront Proxy</name>
   <description>Service for batching and relaying metric traffic to Wavefront</description>
@@ -29,7 +29,7 @@
     <connection>scm:git:git@github.com:wavefrontHQ/wavefront-proxy.git</connection>
     <developerConnection>scm:git:git@github.com:wavefrontHQ/wavefront-proxy.git</developerConnection>
     <url>git@github.com:wavefrontHQ/wavefront-proxy.git</url>
-    <tag>proxy-11.1</tag>
+    <tag>release-11.x</tag>
   </scm>
 
   <distributionManagement>
@@ -441,12 +441,12 @@
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-codec</artifactId>
-        <version>4.1.76.Final</version>
+        <version>${netty.version}</version>
       </dependency>
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-common</artifactId>
-        <version>4.1.76.Final</version>
+        <version>${netty.version}</version>
       </dependency>
       <dependency>
         <groupId>io.grpc</groupId>
@@ -518,6 +518,12 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-common</artifactId>
+            <version>${netty.version}</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -683,7 +689,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-codec</artifactId>
-      <version>4.1.76.Final</version>
+      <version>${netty.version}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
