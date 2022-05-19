@@ -11,6 +11,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -27,8 +28,12 @@ import io.opentelemetry.proto.metrics.v1.Sum;
 import io.opentelemetry.proto.metrics.v1.Summary;
 import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import wavefront.report.Annotation;
+import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
+import static com.wavefront.agent.listeners.otlp.OtlpProtobufPointUtils.MILLIS_IN_DAY;
+import static com.wavefront.agent.listeners.otlp.OtlpProtobufPointUtils.MILLIS_IN_HOUR;
+import static com.wavefront.agent.listeners.otlp.OtlpProtobufPointUtils.MILLIS_IN_MINUTE;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.DEFAULT_SOURCE;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertAllPointsEqual;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
@@ -417,6 +422,125 @@ public class OtlpProtobufPointUtilsTest {
         .build();
     Histogram histo = Histogram.newBuilder()
         .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+        .addAllDataPoints(Collections.singletonList(point)).build();
+
+    Metric otlpMetric =
+        OtlpTestHelpers.otlpMetricGenerator().setHistogram(histo).build();
+
+    Assert.assertThrows(IllegalArgumentException.class,
+        () -> OtlpProtobufPointUtils.transform(otlpMetric,
+            emptyAttrs, null, DEFAULT_SOURCE));
+  }
+
+  @Test
+  public void transformsMinimalDeltaHistogram() {
+    HistogramDataPoint point = HistogramDataPoint.newBuilder()
+        .addAllExplicitBounds(ImmutableList.of(1.0, 2.0))
+        .addAllBucketCounts(ImmutableList.of(1L, 2L, 3L))
+        .build();
+    Histogram histo = Histogram.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
+        .addAllDataPoints(Collections.singletonList(point)).build();
+
+    Metric otlpMetric =
+        OtlpTestHelpers.otlpMetricGenerator().setHistogram(histo).build();
+
+    List<Double> bins = new ArrayList<>(Arrays.asList(1.0, 1.5, 2.0));
+    List<Integer> counts = new ArrayList<>(Arrays.asList(1, 2, 3));
+
+    wavefront.report.Histogram minHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_MINUTE).
+        build();
+
+    wavefront.report.Histogram hourHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_HOUR).
+        build();
+
+    wavefront.report.Histogram dayHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_DAY).
+        build();
+
+    expectedPoints = ImmutableList.of(
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setValue(minHistogram).build(),
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setValue(hourHistogram).build(),
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setValue(dayHistogram).build()
+    );
+
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+
+    assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void transformsDeltaHistogramWithoutBounds() {
+    HistogramDataPoint point = HistogramDataPoint.newBuilder()
+        .addAllBucketCounts(ImmutableList.of(1L))
+        .build();
+    Histogram histo = Histogram.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
+        .addAllDataPoints(Collections.singletonList(point)).build();
+
+    Metric otlpMetric =
+        OtlpTestHelpers.otlpMetricGenerator().setHistogram(histo).build();
+
+    List<Double> bins = new ArrayList<>(Collections.singletonList(0.0));
+    List<Integer> counts = new ArrayList<>(Collections.singletonList(1));
+
+    wavefront.report.Histogram minHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_MINUTE).
+        build();
+
+    wavefront.report.Histogram hourHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_HOUR).
+        build();
+
+    wavefront.report.Histogram dayHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_DAY).
+        build();
+
+    expectedPoints = ImmutableList.of(
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setValue(minHistogram).build(),
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setValue(hourHistogram).build(),
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setValue(dayHistogram).build()
+    );
+
+    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+
+    assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void transformsDeltaHistogramThrowsMalformedDataPointsError() {
+    HistogramDataPoint point = HistogramDataPoint.newBuilder()
+        .addAllExplicitBounds(Collections.singletonList(1.0))
+        .addAllBucketCounts(ImmutableList.of(1L))
+        .build();
+    Histogram histo = Histogram.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
         .addAllDataPoints(Collections.singletonList(point)).build();
 
     Metric otlpMetric =
