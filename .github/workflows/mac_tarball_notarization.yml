@@ -2,17 +2,45 @@ name: Sign Mac OS artifacts
 on:
   workflow_dispatch:
     inputs:
-      zip_name:
-        description: 'Name of zip file to sign'
+      proxy_version:
+        description: 'proxy version. Example: 11.1.0'
         required: true
+        default: "0.0"
+      release_type:
+        description: 'Release type. Example: "proxy-GA" / "proxt-snapshot"'
+        required: true
+        default: "proxy-test"
 jobs:
-  sign_artifact:
+  sign_proxy_mac_artifact:
+    # environment with secrets as env vars on wavefront-proxy repo
+    environment: macos_tarball_notarization
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      APP_SPECIFIC_PW: ${{ secrets.APP_SPECIFIC_PW }}
+      CERTIFICATE_OSX_P12: ${{ secrets.CERTIFICATE_OSX_P12 }}
+      CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+      ESO_DEV_ACCOUNT: ${{ secrets.ESO_DEV_ACCOUNT }}
+      USERNAME: ${{ secrets.USERNAME }}
+      WAVEFRONT_TEAM_CERT_P12: ${{ secrets.WAVEFRONT_TEAM_CERT_P12 }}
+      WAVEFRONT_TEAM_CERT_PASSWORD: ${{ secrets.WAVEFRONT_TEAM_CERT_PASSWORD }}
+      WF_DEV_ACCOUNT: ${{ secrets.WF_DEV_ACCOUNT }}
+
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
-      with:
-        ref: 'master'
-    - name: before_install
+    - name: "${{ github.event.inputs.proxy_version }}-${{ github.event.inputs.release_type }}-checkout_proxy_code"
+      uses: actions/checkout@v3
+
+    - name: "${{ github.event.inputs.proxy_version }}-${{ github.event.inputs.release_type }}-before_install"
       run: |
-        echo "received name of zip_file: ${{ github.event.inputs.zip_name }}"
-        ls; pwd; pip3 install awscli; chmod +x ./macos_proxy_notarization/create_credentials.sh; ./macos_proxy_notarization/create_credentials.sh; cat ~/.aws/credentials;
+        set -x
+        ls -la; pwd; pip3 install awscli; chmod +x ./macos_proxy_notarization/create_credentials.sh; ./macos_proxy_notarization/create_credentials.sh; cat ~/.aws/credentials;
+        set +x
+
+    - name: "${{ github.event.inputs.proxy_version }}-${{ github.event.inputs.release_type }}-notarize"
+      run: |
+        set -x
+        echo "chmod +x ./macos_proxy_notarization/proxy_notarization.sh; ./macos_proxy_notarization/proxy_notarization.sh 'wfproxy-${{ github.event.inputs.proxy_version }}.tar.gz'"
+        set +x
+        sleep 60
