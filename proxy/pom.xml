@@ -4,7 +4,7 @@
 
   <groupId>com.wavefront</groupId>
   <artifactId>proxy</artifactId>
-  <version>11.1-SNAPSHOT</version>
+  <version>11.2-SNAPSHOT</version>
 
   <name>Wavefront Proxy</name>
   <description>Service for batching and relaying metric traffic to Wavefront</description>
@@ -31,7 +31,7 @@
     <url>git@github.com:wavefrontHQ/wavefront-proxy.git</url>
     <tag>release-11.x</tag>
   </scm>
-  
+
   <distributionManagement>
     <snapshotRepository>
       <id>ossrh</id>
@@ -48,7 +48,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <java.version>1.8</java.version>
-    <netty.version>4.1.71.Final</netty.version>
+    <netty.version>4.1.77.Final</netty.version>
     <opentelemetry.version>1.6.0-alpha</opentelemetry.version>
     <powermock.version>2.0.9</powermock.version>
 
@@ -265,7 +265,7 @@
           <autoVersionSubmodules>true</autoVersionSubmodules>
           <useReleaseProfile>false</useReleaseProfile>
           <releaseProfiles>release</releaseProfiles>
-          <goals>deploy</goals>
+          <goals>install</goals>
         </configuration>
       </plugin>
 
@@ -295,7 +295,7 @@
       <dependency>
         <groupId>org.apache.tomcat.embed</groupId>
         <artifactId>tomcat-embed-core</artifactId>
-        <version>8.5.76</version>
+        <version>8.5.78</version>
       </dependency>
       <dependency>
         <groupId>com.thoughtworks.xstream</groupId>
@@ -441,12 +441,12 @@
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-codec</artifactId>
-        <version>4.1.74.Final</version>
+        <version>${netty.version}</version>
       </dependency>
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-common</artifactId>
-        <version>4.1.74.Final</version>
+        <version>${netty.version}</version>
       </dependency>
       <dependency>
         <groupId>io.grpc</groupId>
@@ -461,7 +461,7 @@
       <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
-        <version>2.10.13</version>
+        <version>2.10.14</version>
       </dependency>
       <dependency>
         <groupId>junit</groupId>
@@ -518,6 +518,12 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-common</artifactId>
+            <version>${netty.version}</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -530,7 +536,7 @@
     <dependency>
       <groupId>org.jboss.resteasy</groupId>
       <artifactId>resteasy-bom</artifactId>
-      <version>4.6.1.Final</version>
+      <version>4.6.2.Final</version>
       <type>pom</type>
     </dependency>
     <dependency>
@@ -683,7 +689,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-codec</artifactId>
-      <version>4.1.74.Final</version>
+      <version>${netty.version}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
@@ -747,7 +753,7 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-log4j2</artifactId>
-      <version>2.5.10</version>
+      <version>2.5.13</version>
     </dependency>
   </dependencies>
 
@@ -773,25 +779,32 @@
             </executions>
           </plugin>
 
-          <!-- Create javadocs for sonatype -->
+          <!-- Create default javadocs for sonatype -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
+            <artifactId>maven-jar-plugin</artifactId>
             <version>3.2.0</version>
             <executions>
               <execution>
-                <id>attach-javadocs</id>
+                <id>default-jar</id>
+                <phase>package</phase>
                 <goals>
-                  <goal>jar</goal>
+                    <goal>jar</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>javadoc-jar</id>
+                <phase>package</phase>
+                <goals>
+                    <goal>jar</goal>
                 </goals>
                 <configuration>
-                  <doclint>none</doclint>
-                  <release>${javadoc.sdk.version}</release>
-                  <source>${javadoc.sdk.version}</source>
+                    <classifier>javadoc</classifier>
                 </configuration>
               </execution>
             </executions>
           </plugin>
+
 
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
