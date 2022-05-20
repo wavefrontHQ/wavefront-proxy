@@ -8,9 +8,6 @@ import com.wavefront.data.Validation;
 import io.thekraken.grok.api.Grok;
 import io.thekraken.grok.api.Match;
 import io.thekraken.grok.api.exception.GrokException;
-import org.apache.commons.lang3.StringUtils;
-import wavefront.report.TimeSeries;
-
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
@@ -18,6 +15,8 @@ import java.util.Map;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.commons.lang3.StringUtils;
+import wavefront.report.TimeSeries;
 
 /**
  * Object defining transformation between a log line into structured telemetry data.
@@ -31,60 +30,54 @@ public class MetricMatcher extends Configuration {
 
   /**
    * A Logstash style grok pattern, see
-   * https://www.elastic.co/guide/en/logstash/current/plugins-filters-grok.html and http://grokdebug.herokuapp.com/.
-   * If a log line matches this pattern, that log line will be transformed into a metric per the other fields
-   * in this object.
+   * https://www.elastic.co/guide/en/logstash/current/plugins-filters-grok.html and
+   * http://grokdebug.herokuapp.com/. If a log line matches this pattern, that log line will be
+   * transformed into a metric per the other fields in this object.
    */
-  @JsonProperty
-  private String pattern = "";
+  @JsonProperty private String pattern = "";
 
   /**
-   * The metric name for the point we're creating from the current log line. may contain substitutions from
-   * {@link #pattern}. For example, if your pattern is "operation %{WORD:opName} ...",
-   * and your log line is "operation baz ..." then you can use the metric name "operations.%{opName}".
+   * The metric name for the point we're creating from the current log line. may contain
+   * substitutions from {@link #pattern}. For example, if your pattern is "operation %{WORD:opName}
+   * ...", and your log line is "operation baz ..." then you can use the metric name
+   * "operations.%{opName}".
    */
-  @JsonProperty
-  private String metricName = "";
+  @JsonProperty private String metricName = "";
 
   /**
    * Override the host name for the point we're creating from the current log line. May contain
    * substitutions from {@link #pattern}, similar to metricName.
    */
-  @JsonProperty
-  private String hostName = "";
+  @JsonProperty private String hostName = "";
   /**
-   * A list of tags for the point you are creating from the logLine. If you don't want any tags, leave empty. For
-   * example, could be ["myDatacenter", "myEnvironment"] Also see {@link #tagValues}.
+   * A list of tags for the point you are creating from the logLine. If you don't want any tags,
+   * leave empty. For example, could be ["myDatacenter", "myEnvironment"] Also see {@link
+   * #tagValues}.
    */
-  @JsonProperty
-  private List<String> tagKeys = ImmutableList.of();
+  @JsonProperty private List<String> tagKeys = ImmutableList.of();
   /**
    * Deprecated, use tagValues instead
    *
-   * A parallel array to {@link #tagKeys}. Each entry is a label you defined in {@link #pattern}. For example, you
-   * might use ["datacenter", "env"] if your pattern is
-   * "operation foo in %{WORD:datacenter}:%{WORD:env} succeeded in %{NUMBER:value} milliseconds", and your log line is
+   * <p>A parallel array to {@link #tagKeys}. Each entry is a label you defined in {@link #pattern}.
+   * For example, you might use ["datacenter", "env"] if your pattern is "operation foo in
+   * %{WORD:datacenter}:%{WORD:env} succeeded in %{NUMBER:value} milliseconds", and your log line is
    * "operation foo in 2a:prod succeeded in 1234 milliseconds", then you would generate the point
    * "foo.latency 1234 myDataCenter=2a myEnvironment=prod"
    */
-  @Deprecated
-  @JsonProperty
-  private List<String> tagValueLabels = ImmutableList.of();
+  @Deprecated @JsonProperty private List<String> tagValueLabels = ImmutableList.of();
   /**
-   * A parallel array to {@link #tagKeys}. Each entry is a string value that will be used as a tag value,
-   * substituting %{...} placeholders with corresponding labels you defined in {@link #pattern}. For example, you
-   * might use ["%{datacenter}", "%{env}-environment", "staticTag"] if your pattern is
-   * "operation foo in %{WORD:datacenter}:%{WORD:env} succeeded in %{NUMBER:value} milliseconds", and your log line is
-   * "operation foo in 2a:prod succeeded in 1234 milliseconds", then you would generate the point
-   * "foo.latency 1234 myDataCenter=2a myEnvironment=prod-environment myStaticValue=staticTag"
+   * A parallel array to {@link #tagKeys}. Each entry is a string value that will be used as a tag
+   * value, substituting %{...} placeholders with corresponding labels you defined in {@link
+   * #pattern}. For example, you might use ["%{datacenter}", "%{env}-environment", "staticTag"] if
+   * your pattern is "operation foo in %{WORD:datacenter}:%{WORD:env} succeeded in %{NUMBER:value}
+   * milliseconds", and your log line is "operation foo in 2a:prod succeeded in 1234 milliseconds",
+   * then you would generate the point "foo.latency 1234 myDataCenter=2a
+   * myEnvironment=prod-environment myStaticValue=staticTag"
    */
-  @JsonProperty
-  private List<String> tagValues = ImmutableList.of();
-  /**
-   * The label which is used to parse a telemetry datum from the log line.
-   */
-  @JsonProperty
-  private String valueLabel = "value";
+  @JsonProperty private List<String> tagValues = ImmutableList.of();
+  /** The label which is used to parse a telemetry datum from the log line. */
+  @JsonProperty private String valueLabel = "value";
+
   private Grok grok = null;
   private Map<String, String> additionalPatterns = Maps.newHashMap();
 
@@ -107,19 +100,20 @@ public class MetricMatcher extends Configuration {
       if (grok != null) return grok;
       try {
         grok = new Grok();
-        InputStream patternStream = getClass().getClassLoader().
-            getResourceAsStream("patterns/patterns");
+        InputStream patternStream =
+            getClass().getClassLoader().getResourceAsStream("patterns/patterns");
         if (patternStream != null) {
           grok.addPatternFromReader(new InputStreamReader(patternStream));
         }
-        additionalPatterns.forEach((key, value) -> {
-          try {
-            grok.addPattern(key, value);
-          } catch (GrokException e) {
-            logger.severe("Invalid grok pattern: " + pattern);
-            throw new RuntimeException(e);
-          }
-        });
+        additionalPatterns.forEach(
+            (key, value) -> {
+              try {
+                grok.addPattern(key, value);
+              } catch (GrokException e) {
+                logger.severe("Invalid grok pattern: " + pattern);
+                throw new RuntimeException(e);
+              }
+            });
         grok.compile(pattern);
       } catch (GrokException e) {
         logger.severe("Invalid grok pattern: " + pattern);
@@ -138,7 +132,8 @@ public class MetricMatcher extends Configuration {
           placeholders.appendReplacement(result, placeholders.group(0));
         } else {
           if (replacements.get(placeholders.group(1)) != null) {
-            placeholders.appendReplacement(result, (String)replacements.get(placeholders.group(1)));
+            placeholders.appendReplacement(
+                result, (String) replacements.get(placeholders.group(1)));
           } else {
             placeholders.appendReplacement(result, placeholders.group(0));
           }
@@ -153,10 +148,11 @@ public class MetricMatcher extends Configuration {
   /**
    * Convert the given message to a timeSeries and a telemetry datum.
    *
-   * @param logsMessage     The message to convert.
-   * @param output          The telemetry parsed from the filebeat message.
+   * @param logsMessage The message to convert.
+   * @param output The telemetry parsed from the filebeat message.
    */
-  public TimeSeries timeSeries(LogsMessage logsMessage, Double[] output) throws NumberFormatException {
+  public TimeSeries timeSeries(LogsMessage logsMessage, Double[] output)
+      throws NumberFormatException {
     Match match = grok().match(logsMessage.getLogLine());
     match.captures();
     if (match.getEnd() == 0) return null;
@@ -170,9 +166,10 @@ public class MetricMatcher extends Configuration {
     }
     TimeSeries.Builder builder = TimeSeries.newBuilder();
     String dynamicName = expandTemplate(metricName, matches);
-    String sourceName = StringUtils.isBlank(hostName) ?
-        logsMessage.hostOrDefault("parsed-logs") :
-        expandTemplate(hostName, matches);
+    String sourceName =
+        StringUtils.isBlank(hostName)
+            ? logsMessage.hostOrDefault("parsed-logs")
+            : expandTemplate(hostName, matches);
     // Important to use a tree map for tags, since we need a stable ordering for the serialization
     // into the LogsIngester.metricsCache.
     Map<String, String> tags = Maps.newTreeMap();
@@ -180,7 +177,7 @@ public class MetricMatcher extends Configuration {
       String tagKey = tagKeys.get(i);
       if (tagValues.size() > 0) {
         String value = expandTemplate(tagValues.get(i), matches);
-        if(StringUtils.isNotBlank(value)) {
+        if (StringUtils.isNotBlank(value)) {
           tags.put(tagKey, value);
         }
       } else {
@@ -191,7 +188,7 @@ public class MetricMatcher extends Configuration {
           continue;
         }
         String value = (String) matches.get(tagValueLabel);
-        if(StringUtils.isNotBlank(value)) {
+        if (StringUtils.isNotBlank(value)) {
           tags.put(tagKey, value);
         }
       }
@@ -209,9 +206,14 @@ public class MetricMatcher extends Configuration {
     ensure(StringUtils.isNotBlank(pattern), "pattern must not be empty.");
     ensure(StringUtils.isNotBlank(metricName), "metric name must not be empty.");
     String fauxMetricName = metricName.replaceAll("%\\{.*\\}", "");
-    ensure(Validation.charactersAreValid(fauxMetricName), "Metric name has illegal characters: " + metricName);
-    ensure(!(tagValues.size() > 0 && tagValueLabels.size() > 0), "tagValues and tagValueLabels can't be used together");
-    ensure(tagKeys.size() == Math.max(tagValueLabels.size(), tagValues.size()),
+    ensure(
+        Validation.charactersAreValid(fauxMetricName),
+        "Metric name has illegal characters: " + metricName);
+    ensure(
+        !(tagValues.size() > 0 && tagValueLabels.size() > 0),
+        "tagValues and tagValueLabels can't be used together");
+    ensure(
+        tagKeys.size() == Math.max(tagValueLabels.size(), tagValues.size()),
         "tagKeys and tagValues/tagValueLabels must be parallel arrays.");
   }
 }

@@ -1,26 +1,25 @@
 package com.wavefront.agent.preprocessor;
 
+import static com.wavefront.predicates.Util.expandPlaceholders;
+
 import java.util.function.Predicate;
-
 import javax.annotation.Nullable;
-
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 
-import static com.wavefront.predicates.Util.expandPlaceholders;
-
 /**
- * Creates a new annotation with a specified key/value pair.
- * If such point tag already exists, the value won't be overwritten.
+ * Creates a new annotation with a specified key/value pair. If such point tag already exists, the
+ * value won't be overwritten.
  *
  * @author vasily@wavefront.com
  */
 public class SpanAddAnnotationIfNotExistsTransformer extends SpanAddAnnotationTransformer {
 
-  public SpanAddAnnotationIfNotExistsTransformer(final String key,
-                                                 final String value,
-                                                 @Nullable final Predicate<Span> v2Predicate,
-                                                 final PreprocessorRuleMetrics ruleMetrics) {
+  public SpanAddAnnotationIfNotExistsTransformer(
+      final String key,
+      final String value,
+      @Nullable final Predicate<Span> v2Predicate,
+      final PreprocessorRuleMetrics ruleMetrics) {
     super(key, value, v2Predicate, ruleMetrics);
   }
 

@@ -1,16 +1,13 @@
 package com.wavefront.agent.preprocessor;
 
+import static com.wavefront.predicates.Util.expandPlaceholders;
+
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-
 import java.util.function.Predicate;
-
 import javax.annotation.Nullable;
-
 import wavefront.report.Annotation;
 import wavefront.report.Span;
-
-import static com.wavefront.predicates.Util.expandPlaceholders;
 
 /**
  * Creates a new annotation with a specified key/value pair.
@@ -24,11 +21,11 @@ public class SpanAddAnnotationTransformer implements Function<Span, Span> {
   protected final PreprocessorRuleMetrics ruleMetrics;
   protected final Predicate<Span> v2Predicate;
 
-
-  public SpanAddAnnotationTransformer(final String key,
-                                      final String value,
-                                      @Nullable final Predicate<Span> v2Predicate,
-                                      final PreprocessorRuleMetrics ruleMetrics) {
+  public SpanAddAnnotationTransformer(
+      final String key,
+      final String value,
+      @Nullable final Predicate<Span> v2Predicate,
+      final PreprocessorRuleMetrics ruleMetrics) {
     this.key = Preconditions.checkNotNull(key, "[key] can't be null");
     this.value = Preconditions.checkNotNull(value, "[value] can't be null");
     Preconditions.checkArgument(!key.isEmpty(), "[key] can't be blank");

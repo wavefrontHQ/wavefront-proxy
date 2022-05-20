@@ -10,19 +10,17 @@ import com.wavefront.metrics.ExpectedAgentMetric;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
-
-import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 
 /**
  * A caching implementation of a {@link TaskQueueFactory}.
@@ -40,34 +38,38 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
   private final boolean disableSharding;
   private final int shardSize;
 
-  private static final Counter bytesWritten = Metrics.newCounter(new TaggedMetricName("buffer",
-      "bytes-written"));
-  private static final Counter ioTimeWrites = Metrics.newCounter(new TaggedMetricName("buffer",
-      "io-time-writes"));
+  private static final Counter bytesWritten =
+      Metrics.newCounter(new TaggedMetricName("buffer", "bytes-written"));
+  private static final Counter ioTimeWrites =
+      Metrics.newCounter(new TaggedMetricName("buffer", "io-time-writes"));
 
   /**
-   * @param bufferFile      File name prefix for queue file names.
-   * @param purgeBuffer     Whether buffer files should be nuked before starting (this may cause
-   *                        data loss if queue files are not empty).
+   * @param bufferFile File name prefix for queue file names.
+   * @param purgeBuffer Whether buffer files should be nuked before starting (this may cause data
+   *     loss if queue files are not empty).
    * @param disableSharding disable buffer sharding (use single file)
-   * @param shardSize       target shard size (in MBytes)
+   * @param shardSize target shard size (in MBytes)
    */
-  public TaskQueueFactoryImpl(String bufferFile, boolean purgeBuffer,
-                              boolean disableSharding, int shardSize) {
+  public TaskQueueFactoryImpl(
+      String bufferFile, boolean purgeBuffer, boolean disableSharding, int shardSize) {
     this.bufferFile = bufferFile;
     this.purgeBuffer = purgeBuffer;
     this.disableSharding = disableSharding;
     this.shardSize = shardSize;
 
-    Metrics.newGauge(ExpectedAgentMetric.BUFFER_BYTES_LEFT.metricName,
+    Metrics.newGauge(
+        ExpectedAgentMetric.BUFFER_BYTES_LEFT.metricName,
         new Gauge<Long>() {
           @Override
           public Long value() {
             try {
-              long availableBytes = taskQueues.values().stream().
-                  flatMap(x -> x.values().stream()).
-                  map(TaskQueue::getAvailableBytes).
-                  filter(Objects::nonNull).mapToLong(x -> x).sum();
+              long availableBytes =
+                  taskQueues.values().stream()
+                      .flatMap(x -> x.values().stream())
+                      .map(TaskQueue::getAvailableBytes)
+                      .filter(Objects::nonNull)
+                      .mapToLong(x -> x)
+                      .sum();
 
               File bufferDirectory = new File(bufferFile).getAbsoluteFile();
               while (bufferDirectory != null && bufferDirectory.getUsableSpace() == 0) {
@@ -81,15 +83,17 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
             }
             return null;
           }
-        }
-    );
+        });
   }
 
-  public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@Nonnull HandlerKey key,
-                                                                     int threadNum) {
+  public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(
+      @Nonnull HandlerKey key, int threadNum) {
     //noinspection unchecked
-    TaskQueue<T> taskQueue = (TaskQueue<T>) taskQueues.computeIfAbsent(key, x -> new TreeMap<>()).
-        computeIfAbsent(threadNum, x -> createTaskQueue(key, threadNum));
+    TaskQueue<T> taskQueue =
+        (TaskQueue<T>)
+            taskQueues
+                .computeIfAbsent(key, x -> new TreeMap<>())
+                .computeIfAbsent(threadNum, x -> createTaskQueue(key, threadNum));
     try {
       // check if queue is closed and re-create if it is.
       taskQueue.peek();
@@ -102,8 +106,14 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
 
   private <T extends DataSubmissionTask<T>> TaskQueue<T> createTaskQueue(
       @Nonnull HandlerKey handlerKey, int threadNum) {
-    String fileName = bufferFile + "." + handlerKey.getEntityType().toString() + "." +
-        handlerKey.getHandle() + "." + threadNum;
+    String fileName =
+        bufferFile
+            + "."
+            + handlerKey.getEntityType().toString()
+            + "."
+            + handlerKey.getHandle()
+            + "."
+            + threadNum;
     String lockFileName = fileName + ".lck";
     String spoolFileName = fileName + ".spool";
     // Having two proxy processes write to the same buffer file simultaneously causes buffer
@@ -122,18 +132,29 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
       logger.fine(() -> "lock isValid: " + lock.isValid() + " - isShared: " + lock.isShared());
       taskQueuesLocks.add(new Pair<>(channel, lock));
     } catch (SecurityException e) {
-      logger.severe("Error writing to the buffer lock file " + lockFileName +
-          " - please make sure write permissions are correct for this file path and restart the " +
-          "proxy: " + e);
+      logger.severe(
+          "Error writing to the buffer lock file "
+              + lockFileName
+              + " - please make sure write permissions are correct for this file path and restart the "
+              + "proxy: "
+              + e);
       return new TaskQueueStub<>();
     } catch (OverlappingFileLockException e) {
-      logger.severe("Error requesting exclusive access to the buffer " +
-          "lock file " + lockFileName + " - please make sure that no other processes " +
-          "access this file and restart the proxy: " + e);
+      logger.severe(
+          "Error requesting exclusive access to the buffer "
+              + "lock file "
+              + lockFileName
+              + " - please make sure that no other processes "
+              + "access this file and restart the proxy: "
+              + e);
       return new TaskQueueStub<>();
     } catch (IOException e) {
-      logger.severe("Error requesting access to buffer lock file " + lockFileName + " Channel is " +
-          "closed or an I/O error has occurred - please restart the proxy: " + e);
+      logger.severe(
+          "Error requesting access to buffer lock file "
+              + lockFileName
+              + " Channel is "
+              + "closed or an I/O error has occurred - please restart the proxy: "
+              + e);
       return new TaskQueueStub<>();
     }
     try {
@@ -143,22 +164,32 @@ public class TaskQueueFactoryImpl implements TaskQueueFactory {
           logger.warning("Retry buffer has been purged: " + spoolFileName);
         }
       }
-      BiConsumer<Integer, Long> statsUpdater = (bytes, millis) -> {
-        bytesWritten.inc(bytes);
-        ioTimeWrites.inc(millis);
-      };
-      com.wavefront.agent.queueing.QueueFile queueFile = disableSharding ?
-          new ConcurrentQueueFile(new TapeQueueFile(new QueueFile.Builder(
-              new File(spoolFileName)).build(), statsUpdater)) :
-          new ConcurrentShardedQueueFile(spoolFileName, ".spool", shardSize * 1024 * 1024,
-              s -> new TapeQueueFile(new QueueFile.Builder(new File(s)).build(), statsUpdater));
+      BiConsumer<Integer, Long> statsUpdater =
+          (bytes, millis) -> {
+            bytesWritten.inc(bytes);
+            ioTimeWrites.inc(millis);
+          };
+      com.wavefront.agent.queueing.QueueFile queueFile =
+          disableSharding
+              ? new ConcurrentQueueFile(
+                  new TapeQueueFile(
+                      new QueueFile.Builder(new File(spoolFileName)).build(), statsUpdater))
+              : new ConcurrentShardedQueueFile(
+                  spoolFileName,
+                  ".spool",
+                  shardSize * 1024 * 1024,
+                  s -> new TapeQueueFile(new QueueFile.Builder(new File(s)).build(), statsUpdater));
       // TODO: allow configurable compression types and levels
-      return new InstrumentedTaskQueueDelegate<>(new FileBasedTaskQueue<>(queueFile,
-          new RetryTaskConverter<T>(handlerKey.getHandle(), TaskConverter.CompressionType.LZ4)),
-          "buffer", ImmutableMap.of("port", handlerKey.getHandle()), handlerKey.getEntityType());
+      return new InstrumentedTaskQueueDelegate<>(
+          new FileBasedTaskQueue<>(
+              queueFile,
+              new RetryTaskConverter<T>(handlerKey.getHandle(), TaskConverter.CompressionType.LZ4)),
+          "buffer",
+          ImmutableMap.of("port", handlerKey.getHandle()),
+          handlerKey.getEntityType());
     } catch (Exception e) {
-      logger.severe("WF-006: Unable to open or create queue file " + spoolFileName + ": " +
-          e.getMessage());
+      logger.severe(
+          "WF-006: Unable to open or create queue file " + spoolFileName + ": " + e.getMessage());
       return new TaskQueueStub<>();
     }
   }

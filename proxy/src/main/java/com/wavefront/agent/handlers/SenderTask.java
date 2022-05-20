@@ -2,15 +2,13 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.common.Managed;
-
 import javax.annotation.Nullable;
 
 /**
  * Batch and ship valid items to Wavefront servers
  *
- * @author vasily@wavefront.com
- *
  * @param <T> the type of input objects handled.
+ * @author vasily@wavefront.com
  */
 public interface SenderTask<T> extends Managed {
 
@@ -22,8 +20,8 @@ public interface SenderTask<T> extends Managed {
   void add(T item);
 
   /**
-   * Calculate a numeric score (the lower the better) that is intended to help the
-   * {@link ReportableEntityHandler} choose the best SenderTask to handle over data to.
+   * Calculate a numeric score (the lower the better) that is intended to help the {@link
+   * ReportableEntityHandler} choose the best SenderTask to handle over data to.
    *
    * @return task score
    */

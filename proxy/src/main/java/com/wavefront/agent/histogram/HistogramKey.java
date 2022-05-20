@@ -1,18 +1,16 @@
 package com.wavefront.agent.histogram;
 
 import com.google.common.collect.ImmutableMap;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
- * Uniquely identifies a time-series - time-interval pair.
- * These are the base sample aggregation scopes on the agent.
- * Refactored from HistogramUtils.
+ * Uniquely identifies a time-series - time-interval pair. These are the base sample aggregation
+ * scopes on the agent. Refactored from HistogramUtils.
  *
  * @author Tim Schmidt (tim@wavefront.com)
  * @author vasily@wavefront.com
@@ -22,13 +20,15 @@ public class HistogramKey {
   private byte granularityOrdinal;
   private int binId;
   private String metric;
-  @Nullable
-  private String source;
-  @Nullable
-  private String[] tags;
+  @Nullable private String source;
+  @Nullable private String[] tags;
 
-  HistogramKey(byte granularityOrdinal, int binId, @Nonnull String metric,
-               @Nullable String source, @Nullable String[] tags) {
+  HistogramKey(
+      byte granularityOrdinal,
+      int binId,
+      @Nonnull String metric,
+      @Nullable String source,
+      @Nullable String[] tags) {
     this.granularityOrdinal = granularityOrdinal;
     this.binId = binId;
     this.metric = metric;
@@ -36,8 +36,7 @@ public class HistogramKey {
     this.tags = ((tags == null || tags.length == 0) ? null : tags);
   }
 
-  HistogramKey() {
-  }
+  HistogramKey() {}
 
   public byte getGranularityOrdinal() {
     return granularityOrdinal;
@@ -63,13 +62,20 @@ public class HistogramKey {
 
   @Override
   public String toString() {
-    return "HistogramKey{" +
-        "granularityOrdinal=" + granularityOrdinal +
-        ", binId=" + binId +
-        ", metric='" + metric + '\'' +
-        ", source='" + source + '\'' +
-        ", tags=" + Arrays.toString(tags) +
-        '}';
+    return "HistogramKey{"
+        + "granularityOrdinal="
+        + granularityOrdinal
+        + ", binId="
+        + binId
+        + ", metric='"
+        + metric
+        + '\''
+        + ", source='"
+        + source
+        + '\''
+        + ", tags="
+        + Arrays.toString(tags)
+        + '}';
   }
 
   @Override
@@ -95,9 +101,7 @@ public class HistogramKey {
     return result;
   }
 
-  /**
-   * Unpacks tags into a map.
-   */
+  /** Unpacks tags into a map. */
   public Map<String, String> getTagsAsMap() {
     if (tags == null || tags.length == 0) {
       return ImmutableMap.of();

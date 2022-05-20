@@ -1,24 +1,14 @@
 package com.wavefront.agent.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.base.Throwables;
-
-import com.fasterxml.jackson.databind.JsonNode;
 import com.wavefront.agent.SharedMetricsRegistry;
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -32,6 +22,12 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.CharsetUtil;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * A collection of helper methods around Netty channels.
@@ -46,15 +42,15 @@ public abstract class ChannelUtils {
   /**
    * Create a detailed error message from an exception, including current handle (port).
    *
-   * @param message   the error message
-   * @param e         the exception (optional) that caused the error
-   * @param ctx       ChannelHandlerContext (optional) to extract remote client ip
-   *
+   * @param message the error message
+   * @param e the exception (optional) that caused the error
+   * @param ctx ChannelHandlerContext (optional) to extract remote client ip
    * @return formatted error message
    */
-  public static String formatErrorMessage(final String message,
-                                          @Nullable final Throwable e,
-                                          @Nullable final ChannelHandlerContext ctx) {
+  public static String formatErrorMessage(
+      final String message,
+      @Nullable final Throwable e,
+      @Nullable final ChannelHandlerContext ctx) {
     StringBuilder errMsg = new StringBuilder(message);
     if (ctx != null) {
       errMsg.append("; remote: ");
@@ -70,56 +66,56 @@ public abstract class ChannelUtils {
   /**
    * Writes HTTP response back to client.
    *
-   * @param ctx      Channel handler context
-   * @param status   HTTP status to return with the response
+   * @param ctx Channel handler context
+   * @param status HTTP status to return with the response
    * @param contents Response body payload (JsonNode or CharSequence)
-   * @param request  Incoming request (used to get keep-alive header)
+   * @param request Incoming request (used to get keep-alive header)
    */
-  public static void writeHttpResponse(final ChannelHandlerContext ctx,
-                                       final HttpResponseStatus status,
-                                       final Object /* JsonNode | CharSequence */ contents,
-                                       final HttpMessage request) {
+  public static void writeHttpResponse(
+      final ChannelHandlerContext ctx,
+      final HttpResponseStatus status,
+      final Object /* JsonNode | CharSequence */ contents,
+      final HttpMessage request) {
     writeHttpResponse(ctx, status, contents, HttpUtil.isKeepAlive(request));
   }
 
   /**
    * Writes HTTP response back to client.
    *
-   * @param ctx       Channel handler context
-   * @param status    HTTP status to return with the response
-   * @param contents  Response body payload (JsonNode or CharSequence)
+   * @param ctx Channel handler context
+   * @param status HTTP status to return with the response
+   * @param contents Response body payload (JsonNode or CharSequence)
    * @param keepAlive Keep-alive requested
    */
-  public static void writeHttpResponse(final ChannelHandlerContext ctx,
-                                       final HttpResponseStatus status,
-                                       final Object /* JsonNode | CharSequence */ contents,
-                                       boolean keepAlive) {
+  public static void writeHttpResponse(
+      final ChannelHandlerContext ctx,
+      final HttpResponseStatus status,
+      final Object /* JsonNode | CharSequence */ contents,
+      boolean keepAlive) {
     writeHttpResponse(ctx, makeResponse(status, contents), keepAlive);
   }
 
   /**
    * Writes HTTP response back to client.
    *
-   * @param ctx       Channel handler context.
-   * @param response  HTTP response object.
-   * @param request   HTTP request object (to extract keep-alive flag).
+   * @param ctx Channel handler context.
+   * @param response HTTP response object.
+   * @param request HTTP request object (to extract keep-alive flag).
    */
-  public static void writeHttpResponse(final ChannelHandlerContext ctx,
-                                       final HttpResponse response,
-                                       final HttpMessage request) {
+  public static void writeHttpResponse(
+      final ChannelHandlerContext ctx, final HttpResponse response, final HttpMessage request) {
     writeHttpResponse(ctx, response, HttpUtil.isKeepAlive(request));
   }
 
   /**
    * Writes HTTP response back to client.
    *
-   * @param ctx       Channel handler context.
-   * @param response  HTTP response object.
+   * @param ctx Channel handler context.
+   * @param response HTTP response object.
    * @param keepAlive Keep-alive requested.
    */
-  public static void writeHttpResponse(final ChannelHandlerContext ctx,
-                                       final HttpResponse response,
-                                       boolean keepAlive) {
+  public static void writeHttpResponse(
+      final ChannelHandlerContext ctx, final HttpResponse response, boolean keepAlive) {
     getHttpStatusCounter(ctx, response.status().code()).inc();
     // Decide whether to close the connection or not.
     if (keepAlive) {
@@ -135,24 +131,32 @@ public abstract class ChannelUtils {
   /**
    * Create {@link FullHttpResponse} based on provided status and body contents.
    *
-   * @param status   response status.
+   * @param status response status.
    * @param contents response body.
    * @return http response object
    */
-  public static HttpResponse makeResponse(final HttpResponseStatus status,
-                                          final Object /* JsonNode | CharSequence */ contents) {
+  public static HttpResponse makeResponse(
+      final HttpResponseStatus status, final Object /* JsonNode | CharSequence */ contents) {
     final FullHttpResponse response;
     if (contents instanceof JsonNode) {
-      response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status,
-          Unpooled.copiedBuffer(contents.toString(), CharsetUtil.UTF_8));
+      response =
+          new DefaultFullHttpResponse(
+              HttpVersion.HTTP_1_1,
+              status,
+              Unpooled.copiedBuffer(contents.toString(), CharsetUtil.UTF_8));
       response.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
     } else if (contents instanceof CharSequence) {
-      response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status,
-          Unpooled.copiedBuffer((CharSequence) contents, CharsetUtil.UTF_8));
+      response =
+          new DefaultFullHttpResponse(
+              HttpVersion.HTTP_1_1,
+              status,
+              Unpooled.copiedBuffer((CharSequence) contents, CharsetUtil.UTF_8));
       response.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.TEXT_PLAIN);
     } else {
-      throw new IllegalArgumentException("Unexpected response content type, JsonNode or " +
-          "CharSequence expected: " + contents.getClass().getName());
+      throw new IllegalArgumentException(
+          "Unexpected response content type, JsonNode or "
+              + "CharSequence expected: "
+              + contents.getClass().getName());
     }
     response.headers().set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
     return response;
@@ -161,7 +165,7 @@ public abstract class ChannelUtils {
   /**
    * Write detailed exception text.
    *
-   * @param e   Exceptions thrown
+   * @param e Exceptions thrown
    * @return error message
    */
   public static String errorMessageWithRootCause(@Nonnull final Throwable e) {
@@ -181,7 +185,7 @@ public abstract class ChannelUtils {
   /**
    * Get remote client's address as string (without rDNS lookup) and local port
    *
-   * @param ctx  Channel handler context
+   * @param ctx Channel handler context
    * @return remote client's address in a string form
    */
   @Nonnull
@@ -208,20 +212,30 @@ public abstract class ChannelUtils {
   }
 
   /**
-   * Get a counter for ~proxy.listeners.http-requests.status.###.count metric for a specific
-   * status code, with port= point tag for added context.
+   * Get a counter for ~proxy.listeners.http-requests.status.###.count metric for a specific status
+   * code, with port= point tag for added context.
    *
-   * @param ctx    channel handler context where a response is being sent.
+   * @param ctx channel handler context where a response is being sent.
    * @param status response status code.
    */
   public static Counter getHttpStatusCounter(ChannelHandlerContext ctx, int status) {
     if (ctx != null && ctx.channel() != null) {
       InetSocketAddress localAddress = (InetSocketAddress) ctx.channel().localAddress();
       if (localAddress != null) {
-        return RESPONSE_STATUS_CACHES.computeIfAbsent(localAddress.getPort(),
-            port -> Caffeine.newBuilder().build(statusCode -> Metrics.newCounter(
-                new TaggedMetricName("listeners", "http-requests.status." + statusCode + ".count",
-                    "port", String.valueOf(port))))).get(status);
+        return RESPONSE_STATUS_CACHES
+            .computeIfAbsent(
+                localAddress.getPort(),
+                port ->
+                    Caffeine.newBuilder()
+                        .build(
+                            statusCode ->
+                                Metrics.newCounter(
+                                    new TaggedMetricName(
+                                        "listeners",
+                                        "http-requests.status." + statusCode + ".count",
+                                        "port",
+                                        String.valueOf(port)))))
+            .get(status);
       }
     }
     // return a non-reportable counter otherwise

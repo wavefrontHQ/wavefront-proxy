@@ -1,34 +1,35 @@
 package com.wavefront.agent.config;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wavefront.agent.logsharvesting.FlushProcessor;
 import com.wavefront.agent.logsharvesting.FlushProcessorContext;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Top level configuration object for ingesting log data into the Wavefront Proxy. To turn on logs ingestion,
- * specify 'filebeatPort' and 'logsIngestionConfigFile' in the Wavefront Proxy Config File (typically
- * /etc/wavefront/wavefront-proxy/wavefront.conf, or /opt/wavefront/wavefront-proxy/conf/wavefront.conf).
+ * Top level configuration object for ingesting log data into the Wavefront Proxy. To turn on logs
+ * ingestion, specify 'filebeatPort' and 'logsIngestionConfigFile' in the Wavefront Proxy Config
+ * File (typically /etc/wavefront/wavefront-proxy/wavefront.conf, or
+ * /opt/wavefront/wavefront-proxy/conf/wavefront.conf).
  *
- * Every file with annotated with {@link JsonProperty} is parsed directly from your logsIngestionConfigFile, which is
- * YAML. Below is a sample config file which shows the features of direct logs ingestion. The "counters" section
- * corresponds to {@link #counters}, likewise for {@link #gauges} and {@link #histograms}. In each of these three
- * groups, the pricipal entry is a {@link MetricMatcher}. See the patterns file
- * <a href="https://github.com/wavefrontHQ/java/blob/master/proxy/src/main/resources/patterns/patterns">here</a> for
- * help defining patterns, also various grok debug tools (e.g. <a href="https://grokdebug.herokuapp.com/">this one</a>,
- * or use google)
+ * <p>Every file with annotated with {@link JsonProperty} is parsed directly from your
+ * logsIngestionConfigFile, which is YAML. Below is a sample config file which shows the features of
+ * direct logs ingestion. The "counters" section corresponds to {@link #counters}, likewise for
+ * {@link #gauges} and {@link #histograms}. In each of these three groups, the pricipal entry is a
+ * {@link MetricMatcher}. See the patterns file <a
+ * href="https://github.com/wavefrontHQ/java/blob/master/proxy/src/main/resources/patterns/patterns">here</a>
+ * for help defining patterns, also various grok debug tools (e.g. <a
+ * href="https://grokdebug.herokuapp.com/">this one</a>, or use google)
  *
- * All metrics support dynamic naming with %{}. To see exactly what data we send as part of histograms, see
- * {@link FlushProcessor#processHistogram(MetricName, Histogram, FlushProcessorContext)}.
+ * <p>All metrics support dynamic naming with %{}. To see exactly what data we send as part of
+ * histograms, see {@link FlushProcessor#processHistogram(MetricName, Histogram,
+ * FlushProcessorContext)}.
  *
  * <pre>
  * <code>
@@ -83,76 +84,55 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Mori Bellamy (mori@wavefront.com)
  */
-
 @SuppressWarnings("CanBeFinal")
 public class LogsIngestionConfig extends Configuration {
   /**
-   * How often metrics are aggregated and sent to wavefront. Histograms are cleared every time they are sent,
-   * counters and gauges are not.
+   * How often metrics are aggregated and sent to wavefront. Histograms are cleared every time they
+   * are sent, counters and gauges are not.
    */
-  @JsonProperty
-  public Integer aggregationIntervalSeconds = 60;
+  @JsonProperty public Integer aggregationIntervalSeconds = 60;
 
-  /**
-   * Counters to ingest from incoming log data.
-   */
-  @JsonProperty
-  public List<MetricMatcher> counters = ImmutableList.of();
+  /** Counters to ingest from incoming log data. */
+  @JsonProperty public List<MetricMatcher> counters = ImmutableList.of();
 
-  /**
-   * Gauges to ingest from incoming log data.
-   */
-  @JsonProperty
-  public List<MetricMatcher> gauges = ImmutableList.of();
+  /** Gauges to ingest from incoming log data. */
+  @JsonProperty public List<MetricMatcher> gauges = ImmutableList.of();
 
-  /**
-   * Histograms to ingest from incoming log data.
-   */
-  @JsonProperty
-  public List<MetricMatcher> histograms = ImmutableList.of();
+  /** Histograms to ingest from incoming log data. */
+  @JsonProperty public List<MetricMatcher> histograms = ImmutableList.of();
 
-  /**
-   * Additional grok patterns to use in pattern matching for the above {@link MetricMatcher}s.
-   */
-  @JsonProperty
-  public List<String> additionalPatterns = ImmutableList.of();
+  /** Additional grok patterns to use in pattern matching for the above {@link MetricMatcher}s. */
+  @JsonProperty public List<String> additionalPatterns = ImmutableList.of();
 
   /**
    * Metrics are cleared from memory (and so their aggregation state is lost) if a metric is not
-   * updated within this many milliseconds. Applicable only if useDeltaCounters = false.
-   * Default: 3600000 (1 hour).
+   * updated within this many milliseconds. Applicable only if useDeltaCounters = false. Default:
+   * 3600000 (1 hour).
    */
-  @JsonProperty
-  public long expiryMillis = TimeUnit.HOURS.toMillis(1);
+  @JsonProperty public long expiryMillis = TimeUnit.HOURS.toMillis(1);
 
   /**
    * If true, use {@link com.yammer.metrics.core.WavefrontHistogram}s rather than {@link
-   * com.yammer.metrics.core.Histogram}s. Histogram ingestion must be enabled on wavefront to use this feature. When
-   * using Yammer histograms, the data is exploded into constituent metrics. See {@link
-   * FlushProcessor#processHistogram(MetricName, Histogram, FlushProcessorContext)}.
+   * com.yammer.metrics.core.Histogram}s. Histogram ingestion must be enabled on wavefront to use
+   * this feature. When using Yammer histograms, the data is exploded into constituent metrics. See
+   * {@link FlushProcessor#processHistogram(MetricName, Histogram, FlushProcessorContext)}.
    */
-  @JsonProperty
-  public boolean useWavefrontHistograms = false;
+  @JsonProperty public boolean useWavefrontHistograms = false;
 
   /**
-   * If true (default), simulate Yammer histogram behavior (report all stats as zeroes when histogram is empty).
-   * Otherwise, only .count is reported with a zero value.
+   * If true (default), simulate Yammer histogram behavior (report all stats as zeroes when
+   * histogram is empty). Otherwise, only .count is reported with a zero value.
    */
-  @JsonProperty
-  public boolean reportEmptyHistogramStats = true;
+  @JsonProperty public boolean reportEmptyHistogramStats = true;
 
   /**
    * If true, use delta counters instead of regular counters to prevent metric collisions when
    * multiple proxies are behind a load balancer. Default: true
    */
-  @JsonProperty
-  public boolean useDeltaCounters = true;
+  @JsonProperty public boolean useDeltaCounters = true;
 
-  /**
-   * How often to check this config file for updates.
-   */
-  @JsonProperty
-  public int configReloadIntervalSeconds = 5;
+  /** How often to check this config file for updates. */
+  @JsonProperty public int configReloadIntervalSeconds = 5;
 
   @Override
   public void verifyAndInit() throws ConfigurationException {
@@ -171,13 +151,15 @@ public class LogsIngestionConfig extends Configuration {
     for (MetricMatcher p : gauges) {
       p.setAdditionalPatterns(additionalPatternMap);
       p.verifyAndInit();
-      ensure(p.hasCapture(p.getValueLabel()),
+      ensure(
+          p.hasCapture(p.getValueLabel()),
           "Must have a capture with label '" + p.getValueLabel() + "' for this gauge.");
     }
     for (MetricMatcher p : histograms) {
       p.setAdditionalPatterns(additionalPatternMap);
       p.verifyAndInit();
-      ensure(p.hasCapture(p.getValueLabel()),
+      ensure(
+          p.hasCapture(p.getValueLabel()),
           "Must have a capture with label '" + p.getValueLabel() + "' for this histogram.");
     }
   }

@@ -1,5 +1,7 @@
 package com.wavefront.agent.queueing;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.squareup.tape2.QueueFile;
@@ -12,17 +14,14 @@ import com.wavefront.agent.data.SourceTagSubmissionTask;
 import com.wavefront.data.ReportableEntityType;
 import com.wavefront.dto.Event;
 import com.wavefront.dto.SourceTag;
+import java.io.File;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.Test;
 import wavefront.report.ReportEvent;
 import wavefront.report.ReportSourceTag;
 import wavefront.report.SourceOperationType;
 import wavefront.report.SourceTagAction;
-
-import java.io.File;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Tests object serialization.
@@ -41,9 +40,17 @@ public class InstrumentedTaskQueueDelegateTest {
       TaskQueue<LineDelimitedDataSubmissionTask> queue = getTaskQueue(file, type);
       queue.clear();
       UUID proxyId = UUID.randomUUID();
-      LineDelimitedDataSubmissionTask task = new LineDelimitedDataSubmissionTask(null, proxyId,
-          new DefaultEntityPropertiesForTesting(), queue, "wavefront", ReportableEntityType.POINT,
-          "2878", ImmutableList.of("item1", "item2", "item3"), time::get);
+      LineDelimitedDataSubmissionTask task =
+          new LineDelimitedDataSubmissionTask(
+              null,
+              proxyId,
+              new DefaultEntityPropertiesForTesting(),
+              queue,
+              "wavefront",
+              ReportableEntityType.POINT,
+              "2878",
+              ImmutableList.of("item1", "item2", "item3"),
+              time::get);
       task.enqueue(QueueingReason.RETRY);
       queue.close();
       TaskQueue<LineDelimitedDataSubmissionTask> readQueue = getTaskQueue(file, type);
@@ -61,13 +68,20 @@ public class InstrumentedTaskQueueDelegateTest {
       file.deleteOnExit();
       TaskQueue<SourceTagSubmissionTask> queue = getTaskQueue(file, type);
       queue.clear();
-      SourceTagSubmissionTask task = new SourceTagSubmissionTask(null,
-          new DefaultEntityPropertiesForTesting(), queue, "2878",
-          new SourceTag(
-              ReportSourceTag.newBuilder().setOperation(SourceOperationType.SOURCE_TAG).
-                  setAction(SourceTagAction.SAVE).setSource("testSource").
-                  setAnnotations(ImmutableList.of("newtag1", "newtag2")).build()),
-          () -> 77777L);
+      SourceTagSubmissionTask task =
+          new SourceTagSubmissionTask(
+              null,
+              new DefaultEntityPropertiesForTesting(),
+              queue,
+              "2878",
+              new SourceTag(
+                  ReportSourceTag.newBuilder()
+                      .setOperation(SourceOperationType.SOURCE_TAG)
+                      .setAction(SourceTagAction.SAVE)
+                      .setSource("testSource")
+                      .setAnnotations(ImmutableList.of("newtag1", "newtag2"))
+                      .build()),
+              () -> 77777L);
       task.enqueue(QueueingReason.RETRY);
       queue.close();
       TaskQueue<SourceTagSubmissionTask> readQueue = getTaskQueue(file, type);
@@ -87,18 +101,25 @@ public class InstrumentedTaskQueueDelegateTest {
       TaskQueue<EventDataSubmissionTask> queue = getTaskQueue(file, type);
       queue.clear();
       UUID proxyId = UUID.randomUUID();
-      EventDataSubmissionTask task = new EventDataSubmissionTask(null, proxyId,
-          new DefaultEntityPropertiesForTesting(), queue, "2878",
-          ImmutableList.of(new Event(ReportEvent.newBuilder().
-              setStartTime(time.get() * 1000).
-              setEndTime(time.get() * 1000 + 1).
-              setName("Event name for testing").
-              setHosts(ImmutableList.of("host1", "host2")).
-              setDimensions(ImmutableMap.of("multi", ImmutableList.of("bar", "baz"))).
-              setAnnotations(ImmutableMap.of("severity", "INFO")).
-              setTags(ImmutableList.of("tag1")).
-              build())),
-          time::get);
+      EventDataSubmissionTask task =
+          new EventDataSubmissionTask(
+              null,
+              proxyId,
+              new DefaultEntityPropertiesForTesting(),
+              queue,
+              "2878",
+              ImmutableList.of(
+                  new Event(
+                      ReportEvent.newBuilder()
+                          .setStartTime(time.get() * 1000)
+                          .setEndTime(time.get() * 1000 + 1)
+                          .setName("Event name for testing")
+                          .setHosts(ImmutableList.of("host1", "host2"))
+                          .setDimensions(ImmutableMap.of("multi", ImmutableList.of("bar", "baz")))
+                          .setAnnotations(ImmutableMap.of("severity", "INFO"))
+                          .setTags(ImmutableList.of("tag1"))
+                          .build())),
+              time::get);
       task.enqueue(QueueingReason.RETRY);
       queue.close();
       TaskQueue<EventDataSubmissionTask> readQueue = getTaskQueue(file, type);
@@ -110,10 +131,16 @@ public class InstrumentedTaskQueueDelegateTest {
 
   private <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(
       File file, RetryTaskConverter.CompressionType compressionType) throws Exception {
-    return new InstrumentedTaskQueueDelegate<>(new FileBasedTaskQueue<>(
-        new ConcurrentShardedQueueFile(file.getCanonicalPath(), ".spool", 16 * 1024,
-            s -> new TapeQueueFile(new QueueFile.Builder(new File(s)).build())),
-        new RetryTaskConverter<T>("2878", compressionType)),
-        null, null, null);
+    return new InstrumentedTaskQueueDelegate<>(
+        new FileBasedTaskQueue<>(
+            new ConcurrentShardedQueueFile(
+                file.getCanonicalPath(),
+                ".spool",
+                16 * 1024,
+                s -> new TapeQueueFile(new QueueFile.Builder(new File(s)).build())),
+            new RetryTaskConverter<T>("2878", compressionType)),
+        null,
+        null,
+        null);
   }
 }

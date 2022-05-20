@@ -1,35 +1,5 @@
 package com.wavefront.agent.listeners.tracing;
 
-import com.google.common.collect.ImmutableSet;
-
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
-import com.wavefront.agent.sampler.SpanSampler;
-import com.wavefront.common.TraceConstants;
-import com.wavefront.internal.reporter.WavefrontInternalReporter;
-import com.wavefront.sdk.common.Pair;
-import com.yammer.metrics.core.Counter;
-
-import org.apache.commons.lang.StringUtils;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-
-import javax.annotation.Nullable;
-
-import io.opentelemetry.exporters.jaeger.proto.api_v2.Model;
-import wavefront.report.Annotation;
-import wavefront.report.Span;
-import wavefront.report.SpanLog;
-import wavefront.report.SpanLogs;
-
 import static com.google.protobuf.util.Durations.toMicros;
 import static com.google.protobuf.util.Durations.toMillis;
 import static com.google.protobuf.util.Timestamps.toMicros;
@@ -48,6 +18,31 @@ import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 
+import com.google.common.collect.ImmutableSet;
+import com.wavefront.agent.handlers.ReportableEntityHandler;
+import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
+import com.wavefront.agent.sampler.SpanSampler;
+import com.wavefront.common.TraceConstants;
+import com.wavefront.internal.reporter.WavefrontInternalReporter;
+import com.wavefront.sdk.common.Pair;
+import com.yammer.metrics.core.Counter;
+import io.opentelemetry.exporters.jaeger.proto.api_v2.Model;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import org.apache.commons.lang.StringUtils;
+import wavefront.report.Annotation;
+import wavefront.report.Span;
+import wavefront.report.SpanLog;
+import wavefront.report.SpanLogs;
+
 /**
  * Utility methods for processing Jaeger Protobuf trace data.
  *
@@ -58,29 +53,29 @@ public abstract class JaegerProtobufUtils {
       Logger.getLogger(JaegerProtobufUtils.class.getCanonicalName());
 
   // TODO: support sampling
-  private final static Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
+  private static final Set<String> IGNORE_TAGS = ImmutableSet.of("sampler.type", "sampler.param");
   private static final Logger JAEGER_DATA_LOGGER = Logger.getLogger("JaegerDataLogger");
 
-  private JaegerProtobufUtils() {
-  }
+  private JaegerProtobufUtils() {}
 
-  public static void processBatch(Model.Batch batch,
-                                  @Nullable StringBuilder output,
-                                  String sourceName,
-                                  String applicationName,
-                                  ReportableEntityHandler<Span, String> spanHandler,
-                                  ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
-                                  @Nullable WavefrontInternalReporter wfInternalReporter,
-                                  Supplier<Boolean> traceDisabled,
-                                  Supplier<Boolean> spanLogsDisabled,
-                                  Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                                  SpanSampler sampler,
-                                  Set<String> traceDerivedCustomTagKeys,
-                                  Counter discardedTraces,
-                                  Counter discardedBatches,
-                                  Counter discardedSpansBySampler,
-                                  Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics,
-                                  Counter receivedSpansTotal) {
+  public static void processBatch(
+      Model.Batch batch,
+      @Nullable StringBuilder output,
+      String sourceName,
+      String applicationName,
+      ReportableEntityHandler<Span, String> spanHandler,
+      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      @Nullable WavefrontInternalReporter wfInternalReporter,
+      Supplier<Boolean> traceDisabled,
+      Supplier<Boolean> spanLogsDisabled,
+      Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      SpanSampler sampler,
+      Set<String> traceDerivedCustomTagKeys,
+      Counter discardedTraces,
+      Counter discardedBatches,
+      Counter discardedSpansBySampler,
+      Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics,
+      Counter receivedSpansTotal) {
     String serviceName = batch.getProcess().getServiceName();
     List<Annotation> processAnnotations = new ArrayList<>();
     boolean isSourceProcessTagPresent = false;
@@ -94,12 +89,12 @@ public abstract class JaegerProtobufUtils {
           continue;
         }
 
-       if (tag.getKey().equals(CLUSTER_TAG_KEY) && tag.getVType() == Model.ValueType.STRING) {
+        if (tag.getKey().equals(CLUSTER_TAG_KEY) && tag.getVType() == Model.ValueType.STRING) {
           cluster = tag.getVStr();
           continue;
         }
 
-       if (tag.getKey().equals(SHARD_TAG_KEY) && tag.getVType() == Model.ValueType.STRING) {
+        if (tag.getKey().equals(SHARD_TAG_KEY) && tag.getVType() == Model.ValueType.STRING) {
           shard = tag.getVStr();
           continue;
         }
@@ -136,29 +131,43 @@ public abstract class JaegerProtobufUtils {
     }
     receivedSpansTotal.inc(batch.getSpansCount());
     for (Model.Span span : batch.getSpansList()) {
-      processSpan(span, serviceName, sourceName, applicationName, cluster, shard, processAnnotations,
-          spanHandler, spanLogsHandler, wfInternalReporter, spanLogsDisabled,
-          preprocessorSupplier, sampler, traceDerivedCustomTagKeys,
-          discardedSpansBySampler, discoveredHeartbeatMetrics);
+      processSpan(
+          span,
+          serviceName,
+          sourceName,
+          applicationName,
+          cluster,
+          shard,
+          processAnnotations,
+          spanHandler,
+          spanLogsHandler,
+          wfInternalReporter,
+          spanLogsDisabled,
+          preprocessorSupplier,
+          sampler,
+          traceDerivedCustomTagKeys,
+          discardedSpansBySampler,
+          discoveredHeartbeatMetrics);
     }
   }
 
-  private static void processSpan(Model.Span span,
-                                  String serviceName,
-                                  String sourceName,
-                                  String applicationName,
-                                  String cluster,
-                                  String shard,
-                                  List<Annotation> processAnnotations,
-                                  ReportableEntityHandler<Span, String> spanHandler,
-                                  ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
-                                  @Nullable WavefrontInternalReporter wfInternalReporter,
-                                  Supplier<Boolean> spanLogsDisabled,
-                                  Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                                  SpanSampler sampler,
-                                  Set<String> traceDerivedCustomTagKeys,
-                                  Counter discardedSpansBySampler,
-                                  Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics) {
+  private static void processSpan(
+      Model.Span span,
+      String serviceName,
+      String sourceName,
+      String applicationName,
+      String cluster,
+      String shard,
+      List<Annotation> processAnnotations,
+      ReportableEntityHandler<Span, String> spanHandler,
+      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      @Nullable WavefrontInternalReporter wfInternalReporter,
+      Supplier<Boolean> spanLogsDisabled,
+      Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      SpanSampler sampler,
+      Set<String> traceDerivedCustomTagKeys,
+      Counter discardedSpansBySampler,
+      Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics) {
     List<Annotation> annotations = new ArrayList<>(processAnnotations);
     // serviceName is mandatory in Jaeger
     annotations.add(new Annotation(SERVICE_TAG_KEY, serviceName));
@@ -168,8 +177,8 @@ public abstract class JaegerProtobufUtils {
 
     if (span.getTagsList() != null) {
       for (Model.KeyValue tag : span.getTagsList()) {
-        if (IGNORE_TAGS.contains(tag.getKey()) ||
-            (tag.getVType() == Model.ValueType.STRING && StringUtils.isBlank(tag.getVStr()))) {
+        if (IGNORE_TAGS.contains(tag.getKey())
+            || (tag.getVType() == Model.ValueType.STRING && StringUtils.isBlank(tag.getVStr()))) {
           continue;
         }
 
@@ -216,14 +225,17 @@ public abstract class JaegerProtobufUtils {
         switch (reference.getRefType()) {
           case CHILD_OF:
             if (!reference.getSpanId().isEmpty()) {
-              annotations.add(new Annotation(TraceConstants.PARENT_KEY,
-                  SpanUtils.toStringId(reference.getSpanId())));
+              annotations.add(
+                  new Annotation(
+                      TraceConstants.PARENT_KEY, SpanUtils.toStringId(reference.getSpanId())));
             }
             break;
           case FOLLOWS_FROM:
             if (!reference.getSpanId().isEmpty()) {
-              annotations.add(new Annotation(TraceConstants.FOLLOWS_FROM_KEY,
-                  SpanUtils.toStringId(reference.getSpanId())));
+              annotations.add(
+                  new Annotation(
+                      TraceConstants.FOLLOWS_FROM_KEY,
+                      SpanUtils.toStringId(reference.getSpanId())));
             }
           default:
         }
@@ -234,16 +246,17 @@ public abstract class JaegerProtobufUtils {
       annotations.add(new Annotation("_spanLogs", "true"));
     }
 
-    Span wavefrontSpan = Span.newBuilder()
-        .setCustomer("dummy")
-        .setName(span.getOperationName())
-        .setSource(sourceName)
-        .setSpanId(SpanUtils.toStringId(span.getSpanId()))
-        .setTraceId(SpanUtils.toStringId(span.getTraceId()))
-        .setStartMillis(toMillis(span.getStartTime()))
-        .setDuration(toMillis(span.getDuration()))
-        .setAnnotations(annotations)
-        .build();
+    Span wavefrontSpan =
+        Span.newBuilder()
+            .setCustomer("dummy")
+            .setName(span.getOperationName())
+            .setSource(sourceName)
+            .setSpanId(SpanUtils.toStringId(span.getSpanId()))
+            .setTraceId(SpanUtils.toStringId(span.getTraceId()))
+            .setStartMillis(toMillis(span.getStartTime()))
+            .setDuration(toMillis(span.getDuration()))
+            .setAnnotations(annotations)
+            .build();
 
     // Log Jaeger spans as well as Wavefront spans for debugging purposes.
     if (JAEGER_DATA_LOGGER.isLoggable(Level.FINEST)) {
@@ -266,38 +279,46 @@ public abstract class JaegerProtobufUtils {
     }
     if (sampler.sample(wavefrontSpan, discardedSpansBySampler)) {
       spanHandler.report(wavefrontSpan);
-      if (span.getLogsCount() > 0 &&
-          !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
-        SpanLogs spanLogs = SpanLogs.newBuilder().
-            setCustomer("default").
-            setTraceId(wavefrontSpan.getTraceId()).
-            setSpanId(wavefrontSpan.getSpanId()).
-            setLogs(span.getLogsList().stream().map(x -> {
-              Map<String, String> fields = new HashMap<>(x.getFieldsCount());
-              x.getFieldsList().forEach(t -> {
-                switch (t.getVType()) {
-                  case STRING:
-                    fields.put(t.getKey(), t.getVStr());
-                    break;
-                  case BOOL:
-                    fields.put(t.getKey(), String.valueOf(t.getVBool()));
-                    break;
-                  case INT64:
-                    fields.put(t.getKey(), String.valueOf(t.getVInt64()));
-                    break;
-                  case FLOAT64:
-                    fields.put(t.getKey(), String.valueOf(t.getVFloat64()));
-                    break;
-                  case BINARY:
-                    // ignore
-                  default:
-                }
-              });
-              return SpanLog.newBuilder().
-                  setTimestamp(toMicros(x.getTimestamp())).
-                  setFields(fields).
-                  build();
-            }).collect(Collectors.toList())).build();
+      if (span.getLogsCount() > 0
+          && !isFeatureDisabled(spanLogsDisabled, SPANLOGS_DISABLED, null)) {
+        SpanLogs spanLogs =
+            SpanLogs.newBuilder()
+                .setCustomer("default")
+                .setTraceId(wavefrontSpan.getTraceId())
+                .setSpanId(wavefrontSpan.getSpanId())
+                .setLogs(
+                    span.getLogsList().stream()
+                        .map(
+                            x -> {
+                              Map<String, String> fields = new HashMap<>(x.getFieldsCount());
+                              x.getFieldsList()
+                                  .forEach(
+                                      t -> {
+                                        switch (t.getVType()) {
+                                          case STRING:
+                                            fields.put(t.getKey(), t.getVStr());
+                                            break;
+                                          case BOOL:
+                                            fields.put(t.getKey(), String.valueOf(t.getVBool()));
+                                            break;
+                                          case INT64:
+                                            fields.put(t.getKey(), String.valueOf(t.getVInt64()));
+                                            break;
+                                          case FLOAT64:
+                                            fields.put(t.getKey(), String.valueOf(t.getVFloat64()));
+                                            break;
+                                          case BINARY:
+                                            // ignore
+                                          default:
+                                        }
+                                      });
+                              return SpanLog.newBuilder()
+                                  .setTimestamp(toMicros(x.getTimestamp()))
+                                  .setFields(fields)
+                                  .build();
+                            })
+                        .collect(Collectors.toList()))
+                .build();
         spanLogsHandler.report(spanLogs);
       }
     }
@@ -328,12 +349,25 @@ public abstract class JaegerProtobufUtils {
             continue;
         }
       }
-      List<Pair<String, String>> spanTags = processedAnnotations.stream().map(a -> new Pair<>(a.getKey(),
-          a.getValue())).collect(Collectors.toList());
-      discoveredHeartbeatMetrics.add(reportWavefrontGeneratedData(wfInternalReporter,
-          wavefrontSpan.getName(), applicationName, serviceName, cluster, shard, wavefrontSpan.getSource(),
-          componentTagValue, isError, toMicros(span.getDuration()), traceDerivedCustomTagKeys,
-          spanTags, true));
+      List<Pair<String, String>> spanTags =
+          processedAnnotations.stream()
+              .map(a -> new Pair<>(a.getKey(), a.getValue()))
+              .collect(Collectors.toList());
+      discoveredHeartbeatMetrics.add(
+          reportWavefrontGeneratedData(
+              wfInternalReporter,
+              wavefrontSpan.getName(),
+              applicationName,
+              serviceName,
+              cluster,
+              shard,
+              wavefrontSpan.getSource(),
+              componentTagValue,
+              isError,
+              toMicros(span.getDuration()),
+              traceDerivedCustomTagKeys,
+              spanTags,
+              true));
     }
   }
 

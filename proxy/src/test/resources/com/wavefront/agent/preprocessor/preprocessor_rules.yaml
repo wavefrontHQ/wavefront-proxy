@@ -2,320 +2,320 @@
 
 # test all block/allow combinations
 '1111':
-    - rule    : test-filter-1
-      action  : allow
-      scope   : pointLine
-      match   : ".*prod.*"
+  - rule: test-filter-1
+    action: allow
+    scope: pointLine
+    match: ".*prod.*"
 
-    - rule    : test-filter-2
-      action  : allow
-      scope   : sourceName
-      match   : ".*prod\\.corp"
+  - rule: test-filter-2
+    action: allow
+    scope: sourceName
+    match: ".*prod\\.corp"
 
-    - rule    : test-filter-3
-      action  : allow
-      scope   : metricName
-      match   : "valid\\.metric.*"
+  - rule: test-filter-3
+    action: allow
+    scope: metricName
+    match: "valid\\.metric.*"
 
-    - rule    : test-filter-4
-      action  : allow
-      scope   : foo
-      match   : "b.r"
+  - rule: test-filter-4
+    action: allow
+    scope: foo
+    match: "b.r"
 
-    - rule    : test-filter-5
-      action  : block
-      scope   : pointLine
-      match   : ".*stop.*"
+  - rule: test-filter-5
+    action: block
+    scope: pointLine
+    match: ".*stop.*"
 
-    - rule    : test-filter-6
-      action  : block
-      scope   : sourceName
-      match   : ".*dev\\.corp"
+  - rule: test-filter-6
+    action: block
+    scope: sourceName
+    match: ".*dev\\.corp"
 
-    - rule    : test-filter-7
-      action  : block
-      scope   : metricName
-      match   : "invalid\\.metric.*"
+  - rule: test-filter-7
+    action: block
+    scope: metricName
+    match: "invalid\\.metric.*"
 
-    - rule    : test-filter-8
-      action  : block
-      scope   : baz
-      match   : ".*"
+  - rule: test-filter-8
+    action: block
+    scope: baz
+    match: ".*"
 
 '2878':
-    # only allow points that contain "foo" substring anywhere in the point line
-    - rule    : test-allow-line
-      action  : allow
-      scope   : inputText
-      match   : ".*foo=.*"
+  # only allow points that contain "foo" substring anywhere in the point line
+  - rule: test-allow-line
+    action: allow
+    scope: inputText
+    match: ".*foo=.*"
 
-    # block source=bar*
-    - rule    : test-block-sourcename
-      action  : block
-      scope   : sourceName
-      match   : "bar.*"
+  # block source=bar*
+  - rule: test-block-sourcename
+    action: block
+    scope: sourceName
+    match: "bar.*"
 
-    # block all metric names that start with foo.
-    - rule    : test-block-metrics
-      action  : block
-      scope   : metricName
-      match   : "foo\\..*"
+  # block all metric names that start with foo.
+  - rule: test-block-metrics
+    action: block
+    scope: metricName
+    match: "foo\\..*"
 
-    # block all points where "datacenter" point tag starts with "west"
-    - rule    : test-block-tag
-      action  : block
-      scope   : foo
-      match   : "west.*"
+  # block all points where "datacenter" point tag starts with "west"
+  - rule: test-block-tag
+    action: block
+    scope: foo
+    match: "west.*"
 
-    # replace bad characters ("&", "$", "!") with underscores in the entire point line string
-    - rule    : test-replace-badchars
-      action  : replaceRegex
-      scope   : pointLine
-      search  : "[&\\$#!]"
-      replace : "_"
+  # replace bad characters ("&", "$", "!") with underscores in the entire point line string
+  - rule: test-replace-badchars
+    action: replaceRegex
+    scope: pointLine
+    search: "[&\\$#!]"
+    replace: "_"
 
-    # remove "metrictest." from the metric name
-    - rule    : test-replace-metric-name
-      action  : replaceRegex
-      scope   : metricName
-      search  : "metrictest\\."
-      replace : ""
+  # remove "metrictest." from the metric name
+  - rule: test-replace-metric-name
+    action: replaceRegex
+    scope: metricName
+    search: "metrictest\\."
+    replace: ""
 
-    # for "bar" point tag replace all "-" characters with dots
-    - rule    : test-replace-tag-dash
-      action  : replaceRegex
-      scope   : bar
-      search  : "-"
-      replace : "."
+  # for "bar" point tag replace all "-" characters with dots
+  - rule: test-replace-tag-dash
+    action: replaceRegex
+    scope: bar
+    search: "-"
+    replace: "."
 
-    # rename a point tag
-    - rule    : example-renametag
-      action  : renameTag
-      tag     : foo
-      newtag  : baz
+  # rename a point tag
+  - rule: example-renametag
+    action: renameTag
+    tag: foo
+    newtag: baz
 
-    # rename a point tag if its value matches a regex
-    - rule    : example-renametag-regex
-      action  : renameTag
-      tag     : qux
-      match   : "^\\d*$"
-      newtag  : numericTag
+  # rename a point tag if its value matches a regex
+  - rule: example-renametag-regex
+    action: renameTag
+    tag: qux
+    match: "^\\d*$"
+    newtag: numericTag
 
-    # add a "newtagkey=1" point tag to all points
-    - rule    : example-tag-all-metrics
-      action  : addTag
-      tag     : newtagkey
-      value   : 1
+  # add a "newtagkey=1" point tag to all points
+  - rule: example-tag-all-metrics
+    action: addTag
+    tag: newtagkey
+    value: 1
 
-    # remove "dc1" and "dc2" point tags
-    - rule    : example-drop-dc12
-      action  : dropTag
-      tag     : "dc[1-2]"
+  # remove "dc1" and "dc2" point tags
+  - rule: example-drop-dc12
+    action: dropTag
+    tag: "dc[1-2]"
 
-    # remove "datacenter" point tag if its value matches s regex
-    - rule    : example-drop-datacenter-az456
-      action  : dropTag
-      tag     : datacenter
-      match   : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
+  # remove "datacenter" point tag if its value matches s regex
+  - rule: example-drop-datacenter-az456
+    action: dropTag
+    tag: datacenter
+    match: "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
 
-    - rule    : example-extract-metric-prefix
-      action  : extractTag
-      source  : metricName
-      tag     : prefix
-      search  : "^(some).*"
-      replace : "$1"
+  - rule: example-extract-metric-prefix
+    action: extractTag
+    source: metricName
+    tag: prefix
+    search: "^(some).*"
+    replace: "$1"
 
-    - rule    : test-count
-      action  : count
+  - rule: test-count
+    action: count
 
-    - rule    : test-count-2
-      action  : count
-      if      : '$value = 0'
+  - rule: test-count-2
+    action: count
+    if: '$value = 0'
 
 '4242':
 
-    # remove "dc1" and "dc2" point tags
-    - rule    : example-drop-dc12
-      action  : dropTag
-      tag     : "dc[1-2]"
+  # remove "dc1" and "dc2" point tags
+  - rule: example-drop-dc12
+    action: dropTag
+    tag: "dc[1-2]"
 
-    # remove "datacenter" point tag if its value matches s regex
-    - rule    : example-drop-datacenter-az456
-      action  : dropTag
-      tag     : datacenter
-      match   : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
+  # remove "datacenter" point tag if its value matches s regex
+  - rule: example-drop-datacenter-az456
+    action: dropTag
+    tag: datacenter
+    match: "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
 
-    # replace bad characters ("&", "$", "!") with underscores in the entire point line string
-    - rule    : test-replace-badchars
-      action  : replaceRegex
-      scope   : pointLine
-      search  : "[&\\$#!]"
-      replace : "_"
+  # replace bad characters ("&", "$", "!") with underscores in the entire point line string
+  - rule: test-replace-badchars
+    action: replaceRegex
+    scope: pointLine
+    search: "[&\\$#!]"
+    replace: "_"
 
-    # remove "metrictest." from the metric name
-    - rule    : test-replace-metric-name
-      action  : replaceRegex
-      scope   : metricName
-      search  : "metrictest\\."
-      replace : ""
+  # remove "metrictest." from the metric name
+  - rule: test-replace-metric-name
+    action: replaceRegex
+    scope: metricName
+    search: "metrictest\\."
+    replace: ""
 
-    # for "bar" point tag replace all "-" characters with dots
-    - rule    : test-replace-tag-dash
-      action  : replaceRegex
-      scope   : bar
-      search  : "-"
-      replace : "."
+  # for "bar" point tag replace all "-" characters with dots
+  - rule: test-replace-tag-dash
+    action: replaceRegex
+    scope: bar
+    search: "-"
+    replace: "."
 
-    # rename a point tag
-    - rule    : example-renametag
-      action  : renameTag
-      tag     : foo
-      newtag  : baz
+  # rename a point tag
+  - rule: example-renametag
+    action: renameTag
+    tag: foo
+    newtag: baz
 
-    # rename a point tag if its value matches a regex
-    - rule    : example-renametag-regex
-      action  : renameTag
-      tag     : qux
-      match   : "^\\d*$"
-      newtag  : numericTag
+  # rename a point tag if its value matches a regex
+  - rule: example-renametag-regex
+    action: renameTag
+    tag: qux
+    match: "^\\d*$"
+    newtag: numericTag
 
-    # force lowercase
-    - rule    : example-forcelowercase
-      action  : forceLowercase
-      scope   : metricName
+  # force lowercase
+  - rule: example-forcelowercase
+    action: forceLowercase
+    scope: metricName
 
-    # force lowercase with regex match
-    - rule    : example-forcelowercase
-      action  : forceLowercase
-      scope   : metricName
-      match   : "^.*$"
+  # force lowercase with regex match
+  - rule: example-forcelowercase
+    action: forceLowercase
+    scope: metricName
+    match: "^.*$"
 
 '1234':
-    # extract 3rd dot-delimited node from the metric name into fromMetric tag and remove it from the metric name
-    - rule          : test-extracttag-metric
-      action        : extractTag
-      tag           : fromMetric
-      source        : metricName
-      match         : "^.*testExtractTag.*"
-      search        : "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
-      replace       : "$2"
-      replaceInput  : "$1$3"
+  # extract 3rd dot-delimited node from the metric name into fromMetric tag and remove it from the metric name
+  - rule: test-extracttag-metric
+    action: extractTag
+    tag: fromMetric
+    source: metricName
+    match: "^.*testExtractTag.*"
+    search: "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
+    replace: "$2"
+    replaceInput: "$1$3"
 
-    - rule          : test-extracttag-source
-      action        : extractTag
-      tag           : fromSource
-      source        : sourceName
-      search        : "^([^-]*-[^-]*)-(.*)$"
-      replace       : "$2"
-      replaceInput  : "$1"
+  - rule: test-extracttag-source
+    action: extractTag
+    tag: fromSource
+    source: sourceName
+    search: "^([^-]*-[^-]*)-(.*)$"
+    replace: "$2"
+    replaceInput: "$1"
 
-    - rule          : test-extracttagifnotexists-tag
-      action        : extractTagIfNotExists
-      tag           : fromSource  # should not work because such tag already exists!
-      source        : testExtractTag
-      search        : "^.*$"
-      replace       : "Oi! This should never happen!"
+  - rule: test-extracttagifnotexists-tag
+    action: extractTagIfNotExists
+    tag: fromSource  # should not work because such tag already exists!
+    source: testExtractTag
+    search: "^.*$"
+    replace: "Oi! This should never happen!"
 
-    - rule          : test-extracttagifnotexists-tag-2
-      action        : extractTagIfNotExists
-      tag           : fromTag
-      source        : testExtractTag
-      search        : "^([^\\.]*)\\..*$"
-      replace       : "$1"
+  - rule: test-extracttagifnotexists-tag-2
+    action: extractTagIfNotExists
+    tag: fromTag
+    source: testExtractTag
+    search: "^([^\\.]*)\\..*$"
+    replace: "$1"
 
 # Span Preprocessor rules:
 '30123':
-    - rule          : test-spanAddTag
-      action        : spanAddTag
-      key           : customtag1
-      value         : val1
+  - rule: test-spanAddTag
+    action: spanAddTag
+    key: customtag1
+    value: val1
 
-    - rule          : test-spanAddAnnotation
-      action        : spanAddAnnotation
-      key           : customtag1
-      value         : val1
+  - rule: test-spanAddAnnotation
+    action: spanAddAnnotation
+    key: customtag1
+    value: val1
 
-    - rule          : test-spanDropTag
-      action        : spanDropTag
-      key           : datacenter
-      match         : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
+  - rule: test-spanDropTag
+    action: spanDropTag
+    key: datacenter
+    match: "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
 
-    - rule          : test-spanDropAnnotation
-      action        : spanDropAnnotation
-      key           : datacenter
-      match         : "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
+  - rule: test-spanDropAnnotation
+    action: spanDropAnnotation
+    key: datacenter
+    match: "az[4-6]"  # remove az4, az5, az6 (leave az1, az2, az3...)
 
-    # extract 3rd dot-delimited node from the span name into fromSource tag and remove it from the span name
-    - rule          : test-extracttag-spanAnnotation
-      action        : spanExtractAnnotation
-      key           : fromSource
-      input         : spanName
-      match         : "^.*testExtractTag.*"
-      search        : "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
-      replace       : "$2"
-      replaceInput  : "$1$3"
+  # extract 3rd dot-delimited node from the span name into fromSource tag and remove it from the span name
+  - rule: test-extracttag-spanAnnotation
+    action: spanExtractAnnotation
+    key: fromSource
+    input: spanName
+    match: "^.*testExtractTag.*"
+    search: "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
+    replace: "$2"
+    replaceInput: "$1$3"
 
-    - rule          : test-extracttag-spanTag
-      action        : spanExtractTag
-      key           : fromSource
-      input         : spanName
-      match         : "^.*testExtractTag.*"
-      search        : "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
-      replace       : "$2"
-      replaceInput  : "$1$3"
+  - rule: test-extracttag-spanTag
+    action: spanExtractTag
+    key: fromSource
+    input: spanName
+    match: "^.*testExtractTag.*"
+    search: "^([^\\.]*\\.[^\\.]*\\.)([^\\.]*)\\.(.*)$"
+    replace: "$2"
+    replaceInput: "$1$3"
 
-    - rule          : test-extracttagifnotexists-spanAnnotation
-      action        : spanExtractAnnotationIfNotExists
-      key           : fromSource  # should not work because such tag already exists!
-      input         : testExtractTag
-      search        : "^.*$"
-      replace       : "Oi! This should never happen!"
+  - rule: test-extracttagifnotexists-spanAnnotation
+    action: spanExtractAnnotationIfNotExists
+    key: fromSource  # should not work because such tag already exists!
+    input: testExtractTag
+    search: "^.*$"
+    replace: "Oi! This should never happen!"
 
-    - rule          : test-extracttagifnotexists-spanTag
-      action        : spanExtractTagIfNotExists
-      key           : fromSource  # should not work because such tag already exists!
-      input         : testExtractTag
-      search        : "^.*$"
-      replace       : "Oi! This should never happen!"
+  - rule: test-extracttagifnotexists-spanTag
+    action: spanExtractTagIfNotExists
+    key: fromSource  # should not work because such tag already exists!
+    input: testExtractTag
+    search: "^.*$"
+    replace: "Oi! This should never happen!"
 
-    # rename a span tag/annotation if its value matches a regex
-    - rule          : test-spanrenametag
-      action        : spanRenameTag
-      key           : myDevice
-      newkey        : device
-      match         : "^\\d*$"
+  # rename a span tag/annotation if its value matches a regex
+  - rule: test-spanrenametag
+    action: spanRenameTag
+    key: myDevice
+    newkey: device
+    match: "^\\d*$"
 
-    - rule          : test-spanrenameannotation
-      action        : spanRenameAnnotation
-      key           : myDevice
-      newkey        : device
-      match         : "^\\d*$"
+  - rule: test-spanrenameannotation
+    action: spanRenameAnnotation
+    key: myDevice
+    newkey: device
+    match: "^\\d*$"
 
-    - rule          : test-spanreplaceregex
-      action        : spanReplaceRegex
-      scope         : fooBarBaz
-      search        : aaa
-      replace       : bbb
-      firstMatchOnly: true
+  - rule: test-spanreplaceregex
+    action: spanReplaceRegex
+    scope: fooBarBaz
+    search: aaa
+    replace: bbb
+    firstMatchOnly: true
 
-    - rule          : test-spanforcelowecase
-      action        : spanForceLowercase
-      scope         : fooBarBaz
+  - rule: test-spanforcelowecase
+    action: spanForceLowercase
+    scope: fooBarBaz
 
-    - rule          : test-spanaddtagifnotexists
-      action        : spanAddAnnotationIfNotExists
-      key           : testExtractTag
-      value         : "Oi! This should never happen!"
+  - rule: test-spanaddtagifnotexists
+    action: spanAddAnnotationIfNotExists
+    key: testExtractTag
+    value: "Oi! This should never happen!"
 
-    - rule          : test-spanBlock
-      action        : spanBlock
-      scope         : spanName
-      match         : "^badSpan.*$"
+  - rule: test-spanBlock
+    action: spanBlock
+    scope: spanName
+    match: "^badSpan.*$"
 
-    - rule          : test-spanAllow
-      action        : spanAllow
-      scope         : spanName
-      match         : "^spanName.*$"
+  - rule: test-spanAllow
+    action: spanAllow
+    scope: spanName
+    match: "^spanName.*$"
 
 '30124':
   - rule: test-spanAllowAnnotations
@@ -335,37 +335,37 @@
       key2: "bar[0-9]{1,3}"
       version: "[0-9\\.]{1,10}"
 
-  - rule          : test-spanCount
-    action        : spanCount
-    if            : '1 = 1'
+  - rule: test-spanCount
+    action: spanCount
+    if: '1 = 1'
 
 '30126':
-    - rule : test-v2Predicate
-      action : spanAllow
-      if:
-        all:
-          - any:
+  - rule: test-v2Predicate
+    action: spanAllow
+    if:
+      all:
+        - any:
             - all:
-              - equals:
-                  scope: key2
-                  value: "val2"
-              - startsWith:
-                  scope: metricName
-                  value: "foo"
+                - equals:
+                    scope: key2
+                    value: "val2"
+                - startsWith:
+                    scope: metricName
+                    value: "foo"
             - startsWith:
                 scope: metricName
                 value: "trace.deri."
             - equals:
                 scope: key1
                 value: "val1"
-          - none:
+        - none:
             - any:
-              - equals:
-                  scope: key1
-                  value: "val1"
-              - startsWith:
-                  scope: metricName
-                  value: "trace.derive."
+                - equals:
+                    scope: key1
+                    value: "val1"
+                - startsWith:
+                    scope: metricName
+                    value: "trace.derive."
             - startsWith:
                 scope: metricName
                 value: "trace.der."
@@ -375,23 +375,23 @@
 
 
 '30127':
-    - rule : test-v2Predicate
-      action : spanAllow
-      if:
-       equals:
-          scope: debug
-          value: "true"
+  - rule: test-v2Predicate
+    action: spanAllow
+    if:
+      equals:
+        scope: debug
+        value: "true"
 
 '2880, 2881':
   # add a "multiPortTagKey=multiTagVal" point tag to all points
-  - rule    : example-tag-all-metrics
-    action  : addTag
-    tag     : multiPortTagKey
-    value   : multiTagVal
+  - rule: example-tag-all-metrics
+    action: addTag
+    tag: multiPortTagKey
+    value: multiTagVal
 
   # the below is valid preprocessor rule, albeit not applicable to a port accepting only points.
   # add a "multiPortSpanTagKey=multiSpanTagVal" point tag to all spans
-  - rule          : test-spanAddTag
-    action        : spanAddTag
-    key           : multiPortSpanTagKey
-    value         : multiSpanTagVal
+  - rule: test-spanAddTag
+    action: spanAddTag
+    key: multiPortSpanTagKey
+    value: multiSpanTagVal

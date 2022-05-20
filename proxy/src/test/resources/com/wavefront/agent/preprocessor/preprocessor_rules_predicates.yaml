@@ -64,61 +64,61 @@
   - if:
       equals:
         scope: metricName
-        value: ["foometric.1"]
+        value: [ "foometric.1" ]
 
 'startsWith-list-reportpoint':
   - if:
       startsWith:
         scope: metricName
-        value: ["foometric."]
+        value: [ "foometric." ]
 
 'endsWith-list-reportpoint':
   - if:
       endsWith:
         scope: sourceName
-        value: ["prod"]
+        value: [ "prod" ]
 
 'regexMatch-list-reportpoint':
   - if:
       regexMatch:
         scope: sourceName
-        value: ["^host$"]
+        value: [ "^host$" ]
 
 'contains-list-reportpoint':
   - if:
       contains:
         scope: sourceName
-        value: ["prod"]
+        value: [ "prod" ]
 
 'equals-list-span':
   - if:
       equals:
         scope: spanName
-        value: ["testSpanName.1"]
+        value: [ "testSpanName.1" ]
 
 'startsWith-list-span':
   - if:
       startsWith:
         scope: spanName
-        value: ["testSpanName."]
+        value: [ "testSpanName." ]
 
 'endsWith-list-span':
   - if:
       endsWith:
         scope: sourceName
-        value: ["prod"]
+        value: [ "prod" ]
 
 'regexMatch-list-span':
   - if:
       regexMatch:
         scope: sourceName
-        value: ["^host$"]
+        value: [ "^host$" ]
 
 'contains-list-span':
   - if:
       contains:
         scope: sourceName
-        value: ["prod"]
+        value: [ "prod" ]
 
 # Logical Operator predicates.
 
@@ -126,26 +126,26 @@
   - if:
       all:
         - any:
-          - startsWith:
-              scope: metricName
-              value: "foometric."
-          - endsWith:
-              scope: key1
-              value: "val11"
+            - startsWith:
+                scope: metricName
+                value: "foometric."
+            - endsWith:
+                scope: key1
+                value: "val11"
         - none:
-          - contains:
-              scope: debug
-              value: "true"
-          - equals:
-              scope: key3
-              value: "val3"
+            - contains:
+                scope: debug
+                value: "true"
+            - equals:
+                scope: key3
+                value: "val3"
         - ignore:
-          - regexMatch:
-            scope: key2
-            value: "^val$"
-          - equals:
-            scope: key4
-            value: "val4"
+            - regexMatch:
+              scope: key2
+              value: "^val$"
+            - equals:
+              scope: key4
+              value: "val4"
         - equals:
             scope: key2
             value: "val2"
@@ -154,26 +154,26 @@
   - if:
       all:
         - any:
-          - startsWith:
-              scope: spanName
-              value: "testSpanName."
-          - endsWith:
-              scope: key1
-              value: "val11"
+            - startsWith:
+                scope: spanName
+                value: "testSpanName."
+            - endsWith:
+                scope: key1
+                value: "val11"
         - none:
-          - contains:
-              scope: debug
-              value: "true"
-          - equals:
-              scope: key3
-              value: "val3"
+            - contains:
+                scope: debug
+                value: "true"
+            - equals:
+                scope: key3
+                value: "val3"
         - ignore:
-          - regexMatch:
-            scope: key2
-            value: "^val$"
-          - equals:
-            scope: key4
-            value: "val4"
+            - regexMatch:
+              scope: key2
+              value: "^val$"
+            - equals:
+              scope: key4
+              value: "val4"
         - equals:
             scope: key2
             value: "val2"

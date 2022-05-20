@@ -14,14 +14,13 @@ import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.data.DataSubmissionTask;
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.data.ReportableEntityType;
-import org.apache.commons.lang3.StringUtils;
-
-import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * An AmazonSQS implementation of {@link TaskQueueFactory}
@@ -42,11 +41,11 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
   private final AmazonSQS client;
 
   /**
-   * @param template    The sqsTemplateName
-   * @param region      The region in AWS to operate against
-   * @param queueId     The unique identifier for the queues
+   * @param template The sqsTemplateName
+   * @param region The region in AWS to operate against
+   * @param queueId The unique identifier for the queues
    * @param purgeBuffer Whether buffer files should be nuked before starting (this may cause data
-   *                    loss if queue files are not empty)
+   *     loss if queue files are not empty)
    */
   public SQSQueueFactoryImpl(String template, String region, String queueId, boolean purgeBuffer) {
     this.queueNameTemplate = template;
@@ -57,32 +56,40 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
   }
 
   @Override
-  public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(@Nonnull HandlerKey key,
-                                                                     int threadNum) {
+  public <T extends DataSubmissionTask<T>> TaskQueue<T> getTaskQueue(
+      @Nonnull HandlerKey key, int threadNum) {
     // noinspection unchecked
-    return (TaskQueue<T>) taskQueues.computeIfAbsent(key, x -> new TreeMap<>()).
-        computeIfAbsent(threadNum, x -> createTaskQueue(key));
+    return (TaskQueue<T>)
+        taskQueues
+            .computeIfAbsent(key, x -> new TreeMap<>())
+            .computeIfAbsent(threadNum, x -> createTaskQueue(key));
   }
 
   private <T extends DataSubmissionTask<T>> TaskQueue<T> createTaskQueue(
       @Nonnull HandlerKey handlerKey) {
     if (purgeBuffer) {
-      logger.warning("--purgeBuffer is set but purging buffers is not supported on " +
-          "SQS implementation");
+      logger.warning(
+          "--purgeBuffer is set but purging buffers is not supported on " + "SQS implementation");
     }
 
     final String queueName = getQueueName(handlerKey);
     String queueUrl = queues.computeIfAbsent(queueName, x -> getOrCreateQueue(queueName));
     if (handlerKey.getEntityType() == ReportableEntityType.SOURCE_TAG) {
-      return new InstrumentedTaskQueueDelegate<T>(new InMemorySubmissionQueue<>(), "buffer.in-memory",
-          ImmutableMap.of("port", handlerKey.getHandle()), handlerKey.getEntityType());
+      return new InstrumentedTaskQueueDelegate<T>(
+          new InMemorySubmissionQueue<>(),
+          "buffer.in-memory",
+          ImmutableMap.of("port", handlerKey.getHandle()),
+          handlerKey.getEntityType());
     }
     if (StringUtils.isNotBlank(queueUrl)) {
-      return new InstrumentedTaskQueueDelegate<>(new SQSSubmissionQueue<>(queueUrl,
-          AmazonSQSClientBuilder.standard().withRegion(this.region).build(),
-          new RetryTaskConverter<T>(handlerKey.getHandle(),
-              RetryTaskConverter.CompressionType.LZ4)),
-          "buffer.sqs", ImmutableMap.of("port", handlerKey.getHandle(), "sqsQueue", queueUrl),
+      return new InstrumentedTaskQueueDelegate<>(
+          new SQSSubmissionQueue<>(
+              queueUrl,
+              AmazonSQSClientBuilder.standard().withRegion(this.region).build(),
+              new RetryTaskConverter<T>(
+                  handlerKey.getHandle(), RetryTaskConverter.CompressionType.LZ4)),
+          "buffer.sqs",
+          ImmutableMap.of("port", handlerKey.getHandle(), "sqsQueue", queueUrl),
           handlerKey.getEntityType());
     }
     return new TaskQueueStub<>();
@@ -90,10 +97,11 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
 
   @VisibleForTesting
   public String getQueueName(HandlerKey handlerKey) {
-    String queueName = queueNameTemplate.
-        replace("{{id}}", this.queueId).
-        replace("{{entity}}",  handlerKey.getEntityType().toString()).
-        replace("{{port}}", handlerKey.getHandle());
+    String queueName =
+        queueNameTemplate
+            .replace("{{id}}", this.queueId)
+            .replace("{{entity}}", handlerKey.getEntityType().toString())
+            .replace("{{port}}", handlerKey.getHandle());
     return queueName;
   }
 
@@ -112,11 +120,11 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
     try {
       if (StringUtils.isBlank(queueUrl)) {
         CreateQueueRequest request = new CreateQueueRequest();
-        request.
-            addAttributesEntry(QueueAttributeName.MessageRetentionPeriod.toString(), "1209600").
-            addAttributesEntry(QueueAttributeName.ReceiveMessageWaitTimeSeconds.toString(), "20").
-            addAttributesEntry(QueueAttributeName.VisibilityTimeout.toString(), "60").
-            setQueueName(queueName);
+        request
+            .addAttributesEntry(QueueAttributeName.MessageRetentionPeriod.toString(), "1209600")
+            .addAttributesEntry(QueueAttributeName.ReceiveMessageWaitTimeSeconds.toString(), "20")
+            .addAttributesEntry(QueueAttributeName.VisibilityTimeout.toString(), "60")
+            .setQueueName(queueName);
         CreateQueueResult result = client.createQueue(request);
         queueUrl = result.getQueueUrl();
         queues.put(queueName, queueUrl);
@@ -129,7 +137,8 @@ public class SQSQueueFactoryImpl implements TaskQueueFactory {
   }
 
   public static boolean isValidSQSTemplate(String template) {
-    return template.contains("{{id}}") && template.contains("{{entity}}") &&
-        template.contains("{{port}}");
+    return template.contains("{{id}}")
+        && template.contains("{{entity}}")
+        && template.contains("{{port}}");
   }
 }
