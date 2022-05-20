@@ -74,12 +74,6 @@
                 <version>3.3</version>
                 <executions>
                     <execution>
-                        <id>install-formatter-hook</id>
-                        <goals>
-                            <goal>install-hooks</goal>
-                        </goals>
-                    </execution>
-                    <execution>
                         <id>format-code</id>
                         <phase>validate</phase>
                         <goals>
