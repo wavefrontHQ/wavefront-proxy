@@ -66,6 +66,28 @@
       </resource>
     </resources>
     <plugins>
+
+            <plugin>
+                <groupId>com.cosium.code</groupId>
+                <artifactId>git-code-format-maven-plugin</artifactId>
+                <version>3.3</version>
+                <executions>
+        <execution>
+          <id>install-formatter-hook</id>
+          <goals>
+            <goal>install-hooks</goal>
+          </goals>
+        </execution>
+                    <execution>
+                        <id>format-code</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>format-code</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
