@@ -1,0 +1,18 @@
+#!/bin/bash -x
+
+eval $(brew shellenv)
+CMDDIR=$(dirname $0)
+JAVA_HOME=$(/usr/libexec/java_home -v 11)
+PROXY=$(brew --prefix wfproxy)
+
+ENV_FILE=${HOMEBREW_PREFIX}/etc/wfproxy/prox_env.conf
+if [ -f "${ENV_FILE}" ] ; then
+  . ${ENV_FILE}
+fi
+
+${JAVA_HOME}/bin/java \
+        $JAVA_ARGS \
+        -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
+        -Dlog4j.configurationFile=${HOMEBREW_PREFIX=}/etc/wfproxy/log4j2.xml \
+        -jar ${PROXY}/wavefront-proxy.jar \
+        -f ${HOMEBREW_PREFIX}/etc/wfproxy/proxy.conf

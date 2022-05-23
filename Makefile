@@ -55,6 +55,15 @@ push-linux: .info .prepare-builder
 	docker run -v $(shell pwd)/:/proxy proxy-linux-builder /proxy/pkg/upload_to_packagecloud.sh ${PACKAGECLOUD_USER}/${PACKAGECLOUD_REPO} /proxy/pkg/package_cloud.conf /proxy/out
 
 #####
+# Package for Macos
+#####
+pack-macos:
+	cp ${out}/${ARTIFACT_ID}-${VERSION}-uber.jar macos/wavefront-proxy.jar
+	cd macos && zip ${out}/wfproxy_${VERSION}_${REVISION}.zip *
+	unzip -t ${out}/wfproxy_${VERSION}_${REVISION}.zip
+
+
+#####
 # Run Proxy complex Tests
 #####
 tests: .info .cp-docker
