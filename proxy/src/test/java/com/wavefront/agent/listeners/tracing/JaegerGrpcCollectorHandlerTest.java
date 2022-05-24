@@ -25,8 +25,8 @@ import java.util.HashMap;
 import java.util.function.Supplier;
 
 import io.grpc.stub.StreamObserver;
-import io.opentelemetry.exporters.jaeger.proto.api_v2.Collector;
-import io.opentelemetry.exporters.jaeger.proto.api_v2.Model;
+import io.opentelemetry.exporter.jaeger.proto.api_v2.Collector;
+import io.opentelemetry.exporter.jaeger.proto.api_v2.Model;
 import wavefront.report.Annotation;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;

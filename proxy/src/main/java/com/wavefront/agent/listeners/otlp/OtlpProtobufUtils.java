@@ -60,7 +60,6 @@ import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SOURCE_KEY;
 import static com.wavefront.sdk.common.Constants.SPAN_LOG_KEY;
-import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
 
 /**
  * @author Xiaochen Wang (xiaochenw@vmware.com).
@@ -71,6 +70,7 @@ public class OtlpProtobufUtils {
   public static final String OTEL_DROPPED_ATTRS_KEY = "otel.dropped_attributes_count";
   public static final String OTEL_DROPPED_EVENTS_KEY = "otel.dropped_events_count";
   public static final String OTEL_DROPPED_LINKS_KEY = "otel.dropped_links_count";
+  public static final String OTEL_SERVICE_NAME_KEY = "service.name";
   public final static String OTEL_STATUS_DESCRIPTION_KEY = "otel.status_description";
   private final static String DEFAULT_APPLICATION_NAME = "defaultApplication";
   private final static String DEFAULT_SERVICE_NAME = "defaultService";
@@ -395,9 +395,9 @@ public class OtlpProtobufUtils {
     List<Annotation> requiredTags = new ArrayList<>();
 
     if (!tags.containsKey(SERVICE_TAG_KEY)) {
-      tags.put(SERVICE_TAG_KEY, tags.getOrDefault(SERVICE_NAME.getKey(), DEFAULT_SERVICE_NAME));
+      tags.put(SERVICE_TAG_KEY, tags.getOrDefault(OTEL_SERVICE_NAME_KEY, DEFAULT_SERVICE_NAME));
     }
-    tags.remove(SERVICE_NAME.getKey());
+    tags.remove(OTEL_SERVICE_NAME_KEY);
 
     tags.putIfAbsent(APPLICATION_TAG_KEY, DEFAULT_APPLICATION_NAME);
     tags.putIfAbsent(CLUSTER_TAG_KEY, NULL_TAG_VAL);

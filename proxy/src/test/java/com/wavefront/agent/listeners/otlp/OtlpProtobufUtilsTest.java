@@ -61,7 +61,6 @@ import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
 import static org.easymock.EasyMock.anyLong;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.capture;
@@ -313,7 +312,7 @@ public class OtlpProtobufUtilsTest {
     Map<String, String> annotations = getWfAnnotationAsMap(wfAnnotations);
 
     assertEquals(4, wfAnnotations.size());
-    assertFalse(annotations.containsKey(SERVICE_NAME.getKey()));
+    assertFalse(annotations.containsKey("service.name"));
     assertEquals("defaultApplication", annotations.get(APPLICATION_TAG_KEY));
     assertEquals("defaultService", annotations.get(SERVICE_TAG_KEY));
     assertEquals(NULL_TAG_VAL, annotations.get(CLUSTER_TAG_KEY));
@@ -322,20 +321,20 @@ public class OtlpProtobufUtilsTest {
 
   @Test
   public void testSetRequiredTagsOtlpServiceNameTagIsUsed() {
-    Annotation serviceName = Annotation.newBuilder().setKey(SERVICE_NAME.getKey())
+    Annotation serviceName = Annotation.newBuilder().setKey("service.name")
         .setValue("a-service").build();
 
     List<Annotation> wfAnnotations =
         OtlpProtobufUtils.setRequiredTags(Collections.singletonList(serviceName));
     Map<String, String> annotations = getWfAnnotationAsMap(wfAnnotations);
 
-    assertFalse(annotations.containsKey(SERVICE_NAME.getKey()));
+    assertFalse(annotations.containsKey("service.name"));
     assertEquals("a-service", annotations.get(SERVICE_TAG_KEY));
   }
 
   @Test
   public void testSetRequireTagsOtlpServiceNameTagIsDroppedIfServiceIsSet() {
-    Annotation serviceName = Annotation.newBuilder().setKey(SERVICE_NAME.getKey())
+    Annotation serviceName = Annotation.newBuilder().setKey("service.name")
         .setValue("otlp-service").build();
     Annotation wfService = Annotation.newBuilder().setKey(SERVICE_TAG_KEY)
         .setValue("wf-service").build();
@@ -344,7 +343,7 @@ public class OtlpProtobufUtilsTest {
         OtlpProtobufUtils.setRequiredTags(Arrays.asList(serviceName, wfService));
     Map<String, String> annotations = getWfAnnotationAsMap(wfAnnotations);
 
-    assertFalse(annotations.containsKey(SERVICE_NAME.getKey()));
+    assertFalse(annotations.containsKey("service.name"));
     assertEquals("wf-service", annotations.get(SERVICE_TAG_KEY));
   }
 
