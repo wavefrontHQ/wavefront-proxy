@@ -74,25 +74,46 @@ public class ReportPointExtractTagTransformer implements Function<ReportPoint, R
   protected void internalApply(@Nonnull ReportPoint reportPoint) {
     switch (source) {
       case "metricName":
-        if (extractTag(reportPoint, reportPoint.getMetric()) && patternReplaceSource != null) {
-          reportPoint.setMetric(compiledSearchPattern.matcher(reportPoint.getMetric()).
-              replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
-        }
+        applyMetricName(reportPoint);
         break;
       case "sourceName":
-        if (extractTag(reportPoint, reportPoint.getHost()) && patternReplaceSource != null) {
-          reportPoint.setHost(compiledSearchPattern.matcher(reportPoint.getHost()).
-              replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
+        applySourceName(reportPoint);
+        break;
+      case "pointLine":
+        applyMetricName(reportPoint);
+        applySourceName(reportPoint);
+        if (reportPoint.getAnnotations() != null ) {
+          for (String tagKey : reportPoint.getAnnotations().keySet()) {
+            applyPointTagKey(reportPoint, tagKey);
+          }
         }
         break;
       default:
-        if (reportPoint.getAnnotations() != null && reportPoint.getAnnotations().get(source) != null) {
-          if (extractTag(reportPoint, reportPoint.getAnnotations().get(source)) && patternReplaceSource != null) {
-            reportPoint.getAnnotations().put(source,
-                compiledSearchPattern.matcher(reportPoint.getAnnotations().get(source)).
-                    replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
-          }
-        }
+        applyPointTagKey(reportPoint, source);
+    }
+  }
+
+  public void applyMetricName(ReportPoint reportPoint) {
+    if (extractTag(reportPoint, reportPoint.getMetric()) && patternReplaceSource != null) {
+      reportPoint.setMetric(compiledSearchPattern.matcher(reportPoint.getMetric()).
+          replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
+    }
+  }
+
+  public void applySourceName(ReportPoint reportPoint) {
+    if (extractTag(reportPoint, reportPoint.getHost()) && patternReplaceSource != null) {
+      reportPoint.setHost(compiledSearchPattern.matcher(reportPoint.getHost()).
+          replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
+    }
+  }
+
+  public void applyPointTagKey(ReportPoint reportPoint, String tagKey) {
+    if (reportPoint.getAnnotations() != null && reportPoint.getAnnotations().get(tagKey) != null) {
+      if (extractTag(reportPoint, reportPoint.getAnnotations().get(tagKey)) && patternReplaceSource != null) {
+        reportPoint.getAnnotations().put(tagKey,
+            compiledSearchPattern.matcher(reportPoint.getAnnotations().get(tagKey)).
+                replaceAll(expandPlaceholders(patternReplaceSource, reportPoint)));
+      }
     }
   }
 
