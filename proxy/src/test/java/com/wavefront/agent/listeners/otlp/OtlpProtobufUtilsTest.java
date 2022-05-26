@@ -1,6 +1,5 @@
 package com.wavefront.agent.listeners.otlp;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -39,12 +38,11 @@ import java.util.stream.Collectors;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.ArrayValue;
-import io.opentelemetry.proto.common.v1.InstrumentationLibrary;
+import io.opentelemetry.proto.common.v1.InstrumentationScope;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
-import wavefront.report.ReportPoint;
 import wavefront.report.SpanLogs;
 
 import static com.wavefront.agent.listeners.otlp.OtlpProtobufUtils.OTEL_STATUS_DESCRIPTION_KEY;
@@ -87,14 +85,12 @@ import static org.junit.Assert.assertTrue;
 public class OtlpProtobufUtilsTest {
 
   private final static List<KeyValue> emptyAttrs = Collections.unmodifiableList(new ArrayList<>());
-  private static final long startTimeMs = System.currentTimeMillis();
+  public static final String SERVICE_NAME = "service.name";
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final ReportableEntityHandler<wavefront.report.Span, String> mockSpanHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
   private final wavefront.report.Span wfMinimalSpan = OtlpTestHelpers.wfSpanGenerator(null).build();
   private wavefront.report.Span actualSpan;
-  private List<ReportPoint> actualPoints;
-  private ImmutableList<ReportPoint> expectedPoints;
 
   private static Map<String, String> getWfAnnotationAsMap(List<Annotation> wfAnnotations) {
     Map<String, String> wfAnnotationAsMap = Maps.newHashMap();
@@ -312,7 +308,7 @@ public class OtlpProtobufUtilsTest {
     Map<String, String> annotations = getWfAnnotationAsMap(wfAnnotations);
 
     assertEquals(4, wfAnnotations.size());
-    assertFalse(annotations.containsKey("service.name"));
+    assertFalse(annotations.containsKey(SERVICE_NAME));
     assertEquals("defaultApplication", annotations.get(APPLICATION_TAG_KEY));
     assertEquals("defaultService", annotations.get(SERVICE_TAG_KEY));
     assertEquals(NULL_TAG_VAL, annotations.get(CLUSTER_TAG_KEY));
@@ -321,20 +317,20 @@ public class OtlpProtobufUtilsTest {
 
   @Test
   public void testSetRequiredTagsOtlpServiceNameTagIsUsed() {
-    Annotation serviceName = Annotation.newBuilder().setKey("service.name")
+    Annotation serviceName = Annotation.newBuilder().setKey(SERVICE_NAME)
         .setValue("a-service").build();
 
     List<Annotation> wfAnnotations =
         OtlpProtobufUtils.setRequiredTags(Collections.singletonList(serviceName));
     Map<String, String> annotations = getWfAnnotationAsMap(wfAnnotations);
 
-    assertFalse(annotations.containsKey("service.name"));
+    assertFalse(annotations.containsKey(SERVICE_NAME));
     assertEquals("a-service", annotations.get(SERVICE_TAG_KEY));
   }
 
   @Test
   public void testSetRequireTagsOtlpServiceNameTagIsDroppedIfServiceIsSet() {
-    Annotation serviceName = Annotation.newBuilder().setKey("service.name")
+    Annotation serviceName = Annotation.newBuilder().setKey(SERVICE_NAME)
         .setValue("otlp-service").build();
     Annotation wfService = Annotation.newBuilder().setKey(SERVICE_TAG_KEY)
         .setValue("wf-service").build();
@@ -343,7 +339,7 @@ public class OtlpProtobufUtilsTest {
         OtlpProtobufUtils.setRequiredTags(Arrays.asList(serviceName, wfService));
     Map<String, String> annotations = getWfAnnotationAsMap(wfAnnotations);
 
-    assertFalse(annotations.containsKey("service.name"));
+    assertFalse(annotations.containsKey(SERVICE_NAME));
     assertEquals("wf-service", annotations.get(SERVICE_TAG_KEY));
   }
 
@@ -430,12 +426,12 @@ public class OtlpProtobufUtilsTest {
   }
 
   @Test
-  public void transformSpanHandlesInstrumentationLibrary() {
-    InstrumentationLibrary library = InstrumentationLibrary.newBuilder()
+  public void transformSpanHandlesInstrumentationScope() {
+    InstrumentationScope scope = InstrumentationScope.newBuilder()
         .setName("grpc").setVersion("1.0").build();
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, library, null, "test-source");
+    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, scope, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("otel.scope.name", "grpc")));
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("otel.scope.version", "1.0")));
@@ -797,29 +793,29 @@ public class OtlpProtobufUtilsTest {
   }
 
   @Test
-  public void annotationsFromInstrumentationLibraryWithNullOrEmptyLibrary() {
+  public void annotationsFromInstrumentationScopeWithNullOrEmptyScope() {
     assertEquals(Collections.emptyList(),
-        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(null));
+        OtlpProtobufUtils.annotationsFromInstrumentationScope(null));
 
-    InstrumentationLibrary emptyLibrary = InstrumentationLibrary.newBuilder().build();
+    InstrumentationScope emptyScope = InstrumentationScope.newBuilder().build();
     assertEquals(Collections.emptyList(),
-        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(emptyLibrary));
+        OtlpProtobufUtils.annotationsFromInstrumentationScope(emptyScope));
   }
 
   @Test
-  public void annotationsFromInstrumentationLibraryWithLibraryData() {
-    InstrumentationLibrary library =
-        InstrumentationLibrary.newBuilder().setName("net/http").build();
+  public void annotationsFromInstrumentationScopeWithScopeData() {
+    InstrumentationScope scope =
+        InstrumentationScope.newBuilder().setName("net/http").build();
 
     assertEquals(Collections.singletonList(new Annotation("otel.scope.name", "net/http")),
-        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(library));
+        OtlpProtobufUtils.annotationsFromInstrumentationScope(scope));
 
-    library = library.toBuilder().setVersion("1.0.0").build();
+    scope = scope.toBuilder().setVersion("1.0.0").build();
 
     assertEquals(
         Arrays.asList(new Annotation("otel.scope.name", "net/http"),
             new Annotation("otel.scope.version", "1.0.0")),
-        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(library)
+        OtlpProtobufUtils.annotationsFromInstrumentationScope(scope)
     );
   }
 

@@ -30,10 +30,10 @@ import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.Histogram;
 import io.opentelemetry.proto.metrics.v1.HistogramDataPoint;
-import io.opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics;
 import io.opentelemetry.proto.metrics.v1.Metric;
 import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
 import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
+import io.opentelemetry.proto.metrics.v1.ScopeMetrics;
 import io.opentelemetry.proto.metrics.v1.Sum;
 import io.opentelemetry.proto.metrics.v1.Summary;
 import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
@@ -82,11 +82,11 @@ public class OtlpProtobufPointUtils {
       Pair<String, List<KeyValue>> sourceAndResourceAttrs =
           OtlpProtobufUtils.sourceFromAttributes(resource.getAttributesList(), defaultSource);
       OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Resource: " + resource);
-      for (InstrumentationLibraryMetrics instrumentationLibraryMetrics :
-          resourceMetrics.getInstrumentationLibraryMetricsList()) {
-        OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Instrumentation Library: " +
-            instrumentationLibraryMetrics.getInstrumentationLibrary());
-        for (Metric otlpMetric : instrumentationLibraryMetrics.getMetricsList()) {
+      for (ScopeMetrics scopeMetrics :
+          resourceMetrics.getScopeMetricsList()) {
+        OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Instrumentation Scope: " +
+            scopeMetrics.getScope());
+        for (Metric otlpMetric : scopeMetrics.getMetricsList()) {
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
           List<ReportPoint> points = transform(otlpMetric, sourceAndResourceAttrs._2,
               preprocessor, sourceAndResourceAttrs._1);

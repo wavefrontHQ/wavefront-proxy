@@ -27,10 +27,10 @@ import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
 import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.Histogram;
 import io.opentelemetry.proto.metrics.v1.HistogramDataPoint;
-import io.opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics;
 import io.opentelemetry.proto.metrics.v1.Metric;
 import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
 import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
+import io.opentelemetry.proto.metrics.v1.ScopeMetrics;
 import io.opentelemetry.proto.metrics.v1.Sum;
 import io.opentelemetry.proto.metrics.v1.Summary;
 import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
@@ -96,7 +96,8 @@ public class OtlpMetricsTest {
 
     EasyMock.replay(mockReportPointHandler);
 
-    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder().addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build()).build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 
@@ -127,7 +128,8 @@ public class OtlpMetricsTest {
 
     EasyMock.replay(mockReportPointHandler);
 
-    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder().addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build()).build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 
@@ -158,7 +160,8 @@ public class OtlpMetricsTest {
 
     EasyMock.replay(mockReportPointHandler);
 
-    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder().addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build()).build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 
@@ -209,7 +212,8 @@ public class OtlpMetricsTest {
 
     EasyMock.replay(mockReportPointHandler);
 
-    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder().addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build()).build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 
@@ -240,7 +244,8 @@ public class OtlpMetricsTest {
 
     EasyMock.replay(mockReportPointHandler);
 
-    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder().addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build()).build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 
@@ -271,7 +276,8 @@ public class OtlpMetricsTest {
 
     EasyMock.replay(mockReportPointHandler);
 
-    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder().addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build()).build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 
@@ -301,7 +307,7 @@ public class OtlpMetricsTest {
 
     Resource otelResource = Resource.newBuilder().addAttributes(OtlpTestHelpers.attribute("source", "at-resrc")).build();
     ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().setResource(otelResource)
-        .addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build())
+        .addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build())
         .build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
@@ -365,7 +371,8 @@ public class OtlpMetricsTest {
 
     EasyMock.replay(mockReportPointHandler);
 
-    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder().addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build()).build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 
@@ -449,7 +456,8 @@ public class OtlpMetricsTest {
 
     EasyMock.replay(mockHistogramHandler);
 
-    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder().addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build()).build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 

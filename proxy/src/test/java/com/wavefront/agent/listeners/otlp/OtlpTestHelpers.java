@@ -12,8 +12,8 @@ import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
 import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
-import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
+import io.opentelemetry.proto.trace.v1.ScopeSpans;
 import io.opentelemetry.proto.trace.v1.Status;
 import org.apache.commons.compress.utils.Lists;
 import org.hamcrest.FeatureMatcher;
@@ -150,9 +150,9 @@ public class OtlpTestHelpers {
     KeyValue attr = attribute("attrKey", "attrValue");
     io.opentelemetry.proto.trace.v1.Span.Event.Builder builder =
         io.opentelemetry.proto.trace.v1.Span.Event.newBuilder()
-        .setName("eventName")
-        .setTimeUnixNano(eventTimestamp)
-        .addAttributes(attr);
+            .setName("eventName")
+            .setTimeUnixNano(eventTimestamp)
+            .addAttributes(attr);
 
     if (droppedAttrsCount > 0) {
       builder.setDroppedAttributesCount(droppedAttrsCount);
@@ -211,10 +211,9 @@ public class OtlpTestHelpers {
   }
 
   public static ExportTraceServiceRequest otlpTraceRequest(io.opentelemetry.proto.trace.v1.Span otlpSpan) {
-    InstrumentationLibrarySpans ilSpans = InstrumentationLibrarySpans.newBuilder().addSpans(otlpSpan).build();
-    ResourceSpans rSpans = ResourceSpans.newBuilder().addInstrumentationLibrarySpans(ilSpans).build();
-    ExportTraceServiceRequest request = ExportTraceServiceRequest.newBuilder().addResourceSpans(rSpans).build();
-    return request;
+    ScopeSpans scopeSpans = ScopeSpans.newBuilder().addSpans(otlpSpan).build();
+    ResourceSpans rSpans = ResourceSpans.newBuilder().addScopeSpans(scopeSpans).build();
+    return ExportTraceServiceRequest.newBuilder().addResourceSpans(rSpans).build();
   }
 
   public static void assertWFReportPointEquals(wavefront.report.ReportPoint expected, wavefront.report.ReportPoint actual) {

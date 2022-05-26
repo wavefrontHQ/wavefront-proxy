@@ -28,11 +28,6 @@ import com.wavefront.sdk.common.WavefrontSender;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 
-import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
-import io.opentelemetry.proto.metrics.v1.Gauge;
-import io.opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics;
-import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
-import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
 import junit.framework.AssertionFailedError;
 
 import net.jcip.annotations.NotThreadSafe;
@@ -72,7 +67,12 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 
+import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
+import io.opentelemetry.proto.metrics.v1.Gauge;
+import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
+import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
+import io.opentelemetry.proto.metrics.v1.ScopeMetrics;
 import wavefront.report.Annotation;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
@@ -145,7 +145,7 @@ public class PushAgentTest {
   private SenderTask<String> mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
   private Map<String, Collection<SenderTask<String>>> mockSenderTaskMap =
       ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, ImmutableList.of(mockSenderTask));
-  
+
   private SenderTaskFactory mockSenderTaskFactory = new SenderTaskFactory() {
     @SuppressWarnings("unchecked")
     @Override
@@ -1541,7 +1541,7 @@ public class PushAgentTest {
         .build();
     ExportMetricsServiceRequest payload = ExportMetricsServiceRequest.newBuilder()
         .addResourceMetrics(ResourceMetrics.newBuilder()
-            .addInstrumentationLibraryMetrics(InstrumentationLibraryMetrics.newBuilder()
+            .addScopeMetrics(ScopeMetrics.newBuilder()
                 .addMetrics(simpleGauge)
                 .build())
             .build())
