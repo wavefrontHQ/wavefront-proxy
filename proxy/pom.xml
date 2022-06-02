@@ -402,7 +402,7 @@
     <dependency>
       <groupId>com.wavefront</groupId>
       <artifactId>java-lib</artifactId>
-      <version>2022-10.2-SNAPSHOT</version>
+      <version>2022-10.1</version>
     </dependency>
     <dependency>
       <groupId>org.jboss.resteasy</groupId>
