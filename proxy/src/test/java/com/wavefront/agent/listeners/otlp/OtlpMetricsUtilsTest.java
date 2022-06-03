@@ -31,9 +31,9 @@ import wavefront.report.Annotation;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
-import static com.wavefront.agent.listeners.otlp.OtlpProtobufPointUtils.MILLIS_IN_DAY;
-import static com.wavefront.agent.listeners.otlp.OtlpProtobufPointUtils.MILLIS_IN_HOUR;
-import static com.wavefront.agent.listeners.otlp.OtlpProtobufPointUtils.MILLIS_IN_MINUTE;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_DAY;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_HOUR;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_MINUTE;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.DEFAULT_SOURCE;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertAllPointsEqual;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
@@ -43,7 +43,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * @author Sumit Deo (deosu@vmware.com)
  */
-public class OtlpProtobufPointUtilsTest {
+public class OtlpMetricsUtilsTest {
   private final static List<KeyValue> emptyAttrs = Collections.unmodifiableList(new ArrayList<>());
   private static final long startTimeMs = System.currentTimeMillis();
 
@@ -55,7 +55,7 @@ public class OtlpProtobufPointUtilsTest {
     Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().build();
 
     Assert.assertThrows(IllegalArgumentException.class, () -> {
-      OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+      OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
     });
   }
 
@@ -65,7 +65,7 @@ public class OtlpProtobufPointUtilsTest {
     Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setGauge(emptyGauge).build();
 
     Assert.assertThrows(IllegalArgumentException.class, () -> {
-      OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+      OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
     });
   }
 
@@ -74,7 +74,7 @@ public class OtlpProtobufPointUtilsTest {
     Gauge otlpGauge = Gauge.newBuilder().addDataPoints(NumberDataPoint.newBuilder().build()).build();
     Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setGauge(otlpGauge).build();
     expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator().build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -85,7 +85,7 @@ public class OtlpProtobufPointUtilsTest {
     Gauge otlpGauge = Gauge.newBuilder().addDataPoints(NumberDataPoint.newBuilder().setTimeUnixNano(timeInNanos).build()).build();
     Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setGauge(otlpGauge).build();
     expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator().setTimestamp(startTimeMs).build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -102,7 +102,7 @@ public class OtlpProtobufPointUtilsTest {
         OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1.0).build(),
         OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2.0).build()
     );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -121,7 +121,7 @@ public class OtlpProtobufPointUtilsTest {
         Annotation.newBuilder().setKey("a-boolean").setValue("true").build()
     );
     expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator(wfAttrs).build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -132,7 +132,7 @@ public class OtlpProtobufPointUtilsTest {
     Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(emptySum).build();
 
     Assert.assertThrows(IllegalArgumentException.class, () -> {
-      OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+      OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
     });
   }
 
@@ -144,7 +144,7 @@ public class OtlpProtobufPointUtilsTest {
         .build();
     Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).build();
     expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator().build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -158,7 +158,7 @@ public class OtlpProtobufPointUtilsTest {
         .build();
     Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).build();
     expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator().setTimestamp(startTimeMs).build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -175,7 +175,7 @@ public class OtlpProtobufPointUtilsTest {
         OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(1)).setValue(1.0).build(),
         OtlpTestHelpers.wfReportPointGenerator().setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2.0).build()
     );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -196,7 +196,7 @@ public class OtlpProtobufPointUtilsTest {
         Annotation.newBuilder().setKey("a-boolean").setValue("true").build()
     );
     expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator(wfAttrs).build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -210,7 +210,7 @@ public class OtlpProtobufPointUtilsTest {
     Metric otlpMetric = OtlpTestHelpers.otlpMetricGenerator().setSum(otlpSum).setName("testSum").build();
     ReportPoint reportPoint = OtlpTestHelpers.wfReportPointGenerator().setMetric("∆testSum").build();
     expectedPoints = ImmutableList.of(reportPoint);
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -232,7 +232,7 @@ public class OtlpProtobufPointUtilsTest {
         OtlpTestHelpers.wfReportPointGenerator().setMetric("testSummary_count").setValue(3).build(),
         OtlpTestHelpers.wfReportPointGenerator().setMetric("testSummary").setValue(12.3).setAnnotations(ImmutableMap.of("quantile", "0.5")).build()
     );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -244,7 +244,7 @@ public class OtlpProtobufPointUtilsTest {
         .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(startTimeMs))
         .build();
     Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(point).build();
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     for (ReportPoint p : actualPoints) {
       assertEquals(startTimeMs, p.getTimestamp());
@@ -268,7 +268,7 @@ public class OtlpProtobufPointUtilsTest {
         OtlpTestHelpers.wfReportPointGenerator().setMetric("test_sum").setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2.0).build(),
         OtlpTestHelpers.wfReportPointGenerator().setMetric("test_count").setTimestamp(TimeUnit.SECONDS.toMillis(2)).setValue(2).build()
     );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -304,7 +304,7 @@ public class OtlpProtobufPointUtilsTest {
             .setValue(6.6)
             .build()
     );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, justThePointsNamed("test", actualPoints));
   }
@@ -324,7 +324,7 @@ public class OtlpProtobufPointUtilsTest {
         .build();
     Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(point).setName("testSummary").build();
 
-    for (ReportPoint p : OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE)) {
+    for (ReportPoint p : OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE)) {
       assertEquals("half", p.getAnnotations().get("_quantile"));
       if (p.getMetric().equals("testSummary")) {
         assertEquals("0.5", p.getAnnotations().get("quantile"));
@@ -342,7 +342,7 @@ public class OtlpProtobufPointUtilsTest {
     SummaryDataPoint dataPoint = SummaryDataPoint.newBuilder().addAttributes(booleanAttr).build();
     Metric otlpMetric = OtlpTestHelpers.otlpSummaryGenerator(dataPoint).build();
 
-    for (ReportPoint p : OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE)) {
+    for (ReportPoint p : OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE)) {
       assertEquals("true", p.getAnnotations().get("a-boolean"));
     }
   }
@@ -367,7 +367,7 @@ public class OtlpProtobufPointUtilsTest {
         OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "+Inf")))
             .setValue(3).build()
     );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -387,7 +387,7 @@ public class OtlpProtobufPointUtilsTest {
         OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "+Inf")))
             .setValue(1).build()
     );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -409,7 +409,7 @@ public class OtlpProtobufPointUtilsTest {
                 new Annotation("_le", "someVal")))
             .setValue(1).build()
     );
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -428,7 +428,7 @@ public class OtlpProtobufPointUtilsTest {
         OtlpTestHelpers.otlpMetricGenerator().setHistogram(histo).build();
 
     Assert.assertThrows(IllegalArgumentException.class,
-        () -> OtlpProtobufPointUtils.transform(otlpMetric,
+        () -> OtlpMetricsUtils.transform(otlpMetric,
             emptyAttrs, null, DEFAULT_SOURCE));
   }
 
@@ -478,7 +478,7 @@ public class OtlpProtobufPointUtilsTest {
             .setValue(dayHistogram).build()
     );
 
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -528,7 +528,7 @@ public class OtlpProtobufPointUtilsTest {
             .setValue(dayHistogram).build()
     );
 
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -547,7 +547,7 @@ public class OtlpProtobufPointUtilsTest {
         OtlpTestHelpers.otlpMetricGenerator().setHistogram(histo).build();
 
     Assert.assertThrows(IllegalArgumentException.class,
-        () -> OtlpProtobufPointUtils.transform(otlpMetric,
+        () -> OtlpMetricsUtils.transform(otlpMetric,
             emptyAttrs, null, DEFAULT_SOURCE));
   }
 
@@ -560,7 +560,7 @@ public class OtlpProtobufPointUtilsTest {
     NumberDataPoint point = NumberDataPoint.newBuilder().setTimeUnixNano(0).build();
     Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(point).build();
 
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, resourceAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, resourceAttrs, null, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }
@@ -572,7 +572,7 @@ public class OtlpProtobufPointUtilsTest {
     Metric otlpMetric = OtlpTestHelpers.otlpGaugeGenerator(point).build();
     List<KeyValue> resourceAttrs = Collections.singletonList(attribute(key, "rsrc-value"));
 
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, resourceAttrs, null, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, resourceAttrs, null, DEFAULT_SOURCE);
 
     assertEquals("gauge-value", actualPoints.get(0).getAnnotations().get(key));
   }
@@ -581,7 +581,7 @@ public class OtlpProtobufPointUtilsTest {
   public void setsSource() {
     Metric otlpMetric =
         OtlpTestHelpers.otlpGaugeGenerator(NumberDataPoint.newBuilder().build()).build();
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, null, "a-src");
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, "a-src");
 
     assertEquals("a-src", actualPoints.get(0).getHost());
   }
@@ -601,7 +601,7 @@ public class OtlpProtobufPointUtilsTest {
           annotation.getKey(), annotation.getValue(), x -> true, preprocessorRuleMetrics));
     }
     expectedPoints = ImmutableList.of(OtlpTestHelpers.wfReportPointGenerator(wfAttrs).build());
-    actualPoints = OtlpProtobufPointUtils.transform(otlpMetric, emptyAttrs, preprocessor, DEFAULT_SOURCE);
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, preprocessor, DEFAULT_SOURCE);
 
     assertAllPointsEqual(expectedPoints, actualPoints);
   }

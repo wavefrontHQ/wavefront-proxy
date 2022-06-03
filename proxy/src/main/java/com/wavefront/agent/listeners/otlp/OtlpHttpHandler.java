@@ -79,6 +79,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   private final Counter receivedSpans;
   private final Pair<Supplier<Boolean>, Counter> spansDisabled;
   private final Pair<Supplier<Boolean>, Counter> spanLogsDisabled;
+  private final boolean includeResourceAttrsForMetrics;
 
   public OtlpHttpHandler(ReportableEntityHandlerFactory handlerFactory,
                          @Nullable TokenAuthenticator tokenAuthenticator,
@@ -90,8 +91,9 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
                          Supplier<Boolean> spansFeatureDisabled,
                          Supplier<Boolean> spanLogsFeatureDisabled,
                          String defaultSource,
-                         Set<String> traceDerivedCustomTagKeys) {
+                         Set<String> traceDerivedCustomTagKeys, boolean includeResourceAttrsForMetrics) {
     super(tokenAuthenticator, healthCheckManager, handle);
+    this.includeResourceAttrsForMetrics = includeResourceAttrsForMetrics;
     this.spanHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle));
     this.spanLogsHandler =
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle));
@@ -116,7 +118,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
         Executors.newScheduledThreadPool(1, new NamedThreadFactory("otlp-http-heart-beater"));
     scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
 
-    this.internalReporter = OtlpProtobufUtils.createAndStartInternalReporter(sender);
+    this.internalReporter = OtlpTraceUtils.createAndStartInternalReporter(sender);
   }
 
   @Override
@@ -126,9 +128,9 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
     try {
       switch (path) {
         case "/v1/traces/":
-          ExportTraceServiceRequest otlpRequest =
+          ExportTraceServiceRequest traceRequest =
               ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
-          long spanCount = OtlpProtobufUtils.getSpansCount(otlpRequest);
+          long spanCount = OtlpTraceUtils.getSpansCount(traceRequest);
           receivedSpans.inc(spanCount);
 
           if (isFeatureDisabled(spansDisabled._1, SPAN_DISABLED, spansDisabled._2, spanCount)) {
@@ -137,14 +139,18 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
             return;
           }
 
-          OtlpProtobufUtils.exportToWavefront(
-              otlpRequest, spanHandler, spanLogsHandler, preprocessorSupplier, spanLogsDisabled,
+          OtlpTraceUtils.exportToWavefront(
+              traceRequest, spanHandler, spanLogsHandler, preprocessorSupplier, spanLogsDisabled,
               spanSamplerAndCounter, defaultSource, discoveredHeartbeatMetrics, internalReporter,
               traceDerivedCustomTagKeys
           );
           break;
         case "/v1/metrics/":
-          OtlpProtobufPointUtils.exportToWavefront(ExportMetricsServiceRequest.parseFrom(request.content().nioBuffer()), metricsHandler, histogramHandler, preprocessorSupplier, defaultSource);
+          ExportMetricsServiceRequest metricRequest =
+              ExportMetricsServiceRequest.parseFrom(request.content().nioBuffer());
+          OtlpMetricsUtils.exportToWavefront(metricRequest,
+              metricsHandler, histogramHandler, preprocessorSupplier, defaultSource,
+              includeResourceAttrsForMetrics);
           break;
         default:
           /*

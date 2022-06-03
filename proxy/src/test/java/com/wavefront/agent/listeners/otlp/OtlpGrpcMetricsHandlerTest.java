@@ -38,12 +38,13 @@ import io.opentelemetry.proto.resource.v1.Resource;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
-import static com.wavefront.agent.listeners.otlp.OtlpProtobufPointUtils.MILLIS_IN_DAY;
-import static com.wavefront.agent.listeners.otlp.OtlpProtobufPointUtils.MILLIS_IN_HOUR;
-import static com.wavefront.agent.listeners.otlp.OtlpProtobufPointUtils.MILLIS_IN_MINUTE;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_DAY;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_HOUR;
+import static com.wavefront.agent.listeners.otlp.OtlpMetricsUtils.MILLIS_IN_MINUTE;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.DEFAULT_SOURCE;
+import static org.junit.Assert.assertFalse;
 
-public class OtlpMetricsTest {
+public class OtlpGrpcMetricsHandlerTest {
 
   public static final StreamObserver<ExportMetricsServiceResponse> emptyStreamObserver = new StreamObserver<ExportMetricsServiceResponse>() {
 
@@ -65,13 +66,13 @@ public class OtlpMetricsTest {
   private final ReportableEntityHandler<ReportPoint, String> mockHistogramHandler =
       MockReportableEntityHandlerFactory.getMockReportPointHandler();
   private OtlpGrpcMetricsHandler subject;
+  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier = ReportableEntityPreprocessor::new;
 
   @Before
   public void setup() {
-    Supplier<ReportableEntityPreprocessor> preprocessorSupplier = ReportableEntityPreprocessor::new;
     subject = new OtlpGrpcMetricsHandler(mockReportPointHandler, mockHistogramHandler,
         preprocessorSupplier,
-        DEFAULT_SOURCE);
+        DEFAULT_SOURCE, false);
   }
 
   @Test
@@ -462,5 +463,69 @@ public class OtlpMetricsTest {
     subject.export(request, emptyStreamObserver);
 
     EasyMock.verify(mockHistogramHandler);
+  }
+
+  @Test
+  public void resourceAttrsCanBeExcluded() {
+    boolean includeResourceAttrsForMetrics = false;
+    subject = new OtlpGrpcMetricsHandler(mockReportPointHandler, mockHistogramHandler,
+        preprocessorSupplier, DEFAULT_SOURCE, includeResourceAttrsForMetrics);
+    String resourceAttrKey = "testKey";
+
+    EasyMock.reset(mockReportPointHandler);
+
+    ReportPoint wfMetric = OtlpTestHelpers.wfReportPointGenerator().build();
+    assertFalse(wfMetric.getAnnotations().containsKey(resourceAttrKey));
+    mockReportPointHandler.report(wfMetric);
+    EasyMock.expectLastCall();
+
+    EasyMock.replay(mockReportPointHandler);
+
+    NumberDataPoint otelPoint = NumberDataPoint.newBuilder().build();
+    Metric otelMetric = OtlpTestHelpers.otlpGaugeGenerator(otelPoint).build();
+    Resource resource = Resource.newBuilder().addAttributes(OtlpTestHelpers.attribute(
+        resourceAttrKey, "testValue")).build();
+    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().setResource(resource)
+        .addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build())
+        .build();
+    ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder()
+        .addResourceMetrics(resourceMetrics).build();
+
+    subject.export(request, emptyStreamObserver);
+
+    EasyMock.verify(mockReportPointHandler);
+  }
+
+  @Test
+  public void resourceAttrsCanBeIncluded() {
+    boolean includeResourceAttrsForMetrics = true;
+    subject = new OtlpGrpcMetricsHandler(mockReportPointHandler, mockHistogramHandler,
+        preprocessorSupplier, DEFAULT_SOURCE, includeResourceAttrsForMetrics);
+    String resourceAttrKey = "testKey";
+
+    EasyMock.reset(mockReportPointHandler);
+
+    Map<String, String> annotations = ImmutableMap.of(resourceAttrKey, "testValue");
+    ReportPoint wfMetric = OtlpTestHelpers.wfReportPointGenerator()
+        .setAnnotations(annotations)
+        .build();
+    mockReportPointHandler.report(wfMetric);
+    EasyMock.expectLastCall();
+
+    EasyMock.replay(mockReportPointHandler);
+
+    NumberDataPoint otelPoint = NumberDataPoint.newBuilder().build();
+    Metric otelMetric = OtlpTestHelpers.otlpGaugeGenerator(otelPoint).build();
+    Resource resource = Resource.newBuilder().addAttributes(OtlpTestHelpers.attribute(
+        resourceAttrKey, "testValue")).build();
+    ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder().setResource(resource)
+        .addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build())
+        .build();
+    ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder()
+        .addResourceMetrics(resourceMetrics).build();
+
+    subject.export(request, emptyStreamObserver);
+
+    EasyMock.verify(mockReportPointHandler);
   }
 }

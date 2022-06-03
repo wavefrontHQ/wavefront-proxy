@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +44,7 @@ import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
 
-public class OtlpProtobufPointUtils {
+public class OtlpMetricsUtils {
   public final static Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
   public static final int MILLIS_IN_MINUTE = 60 * 1000;
   public static final int MILLIS_IN_HOUR = 60 * 60 * 1000;
@@ -52,13 +53,15 @@ public class OtlpProtobufPointUtils {
   public static void exportToWavefront(ExportMetricsServiceRequest request,
                                        ReportableEntityHandler<ReportPoint, String> pointHandler,
                                        ReportableEntityHandler<ReportPoint, String> histogramHandler,
-                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier, String defaultSource) {
+                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+                                       String defaultSource,
+                                       boolean includeResourceAttrsForMetrics) {
     ReportableEntityPreprocessor preprocessor = null;
     if (preprocessorSupplier != null) {
       preprocessor = preprocessorSupplier.get();
     }
 
-    for (ReportPoint point : fromOtlpRequest(request, preprocessor, defaultSource)) {
+    for (ReportPoint point : fromOtlpRequest(request, preprocessor, defaultSource, includeResourceAttrsForMetrics)) {
       // TODO: handle sampler
       if (point.getValue() instanceof wavefront.report.Histogram) {
         if (!wasFilteredByPreprocessor(point, histogramHandler, preprocessor)) {
@@ -74,22 +77,24 @@ public class OtlpProtobufPointUtils {
 
   private static List<ReportPoint> fromOtlpRequest(ExportMetricsServiceRequest request,
                                                    @Nullable ReportableEntityPreprocessor preprocessor,
-                                                   String defaultSource) {
+                                                   String defaultSource, boolean includeResourceAttrsForMetrics) {
     List<ReportPoint> wfPoints = Lists.newArrayList();
 
     for (ResourceMetrics resourceMetrics : request.getResourceMetricsList()) {
       Resource resource = resourceMetrics.getResource();
-      Pair<String, List<KeyValue>> sourceAndResourceAttrs =
-          OtlpProtobufUtils.sourceFromAttributes(resource.getAttributesList(), defaultSource);
       OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Resource: " + resource);
-      for (ScopeMetrics scopeMetrics :
-          resourceMetrics.getScopeMetricsList()) {
+      Pair<String, List<KeyValue>> sourceAndResourceAttrs =
+          OtlpTraceUtils.sourceFromAttributes(resource.getAttributesList(), defaultSource);
+      String source = sourceAndResourceAttrs._1;
+      List<KeyValue> resourceAttributes = includeResourceAttrsForMetrics ?
+          sourceAndResourceAttrs._2 : Collections.EMPTY_LIST;
+
+      for (ScopeMetrics scopeMetrics : resourceMetrics.getScopeMetricsList()) {
         OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Instrumentation Scope: " +
             scopeMetrics.getScope());
         for (Metric otlpMetric : scopeMetrics.getMetricsList()) {
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
-          List<ReportPoint> points = transform(otlpMetric, sourceAndResourceAttrs._2,
-              preprocessor, sourceAndResourceAttrs._1);
+          List<ReportPoint> points = transform(otlpMetric, resourceAttributes, preprocessor, source);
           OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront Metric: " + points);
 
           wfPoints.addAll(points);
@@ -337,7 +342,8 @@ public class OtlpProtobufPointUtils {
 
   @NotNull
   private static ReportPoint transformNumberDataPoint(String name, NumberDataPoint point, List<KeyValue> resourceAttrs) {
-    return pointWithAnnotations(name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
+    return pointWithAnnotations(name, point.getAttributesList(), resourceAttrs,
+        point.getTimeUnixNano())
         .setValue(point.getAsDouble())
         .build();
   }
@@ -389,8 +395,9 @@ public class OtlpProtobufPointUtils {
     ReportPoint.Builder builder = ReportPoint.newBuilder().setMetric(name);
     Map<String, String> annotations = new HashMap<>();
     List<KeyValue> otlpAttributes = Stream.of(resourceAttrs, pointAttributes)
-        .flatMap(Collection::stream).collect(Collectors.toList());
-    for (Annotation a : OtlpProtobufUtils.annotationsFromAttributes(otlpAttributes)) {
+          .flatMap(Collection::stream).collect(Collectors.toList());
+
+    for (Annotation a : OtlpTraceUtils.annotationsFromAttributes(otlpAttributes)) {
       annotations.put(a.getKey(), a.getValue());
     }
     builder.setAnnotations(annotations);

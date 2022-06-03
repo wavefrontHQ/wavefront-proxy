@@ -65,7 +65,7 @@ import static com.wavefront.sdk.common.Constants.SPAN_LOG_KEY;
  * @author Xiaochen Wang (xiaochenw@vmware.com).
  * @author Glenn Oppegard (goppegard@vmware.com).
  */
-public class OtlpProtobufUtils {
+public class OtlpTraceUtils {
   // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/non-otlp.md#span-status
   public static final String OTEL_DROPPED_ATTRS_KEY = "otel.dropped_attributes_count";
   public static final String OTEL_DROPPED_EVENTS_KEY = "otel.dropped_events_count";
@@ -510,7 +510,7 @@ public class OtlpProtobufUtils {
       return Double.toString(anyValue.getDoubleValue());
     } else if (anyValue.hasArrayValue()) {
       List<AnyValue> values = anyValue.getArrayValue().getValuesList();
-      return values.stream().map(OtlpProtobufUtils::fromAnyValue)
+      return values.stream().map(OtlpTraceUtils::fromAnyValue)
           .collect(Collectors.joining(", ", "[", "]"));
     } else if (anyValue.hasKvlistValue()) {
       OTLP_DATA_LOGGER.finest(() -> "Encountered KvlistValue but cannot convert to String");
