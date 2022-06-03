@@ -2,11 +2,26 @@ package com.wavefront.agent.listeners.otlp;
 
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
+
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.agent.preprocessor.SpanAddAnnotationIfNotExistsTransformer;
 import com.wavefront.agent.preprocessor.SpanBlockFilter;
 import com.wavefront.sdk.common.Pair;
+
+import org.apache.commons.compress.utils.Lists;
+import org.hamcrest.FeatureMatcher;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
+
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
@@ -15,21 +30,11 @@ import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.ScopeSpans;
 import io.opentelemetry.proto.trace.v1.Status;
-import org.apache.commons.compress.utils.Lists;
-import org.hamcrest.FeatureMatcher;
 import wavefront.report.Annotation;
+import wavefront.report.Histogram;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
-
-import javax.annotation.Nullable;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
@@ -44,6 +49,7 @@ import static org.junit.Assert.assertTrue;
  * @author Glenn Oppegard (goppegard@vmware.com).
  */
 public class OtlpTestHelpers {
+  public static final String DEFAULT_SOURCE = "test-source";
   private static final long startTimeMs = System.currentTimeMillis();
   private static final long durationMs = 50L;
   private static final byte[] spanIdBytes = {0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9};
@@ -60,8 +66,6 @@ public class OtlpTestHelpers {
       }
     };
   }
-
-  public static final String DEFAULT_SOURCE = "test-source";
 
   public static Span.Builder wfSpanGenerator(@Nullable List<Annotation> extraAttrs) {
     if (extraAttrs == null) {
@@ -216,9 +220,28 @@ public class OtlpTestHelpers {
     return ExportTraceServiceRequest.newBuilder().addResourceSpans(rSpans).build();
   }
 
+  private static void assertHistogramsEqual(Histogram expected, Histogram actual, double delta) {
+    String errorSuffix = " mismatched. Expected: " + expected + " ,Actual: " + actual;
+    assertEquals("Histogram duration" + errorSuffix, expected.getDuration(), actual.getDuration());
+    assertEquals("Histogram type" + errorSuffix, expected.getType(), actual.getType());
+    List<Double> expectedBins = expected.getBins();
+    List<Double> actualBins = actual.getBins();
+    assertEquals("Histogram bin size" + errorSuffix, expectedBins.size(), actualBins.size());
+    for (int i = 0; i < expectedBins.size(); i++) {
+      assertEquals("Histogram bin " + i + errorSuffix, expectedBins.get(i), actualBins.get(i), delta);
+    }
+    assertEquals("Histogram counts" + errorSuffix, expected.getCounts(), actual.getCounts());
+  }
+
   public static void assertWFReportPointEquals(wavefront.report.ReportPoint expected, wavefront.report.ReportPoint actual) {
     assertEquals("metric name", expected.getMetric(), actual.getMetric());
-    assertEquals("value", expected.getValue(), actual.getValue());
+    Object expectedValue = expected.getValue();
+    Object actualValue = actual.getValue();
+    if ((expectedValue instanceof Histogram) && (actualValue instanceof Histogram)) {
+      assertHistogramsEqual((Histogram) expectedValue, (Histogram) actualValue, 0.0001);
+    } else {
+      assertEquals("value", expectedValue, actualValue);
+    }
     assertEquals("timestamp", expected.getTimestamp(), actual.getTimestamp());
     assertEquals("number of annotations", expected.getAnnotations().size(), actual.getAnnotations().size());
     assertEquals("source/host", expected.getHost(), actual.getHost());

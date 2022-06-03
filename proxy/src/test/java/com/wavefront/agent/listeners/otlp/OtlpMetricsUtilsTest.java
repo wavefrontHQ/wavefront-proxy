@@ -19,6 +19,8 @@ import java.util.concurrent.TimeUnit;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
+import io.opentelemetry.proto.metrics.v1.ExponentialHistogram;
+import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
 import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.Histogram;
 import io.opentelemetry.proto.metrics.v1.HistogramDataPoint;
@@ -49,6 +51,45 @@ public class OtlpMetricsUtilsTest {
 
   private List<ReportPoint> actualPoints;
   private ImmutableList<ReportPoint> expectedPoints;
+
+  private static ImmutableList<ReportPoint> buildExpectedDeltaReportPoints(List<Double> bins, List<Integer> counts) {
+    wavefront.report.Histogram minHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_MINUTE).
+        build();
+
+    wavefront.report.Histogram hourHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_HOUR).
+        build();
+
+    wavefront.report.Histogram dayHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_DAY).
+        build();
+
+    return ImmutableList.of(
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setValue(minHistogram).build(),
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setValue(hourHistogram).build(),
+        OtlpTestHelpers.wfReportPointGenerator()
+            .setValue(dayHistogram).build()
+    );
+  }
+
+  private static List<ReportPoint> buildExpectedCumulativeReportPoints(List<Double> bins,
+                                                                       List<Integer> counts) {
+    List<ReportPoint> reportPoints = new ArrayList<>();
+
+    return reportPoints;
+  }
 
   @Test
   public void rejectsEmptyMetric() {
@@ -332,7 +373,6 @@ public class OtlpMetricsUtilsTest {
     }
   }
 
-
   @Test
   public void handlesSummaryAttributes() {
     KeyValue booleanAttr = KeyValue.newBuilder().setKey("a-boolean")
@@ -448,35 +488,7 @@ public class OtlpMetricsUtilsTest {
     List<Double> bins = new ArrayList<>(Arrays.asList(1.0, 1.5, 2.0));
     List<Integer> counts = new ArrayList<>(Arrays.asList(1, 2, 3));
 
-    wavefront.report.Histogram minHistogram = wavefront.report.Histogram.newBuilder().
-        setType(HistogramType.TDIGEST).
-        setBins(bins).
-        setCounts(counts).
-        setDuration(MILLIS_IN_MINUTE).
-        build();
-
-    wavefront.report.Histogram hourHistogram = wavefront.report.Histogram.newBuilder().
-        setType(HistogramType.TDIGEST).
-        setBins(bins).
-        setCounts(counts).
-        setDuration(MILLIS_IN_HOUR).
-        build();
-
-    wavefront.report.Histogram dayHistogram = wavefront.report.Histogram.newBuilder().
-        setType(HistogramType.TDIGEST).
-        setBins(bins).
-        setCounts(counts).
-        setDuration(MILLIS_IN_DAY).
-        build();
-
-    expectedPoints = ImmutableList.of(
-        OtlpTestHelpers.wfReportPointGenerator()
-            .setValue(minHistogram).build(),
-        OtlpTestHelpers.wfReportPointGenerator()
-            .setValue(hourHistogram).build(),
-        OtlpTestHelpers.wfReportPointGenerator()
-            .setValue(dayHistogram).build()
-    );
+    expectedPoints = buildExpectedDeltaReportPoints(bins, counts);
 
     actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
@@ -498,35 +510,7 @@ public class OtlpMetricsUtilsTest {
     List<Double> bins = new ArrayList<>(Collections.singletonList(0.0));
     List<Integer> counts = new ArrayList<>(Collections.singletonList(1));
 
-    wavefront.report.Histogram minHistogram = wavefront.report.Histogram.newBuilder().
-        setType(HistogramType.TDIGEST).
-        setBins(bins).
-        setCounts(counts).
-        setDuration(MILLIS_IN_MINUTE).
-        build();
-
-    wavefront.report.Histogram hourHistogram = wavefront.report.Histogram.newBuilder().
-        setType(HistogramType.TDIGEST).
-        setBins(bins).
-        setCounts(counts).
-        setDuration(MILLIS_IN_HOUR).
-        build();
-
-    wavefront.report.Histogram dayHistogram = wavefront.report.Histogram.newBuilder().
-        setType(HistogramType.TDIGEST).
-        setBins(bins).
-        setCounts(counts).
-        setDuration(MILLIS_IN_DAY).
-        build();
-
-    expectedPoints = ImmutableList.of(
-        OtlpTestHelpers.wfReportPointGenerator()
-            .setValue(minHistogram).build(),
-        OtlpTestHelpers.wfReportPointGenerator()
-            .setValue(hourHistogram).build(),
-        OtlpTestHelpers.wfReportPointGenerator()
-            .setValue(dayHistogram).build()
-    );
+    expectedPoints = buildExpectedDeltaReportPoints(bins, counts);
 
     actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
 
@@ -549,6 +533,127 @@ public class OtlpMetricsUtilsTest {
     Assert.assertThrows(IllegalArgumentException.class,
         () -> OtlpMetricsUtils.transform(otlpMetric,
             emptyAttrs, null, DEFAULT_SOURCE));
+  }
+
+  @Test
+  public void transformExpDeltaHistogram() {
+    ExponentialHistogramDataPoint point = ExponentialHistogramDataPoint.newBuilder()
+        .setScale(1)
+        .setPositive(ExponentialHistogramDataPoint.Buckets.newBuilder()
+            .setOffset(3)
+            .addBucketCounts(2).addBucketCounts(1)
+            .addBucketCounts(4).addBucketCounts(3)
+            .build())
+        .setZeroCount(5).build();
+    ExponentialHistogram histo = ExponentialHistogram.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
+        .addDataPoints(point).build();
+    Metric otlpMetric =
+        OtlpTestHelpers.otlpMetricGenerator().setExponentialHistogram(histo).build();
+
+    // Actual buckets: 2.8284, 4, 5.6569, 8, 11.3137, but we average the lower and upper bound of
+    // each bucket when doing delta histogram centroids.
+    List<Double> bins = Arrays.asList(2.8284, 3.4142, 4.8284, 6.8284, 9.6569, 11.3137);
+    List<Integer> counts = Arrays.asList(5, 2, 1, 4, 3, 0);
+
+    expectedPoints = buildExpectedDeltaReportPoints(bins, counts);
+
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void transformExpDeltaHistogramWithNegativeValues() {
+    ExponentialHistogramDataPoint point = ExponentialHistogramDataPoint.newBuilder()
+        .setScale(-1)
+        .setPositive(ExponentialHistogramDataPoint.Buckets.newBuilder()
+            .setOffset(2)
+            .addBucketCounts(3).addBucketCounts(2).addBucketCounts(5)
+            .build())
+        .setZeroCount(1)
+        .setNegative(ExponentialHistogramDataPoint.Buckets.newBuilder()
+            .setOffset(-1)
+            .addBucketCounts(6).addBucketCounts(4).build()).build();
+
+    ExponentialHistogram histo = ExponentialHistogram.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
+        .addDataPoints(point).build();
+    Metric otlpMetric =
+        OtlpTestHelpers.otlpMetricGenerator().setExponentialHistogram(histo).build();
+
+    // actual buckets: -1, -0,25, 16.0, 64.0, 256.0, 1024.0, but we average the lower and upper bound of
+    // each bucket when doing delta histogram centroids.
+    List<Double> bins = Arrays.asList(-1.0, -0.625, 7.875, 40.0, 160.0, 640.0, 1024.0);
+    List<Integer> counts = Arrays.asList(4, 6, 1, 3, 2, 5, 0);
+
+    expectedPoints = buildExpectedDeltaReportPoints(bins, counts);
+
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void transformExpCumulativeHistogram() {
+    ExponentialHistogramDataPoint point = ExponentialHistogramDataPoint.newBuilder()
+        .setScale(0)
+        .setPositive(ExponentialHistogramDataPoint.Buckets.newBuilder()
+            .setOffset(2)
+            .addBucketCounts(1).addBucketCounts(2)
+            .build())
+        .setZeroCount(3).build();
+    ExponentialHistogram histo = ExponentialHistogram.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+        .addDataPoints(point).build();
+    Metric otlpMetric =
+        OtlpTestHelpers.otlpMetricGenerator().setExponentialHistogram(histo).build();
+
+    expectedPoints = ImmutableList.of(
+        OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "4.0")))
+            .setValue(3).build(),
+        OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "8.0")))
+            .setValue(4).build(),
+        OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "16.0")))
+            .setValue(6).build(),
+        OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "+Inf")))
+            .setValue(6).build()
+    );
+
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    assertAllPointsEqual(expectedPoints, actualPoints);
+  }
+
+  @Test
+  public void transformExpCumulativeHistogramWithNegativeValues() {
+    ExponentialHistogramDataPoint point = ExponentialHistogramDataPoint.newBuilder()
+        .setScale(0)
+        .setPositive(ExponentialHistogramDataPoint.Buckets.newBuilder()
+            .setOffset(2)
+            .addBucketCounts(1)
+            .build())
+        .setZeroCount(2)
+        .setNegative(ExponentialHistogramDataPoint.Buckets.newBuilder()
+            .setOffset(2)
+            .addBucketCounts(3).build()).build();
+
+    ExponentialHistogram histo = ExponentialHistogram.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+        .addDataPoints(point).build();
+    Metric otlpMetric =
+        OtlpTestHelpers.otlpMetricGenerator().setExponentialHistogram(histo).build();
+
+    expectedPoints = ImmutableList.of(
+        OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "-4.0")))
+            .setValue(3).build(),
+        OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "4.0")))
+            .setValue(5).build(),
+        OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "8.0")))
+            .setValue(6).build(),
+        OtlpTestHelpers.wfReportPointGenerator(ImmutableList.of(new Annotation("le", "+Inf")))
+            .setValue(6).build()
+    );
+
+    actualPoints = OtlpMetricsUtils.transform(otlpMetric, emptyAttrs, null, DEFAULT_SOURCE);
+    assertAllPointsEqual(expectedPoints, actualPoints);
   }
 
   @Test

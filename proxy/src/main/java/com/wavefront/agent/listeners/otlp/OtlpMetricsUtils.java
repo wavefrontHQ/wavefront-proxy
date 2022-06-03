@@ -28,6 +28,9 @@ import javax.annotation.Nullable;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
+import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
+import io.opentelemetry.proto.metrics.v1.ExponentialHistogram;
+import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
 import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.Histogram;
 import io.opentelemetry.proto.metrics.v1.HistogramDataPoint;
@@ -138,7 +141,14 @@ public class OtlpMetricsUtils {
     } else if (otlpMetric.hasSummary()) {
       points.addAll(transformSummary(otlpMetric.getName(), otlpMetric.getSummary(), resourceAttrs));
     } else if (otlpMetric.hasHistogram()) {
-      points.addAll(transformHistogram(otlpMetric.getName(), otlpMetric.getHistogram(),
+      points.addAll(transformHistogram(otlpMetric.getName(),
+          fromOtelHistogram(otlpMetric.getHistogram()),
+          otlpMetric.getHistogram().getAggregationTemporality(),
+          resourceAttrs));
+    } else if (otlpMetric.hasExponentialHistogram()) {
+      points.addAll(transformHistogram(otlpMetric.getName(),
+          fromOtelExponentialHistogram(otlpMetric.getExponentialHistogram()),
+          otlpMetric.getExponentialHistogram().getAggregationTemporality(),
           resourceAttrs));
     } else {
       throw new IllegalArgumentException("Otel: unsupported metric type for " + otlpMetric.getName());
@@ -187,54 +197,62 @@ public class OtlpMetricsUtils {
     return points;
   }
 
-  private static List<ReportPoint> transformHistogram(String name, Histogram histogram, List<KeyValue> resourceAttrs) {
+  private static List<ReportPoint> transformHistogram(
+      String name,
+      List<BucketHistogramDataPoint> dataPoints,
+      AggregationTemporality aggregationTemporality,
+      List<KeyValue> resourceAttrs) {
 
-    switch (histogram.getAggregationTemporality()) {
+    switch (aggregationTemporality) {
       case AGGREGATION_TEMPORALITY_CUMULATIVE:
-        return transformCumulativeHistogram(name, histogram, resourceAttrs);
+        return transformCumulativeHistogram(name, dataPoints, resourceAttrs);
       case AGGREGATION_TEMPORALITY_DELTA:
-        return transformDeltaHistogram(name, histogram, resourceAttrs);
+        return transformDeltaHistogram(name, dataPoints, resourceAttrs);
       default:
         throw new IllegalArgumentException("OTel: histogram with unsupported aggregation temporality "
-            + histogram.getAggregationTemporality().name());
+            + aggregationTemporality.name());
     }
   }
 
-  private static List<ReportPoint> transformDeltaHistogram(String name, Histogram histogram, List<KeyValue> resourceAttrs) {
+  private static List<ReportPoint> transformDeltaHistogram(
+      String name, List<BucketHistogramDataPoint> dataPoints, List<KeyValue> resourceAttrs) {
     List<ReportPoint> reportPoints = new ArrayList<>();
-    for (HistogramDataPoint point : histogram.getDataPointsList()) {
-      reportPoints.addAll(transformDeltaHistogramDataPoint(name, point, resourceAttrs));
+    for (BucketHistogramDataPoint dataPoint : dataPoints) {
+      reportPoints.addAll(transformDeltaHistogramDataPoint(name, dataPoint, resourceAttrs));
     }
 
     return reportPoints;
   }
 
-  private static List<ReportPoint> transformCumulativeHistogram(String name, Histogram histogram, List<KeyValue> resourceAttrs) {
+  private static List<ReportPoint> transformCumulativeHistogram(
+      String name, List<BucketHistogramDataPoint> dataPoints, List<KeyValue> resourceAttrs) {
 
     List<ReportPoint> reportPoints = new ArrayList<>();
-    for (HistogramDataPoint point : histogram.getDataPointsList()) {
-      reportPoints.addAll(transformCumulativeHistogramDataPoint(name, point, resourceAttrs));
+    for (BucketHistogramDataPoint dataPoint : dataPoints) {
+      reportPoints.addAll(transformCumulativeHistogramDataPoint(name, dataPoint, resourceAttrs));
     }
 
     return reportPoints;
   }
 
-  private static List<ReportPoint> transformDeltaHistogramDataPoint(String name,
-                                                                    HistogramDataPoint point, List<KeyValue> resourceAttrs) {
-    if (point.getExplicitBoundsCount() != point.getBucketCountsCount() - 1) {
+  private static List<ReportPoint> transformDeltaHistogramDataPoint(
+      String name, BucketHistogramDataPoint point, List<KeyValue> resourceAttrs) {
+    List<Double> explicitBounds = point.getExplicitBounds();
+    List<Long> bucketCounts = point.getBucketCounts();
+    if (explicitBounds.size() != bucketCounts.size() - 1) {
       throw new IllegalArgumentException("OTel: histogram " + name + ": Explicit bounds count " +
-          "should be one less than bucket count. ExplicitBounds: " + point.getExplicitBoundsCount() +
-          ", BucketCounts: " + point.getExplicitBoundsCount());
+          "should be one less than bucket count. ExplicitBounds: " + explicitBounds.size() +
+          ", BucketCounts: " + bucketCounts.size());
     }
 
     List<ReportPoint> reportPoints = new ArrayList<>();
 
-    List<Double> bins = new ArrayList<>(point.getBucketCountsCount());
-    List<Integer> counts = new ArrayList<>(point.getBucketCountsCount());
+    List<Double> bins = new ArrayList<>(bucketCounts.size());
+    List<Integer> counts = new ArrayList<>(bucketCounts.size());
 
-    for (int currentIndex = 0; currentIndex < point.getBucketCountsCount(); currentIndex++) {
-      bins.add(getDeltaHistogramBound(point, currentIndex));
-      counts.add((int) point.getBucketCounts(currentIndex));
+    for (int currentIndex = 0; currentIndex < bucketCounts.size(); currentIndex++) {
+      bins.add(getDeltaHistogramBound(explicitBounds, currentIndex));
+      counts.add(bucketCounts.get(currentIndex).intValue());
     }
 
     for (HistogramGranularity granularity : HistogramGranularity.values()) {
@@ -269,33 +287,35 @@ public class OtlpMetricsUtils {
     return reportPoints;
   }
 
-  private static Double getDeltaHistogramBound(HistogramDataPoint point, int currentIndex) {
-    if (point.getExplicitBoundsCount() == 0) {
+  private static Double getDeltaHistogramBound(List<Double> explicitBounds, int currentIndex) {
+    if (explicitBounds.size() == 0) {
       // As coded in the metric exporter(OpenTelemetry Collector)
       return 0.0;
     }
     if (currentIndex == 0) {
-      return point.getExplicitBounds(currentIndex);
-    } else if (currentIndex == point.getExplicitBoundsCount()) {
-      return point.getExplicitBounds(currentIndex - 1);
+      return explicitBounds.get(0);
+    } else if (currentIndex == explicitBounds.size()) {
+      return explicitBounds.get(explicitBounds.size() - 1);
     }
-    return (point.getExplicitBounds(currentIndex - 1) +
-        point.getExplicitBounds(currentIndex)) / 2.0;
+    return (explicitBounds.get(currentIndex - 1) + explicitBounds.get(currentIndex)) / 2.0;
   }
 
-  private static List<ReportPoint> transformCumulativeHistogramDataPoint(String name,
-                                                                         HistogramDataPoint point, List<KeyValue> resourceAttrs) {
-    if (point.getExplicitBoundsCount() != point.getBucketCountsCount() - 1) {
+  private static List<ReportPoint> transformCumulativeHistogramDataPoint(
+      String name, BucketHistogramDataPoint point, List<KeyValue> resourceAttrs) {
+    List<Long> bucketCounts = point.getBucketCounts();
+    List<Double> explicitBounds = point.getExplicitBounds();
+
+    if (explicitBounds.size() != bucketCounts.size() - 1) {
       throw new IllegalArgumentException("OTel: histogram " + name + ": Explicit bounds count " +
-          "should be one less than bucket count. ExplicitBounds: " + point.getExplicitBoundsCount() +
-          ", BucketCounts: " + point.getExplicitBoundsCount());
+          "should be one less than bucket count. ExplicitBounds: " + explicitBounds.size() +
+          ", BucketCounts: " + bucketCounts.size());
     }
 
-    List<ReportPoint> reportPoints = new ArrayList<>(point.getBucketCountsCount());
+    List<ReportPoint> reportPoints = new ArrayList<>(bucketCounts.size());
     int currentIndex = 0;
     long cumulativeBucketCount = 0;
-    for (; currentIndex < point.getExplicitBoundsCount(); currentIndex++) {
-      cumulativeBucketCount += point.getBucketCounts(currentIndex);
+    for (; currentIndex < explicitBounds.size(); currentIndex++) {
+      cumulativeBucketCount += bucketCounts.get(currentIndex);
       // we have to create a new builder every time as the annotations are getting appended after
       // each iteration
       ReportPoint rp = pointWithAnnotations(name, point.getAttributesList(), resourceAttrs,
@@ -303,13 +323,13 @@ public class OtlpMetricsUtils {
           .setValue(cumulativeBucketCount)
           .build();
       handleDupAnnotation(rp);
-      rp.getAnnotations().put("le", String.valueOf(point.getExplicitBounds(currentIndex)));
+      rp.getAnnotations().put("le", String.valueOf(explicitBounds.get(currentIndex)));
       reportPoints.add(rp);
     }
 
     ReportPoint rp = pointWithAnnotations(name, point.getAttributesList(), resourceAttrs,
         point.getTimeUnixNano())
-        .setValue(cumulativeBucketCount + point.getBucketCounts(currentIndex))
+        .setValue(cumulativeBucketCount + bucketCounts.get(currentIndex))
         .build();
     handleDupAnnotation(rp);
     rp.getAnnotations().put("le", "+Inf");
@@ -325,7 +345,6 @@ public class OtlpMetricsUtils {
       rp.getAnnotations().put("_le", val);
     }
   }
-
 
   private static Collection<ReportPoint> transformGauge(String name, Gauge gauge,
                                                         List<KeyValue> resourceAttrs) {
@@ -404,4 +423,158 @@ public class OtlpMetricsUtils {
     builder.setTimestamp(TimeUnit.NANOSECONDS.toMillis(timeInNs));
     return builder;
   }
+
+  static List<BucketHistogramDataPoint> fromOtelHistogram(Histogram histogram) {
+    List<BucketHistogramDataPoint> result = new ArrayList<>(histogram.getDataPointsCount());
+    for (HistogramDataPoint dataPoint : histogram.getDataPointsList()) {
+      result.add(fromOtelHistogramDataPoint(dataPoint));
+    }
+    return result;
+  }
+
+  static BucketHistogramDataPoint fromOtelHistogramDataPoint(HistogramDataPoint dataPoint) {
+    return new BucketHistogramDataPoint(
+        dataPoint.getBucketCountsList(),
+        dataPoint.getExplicitBoundsList(),
+        dataPoint.getAttributesList(),
+        dataPoint.getTimeUnixNano());
+  }
+
+  static List<BucketHistogramDataPoint> fromOtelExponentialHistogram(
+      ExponentialHistogram histogram) {
+    List<BucketHistogramDataPoint> result = new ArrayList<>(histogram.getDataPointsCount());
+    for (ExponentialHistogramDataPoint dataPoint : histogram.getDataPointsList()) {
+      result.add(fromOtelExponentialHistogramDataPoint(dataPoint));
+    }
+    return result;
+  }
+
+  static BucketHistogramDataPoint fromOtelExponentialHistogramDataPoint(
+      ExponentialHistogramDataPoint dataPoint) {
+    // base is the factor by which explicit bounds increase from bucket to bucket. This formula
+    // comes from the documentation here:
+    // https://github.com/open-telemetry/opentelemetry-proto/blob/8ba33cceb4a6704af68a4022d17868a7ac1d94f4/opentelemetry/proto/metrics/v1/metrics.proto#L487
+    double base = Math.pow(2.0, Math.pow(2.0, -dataPoint.getScale()));
+
+    // ExponentialHistogramDataPoints have buckets with negative explicit bounds, buckets with
+    // positive explicit bounds, and a "zero" bucket. Our job is to merge these bucket groups into
+    // a single list of buckets and explicit bounds.
+    List<Long> negativeBucketCounts = dataPoint.getNegative().getBucketCountsList();
+    List<Long> positiveBucketCounts = dataPoint.getPositive().getBucketCountsList();
+
+    // The total number of buckets is the number of negative buckets + the number of positive
+    // buckets + 1 for the zero bucket + 1 bucket for the largest positive explicit bound up to
+    // positive infinity.
+    int numBucketCounts = negativeBucketCounts.size() + 1 + positiveBucketCounts.size() + 1;
+
+    List<Long> bucketCounts = new ArrayList<>(numBucketCounts);
+
+    // The number of explicit bounds is always 1 less than the number of buckets. This is how
+    // explicit bounds work. If you have 2 explicit bounds say {2.0, 5.0} then you have 3 buckets:
+    // one for values less than 2.0; one for values between 2.0 and 5.0; and one for values greater
+    // than 5.0.
+    List<Double> explicitBounds = new ArrayList<>(numBucketCounts - 1);
+
+    appendNegativeBucketsAndExplicitBounds(
+        dataPoint.getNegative().getOffset(), base, negativeBucketCounts, bucketCounts, explicitBounds);
+    appendZeroBucketAndExplicitBound(
+        dataPoint.getPositive().getOffset(), base, dataPoint.getZeroCount(), bucketCounts, explicitBounds);
+    appendPositiveBucketsAndExplicitBounds(
+        dataPoint.getPositive().getOffset(), base, positiveBucketCounts, bucketCounts, explicitBounds);
+    return new BucketHistogramDataPoint(
+        bucketCounts,
+        explicitBounds,
+        dataPoint.getAttributesList(),
+        dataPoint.getTimeUnixNano());
+  }
+
+  // appendNegativeBucketsAndExplicitBounds appends negative buckets and explicit bounds to
+  // bucketCounts and explicitBounds respectively.
+  static void appendNegativeBucketsAndExplicitBounds(
+      int negativeOffset,
+      double base,
+      List<Long> negativeBucketCounts,
+      List<Long> bucketCounts,
+      List<Double> explicitBounds) {
+    // The smallest negative explicit bound
+    double le = -Math.pow(base, ((double) negativeOffset) + ((double) negativeBucketCounts.size()));
+
+    // The first negativeBucketCount has a negative explicit bound with the smallest magnitude;
+    // the last negativeBucketCount has a negative explicit bound with the largest magnitude.
+    // Therefore, to go in order from smallest to largest explicit bound, we have to start with
+    // the last element in the negativeBucketCounts array.
+    for (int i = negativeBucketCounts.size() - 1; i >= 0; i--) {
+      bucketCounts.add(negativeBucketCounts.get(i));
+      le /= base; // We divide by base because our explicit bounds are getting smaller in magnitude as we go
+      explicitBounds.add(le);
+    }
+  }
+
+  // appendZeroBucketAndExplicitBound appends the "zero" bucket and explicit bound to bucketCounts
+  // and explicitBounds respectively. The smallest positive explicit bound is base^positiveOffset.
+  static void appendZeroBucketAndExplicitBound(
+      int positiveOffset,
+      double base,
+      long zeroBucketCount,
+      List<Long> bucketCounts,
+      List<Double> explicitBounds) {
+    bucketCounts.add(zeroBucketCount);
+
+    // The explicit bound of the zeroBucketCount is the smallest positive explicit bound
+    explicitBounds.add(Math.pow(base, positiveOffset));
+  }
+
+  // appendPositiveBucketsAndExplicitBounds appends positive buckets and explicit bounds to
+  // bucketCounts and explicitBounds respectively. The smallest positive explicit bound is
+  // base^positiveOffset.
+  static void appendPositiveBucketsAndExplicitBounds(
+      int positiveOffset,
+      double base,
+      List<Long> positiveBucketCounts,
+      List<Long> bucketCounts,
+      List<Double> explicitBounds) {
+    double le = Math.pow(base, positiveOffset);
+    for (Long positiveBucketCount : positiveBucketCounts) {
+      bucketCounts.add(positiveBucketCount);
+      le *= base;
+      explicitBounds.add(le);
+    }
+    // Last bucket for positive infinity is always 0.
+    bucketCounts.add(0L);
+  }
+
+  private static class BucketHistogramDataPoint {
+    private final List<Long> bucketCounts;
+    private final List<Double> explicitBounds;
+    private final List<KeyValue> attributesList;
+    private final long timeUnixNano;
+
+    private BucketHistogramDataPoint(
+        List<Long> bucketCounts,
+        List<Double> explicitBounds,
+        List<KeyValue> attributesList,
+        long timeUnixNano) {
+      this.bucketCounts = bucketCounts;
+      this.explicitBounds = explicitBounds;
+      this.attributesList = attributesList;
+      this.timeUnixNano = timeUnixNano;
+    }
+
+    List<Long> getBucketCounts() {
+      return bucketCounts;
+    }
+
+    List<Double> getExplicitBounds() {
+      return explicitBounds;
+    }
+
+    List<KeyValue> getAttributesList() {
+      return attributesList;
+    }
+
+    long getTimeUnixNano() {
+      return timeUnixNano;
+    }
+  }
+
 }

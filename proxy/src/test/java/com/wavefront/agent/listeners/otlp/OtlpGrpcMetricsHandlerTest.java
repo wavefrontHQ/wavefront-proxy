@@ -24,6 +24,8 @@ import io.grpc.stub.StreamObserver;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse;
 import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
+import io.opentelemetry.proto.metrics.v1.ExponentialHistogram;
+import io.opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint;
 import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.Histogram;
 import io.opentelemetry.proto.metrics.v1.HistogramDataPoint;
@@ -523,7 +525,176 @@ public class OtlpGrpcMetricsHandlerTest {
         .build();
     ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder()
         .addResourceMetrics(resourceMetrics).build();
+    subject.export(request, emptyStreamObserver);
 
+    EasyMock.verify(mockReportPointHandler);
+  }
+
+  @Test
+  public void exponentialDeltaHistogram() {
+    long epochTime = 1515151515L;
+    EasyMock.reset(mockHistogramHandler);
+
+    ExponentialHistogramDataPoint point = ExponentialHistogramDataPoint.newBuilder()
+        .setScale(0)
+        .setTimeUnixNano(epochTime)
+        .setPositive(ExponentialHistogramDataPoint.Buckets.newBuilder()
+            .setOffset(2)
+            .addBucketCounts(1)
+            .build())
+        .setZeroCount(2)
+        .setNegative(ExponentialHistogramDataPoint.Buckets.newBuilder()
+            .setOffset(2)
+            .addBucketCounts(3).build()).build();
+
+    ExponentialHistogram otelHistogram = ExponentialHistogram.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
+        .addDataPoints(point).build();
+
+    Metric otelMetric = Metric.newBuilder()
+        .setExponentialHistogram(otelHistogram)
+        .setName("test-exp-delta-histogram")
+        .build();
+
+    List<Double> bins = new ArrayList<>(Arrays.asList(-4.0, 0.0, 6.0, 8.0));
+    List<Integer> counts = new ArrayList<>(Arrays.asList(3, 2, 1, 0));
+
+    wavefront.report.Histogram minHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_MINUTE).
+        build();
+
+    wavefront.report.ReportPoint minWFMetric = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-exp-delta-histogram")
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(epochTime))
+        .setValue(minHistogram)
+        .setHost(DEFAULT_SOURCE)
+        .build();
+
+    wavefront.report.Histogram hourHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_HOUR).
+        build();
+
+    wavefront.report.ReportPoint hourWFMetric = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-exp-delta-histogram")
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(epochTime))
+        .setValue(hourHistogram)
+        .setHost(DEFAULT_SOURCE)
+        .build();
+
+    wavefront.report.Histogram dayHistogram = wavefront.report.Histogram.newBuilder().
+        setType(HistogramType.TDIGEST).
+        setBins(bins).
+        setCounts(counts).
+        setDuration(MILLIS_IN_DAY).
+        build();
+
+    wavefront.report.ReportPoint dayWFMetric = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-exp-delta-histogram")
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(epochTime))
+        .setValue(dayHistogram)
+        .setHost(DEFAULT_SOURCE)
+        .build();
+
+    mockHistogramHandler.report(minWFMetric);
+    EasyMock.expectLastCall().once();
+
+    mockHistogramHandler.report(hourWFMetric);
+    EasyMock.expectLastCall().once();
+
+    mockHistogramHandler.report(dayWFMetric);
+    EasyMock.expectLastCall().once();
+
+    EasyMock.replay(mockHistogramHandler);
+
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder().addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
+    subject.export(request, emptyStreamObserver);
+
+    EasyMock.verify(mockHistogramHandler);
+  }
+
+  @Test
+  public void exponentialCumulativeHistogram() {
+    long epochTime = 1515151515L;
+    EasyMock.reset(mockReportPointHandler);
+
+    ExponentialHistogramDataPoint point = ExponentialHistogramDataPoint.newBuilder()
+        .setScale(0)
+        .setTimeUnixNano(epochTime)
+        .setPositive(ExponentialHistogramDataPoint.Buckets.newBuilder()
+            .setOffset(2)
+            .addBucketCounts(1)
+            .build())
+        .setZeroCount(2)
+        .setNegative(ExponentialHistogramDataPoint.Buckets.newBuilder()
+            .setOffset(2)
+            .addBucketCounts(3).build()).build();
+
+    ExponentialHistogram otelHistogram = ExponentialHistogram.newBuilder()
+        .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+        .addDataPoints(point).build();
+
+    Metric otelMetric = Metric.newBuilder()
+        .setExponentialHistogram(otelHistogram)
+        .setName("test-exp-cumulative-histogram")
+        .build();
+
+    wavefront.report.ReportPoint wfMetric1 = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-exp-cumulative-histogram")
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(epochTime))
+        .setValue(3)
+        .setHost(DEFAULT_SOURCE)
+        .setAnnotations(Collections.singletonMap("le", "-4.0"))
+        .build();
+
+    wavefront.report.ReportPoint wfMetric2 = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-exp-cumulative-histogram")
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(epochTime))
+        .setValue(5)
+        .setHost(DEFAULT_SOURCE)
+        .setAnnotations(Collections.singletonMap("le", "4.0"))
+        .build();
+
+    wavefront.report.ReportPoint wfMetric3 = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-exp-cumulative-histogram")
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(epochTime))
+        .setValue(6)
+        .setHost(DEFAULT_SOURCE)
+        .setAnnotations(Collections.singletonMap("le", "8.0"))
+        .build();
+
+    wavefront.report.ReportPoint wfMetric4 = OtlpTestHelpers.wfReportPointGenerator()
+        .setMetric("test-exp-cumulative-histogram")
+        .setTimestamp(TimeUnit.NANOSECONDS.toMillis(epochTime))
+        .setValue(6)
+        .setHost(DEFAULT_SOURCE)
+        .setAnnotations(Collections.singletonMap("le", "+Inf"))
+        .build();
+
+    mockReportPointHandler.report(wfMetric1);
+    EasyMock.expectLastCall().once();
+
+    mockReportPointHandler.report(wfMetric2);
+    EasyMock.expectLastCall().once();
+
+    mockReportPointHandler.report(wfMetric3);
+    EasyMock.expectLastCall().once();
+
+    mockReportPointHandler.report(wfMetric4);
+    EasyMock.expectLastCall().once();
+
+    EasyMock.replay(mockReportPointHandler);
+
+    ResourceMetrics resourceMetrics =
+        ResourceMetrics.newBuilder().addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(otelMetric).build()).build();
+    ExportMetricsServiceRequest request = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
     subject.export(request, emptyStreamObserver);
 
     EasyMock.verify(mockReportPointHandler);
