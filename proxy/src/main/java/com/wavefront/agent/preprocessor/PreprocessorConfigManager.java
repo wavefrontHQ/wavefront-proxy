@@ -3,42 +3,28 @@ package com.wavefront.agent.preprocessor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-
 import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-
 import org.apache.commons.codec.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.yaml.snakeyaml.Yaml;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.annotation.Nonnull;
-
-import static com.wavefront.agent.preprocessor.PreprocessorUtil.getBoolean;
-import static com.wavefront.agent.preprocessor.PreprocessorUtil.getInteger;
-import static com.wavefront.agent.preprocessor.PreprocessorUtil.getString;
+import static com.wavefront.agent.preprocessor.PreprocessorUtil.*;
 
 /**
  * Parses preprocessor rules (organized by listening port)
@@ -76,6 +62,9 @@ public class PreprocessorConfigManager {
   private static final String FIRST_MATCH_ONLY = "firstMatchOnly";
   private static final String ALLOW = "allow";
   private static final String IF = "if";
+  public static final String NAMES = "names";
+  public static final String FUNC = "function";
+  public static final String OPTS = "opts";
   private static final Set<String> ALLOWED_RULE_ARGUMENTS = ImmutableSet.of(RULE, ACTION);
 
   private final Supplier<Long> timeSupplier;
@@ -94,6 +83,8 @@ public class PreprocessorConfigManager {
   int totalInvalidRules = 0;
   @VisibleForTesting
   int totalValidRules = 0;
+
+  private final Map<String,MetricsFilter> lockMetricsFilter = new WeakHashMap<>();
 
   public PreprocessorConfigManager() {
     this(System::currentTimeMillis);
@@ -204,6 +195,7 @@ public class PreprocessorConfigManager {
     totalInvalidRules = 0;
     Yaml yaml = new Yaml();
     Map<String, ReportableEntityPreprocessor> portMap = new HashMap<>();
+    lockMetricsFilter.clear();
     try {
       Map<String, Object> rulesByPort = yaml.load(stream);
       if (rulesByPort == null || rulesByPort.isEmpty()) {
@@ -232,7 +224,7 @@ public class PreprocessorConfigManager {
               requireArguments(rule, RULE, ACTION);
               allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, TAG, KEY, NEWTAG, NEWKEY, VALUE,
                   SOURCE, INPUT, ITERATIONS, REPLACE_SOURCE, REPLACE_INPUT, ACTION_SUBTYPE,
-                  MAX_LENGTH, FIRST_MATCH_ONLY, ALLOW, IF);
+                  MAX_LENGTH, FIRST_MATCH_ONLY, ALLOW, IF, NAMES, FUNC, OPTS);
               String ruleName = Objects.requireNonNull(getString(rule, RULE)).
                   replaceAll("[^a-z0-9_-]", "");
               PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
@@ -276,7 +268,16 @@ public class PreprocessorConfigManager {
                 String action = Objects.requireNonNull(getString(rule, ACTION));
                 switch (action) {
 
-                  // Rules for ReportPoint objects
+                  case "metricsFilter":
+                    lockMetricsFilter.computeIfPresent(strPort,(s, metricsFilter) -> {
+                      throw new IllegalArgumentException("Only one 'MetricsFilter' is allow per port");
+                    });
+                    allowArguments(rule, NAMES, FUNC, OPTS);
+                    MetricsFilter mf = new MetricsFilter(rule, ruleMetrics, ruleName, strPort);
+                    lockMetricsFilter.put(strPort,mf);
+                    portMap.get(strPort).forPointLine().addFilter(mf);
+                    break;
+
                   case "replaceRegex":
                     allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS, IF);
                     portMap.get(strPort).forReportPoint().addTransformer(

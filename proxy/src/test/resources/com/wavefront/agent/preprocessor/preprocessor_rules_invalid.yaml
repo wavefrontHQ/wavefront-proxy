@@ -1,980 +1,994 @@
 ## set of preprocessor rules for unit tests - all of these rules should fail
 
 '2878':
-    # completely empty rule
-    -
-
-    # missing rule name
-    - action  : dropTag
-      tag     : dc1
-
-    # empty rule name
-    - rule    :
-      action  : dropTag
-      tag     : dc1
-
-    # rule name contains only invalid characters
-    - rule    : "$%^&*()!@/.,"
-      action  : dropTag
-      tag     : dc1
-
-    # missing action
-    - rule    : test-missing-action
-      tag     : dc1
-
-    # invalid action
-    - rule    : test-invalid-action
-      action  : nonexistentAction
-
-    # invalid argument
-    - rule    : test-invalid-argument
-      action  : dropTag
-      tag     : dc1
-      invalid : argument
-
-    # "scope" cannot be used with actions relevant to tags
-    - rule    : test-inconsistent-action-1
-      scope   : pointLine
-      action  : dropTag
-      tag     : dc1
-
-    - rule    : test-inconsistent-action-2
-      scope   : pointLine
-      action  : addTag
-      tag     : newtagkey
-      value   : "1"
-
-    - rule    : test-inconsistent-action-3
-      scope   : pointLine
-      action  : renameTag
-      tag     : foo
-      newtag  : baz
-
-    - rule    : test-inconsistent-action-4
-      scope   : pointLine
-      action  : addTagIfNotExists
-      tag     : newtagkey
-      value   : "1"
-
-    - rule    : test-inconsistent-action-1a
-      scope   : metricName
-      action  : dropTag
-      tag     : dc1
-
-    - rule    : test-inconsistent-action-2a
-      scope   : metricName
-      action  : addTag
-      tag     : newtagkey
-      value   : "1"
-
-    - rule    : test-inconsistent-action-3a
-      scope   : metricName
-      action  : renameTag
-      tag     : foo
-      newtag  : baz
-
-    - rule    : test-inconsistent-action-4a
-      scope   : metricName
-      action  : addTagIfNotExists
-      tag     : newtagkey
-      value   : "1"
-
-    - rule    : test-inconsistent-action-1b
-      scope   : sourceName
-      action  : dropTag
-      tag     : dc1
-
-    - rule    : test-inconsistent-action-2b
-      scope   : sourceName
-      action  : addTag
-      tag     : newtagkey
-      value   : "1"
-
-    - rule    : test-inconsistent-action-3b
-      scope   : sourceName
-      action  : renameTag
-      tag     : foo
-      newtag  : baz
-
-    - rule    : test-inconsistent-action-4b
-      scope   : sourceName
-      action  : addTagIfNotExists
-      tag     : newtagkey
-      value   : "1"
-
-    - rule    : test-inconsistent-action-1c
-      scope   : anytag
-      action  : dropTag
-      tag     : dc1
-
-    - rule    : test-inconsistent-action-2c
-      scope   : anytag
-      action  : addTag
-      tag     : newtagkey
-      value   : "1"
-
-    - rule    : test-inconsistent-action-3c
-      scope   : anytag
-      action  : renameTag
-      tag     : foo
-      newtag  : baz
-
-    - rule    : test-inconsistent-action-4c
-      scope   : anytag
-      action  : addTagIfNotExists
-      tag     : newtagkey
-      value   : "1"
-
-    - rule    : test-inconsistent-action-1c
-      scope   : anytag
-      action  : dropTag
-      tag     : dc1
-
-    - rule    : test-inconsistent-action-2c
-      scope   : anytag
-      action  : addTag
-      tag     : newtagkey
-      value   : "1"
-
-    - rule    : test-inconsistent-action-3c
-      scope   : anytag
-      action  : renameTag
-      tag     : foo
-      newtag  : baz
-
-    - rule    : test-inconsistent-action-4c
-      scope   : anytag
-      action  : addTagIfNotExists
-      tag     : newtagkey
-      value   : "1"
-
-
-    # test replaceRegex
-
-    # test replaceRegex: missing parameters
-
-    # missing scope
-    - rule    : test-replaceRegex-1
-      action  : replaceRegex
-      search   : "foo\\..*"
-      replace : ""
-
-    # missing search
-    - rule    : test-replaceRegex-2
-      action  : replaceRegex
-      scope   : pointLine
-      replace : ""
-
-    # missing search
-    - rule    : test-replaceRegex-3
-      action  : replaceRegex
-      scope   : metricName
-      replace : ""
-
-    # null search
-    - rule    : test-replaceRegex-4
-      action  : replaceRegex
-      scope   : pointLine
-      search  :
-      replace : ""
-
-    # empty search
-    - rule    : test-replaceRegex-5
-      action  : replaceRegex
-      scope   : pointLine
-      search   : ""
-      replace : ""
-
-    # test replaceRegex: non-applicable parameters
-
-    # tag does not apply
-    - rule    : test-replaceRegex-6
-      action  : replaceRegex
-      scope   : pointLine
-      search  : "foo"
-      replace : ""
-      tag     : tag
-
-    # newtag does not apply
-    - rule    : test-replaceRegex-8
-      action  : replaceRegex
-      scope   : pointLine
-      search  : "foo"
-      replace : ""
-      newtag  : newtag
-
-    # value does not apply
-    - rule    : test-replaceRegex-9
-      action  : replaceRegex
-      scope   : pointLine
-      search  : "foo"
-      replace : ""
-      value   : "value"
-
-
-
-    # test block
-
-    # test block: missing parameters
-
-    # missing scope
-    - rule    : test-block-1
-      action  : block
-      match   : "foo\\..*"
-
-    # missing match
-    - rule    : test-block-2
-      action  : block
-      scope   : pointLine
-
-    # missing match
-    - rule    : test-block-3
-      action  : block
-      scope   : metricName
-
-    # null match
-    - rule    : test-block-4
-      action  : block
-      scope   : pointLine
-      match   :
-
-    # empty match
-    - rule    : test-block-5
-      action  : block
-      scope   : pointLine
-      match   : ""
-
-    # test block: non-applicable parameters
-
-    # tag does not apply
-    - rule    : test-block-6
-      action  : block
-      scope   : pointLine
-      match   : "foo"
-      tag     : tag
-
-    # replace does not apply
-    - rule    : test-block-7
-      action  : block
-      scope   : pointLine
-      match   : "foo"
-      replace : replace
-
-    # search does not apply
-    - rule    : test-block-8
-      action  : block
-      scope   : pointLine
-      match   : "foo"
-      search  : search
-
-    # newtag does not apply
-    - rule    : test-block-9
-      action  : block
-      scope   : pointLine
-      match   : "foo"
-      newtag  : newtag
-
-    # value does not apply
-    - rule    : test-block-10
-      action  : block
-      scope   : pointLine
-      match   : "foo"
-      value   : "value"
-
-
-    # test allow
-
-    # test allow: missing parameters
-
-    # missing scope
-    - rule    : test-allow-1
-      action  : allow
-      match   : "foo\\..*"
-
-    # missing match
-    - rule    : test-allow-2
-      action  : allow
-      scope   : pointLine
-
-    # missing match
-    - rule    : test-allow-3
-      action  : allow
-      scope   : metricName
-
-    # null match
-    - rule    : test-allow-4
-      action  : allow
-      scope   : pointLine
-      match   :
-
-    # empty match
-    - rule    : test-allow-5
-      action  : allow
-      scope   : pointLine
-      match   : ""
-
-    # test allow: non-applicable parameters
-
-    # tag does not apply
-    - rule    : test-allow-6
-      action  : allow
-      scope   : pointLine
-      match   : "foo"
-      tag     : tag
-
-    # replace does not apply
-    - rule    : test-allow-7
-      action  : allow
-      scope   : pointLine
-      match   : "foo"
-      replace : replace
-
-    # search does not apply
-    - rule    : test-allow-8
-      action  : allow
-      scope   : pointLine
-      match   : "foo"
-      search  : search
-
-    # newtag does not apply
-    - rule    : test-allow-9
-      action  : allow
-      scope   : pointLine
-      match   : "foo"
-      newtag  : newtag
-
-    # value does not apply
-    - rule    : test-allow-10
-      action  : allow
-      scope   : pointLine
-      match   : "foo"
-      value   : "value"
-
-
-    # test dropTag
-
-    # missing tag
-    - rule    : test-dropTag-1
-      action  : dropTag
-
-    # search does not apply
-    - rule    : test-dropTag-2
-      action  : dropTag
-      tag     : tag
-      search  : search
-
-    # replace does not apply
-    - rule    : test-dropTag-3
-      action  : dropTag
-      tag     : tag
-      replace : replace
-
-    # newtag does not apply
-    - rule    : test-dropTag-4
-      action  : dropTag
-      tag     : tag
-      newtag  : newtag
-
-    # value does not apply
-    - rule    : test-dropTag-5
-      action  : dropTag
-      tag     : tag
-      value   : value
-
-
-    # test addTag
-
-    # missing tag
-    - rule    : test-addTag-1
-      action  : addTag
-      value   : "1"
-
-    # null tag
-    - rule    : test-addTag-2
-      action  : addTag
-      tag     :
-      value   : "1"
-
-    # empty tag
-    - rule    : test-addTag-3
-      action  : addTag
-      tag     : ""
-      value   : "1"
-
-    # null value
-    - rule    : test-addTag-4
-      action  : addTag
-      tag     : tag
-      value   :
-
-    # empty value
-    - rule    : test-addTag-5
-      action  : addTag
-      tag     : tag
-      value   : ""
-
-    # missing value
-    - rule    : test-addTag-6
-      action  : addTag
-      tag     : tag
-
-    # search does not apply
-    - rule    : test-addTag-7
-      action  : addTag
-      tag     : tag
-      value   : "1"
-      search  : search
-
-    # replace does not apply
-    - rule    : test-addTag-8
-      action  : addTag
-      tag     : tag
-      value   : "1"
-      replace : replace
-
-    # newtag does not apply
-    - rule    : test-addTag-9
-      action  : addTag
-      tag     : tag
-      value   : "1"
-      newtag  : newtag
-
-    # match does not apply
-    - rule    : test-addTag-10
-      action  : addTag
-      tag     : tag
-      value   : "1"
-      match   : match
-
-
-    # test addTagIfNotExists
-
-    # missing tag
-    - rule    : test-addTagIfNotExists-1
-      action  : addTagIfNotExists
-      value   : "1"
-
-    # null tag
-    - rule    : test-addTagIfNotExists-2
-      action  : addTagIfNotExists
-      tag     :
-      value   : "1"
-
-    # empty tag
-    - rule    : test-addTagIfNotExists-3
-      action  : addTagIfNotExists
-      tag     : ""
-      value   : "1"
-
-    # null value
-    - rule    : test-addTagIfNotExists-4
-      action  : addTagIfNotExists
-      tag     : tag
-      value   :
-
-    # empty value
-    - rule    : test-addTagIfNotExists-5
-      action  : addTagIfNotExists
-      tag     : tag
-      value   : ""
-
-    # missing value
-    - rule    : test-addTagIfNotExists-6
-      action  : addTagIfNotExists
-      tag     : tag
-
-    # search does not apply
-    - rule    : test-addTagIfNotExists-7
-      action  : addTagIfNotExists
-      tag     : tag
-      value   : "1"
-      search  : search
-
-    # replace does not apply
-    - rule    : test-addTagIfNotExists-8
-      action  : addTagIfNotExists
-      tag     : tag
-      value   : "1"
-      replace : replace
-
-    # newtag does not apply
-    - rule    : test-addTagIfNotExists-9
-      action  : addTagIfNotExists
-      tag     : tag
-      value   : "1"
-      newtag  : newtag
-
-    # match does not apply
-    - rule    : test-addTagIfNotExists-10
-      action  : addTagIfNotExists
-      tag     : tag
-      value   : "1"
-      match   : match
-
-    # test renameTag
-
-    # missing tag
-    - rule    : test-renameTag-1
-      action  : renameTag
-      match   : tag
-      newtag  : newtag
-
-    # null tag
-    - rule    : test-renameTag-2
-      action  : renameTag
-      tag     :
-      match   : tag
-      newtag  : newtag
-
-    # empty tag
-    - rule    : test-renameTag-3
-      action  : renameTag
-      tag     : ""
-      newtag  : newtag
-
-    # missing newtag
-    - rule    : test-renameTag-4
-      action  : renameTag
-      tag     : tag
-
-    # null newtag
-    - rule    : test-renameTag-5
-      action  : renameTag
-      tag     : tag
-      newtag  :
-
-    # empty newtag
-    - rule    : test-renameTag-6
-      action  : renameTag
-      tag     : tag
-      newtag  : ""
-
-    # search does not apply
-    - rule    : test-renameTag-7
-      action  : renameTag
-      tag     : tag
-      match   : match
-      newtag  : newtag
-      search  : search
-
-    # replace does not apply
-    - rule    : test-renameTag-8
-      action  : renameTag
-      tag     : tag
-      match   : match
-      newtag  : newtag
-      replace : replace
-
-    # value does not apply
-    - rule    : test-renameTag-9
-      action  : renameTag
-      tag     : tag
-      match   : match
-      newtag  : newtag
-      value   : "1"
-
-
-    # test extractTag
-
-    # missing tag
-    - rule    : test-extractTag-1
-      action  : extractTag
-      match   : tag
-      source  : metricName
-      search  : tag
-      replace : replace
-
-    # null tag
-    - rule    : test-extractTag-2
-      action  : extractTag
-      tag     :
-      match   : tag
-      source  : metricName
-      search  : tag
-      replace : replace
-
-    # empty tag
-    - rule    : test-extractTag-3
-      action  : extractTag
-      tag     : ""
-      match   : match
-      source  : metricName
-      search  : tag
-      replace : replace
-
-    # missing source
-    - rule    : test-extractTag-4
-      action  : extractTag
-      tag     : tag
-      match   : match
-      search  : tag
-      replace : replace
-
-    # empty source
-    - rule    : test-extractTag-5
-      action  : extractTag
-      tag     : tag
-      source  : ""
-      match   : match
-      search  : tag
-      replace : replace
-
-    # missing search
-    - rule    : test-extractTag-6
-      action  : extractTag
-      tag     : tag
-      source  : metricName
-      match   : match
-      replace : replace
-
-    # empty search
-    - rule    : test-extractTag-7
-      action  : extractTag
-      tag     : tag
-      source  : metricName
-      match   : match
-      search  : ""
-      replace : replace
-
-    # missing replace
-    - rule    : test-extractTag-8
-      action  : extractTag
-      tag     : tag
-      source  : metricName
-      match   : match
-      search  : tag
-
-    # null replace
-    - rule    : test-extractTag-9
-      action  : extractTag
-      tag     : tag
-      source  : metricName
-      match   : match
-      search  : tag
-      replace :
-
-    # scope does not apply
-    - rule    : test-extractTag-10
-      action  : extractTag
-      scope   : tag
-      tag     : tag
-      source  : metricName
-      match   : match
-      search  : tag
-      replace : ""
-
-    # value does not apply
-    - rule    : test-extractTag-11
-      action  : extractTag
-      tag     : tag
-      source  : metricName
-      match   : match
-      search  : tag
-      replace : ""
-      value   : "1"
-
-    # test extractTagIfNotExists
-
-    # missing tag
-    - rule    : test-extractTagIfNotExists-1
-      action  : extractTagIfNotExists
-      match   : tag
-      source  : metricName
-      search  : tag
-      replace : replace
-
-    # null tag
-    - rule    : test-extractTagIfNotExists-2
-      action  : extractTagIfNotExists
-      tag     :
-      match   : tag
-      source  : metricName
-      search  : tag
-      replace : replace
-
-    # empty tag
-    - rule    : test-extractTagIfNotExists-3
-      action  : extractTagIfNotExists
-      tag     : ""
-      match   : match
-      source  : metricName
-      search  : tag
-      replace : replace
-
-    # missing source
-    - rule    : test-extractTagIfNotExists-4
-      action  : extractTagIfNotExists
-      tag     : tag
-      match   : match
-      search  : tag
-      replace : replace
-
-    # empty source
-    - rule    : test-extractTagIfNotExists-5
-      action  : extractTagIfNotExists
-      tag     : tag
-      source  : ""
-      match   : match
-      search  : tag
-      replace : replace
-
-    # missing search
-    - rule    : test-extractTagIfNotExists-6
-      action  : extractTagIfNotExists
-      tag     : tag
-      source  : metricName
-      match   : match
-      replace : replace
-
-    # empty search
-    - rule    : test-extractTagIfNotExists-7
-      action  : extractTagIfNotExists
-      tag     : tag
-      source  : metricName
-      match   : match
-      search  : ""
-      replace : replace
-
-    # missing replace
-    - rule    : test-extractTagIfNotExists-8
-      action  : extractTagIfNotExists
-      tag     : tag
-      source  : metricName
-      match   : match
-      search  : tag
-
-    # null replace
-    - rule    : test-extractTagIfNotExists-9
-      action  : extractTagIfNotExists
-      tag     : tag
-      source  : metricName
-      match   : match
-      search  : tag
-      replace :
-
-    # scope does not apply
-    - rule    : test-extractTagIfNotExists-10
-      action  : extractTagIfNotExists
-      scope   : tag
-      tag     : tag
-      source  : metricName
-      match   : match
-      search  : tag
-      replace : ""
-
-    # value does not apply
-    - rule    : test-extractTagIfNotExists-11
-      action  : extractTagIfNotExists
-      tag     : tag
-      source  : metricName
-      match   : match
-      search  : tag
-      replace : ""
-      value   : "1"
-
-    # test limitLength rule
-    # invalid subtype
-    - rule          : test-limitLength-1
-      action        : limitLength
-      actionSubtype : invalidsubtype
-      maxLength     : "10"
-
-    # "drop" can't be used with metricName scope
-    - rule          : test-limitLength-2
-      action        : limitLength
-      scope         : metricName
-      actionSubtype : drop
-      maxLength     : "5"
-
-    # "drop" can't be used with sourceName scope
-    - rule          : test-limitLength-3
-      action        : limitLength
-      scope         : sourceName
-      actionSubtype : drop
-      maxLength     : "5"
-
-    # maxLength should be >= 3 for truncateWithEllipsis
-    - rule          : test-limitLength-4
-      action        : limitLength
-      scope         : metricName
-      actionSubtype : truncateWithEllipsis
-      maxLength     : "2"
-
-    # maxLength should be > 0
-    - rule          : test-limitLength-5
-      action        : limitLength
-      scope         : metricName
-      actionSubtype : truncate
-      maxLength     : "0"
-
-    # test spanLimitLength rule
-
-    # invalid subtype
-    - rule          : test-spanLimitLength-1
-      action        : spanLimitLength
-      actionSubtype : invalidsubtype
-      maxLength     : "10"
-
-    # "drop" can't be used with spanName scope
-    - rule          : test-spanLimitLength-2
-      action        : spanLimitLength
-      scope         : spanName
-      actionSubtype : drop
-      maxLength     : "5"
-
-    # "drop" can't be used with sourceName scope
-    - rule          : test-spanLimitLength-3
-      action        : spanLimitLength
-      scope         : sourceName
-      actionSubtype : drop
-      maxLength     : "5"
-
-    # maxLength should be >= 3 for truncateWithEllipsis
-    - rule          : test-spanLimitLength-4
-      action        : spanLimitLength
-      scope         : metricName
-      actionSubtype : truncateWithEllipsis
-      maxLength     : "2"
-
-    # maxLength should be > 0
-    - rule          : test-spanLimitLength-5
-      action        : spanLimitLength
-      scope         : metricName
-      actionSubtype : truncate
-      maxLength     : "0"
-
-    # test spanRenameTag
-    # missing key
-    - rule          : test-spanrenametag-1
-      action        : spanRenameTag
-      newkey        : device
-      match         : "^\\d*$"
-
-    # missing newkey
-    - rule          : test-spanrenametag-2
-      action        : spanRenameTag
-      key           : myDevice
-      match         : "^\\d*$"
-
-    # null key
-    - rule          : test-spanrenametag-3
-      action        : spanRenameTag
-      key           :
-      newkey        : device
-      match         : "^\\d*$"
-
-    # empty key
-    - rule          : test-spanrenametag-4
-      action        : spanRenameTag
-      key           : ""
-      newkey        : device
-      match         : "^\\d*$"
-
-    # null newkey
-    - rule          : test-spanrenametag-5
-      action        : spanRenameTag
-      key           : myDevice
-      newkey        :
-      match         : "^\\d*$"
-
-    # empty newkey
-    - rule          : test-spanrenametag-6
-      action        : spanRenameTag
-      key           : myDevice
-      newkey        : ""
-      match         : "^\\d*$"
-
-    # wrong action - case doesn't match
-    - rule          : test-spanrenametag-7
-      action        : spanrenametag
-      key           : myDevice
-      newkey        : device
-
-    # Invalid v2 Predicate. Multiple top-level predicates.
-    - rule : test-invalidV2Pred-1
-      action : spanAllow
-      if :
-       all :
-         - equals:
-             scope: key2
-             value: "val2"
-         - contains:
-             scope: sourceName
-             value: "prod"
-       any :
-         - equals:
-             scope: key1
-             value: "val1"
-         - contains:
-             scope: metricName
-             value: "foometric"
-
-    # Invalid v2 Predicate due to Not specifying both v1 Predicates [scope, match].
-    - rule : test-invalidV2Pred-2
-      action : spanAllow
-      scope : metricName
-      if :
-       all :
-         - equals:
-             scope: key2
-             value: "val2"
-         - contains:
-             scope: sourceName
-             value: "prod"
-
-    # Invalid v2 Predicate due to Not specifying both v1 Predicates [scope, match].
-    - rule : test-invalidV2Pred-3
-      action : spanBlock
-      match : "^prod$"
-      if :
-       all :
-         - equals:
-             scope: key2
-             value: "val2"
-         - contains:
-             scope: sourceName
-             value: "prod"
-
-    # Invalid v2 Predicate due to Invalid scope.
-    - rule : test-invalidV2Pred-4
-      action : spanAllow
-      scope : pointline
-      if :
-       all :
-         - equals:
-             scope: key2
-             value: "val2"
-         - contains:
-             scope: sourceName
-             value: "prod"
-
-    # Invalid v2 Predicate due to blank value.
-    - rule : test-invalidV2Pred-5
-      action : spanAllow
-      if :
-        contains:
-          scope: sourceName
-          value:
-
-    # Invalid v2 Predicate due to no scope.
-    - rule : test-invalidV2Pred-6
-      action : spanAllow
-      if :
-        equals:
-          value: "val2"
-
-    # Invalid v2 Predicate due to invalid comparison function.
-    - rule : test-invalidV2Pred-7
-      action : allow
-      if :
-       invalidComparisonFunction:
-         scope: key1
-         value: "val1"
-
-    # Invalid v2 Predicate due to invalid comparison function.
-    - rule : test-invalidV2Pred-8
-      action : spanAllow
-      if :
-       invalidComparisonFunction:
-         scope: key1
-         value: "val1"
+  # completely empty rule
+  -
+
+  # missing rule name
+  - action: dropTag
+    tag: dc1
+
+  # empty rule name
+  - rule:
+    action: dropTag
+    tag: dc1
+
+  # rule name contains only invalid characters
+  - rule: "$%^&*()!@/.,"
+    action: dropTag
+    tag: dc1
+
+  # missing action
+  - rule: test-missing-action
+    tag: dc1
+
+  # invalid action
+  - rule: test-invalid-action
+    action: nonexistentAction
+
+  # invalid argument
+  - rule: test-invalid-argument
+    action: dropTag
+    tag: dc1
+    invalid: argument
+
+  # "scope" cannot be used with actions relevant to tags
+  - rule: test-inconsistent-action-1
+    scope: pointLine
+    action: dropTag
+    tag: dc1
+
+  - rule: test-inconsistent-action-2
+    scope: pointLine
+    action: addTag
+    tag: newtagkey
+    value: "1"
+
+  - rule: test-inconsistent-action-3
+    scope: pointLine
+    action: renameTag
+    tag: foo
+    newtag: baz
+
+  - rule: test-inconsistent-action-4
+    scope: pointLine
+    action: addTagIfNotExists
+    tag: newtagkey
+    value: "1"
+
+  - rule: test-inconsistent-action-1a
+    scope: metricName
+    action: dropTag
+    tag: dc1
+
+  - rule: test-inconsistent-action-2a
+    scope: metricName
+    action: addTag
+    tag: newtagkey
+    value: "1"
+
+  - rule: test-inconsistent-action-3a
+    scope: metricName
+    action: renameTag
+    tag: foo
+    newtag: baz
+
+  - rule: test-inconsistent-action-4a
+    scope: metricName
+    action: addTagIfNotExists
+    tag: newtagkey
+    value: "1"
+
+  - rule: test-inconsistent-action-1b
+    scope: sourceName
+    action: dropTag
+    tag: dc1
+
+  - rule: test-inconsistent-action-2b
+    scope: sourceName
+    action: addTag
+    tag: newtagkey
+    value: "1"
+
+  - rule: test-inconsistent-action-3b
+    scope: sourceName
+    action: renameTag
+    tag: foo
+    newtag: baz
+
+  - rule: test-inconsistent-action-4b
+    scope: sourceName
+    action: addTagIfNotExists
+    tag: newtagkey
+    value: "1"
+
+  - rule: test-inconsistent-action-1c
+    scope: anytag
+    action: dropTag
+    tag: dc1
+
+  - rule: test-inconsistent-action-2c
+    scope: anytag
+    action: addTag
+    tag: newtagkey
+    value: "1"
+
+  - rule: test-inconsistent-action-3c
+    scope: anytag
+    action: renameTag
+    tag: foo
+    newtag: baz
+
+  - rule: test-inconsistent-action-4c
+    scope: anytag
+    action: addTagIfNotExists
+    tag: newtagkey
+    value: "1"
+
+  - rule: test-inconsistent-action-1c
+    scope: anytag
+    action: dropTag
+    tag: dc1
+
+  - rule: test-inconsistent-action-2c
+    scope: anytag
+    action: addTag
+    tag: newtagkey
+    value: "1"
+
+  - rule: test-inconsistent-action-3c
+    scope: anytag
+    action: renameTag
+    tag: foo
+    newtag: baz
+
+  - rule: test-inconsistent-action-4c
+    scope: anytag
+    action: addTagIfNotExists
+    tag: newtagkey
+    value: "1"
+
+
+  # test replaceRegex
+
+  # test replaceRegex: missing parameters
+
+  # missing scope
+  - rule: test-replaceRegex-1
+    action: replaceRegex
+    search: "foo\\..*"
+    replace: ""
+
+  # missing search
+  - rule: test-replaceRegex-2
+    action: replaceRegex
+    scope: pointLine
+    replace: ""
+
+  # missing search
+  - rule: test-replaceRegex-3
+    action: replaceRegex
+    scope: metricName
+    replace: ""
+
+  # null search
+  - rule: test-replaceRegex-4
+    action: replaceRegex
+    scope: pointLine
+    search:
+    replace: ""
+
+  # empty search
+  - rule: test-replaceRegex-5
+    action: replaceRegex
+    scope: pointLine
+    search: ""
+    replace: ""
+
+  # test replaceRegex: non-applicable parameters
+
+  # tag does not apply
+  - rule: test-replaceRegex-6
+    action: replaceRegex
+    scope: pointLine
+    search: "foo"
+    replace: ""
+    tag: tag
+
+  # newtag does not apply
+  - rule: test-replaceRegex-8
+    action: replaceRegex
+    scope: pointLine
+    search: "foo"
+    replace: ""
+    newtag: newtag
+
+  # value does not apply
+  - rule: test-replaceRegex-9
+    action: replaceRegex
+    scope: pointLine
+    search: "foo"
+    replace: ""
+    value: "value"
+
+
+
+  # test block
+
+  # test block: missing parameters
+
+  # missing scope
+  - rule: test-block-1
+    action: block
+    match: "foo\\..*"
+
+  # missing match
+  - rule: test-block-2
+    action: block
+    scope: pointLine
+
+  # missing match
+  - rule: test-block-3
+    action: block
+    scope: metricName
+
+  # null match
+  - rule: test-block-4
+    action: block
+    scope: pointLine
+    match:
+
+  # empty match
+  - rule: test-block-5
+    action: block
+    scope: pointLine
+    match: ""
+
+  # test block: non-applicable parameters
+
+  # tag does not apply
+  - rule: test-block-6
+    action: block
+    scope: pointLine
+    match: "foo"
+    tag: tag
+
+  # replace does not apply
+  - rule: test-block-7
+    action: block
+    scope: pointLine
+    match: "foo"
+    replace: replace
+
+  # search does not apply
+  - rule: test-block-8
+    action: block
+    scope: pointLine
+    match: "foo"
+    search: search
+
+  # newtag does not apply
+  - rule: test-block-9
+    action: block
+    scope: pointLine
+    match: "foo"
+    newtag: newtag
+
+  # value does not apply
+  - rule: test-block-10
+    action: block
+    scope: pointLine
+    match: "foo"
+    value: "value"
+
+
+  # test allow
+
+  # test allow: missing parameters
+
+  # missing scope
+  - rule: test-allow-1
+    action: allow
+    match: "foo\\..*"
+
+  # missing match
+  - rule: test-allow-2
+    action: allow
+    scope: pointLine
+
+  # missing match
+  - rule: test-allow-3
+    action: allow
+    scope: metricName
+
+  # null match
+  - rule: test-allow-4
+    action: allow
+    scope: pointLine
+    match:
+
+  # empty match
+  - rule: test-allow-5
+    action: allow
+    scope: pointLine
+    match: ""
+
+  # test allow: non-applicable parameters
+
+  # tag does not apply
+  - rule: test-allow-6
+    action: allow
+    scope: pointLine
+    match: "foo"
+    tag: tag
+
+  # replace does not apply
+  - rule: test-allow-7
+    action: allow
+    scope: pointLine
+    match: "foo"
+    replace: replace
+
+  # search does not apply
+  - rule: test-allow-8
+    action: allow
+    scope: pointLine
+    match: "foo"
+    search: search
+
+  # newtag does not apply
+  - rule: test-allow-9
+    action: allow
+    scope: pointLine
+    match: "foo"
+    newtag: newtag
+
+  # value does not apply
+  - rule: test-allow-10
+    action: allow
+    scope: pointLine
+    match: "foo"
+    value: "value"
+
+
+  # test dropTag
+
+  # missing tag
+  - rule: test-dropTag-1
+    action: dropTag
+
+  # search does not apply
+  - rule: test-dropTag-2
+    action: dropTag
+    tag: tag
+    search: search
+
+  # replace does not apply
+  - rule: test-dropTag-3
+    action: dropTag
+    tag: tag
+    replace: replace
+
+  # newtag does not apply
+  - rule: test-dropTag-4
+    action: dropTag
+    tag: tag
+    newtag: newtag
+
+  # value does not apply
+  - rule: test-dropTag-5
+    action: dropTag
+    tag: tag
+    value: value
+
+
+  # test addTag
+
+  # missing tag
+  - rule: test-addTag-1
+    action: addTag
+    value: "1"
+
+  # null tag
+  - rule: test-addTag-2
+    action: addTag
+    tag:
+    value: "1"
+
+  # empty tag
+  - rule: test-addTag-3
+    action: addTag
+    tag: ""
+    value: "1"
+
+  # null value
+  - rule: test-addTag-4
+    action: addTag
+    tag: tag
+    value:
+
+  # empty value
+  - rule: test-addTag-5
+    action: addTag
+    tag: tag
+    value: ""
+
+  # missing value
+  - rule: test-addTag-6
+    action: addTag
+    tag: tag
+
+  # search does not apply
+  - rule: test-addTag-7
+    action: addTag
+    tag: tag
+    value: "1"
+    search: search
+
+  # replace does not apply
+  - rule: test-addTag-8
+    action: addTag
+    tag: tag
+    value: "1"
+    replace: replace
+
+  # newtag does not apply
+  - rule: test-addTag-9
+    action: addTag
+    tag: tag
+    value: "1"
+    newtag: newtag
+
+  # match does not apply
+  - rule: test-addTag-10
+    action: addTag
+    tag: tag
+    value: "1"
+    match: match
+
+
+  # test addTagIfNotExists
+
+  # missing tag
+  - rule: test-addTagIfNotExists-1
+    action: addTagIfNotExists
+    value: "1"
+
+  # null tag
+  - rule: test-addTagIfNotExists-2
+    action: addTagIfNotExists
+    tag:
+    value: "1"
+
+  # empty tag
+  - rule: test-addTagIfNotExists-3
+    action: addTagIfNotExists
+    tag: ""
+    value: "1"
+
+  # null value
+  - rule: test-addTagIfNotExists-4
+    action: addTagIfNotExists
+    tag: tag
+    value:
+
+  # empty value
+  - rule: test-addTagIfNotExists-5
+    action: addTagIfNotExists
+    tag: tag
+    value: ""
+
+  # missing value
+  - rule: test-addTagIfNotExists-6
+    action: addTagIfNotExists
+    tag: tag
+
+  # search does not apply
+  - rule: test-addTagIfNotExists-7
+    action: addTagIfNotExists
+    tag: tag
+    value: "1"
+    search: search
+
+  # replace does not apply
+  - rule: test-addTagIfNotExists-8
+    action: addTagIfNotExists
+    tag: tag
+    value: "1"
+    replace: replace
+
+  # newtag does not apply
+  - rule: test-addTagIfNotExists-9
+    action: addTagIfNotExists
+    tag: tag
+    value: "1"
+    newtag: newtag
+
+  # match does not apply
+  - rule: test-addTagIfNotExists-10
+    action: addTagIfNotExists
+    tag: tag
+    value: "1"
+    match: match
+
+  # test renameTag
+
+  # missing tag
+  - rule: test-renameTag-1
+    action: renameTag
+    match: tag
+    newtag: newtag
+
+  # null tag
+  - rule: test-renameTag-2
+    action: renameTag
+    tag:
+    match: tag
+    newtag: newtag
+
+  # empty tag
+  - rule: test-renameTag-3
+    action: renameTag
+    tag: ""
+    newtag: newtag
+
+  # missing newtag
+  - rule: test-renameTag-4
+    action: renameTag
+    tag: tag
+
+  # null newtag
+  - rule: test-renameTag-5
+    action: renameTag
+    tag: tag
+    newtag:
+
+  # empty newtag
+  - rule: test-renameTag-6
+    action: renameTag
+    tag: tag
+    newtag: ""
+
+  # search does not apply
+  - rule: test-renameTag-7
+    action: renameTag
+    tag: tag
+    match: match
+    newtag: newtag
+    search: search
+
+  # replace does not apply
+  - rule: test-renameTag-8
+    action: renameTag
+    tag: tag
+    match: match
+    newtag: newtag
+    replace: replace
+
+  # value does not apply
+  - rule: test-renameTag-9
+    action: renameTag
+    tag: tag
+    match: match
+    newtag: newtag
+    value: "1"
+
+
+  # test extractTag
+
+  # missing tag
+  - rule: test-extractTag-1
+    action: extractTag
+    match: tag
+    source: metricName
+    search: tag
+    replace: replace
+
+  # null tag
+  - rule: test-extractTag-2
+    action: extractTag
+    tag:
+    match: tag
+    source: metricName
+    search: tag
+    replace: replace
+
+  # empty tag
+  - rule: test-extractTag-3
+    action: extractTag
+    tag: ""
+    match: match
+    source: metricName
+    search: tag
+    replace: replace
+
+  # missing source
+  - rule: test-extractTag-4
+    action: extractTag
+    tag: tag
+    match: match
+    search: tag
+    replace: replace
+
+  # empty source
+  - rule: test-extractTag-5
+    action: extractTag
+    tag: tag
+    source: ""
+    match: match
+    search: tag
+    replace: replace
+
+  # missing search
+  - rule: test-extractTag-6
+    action: extractTag
+    tag: tag
+    source: metricName
+    match: match
+    replace: replace
+
+  # empty search
+  - rule: test-extractTag-7
+    action: extractTag
+    tag: tag
+    source: metricName
+    match: match
+    search: ""
+    replace: replace
+
+  # missing replace
+  - rule: test-extractTag-8
+    action: extractTag
+    tag: tag
+    source: metricName
+    match: match
+    search: tag
+
+  # null replace
+  - rule: test-extractTag-9
+    action: extractTag
+    tag: tag
+    source: metricName
+    match: match
+    search: tag
+    replace:
+
+  # scope does not apply
+  - rule: test-extractTag-10
+    action: extractTag
+    scope: tag
+    tag: tag
+    source: metricName
+    match: match
+    search: tag
+    replace: ""
+
+  # value does not apply
+  - rule: test-extractTag-11
+    action: extractTag
+    tag: tag
+    source: metricName
+    match: match
+    search: tag
+    replace: ""
+    value: "1"
+
+  # test extractTagIfNotExists
+
+  # missing tag
+  - rule: test-extractTagIfNotExists-1
+    action: extractTagIfNotExists
+    match: tag
+    source: metricName
+    search: tag
+    replace: replace
+
+  # null tag
+  - rule: test-extractTagIfNotExists-2
+    action: extractTagIfNotExists
+    tag:
+    match: tag
+    source: metricName
+    search: tag
+    replace: replace
+
+  # empty tag
+  - rule: test-extractTagIfNotExists-3
+    action: extractTagIfNotExists
+    tag: ""
+    match: match
+    source: metricName
+    search: tag
+    replace: replace
+
+  # missing source
+  - rule: test-extractTagIfNotExists-4
+    action: extractTagIfNotExists
+    tag: tag
+    match: match
+    search: tag
+    replace: replace
+
+  # empty source
+  - rule: test-extractTagIfNotExists-5
+    action: extractTagIfNotExists
+    tag: tag
+    source: ""
+    match: match
+    search: tag
+    replace: replace
+
+  # missing search
+  - rule: test-extractTagIfNotExists-6
+    action: extractTagIfNotExists
+    tag: tag
+    source: metricName
+    match: match
+    replace: replace
+
+  # empty search
+  - rule: test-extractTagIfNotExists-7
+    action: extractTagIfNotExists
+    tag: tag
+    source: metricName
+    match: match
+    search: ""
+    replace: replace
+
+  # missing replace
+  - rule: test-extractTagIfNotExists-8
+    action: extractTagIfNotExists
+    tag: tag
+    source: metricName
+    match: match
+    search: tag
+
+  # null replace
+  - rule: test-extractTagIfNotExists-9
+    action: extractTagIfNotExists
+    tag: tag
+    source: metricName
+    match: match
+    search: tag
+    replace:
+
+  # scope does not apply
+  - rule: test-extractTagIfNotExists-10
+    action: extractTagIfNotExists
+    scope: tag
+    tag: tag
+    source: metricName
+    match: match
+    search: tag
+    replace: ""
+
+  # value does not apply
+  - rule: test-extractTagIfNotExists-11
+    action: extractTagIfNotExists
+    tag: tag
+    source: metricName
+    match: match
+    search: tag
+    replace: ""
+    value: "1"
+
+  # test limitLength rule
+  # invalid subtype
+  - rule: test-limitLength-1
+    action: limitLength
+    actionSubtype: invalidsubtype
+    maxLength: "10"
+
+  # "drop" can't be used with metricName scope
+  - rule: test-limitLength-2
+    action: limitLength
+    scope: metricName
+    actionSubtype: drop
+    maxLength: "5"
+
+  # "drop" can't be used with sourceName scope
+  - rule: test-limitLength-3
+    action: limitLength
+    scope: sourceName
+    actionSubtype: drop
+    maxLength: "5"
+
+  # maxLength should be >= 3 for truncateWithEllipsis
+  - rule: test-limitLength-4
+    action: limitLength
+    scope: metricName
+    actionSubtype: truncateWithEllipsis
+    maxLength: "2"
+
+  # maxLength should be > 0
+  - rule: test-limitLength-5
+    action: limitLength
+    scope: metricName
+    actionSubtype: truncate
+    maxLength: "0"
+
+  # test spanLimitLength rule
+
+  # invalid subtype
+  - rule: test-spanLimitLength-1
+    action: spanLimitLength
+    actionSubtype: invalidsubtype
+    maxLength: "10"
+
+  # "drop" can't be used with spanName scope
+  - rule: test-spanLimitLength-2
+    action: spanLimitLength
+    scope: spanName
+    actionSubtype: drop
+    maxLength: "5"
+
+  # "drop" can't be used with sourceName scope
+  - rule: test-spanLimitLength-3
+    action: spanLimitLength
+    scope: sourceName
+    actionSubtype: drop
+    maxLength: "5"
+
+  # maxLength should be >= 3 for truncateWithEllipsis
+  - rule: test-spanLimitLength-4
+    action: spanLimitLength
+    scope: metricName
+    actionSubtype: truncateWithEllipsis
+    maxLength: "2"
+
+  # maxLength should be > 0
+  - rule: test-spanLimitLength-5
+    action: spanLimitLength
+    scope: metricName
+    actionSubtype: truncate
+    maxLength: "0"
+
+  # test spanRenameTag
+  # missing key
+  - rule: test-spanrenametag-1
+    action: spanRenameTag
+    newkey: device
+    match: "^\\d*$"
+
+  # missing newkey
+  - rule: test-spanrenametag-2
+    action: spanRenameTag
+    key: myDevice
+    match: "^\\d*$"
+
+  # null key
+  - rule: test-spanrenametag-3
+    action: spanRenameTag
+    key:
+    newkey: device
+    match: "^\\d*$"
+
+  # empty key
+  - rule: test-spanrenametag-4
+    action: spanRenameTag
+    key: ""
+    newkey: device
+    match: "^\\d*$"
+
+  # null newkey
+  - rule: test-spanrenametag-5
+    action: spanRenameTag
+    key: myDevice
+    newkey:
+    match: "^\\d*$"
+
+  # empty newkey
+  - rule: test-spanrenametag-6
+    action: spanRenameTag
+    key: myDevice
+    newkey: ""
+    match: "^\\d*$"
+
+  # wrong action - case doesn't match
+  - rule: test-spanrenametag-7
+    action: spanrenametag
+    key: myDevice
+    newkey: device
+
+  # Invalid v2 Predicate. Multiple top-level predicates.
+  - rule: test-invalidV2Pred-1
+    action: spanAllow
+    if:
+      all:
+        - equals:
+            scope: key2
+            value: "val2"
+        - contains:
+            scope: sourceName
+            value: "prod"
+      any:
+        - equals:
+            scope: key1
+            value: "val1"
+        - contains:
+            scope: metricName
+            value: "foometric"
+
+  # Invalid v2 Predicate due to Not specifying both v1 Predicates [scope, match].
+  - rule: test-invalidV2Pred-2
+    action: spanAllow
+    scope: metricName
+    if:
+      all:
+        - equals:
+            scope: key2
+            value: "val2"
+        - contains:
+            scope: sourceName
+            value: "prod"
+
+  # Invalid v2 Predicate due to Not specifying both v1 Predicates [scope, match].
+  - rule: test-invalidV2Pred-3
+    action: spanBlock
+    match: "^prod$"
+    if:
+      all:
+        - equals:
+            scope: key2
+            value: "val2"
+        - contains:
+            scope: sourceName
+            value: "prod"
+
+  # Invalid v2 Predicate due to Invalid scope.
+  - rule: test-invalidV2Pred-4
+    action: spanAllow
+    scope: pointline
+    if:
+      all:
+        - equals:
+            scope: key2
+            value: "val2"
+        - contains:
+            scope: sourceName
+            value: "prod"
+
+  # Invalid v2 Predicate due to blank value.
+  - rule: test-invalidV2Pred-5
+    action: spanAllow
+    if:
+      contains:
+        scope: sourceName
+        value:
+
+  # Invalid v2 Predicate due to no scope.
+  - rule: test-invalidV2Pred-6
+    action: spanAllow
+    if:
+      equals:
+        value: "val2"
+
+  # Invalid v2 Predicate due to invalid comparison function.
+  - rule: test-invalidV2Pred-7
+    action: allow
+    if:
+      invalidComparisonFunction:
+        scope: key1
+        value: "val1"
+
+  # Invalid v2 Predicate due to invalid comparison function.
+  - rule: test-invalidV2Pred-8
+    action: spanAllow
+    if:
+      invalidComparisonFunction:
+        scope: key1
+        value: "val1"
+
+'9997':
+  - rule: testFilter
+    action: metricsFilter
+    function: allow
+    names:
+      - "/metrics.2.*/"
+      - "/.*.ok$/"
+      - "metrics.ok.*"
+  - rule: testFilter
+    action: metricsFilter
+    function: allow
+    names:
+      - "metrics.1"
