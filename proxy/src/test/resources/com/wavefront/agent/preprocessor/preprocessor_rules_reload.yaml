@@ -37,3 +37,10 @@
     tag     : prefix
     search  : "^(some).*"
     replace : "$1"
+
+'9999':
+  - rule: testFilter
+    action: metricsFilter
+    function: drop
+    names:
+      - "metrics.1"
