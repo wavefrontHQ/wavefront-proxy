@@ -14,11 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 import wavefront.report.ReportPoint;
 
@@ -58,12 +54,14 @@ public class PreprocessorRulesTest {
     assertEquals(1, preprocessor.forPointLine().getTransformers().size());
     assertEquals(3, preprocessor.forReportPoint().getFilters().size());
     assertEquals(10, preprocessor.forReportPoint().getTransformers().size());
+    assertTrue(applyAllFilters(config,"metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9999"));
     config.loadFileIfModified(path); // should be no changes
     preprocessor = config.get("2878").get();
     assertEquals(1, preprocessor.forPointLine().getFilters().size());
     assertEquals(1, preprocessor.forPointLine().getTransformers().size());
     assertEquals(3, preprocessor.forReportPoint().getFilters().size());
     assertEquals(10, preprocessor.forReportPoint().getTransformers().size());
+    assertTrue(applyAllFilters(config,"metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9999"));
     stream = PreprocessorRulesTest.class.getResourceAsStream("preprocessor_rules_reload.yaml");
     Files.asCharSink(file, Charsets.UTF_8).writeFrom(new InputStreamReader(stream));
     // this is only needed for JDK8. JDK8 has second-level precision of lastModified,
@@ -75,6 +73,7 @@ public class PreprocessorRulesTest {
     assertEquals(2, preprocessor.forPointLine().getTransformers().size());
     assertEquals(1, preprocessor.forReportPoint().getFilters().size());
     assertEquals(3, preprocessor.forReportPoint().getTransformers().size());
+    assertFalse(applyAllFilters(config,"metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9999"));
     config.setUpConfigFileMonitoring(path, 1000);
   }
 
@@ -480,6 +479,30 @@ public class PreprocessorRulesTest {
   }
 
   @Test
+  public void testMetricsFilters() {
+    List<String> ports= Arrays.asList(new String[]{"9999","9997"});
+    for (String port: ports) {
+      assertTrue("error on port="+port, applyAllFilters("tururu.poi.dff.ok 7 1459527231 source=h.prod.corp foo=bar boo=baz", port));
+      assertTrue("error on port="+port, applyAllFilters("metrics.2.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", port));
+
+      assertTrue("error on port="+port, applyAllFilters("metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", port));
+      assertFalse("error on port="+port, applyAllFilters("metrics.1.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", port));
+
+      assertFalse("error on port="+port, applyAllFilters("tururu.poi.dff.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", port));
+      assertFalse("error on port="+port, applyAllFilters("metrics.ok.2 7 1459527231 source=h.prod.corp foo=bar boo=baz", port));
+    }
+
+    assertFalse(applyAllFilters("tururu.poi.dff.ok 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+    assertFalse(applyAllFilters("metrics.2.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+
+    assertFalse(applyAllFilters("metrics.1 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+    assertTrue(applyAllFilters("metrics.1.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+
+    assertTrue(applyAllFilters("tururu.poi.dff.ko 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+    assertTrue(applyAllFilters("metrics.ok.2 7 1459527231 source=h.prod.corp foo=bar boo=baz", "9998"));
+  }
+
+  @Test
   public void testAllFilters() {
     assertTrue(applyAllFilters("valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=bar boo=baz", "1111"));
     assertTrue(applyAllFilters("valid.metric.loadavg.1m 7 1459527231 source=h.prod.corp foo=b_r boo=baz", "1111"));
@@ -592,10 +615,14 @@ public class PreprocessorRulesTest {
   }
 
   private boolean applyAllFilters(String pointLine, String strPort) {
-    if (!config.get(strPort).get().forPointLine().filter(pointLine))
+    return applyAllFilters(config,pointLine,strPort);
+  }
+
+  private boolean applyAllFilters(PreprocessorConfigManager cfg, String pointLine, String strPort) {
+    if (!cfg.get(strPort).get().forPointLine().filter(pointLine))
       return false;
     ReportPoint point = parsePointLine(pointLine);
-    return config.get(strPort).get().forReportPoint().filter(point);
+    return cfg.get(strPort).get().forReportPoint().filter(point);
   }
 
   private String applyAllTransformers(String pointLine, String strPort) {
