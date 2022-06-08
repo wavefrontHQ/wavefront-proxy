@@ -688,7 +688,7 @@ public class PreprocessorRulesTest {
     String originalPointStringWithTag = "\"extractTagMetric\" 1.0 1459527231 source=\"testHost\" "
         + "\"aKey\"=\"aValue\"";
     ReportPoint existingTagMatchPoint = parsePointLine(originalPointStringWithTag);
-    new ReportPointExtractTagTransformer(
+    new ReportPointExtractTagIfNotExistsTransformer(
         "newExtractTag", "pointLine", ".*extractTag.*",
         "newExtractTagValue", null, null,null, metrics)
         .apply(existingTagMatchPoint);
