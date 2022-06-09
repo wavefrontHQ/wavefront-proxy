@@ -65,7 +65,6 @@ public class OtlpMetricsUtils {
     }
 
     for (ReportPoint point : fromOtlpRequest(request, preprocessor, defaultSource, includeResourceAttrsForMetrics)) {
-      // TODO: handle sampler
       if (point.getValue() instanceof wavefront.report.Histogram) {
         if (!wasFilteredByPreprocessor(point, histogramHandler, preprocessor)) {
           histogramHandler.report(point);
