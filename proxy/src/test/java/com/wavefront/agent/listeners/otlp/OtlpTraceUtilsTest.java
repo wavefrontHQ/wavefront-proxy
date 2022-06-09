@@ -38,18 +38,18 @@ import java.util.stream.Collectors;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.ArrayValue;
-import io.opentelemetry.proto.common.v1.InstrumentationLibrary;
+import io.opentelemetry.proto.common.v1.InstrumentationScope;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
 import wavefront.report.SpanLogs;
 
-import static com.wavefront.agent.listeners.otlp.OtlpProtobufUtils.OTEL_STATUS_DESCRIPTION_KEY;
-import static com.wavefront.agent.listeners.otlp.OtlpProtobufUtils.transformAll;
+import static com.wavefront.agent.listeners.otlp.OtlpTraceUtils.OTEL_STATUS_DESCRIPTION_KEY;
+import static com.wavefront.agent.listeners.otlp.OtlpTraceUtils.transformAll;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.assertWFSpanEquals;
+import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.attribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.hasKey;
-import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.otlpAttribute;
 import static com.wavefront.agent.listeners.otlp.OtlpTestHelpers.parentSpanIdPair;
 import static com.wavefront.internal.SpanDerivedMetricsUtils.ERROR_SPAN_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
@@ -59,7 +59,6 @@ import static com.wavefront.sdk.common.Constants.ERROR_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.NULL_TAG_VAL;
 import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
 import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
 import static org.easymock.EasyMock.anyLong;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.capture;
@@ -82,10 +81,11 @@ import static org.junit.Assert.assertTrue;
  */
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*"})
-@PrepareForTest({SpanDerivedMetricsUtils.class, OtlpProtobufUtils.class})
-public class OtlpProtobufUtilsTest {
+@PrepareForTest({SpanDerivedMetricsUtils.class, OtlpTraceUtils.class})
+public class OtlpTraceUtilsTest {
 
   private final static List<KeyValue> emptyAttrs = Collections.unmodifiableList(new ArrayList<>());
+  public static final String SERVICE_NAME = "service.name";
   private final SpanSampler mockSampler = EasyMock.createMock(SpanSampler.class);
   private final ReportableEntityHandler<wavefront.report.Span, String> mockSpanHandler =
       MockReportableEntityHandlerFactory.getMockTraceHandler();
@@ -115,28 +115,28 @@ public class OtlpProtobufUtilsTest {
         OtlpTestHelpers.otlpTraceRequest(OtlpTestHelpers.otlpSpanGenerator().build());
 
     PowerMock.mockStaticPartial(
-        OtlpProtobufUtils.class, "fromOtlpRequest", "wasFilteredByPreprocessor"
+        OtlpTraceUtils.class, "fromOtlpRequest", "wasFilteredByPreprocessor"
     );
     EasyMock.expect(
-        OtlpProtobufUtils.fromOtlpRequest(otlpRequest, mockPreprocessor, "test-source")
+        OtlpTraceUtils.fromOtlpRequest(otlpRequest, mockPreprocessor, "test-source")
     ).andReturn(
-        Arrays.asList(new OtlpProtobufUtils.WavefrontSpanAndLogs(wfMinimalSpan, new SpanLogs()))
+        Arrays.asList(new OtlpTraceUtils.WavefrontSpanAndLogs(wfMinimalSpan, new SpanLogs()))
     );
     EasyMock.expect(
-        OtlpProtobufUtils.wasFilteredByPreprocessor(eq(wfMinimalSpan), eq(mockSpanHandler),
+        OtlpTraceUtils.wasFilteredByPreprocessor(eq(wfMinimalSpan), eq(mockSpanHandler),
             eq(mockPreprocessor))
     ).andReturn(true);
 
     EasyMock.replay(mockPreprocessor, mockSpanHandler);
-    PowerMock.replay(OtlpProtobufUtils.class);
+    PowerMock.replay(OtlpTraceUtils.class);
 
     // Act
-    OtlpProtobufUtils.exportToWavefront(otlpRequest, mockSpanHandler, null, () -> mockPreprocessor,
+    OtlpTraceUtils.exportToWavefront(otlpRequest, mockSpanHandler, null, () -> mockPreprocessor,
         null, null, "test-source", null, null, null);
 
     // Assert
     EasyMock.verify(mockPreprocessor, mockSpanHandler);
-    PowerMock.verify(OtlpProtobufUtils.class);
+    PowerMock.verify(OtlpTraceUtils.class);
   }
 
   @Test
@@ -151,25 +151,25 @@ public class OtlpProtobufUtilsTest {
     mockSpanHandler.report(capture(handlerCapture));
     EasyMock.expectLastCall();
 
-    PowerMock.mockStaticPartial(OtlpProtobufUtils.class, "reportREDMetrics");
+    PowerMock.mockStaticPartial(OtlpTraceUtils.class, "reportREDMetrics");
     Pair<Map<String, String>, String> heartbeat = Pair.of(ImmutableMap.of("foo", "bar"), "src");
-    EasyMock.expect(OtlpProtobufUtils.reportREDMetrics(anyObject(), anyObject(), anyObject()))
+    EasyMock.expect(OtlpTraceUtils.reportREDMetrics(anyObject(), anyObject(), anyObject()))
         .andReturn(heartbeat);
 
     EasyMock.replay(mockCounter, mockSampler, mockSpanHandler);
-    PowerMock.replay(OtlpProtobufUtils.class);
+    PowerMock.replay(OtlpTraceUtils.class);
 
     // Act
     ExportTraceServiceRequest otlpRequest =
         OtlpTestHelpers.otlpTraceRequest(OtlpTestHelpers.otlpSpanGenerator().build());
     Set<Pair<Map<String, String>, String>> discoveredHeartbeats = Sets.newConcurrentHashSet();
 
-    OtlpProtobufUtils.exportToWavefront(otlpRequest, mockSpanHandler, null, null,
+    OtlpTraceUtils.exportToWavefront(otlpRequest, mockSpanHandler, null, null,
         null, Pair.of(mockSampler, mockCounter), "test-source", discoveredHeartbeats, null, null);
 
     // Assert
     EasyMock.verify(mockCounter, mockSampler, mockSpanHandler);
-    PowerMock.verify(OtlpProtobufUtils.class);
+    PowerMock.verify(OtlpTraceUtils.class);
     assertEquals(samplerCapture.getValue(), handlerCapture.getValue());
     assertTrue(discoveredHeartbeats.contains(heartbeat));
   }
@@ -180,25 +180,25 @@ public class OtlpProtobufUtilsTest {
     EasyMock.expect(mockSampler.sample(anyObject(), anyObject()))
         .andReturn(false);
 
-    PowerMock.mockStaticPartial(OtlpProtobufUtils.class, "reportREDMetrics");
+    PowerMock.mockStaticPartial(OtlpTraceUtils.class, "reportREDMetrics");
     Pair<Map<String, String>, String> heartbeat = Pair.of(ImmutableMap.of("foo", "bar"), "src");
-    EasyMock.expect(OtlpProtobufUtils.reportREDMetrics(anyObject(), anyObject(), anyObject()))
+    EasyMock.expect(OtlpTraceUtils.reportREDMetrics(anyObject(), anyObject(), anyObject()))
         .andReturn(heartbeat);
 
     EasyMock.replay(mockSampler, mockSpanHandler);
-    PowerMock.replay(OtlpProtobufUtils.class);
+    PowerMock.replay(OtlpTraceUtils.class);
 
     // Act
     ExportTraceServiceRequest otlpRequest =
         OtlpTestHelpers.otlpTraceRequest(OtlpTestHelpers.otlpSpanGenerator().build());
     Set<Pair<Map<String, String>, String>> discoveredHeartbeats = Sets.newConcurrentHashSet();
 
-    OtlpProtobufUtils.exportToWavefront(otlpRequest, mockSpanHandler, null, null,
+    OtlpTraceUtils.exportToWavefront(otlpRequest, mockSpanHandler, null, null,
         null, Pair.of(mockSampler, null), "test-source", discoveredHeartbeats, null, null);
 
     // Assert
     EasyMock.verify(mockSampler, mockSpanHandler);
-    PowerMock.verify(OtlpProtobufUtils.class);
+    PowerMock.verify(OtlpTraceUtils.class);
     assertTrue(discoveredHeartbeats.contains(heartbeat));
   }
 
@@ -223,8 +223,8 @@ public class OtlpProtobufUtilsTest {
     List<KeyValue> attributes = Arrays.asList(emptyAttr, booleanAttr, stringAttr, intAttr,
         doubleAttr, noValueAttr, bytesAttr);
 
-      List<Annotation> wfAnnotations = OtlpProtobufUtils.annotationsFromAttributes(attributes);
-      Map<String, String> wfAnnotationAsMap = getWfAnnotationAsMap(wfAnnotations);
+    List<Annotation> wfAnnotations = OtlpTraceUtils.annotationsFromAttributes(attributes);
+    Map<String, String> wfAnnotationAsMap = getWfAnnotationAsMap(wfAnnotations);
 
     assertEquals(attributes.size(), wfAnnotationAsMap.size());
     assertEquals("", wfAnnotationAsMap.get("empty"));
@@ -280,7 +280,7 @@ public class OtlpProtobufUtilsTest {
 
     List<KeyValue> attributes = Arrays.asList(intArrayAttr, boolArrayAttr, dblArrayAttr);
 
-    List<Annotation> wfAnnotations = OtlpProtobufUtils.annotationsFromAttributes(attributes);
+    List<Annotation> wfAnnotations = OtlpTraceUtils.annotationsFromAttributes(attributes);
     Map<String, String> wfAnnotationAsMap = getWfAnnotationAsMap(wfAnnotations);
 
     assertEquals("[-1, 0, 1]", wfAnnotationAsMap.get("int-array"));
@@ -295,20 +295,20 @@ public class OtlpProtobufUtilsTest {
        `wfSpanBuilder.setSource(...)`, which arguably seems like a bug. Since we determine the WF
        source in `sourceAndResourceAttrs()`, rename any remaining OTLP Attribute to `_source`.
        */
-    List<KeyValue> attrs = Collections.singletonList(otlpAttribute("source", "a-source"));
+    List<KeyValue> attrs = Collections.singletonList(attribute("source", "a-source"));
 
-    List<Annotation> actual = OtlpProtobufUtils.annotationsFromAttributes(attrs);
+    List<Annotation> actual = OtlpTraceUtils.annotationsFromAttributes(attrs);
 
     assertThat(actual, hasItem(new Annotation("_source", "a-source")));
   }
 
   @Test
   public void testRequiredTags() {
-    List<Annotation> wfAnnotations = OtlpProtobufUtils.setRequiredTags(Collections.emptyList());
+    List<Annotation> wfAnnotations = OtlpTraceUtils.setRequiredTags(Collections.emptyList());
     Map<String, String> annotations = getWfAnnotationAsMap(wfAnnotations);
 
     assertEquals(4, wfAnnotations.size());
-    assertFalse(annotations.containsKey(SERVICE_NAME.getKey()));
+    assertFalse(annotations.containsKey(SERVICE_NAME));
     assertEquals("defaultApplication", annotations.get(APPLICATION_TAG_KEY));
     assertEquals("defaultService", annotations.get(SERVICE_TAG_KEY));
     assertEquals(NULL_TAG_VAL, annotations.get(CLUSTER_TAG_KEY));
@@ -317,29 +317,29 @@ public class OtlpProtobufUtilsTest {
 
   @Test
   public void testSetRequiredTagsOtlpServiceNameTagIsUsed() {
-    Annotation serviceName = Annotation.newBuilder().setKey(SERVICE_NAME.getKey())
+    Annotation serviceName = Annotation.newBuilder().setKey(SERVICE_NAME)
         .setValue("a-service").build();
 
     List<Annotation> wfAnnotations =
-        OtlpProtobufUtils.setRequiredTags(Collections.singletonList(serviceName));
+        OtlpTraceUtils.setRequiredTags(Collections.singletonList(serviceName));
     Map<String, String> annotations = getWfAnnotationAsMap(wfAnnotations);
 
-    assertFalse(annotations.containsKey(SERVICE_NAME.getKey()));
+    assertFalse(annotations.containsKey(SERVICE_NAME));
     assertEquals("a-service", annotations.get(SERVICE_TAG_KEY));
   }
 
   @Test
   public void testSetRequireTagsOtlpServiceNameTagIsDroppedIfServiceIsSet() {
-    Annotation serviceName = Annotation.newBuilder().setKey(SERVICE_NAME.getKey())
+    Annotation serviceName = Annotation.newBuilder().setKey(SERVICE_NAME)
         .setValue("otlp-service").build();
     Annotation wfService = Annotation.newBuilder().setKey(SERVICE_TAG_KEY)
         .setValue("wf-service").build();
 
     List<Annotation> wfAnnotations =
-        OtlpProtobufUtils.setRequiredTags(Arrays.asList(serviceName, wfService));
+        OtlpTraceUtils.setRequiredTags(Arrays.asList(serviceName, wfService));
     Map<String, String> annotations = getWfAnnotationAsMap(wfAnnotations);
 
-    assertFalse(annotations.containsKey(SERVICE_NAME.getKey()));
+    assertFalse(annotations.containsKey(SERVICE_NAME));
     assertEquals("wf-service", annotations.get(SERVICE_TAG_KEY));
   }
 
@@ -351,7 +351,7 @@ public class OtlpProtobufUtilsTest {
     Annotation last = dupeBuilder.setValue("last").build();
     List<Annotation> duplicates = Arrays.asList(first, middle, last);
 
-    List<Annotation> actual = OtlpProtobufUtils.setRequiredTags(duplicates);
+    List<Annotation> actual = OtlpTraceUtils.setRequiredTags(duplicates);
 
     // We care that the last item "wins" and is preserved when de-duping
     assertThat(actual, hasItem(last));
@@ -363,7 +363,7 @@ public class OtlpProtobufUtilsTest {
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
     wavefront.report.Span expectedSpan = OtlpTestHelpers.wfSpanGenerator(null).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertWFSpanEquals(expectedSpan, actualSpan);
   }
@@ -374,7 +374,7 @@ public class OtlpProtobufUtilsTest {
     wavefront.report.Span expectedSpan =
         OtlpTestHelpers.wfSpanGenerator(null).setDuration(0).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertWFSpanEquals(expectedSpan, actualSpan);
   }
@@ -393,19 +393,19 @@ public class OtlpProtobufUtilsTest {
     );
     wavefront.report.Span expectedSpan = OtlpTestHelpers.wfSpanGenerator(wfAttrs).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertWFSpanEquals(expectedSpan, actualSpan);
   }
 
   @Test
   public void transformSpanConvertsResourceAttributesToAnnotations() {
-    List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute("r-key", "r-value"));
+    List<KeyValue> resourceAttrs = Collections.singletonList(attribute("r-key", "r-value"));
     wavefront.report.Span expectedSpan = OtlpTestHelpers.wfSpanGenerator(
         Collections.singletonList(new Annotation("r-key", "r-value"))
     ).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(
+    actualSpan = OtlpTraceUtils.transformSpan(
         OtlpTestHelpers.otlpSpanGenerator().build(), resourceAttrs, null, null, "test-source"
     );
 
@@ -416,22 +416,22 @@ public class OtlpProtobufUtilsTest {
   public void transformSpanGivesSpanAttributesHigherPrecedenceThanResourceAttributes() {
     String key = "the-key";
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator()
-        .addAttributes(otlpAttribute(key, "span-value")).build();
-    List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute(key, "rsrc-value"));
+        .addAttributes(attribute(key, "span-value")).build();
+    List<KeyValue> resourceAttrs = Collections.singletonList(attribute(key, "rsrc-value"));
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, resourceAttrs, null, null, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, resourceAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), not(hasItem(new Annotation(key, "rsrc-value"))));
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation(key, "span-value")));
   }
 
   @Test
-  public void transformSpanHandlesInstrumentationLibrary() {
-    InstrumentationLibrary library = InstrumentationLibrary.newBuilder()
+  public void transformSpanHandlesInstrumentationScope() {
+    InstrumentationScope scope = InstrumentationScope.newBuilder()
         .setName("grpc").setVersion("1.0").build();
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, library, null, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, emptyAttrs, scope, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("otel.scope.name", "grpc")));
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("otel.scope.version", "1.0")));
@@ -441,7 +441,7 @@ public class OtlpProtobufUtilsTest {
   public void transformSpanAddsDroppedCountTags() {
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().setDroppedEventsCount(1).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(),
         hasItem(new Annotation("otel.dropped_events_count", "1")));
@@ -456,7 +456,7 @@ public class OtlpProtobufUtilsTest {
     ReportableEntityPreprocessor preprocessor = OtlpTestHelpers.addTagIfNotExistsPreprocessor(wfAttrs);
     wavefront.report.Span expectedSpan = OtlpTestHelpers.wfSpanGenerator(wfAttrs).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, preprocessor, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, emptyAttrs, null, preprocessor, "test-source");
 
     assertWFSpanEquals(expectedSpan, actualSpan);
   }
@@ -470,45 +470,45 @@ public class OtlpProtobufUtilsTest {
     ReportableEntityPreprocessor preprocessor = OtlpTestHelpers.addTagIfNotExistsPreprocessor(wfAttrs);
     wavefront.report.Span expectedSpan = OtlpTestHelpers.wfSpanGenerator(wfAttrs).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, preprocessor, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, emptyAttrs, null, preprocessor, "test-source");
 
     assertWFSpanEquals(expectedSpan, actualSpan);
   }
 
   @Test
   public void transformSpanTranslatesSpanKindToAnnotation() {
-    wavefront.report.Span clientSpan = OtlpProtobufUtils.transformSpan(
+    wavefront.report.Span clientSpan = OtlpTraceUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_CLIENT),
         emptyAttrs, null, null, "test-source");
     assertThat(clientSpan.getAnnotations(), hasItem(new Annotation("span.kind", "client")));
 
-    wavefront.report.Span consumerSpan = OtlpProtobufUtils.transformSpan(
+    wavefront.report.Span consumerSpan = OtlpTraceUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_CONSUMER),
         emptyAttrs, null, null, "test-source");
     assertThat(consumerSpan.getAnnotations(), hasItem(new Annotation("span.kind", "consumer")));
 
-    wavefront.report.Span internalSpan = OtlpProtobufUtils.transformSpan(
+    wavefront.report.Span internalSpan = OtlpTraceUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_INTERNAL),
         emptyAttrs, null, null, "test-source");
     assertThat(internalSpan.getAnnotations(), hasItem(new Annotation("span.kind", "internal")));
 
-    wavefront.report.Span producerSpan = OtlpProtobufUtils.transformSpan(
+    wavefront.report.Span producerSpan = OtlpTraceUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_PRODUCER),
         emptyAttrs, null, null, "test-source");
     assertThat(producerSpan.getAnnotations(), hasItem(new Annotation("span.kind", "producer")));
 
-    wavefront.report.Span serverSpan = OtlpProtobufUtils.transformSpan(
+    wavefront.report.Span serverSpan = OtlpTraceUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_SERVER),
         emptyAttrs, null, null, "test-source");
     assertThat(serverSpan.getAnnotations(), hasItem(new Annotation("span.kind", "server")));
 
-    wavefront.report.Span unspecifiedSpan = OtlpProtobufUtils.transformSpan(
+    wavefront.report.Span unspecifiedSpan = OtlpTraceUtils.transformSpan(
         OtlpTestHelpers.otlpSpanWithKind(Span.SpanKind.SPAN_KIND_UNSPECIFIED),
         emptyAttrs, null, null, "test-source");
     assertThat(unspecifiedSpan.getAnnotations(),
         hasItem(new Annotation("span.kind", "unspecified")));
 
-    wavefront.report.Span noKindSpan = OtlpProtobufUtils.transformSpan(
+    wavefront.report.Span noKindSpan = OtlpTraceUtils.transformSpan(
         OtlpTestHelpers.otlpSpanGenerator().build(),
         emptyAttrs, null, null, "test-source");
     assertThat(noKindSpan.getAnnotations(),
@@ -520,7 +520,7 @@ public class OtlpProtobufUtilsTest {
     // Error Status without Message
     Span errorSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_ERROR, "");
 
-    actualSpan = OtlpProtobufUtils.transformSpan(errorSpan, emptyAttrs, null, null, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(errorSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL)));
     assertThat(actualSpan.getAnnotations(), not(hasKey(OTEL_STATUS_DESCRIPTION_KEY)));
@@ -529,7 +529,7 @@ public class OtlpProtobufUtilsTest {
     Span errorSpanWithMessage = OtlpTestHelpers.otlpSpanWithStatus(
         Status.StatusCode.STATUS_CODE_ERROR, "a description");
 
-    actualSpan = OtlpProtobufUtils.transformSpan(errorSpanWithMessage, emptyAttrs, null, null, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(errorSpanWithMessage, emptyAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation(ERROR_TAG_KEY, ERROR_SPAN_TAG_VAL)));
     assertThat(actualSpan.getAnnotations(),
@@ -541,7 +541,7 @@ public class OtlpProtobufUtilsTest {
     // Ok Status
     Span okSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_OK, "");
 
-    actualSpan = OtlpProtobufUtils.transformSpan(okSpan, emptyAttrs, null, null, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(okSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), not(hasKey(ERROR_TAG_KEY)));
     assertThat(actualSpan.getAnnotations(), not(hasKey(OTEL_STATUS_DESCRIPTION_KEY)));
@@ -549,7 +549,7 @@ public class OtlpProtobufUtilsTest {
     // Unset Status
     Span unsetSpan = OtlpTestHelpers.otlpSpanWithStatus(Status.StatusCode.STATUS_CODE_UNSET, "");
 
-    actualSpan = OtlpProtobufUtils.transformSpan(unsetSpan, emptyAttrs, null, null, "test-source");
+    actualSpan = OtlpTraceUtils.transformSpan(unsetSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actualSpan.getAnnotations(), not(hasKey(ERROR_TAG_KEY)));
     assertThat(actualSpan.getAnnotations(), not(hasKey(OTEL_STATUS_DESCRIPTION_KEY)));
@@ -557,11 +557,11 @@ public class OtlpProtobufUtilsTest {
 
   @Test
   public void transformSpanSetsSourceFromResourceAttributesNotSpanAttributes() {
-    List<KeyValue> resourceAttrs = Collections.singletonList(otlpAttribute("source", "a-src"));
+    List<KeyValue> resourceAttrs = Collections.singletonList(attribute("source", "a-src"));
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator()
-        .addAttributes(otlpAttribute("source", "span-level")).build();
+        .addAttributes(attribute("source", "span-level")).build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, resourceAttrs, null, null, "ignored");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, resourceAttrs, null, null, "ignored");
 
     assertEquals("a-src", actualSpan.getSource());
     assertThat(actualSpan.getAnnotations(), not(hasItem(new Annotation("source", "a-src"))));
@@ -572,7 +572,7 @@ public class OtlpProtobufUtilsTest {
   public void transformSpanUsesDefaultSourceWhenNoAttributesMatch() {
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "defaultSource");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "defaultSource");
 
     assertEquals("defaultSource", actualSpan.getSource());
   }
@@ -581,7 +581,7 @@ public class OtlpProtobufUtilsTest {
   public void transformSpanHandlesTraceState() {
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().setTraceState("key=val").build();
 
-    actualSpan = OtlpProtobufUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "defaultSource");
+    actualSpan = OtlpTraceUtils.transformSpan(otlpSpan, emptyAttrs, null, null, "defaultSource");
 
     assertThat(actualSpan.getAnnotations(), hasItem(new Annotation("w3c.tracestate", "key=val")));
   }
@@ -595,7 +595,7 @@ public class OtlpProtobufUtilsTest {
     wavefront.report.SpanLogs expected =
         OtlpTestHelpers.wfSpanLogsGenerator(wfMinimalSpan, droppedAttrsCount).build();
 
-    SpanLogs actual = OtlpProtobufUtils.transformEvents(otlpSpan, wfMinimalSpan);
+    SpanLogs actual = OtlpTraceUtils.transformEvents(otlpSpan, wfMinimalSpan);
 
     assertEquals(expected, actual);
   }
@@ -605,7 +605,7 @@ public class OtlpProtobufUtilsTest {
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
     assertEquals(0, otlpSpan.getEventsCount());
 
-    SpanLogs actual = OtlpProtobufUtils.transformEvents(otlpSpan, wfMinimalSpan);
+    SpanLogs actual = OtlpTraceUtils.transformEvents(otlpSpan, wfMinimalSpan);
 
     assertNotNull(actual);
     assertEquals(0, actual.getLogs().size());
@@ -616,7 +616,7 @@ public class OtlpProtobufUtilsTest {
     Span.Event otlpEvent = OtlpTestHelpers.otlpSpanEvent(0);
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().addEvents(otlpEvent).build();
 
-    OtlpProtobufUtils.WavefrontSpanAndLogs actual =
+    OtlpTraceUtils.WavefrontSpanAndLogs actual =
         transformAll(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actual.getSpan().getAnnotations(), hasKey("_spanLogs"));
@@ -628,7 +628,7 @@ public class OtlpProtobufUtilsTest {
     Span otlpSpan = OtlpTestHelpers.otlpSpanGenerator().build();
     assertThat(otlpSpan.getEventsList(), empty());
 
-    OtlpProtobufUtils.WavefrontSpanAndLogs actual =
+    OtlpTraceUtils.WavefrontSpanAndLogs actual =
         transformAll(otlpSpan, emptyAttrs, null, null, "test-source");
 
     assertThat(actual.getSpan().getAnnotations(), not(hasKey("_spanLogs")));
@@ -639,7 +639,7 @@ public class OtlpProtobufUtilsTest {
   public void wasFilteredByPreprocessorHandlesNullPreprocessor() {
     ReportableEntityPreprocessor preprocessor = null;
 
-    assertFalse(OtlpProtobufUtils.wasFilteredByPreprocessor(wfMinimalSpan, mockSpanHandler, preprocessor));
+    assertFalse(OtlpTraceUtils.wasFilteredByPreprocessor(wfMinimalSpan, mockSpanHandler, preprocessor));
   }
 
   @Test
@@ -649,7 +649,7 @@ public class OtlpProtobufUtilsTest {
     EasyMock.expectLastCall();
     EasyMock.replay(mockSpanHandler);
 
-    assertTrue(OtlpProtobufUtils.wasFilteredByPreprocessor(wfMinimalSpan, mockSpanHandler, preprocessor));
+    assertTrue(OtlpTraceUtils.wasFilteredByPreprocessor(wfMinimalSpan, mockSpanHandler, preprocessor));
     EasyMock.verify(mockSpanHandler);
   }
 
@@ -660,7 +660,7 @@ public class OtlpProtobufUtilsTest {
     EasyMock.expectLastCall();
     EasyMock.replay(mockSpanHandler);
 
-    assertTrue(OtlpProtobufUtils.wasFilteredByPreprocessor(wfMinimalSpan, mockSpanHandler, preprocessor));
+    assertTrue(OtlpTraceUtils.wasFilteredByPreprocessor(wfMinimalSpan, mockSpanHandler, preprocessor));
     EasyMock.verify(mockSpanHandler);
   }
 
@@ -669,42 +669,42 @@ public class OtlpProtobufUtilsTest {
     Pair<String, List<KeyValue>> actual;
 
     // "source" attribute has highest precedence
-    actual = OtlpProtobufUtils.sourceFromAttributes(
+    actual = OtlpTraceUtils.sourceFromAttributes(
         Arrays.asList(
-            otlpAttribute("hostname", "a-hostname"),
-            otlpAttribute("host.id", "a-host.id"),
-            otlpAttribute("source", "a-src"),
-            otlpAttribute("host.name", "a-host.name")
+            attribute("hostname", "a-hostname"),
+            attribute("host.id", "a-host.id"),
+            attribute("source", "a-src"),
+            attribute("host.name", "a-host.name")
         ), "ignore");
     assertEquals("a-src", actual._1);
 
     // "host.name" next highest
-    actual = OtlpProtobufUtils.sourceFromAttributes(
+    actual = OtlpTraceUtils.sourceFromAttributes(
         Arrays.asList(
-            otlpAttribute("hostname", "a-hostname"),
-            otlpAttribute("host.id", "a-host.id"),
-            otlpAttribute("host.name", "a-host.name")
+            attribute("hostname", "a-hostname"),
+            attribute("host.id", "a-host.id"),
+            attribute("host.name", "a-host.name")
         ), "ignore");
     assertEquals("a-host.name", actual._1);
 
     // "hostname" next highest
-    actual = OtlpProtobufUtils.sourceFromAttributes(
+    actual = OtlpTraceUtils.sourceFromAttributes(
         Arrays.asList(
-            otlpAttribute("hostname", "a-hostname"),
-            otlpAttribute("host.id", "a-host.id")
+            attribute("hostname", "a-hostname"),
+            attribute("host.id", "a-host.id")
         ), "ignore");
     assertEquals("a-hostname", actual._1);
 
     // "host.id" has lowest precedence
-    actual = OtlpProtobufUtils.sourceFromAttributes(
-        Arrays.asList(otlpAttribute("host.id", "a-host.id")), "ignore"
+    actual = OtlpTraceUtils.sourceFromAttributes(
+        Arrays.asList(attribute("host.id", "a-host.id")), "ignore"
     );
     assertEquals("a-host.id", actual._1);
   }
 
   @Test
   public void sourceFromAttributesUsesDefaultWhenNoCandidateExists() {
-    Pair<String, List<KeyValue>> actual = OtlpProtobufUtils.sourceFromAttributes(
+    Pair<String, List<KeyValue>> actual = OtlpTraceUtils.sourceFromAttributes(
         emptyAttrs, "a-default"
     );
 
@@ -715,18 +715,18 @@ public class OtlpProtobufUtilsTest {
   @Test
   public void sourceFromAttributesDeletesCandidateUsedAsSource() {
     List<KeyValue> attrs = Arrays.asList(
-        otlpAttribute("hostname", "a-hostname"),
-        otlpAttribute("some-key", "some-val"),
-        otlpAttribute("host.id", "a-host.id")
+        attribute("hostname", "a-hostname"),
+        attribute("some-key", "some-val"),
+        attribute("host.id", "a-host.id")
     );
 
-    Pair<String, List<KeyValue>> actual = OtlpProtobufUtils.sourceFromAttributes(attrs, "ignore");
+    Pair<String, List<KeyValue>> actual = OtlpTraceUtils.sourceFromAttributes(attrs, "ignore");
 
     assertEquals("a-hostname", actual._1);
 
     List<KeyValue> expectedAttrs = Arrays.asList(
-        otlpAttribute("some-key", "some-val"),
-        otlpAttribute("host.id", "a-host.id")
+        attribute("some-key", "some-val"),
+        attribute("host.id", "a-host.id")
     );
     assertEquals(expectedAttrs, actual._2);
   }
@@ -762,7 +762,7 @@ public class OtlpProtobufUtilsTest {
     PowerMock.replay(SpanDerivedMetricsUtils.class);
 
     Pair<Map<String, String>, String> actual =
-        OtlpProtobufUtils.reportREDMetrics(wfSpan, mockInternalReporter, customKeys);
+        OtlpTraceUtils.reportREDMetrics(wfSpan, mockInternalReporter, customKeys);
 
     assertEquals(mockReturn, actual);
     PowerMock.verify(SpanDerivedMetricsUtils.class);
@@ -785,7 +785,7 @@ public class OtlpProtobufUtilsTest {
 
     assertThat(wfMinimalSpan.getAnnotations(), not(hasKey(ERROR_TAG_KEY)));
     assertThat(wfMinimalSpan.getAnnotations(), not(hasKey(COMPONENT_TAG_KEY)));
-    OtlpProtobufUtils.reportREDMetrics(wfMinimalSpan, null, null);
+    OtlpTraceUtils.reportREDMetrics(wfMinimalSpan, null, null);
 
     assertFalse(isError.getValue());
     assertEquals(NULL_TAG_VAL, componentTag.getValue());
@@ -793,29 +793,29 @@ public class OtlpProtobufUtilsTest {
   }
 
   @Test
-  public void annotationsFromInstrumentationLibraryWithNullOrEmptyLibrary() {
+  public void annotationsFromInstrumentationScopeWithNullOrEmptyScope() {
     assertEquals(Collections.emptyList(),
-        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(null));
+        OtlpTraceUtils.annotationsFromInstrumentationScope(null));
 
-    InstrumentationLibrary emptyLibrary = InstrumentationLibrary.newBuilder().build();
+    InstrumentationScope emptyScope = InstrumentationScope.newBuilder().build();
     assertEquals(Collections.emptyList(),
-        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(emptyLibrary));
+        OtlpTraceUtils.annotationsFromInstrumentationScope(emptyScope));
   }
 
   @Test
-  public void annotationsFromInstrumentationLibraryWithLibraryData() {
-    InstrumentationLibrary library =
-        InstrumentationLibrary.newBuilder().setName("net/http").build();
+  public void annotationsFromInstrumentationScopeWithScopeData() {
+    InstrumentationScope scope =
+        InstrumentationScope.newBuilder().setName("net/http").build();
 
     assertEquals(Collections.singletonList(new Annotation("otel.scope.name", "net/http")),
-        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(library));
+        OtlpTraceUtils.annotationsFromInstrumentationScope(scope));
 
-    library = library.toBuilder().setVersion("1.0.0").build();
+    scope = scope.toBuilder().setVersion("1.0.0").build();
 
     assertEquals(
         Arrays.asList(new Annotation("otel.scope.name", "net/http"),
             new Annotation("otel.scope.version", "1.0.0")),
-        OtlpProtobufUtils.annotationsFromInstrumentationLibrary(library)
+        OtlpTraceUtils.annotationsFromInstrumentationScope(scope)
     );
   }
 
@@ -827,7 +827,7 @@ public class OtlpProtobufUtilsTest {
     assertEquals(0, otlpSpan.getDroppedEventsCount());
     assertEquals(0, otlpSpan.getDroppedLinksCount());
 
-    assertThat(OtlpProtobufUtils.annotationsFromDroppedCounts(otlpSpan), empty());
+    assertThat(OtlpTraceUtils.annotationsFromDroppedCounts(otlpSpan), empty());
   }
 
   @Test
@@ -838,7 +838,7 @@ public class OtlpProtobufUtilsTest {
         .setDroppedLinksCount(3)
         .build();
 
-    List<Annotation> actual = OtlpProtobufUtils.annotationsFromDroppedCounts(otlpSpan);
+    List<Annotation> actual = OtlpTraceUtils.annotationsFromDroppedCounts(otlpSpan);
     assertThat(actual, hasSize(3));
     assertThat(actual, hasItem(new Annotation("otel.dropped_attributes_count", "1")));
     assertThat(actual, hasItem(new Annotation("otel.dropped_events_count", "2")));
@@ -847,18 +847,18 @@ public class OtlpProtobufUtilsTest {
 
   @Test
   public void shouldReportSpanLogsFalseIfZeroLogs() {
-    assertFalse(OtlpProtobufUtils.shouldReportSpanLogs(0, null));
+    assertFalse(OtlpTraceUtils.shouldReportSpanLogs(0, null));
   }
 
   @Test
   public void shouldReportSpanLogsFalseIfNonZeroLogsAndFeatureDisabled() {
     Supplier<Boolean> spanLogsFeatureDisabled = () -> true;
-    assertFalse(OtlpProtobufUtils.shouldReportSpanLogs(1, Pair.of(spanLogsFeatureDisabled, null)));
+    assertFalse(OtlpTraceUtils.shouldReportSpanLogs(1, Pair.of(spanLogsFeatureDisabled, null)));
   }
 
   @Test
   public void shouldReportSpanLogsTrueIfNonZeroLogsAndFeatureEnabled() {
     Supplier<Boolean> spanLogsFeatureDisabled = () -> false;
-    assertTrue(OtlpProtobufUtils.shouldReportSpanLogs(1, Pair.of(spanLogsFeatureDisabled, null)));
+    assertTrue(OtlpTraceUtils.shouldReportSpanLogs(1, Pair.of(spanLogsFeatureDisabled, null)));
   }
 }
