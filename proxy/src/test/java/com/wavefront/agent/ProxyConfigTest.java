@@ -84,4 +84,18 @@ public class ProxyConfigTest {
       // noop
     }
   }
+
+  @Test
+  public void testOtlpResourceAttrsOnMetricsIncluded() {
+    ProxyConfig config = new ProxyConfig();
+
+    // do not include OTLP resource attributes by default on metrics
+    // TODO: find link from OTel GH PR where this choice was made
+    assertFalse(config.isOtlpResourceAttrsOnMetricsIncluded());
+
+    // include OTLP resource attributes
+    config.parseArguments(new String[]{"--otlpResourceAttrsOnMetricsIncluded", String.valueOf(true)},
+        "PushAgentTest");
+    assertTrue(config.isOtlpResourceAttrsOnMetricsIncluded());
+  }
 }

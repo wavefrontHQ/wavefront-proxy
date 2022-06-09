@@ -1,5 +1,6 @@
 package com.wavefront.agent.listeners.otlp;
 
+import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
@@ -11,6 +12,7 @@ import com.wavefront.sdk.common.Pair;
 import org.apache.commons.compress.utils.Lists;
 import org.hamcrest.FeatureMatcher;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -23,10 +25,13 @@ import javax.annotation.Nullable;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
-import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
+import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
+import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
+import io.opentelemetry.proto.trace.v1.ScopeSpans;
 import io.opentelemetry.proto.trace.v1.Status;
 import wavefront.report.Annotation;
+import wavefront.report.Histogram;
 import wavefront.report.Span;
 import wavefront.report.SpanLog;
 import wavefront.report.SpanLogs;
@@ -37,12 +42,14 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Xiaochen Wang (xiaochenw@vmware.com).
  * @author Glenn Oppegard (goppegard@vmware.com).
  */
 public class OtlpTestHelpers {
+  public static final String DEFAULT_SOURCE = "test-source";
   private static final long startTimeMs = System.currentTimeMillis();
   private static final long durationMs = 50L;
   private static final byte[] spanIdBytes = {0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0x9};
@@ -90,7 +97,7 @@ public class OtlpTestHelpers {
         .setStartMillis(startTimeMs)
         .setDuration(durationMs)
         .setAnnotations(annotations)
-        .setSource("test-source")
+        .setSource(DEFAULT_SOURCE)
         .setCustomer("dummy");
   }
 
@@ -136,7 +143,7 @@ public class OtlpTestHelpers {
     return otlpSpanGenerator().setStatus(status).build();
   }
 
-  public static io.opentelemetry.proto.common.v1.KeyValue otlpAttribute(String key, String value) {
+  public static io.opentelemetry.proto.common.v1.KeyValue attribute(String key, String value) {
     return KeyValue.newBuilder().setKey(key).setValue(
         AnyValue.newBuilder().setStringValue(value).build()
     ).build();
@@ -144,12 +151,12 @@ public class OtlpTestHelpers {
 
   public static io.opentelemetry.proto.trace.v1.Span.Event otlpSpanEvent(int droppedAttrsCount) {
     long eventTimestamp = TimeUnit.MILLISECONDS.toNanos(startTimeMs + (durationMs / 2));
-    KeyValue attr = otlpAttribute("attrKey", "attrValue");
+    KeyValue attr = attribute("attrKey", "attrValue");
     io.opentelemetry.proto.trace.v1.Span.Event.Builder builder =
         io.opentelemetry.proto.trace.v1.Span.Event.newBuilder()
-        .setName("eventName")
-        .setTimeUnixNano(eventTimestamp)
-        .addAttributes(attr);
+            .setName("eventName")
+            .setTimeUnixNano(eventTimestamp)
+            .addAttributes(attr);
 
     if (droppedAttrsCount > 0) {
       builder.setDroppedAttributesCount(droppedAttrsCount);
@@ -163,8 +170,7 @@ public class OtlpTestHelpers {
 
   public static ReportableEntityPreprocessor addTagIfNotExistsPreprocessor(List<Annotation> annotationList) {
     ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
-    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
-        null);
+    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null, null);
     for (Annotation annotation : annotationList) {
       preprocessor.forSpan().addTransformer(new SpanAddAnnotationIfNotExistsTransformer(
           annotation.getKey(), annotation.getValue(), x -> true, preprocessorRuleMetrics));
@@ -175,10 +181,10 @@ public class OtlpTestHelpers {
 
   public static ReportableEntityPreprocessor blockSpanPreprocessor() {
     ReportableEntityPreprocessor preprocessor = new ReportableEntityPreprocessor();
-    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null,
-        null);
-    preprocessor.forSpan().addFilter(new SpanBlockFilter(
-        "sourceName", "test-source", x -> true, preprocessorRuleMetrics));
+    PreprocessorRuleMetrics preprocessorRuleMetrics = new PreprocessorRuleMetrics(null, null, null);
+    preprocessor.forSpan().addFilter(
+        new SpanBlockFilter("sourceName", DEFAULT_SOURCE, x -> true, preprocessorRuleMetrics)
+    );
 
     return preprocessor;
   }
@@ -209,10 +215,103 @@ public class OtlpTestHelpers {
   }
 
   public static ExportTraceServiceRequest otlpTraceRequest(io.opentelemetry.proto.trace.v1.Span otlpSpan) {
-    InstrumentationLibrarySpans ilSpans = InstrumentationLibrarySpans.newBuilder().addSpans(otlpSpan).build();
-    ResourceSpans rSpans = ResourceSpans.newBuilder().addInstrumentationLibrarySpans(ilSpans).build();
-    ExportTraceServiceRequest request = ExportTraceServiceRequest.newBuilder().addResourceSpans(rSpans).build();
-    return request;
+    ScopeSpans scopeSpans = ScopeSpans.newBuilder().addSpans(otlpSpan).build();
+    ResourceSpans rSpans = ResourceSpans.newBuilder().addScopeSpans(scopeSpans).build();
+    return ExportTraceServiceRequest.newBuilder().addResourceSpans(rSpans).build();
   }
 
+  private static void assertHistogramsEqual(Histogram expected, Histogram actual, double delta) {
+    String errorSuffix = " mismatched. Expected: " + expected + " ,Actual: " + actual;
+    assertEquals("Histogram duration" + errorSuffix, expected.getDuration(), actual.getDuration());
+    assertEquals("Histogram type" + errorSuffix, expected.getType(), actual.getType());
+    List<Double> expectedBins = expected.getBins();
+    List<Double> actualBins = actual.getBins();
+    assertEquals("Histogram bin size" + errorSuffix, expectedBins.size(), actualBins.size());
+    for (int i = 0; i < expectedBins.size(); i++) {
+      assertEquals("Histogram bin " + i + errorSuffix, expectedBins.get(i), actualBins.get(i), delta);
+    }
+    assertEquals("Histogram counts" + errorSuffix, expected.getCounts(), actual.getCounts());
+  }
+
+  public static void assertWFReportPointEquals(wavefront.report.ReportPoint expected, wavefront.report.ReportPoint actual) {
+    assertEquals("metric name", expected.getMetric(), actual.getMetric());
+    Object expectedValue = expected.getValue();
+    Object actualValue = actual.getValue();
+    if ((expectedValue instanceof Histogram) && (actualValue instanceof Histogram)) {
+      assertHistogramsEqual((Histogram) expectedValue, (Histogram) actualValue, 0.0001);
+    } else {
+      assertEquals("value", expectedValue, actualValue);
+    }
+    assertEquals("timestamp", expected.getTimestamp(), actual.getTimestamp());
+    assertEquals("number of annotations", expected.getAnnotations().size(), actual.getAnnotations().size());
+    assertEquals("source/host", expected.getHost(), actual.getHost());
+    // TODO use a better assert instead of iterating manually?
+    for (String key : expected.getAnnotations().keySet()) {
+      assertTrue(actual.getAnnotations().containsKey(key));
+      assertEquals(expected.getAnnotations().get(key), actual.getAnnotations().get(key));
+    }
+  }
+
+  public static void assertAllPointsEqual(List<wavefront.report.ReportPoint> expected, List<wavefront.report.ReportPoint> actual) {
+    assertEquals("same number of points", expected.size(), actual.size());
+    for (int i = 0; i < expected.size(); i++) {
+      assertWFReportPointEquals(expected.get(i), actual.get(i));
+    }
+  }
+
+  private static Map<String, String> annotationListToMap(List<Annotation> annotationList) {
+    Map<String, String> annotationMap = Maps.newHashMap();
+    for (Annotation annotation : annotationList) {
+      annotationMap.put(annotation.getKey(), annotation.getValue());
+    }
+    assertEquals(annotationList.size(), annotationMap.size());
+    return annotationMap;
+  }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpMetricGenerator() {
+    return io.opentelemetry.proto.metrics.v1.Metric.newBuilder().setName("test");
+  }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpGaugeGenerator(List<NumberDataPoint> points) {
+    return otlpMetricGenerator()
+        .setGauge(io.opentelemetry.proto.metrics.v1.Gauge.newBuilder().addAllDataPoints(points).build());
+  }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpGaugeGenerator(NumberDataPoint point) {
+    return otlpMetricGenerator()
+        .setGauge(io.opentelemetry.proto.metrics.v1.Gauge.newBuilder().addDataPoints(point).build());
+  }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpSumGenerator(List<NumberDataPoint> points) {
+    return otlpMetricGenerator()
+        .setSum(io.opentelemetry.proto.metrics.v1.Sum.newBuilder()
+            .setAggregationTemporality(io.opentelemetry.proto.metrics.v1.AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
+            .setIsMonotonic(true)
+            .addAllDataPoints(points)
+            .build());
+  }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpSummaryGenerator(SummaryDataPoint point) {
+    return otlpMetricGenerator()
+        .setSummary(io.opentelemetry.proto.metrics.v1.Summary.newBuilder()
+            .addDataPoints(point)
+            .build());
+  }
+
+  public static io.opentelemetry.proto.metrics.v1.Metric.Builder otlpSummaryGenerator(Collection<SummaryDataPoint.ValueAtQuantile> quantiles) {
+    return otlpSummaryGenerator(SummaryDataPoint.newBuilder().addAllQuantileValues(quantiles).build());
+  }
+
+  public static wavefront.report.ReportPoint.Builder wfReportPointGenerator() {
+    return wavefront.report.ReportPoint.newBuilder().setMetric("test").setHost(DEFAULT_SOURCE)
+        .setTimestamp(0).setValue(0.0);
+  }
+
+  public static wavefront.report.ReportPoint.Builder wfReportPointGenerator(List<Annotation> annotations) {
+    return wfReportPointGenerator().setAnnotations(annotationListToMap(annotations));
+  }
+
+  public static List<wavefront.report.ReportPoint> justThePointsNamed(String name, Collection<wavefront.report.ReportPoint> points) {
+    return points.stream().filter(p -> p.getMetric().equals(name)).collect(Collectors.toList());
+  }
 }

@@ -93,7 +93,7 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
         Executors.newScheduledThreadPool(1, new NamedThreadFactory("otlp-grpc-heart-beater"));
     scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
 
-    this.internalReporter = OtlpProtobufUtils.createAndStartInternalReporter(wfSender);
+    this.internalReporter = OtlpTraceUtils.createAndStartInternalReporter(wfSender);
   }
 
   public OtlpGrpcTraceHandler(String handle,
@@ -114,7 +114,7 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
   @Override
   public void export(ExportTraceServiceRequest request,
                      StreamObserver<ExportTraceServiceResponse> responseObserver) {
-    long spanCount = OtlpProtobufUtils.getSpansCount(request);
+    long spanCount = OtlpTraceUtils.getSpansCount(request);
     receivedSpans.inc(spanCount);
 
     if (isFeatureDisabled(spansDisabled._1, SPAN_DISABLED, spansDisabled._2, spanCount)) {
@@ -123,7 +123,7 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
       return;
     }
 
-    OtlpProtobufUtils.exportToWavefront(
+    OtlpTraceUtils.exportToWavefront(
         request, spanHandler, spanLogsHandler, preprocessorSupplier, spanLogsDisabled,
         spanSamplerAndCounter, defaultSource, discoveredHeartbeatMetrics, internalReporter,
         traceDerivedCustomTagKeys
