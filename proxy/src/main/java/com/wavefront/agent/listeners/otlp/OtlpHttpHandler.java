@@ -157,7 +157,6 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
           We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found in
           OTel Collector's OTLP Receiver code.
          */
-          // TODO report internal metrics
           writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "unknown endpoint " + path, request);
           return;
       }
