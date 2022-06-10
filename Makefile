@@ -59,7 +59,7 @@ push-linux: .info .prepare-builder
 #####
 pack-macos:
 	cp ${out}/${ARTIFACT_ID}-${VERSION}-spring-boot.jar macos/wavefront-proxy.jar
-	cd macos && zip ${out}/wfproxy_${VERSION}_${REVISION}.zip *
+	cd macos && zip ${out}/wfproxy_macos_${VERSION}_${REVISION}.zip *
 	unzip -t ${out}/wfproxy_macos_${VERSION}_${REVISION}.zip
 
 
