@@ -71,7 +71,7 @@ public class OtlpHttpHandlerTest {
     EasyMock.replay(mockSampler, mockSender, mockCtx);
 
     OtlpHttpHandler handler = new OtlpHttpHandler(mockHandlerFactory, null, null, "4318",
-        mockSender, null, mockSampler, () -> false, () -> false, "defaultSource", null);
+        mockSender, null, mockSampler, () -> false, () -> false, "defaultSource", null, false);
     io.opentelemetry.proto.trace.v1.Span otlpSpan =
         OtlpTestHelpers.otlpSpanGenerator().build();
     ExportTraceServiceRequest otlpRequest = OtlpTestHelpers.otlpTraceRequest(otlpSpan);
