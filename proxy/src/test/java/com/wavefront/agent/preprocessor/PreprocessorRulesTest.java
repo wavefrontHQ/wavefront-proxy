@@ -614,6 +614,98 @@ public class PreprocessorRulesTest {
     }
   }
 
+  /**
+   * For extractTag create the new point tag.
+   */
+  @Test
+  public void testExtractTagPointLineRule() {
+    String preprocessorTag = " \"newExtractTag\"=\"newExtractTagValue\"";
+
+    // No match in pointline - shouldn't change anything
+    String noMatchPointString =
+        "\"No Match Metric\" 1.0 1459527231 source=\"hostname\" \"foo\"=\"bar\"";
+    ReportPoint noMatchPoint = parsePointLine(noMatchPointString);
+    new ReportPointExtractTagTransformer(
+        "newExtractTag", "pointLine", ".*extractTag.*",
+        "newExtractTagValue", null, null,null, metrics)
+        .apply(noMatchPoint);
+    assertEquals(noMatchPointString, referencePointToStringImpl(noMatchPoint));
+
+    // Metric name matches in pointLine - newExtractTag=newExtractTagValue should be added
+    String metricNameMatchString =
+        "\"extractTagMetric\" 1.0 1459527231 source=\"testHost\" \"foo\"=\"bar\"";
+    ReportPoint metricNameMatchPoint =
+        parsePointLine(metricNameMatchString);
+    String MetricNameUpdatedTag = metricNameMatchString + preprocessorTag;
+    new ReportPointExtractTagTransformer(
+        "newExtractTag", "pointLine", ".*extractTag.*",
+        "newExtractTagValue", null, null,null, metrics)
+        .apply(metricNameMatchPoint);
+    assertEquals(MetricNameUpdatedTag, referencePointToStringImpl(metricNameMatchPoint));
+
+    // Source name matches in pointLine - newExtractTag=newExtractTagValue should be added
+    String sourceNameMatchString =
+        "\"testTagMetric\" 1.0 1459527231 source=\"extractTagHost\" \"foo\"=\"bar\"";
+    ReportPoint sourceNameMatchPoint = parsePointLine(sourceNameMatchString);
+    String SourceNameUpdatedTag = sourceNameMatchString + preprocessorTag;
+    new ReportPointExtractTagTransformer(
+        "newExtractTag", "pointLine", ".*extractTag.*",
+        "newExtractTagValue", null, null,null, metrics)
+        .apply(sourceNameMatchPoint);
+    assertEquals(SourceNameUpdatedTag, referencePointToStringImpl(sourceNameMatchPoint));
+
+    // Point tag value matches in pointLine - newExtractTag=newExtractTagValue should be added
+    String tagNameMatchString =
+        "\"testTagMetric\" 1.0 1459527231 source=\"testHost\" \"aTag\"=\"extractTagTest\"";
+    ReportPoint pointTagMatchPoint = parsePointLine(tagNameMatchString);
+    String pointTagUpdated = tagNameMatchString + preprocessorTag;
+    new ReportPointExtractTagTransformer(
+        "newExtractTag", "pointLine", ".*extractTag.*",
+        "newExtractTagValue", null, null,null, metrics)
+        .apply(pointTagMatchPoint);
+    assertEquals(pointTagUpdated, referencePointToStringImpl(pointTagMatchPoint));
+
+    // Point tag already exists, new value is set
+    String originalPointStringWithTag = "\"extractTagMetric\" 1.0 1459527231 source=\"testHost\"";
+    ReportPoint existingTagMatchPoint = parsePointLine(originalPointStringWithTag +
+        "\"newExtractTag\"=\"originalValue\"");
+    new ReportPointExtractTagTransformer(
+        "newExtractTag", "pointLine", ".*extractTag.*",
+        "newExtractTagValue", null, null,null, metrics)
+        .apply(existingTagMatchPoint);
+    assertEquals(originalPointStringWithTag + preprocessorTag,
+        referencePointToStringImpl(existingTagMatchPoint));
+  }
+
+  /**
+   * For extractTagIfNotExists create the new point tag but do not replace the existing value with
+   * the new value if the tag already exists.
+   */
+  @Test
+  public void testExtractTagIfNotExistsPointLineRule() {
+    // Point tag value matches in pointLine - newExtractTag=newExtractTagValue should be added
+    String addedTag = " \"newExtractTag\"=\"newExtractTagValue\"";
+    String originalPointStringWithTag = "\"extractTagMetric\" 1.0 1459527231 source=\"testHost\" "
+        + "\"aKey\"=\"aValue\"";
+    ReportPoint existingTagMatchPoint = parsePointLine(originalPointStringWithTag);
+    new ReportPointExtractTagIfNotExistsTransformer(
+        "newExtractTag", "pointLine", ".*extractTag.*",
+        "newExtractTagValue", null, null,null, metrics)
+        .apply(existingTagMatchPoint);
+    assertEquals(originalPointStringWithTag + addedTag,
+        referencePointToStringImpl(existingTagMatchPoint));
+
+    // Point tag already exists, keep existing value.
+    String originalTagExistsString = "\"extractTagMetric\" 1.0 1459527231 source=\"testHost\" " +
+            "\"newExtractTag\"=\"originalValue\"";
+    ReportPoint tagExistsMatchPoint = parsePointLine(originalTagExistsString);
+    new ReportPointExtractTagIfNotExistsTransformer(
+        "newExtractTag", "pointLine", ".*extractTag.*",
+        "newExtractTagValue", null, null,null, metrics)
+        .apply(tagExistsMatchPoint);
+    assertEquals(originalTagExistsString, referencePointToStringImpl(tagExistsMatchPoint));
+  }
+
   private boolean applyAllFilters(String pointLine, String strPort) {
     return applyAllFilters(config,pointLine,strPort);
   }
