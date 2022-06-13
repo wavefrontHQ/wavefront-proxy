@@ -1,5 +1,7 @@
 package com.wavefront.agent.preprocessor;
 
+import static com.wavefront.agent.preprocessor.PreprocessorUtil.*;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
@@ -7,12 +9,6 @@ import com.wavefront.common.TaggedMetricName;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-import org.apache.commons.codec.Charsets;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
-import org.yaml.snakeyaml.Yaml;
-
-import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -23,21 +19,24 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static com.wavefront.agent.preprocessor.PreprocessorUtil.*;
+import javax.annotation.Nonnull;
+import org.apache.commons.codec.Charsets;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * Parses preprocessor rules (organized by listening port)
  *
- * Created by Vasily on 9/15/16.
+ * <p>Created by Vasily on 9/15/16.
  */
 public class PreprocessorConfigManager {
-  private static final Logger logger = Logger.getLogger(
-      PreprocessorConfigManager.class.getCanonicalName());
-  private static final Counter configReloads = Metrics.newCounter(
-      new MetricName("preprocessor", "", "config-reloads.successful"));
-  private static final Counter failedConfigReloads = Metrics.newCounter(
-      new MetricName("preprocessor", "", "config-reloads.failed"));
+  private static final Logger logger =
+      Logger.getLogger(PreprocessorConfigManager.class.getCanonicalName());
+  private static final Counter configReloads =
+      Metrics.newCounter(new MetricName("preprocessor", "", "config-reloads.successful"));
+  private static final Counter failedConfigReloads =
+      Metrics.newCounter(new MetricName("preprocessor", "", "config-reloads.failed"));
   private static final String GLOBAL_PORT_KEY = "global";
 
   // rule keywords
@@ -70,29 +69,24 @@ public class PreprocessorConfigManager {
   private final Supplier<Long> timeSupplier;
   private final Map<String, ReportableEntityPreprocessor> systemPreprocessors = new HashMap<>();
 
-  @VisibleForTesting
-  public Map<String, ReportableEntityPreprocessor> userPreprocessors;
+  @VisibleForTesting public Map<String, ReportableEntityPreprocessor> userPreprocessors;
   private Map<String, ReportableEntityPreprocessor> preprocessors = null;
 
   private volatile long systemPreprocessorsTs = Long.MIN_VALUE;
   private volatile long userPreprocessorsTs;
   private volatile long lastBuild = Long.MIN_VALUE;
   private String lastProcessedRules = "";
-  
-  @VisibleForTesting
-  int totalInvalidRules = 0;
-  @VisibleForTesting
-  int totalValidRules = 0;
 
-  private final Map<String,MetricsFilter> lockMetricsFilter = new WeakHashMap<>();
+  @VisibleForTesting int totalInvalidRules = 0;
+  @VisibleForTesting int totalValidRules = 0;
+
+  private final Map<String, MetricsFilter> lockMetricsFilter = new WeakHashMap<>();
 
   public PreprocessorConfigManager() {
     this(System::currentTimeMillis);
   }
 
-  /**
-   * @param timeSupplier Supplier for current time (in millis).
-   */
+  /** @param timeSupplier Supplier for current time (in millis). */
   @VisibleForTesting
   PreprocessorConfigManager(@Nonnull Supplier<Long> timeSupplier) {
     this.timeSupplier = timeSupplier;
@@ -103,16 +97,20 @@ public class PreprocessorConfigManager {
   /**
    * Schedules periodic checks for config file modification timestamp and performs hot-reload
    *
-   * @param fileName                Path name of the file to be monitored.
+   * @param fileName Path name of the file to be monitored.
    * @param fileCheckIntervalMillis Timestamp check interval.
    */
   public void setUpConfigFileMonitoring(String fileName, int fileCheckIntervalMillis) {
-    new Timer("Timer-preprocessor-configmanager").schedule(new TimerTask() {
-      @Override
-      public void run() {
-        loadFileIfModified(fileName);
-      }
-    }, fileCheckIntervalMillis, fileCheckIntervalMillis);
+    new Timer("Timer-preprocessor-configmanager")
+        .schedule(
+            new TimerTask() {
+              @Override
+              public void run() {
+                loadFileIfModified(fileName);
+              }
+            },
+            fileCheckIntervalMillis,
+            fileCheckIntervalMillis);
   }
 
   public ReportableEntityPreprocessor getSystemPreprocessor(String key) {
@@ -125,15 +123,19 @@ public class PreprocessorConfigManager {
   }
 
   private ReportableEntityPreprocessor getPreprocessor(String key) {
-    if ((lastBuild < userPreprocessorsTs || lastBuild < systemPreprocessorsTs) &&
-        userPreprocessors != null) {
+    if ((lastBuild < userPreprocessorsTs || lastBuild < systemPreprocessorsTs)
+        && userPreprocessors != null) {
       synchronized (this) {
-        if ((lastBuild < userPreprocessorsTs || lastBuild < systemPreprocessorsTs) &&
-            userPreprocessors != null) {
-          this.preprocessors = Stream.of(this.systemPreprocessors, this.userPreprocessors).
-              flatMap(x -> x.entrySet().stream()).
-              collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
-                  ReportableEntityPreprocessor::merge));
+        if ((lastBuild < userPreprocessorsTs || lastBuild < systemPreprocessorsTs)
+            && userPreprocessors != null) {
+          this.preprocessors =
+              Stream.of(this.systemPreprocessors, this.userPreprocessors)
+                  .flatMap(x -> x.entrySet().stream())
+                  .collect(
+                      Collectors.toMap(
+                          Map.Entry::getKey,
+                          Map.Entry::getValue,
+                          ReportableEntityPreprocessor::merge));
           this.lastBuild = timeSupplier.get();
         }
       }
@@ -142,21 +144,22 @@ public class PreprocessorConfigManager {
   }
 
   private void requireArguments(@Nonnull Map<String, Object> rule, String... arguments) {
-    if (rule.isEmpty())
-      throw new IllegalArgumentException("Rule is empty");
+    if (rule.isEmpty()) throw new IllegalArgumentException("Rule is empty");
     for (String argument : arguments) {
-      if (rule.get(argument) == null || ((rule.get(argument) instanceof String) &&
-          ((String) rule.get(argument)).replaceAll("[^a-z0-9_-]", "").isEmpty()))
+      if (rule.get(argument) == null
+          || ((rule.get(argument) instanceof String)
+              && ((String) rule.get(argument)).replaceAll("[^a-z0-9_-]", "").isEmpty()))
         throw new IllegalArgumentException("'" + argument + "' is missing or empty");
     }
   }
 
   private void allowArguments(@Nonnull Map<String, Object> rule, String... arguments) {
-    Sets.SetView<String> invalidArguments = Sets.difference(rule.keySet(),
-        Sets.union(ALLOWED_RULE_ARGUMENTS, Sets.newHashSet(arguments)));
+    Sets.SetView<String> invalidArguments =
+        Sets.difference(
+            rule.keySet(), Sets.union(ALLOWED_RULE_ARGUMENTS, Sets.newHashSet(arguments)));
     if (invalidArguments.size() > 0) {
-      throw new IllegalArgumentException("Invalid or not applicable argument(s): " +
-          StringUtils.join(invalidArguments, ","));
+      throw new IllegalArgumentException(
+          "Invalid or not applicable argument(s): " + StringUtils.join(invalidArguments, ","));
     }
   }
 
@@ -166,8 +169,7 @@ public class PreprocessorConfigManager {
       File file = new File(fileName);
       long lastModified = file.lastModified();
       if (lastModified > userPreprocessorsTs) {
-        logger.info("File " + file +
-            " has been modified on disk, reloading preprocessor rules");
+        logger.info("File " + file + " has been modified on disk, reloading preprocessor rules");
         loadFile(fileName);
         configReloads.inc();
       }
@@ -178,11 +180,11 @@ public class PreprocessorConfigManager {
   }
 
   public void processRemoteRules(@Nonnull String rules) {
-     if (!rules.equals(lastProcessedRules)) {
-       lastProcessedRules = rules;
-       logger.info("Preprocessor rules received from remote, processing");
-       loadFromStream(IOUtils.toInputStream(rules, Charsets.UTF_8));
-     }
+    if (!rules.equals(lastProcessedRules)) {
+      lastProcessedRules = rules;
+      logger.info("Preprocessor rules received from remote, processing");
+      loadFromStream(IOUtils.toInputStream(rules, Charsets.UTF_8));
+    }
   }
 
   public void loadFile(String filename) throws FileNotFoundException {
@@ -211,9 +213,10 @@ public class PreprocessorConfigManager {
         // Handle comma separated ports and global ports.
         // Note: Global ports need to be specified at the end of the file, inorder to be
         // applicable to all the explicitly specified ports in preprocessor_rules.yaml file.
-        List<String> strPortList = strPortKey.equalsIgnoreCase(GLOBAL_PORT_KEY) ?
-            new ArrayList<>(portMap.keySet()) :
-            Arrays.asList(strPortKey.trim().split("\\s*,\\s*"));
+        List<String> strPortList =
+            strPortKey.equalsIgnoreCase(GLOBAL_PORT_KEY)
+                ? new ArrayList<>(portMap.keySet())
+                : Arrays.asList(strPortKey.trim().split("\\s*,\\s*"));
         for (String strPort : strPortList) {
           portMap.putIfAbsent(strPort, new ReportableEntityPreprocessor());
           int validRules = 0;
@@ -222,405 +225,693 @@ public class PreprocessorConfigManager {
           for (Map<String, Object> rule : rules) {
             try {
               requireArguments(rule, RULE, ACTION);
-              allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, TAG, KEY, NEWTAG, NEWKEY, VALUE,
-                  SOURCE, INPUT, ITERATIONS, REPLACE_SOURCE, REPLACE_INPUT, ACTION_SUBTYPE,
-                  MAX_LENGTH, FIRST_MATCH_ONLY, ALLOW, IF, NAMES, FUNC, OPTS);
-              String ruleName = Objects.requireNonNull(getString(rule, RULE)).
-                  replaceAll("[^a-z0-9_-]", "");
-              PreprocessorRuleMetrics ruleMetrics = new PreprocessorRuleMetrics(
-                      Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
-                      "count", "port", strPort)),
-                      Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
-                      "cpu_nanos", "port", strPort)),
-                      Metrics.newCounter(new TaggedMetricName("preprocessor." + ruleName,
-                      "checked-count", "port", strPort)));
+              allowArguments(
+                  rule,
+                  SCOPE,
+                  SEARCH,
+                  REPLACE,
+                  MATCH,
+                  TAG,
+                  KEY,
+                  NEWTAG,
+                  NEWKEY,
+                  VALUE,
+                  SOURCE,
+                  INPUT,
+                  ITERATIONS,
+                  REPLACE_SOURCE,
+                  REPLACE_INPUT,
+                  ACTION_SUBTYPE,
+                  MAX_LENGTH,
+                  FIRST_MATCH_ONLY,
+                  ALLOW,
+                  IF,
+                  NAMES,
+                  FUNC,
+                  OPTS);
+              String ruleName =
+                  Objects.requireNonNull(getString(rule, RULE)).replaceAll("[^a-z0-9_-]", "");
+              PreprocessorRuleMetrics ruleMetrics =
+                  new PreprocessorRuleMetrics(
+                      Metrics.newCounter(
+                          new TaggedMetricName(
+                              "preprocessor." + ruleName, "count", "port", strPort)),
+                      Metrics.newCounter(
+                          new TaggedMetricName(
+                              "preprocessor." + ruleName, "cpu_nanos", "port", strPort)),
+                      Metrics.newCounter(
+                          new TaggedMetricName(
+                              "preprocessor." + ruleName, "checked-count", "port", strPort)));
               String scope = getString(rule, SCOPE);
               if ("pointLine".equals(scope) || "inputText".equals(scope)) {
                 if (Predicates.getPredicate(rule) != null) {
-                  throw new IllegalArgumentException("Argument [if] is not " +
-                      "allowed in [scope] = " + scope);
+                  throw new IllegalArgumentException(
+                      "Argument [if] is not " + "allowed in [scope] = " + scope);
                 }
                 switch (Objects.requireNonNull(getString(rule, ACTION))) {
                   case "replaceRegex":
                     allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS);
-                    portMap.get(strPort).forPointLine().addTransformer(
-                        new LineBasedReplaceRegexTransformer(getString(rule, SEARCH),
-                            getString(rule, REPLACE), getString(rule, MATCH),
-                            getInteger(rule, ITERATIONS, 1), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forPointLine()
+                        .addTransformer(
+                            new LineBasedReplaceRegexTransformer(
+                                getString(rule, SEARCH),
+                                getString(rule, REPLACE),
+                                getString(rule, MATCH),
+                                getInteger(rule, ITERATIONS, 1),
+                                ruleMetrics));
                     break;
                   case "blacklistRegex":
                   case "block":
                     allowArguments(rule, SCOPE, MATCH);
-                    portMap.get(strPort).forPointLine().addFilter(
-                        new LineBasedBlockFilter(getString(rule, MATCH), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forPointLine()
+                        .addFilter(new LineBasedBlockFilter(getString(rule, MATCH), ruleMetrics));
                     break;
                   case "whitelistRegex":
                   case "allow":
                     allowArguments(rule, SCOPE, MATCH);
-                    portMap.get(strPort).forPointLine().addFilter(
-                        new LineBasedAllowFilter(getString(rule, MATCH), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forPointLine()
+                        .addFilter(new LineBasedAllowFilter(getString(rule, MATCH), ruleMetrics));
                     break;
                   default:
-                    throw new IllegalArgumentException("Action '" + getString(rule, ACTION) +
-                        "' is not valid or cannot be applied to pointLine");
+                    throw new IllegalArgumentException(
+                        "Action '"
+                            + getString(rule, ACTION)
+                            + "' is not valid or cannot be applied to pointLine");
                 }
               } else {
                 String action = Objects.requireNonNull(getString(rule, ACTION));
                 switch (action) {
-
                   case "metricsFilter":
-                    lockMetricsFilter.computeIfPresent(strPort,(s, metricsFilter) -> {
-                      throw new IllegalArgumentException("Only one 'MetricsFilter' is allow per port");
-                    });
+                    lockMetricsFilter.computeIfPresent(
+                        strPort,
+                        (s, metricsFilter) -> {
+                          throw new IllegalArgumentException(
+                              "Only one 'MetricsFilter' is allow per port");
+                        });
                     allowArguments(rule, NAMES, FUNC, OPTS);
                     MetricsFilter mf = new MetricsFilter(rule, ruleMetrics, ruleName, strPort);
-                    lockMetricsFilter.put(strPort,mf);
+                    lockMetricsFilter.put(strPort, mf);
                     portMap.get(strPort).forPointLine().addFilter(mf);
                     break;
 
                   case "replaceRegex":
                     allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS, IF);
-                    portMap.get(strPort).forReportPoint().addTransformer(
-                        new ReportPointReplaceRegexTransformer(scope,
-                            getString(rule, SEARCH), getString(rule, REPLACE),
-                            getString(rule, MATCH), getInteger(rule, ITERATIONS, 1),
-                            Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addTransformer(
+                            new ReportPointReplaceRegexTransformer(
+                                scope,
+                                getString(rule, SEARCH),
+                                getString(rule, REPLACE),
+                                getString(rule, MATCH),
+                                getInteger(rule, ITERATIONS, 1),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "forceLowercase":
                     allowArguments(rule, SCOPE, MATCH, IF);
-                    portMap.get(strPort).forReportPoint().addTransformer(
-                        new ReportPointForceLowercaseTransformer(scope,
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addTransformer(
+                            new ReportPointForceLowercaseTransformer(
+                                scope,
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "addTag":
                     allowArguments(rule, TAG, VALUE, IF);
-                    portMap.get(strPort).forReportPoint().addTransformer(
-                        new ReportPointAddTagTransformer(getString(rule, TAG),
-                            getString(rule, VALUE), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addTransformer(
+                            new ReportPointAddTagTransformer(
+                                getString(rule, TAG),
+                                getString(rule, VALUE),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "addTagIfNotExists":
                     allowArguments(rule, TAG, VALUE, IF);
-                    portMap.get(strPort).forReportPoint().addTransformer(
-                        new ReportPointAddTagIfNotExistsTransformer(getString(rule, TAG),
-                            getString(rule, VALUE), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addTransformer(
+                            new ReportPointAddTagIfNotExistsTransformer(
+                                getString(rule, TAG),
+                                getString(rule, VALUE),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "dropTag":
                     allowArguments(rule, TAG, MATCH, IF);
-                    portMap.get(strPort).forReportPoint().addTransformer(
-                        new ReportPointDropTagTransformer(getString(rule, TAG),
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addTransformer(
+                            new ReportPointDropTagTransformer(
+                                getString(rule, TAG),
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "extractTag":
-                    allowArguments(rule, TAG, "source", SEARCH, REPLACE, REPLACE_SOURCE,
-                        REPLACE_INPUT, MATCH, IF);
-                    portMap.get(strPort).forReportPoint().addTransformer(
-                        new ReportPointExtractTagTransformer(getString(rule, TAG),
-                            getString(rule, "source"), getString(rule, SEARCH),
-                            getString(rule, REPLACE),
-                            (String) rule.getOrDefault(REPLACE_INPUT, rule.get(REPLACE_SOURCE)),
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    allowArguments(
+                        rule,
+                        TAG,
+                        "source",
+                        SEARCH,
+                        REPLACE,
+                        REPLACE_SOURCE,
+                        REPLACE_INPUT,
+                        MATCH,
+                        IF);
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addTransformer(
+                            new ReportPointExtractTagTransformer(
+                                getString(rule, TAG),
+                                getString(rule, "source"),
+                                getString(rule, SEARCH),
+                                getString(rule, REPLACE),
+                                (String) rule.getOrDefault(REPLACE_INPUT, rule.get(REPLACE_SOURCE)),
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "extractTagIfNotExists":
-                    allowArguments(rule, TAG, "source", SEARCH, REPLACE, REPLACE_SOURCE,
-                        REPLACE_INPUT, MATCH, IF);
-                    portMap.get(strPort).forReportPoint().addTransformer(
-                        new ReportPointExtractTagIfNotExistsTransformer(getString(rule, TAG),
-                            getString(rule, "source"), getString(rule, SEARCH),
-                            getString(rule, REPLACE),
-                            (String) rule.getOrDefault(REPLACE_INPUT, rule.get(REPLACE_SOURCE)),
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    allowArguments(
+                        rule,
+                        TAG,
+                        "source",
+                        SEARCH,
+                        REPLACE,
+                        REPLACE_SOURCE,
+                        REPLACE_INPUT,
+                        MATCH,
+                        IF);
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addTransformer(
+                            new ReportPointExtractTagIfNotExistsTransformer(
+                                getString(rule, TAG),
+                                getString(rule, "source"),
+                                getString(rule, SEARCH),
+                                getString(rule, REPLACE),
+                                (String) rule.getOrDefault(REPLACE_INPUT, rule.get(REPLACE_SOURCE)),
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "renameTag":
                     allowArguments(rule, TAG, NEWTAG, MATCH, IF);
-                    portMap.get(strPort).forReportPoint().addTransformer(
-                        new ReportPointRenameTagTransformer(getString(rule, TAG),
-                            getString(rule, NEWTAG), getString(rule, MATCH),
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addTransformer(
+                            new ReportPointRenameTagTransformer(
+                                getString(rule, TAG),
+                                getString(rule, NEWTAG),
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "limitLength":
-                    allowArguments(rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH,
-                        IF);
-                    portMap.get(strPort).forReportPoint().addTransformer(
-                        new ReportPointLimitLengthTransformer(
-                            Objects.requireNonNull(scope),
-                            getInteger(rule, MAX_LENGTH, 0),
-                            LengthLimitActionType.fromString(getString(rule, ACTION_SUBTYPE)),
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    allowArguments(rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH, IF);
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addTransformer(
+                            new ReportPointLimitLengthTransformer(
+                                Objects.requireNonNull(scope),
+                                getInteger(rule, MAX_LENGTH, 0),
+                                LengthLimitActionType.fromString(getString(rule, ACTION_SUBTYPE)),
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "count":
                     allowArguments(rule, SCOPE, IF);
-                    portMap.get(strPort).forReportPoint().addTransformer(
-                        new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addTransformer(
+                            new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
                     break;
                   case "blacklistRegex":
-                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
-                        "), use 'action: block' instead!");
+                    logger.warning(
+                        "Preprocessor rule using deprecated syntax (action: "
+                            + action
+                            + "), use 'action: block' instead!");
                   case "block":
                     allowArguments(rule, SCOPE, MATCH, IF);
-                    portMap.get(strPort).forReportPoint().addFilter(
-                        new ReportPointBlockFilter(scope,
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addFilter(
+                            new ReportPointBlockFilter(
+                                scope,
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "whitelistRegex":
-                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
-                        "), use 'action: allow' instead!");
+                    logger.warning(
+                        "Preprocessor rule using deprecated syntax (action: "
+                            + action
+                            + "), use 'action: allow' instead!");
                   case "allow":
                     allowArguments(rule, SCOPE, MATCH, IF);
-                    portMap.get(strPort).forReportPoint().addFilter(
-                        new ReportPointAllowFilter(scope,
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportPoint()
+                        .addFilter(
+                            new ReportPointAllowFilter(
+                                scope,
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
 
-                  // Rules for Span objects
+                    // Rules for Span objects
                   case "spanReplaceRegex":
-                    allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS,
-                        FIRST_MATCH_ONLY, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        new SpanReplaceRegexTransformer(scope,
-                            getString(rule, SEARCH), getString(rule, REPLACE),
-                            getString(rule, MATCH), getInteger(rule, ITERATIONS, 1),
-                            getBoolean(rule, FIRST_MATCH_ONLY, false),
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    allowArguments(
+                        rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS, FIRST_MATCH_ONLY, IF);
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            new SpanReplaceRegexTransformer(
+                                scope,
+                                getString(rule, SEARCH),
+                                getString(rule, REPLACE),
+                                getString(rule, MATCH),
+                                getInteger(rule, ITERATIONS, 1),
+                                getBoolean(rule, FIRST_MATCH_ONLY, false),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "spanForceLowercase":
                     allowArguments(rule, SCOPE, MATCH, FIRST_MATCH_ONLY, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        new SpanForceLowercaseTransformer(scope,
-                            getString(rule, MATCH), getBoolean(rule, FIRST_MATCH_ONLY, false),
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            new SpanForceLowercaseTransformer(
+                                scope,
+                                getString(rule, MATCH),
+                                getBoolean(rule, FIRST_MATCH_ONLY, false),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "spanAddAnnotation":
                   case "spanAddTag":
                     allowArguments(rule, KEY, VALUE, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        new SpanAddAnnotationTransformer(getString(rule, KEY),
-                            getString(rule, VALUE), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            new SpanAddAnnotationTransformer(
+                                getString(rule, KEY),
+                                getString(rule, VALUE),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "spanAddAnnotationIfNotExists":
                   case "spanAddTagIfNotExists":
                     allowArguments(rule, KEY, VALUE, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        new SpanAddAnnotationIfNotExistsTransformer(getString(rule, KEY),
-                            getString(rule, VALUE), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            new SpanAddAnnotationIfNotExistsTransformer(
+                                getString(rule, KEY),
+                                getString(rule, VALUE),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "spanDropAnnotation":
                   case "spanDropTag":
                     allowArguments(rule, KEY, MATCH, FIRST_MATCH_ONLY, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        new SpanDropAnnotationTransformer(getString(rule, KEY),
-                            getString(rule, MATCH), getBoolean(rule, FIRST_MATCH_ONLY, false),
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            new SpanDropAnnotationTransformer(
+                                getString(rule, KEY),
+                                getString(rule, MATCH),
+                                getBoolean(rule, FIRST_MATCH_ONLY, false),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "spanWhitelistAnnotation":
                   case "spanWhitelistTag":
-                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
-                        "), use 'action: spanAllowAnnotation' instead!");
+                    logger.warning(
+                        "Preprocessor rule using deprecated syntax (action: "
+                            + action
+                            + "), use 'action: spanAllowAnnotation' instead!");
                   case "spanAllowAnnotation":
                   case "spanAllowTag":
                     allowArguments(rule, ALLOW, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        SpanAllowAnnotationTransformer.create(rule,
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            SpanAllowAnnotationTransformer.create(
+                                rule, Predicates.getPredicate(rule), ruleMetrics));
                     break;
                   case "spanExtractAnnotation":
                   case "spanExtractTag":
-                    allowArguments(rule, KEY, INPUT, SEARCH, REPLACE, REPLACE_INPUT, MATCH,
-                        FIRST_MATCH_ONLY, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        new SpanExtractAnnotationTransformer(getString(rule, KEY),
-                            getString(rule, INPUT), getString(rule, SEARCH),
-                            getString(rule, REPLACE), getString(rule, REPLACE_INPUT),
-                            getString(rule, MATCH), getBoolean(rule, FIRST_MATCH_ONLY, false),
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    allowArguments(
+                        rule,
+                        KEY,
+                        INPUT,
+                        SEARCH,
+                        REPLACE,
+                        REPLACE_INPUT,
+                        MATCH,
+                        FIRST_MATCH_ONLY,
+                        IF);
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            new SpanExtractAnnotationTransformer(
+                                getString(rule, KEY),
+                                getString(rule, INPUT),
+                                getString(rule, SEARCH),
+                                getString(rule, REPLACE),
+                                getString(rule, REPLACE_INPUT),
+                                getString(rule, MATCH),
+                                getBoolean(rule, FIRST_MATCH_ONLY, false),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "spanExtractAnnotationIfNotExists":
                   case "spanExtractTagIfNotExists":
-                    allowArguments(rule, KEY, INPUT, SEARCH, REPLACE, REPLACE_INPUT, MATCH,
-                        FIRST_MATCH_ONLY, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        new SpanExtractAnnotationIfNotExistsTransformer(getString(rule, KEY),
-                            getString(rule, INPUT), getString(rule, SEARCH),
-                            getString(rule, REPLACE), getString(rule, REPLACE_INPUT),
-                            getString(rule, MATCH), getBoolean(rule, FIRST_MATCH_ONLY, false),
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    allowArguments(
+                        rule,
+                        KEY,
+                        INPUT,
+                        SEARCH,
+                        REPLACE,
+                        REPLACE_INPUT,
+                        MATCH,
+                        FIRST_MATCH_ONLY,
+                        IF);
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            new SpanExtractAnnotationIfNotExistsTransformer(
+                                getString(rule, KEY),
+                                getString(rule, INPUT),
+                                getString(rule, SEARCH),
+                                getString(rule, REPLACE),
+                                getString(rule, REPLACE_INPUT),
+                                getString(rule, MATCH),
+                                getBoolean(rule, FIRST_MATCH_ONLY, false),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "spanRenameAnnotation":
                   case "spanRenameTag":
                     allowArguments(rule, KEY, NEWKEY, MATCH, FIRST_MATCH_ONLY, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        new SpanRenameAnnotationTransformer(
-                            getString(rule, KEY), getString(rule, NEWKEY),
-                            getString(rule, MATCH), getBoolean(rule, FIRST_MATCH_ONLY, false),
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            new SpanRenameAnnotationTransformer(
+                                getString(rule, KEY), getString(rule, NEWKEY),
+                                getString(rule, MATCH), getBoolean(rule, FIRST_MATCH_ONLY, false),
+                                Predicates.getPredicate(rule), ruleMetrics));
                     break;
                   case "spanLimitLength":
-                    allowArguments(rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH,
-                        FIRST_MATCH_ONLY, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        new SpanLimitLengthTransformer(
-                            Objects.requireNonNull(scope),
-                            getInteger(rule, MAX_LENGTH, 0),
-                            LengthLimitActionType.fromString(getString(rule, ACTION_SUBTYPE)),
-                            getString(rule, MATCH), getBoolean(rule, FIRST_MATCH_ONLY, false),
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    allowArguments(
+                        rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH, FIRST_MATCH_ONLY, IF);
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            new SpanLimitLengthTransformer(
+                                Objects.requireNonNull(scope),
+                                getInteger(rule, MAX_LENGTH, 0),
+                                LengthLimitActionType.fromString(getString(rule, ACTION_SUBTYPE)),
+                                getString(rule, MATCH),
+                                getBoolean(rule, FIRST_MATCH_ONLY, false),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "spanCount":
                     allowArguments(rule, SCOPE, IF);
-                    portMap.get(strPort).forSpan().addTransformer(
-                        new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addTransformer(
+                            new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
                     break;
                   case "spanBlacklistRegex":
-                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
-                        "), use 'action: spanBlock' instead!");
+                    logger.warning(
+                        "Preprocessor rule using deprecated syntax (action: "
+                            + action
+                            + "), use 'action: spanBlock' instead!");
                   case "spanBlock":
                     allowArguments(rule, SCOPE, MATCH, IF);
-                    portMap.get(strPort).forSpan().addFilter(
-                        new SpanBlockFilter(
-                            scope,
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addFilter(
+                            new SpanBlockFilter(
+                                scope,
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "spanWhitelistRegex":
-                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
-                        "), use 'action: spanAllow' instead!");
+                    logger.warning(
+                        "Preprocessor rule using deprecated syntax (action: "
+                            + action
+                            + "), use 'action: spanAllow' instead!");
                   case "spanAllow":
                     allowArguments(rule, SCOPE, MATCH, IF);
-                    portMap.get(strPort).forSpan().addFilter(
-                        new SpanAllowFilter(scope,
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forSpan()
+                        .addFilter(
+                            new SpanAllowFilter(
+                                scope,
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
 
-                  // Rules for Log objects
+                    // Rules for Log objects
                   case "logReplaceRegex":
                     allowArguments(rule, SCOPE, SEARCH, REPLACE, MATCH, ITERATIONS, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        new ReportLogReplaceRegexTransformer(scope,
-                            getString(rule, SEARCH), getString(rule, REPLACE),
-                            getString(rule, MATCH), getInteger(rule, ITERATIONS, 1),
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            new ReportLogReplaceRegexTransformer(
+                                scope,
+                                getString(rule, SEARCH),
+                                getString(rule, REPLACE),
+                                getString(rule, MATCH),
+                                getInteger(rule, ITERATIONS, 1),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "logForceLowercase":
                     allowArguments(rule, SCOPE, MATCH, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        new ReportLogForceLowercaseTransformer(scope,
-                            getString(rule, MATCH),
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            new ReportLogForceLowercaseTransformer(
+                                scope,
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "logAddAnnotation":
                   case "logAddTag":
                     allowArguments(rule, KEY, VALUE, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        new ReportLogAddTagTransformer(getString(rule, KEY),
-                            getString(rule, VALUE), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            new ReportLogAddTagTransformer(
+                                getString(rule, KEY),
+                                getString(rule, VALUE),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "logAddAnnotationIfNotExists":
                   case "logAddTagIfNotExists":
                     allowArguments(rule, KEY, VALUE, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        new ReportLogAddTagIfNotExistsTransformer(getString(rule, KEY),
-                            getString(rule, VALUE), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            new ReportLogAddTagIfNotExistsTransformer(
+                                getString(rule, KEY),
+                                getString(rule, VALUE),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "logDropAnnotation":
                   case "logDropTag":
                     allowArguments(rule, KEY, MATCH, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        new ReportLogDropTagTransformer(getString(rule, KEY),
-                            getString(rule, MATCH), Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            new ReportLogDropTagTransformer(
+                                getString(rule, KEY),
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "logAllowAnnotation":
                   case "logAllowTag":
                     allowArguments(rule, ALLOW, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        ReportLogAllowTagTransformer.create(rule,
-                            Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            ReportLogAllowTagTransformer.create(
+                                rule, Predicates.getPredicate(rule), ruleMetrics));
                     break;
                   case "logExtractAnnotation":
                   case "logExtractTag":
                     allowArguments(rule, KEY, INPUT, SEARCH, REPLACE, REPLACE_INPUT, MATCH, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        new ReportLogExtractTagTransformer(getString(rule, KEY),
-                            getString(rule, INPUT), getString(rule, SEARCH),
-                            getString(rule, REPLACE), getString(rule, REPLACE_INPUT),
-                            getString(rule, MATCH), Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            new ReportLogExtractTagTransformer(
+                                getString(rule, KEY),
+                                getString(rule, INPUT),
+                                getString(rule, SEARCH),
+                                getString(rule, REPLACE),
+                                getString(rule, REPLACE_INPUT),
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "logExtractAnnotationIfNotExists":
                   case "logExtractTagIfNotExists":
                     allowArguments(rule, KEY, INPUT, SEARCH, REPLACE, REPLACE_INPUT, MATCH, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        new ReportLogExtractTagIfNotExistsTransformer(getString(rule, KEY),
-                            getString(rule, INPUT), getString(rule, SEARCH),
-                            getString(rule, REPLACE), getString(rule, REPLACE_INPUT),
-                            getString(rule, MATCH), Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            new ReportLogExtractTagIfNotExistsTransformer(
+                                getString(rule, KEY),
+                                getString(rule, INPUT),
+                                getString(rule, SEARCH),
+                                getString(rule, REPLACE),
+                                getString(rule, REPLACE_INPUT),
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "logRenameAnnotation":
                   case "logRenameTag":
                     allowArguments(rule, KEY, NEWKEY, MATCH, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        new ReportLogRenameTagTransformer(
-                            getString(rule, KEY), getString(rule, NEWKEY),
-                            getString(rule, MATCH), Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            new ReportLogRenameTagTransformer(
+                                getString(rule, KEY),
+                                getString(rule, NEWKEY),
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "logLimitLength":
                     allowArguments(rule, SCOPE, ACTION_SUBTYPE, MAX_LENGTH, MATCH, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        new ReportLogLimitLengthTransformer(
-                            Objects.requireNonNull(scope),
-                            getInteger(rule, MAX_LENGTH, 0),
-                            LengthLimitActionType.fromString(getString(rule, ACTION_SUBTYPE)),
-                            getString(rule, MATCH), Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            new ReportLogLimitLengthTransformer(
+                                Objects.requireNonNull(scope),
+                                getInteger(rule, MAX_LENGTH, 0),
+                                LengthLimitActionType.fromString(getString(rule, ACTION_SUBTYPE)),
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "logCount":
                     allowArguments(rule, SCOPE, IF);
-                    portMap.get(strPort).forReportLog().addTransformer(
-                        new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addTransformer(
+                            new CountTransformer<>(Predicates.getPredicate(rule), ruleMetrics));
                     break;
 
                   case "logBlacklistRegex":
-                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
-                        "), use 'action: logBlock' instead!");
+                    logger.warning(
+                        "Preprocessor rule using deprecated syntax (action: "
+                            + action
+                            + "), use 'action: logBlock' instead!");
                   case "logBlock":
                     allowArguments(rule, SCOPE, MATCH, IF);
-                    portMap.get(strPort).forReportLog().addFilter(
-                        new ReportLogBlockFilter(
-                            scope,
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addFilter(
+                            new ReportLogBlockFilter(
+                                scope,
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
                   case "logWhitelistRegex":
-                    logger.warning("Preprocessor rule using deprecated syntax (action: " + action +
-                        "), use 'action: spanAllow' instead!");
+                    logger.warning(
+                        "Preprocessor rule using deprecated syntax (action: "
+                            + action
+                            + "), use 'action: spanAllow' instead!");
                   case "logAllow":
                     allowArguments(rule, SCOPE, MATCH, IF);
-                    portMap.get(strPort).forReportLog().addFilter(
-                        new ReportLogAllowFilter(scope,
-                            getString(rule, MATCH), Predicates.getPredicate(rule),
-                            ruleMetrics));
+                    portMap
+                        .get(strPort)
+                        .forReportLog()
+                        .addFilter(
+                            new ReportLogAllowFilter(
+                                scope,
+                                getString(rule, MATCH),
+                                Predicates.getPredicate(rule),
+                                ruleMetrics));
                     break;
 
                   default:
-                    throw new IllegalArgumentException("Action '" + getString(rule, ACTION) +
-                        "' is not valid");
+                    throw new IllegalArgumentException(
+                        "Action '" + getString(rule, ACTION) + "' is not valid");
                 }
               }
               validRules++;
             } catch (IllegalArgumentException | NullPointerException ex) {
-              logger.warning("Invalid rule " + (rule == null ? "" : rule.getOrDefault(RULE, "")) +
-                  " (port " + strPort + "): " + ex);
+              logger.warning(
+                  "Invalid rule "
+                      + (rule == null ? "" : rule.getOrDefault(RULE, ""))
+                      + " (port "
+                      + strPort
+                      + "): "
+                      + ex);
               totalInvalidRules++;
             }
           }
@@ -631,8 +922,8 @@ public class PreprocessorConfigManager {
       }
       logger.info("Total Preprocessor rules loaded :: " + totalValidRules);
       if (totalInvalidRules > 0) {
-        throw new RuntimeException("Total Invalid Preprocessor rules detected :: " +
-            totalInvalidRules);
+        throw new RuntimeException(
+            "Total Invalid Preprocessor rules detected :: " + totalInvalidRules);
       }
     } catch (ClassCastException e) {
       throw new RuntimeException("Can't parse preprocessor configuration", e);

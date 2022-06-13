@@ -2,18 +2,15 @@ package com.wavefront.agent.preprocessor;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
-import wavefront.report.Annotation;
-import wavefront.report.ReportLog;
-
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import wavefront.report.Annotation;
+import wavefront.report.ReportLog;
 
 /**
  * Only allow log tags that match the allowed list.
@@ -26,10 +23,10 @@ public class ReportLogAllowTagTransformer implements Function<ReportLog, ReportL
   private final PreprocessorRuleMetrics ruleMetrics;
   private final Predicate<ReportLog> v2Predicate;
 
-
-  ReportLogAllowTagTransformer(final Map<String, String> tags,
-                                      @Nullable final Predicate<ReportLog> v2Predicate,
-                                      final PreprocessorRuleMetrics ruleMetrics) {
+  ReportLogAllowTagTransformer(
+      final Map<String, String> tags,
+      @Nullable final Predicate<ReportLog> v2Predicate,
+      final PreprocessorRuleMetrics ruleMetrics) {
     this.allowedTags = new HashMap<>(tags.size());
     tags.forEach((k, v) -> allowedTags.put(k, v == null ? null : Pattern.compile(v)));
     Preconditions.checkNotNull(ruleMetrics, "PreprocessorRuleMetrics can't be null");
@@ -45,10 +42,11 @@ public class ReportLogAllowTagTransformer implements Function<ReportLog, ReportL
     try {
       if (!v2Predicate.test(reportLog)) return reportLog;
 
-      List<Annotation> annotations = reportLog.getAnnotations().stream().
-          filter(x -> allowedTags.containsKey(x.getKey())).
-          filter(x -> isPatternNullOrMatches(allowedTags.get(x.getKey()), x.getValue())).
-          collect(Collectors.toList());
+      List<Annotation> annotations =
+          reportLog.getAnnotations().stream()
+              .filter(x -> allowedTags.containsKey(x.getKey()))
+              .filter(x -> isPatternNullOrMatches(allowedTags.get(x.getKey()), x.getValue()))
+              .collect(Collectors.toList());
       if (annotations.size() < reportLog.getAnnotations().size()) {
         reportLog.setAnnotations(annotations);
         ruleMetrics.incrementRuleAppliedCounter();
@@ -66,14 +64,15 @@ public class ReportLogAllowTagTransformer implements Function<ReportLog, ReportL
   /**
    * Create an instance based on loaded yaml fragment.
    *
-   * @param ruleMap     yaml map
+   * @param ruleMap yaml map
    * @param v2Predicate the v2 predicate
    * @param ruleMetrics metrics container
    * @return ReportLogAllowAnnotationTransformer instance
    */
-  public static ReportLogAllowTagTransformer create(Map<String, Object> ruleMap,
-                                                      @Nullable final Predicate<ReportLog> v2Predicate,
-                                                      final PreprocessorRuleMetrics ruleMetrics) {
+  public static ReportLogAllowTagTransformer create(
+      Map<String, Object> ruleMap,
+      @Nullable final Predicate<ReportLog> v2Predicate,
+      final PreprocessorRuleMetrics ruleMetrics) {
     Object tags = ruleMap.get("allow");
     if (tags instanceof Map) {
       //noinspection unchecked

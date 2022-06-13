@@ -1,18 +1,16 @@
 package com.wavefront.agent.preprocessor;
 
 import com.google.common.collect.ImmutableList;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
-
-import javax.annotation.Nullable;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Generic container class for storing transformation and filter rules
  *
- * Created by Vasily on 9/13/16.
+ * <p>Created by Vasily on 9/13/16.
  */
 public class Preprocessor<T> {
 
@@ -30,6 +28,7 @@ public class Preprocessor<T> {
 
   /**
    * Apply all transformation rules sequentially
+   *
    * @param item input point
    * @return transformed point
    */
@@ -42,6 +41,7 @@ public class Preprocessor<T> {
 
   /**
    * Apply all filter predicates sequentially, stop at the first "false" result
+   *
    * @param item item to apply predicates to
    * @return true if all predicates returned "true"
    */
@@ -51,7 +51,8 @@ public class Preprocessor<T> {
 
   /**
    * Apply all filter predicates sequentially, stop at the first "false" result
-   * @param item          item to apply predicates to
+   *
+   * @param item item to apply predicates to
    * @param messageHolder container to store additional output from predicate filters
    * @return true if all predicates returned "true"
    */
@@ -70,6 +71,7 @@ public class Preprocessor<T> {
 
   /**
    * Check all filter rules as an immutable list
+   *
    * @return filter rules
    */
   public List<AnnotatedPredicate<T>> getFilters() {
@@ -78,6 +80,7 @@ public class Preprocessor<T> {
 
   /**
    * Get all transformer rules as an immutable list
+   *
    * @return transformer rules
    */
   public List<Function<T, T>> getTransformers() {
@@ -101,6 +104,7 @@ public class Preprocessor<T> {
 
   /**
    * Register a transformation rule
+   *
    * @param transformer rule
    */
   public void addTransformer(Function<T, T> transformer) {
@@ -109,6 +113,7 @@ public class Preprocessor<T> {
 
   /**
    * Register a filter rule
+   *
    * @param filter rule
    */
   public void addFilter(AnnotatedPredicate<T> filter) {
@@ -117,6 +122,7 @@ public class Preprocessor<T> {
 
   /**
    * Register a transformation rule and place it at a specific index
+   *
    * @param index zero-based index
    * @param transformer rule
    */
@@ -126,6 +132,7 @@ public class Preprocessor<T> {
 
   /**
    * Register a filter rule and place it at a specific index
+   *
    * @param index zero-based index
    * @param filter rule
    */

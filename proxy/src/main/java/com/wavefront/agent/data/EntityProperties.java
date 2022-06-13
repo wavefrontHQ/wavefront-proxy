@@ -1,7 +1,6 @@
 package com.wavefront.agent.data;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
-
 import javax.annotation.Nullable;
 
 /**
@@ -98,19 +97,19 @@ public interface EntityProperties {
   void setDataPerBatch(@Nullable Integer dataPerBatch);
 
   /**
-   * Do not split the batch if its size is less than this value. Only applicable when
-   * {@link #isSplitPushWhenRateLimited()} is true.
+   * Do not split the batch if its size is less than this value. Only applicable when {@link
+   * #isSplitPushWhenRateLimited()} is true.
    *
    * @return smallest allowed batch size
    */
   int getMinBatchSplitSize();
 
   /**
-   * Max number of items that can stay in memory buffers before spooling to disk.
-   * Defaults to 16 * {@link #getDataPerBatch()}, minimum size: {@link #getDataPerBatch()}.
-   * Setting this value lower than default reduces memory usage, but will force the proxy to
-   * spool to disk more frequently if you have points arriving at the proxy in short bursts,
-   * and/or your network latency is on the higher side.
+   * Max number of items that can stay in memory buffers before spooling to disk. Defaults to 16 *
+   * {@link #getDataPerBatch()}, minimum size: {@link #getDataPerBatch()}. Setting this value lower
+   * than default reduces memory usage, but will force the proxy to spool to disk more frequently if
+   * you have points arriving at the proxy in short bursts, and/or your network latency is on the
+   * higher side.
    *
    * @return memory buffer limit
    */
@@ -144,9 +143,7 @@ public interface EntityProperties {
    */
   int getTotalBacklogSize();
 
-  /**
-   * Updates backlog size for specific port.
-   */
+  /** Updates backlog size for specific port. */
   void reportBacklogSize(String handle, int backlogSize);
 
   /**
@@ -156,8 +153,6 @@ public interface EntityProperties {
    */
   long getTotalReceivedRate();
 
-  /**
-   * Updates received rate for specific port.
-   */
+  /** Updates received rate for specific port. */
   void reportReceivedRate(String handle, long receivedRate);
 }

@@ -1,9 +1,7 @@
 package com.wavefront.agent.data;
 
 import com.wavefront.api.agent.SpanSamplingPolicy;
-
 import java.util.List;
-
 import javax.annotation.Nullable;
 
 /**
@@ -22,8 +20,8 @@ public interface GlobalProperties {
   /**
    * Sets base in seconds for retry thread exponential backoff.
    *
-   * @param retryBackoffBaseSeconds new value for exponential backoff base value.
-   *                                if null is provided, reverts to originally configured value.
+   * @param retryBackoffBaseSeconds new value for exponential backoff base value. if null is
+   *     provided, reverts to originally configured value.
    */
   void setRetryBackoffBaseSeconds(@Nullable Double retryBackoffBaseSeconds);
 

@@ -1,24 +1,21 @@
 package com.wavefront.agent.histogram.accumulator;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.github.benmanes.caffeine.cache.Cache;
 import com.tdunning.math.stats.AgentDigest;
-import com.wavefront.agent.histogram.TestUtils;
-import com.wavefront.agent.histogram.HistogramUtils.HistogramKeyMarshaller;
 import com.wavefront.agent.histogram.HistogramKey;
-
-import net.openhft.chronicle.map.ChronicleMap;
-
-import org.junit.Before;
-import org.junit.Test;
-
+import com.wavefront.agent.histogram.HistogramUtils.HistogramKeyMarshaller;
+import com.wavefront.agent.histogram.TestUtils;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
-
-import static com.google.common.truth.Truth.assertThat;
+import net.openhft.chronicle.map.ChronicleMap;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Unit tests around {@link AccumulationCache}
@@ -26,11 +23,11 @@ import static com.google.common.truth.Truth.assertThat;
  * @author Tim Schmidt (tim@wavefront.com).
  */
 public class AccumulationCacheTest {
-  private final static Logger logger = Logger.getLogger(AccumulationCacheTest.class.getCanonicalName());
+  private static final Logger logger =
+      Logger.getLogger(AccumulationCacheTest.class.getCanonicalName());
 
-  private final static long CAPACITY = 2L;
-  private final static short COMPRESSION = 100;
-
+  private static final long CAPACITY = 2L;
+  private static final short COMPRESSION = 100;
 
   private ConcurrentMap<HistogramKey, AgentDigest> backingStore;
   private Cache<HistogramKey, AgentDigest> cache;
@@ -48,8 +45,8 @@ public class AccumulationCacheTest {
   public void setup() {
     backingStore = new ConcurrentHashMap<>();
     tickerTime = new AtomicLong(0L);
-    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(() -> COMPRESSION, 100,
-        tickerTime::get);
+    AgentDigestFactory agentDigestFactory =
+        new AgentDigestFactory(() -> COMPRESSION, 100, tickerTime::get);
     ac = new AccumulationCache(backingStore, agentDigestFactory, CAPACITY, "", tickerTime::get);
     cache = ac.getCache();
 
@@ -99,18 +96,24 @@ public class AccumulationCacheTest {
 
   @Test
   public void testChronicleMapOverflow() {
-    ConcurrentMap<HistogramKey, AgentDigest> chronicleMap = ChronicleMap.of(HistogramKey.class, AgentDigest.class).
-        keyMarshaller(HistogramKeyMarshaller.get()).
-        valueMarshaller(AgentDigest.AgentDigestMarshaller.get()).
-        entries(10)
-        .averageKeySize(20)
-        .averageValueSize(20)
-        .maxBloatFactor(10)
-        .create();
+    ConcurrentMap<HistogramKey, AgentDigest> chronicleMap =
+        ChronicleMap.of(HistogramKey.class, AgentDigest.class)
+            .keyMarshaller(HistogramKeyMarshaller.get())
+            .valueMarshaller(AgentDigest.AgentDigestMarshaller.get())
+            .entries(10)
+            .averageKeySize(20)
+            .averageValueSize(20)
+            .maxBloatFactor(10)
+            .create();
     AtomicBoolean hasFailed = new AtomicBoolean(false);
-    AccumulationCache ac = new AccumulationCache(chronicleMap,
-        new AgentDigestFactory(() -> COMPRESSION, 100L, tickerTime::get), 10, "", tickerTime::get,
-        () -> hasFailed.set(true));
+    AccumulationCache ac =
+        new AccumulationCache(
+            chronicleMap,
+            new AgentDigestFactory(() -> COMPRESSION, 100L, tickerTime::get),
+            10,
+            "",
+            tickerTime::get,
+            () -> hasFailed.set(true));
 
     for (int i = 0; i < 1000; i++) {
       ac.put(TestUtils.makeKey("key-" + i), digestA);

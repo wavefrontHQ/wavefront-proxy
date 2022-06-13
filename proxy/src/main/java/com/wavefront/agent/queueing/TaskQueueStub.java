@@ -1,22 +1,20 @@
 package com.wavefront.agent.queueing;
 
 import com.wavefront.agent.data.DataSubmissionTask;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Iterator;
-
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.commons.collections.iterators.EmptyIterator;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * A non-functional empty {@code TaskQueue} that throws an error when attempting to add a task.
- * To be used as a stub when dynamic provisioning of queues failed.
+ * A non-functional empty {@code TaskQueue} that throws an error when attempting to add a task. To
+ * be used as a stub when dynamic provisioning of queues failed.
  *
  * @author vasily@wavefront.com
  */
-public class TaskQueueStub<T extends DataSubmissionTask<T>> implements TaskQueue<T>{
+public class TaskQueueStub<T extends DataSubmissionTask<T>> implements TaskQueue<T> {
 
   @Override
   public T peek() {
@@ -29,12 +27,10 @@ public class TaskQueueStub<T extends DataSubmissionTask<T>> implements TaskQueue
   }
 
   @Override
-  public void remove() {
-  }
+  public void remove() {}
 
   @Override
-  public void clear() {
-  }
+  public void clear() {}
 
   @Override
   public int size() {
@@ -42,8 +38,7 @@ public class TaskQueueStub<T extends DataSubmissionTask<T>> implements TaskQueue
   }
 
   @Override
-  public void close() {
-  }
+  public void close() {}
 
   @Nullable
   @Override

@@ -3,8 +3,8 @@ package com.wavefront.agent.histogram;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Stores settings ChronicleMap has been initialized with to trigger map re-creation when settings change
- * (since ChronicleMap doesn't persist init values for entries/avgKeySize/avgValueSize)
+ * Stores settings ChronicleMap has been initialized with to trigger map re-creation when settings
+ * change (since ChronicleMap doesn't persist init values for entries/avgKeySize/avgValueSize)
  *
  * @author vasily@wavefront.com
  */
@@ -14,8 +14,7 @@ public class MapSettings {
   private double avgValueSize;
 
   @SuppressWarnings("unused")
-  private MapSettings() {
-  }
+  private MapSettings() {}
 
   public MapSettings(long entries, double avgKeySize, double avgValueSize) {
     this.entries = entries;
@@ -42,7 +41,7 @@ public class MapSettings {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    MapSettings that = (MapSettings)o;
+    MapSettings that = (MapSettings) o;
 
     return (this.entries == that.entries
         && this.avgKeySize == that.avgKeySize

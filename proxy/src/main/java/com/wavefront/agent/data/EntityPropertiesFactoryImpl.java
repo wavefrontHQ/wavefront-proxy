@@ -1,5 +1,8 @@
 package com.wavefront.agent.data;
 
+import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
@@ -8,15 +11,11 @@ import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
 import com.google.common.util.concurrent.RecyclableRateLimiterWithMetrics;
 import com.wavefront.agent.ProxyConfig;
 import com.wavefront.data.ReportableEntityType;
-
-import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static com.wavefront.agent.config.ReportableConfig.reportSettingAsGauge;
-import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+import javax.annotation.Nullable;
 
 /**
  * Generates entity-specific wrappers for dynamic proxy settings.
@@ -28,21 +27,21 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
   private final Map<ReportableEntityType, EntityProperties> wrappers;
   private final GlobalProperties global;
 
-  /**
-   * @param proxyConfig proxy settings container
-   */
+  /** @param proxyConfig proxy settings container */
   public EntityPropertiesFactoryImpl(ProxyConfig proxyConfig) {
     global = new GlobalPropertiesImpl(proxyConfig);
     EntityProperties pointProperties = new PointsProperties(proxyConfig);
-    wrappers = ImmutableMap.<ReportableEntityType, EntityProperties>builder().
-        put(ReportableEntityType.POINT, pointProperties).
-        put(ReportableEntityType.DELTA_COUNTER, pointProperties).
-        put(ReportableEntityType.HISTOGRAM, new HistogramsProperties(proxyConfig)).
-        put(ReportableEntityType.SOURCE_TAG, new SourceTagsProperties(proxyConfig)).
-        put(ReportableEntityType.TRACE, new SpansProperties(proxyConfig)).
-        put(ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsProperties(proxyConfig)).
-        put(ReportableEntityType.EVENT, new EventsProperties(proxyConfig)).
-        put(ReportableEntityType.LOGS, new LogsProperties(proxyConfig)).build();
+    wrappers =
+        ImmutableMap.<ReportableEntityType, EntityProperties>builder()
+            .put(ReportableEntityType.POINT, pointProperties)
+            .put(ReportableEntityType.DELTA_COUNTER, pointProperties)
+            .put(ReportableEntityType.HISTOGRAM, new HistogramsProperties(proxyConfig))
+            .put(ReportableEntityType.SOURCE_TAG, new SourceTagsProperties(proxyConfig))
+            .put(ReportableEntityType.TRACE, new SpansProperties(proxyConfig))
+            .put(ReportableEntityType.TRACE_SPAN_LOGS, new SpanLogsProperties(proxyConfig))
+            .put(ReportableEntityType.EVENT, new EventsProperties(proxyConfig))
+            .put(ReportableEntityType.LOGS, new LogsProperties(proxyConfig))
+            .build();
   }
 
   @Override
@@ -55,24 +54,26 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     return global;
   }
 
-  /**
-   * Common base for all wrappers (to avoid code duplication)
-   */
-  private static abstract class AbstractEntityProperties implements EntityProperties {
+  /** Common base for all wrappers (to avoid code duplication) */
+  private abstract static class AbstractEntityProperties implements EntityProperties {
     private Integer dataPerBatch = null;
     protected final ProxyConfig wrapped;
     private final RecyclableRateLimiter rateLimiter;
-    private final LoadingCache<String, AtomicInteger> backlogSizeCache = Caffeine.newBuilder().
-        expireAfterAccess(10, TimeUnit.SECONDS).build(x -> new AtomicInteger());
-    private final LoadingCache<String, AtomicLong> receivedRateCache = Caffeine.newBuilder().
-        expireAfterAccess(10, TimeUnit.SECONDS).build(x -> new AtomicLong());
+    private final LoadingCache<String, AtomicInteger> backlogSizeCache =
+        Caffeine.newBuilder()
+            .expireAfterAccess(10, TimeUnit.SECONDS)
+            .build(x -> new AtomicInteger());
+    private final LoadingCache<String, AtomicLong> receivedRateCache =
+        Caffeine.newBuilder().expireAfterAccess(10, TimeUnit.SECONDS).build(x -> new AtomicLong());
 
     public AbstractEntityProperties(ProxyConfig wrapped) {
       this.wrapped = wrapped;
-      this.rateLimiter = getRateLimit() > 0 ?
-          new RecyclableRateLimiterWithMetrics(RecyclableRateLimiterImpl.create(
-              getRateLimit(), getRateLimitMaxBurstSeconds()), getRateLimiterName()) :
-          null;
+      this.rateLimiter =
+          getRateLimit() > 0
+              ? new RecyclableRateLimiterWithMetrics(
+                  RecyclableRateLimiterImpl.create(getRateLimit(), getRateLimitMaxBurstSeconds()),
+                  getRateLimiterName())
+              : null;
 
       reportSettingAsGauge(this::getPushFlushInterval, "dynamic.pushFlushInterval");
     }
@@ -102,7 +103,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
       return rateLimiter;
     }
 
-    abstract protected String getRateLimiterName();
+    protected abstract String getRateLimiterName();
 
     @Override
     public int getFlushThreads() {
@@ -150,10 +151,8 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
   }
 
-  /**
-   * Base class for entity types that do not require separate subscriptions.
-   */
-  private static abstract class CoreEntityProperties extends AbstractEntityProperties {
+  /** Base class for entity types that do not require separate subscriptions. */
+  private abstract static class CoreEntityProperties extends AbstractEntityProperties {
     public CoreEntityProperties(ProxyConfig wrapped) {
       super(wrapped);
     }
@@ -173,7 +172,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
    * Base class for entity types that do require a separate subscription and can be controlled
    * remotely.
    */
-  private static abstract class SubscriptionBasedEntityProperties extends AbstractEntityProperties {
+  private abstract static class SubscriptionBasedEntityProperties extends AbstractEntityProperties {
     private boolean featureDisabled = false;
 
     public SubscriptionBasedEntityProperties(ProxyConfig wrapped) {
@@ -191,9 +190,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
   }
 
-  /**
-   * Runtime properties wrapper for points
-   */
+  /** Runtime properties wrapper for points */
   private static final class PointsProperties extends CoreEntityProperties {
     public PointsProperties(ProxyConfig wrapped) {
       super(wrapped);
@@ -217,9 +214,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
   }
 
-  /**
-   * Runtime properties wrapper for histograms
-   */
+  /** Runtime properties wrapper for histograms */
   private static final class HistogramsProperties extends SubscriptionBasedEntityProperties {
     public HistogramsProperties(ProxyConfig wrapped) {
       super(wrapped);
@@ -243,9 +238,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
   }
 
-  /**
-   * Runtime properties wrapper for source tags
-   */
+  /** Runtime properties wrapper for source tags */
   private static final class SourceTagsProperties extends CoreEntityProperties {
     public SourceTagsProperties(ProxyConfig wrapped) {
       super(wrapped);
@@ -279,9 +272,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
   }
 
-  /**
-   * Runtime properties wrapper for spans
-   */
+  /** Runtime properties wrapper for spans */
   private static final class SpansProperties extends SubscriptionBasedEntityProperties {
     public SpansProperties(ProxyConfig wrapped) {
       super(wrapped);
@@ -305,9 +296,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
   }
 
-  /**
-   * Runtime properties wrapper for span logs
-   */
+  /** Runtime properties wrapper for span logs */
   private static final class SpanLogsProperties extends SubscriptionBasedEntityProperties {
     public SpanLogsProperties(ProxyConfig wrapped) {
       super(wrapped);
@@ -331,9 +320,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
   }
 
-  /**
-   * Runtime properties wrapper for events
-   */
+  /** Runtime properties wrapper for events */
   private static final class EventsProperties extends CoreEntityProperties {
     public EventsProperties(ProxyConfig wrapped) {
       super(wrapped);
@@ -367,10 +354,7 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     }
   }
 
-
-  /**
-   * Runtime properties wrapper for logs
-   */
+  /** Runtime properties wrapper for logs */
   private static final class LogsProperties extends SubscriptionBasedEntityProperties {
     public LogsProperties(ProxyConfig wrapped) {
       super(wrapped);
@@ -407,6 +391,5 @@ public class EntityPropertiesFactoryImpl implements EntityPropertiesFactory {
     public int getPushFlushInterval() {
       return wrapped.getPushFlushIntervalLogs();
     }
-
   }
 }

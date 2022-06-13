@@ -1,31 +1,25 @@
 package com.wavefront.agent.histogram;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.tdunning.math.stats.AgentDigest;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
-
 import com.wavefront.agent.histogram.accumulator.AgentDigestFactory;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
+import org.junit.Before;
+import org.junit.Test;
 import wavefront.report.ReportPoint;
 
-import static com.google.common.truth.Truth.assertThat;
-
-/**
- * @author Tim Schmidt (tim@wavefront.com).
- */
+/** @author Tim Schmidt (tim@wavefront.com). */
 public class PointHandlerDispatcherTest {
-  private final static short COMPRESSION = 100;
+  private static final short COMPRESSION = 100;
 
   private AccumulationCache in;
   private ConcurrentMap<HistogramKey, AgentDigest> backingStore;
@@ -40,49 +34,53 @@ public class PointHandlerDispatcherTest {
   private AgentDigest digestA;
   private AgentDigest digestB;
 
-
   @Before
   public void setup() {
     timeMillis = new AtomicLong(0L);
     backingStore = new ConcurrentHashMap<>();
-    AgentDigestFactory agentDigestFactory = new AgentDigestFactory(() -> COMPRESSION, 100L,
-        timeMillis::get);
+    AgentDigestFactory agentDigestFactory =
+        new AgentDigestFactory(() -> COMPRESSION, 100L, timeMillis::get);
     in = new AccumulationCache(backingStore, agentDigestFactory, 0, "", timeMillis::get);
     pointOut = new LinkedList<>();
     debugLineOut = new LinkedList<>();
     blockedOut = new LinkedList<>();
     digestA = new AgentDigest(COMPRESSION, 100L);
     digestB = new AgentDigest(COMPRESSION, 1000L);
-    subject = new PointHandlerDispatcher(in, new ReportableEntityHandler<ReportPoint, String>() {
+    subject =
+        new PointHandlerDispatcher(
+            in,
+            new ReportableEntityHandler<ReportPoint, String>() {
 
-      @Override
-      public void report(ReportPoint reportPoint) {
-        pointOut.add(reportPoint);
-      }
+              @Override
+              public void report(ReportPoint reportPoint) {
+                pointOut.add(reportPoint);
+              }
 
-      @Override
-      public void block(ReportPoint reportPoint) {
-        blockedOut.add(reportPoint);
-      }
+              @Override
+              public void block(ReportPoint reportPoint) {
+                blockedOut.add(reportPoint);
+              }
 
-      @Override
-      public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
-        blockedOut.add(reportPoint);
-      }
+              @Override
+              public void block(@Nullable ReportPoint reportPoint, @Nullable String message) {
+                blockedOut.add(reportPoint);
+              }
 
-      @Override
-      public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
-        blockedOut.add(reportPoint);
-      }
+              @Override
+              public void reject(@Nullable ReportPoint reportPoint, @Nullable String message) {
+                blockedOut.add(reportPoint);
+              }
 
-      @Override
-      public void reject(@Nonnull String t, @Nullable String message) {
-      }
+              @Override
+              public void reject(@Nonnull String t, @Nullable String message) {}
 
-      @Override
-      public void shutdown() {
-      }
-    }, timeMillis::get, () -> false, null, null);
+              @Override
+              public void shutdown() {}
+            },
+            timeMillis::get,
+            () -> false,
+            null,
+            null);
   }
 
   @Test

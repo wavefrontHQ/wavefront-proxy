@@ -2,29 +2,11 @@ package com.wavefront.agent.listeners.otlp;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
 import com.wavefront.common.MetricConstants;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.entities.histograms.HistogramGranularity;
-
-import org.jetbrains.annotations.NotNull;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.annotation.Nullable;
-
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
@@ -42,29 +24,43 @@ import io.opentelemetry.proto.metrics.v1.Sum;
 import io.opentelemetry.proto.metrics.v1.Summary;
 import io.opentelemetry.proto.metrics.v1.SummaryDataPoint;
 import io.opentelemetry.proto.resource.v1.Resource;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
 import wavefront.report.Annotation;
 import wavefront.report.HistogramType;
 import wavefront.report.ReportPoint;
 
-
 public class OtlpMetricsUtils {
-  public final static Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
+  public static final Logger OTLP_DATA_LOGGER = Logger.getLogger("OTLPDataLogger");
   public static final int MILLIS_IN_MINUTE = 60 * 1000;
   public static final int MILLIS_IN_HOUR = 60 * 60 * 1000;
   public static final int MILLIS_IN_DAY = 24 * 60 * 60 * 1000;
 
-  public static void exportToWavefront(ExportMetricsServiceRequest request,
-                                       ReportableEntityHandler<ReportPoint, String> pointHandler,
-                                       ReportableEntityHandler<ReportPoint, String> histogramHandler,
-                                       @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                                       String defaultSource,
-                                       boolean includeResourceAttrsForMetrics) {
+  public static void exportToWavefront(
+      ExportMetricsServiceRequest request,
+      ReportableEntityHandler<ReportPoint, String> pointHandler,
+      ReportableEntityHandler<ReportPoint, String> histogramHandler,
+      @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      String defaultSource,
+      boolean includeResourceAttrsForMetrics) {
     ReportableEntityPreprocessor preprocessor = null;
     if (preprocessorSupplier != null) {
       preprocessor = preprocessorSupplier.get();
     }
 
-    for (ReportPoint point : fromOtlpRequest(request, preprocessor, defaultSource, includeResourceAttrsForMetrics)) {
+    for (ReportPoint point :
+        fromOtlpRequest(request, preprocessor, defaultSource, includeResourceAttrsForMetrics)) {
       if (point.getValue() instanceof wavefront.report.Histogram) {
         if (!wasFilteredByPreprocessor(point, histogramHandler, preprocessor)) {
           histogramHandler.report(point);
@@ -77,9 +73,11 @@ public class OtlpMetricsUtils {
     }
   }
 
-  private static List<ReportPoint> fromOtlpRequest(ExportMetricsServiceRequest request,
-                                                   @Nullable ReportableEntityPreprocessor preprocessor,
-                                                   String defaultSource, boolean includeResourceAttrsForMetrics) {
+  private static List<ReportPoint> fromOtlpRequest(
+      ExportMetricsServiceRequest request,
+      @Nullable ReportableEntityPreprocessor preprocessor,
+      String defaultSource,
+      boolean includeResourceAttrsForMetrics) {
     List<ReportPoint> wfPoints = Lists.newArrayList();
 
     for (ResourceMetrics resourceMetrics : request.getResourceMetricsList()) {
@@ -88,15 +86,16 @@ public class OtlpMetricsUtils {
       Pair<String, List<KeyValue>> sourceAndResourceAttrs =
           OtlpTraceUtils.sourceFromAttributes(resource.getAttributesList(), defaultSource);
       String source = sourceAndResourceAttrs._1;
-      List<KeyValue> resourceAttributes = includeResourceAttrsForMetrics ?
-          sourceAndResourceAttrs._2 : Collections.EMPTY_LIST;
+      List<KeyValue> resourceAttributes =
+          includeResourceAttrsForMetrics ? sourceAndResourceAttrs._2 : Collections.EMPTY_LIST;
 
       for (ScopeMetrics scopeMetrics : resourceMetrics.getScopeMetricsList()) {
-        OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Instrumentation Scope: " +
-            scopeMetrics.getScope());
+        OTLP_DATA_LOGGER.finest(
+            () -> "Inbound OTLP Instrumentation Scope: " + scopeMetrics.getScope());
         for (Metric otlpMetric : scopeMetrics.getMetricsList()) {
           OTLP_DATA_LOGGER.finest(() -> "Inbound OTLP Metric: " + otlpMetric);
-          List<ReportPoint> points = transform(otlpMetric, resourceAttributes, preprocessor, source);
+          List<ReportPoint> points =
+              transform(otlpMetric, resourceAttributes, preprocessor, source);
           OTLP_DATA_LOGGER.finest(() -> "Converted Wavefront Metric: " + points);
 
           wfPoints.addAll(points);
@@ -107,9 +106,10 @@ public class OtlpMetricsUtils {
   }
 
   @VisibleForTesting
-  static boolean wasFilteredByPreprocessor(ReportPoint wfReportPoint,
-                                           ReportableEntityHandler<ReportPoint, String> spanHandler,
-                                           @Nullable ReportableEntityPreprocessor preprocessor) {
+  static boolean wasFilteredByPreprocessor(
+      ReportPoint wfReportPoint,
+      ReportableEntityHandler<ReportPoint, String> spanHandler,
+      @Nullable ReportableEntityPreprocessor preprocessor) {
     if (preprocessor == null) {
       return false;
     }
@@ -128,10 +128,11 @@ public class OtlpMetricsUtils {
   }
 
   @VisibleForTesting
-  public static List<ReportPoint> transform(Metric otlpMetric,
-                                            List<KeyValue> resourceAttrs,
-                                            ReportableEntityPreprocessor preprocessor,
-                                            String source) {
+  public static List<ReportPoint> transform(
+      Metric otlpMetric,
+      List<KeyValue> resourceAttrs,
+      ReportableEntityPreprocessor preprocessor,
+      String source) {
     List<ReportPoint> points = new ArrayList<>();
     if (otlpMetric.hasGauge()) {
       points.addAll(transformGauge(otlpMetric.getName(), otlpMetric.getGauge(), resourceAttrs));
@@ -140,17 +141,22 @@ public class OtlpMetricsUtils {
     } else if (otlpMetric.hasSummary()) {
       points.addAll(transformSummary(otlpMetric.getName(), otlpMetric.getSummary(), resourceAttrs));
     } else if (otlpMetric.hasHistogram()) {
-      points.addAll(transformHistogram(otlpMetric.getName(),
-          fromOtelHistogram(otlpMetric.getHistogram()),
-          otlpMetric.getHistogram().getAggregationTemporality(),
-          resourceAttrs));
+      points.addAll(
+          transformHistogram(
+              otlpMetric.getName(),
+              fromOtelHistogram(otlpMetric.getHistogram()),
+              otlpMetric.getHistogram().getAggregationTemporality(),
+              resourceAttrs));
     } else if (otlpMetric.hasExponentialHistogram()) {
-      points.addAll(transformHistogram(otlpMetric.getName(),
-          fromOtelExponentialHistogram(otlpMetric.getExponentialHistogram()),
-          otlpMetric.getExponentialHistogram().getAggregationTemporality(),
-          resourceAttrs));
+      points.addAll(
+          transformHistogram(
+              otlpMetric.getName(),
+              fromOtelExponentialHistogram(otlpMetric.getExponentialHistogram()),
+              otlpMetric.getExponentialHistogram().getAggregationTemporality(),
+              resourceAttrs));
     } else {
-      throw new IllegalArgumentException("Otel: unsupported metric type for " + otlpMetric.getName());
+      throw new IllegalArgumentException(
+          "Otel: unsupported metric type for " + otlpMetric.getName());
     }
 
     for (ReportPoint point : points) {
@@ -163,7 +169,8 @@ public class OtlpMetricsUtils {
     return points;
   }
 
-  private static List<ReportPoint> transformSummary(String name, Summary summary, List<KeyValue> resourceAttrs) {
+  private static List<ReportPoint> transformSummary(
+      String name, Summary summary, List<KeyValue> resourceAttrs) {
     List<ReportPoint> points = new ArrayList<>(summary.getDataPointsCount());
     for (SummaryDataPoint p : summary.getDataPointsList()) {
       points.addAll(transformSummaryDataPoint(name, p, resourceAttrs));
@@ -171,8 +178,8 @@ public class OtlpMetricsUtils {
     return points;
   }
 
-  private static List<ReportPoint> transformSum(String name, Sum sum,
-                                                List<KeyValue> resourceAttrs) {
+  private static List<ReportPoint> transformSum(
+      String name, Sum sum, List<KeyValue> resourceAttrs) {
     if (sum.getDataPointsCount() == 0) {
       throw new IllegalArgumentException("OTel: sum with no data points");
     }
@@ -186,7 +193,9 @@ public class OtlpMetricsUtils {
         prefix = MetricConstants.DELTA_PREFIX;
         break;
       default:
-        throw new IllegalArgumentException("OTel: sum with unsupported aggregation temporality " + sum.getAggregationTemporality().name());
+        throw new IllegalArgumentException(
+            "OTel: sum with unsupported aggregation temporality "
+                + sum.getAggregationTemporality().name());
     }
 
     List<ReportPoint> points = new ArrayList<>(sum.getDataPointsCount());
@@ -208,8 +217,9 @@ public class OtlpMetricsUtils {
       case AGGREGATION_TEMPORALITY_DELTA:
         return transformDeltaHistogram(name, dataPoints, resourceAttrs);
       default:
-        throw new IllegalArgumentException("OTel: histogram with unsupported aggregation temporality "
-            + aggregationTemporality.name());
+        throw new IllegalArgumentException(
+            "OTel: histogram with unsupported aggregation temporality "
+                + aggregationTemporality.name());
     }
   }
 
@@ -239,9 +249,14 @@ public class OtlpMetricsUtils {
     List<Double> explicitBounds = point.getExplicitBounds();
     List<Long> bucketCounts = point.getBucketCounts();
     if (explicitBounds.size() != bucketCounts.size() - 1) {
-      throw new IllegalArgumentException("OTel: histogram " + name + ": Explicit bounds count " +
-          "should be one less than bucket count. ExplicitBounds: " + explicitBounds.size() +
-          ", BucketCounts: " + bucketCounts.size());
+      throw new IllegalArgumentException(
+          "OTel: histogram "
+              + name
+              + ": Explicit bounds count "
+              + "should be one less than bucket count. ExplicitBounds: "
+              + explicitBounds.size()
+              + ", BucketCounts: "
+              + bucketCounts.size());
     }
 
     List<ReportPoint> reportPoints = new ArrayList<>();
@@ -270,17 +285,19 @@ public class OtlpMetricsUtils {
           throw new IllegalArgumentException("Unknown granularity: " + granularity);
       }
 
-      wavefront.report.Histogram histogram = wavefront.report.Histogram.newBuilder().
-          setType(HistogramType.TDIGEST).
-          setBins(bins).
-          setCounts(counts).
-          setDuration(duration).
-          build();
+      wavefront.report.Histogram histogram =
+          wavefront.report.Histogram.newBuilder()
+              .setType(HistogramType.TDIGEST)
+              .setBins(bins)
+              .setCounts(counts)
+              .setDuration(duration)
+              .build();
 
-      ReportPoint rp = pointWithAnnotations(name, point.getAttributesList(), resourceAttrs,
-          point.getTimeUnixNano())
-          .setValue(histogram)
-          .build();
+      ReportPoint rp =
+          pointWithAnnotations(
+                  name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
+              .setValue(histogram)
+              .build();
       reportPoints.add(rp);
     }
     return reportPoints;
@@ -305,9 +322,14 @@ public class OtlpMetricsUtils {
     List<Double> explicitBounds = point.getExplicitBounds();
 
     if (explicitBounds.size() != bucketCounts.size() - 1) {
-      throw new IllegalArgumentException("OTel: histogram " + name + ": Explicit bounds count " +
-          "should be one less than bucket count. ExplicitBounds: " + explicitBounds.size() +
-          ", BucketCounts: " + bucketCounts.size());
+      throw new IllegalArgumentException(
+          "OTel: histogram "
+              + name
+              + ": Explicit bounds count "
+              + "should be one less than bucket count. ExplicitBounds: "
+              + explicitBounds.size()
+              + ", BucketCounts: "
+              + bucketCounts.size());
     }
 
     List<ReportPoint> reportPoints = new ArrayList<>(bucketCounts.size());
@@ -317,19 +339,21 @@ public class OtlpMetricsUtils {
       cumulativeBucketCount += bucketCounts.get(currentIndex);
       // we have to create a new builder every time as the annotations are getting appended after
       // each iteration
-      ReportPoint rp = pointWithAnnotations(name, point.getAttributesList(), resourceAttrs,
-          point.getTimeUnixNano())
-          .setValue(cumulativeBucketCount)
-          .build();
+      ReportPoint rp =
+          pointWithAnnotations(
+                  name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
+              .setValue(cumulativeBucketCount)
+              .build();
       handleDupAnnotation(rp);
       rp.getAnnotations().put("le", String.valueOf(explicitBounds.get(currentIndex)));
       reportPoints.add(rp);
     }
 
-    ReportPoint rp = pointWithAnnotations(name, point.getAttributesList(), resourceAttrs,
-        point.getTimeUnixNano())
-        .setValue(cumulativeBucketCount + bucketCounts.get(currentIndex))
-        .build();
+    ReportPoint rp =
+        pointWithAnnotations(
+                name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
+            .setValue(cumulativeBucketCount + bucketCounts.get(currentIndex))
+            .build();
     handleDupAnnotation(rp);
     rp.getAnnotations().put("le", "+Inf");
     reportPoints.add(rp);
@@ -345,8 +369,8 @@ public class OtlpMetricsUtils {
     }
   }
 
-  private static Collection<ReportPoint> transformGauge(String name, Gauge gauge,
-                                                        List<KeyValue> resourceAttrs) {
+  private static Collection<ReportPoint> transformGauge(
+      String name, Gauge gauge, List<KeyValue> resourceAttrs) {
     if (gauge.getDataPointsCount() == 0) {
       throw new IllegalArgumentException("OTel: gauge with no data points");
     }
@@ -359,33 +383,40 @@ public class OtlpMetricsUtils {
   }
 
   @NotNull
-  private static ReportPoint transformNumberDataPoint(String name, NumberDataPoint point, List<KeyValue> resourceAttrs) {
-    return pointWithAnnotations(name, point.getAttributesList(), resourceAttrs,
-        point.getTimeUnixNano())
+  private static ReportPoint transformNumberDataPoint(
+      String name, NumberDataPoint point, List<KeyValue> resourceAttrs) {
+    return pointWithAnnotations(
+            name, point.getAttributesList(), resourceAttrs, point.getTimeUnixNano())
         .setValue(point.getAsDouble())
         .build();
   }
 
   @NotNull
-  private static List<ReportPoint> transformSummaryDataPoint(String name, SummaryDataPoint point, List<KeyValue> resourceAttrs) {
+  private static List<ReportPoint> transformSummaryDataPoint(
+      String name, SummaryDataPoint point, List<KeyValue> resourceAttrs) {
     List<ReportPoint> toReturn = new ArrayList<>();
     List<KeyValue> pointAttributes = replaceQuantileTag(point.getAttributesList());
-    toReturn.add(pointWithAnnotations(name + "_sum", pointAttributes, resourceAttrs, point.getTimeUnixNano())
-        .setValue(point.getSum())
-        .build());
-    toReturn.add(pointWithAnnotations(name + "_count", pointAttributes, resourceAttrs, point.getTimeUnixNano())
-        .setValue(point.getCount())
-        .build());
+    toReturn.add(
+        pointWithAnnotations(name + "_sum", pointAttributes, resourceAttrs, point.getTimeUnixNano())
+            .setValue(point.getSum())
+            .build());
+    toReturn.add(
+        pointWithAnnotations(
+                name + "_count", pointAttributes, resourceAttrs, point.getTimeUnixNano())
+            .setValue(point.getCount())
+            .build());
     for (SummaryDataPoint.ValueAtQuantile q : point.getQuantileValuesList()) {
       List<KeyValue> attributes = new ArrayList<>(pointAttributes);
-      KeyValue quantileTag = KeyValue.newBuilder()
-          .setKey("quantile")
-          .setValue(AnyValue.newBuilder().setDoubleValue(q.getQuantile()).build())
-          .build();
+      KeyValue quantileTag =
+          KeyValue.newBuilder()
+              .setKey("quantile")
+              .setValue(AnyValue.newBuilder().setDoubleValue(q.getQuantile()).build())
+              .build();
       attributes.add(quantileTag);
-      toReturn.add(pointWithAnnotations(name, attributes, resourceAttrs, point.getTimeUnixNano())
-          .setValue(q.getValue())
-          .build());
+      toReturn.add(
+          pointWithAnnotations(name, attributes, resourceAttrs, point.getTimeUnixNano())
+              .setValue(q.getValue())
+              .build());
     }
     return toReturn;
   }
@@ -397,10 +428,8 @@ public class OtlpMetricsUtils {
     List<KeyValue> modifiableAttributes = new ArrayList<>();
     for (KeyValue pointAttribute : pointAttributes) {
       if (pointAttribute.getKey().equals("quantile")) {
-        modifiableAttributes.add(KeyValue.newBuilder()
-            .setKey("_quantile")
-            .setValue(pointAttribute.getValue())
-            .build());
+        modifiableAttributes.add(
+            KeyValue.newBuilder().setKey("_quantile").setValue(pointAttribute.getValue()).build());
       } else {
         modifiableAttributes.add(pointAttribute);
       }
@@ -409,11 +438,14 @@ public class OtlpMetricsUtils {
   }
 
   @NotNull
-  private static ReportPoint.Builder pointWithAnnotations(String name, List<KeyValue> pointAttributes, List<KeyValue> resourceAttrs, long timeInNs) {
+  private static ReportPoint.Builder pointWithAnnotations(
+      String name, List<KeyValue> pointAttributes, List<KeyValue> resourceAttrs, long timeInNs) {
     ReportPoint.Builder builder = ReportPoint.newBuilder().setMetric(name);
     Map<String, String> annotations = new HashMap<>();
-    List<KeyValue> otlpAttributes = Stream.of(resourceAttrs, pointAttributes)
-          .flatMap(Collection::stream).collect(Collectors.toList());
+    List<KeyValue> otlpAttributes =
+        Stream.of(resourceAttrs, pointAttributes)
+            .flatMap(Collection::stream)
+            .collect(Collectors.toList());
 
     for (Annotation a : OtlpTraceUtils.annotationsFromAttributes(otlpAttributes)) {
       annotations.put(a.getKey(), a.getValue());
@@ -475,16 +507,25 @@ public class OtlpMetricsUtils {
     List<Double> explicitBounds = new ArrayList<>(numBucketCounts - 1);
 
     appendNegativeBucketsAndExplicitBounds(
-        dataPoint.getNegative().getOffset(), base, negativeBucketCounts, bucketCounts, explicitBounds);
-    appendZeroBucketAndExplicitBound(
-        dataPoint.getPositive().getOffset(), base, dataPoint.getZeroCount(), bucketCounts, explicitBounds);
-    appendPositiveBucketsAndExplicitBounds(
-        dataPoint.getPositive().getOffset(), base, positiveBucketCounts, bucketCounts, explicitBounds);
-    return new BucketHistogramDataPoint(
+        dataPoint.getNegative().getOffset(),
+        base,
+        negativeBucketCounts,
         bucketCounts,
-        explicitBounds,
-        dataPoint.getAttributesList(),
-        dataPoint.getTimeUnixNano());
+        explicitBounds);
+    appendZeroBucketAndExplicitBound(
+        dataPoint.getPositive().getOffset(),
+        base,
+        dataPoint.getZeroCount(),
+        bucketCounts,
+        explicitBounds);
+    appendPositiveBucketsAndExplicitBounds(
+        dataPoint.getPositive().getOffset(),
+        base,
+        positiveBucketCounts,
+        bucketCounts,
+        explicitBounds);
+    return new BucketHistogramDataPoint(
+        bucketCounts, explicitBounds, dataPoint.getAttributesList(), dataPoint.getTimeUnixNano());
   }
 
   // appendNegativeBucketsAndExplicitBounds appends negative buckets and explicit bounds to
@@ -504,7 +545,9 @@ public class OtlpMetricsUtils {
     // the last element in the negativeBucketCounts array.
     for (int i = negativeBucketCounts.size() - 1; i >= 0; i--) {
       bucketCounts.add(negativeBucketCounts.get(i));
-      le /= base; // We divide by base because our explicit bounds are getting smaller in magnitude as we go
+      le /=
+          base; // We divide by base because our explicit bounds are getting smaller in magnitude as
+      // we go
       explicitBounds.add(le);
     }
   }
@@ -575,5 +618,4 @@ public class OtlpMetricsUtils {
       return timeUnixNano;
     }
   }
-
 }

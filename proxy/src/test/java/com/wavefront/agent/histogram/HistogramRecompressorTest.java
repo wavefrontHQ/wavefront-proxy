@@ -1,30 +1,28 @@
 package com.wavefront.agent.histogram;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Test;
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-/**
- * @author vasily@wavefront.com
- */
+/** @author vasily@wavefront.com */
 public class HistogramRecompressorTest {
 
   @Test
   public void testHistogramRecompressor() {
     HistogramRecompressor recompressor = new HistogramRecompressor(() -> (short) 32);
-    Histogram testHistogram = Histogram.newBuilder().
-        setType(HistogramType.TDIGEST).
-        setDuration(60000).
-        setBins(ImmutableList.of(1.0, 2.0, 3.0)).
-        setCounts(ImmutableList.of(3, 2, 1)).
-        build();
+    Histogram testHistogram =
+        Histogram.newBuilder()
+            .setType(HistogramType.TDIGEST)
+            .setDuration(60000)
+            .setBins(ImmutableList.of(1.0, 2.0, 3.0))
+            .setCounts(ImmutableList.of(3, 2, 1))
+            .build();
     Histogram outputHistoram = recompressor.apply(testHistogram);
     // nothing to compress
     assertEquals(outputHistoram, testHistogram);
@@ -39,7 +37,7 @@ public class HistogramRecompressorTest {
     List<Double> bins = new ArrayList<>();
     List<Integer> counts = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
-      bins.add((double)i);
+      bins.add((double) i);
       counts.add(1);
     }
     testHistogram.setBins(bins);

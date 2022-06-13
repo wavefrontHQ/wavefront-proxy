@@ -1,8 +1,6 @@
 package com.wavefront.agent.logsharvesting;
 
-/**
- * @author Mori Bellamy (mori@wavefront.com)
- */
+/** @author Mori Bellamy (mori@wavefront.com) */
 public interface LogsMessage {
   String getLogLine();
 

@@ -1,8 +1,11 @@
 package com.wavefront.agent.listeners.otlp;
 
+import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
+import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
+import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
-
 import com.wavefront.agent.handlers.HandlerKey;
 import com.wavefront.agent.handlers.ReportableEntityHandler;
 import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
@@ -16,7 +19,11 @@ import com.wavefront.sdk.common.WavefrontSender;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
-
+import io.grpc.Status;
+import io.grpc.stub.StreamObserver;
+import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
+import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceResponse;
+import io.opentelemetry.proto.collector.trace.v1.TraceServiceGrpc;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
@@ -26,53 +33,40 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
-
 import javax.annotation.Nullable;
-
-import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
-import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
-import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceResponse;
-import io.opentelemetry.proto.collector.trace.v1.TraceServiceGrpc;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
-import static com.wavefront.agent.listeners.FeatureCheckUtils.SPAN_DISABLED;
-import static com.wavefront.agent.listeners.FeatureCheckUtils.isFeatureDisabled;
-import static com.wavefront.internal.SpanDerivedMetricsUtils.reportHeartbeats;
-
-public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase implements Closeable, Runnable {
+public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase
+    implements Closeable, Runnable {
   protected static final Logger logger =
       Logger.getLogger(OtlpGrpcTraceHandler.class.getCanonicalName());
   private final ReportableEntityHandler<Span, String> spanHandler;
   private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
-  @Nullable
-  private final WavefrontSender wfSender;
-  @Nullable
-  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
+  @Nullable private final WavefrontSender wfSender;
+  @Nullable private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
   private final Pair<SpanSampler, Counter> spanSamplerAndCounter;
   private final Pair<Supplier<Boolean>, Counter> spansDisabled;
   private final Pair<Supplier<Boolean>, Counter> spanLogsDisabled;
   private final String defaultSource;
-  @Nullable
-  private final WavefrontInternalReporter internalReporter;
+  @Nullable private final WavefrontInternalReporter internalReporter;
   private final Set<Pair<Map<String, String>, String>> discoveredHeartbeatMetrics;
   private final Set<String> traceDerivedCustomTagKeys;
   private final ScheduledExecutorService scheduledExecutorService;
   private final Counter receivedSpans;
 
-
   @VisibleForTesting
-  public OtlpGrpcTraceHandler(String handle,
-                              ReportableEntityHandler<Span, String> spanHandler,
-                              ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
-                              @Nullable WavefrontSender wfSender,
-                              @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                              SpanSampler sampler,
-                              Supplier<Boolean> spansFeatureDisabled,
-                              Supplier<Boolean> spanLogsFeatureDisabled,
-                              String defaultSource,
-                              Set<String> traceDerivedCustomTagKeys) {
+  public OtlpGrpcTraceHandler(
+      String handle,
+      ReportableEntityHandler<Span, String> spanHandler,
+      ReportableEntityHandler<SpanLogs, String> spanLogsHandler,
+      @Nullable WavefrontSender wfSender,
+      @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      SpanSampler sampler,
+      Supplier<Boolean> spansFeatureDisabled,
+      Supplier<Boolean> spanLogsFeatureDisabled,
+      String defaultSource,
+      Set<String> traceDerivedCustomTagKeys) {
     this.spanHandler = spanHandler;
     this.spanLogsHandler = spanLogsHandler;
     this.wfSender = wfSender;
@@ -81,13 +75,20 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
     this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
 
     this.discoveredHeartbeatMetrics = Sets.newConcurrentHashSet();
-    this.receivedSpans = Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
-    this.spanSamplerAndCounter = Pair.of(sampler,
-        Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded")));
-    this.spansDisabled = Pair.of(spansFeatureDisabled,
-        Metrics.newCounter(new MetricName("spans." + handle, "", "discarded")));
-    this.spanLogsDisabled = Pair.of(spanLogsFeatureDisabled,
-        Metrics.newCounter(new MetricName("spanLogs." + handle, "", "discarded")));
+    this.receivedSpans =
+        Metrics.newCounter(new MetricName("spans." + handle, "", "received.total"));
+    this.spanSamplerAndCounter =
+        Pair.of(
+            sampler,
+            Metrics.newCounter(new MetricName("spans." + handle, "", "sampler.discarded")));
+    this.spansDisabled =
+        Pair.of(
+            spansFeatureDisabled,
+            Metrics.newCounter(new MetricName("spans." + handle, "", "discarded")));
+    this.spanLogsDisabled =
+        Pair.of(
+            spanLogsFeatureDisabled,
+            Metrics.newCounter(new MetricName("spanLogs." + handle, "", "discarded")));
 
     this.scheduledExecutorService =
         Executors.newScheduledThreadPool(1, new NamedThreadFactory("otlp-grpc-heart-beater"));
@@ -96,24 +97,33 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
     this.internalReporter = OtlpTraceUtils.createAndStartInternalReporter(wfSender);
   }
 
-  public OtlpGrpcTraceHandler(String handle,
-                              ReportableEntityHandlerFactory handlerFactory,
-                              @Nullable WavefrontSender wfSender,
-                              @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
-                              SpanSampler sampler,
-                              Supplier<Boolean> spansFeatureDisabled,
-                              Supplier<Boolean> spanLogsFeatureDisabled,
-                              String defaultSource,
-                              Set<String> traceDerivedCustomTagKeys) {
-    this(handle, handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
+  public OtlpGrpcTraceHandler(
+      String handle,
+      ReportableEntityHandlerFactory handlerFactory,
+      @Nullable WavefrontSender wfSender,
+      @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
+      SpanSampler sampler,
+      Supplier<Boolean> spansFeatureDisabled,
+      Supplier<Boolean> spanLogsFeatureDisabled,
+      String defaultSource,
+      Set<String> traceDerivedCustomTagKeys) {
+    this(
+        handle,
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle)),
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle)),
-        wfSender, preprocessorSupplier, sampler, spansFeatureDisabled, spanLogsFeatureDisabled,
-        defaultSource, traceDerivedCustomTagKeys);
+        wfSender,
+        preprocessorSupplier,
+        sampler,
+        spansFeatureDisabled,
+        spanLogsFeatureDisabled,
+        defaultSource,
+        traceDerivedCustomTagKeys);
   }
 
   @Override
-  public void export(ExportTraceServiceRequest request,
-                     StreamObserver<ExportTraceServiceResponse> responseObserver) {
+  public void export(
+      ExportTraceServiceRequest request,
+      StreamObserver<ExportTraceServiceResponse> responseObserver) {
     long spanCount = OtlpTraceUtils.getSpansCount(request);
     receivedSpans.inc(spanCount);
 
@@ -124,10 +134,16 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
     }
 
     OtlpTraceUtils.exportToWavefront(
-        request, spanHandler, spanLogsHandler, preprocessorSupplier, spanLogsDisabled,
-        spanSamplerAndCounter, defaultSource, discoveredHeartbeatMetrics, internalReporter,
-        traceDerivedCustomTagKeys
-    );
+        request,
+        spanHandler,
+        spanLogsHandler,
+        preprocessorSupplier,
+        spanLogsDisabled,
+        spanSamplerAndCounter,
+        defaultSource,
+        discoveredHeartbeatMetrics,
+        internalReporter,
+        traceDerivedCustomTagKeys);
 
     responseObserver.onNext(ExportTraceServiceResponse.getDefaultInstance());
     responseObserver.onCompleted();
@@ -146,5 +162,4 @@ public class OtlpGrpcTraceHandler extends TraceServiceGrpc.TraceServiceImplBase 
   public void close() {
     scheduledExecutorService.shutdownNow();
   }
-
 }

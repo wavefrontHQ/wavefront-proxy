@@ -3,12 +3,10 @@ package com.wavefront.agent.sampler;
 import com.wavefront.sdk.entities.tracing.sampling.DurationSampler;
 import com.wavefront.sdk.entities.tracing.sampling.RateSampler;
 import com.wavefront.sdk.entities.tracing.sampling.Sampler;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
 import javax.annotation.Nullable;
 
 /**

@@ -1,20 +1,17 @@
 package com.wavefront.agent.preprocessor;
 
+import static com.wavefront.predicates.Util.expandPlaceholders;
+
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-
 import java.util.function.Predicate;
-
 import javax.annotation.Nullable;
-
 import wavefront.report.ReportPoint;
-
-import static com.wavefront.predicates.Util.expandPlaceholders;
 
 /**
  * Creates a new point tag with a specified value, or overwrite an existing one.
  *
- * Created by Vasily on 9/13/16.
+ * <p>Created by Vasily on 9/13/16.
  */
 public class ReportPointAddTagTransformer implements Function<ReportPoint, ReportPoint> {
 
@@ -23,10 +20,11 @@ public class ReportPointAddTagTransformer implements Function<ReportPoint, Repor
   protected final PreprocessorRuleMetrics ruleMetrics;
   protected final Predicate<ReportPoint> v2Predicate;
 
-  public ReportPointAddTagTransformer(final String tag,
-                                      final String value,
-                                      @Nullable final Predicate<ReportPoint> v2Predicate,
-                                      final PreprocessorRuleMetrics ruleMetrics) {
+  public ReportPointAddTagTransformer(
+      final String tag,
+      final String value,
+      @Nullable final Predicate<ReportPoint> v2Predicate,
+      final PreprocessorRuleMetrics ruleMetrics) {
     this.tag = Preconditions.checkNotNull(tag, "[tag] can't be null");
     this.value = Preconditions.checkNotNull(value, "[value] can't be null");
     Preconditions.checkArgument(!tag.isEmpty(), "[tag] can't be blank");

@@ -1,10 +1,16 @@
 package com.tdunning.math.stats;
 
 import com.google.common.base.Preconditions;
-
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
-
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import net.jafama.FastMath;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.core.io.IORuntimeException;
@@ -13,47 +19,43 @@ import net.openhft.chronicle.hash.serialization.SizedReader;
 import net.openhft.chronicle.hash.serialization.SizedWriter;
 import net.openhft.chronicle.wire.WireIn;
 import net.openhft.chronicle.wire.WireOut;
-
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-
 import wavefront.report.Histogram;
 import wavefront.report.HistogramType;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 /**
- * NOTE: This is a pruned and modified version of {@link MergingDigest}. It does not support queries (cdf/quantiles) or
- * the traditional encodings.
- * <p/>
- * Maintains a t-digest by collecting new points in a buffer that is then sorted occasionally and merged into a sorted
- * array that contains previously computed centroids.
- * <p/>
- * This can be very fast because the cost of sorting and merging is amortized over several insertion. If we keep N
- * centroids total and have the input array is k long, then the amortized cost is something like
- * <p/>
- * N/k + log k
- * <p/>
- * These costs even out when N/k = log k.  Balancing costs is often a good place to start in optimizing an algorithm.
- * For different values of compression factor, the following table shows estimated asymptotic values of N and suggested
- * values of k: <table> <thead> <tr><td>Compression</td><td>N</td><td>k</td></tr> </thead> <tbody>
+ * NOTE: This is a pruned and modified version of {@link MergingDigest}. It does not support queries
+ * (cdf/quantiles) or the traditional encodings.
+ *
+ * <p>Maintains a t-digest by collecting new points in a buffer that is then sorted occasionally and
+ * merged into a sorted array that contains previously computed centroids.
+ *
+ * <p>This can be very fast because the cost of sorting and merging is amortized over several
+ * insertion. If we keep N centroids total and have the input array is k long, then the amortized
+ * cost is something like
+ *
+ * <p>N/k + log k
+ *
+ * <p>These costs even out when N/k = log k. Balancing costs is often a good place to start in
+ * optimizing an algorithm. For different values of compression factor, the following table shows
+ * estimated asymptotic values of N and suggested values of k:
+ *
+ * <table> <thead> <tr><td>Compression</td><td>N</td><td>k</td></tr> </thead> <tbody>
  * <tr><td>50</td><td>78</td><td>25</td></tr> <tr><td>100</td><td>157</td><td>42</td></tr>
  * <tr><td>200</td><td>314</td><td>73</td></tr> </tbody> </table>
- * <p/>
- * The virtues of this kind of t-digest implementation include: <ul> <li>No allocation is required after
- * initialization</li> <li>The data structure automatically compresses existing centroids when possible</li> <li>No Java
- * object overhead is incurred for centroids since data is kept in primitive arrays</li> </ul>
- * <p/>
- * The current implementation takes the liberty of using ping-pong buffers for implementing the merge resulting in a
- * substantial memory penalty, but the complexity of an in place merge was not considered as worthwhile since even with
- * the overhead, the memory cost is less than 40 bytes per centroid which is much less than half what the AVLTreeDigest
- * uses.  Speed tests are still not complete so it is uncertain whether the merge strategy is faster than the tree
- * strategy.
+ *
+ * <p>The virtues of this kind of t-digest implementation include:
+ *
+ * <ul>
+ *   <li>No allocation is required after initialization
+ *   <li>The data structure automatically compresses existing centroids when possible
+ *   <li>No Java object overhead is incurred for centroids since data is kept in primitive arrays
+ * </ul>
+ *
+ * <p>The current implementation takes the liberty of using ping-pong buffers for implementing the
+ * merge resulting in a substantial memory penalty, but the complexity of an in place merge was not
+ * considered as worthwhile since even with the overhead, the memory cost is less than 40 bytes per
+ * centroid which is much less than half what the AVLTreeDigest uses. Speed tests are still not
+ * complete so it is uncertain whether the merge strategy is faster than the tree strategy.
  */
 public class AgentDigest extends AbstractTDigest {
 
@@ -125,9 +127,7 @@ public class AgentDigest extends AbstractTDigest {
     this.dispatchTimeMillis = dispatchTimeMillis;
   }
 
-  /**
-   * Turns on internal data recording.
-   */
+  /** Turns on internal data recording. */
   @Override
   public TDigest recordAllData() {
     super.recordAllData();
@@ -207,7 +207,13 @@ public class AgentDigest extends AbstractTDigest {
         int ix = order[i];
         if (tempMean[ix] <= mean[j]) {
           wSoFar += tempWeight[ix];
-          k1 = mergeCentroid(wSoFar, k1, tempWeight[ix], tempMean[ix], tempData != null ? tempData.get(ix) : null);
+          k1 =
+              mergeCentroid(
+                  wSoFar,
+                  k1,
+                  tempWeight[ix],
+                  tempMean[ix],
+                  tempData != null ? tempData.get(ix) : null);
           i++;
         } else {
           wSoFar += weight[j];
@@ -219,7 +225,13 @@ public class AgentDigest extends AbstractTDigest {
       while (i < tempUsed) {
         int ix = order[i];
         wSoFar += tempWeight[ix];
-        k1 = mergeCentroid(wSoFar, k1, tempWeight[ix], tempMean[ix], tempData != null ? tempData.get(ix) : null);
+        k1 =
+            mergeCentroid(
+                wSoFar,
+                k1,
+                tempWeight[ix],
+                tempMean[ix],
+                tempData != null ? tempData.get(ix) : null);
         i++;
       }
 
@@ -253,7 +265,8 @@ public class AgentDigest extends AbstractTDigest {
     if (k2 - k1 <= 1 || mergeWeight[lastUsedCell] == 0) {
       // merge into existing centroid
       mergeWeight[lastUsedCell] += w;
-      mergeMean[lastUsedCell] = mergeMean[lastUsedCell] + (m - mergeMean[lastUsedCell]) * w / mergeWeight[lastUsedCell];
+      mergeMean[lastUsedCell] =
+          mergeMean[lastUsedCell] + (m - mergeMean[lastUsedCell]) * w / mergeWeight[lastUsedCell];
     } else {
       // create new centroid
       lastUsedCell++;
@@ -271,9 +284,7 @@ public class AgentDigest extends AbstractTDigest {
     return k1;
   }
 
-  /**
-   * Exposed for testing.
-   */
+  /** Exposed for testing. */
   int checkWeights() {
     return checkWeights(weight, totalWeight, lastUsedCell);
   }
@@ -292,11 +303,16 @@ public class AgentDigest extends AbstractTDigest {
       double dq = w[i] / total;
       double k2 = integratedLocation(q + dq);
       if (k2 - k1 > 1 && w[i] != 1) {
-        System.out.printf("Oversize centroid at %d, k0=%.2f, k1=%.2f, dk=%.2f, w=%.2f, q=%.4f\n", i, k1, k2, k2 - k1, w[i], q);
+        System.out.printf(
+            "Oversize centroid at %d, k0=%.2f, k1=%.2f, dk=%.2f, w=%.2f, q=%.4f\n",
+            i, k1, k2, k2 - k1, w[i], q);
         badCount++;
       }
       if (k2 - k1 > 1.5 && w[i] != 1) {
-        throw new IllegalStateException(String.format("Egregiously oversized centroid at %d, k0=%.2f, k1=%.2f, dk=%.2f, w=%.2f, q=%.4f\n", i, k1, k2, k2 - k1, w[i], q));
+        throw new IllegalStateException(
+            String.format(
+                "Egregiously oversized centroid at %d, k0=%.2f, k1=%.2f, dk=%.2f, w=%.2f, q=%.4f\n",
+                i, k1, k2, k2 - k1, w[i], q));
       }
       q += dq;
       k1 = k2;
@@ -306,18 +322,17 @@ public class AgentDigest extends AbstractTDigest {
   }
 
   /**
-   * Converts a quantile into a centroid scale value.  The centroid scale is nominally
-   * the number k of the centroid that a quantile point q should belong to.  Due to
-   * round-offs, however, we can't align things perfectly without splitting points
-   * and centroids.  We don't want to do that, so we have to allow for offsets.
-   * In the end, the criterion is that any quantile range that spans a centroid
-   * scale range more than one should be split across more than one centroid if
-   * possible.  This won't be possible if the quantile range refers to a single point
-   * or an already existing centroid.
-   * <p/>
-   * This mapping is steep near q=0 or q=1 so each centroid there will correspond to
-   * less q range.  Near q=0.5, the mapping is flatter so that centroids there will
-   * represent a larger chunk of quantiles.
+   * Converts a quantile into a centroid scale value. The centroid scale is nominally the number k
+   * of the centroid that a quantile point q should belong to. Due to round-offs, however, we can't
+   * align things perfectly without splitting points and centroids. We don't want to do that, so we
+   * have to allow for offsets. In the end, the criterion is that any quantile range that spans a
+   * centroid scale range more than one should be split across more than one centroid if possible.
+   * This won't be possible if the quantile range refers to a single point or an already existing
+   * centroid.
+   *
+   * <p>This mapping is steep near q=0 or q=1 so each centroid there will correspond to less q
+   * range. Near q=0.5, the mapping is flatter so that centroids there will represent a larger chunk
+   * of quantiles.
    *
    * @param q The quantile scale value to be mapped.
    * @return The centroid scale value corresponding to q.
@@ -348,8 +363,8 @@ public class AgentDigest extends AbstractTDigest {
   }
 
   /**
-   * Not clear to me that this is a good idea, maybe just add the temp points and existing centroids rather then merging
-   * first?
+   * Not clear to me that this is a good idea, maybe just add the temp points and existing centroids
+   * rather then merging first?
    */
   @Override
   public Collection<Centroid> centroids() {
@@ -377,18 +392,13 @@ public class AgentDigest extends AbstractTDigest {
     return 0;
   }
 
-
-  /**
-   * Number of centroids of this AgentDigest (does compress if necessary)
-   */
+  /** Number of centroids of this AgentDigest (does compress if necessary) */
   public int centroidCount() {
     mergeNewValues();
     return lastUsedCell + (weight[lastUsedCell] == 0 ? 0 : 1);
   }
 
-  /**
-   * Creates a reporting Histogram from this AgentDigest (marked with the supplied duration).
-   */
+  /** Creates a reporting Histogram from this AgentDigest (marked with the supplied duration). */
   public Histogram toHistogram(int duration) {
     int numCentroids = centroidCount();
     // NOTE: now merged as a side-effect
@@ -409,31 +419,25 @@ public class AgentDigest extends AbstractTDigest {
         .build();
   }
 
-  /**
-   * Comprises of the dispatch-time (8 bytes) + compression (2 bytes)
-   */
+  /** Comprises of the dispatch-time (8 bytes) + compression (2 bytes) */
   private static final int FIXED_SIZE = 8 + 2;
-  /**
-   * Weight, mean float pair
-   */
+  /** Weight, mean float pair */
   private static final int PER_CENTROID_SIZE = 8;
 
   private int encodedSize() {
     return FIXED_SIZE + centroidCount() * PER_CENTROID_SIZE;
   }
 
-  /**
-   * Stateless AgentDigest codec for chronicle maps
-   */
-  public static class AgentDigestMarshaller implements SizedReader<AgentDigest>,
-      SizedWriter<AgentDigest>, ReadResolvable<AgentDigestMarshaller> {
+  /** Stateless AgentDigest codec for chronicle maps */
+  public static class AgentDigestMarshaller
+      implements SizedReader<AgentDigest>,
+          SizedWriter<AgentDigest>,
+          ReadResolvable<AgentDigestMarshaller> {
     private static final AgentDigestMarshaller INSTANCE = new AgentDigestMarshaller();
     private static final com.yammer.metrics.core.Histogram accumulatorValueSizes =
         Metrics.newHistogram(new MetricName("histogram", "", "accumulatorValueSize"));
 
-
-    private AgentDigestMarshaller() {
-    }
+    private AgentDigestMarshaller() {}
 
     public static AgentDigestMarshaller get() {
       return INSTANCE;
@@ -523,9 +527,7 @@ public class AgentDigest extends AbstractTDigest {
     // Ignore
   }
 
-  /**
-   * Time at which this digest should be dispatched to wavefront.
-   */
+  /** Time at which this digest should be dispatched to wavefront. */
   public long getDispatchTimeMillis() {
     return dispatchTimeMillis;
   }

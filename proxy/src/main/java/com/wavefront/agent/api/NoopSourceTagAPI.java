@@ -1,9 +1,8 @@
 package com.wavefront.agent.api;
 
-import javax.ws.rs.core.Response;
-import java.util.List;
-
 import com.wavefront.api.SourceTagAPI;
+import java.util.List;
+import javax.ws.rs.core.Response;
 
 /**
  * A no-op SourceTagAPI stub.

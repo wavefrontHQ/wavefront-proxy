@@ -1,11 +1,13 @@
 package com.wavefront.agent.handlers;
 
+import static com.wavefront.data.Validation.validatePoint;
+import static com.wavefront.sdk.common.Utils.metricToLineData;
+
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AtomicDouble;
-
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
@@ -20,10 +22,6 @@ import com.yammer.metrics.core.DeltaCounter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
-import wavefront.report.ReportPoint;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -33,18 +31,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static com.wavefront.data.Validation.validatePoint;
-import static com.wavefront.sdk.common.Utils.metricToLineData;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import wavefront.report.ReportPoint;
 
 /**
- * Handler that processes incoming DeltaCounter objects, aggregates them and hands it over to one
- * of the {@link SenderTask} threads according to deltaCountersAggregationIntervalSeconds or
- * before cache expires.
+ * Handler that processes incoming DeltaCounter objects, aggregates them and hands it over to one of
+ * the {@link SenderTask} threads according to deltaCountersAggregationIntervalSeconds or before
+ * cache expires.
  *
  * @author djia@vmware.com
  */
@@ -60,64 +57,85 @@ public class DeltaCounterAccumulationHandlerImpl
   private final ScheduledExecutorService reporter = Executors.newSingleThreadScheduledExecutor();
   private final Timer receivedRateTimer;
 
-    /**
-   * @param handlerKey                 metrics pipeline key.
-   * @param blockedItemsPerBatch       controls sample rate of how many blocked
-   *                                   points are written into the main log file.
-     * @param senderTaskMap            map of tenant name and tasks actually handling data transfer to
-     *                                 the Wavefront endpoint corresponding to the tenant name
-   * @param validationConfig           validation configuration.
+  /**
+   * @param handlerKey metrics pipeline key.
+   * @param blockedItemsPerBatch controls sample rate of how many blocked points are written into
+   *     the main log file.
+   * @param senderTaskMap map of tenant name and tasks actually handling data transfer to the
+   *     Wavefront endpoint corresponding to the tenant name
+   * @param validationConfig validation configuration.
    * @param aggregationIntervalSeconds aggregation interval for delta counters.
-   * @param receivedRateSink           where to report received rate.
-   * @param blockedItemLogger          logger for blocked items.
-   * @param validItemsLogger           logger for valid items.
+   * @param receivedRateSink where to report received rate.
+   * @param blockedItemLogger logger for blocked items.
+   * @param validItemsLogger logger for valid items.
    */
   public DeltaCounterAccumulationHandlerImpl(
-      final HandlerKey handlerKey, final int blockedItemsPerBatch,
+      final HandlerKey handlerKey,
+      final int blockedItemsPerBatch,
       @Nullable final Map<String, Collection<SenderTask<String>>> senderTaskMap,
       @Nonnull final ValidationConfiguration validationConfig,
-      long aggregationIntervalSeconds, @Nullable final BiConsumer<String, Long> receivedRateSink,
+      long aggregationIntervalSeconds,
+      @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
-    super(handlerKey, blockedItemsPerBatch, new ReportPointSerializer(), senderTaskMap, true,
-        null, blockedItemLogger);
+    super(
+        handlerKey,
+        blockedItemsPerBatch,
+        new ReportPointSerializer(),
+        senderTaskMap,
+        true,
+        null,
+        blockedItemLogger);
     this.validationConfig = validationConfig;
     this.validItemsLogger = validItemsLogger;
 
-    this.aggregatedDeltas = Caffeine.newBuilder().
-        expireAfterAccess(5 * aggregationIntervalSeconds, TimeUnit.SECONDS).
-        removalListener((RemovalListener<HostMetricTagsPair, AtomicDouble>)
-            (metric, value, reason) -> this.reportAggregatedDeltaValue(metric, value)).build();
+    this.aggregatedDeltas =
+        Caffeine.newBuilder()
+            .expireAfterAccess(5 * aggregationIntervalSeconds, TimeUnit.SECONDS)
+            .removalListener(
+                (RemovalListener<HostMetricTagsPair, AtomicDouble>)
+                    (metric, value, reason) -> this.reportAggregatedDeltaValue(metric, value))
+            .build();
 
-    this.receivedPointLag = Metrics.newHistogram(new MetricName("points." + handlerKey.getHandle() +
-        ".received", "", "lag"), false);
+    this.receivedPointLag =
+        Metrics.newHistogram(
+            new MetricName("points." + handlerKey.getHandle() + ".received", "", "lag"), false);
 
-    reporter.scheduleWithFixedDelay(this::flushDeltaCounters, aggregationIntervalSeconds,
-        aggregationIntervalSeconds, TimeUnit.SECONDS);
+    reporter.scheduleWithFixedDelay(
+        this::flushDeltaCounters,
+        aggregationIntervalSeconds,
+        aggregationIntervalSeconds,
+        TimeUnit.SECONDS);
 
     String metricPrefix = handlerKey.toString();
-    this.reportedStats = new BurstRateTrackingCounter(new MetricName(metricPrefix, "", "sent"),
-        Metrics.defaultRegistry(), 1000);
-    this.discardedCounterSupplier = Utils.lazySupplier(() ->
-            Metrics.newCounter(new MetricName(metricPrefix, "", "discarded")));
-    Metrics.newGauge(new MetricName(metricPrefix, "", "accumulator.size"), new Gauge<Long>() {
-      @Override
-      public Long value() {
-        return aggregatedDeltas.estimatedSize();
-      }
-    });
+    this.reportedStats =
+        new BurstRateTrackingCounter(
+            new MetricName(metricPrefix, "", "sent"), Metrics.defaultRegistry(), 1000);
+    this.discardedCounterSupplier =
+        Utils.lazySupplier(() -> Metrics.newCounter(new MetricName(metricPrefix, "", "discarded")));
+    Metrics.newGauge(
+        new MetricName(metricPrefix, "", "accumulator.size"),
+        new Gauge<Long>() {
+          @Override
+          public Long value() {
+            return aggregatedDeltas.estimatedSize();
+          }
+        });
     if (receivedRateSink == null) {
       this.receivedRateTimer = null;
     } else {
       this.receivedRateTimer = new Timer("delta-counter-timer-" + handlerKey.getHandle());
-      this.receivedRateTimer.scheduleAtFixedRate(new TimerTask() {
-        @Override
-        public void run() {
-          for (String tenantName : senderTaskMap.keySet()) {
-            receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
-          }
-        }
-      }, 1000, 1000);
+      this.receivedRateTimer.scheduleAtFixedRate(
+          new TimerTask() {
+            @Override
+            public void run() {
+              for (String tenantName : senderTaskMap.keySet()) {
+                receivedRateSink.accept(tenantName, receivedStats.getCurrentRate());
+              }
+            }
+          },
+          1000,
+          1000);
     }
   }
 
@@ -126,30 +144,42 @@ public class DeltaCounterAccumulationHandlerImpl
     this.aggregatedDeltas.asMap().forEach(this::reportAggregatedDeltaValue);
   }
 
-  private void reportAggregatedDeltaValue(@Nullable HostMetricTagsPair hostMetricTagsPair,
-                                          @Nullable AtomicDouble value) {
+  private void reportAggregatedDeltaValue(
+      @Nullable HostMetricTagsPair hostMetricTagsPair, @Nullable AtomicDouble value) {
     if (value == null || hostMetricTagsPair == null) {
       return;
     }
     this.reportedStats.inc();
     double reportedValue = value.getAndSet(0);
     if (reportedValue == 0) return;
-    String strPoint = metricToLineData(hostMetricTagsPair.metric, reportedValue, Clock.now(),
-        hostMetricTagsPair.getHost(), hostMetricTagsPair.getTags(), "wavefront-proxy");
+    String strPoint =
+        metricToLineData(
+            hostMetricTagsPair.metric,
+            reportedValue,
+            Clock.now(),
+            hostMetricTagsPair.getHost(),
+            hostMetricTagsPair.getTags(),
+            "wavefront-proxy");
     getTask(APIContainer.CENTRAL_TENANT_NAME).add(strPoint);
     // check if delta tag contains the tag key indicating this delta point should be multicasted
-    if (isMulticastingActive && hostMetricTagsPair.getTags() != null &&
-        hostMetricTagsPair.getTags().containsKey(MULTICASTING_TENANT_TAG_KEY)) {
+    if (isMulticastingActive
+        && hostMetricTagsPair.getTags() != null
+        && hostMetricTagsPair.getTags().containsKey(MULTICASTING_TENANT_TAG_KEY)) {
       String[] multicastingTenantNames =
           hostMetricTagsPair.getTags().get(MULTICASTING_TENANT_TAG_KEY).trim().split(",");
       hostMetricTagsPair.getTags().remove(MULTICASTING_TENANT_TAG_KEY);
       for (String multicastingTenantName : multicastingTenantNames) {
         // if the tenant name indicated in delta point tag is not configured, just ignore
         if (getTask(multicastingTenantName) != null) {
-          getTask(multicastingTenantName).add(
-              metricToLineData(hostMetricTagsPair.metric, reportedValue, Clock.now(),
-              hostMetricTagsPair.getHost(), hostMetricTagsPair.getTags(), "wavefront-proxy")
-          );
+          getTask(multicastingTenantName)
+              .add(
+                  metricToLineData(
+                      hostMetricTagsPair.metric,
+                      reportedValue,
+                      Clock.now(),
+                      hostMetricTagsPair.getHost(),
+                      hostMetricTagsPair.getTags(),
+                      "wavefront-proxy"));
         }
       }
     }
@@ -167,10 +197,10 @@ public class DeltaCounterAccumulationHandlerImpl
       getReceivedCounter().inc();
       double deltaValue = (double) point.getValue();
       receivedPointLag.update(Clock.now() - point.getTimestamp());
-      HostMetricTagsPair hostMetricTagsPair = new HostMetricTagsPair(point.getHost(),
-          point.getMetric(), point.getAnnotations());
-      Objects.requireNonNull(aggregatedDeltas.get(hostMetricTagsPair, key -> new AtomicDouble(0))).
-          getAndAdd(deltaValue);
+      HostMetricTagsPair hostMetricTagsPair =
+          new HostMetricTagsPair(point.getHost(), point.getMetric(), point.getAnnotations());
+      Objects.requireNonNull(aggregatedDeltas.get(hostMetricTagsPair, key -> new AtomicDouble(0)))
+          .getAndAdd(deltaValue);
       if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
         validItemsLogger.info(serializer.apply(point));
       }

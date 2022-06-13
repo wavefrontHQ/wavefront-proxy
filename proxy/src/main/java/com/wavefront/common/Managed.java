@@ -6,13 +6,9 @@ package com.wavefront.common;
  * @author vasily@wavefront.com
  */
 public interface Managed {
-  /**
-   * Starts the process.
-   */
+  /** Starts the process. */
   void start();
 
-  /**
-   * Stops the process.
-   */
+  /** Stops the process. */
   void stop();
 }

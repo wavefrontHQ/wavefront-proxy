@@ -1,13 +1,16 @@
 package com.wavefront.agent.listeners;
 
-import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
+import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
+import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
+import static io.netty.handler.codec.http.HttpMethod.POST;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.handlers.HandlerKey;
@@ -23,13 +26,11 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
-
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.util.EntityUtils;
-
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.util.CharsetUtil;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -43,23 +44,16 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nullable;
-
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.CharsetUtil;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.util.EntityUtils;
 import wavefront.report.ReportPoint;
 
-import static com.wavefront.agent.channel.ChannelUtils.errorMessageWithRootCause;
-import static com.wavefront.agent.channel.ChannelUtils.writeHttpResponse;
-import static io.netty.handler.codec.http.HttpMethod.POST;
-
 /**
- * Accepts incoming HTTP requests in DataDog JSON format.
- * has the ability to relay them to DataDog.
+ * Accepts incoming HTTP requests in DataDog JSON format. has the ability to relay them to DataDog.
  *
  * @author vasily@wavefront.com
  */
@@ -71,28 +65,30 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   private static final Pattern INVALID_METRIC_CHARACTERS = Pattern.compile("[^-_\\.\\dA-Za-z]");
   private static final Pattern INVALID_TAG_CHARACTERS = Pattern.compile("[^-_:\\.\\\\/\\dA-Za-z]");
 
-  private static final Map<String, String> SYSTEM_METRICS = ImmutableMap.<String, String>builder().
-      put("system.cpu.guest", "cpuGuest").
-      put("system.cpu.idle", "cpuIdle").
-      put("system.cpu.stolen", "cpuStolen").
-      put("system.cpu.system", "cpuSystem").
-      put("system.cpu.user", "cpuUser").
-      put("system.cpu.wait", "cpuWait").
-      put("system.mem.buffers", "memBuffers").
-      put("system.mem.cached", "memCached").
-      put("system.mem.page_tables", "memPageTables").
-      put("system.mem.shared", "memShared").
-      put("system.mem.slab", "memSlab").
-      put("system.mem.free", "memPhysFree").
-      put("system.mem.pct_usable", "memPhysPctUsable").
-      put("system.mem.total", "memPhysTotal").
-      put("system.mem.usable", "memPhysUsable").
-      put("system.mem.used", "memPhysUsed").
-      put("system.swap.cached", "memSwapCached").
-      put("system.swap.free", "memSwapFree").
-      put("system.swap.pct_free", "memSwapPctFree").
-      put("system.swap.total", "memSwapTotal").
-      put("system.swap.used", "memSwapUsed").build();
+  private static final Map<String, String> SYSTEM_METRICS =
+      ImmutableMap.<String, String>builder()
+          .put("system.cpu.guest", "cpuGuest")
+          .put("system.cpu.idle", "cpuIdle")
+          .put("system.cpu.stolen", "cpuStolen")
+          .put("system.cpu.system", "cpuSystem")
+          .put("system.cpu.user", "cpuUser")
+          .put("system.cpu.wait", "cpuWait")
+          .put("system.mem.buffers", "memBuffers")
+          .put("system.mem.cached", "memCached")
+          .put("system.mem.page_tables", "memPageTables")
+          .put("system.mem.shared", "memShared")
+          .put("system.mem.slab", "memSlab")
+          .put("system.mem.free", "memPhysFree")
+          .put("system.mem.pct_usable", "memPhysPctUsable")
+          .put("system.mem.total", "memPhysTotal")
+          .put("system.mem.usable", "memPhysUsable")
+          .put("system.mem.used", "memPhysUsed")
+          .put("system.swap.cached", "memSwapCached")
+          .put("system.swap.free", "memSwapFree")
+          .put("system.swap.pct_free", "memSwapPctFree")
+          .put("system.swap.total", "memSwapTotal")
+          .put("system.swap.used", "memSwapUsed")
+          .build();
 
   private final Histogram httpRequestSize;
 
@@ -101,44 +97,56 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
    * retries, etc
    */
   private final ReportableEntityHandler<ReportPoint, String> pointHandler;
+
   private final boolean synchronousMode;
   private final boolean processSystemMetrics;
   private final boolean processServiceChecks;
-  @Nullable
-  private final HttpClient requestRelayClient;
-  @Nullable
-  private final String requestRelayTarget;
+  @Nullable private final HttpClient requestRelayClient;
+  @Nullable private final String requestRelayTarget;
 
-  @Nullable
-  private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
+  @Nullable private final Supplier<ReportableEntityPreprocessor> preprocessorSupplier;
 
   private final ObjectMapper jsonParser;
 
-  private final Cache<String, Map<String, String>> tagsCache = Caffeine.newBuilder().
-      expireAfterWrite(6, TimeUnit.HOURS).
-      maximumSize(100_000).
-      build();
+  private final Cache<String, Map<String, String>> tagsCache =
+      Caffeine.newBuilder().expireAfterWrite(6, TimeUnit.HOURS).maximumSize(100_000).build();
   private final LoadingCache<Integer, Counter> httpStatusCounterCache;
   private final ScheduledThreadPoolExecutor threadpool;
 
   public DataDogPortUnificationHandler(
-      final String handle, final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandlerFactory handlerFactory, final int fanout,
-      final boolean synchronousMode, final boolean processSystemMetrics,
+      final String handle,
+      final HealthCheckManager healthCheckManager,
+      final ReportableEntityHandlerFactory handlerFactory,
+      final int fanout,
+      final boolean synchronousMode,
+      final boolean processSystemMetrics,
       final boolean processServiceChecks,
-      @Nullable final HttpClient requestRelayClient, @Nullable final String requestRelayTarget,
+      @Nullable final HttpClient requestRelayClient,
+      @Nullable final String requestRelayTarget,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
-    this(handle, healthCheckManager, handlerFactory.getHandler(HandlerKey.of(
-        ReportableEntityType.POINT, handle)), fanout, synchronousMode, processSystemMetrics,
-        processServiceChecks, requestRelayClient, requestRelayTarget, preprocessor);
+    this(
+        handle,
+        healthCheckManager,
+        handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle)),
+        fanout,
+        synchronousMode,
+        processSystemMetrics,
+        processServiceChecks,
+        requestRelayClient,
+        requestRelayTarget,
+        preprocessor);
   }
 
   @VisibleForTesting
   protected DataDogPortUnificationHandler(
-      final String handle, final HealthCheckManager healthCheckManager,
-      final ReportableEntityHandler<ReportPoint, String> pointHandler, final int fanout,
-      final boolean synchronousMode, final boolean processSystemMetrics,
-      final boolean processServiceChecks, @Nullable final HttpClient requestRelayClient,
+      final String handle,
+      final HealthCheckManager healthCheckManager,
+      final ReportableEntityHandler<ReportPoint, String> pointHandler,
+      final int fanout,
+      final boolean synchronousMode,
+      final boolean processSystemMetrics,
+      final boolean processServiceChecks,
+      @Nullable final HttpClient requestRelayClient,
       @Nullable final String requestRelayTarget,
       @Nullable final Supplier<ReportableEntityPreprocessor> preprocessor) {
     super(TokenAuthenticatorBuilder.create().build(), healthCheckManager, handle);
@@ -151,40 +159,50 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     this.requestRelayTarget = requestRelayTarget;
     this.preprocessorSupplier = preprocessor;
     this.jsonParser = new ObjectMapper();
-    this.httpRequestSize = Metrics.newHistogram(new TaggedMetricName("listeners",
-        "http-requests.payload-points", "port", handle));
-    this.httpStatusCounterCache = Caffeine.newBuilder().build(status ->
-        Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.status." + status +
-            ".count", "port", handle)));
-    Metrics.newGauge(new TaggedMetricName("listeners", "tags-cache-size",
-        "port", handle), new Gauge<Long>() {
-      @Override
-      public Long value() {
-        return tagsCache.estimatedSize();
-      }
-    });
-    Metrics.newGauge(new TaggedMetricName("listeners", "http-relay.threadpool.queue-size",
-        "port", handle), new Gauge<Integer>() {
-      @Override
-      public Integer value() {
-        return threadpool.getQueue().size();
-      }
-    });
+    this.httpRequestSize =
+        Metrics.newHistogram(
+            new TaggedMetricName("listeners", "http-requests.payload-points", "port", handle));
+    this.httpStatusCounterCache =
+        Caffeine.newBuilder()
+            .build(
+                status ->
+                    Metrics.newCounter(
+                        new TaggedMetricName(
+                            "listeners",
+                            "http-relay.status." + status + ".count",
+                            "port",
+                            handle)));
+    Metrics.newGauge(
+        new TaggedMetricName("listeners", "tags-cache-size", "port", handle),
+        new Gauge<Long>() {
+          @Override
+          public Long value() {
+            return tagsCache.estimatedSize();
+          }
+        });
+    Metrics.newGauge(
+        new TaggedMetricName("listeners", "http-relay.threadpool.queue-size", "port", handle),
+        new Gauge<Integer>() {
+          @Override
+          public Integer value() {
+            return threadpool.getQueue().size();
+          }
+        });
   }
 
   @Override
-  protected void handleHttpMessage(final ChannelHandlerContext ctx,
-                                   final FullHttpRequest request) throws URISyntaxException {
+  protected void handleHttpMessage(final ChannelHandlerContext ctx, final FullHttpRequest request)
+      throws URISyntaxException {
     StringBuilder output = new StringBuilder();
     AtomicInteger pointsPerRequest = new AtomicInteger();
     URI uri = new URI(request.uri());
     HttpResponseStatus status = HttpResponseStatus.ACCEPTED;
     String requestBody = request.content().toString(CharsetUtil.UTF_8);
 
-    if (requestRelayClient != null && requestRelayTarget != null &&
-        request.method() == POST) {
-      Histogram requestRelayDuration = Metrics.newHistogram(new TaggedMetricName("listeners",
-          "http-relay.duration-nanos", "port", handle));
+    if (requestRelayClient != null && requestRelayTarget != null && request.method() == POST) {
+      Histogram requestRelayDuration =
+          Metrics.newHistogram(
+              new TaggedMetricName("listeners", "http-relay.duration-nanos", "port", handle));
       long startNanos = System.nanoTime();
       try {
         String outgoingUrl = requestRelayTarget.replaceFirst("/*$", "") + request.uri();
@@ -203,34 +221,42 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
           if (httpStatusCode < 200 || httpStatusCode >= 300) {
             // anything that is not 2xx is relayed as is to the client, don't process the payload
-            writeHttpResponse(ctx, HttpResponseStatus.valueOf(httpStatusCode),
-                EntityUtils.toString(response.getEntity(), "UTF-8"), request);
+            writeHttpResponse(
+                ctx,
+                HttpResponseStatus.valueOf(httpStatusCode),
+                EntityUtils.toString(response.getEntity(), "UTF-8"),
+                request);
             return;
           }
         } else {
-          threadpool.submit(() -> {
-            try {
-              if (logger.isLoggable(Level.FINE)) {
-                logger.fine("Relaying incoming HTTP request (async) to " + outgoingUrl);
-              }
-              HttpResponse response = requestRelayClient.execute(outgoingRequest);
-              int httpStatusCode = response.getStatusLine().getStatusCode();
-              httpStatusCounterCache.get(httpStatusCode).inc();
-              EntityUtils.consumeQuietly(response.getEntity());
-            } catch (IOException e) {
-              logger.warning("Unable to relay request to " + requestRelayTarget + ": " +
-                  e.getMessage());
-              Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.failed",
-                  "port", handle)).inc();
-            }
-          });
+          threadpool.submit(
+              () -> {
+                try {
+                  if (logger.isLoggable(Level.FINE)) {
+                    logger.fine("Relaying incoming HTTP request (async) to " + outgoingUrl);
+                  }
+                  HttpResponse response = requestRelayClient.execute(outgoingRequest);
+                  int httpStatusCode = response.getStatusLine().getStatusCode();
+                  httpStatusCounterCache.get(httpStatusCode).inc();
+                  EntityUtils.consumeQuietly(response.getEntity());
+                } catch (IOException e) {
+                  logger.warning(
+                      "Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
+                  Metrics.newCounter(
+                          new TaggedMetricName("listeners", "http-relay.failed", "port", handle))
+                      .inc();
+                }
+              });
         }
       } catch (IOException e) {
         logger.warning("Unable to relay request to " + requestRelayTarget + ": " + e.getMessage());
-        Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.failed",
-            "port", handle)).inc();
-        writeHttpResponse(ctx, HttpResponseStatus.BAD_GATEWAY, "Unable to relay request: " +
-                e.getMessage(), request);
+        Metrics.newCounter(new TaggedMetricName("listeners", "http-relay.failed", "port", handle))
+            .inc();
+        writeHttpResponse(
+            ctx,
+            HttpResponseStatus.BAD_GATEWAY,
+            "Unable to relay request: " + e.getMessage(),
+            request);
         return;
       } finally {
         requestRelayDuration.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos));
@@ -241,8 +267,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     switch (path) {
       case "/api/v1/series/":
         try {
-          status = reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest,
-              output::append);
+          status =
+              reportMetrics(jsonParser.readTree(requestBody), pointsPerRequest, output::append);
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
           output.append(errorMessageWithRootCause(e));
@@ -254,8 +280,9 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
       case "/api/v1/check_run/":
         if (!processServiceChecks) {
-          Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port",
-              handle)).inc();
+          Metrics.newCounter(
+                  new TaggedMetricName("listeners", "http-requests.ignored", "port", handle))
+              .inc();
           writeHttpResponse(ctx, HttpResponseStatus.ACCEPTED, output, request);
           return;
         }
@@ -275,8 +302,12 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
       case "/intake/":
         try {
-          status = processMetadataAndSystemMetrics(jsonParser.readTree(requestBody),
-              processSystemMetrics, pointsPerRequest, output::append);
+          status =
+              processMetadataAndSystemMetrics(
+                  jsonParser.readTree(requestBody),
+                  processSystemMetrics,
+                  pointsPerRequest,
+                  output::append);
         } catch (Exception e) {
           status = HttpResponseStatus.BAD_REQUEST;
           output.append(errorMessageWithRootCause(e));
@@ -288,25 +319,25 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
 
       default:
         writeHttpResponse(ctx, HttpResponseStatus.NO_CONTENT, output, request);
-        logWarning("WF-300: Unexpected path '" + request.uri() + "', returning HTTP 204",
-            null, ctx);
+        logWarning(
+            "WF-300: Unexpected path '" + request.uri() + "', returning HTTP 204", null, ctx);
         break;
     }
   }
 
   /**
-   * Parse the metrics JSON and report the metrics found.
-   * There are 2 formats supported: array of points and single point
+   * Parse the metrics JSON and report the metrics found. There are 2 formats supported: array of
+   * points and single point
    *
    * @param metrics a DataDog-format payload
    * @param pointCounter counter to track the number of points processed in one request
-   *
    * @return final HTTP status code to return to the client
    * @see #reportMetric(JsonNode, AtomicInteger, Consumer)
    */
-  private HttpResponseStatus reportMetrics(final JsonNode metrics,
-                                           @Nullable final AtomicInteger pointCounter,
-                                           Consumer<String> outputConsumer) {
+  private HttpResponseStatus reportMetrics(
+      final JsonNode metrics,
+      @Nullable final AtomicInteger pointCounter,
+      Consumer<String> outputConsumer) {
     if (metrics == null || !metrics.isObject()) {
       error("Empty or malformed /api/v1/series payload - ignoring", outputConsumer);
       return HttpResponseStatus.BAD_REQUEST;
@@ -335,25 +366,25 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
    *
    * @param metric the JSON object representing a single metric
    * @param pointCounter counter to track the number of points processed in one request
-   *
    * @return True if the metric was reported successfully; False o/w
    */
-  private HttpResponseStatus reportMetric(final JsonNode metric,
-                                          @Nullable final AtomicInteger pointCounter,
-                                          Consumer<String> outputConsumer) {
+  private HttpResponseStatus reportMetric(
+      final JsonNode metric,
+      @Nullable final AtomicInteger pointCounter,
+      Consumer<String> outputConsumer) {
     if (metric == null) {
       error("Skipping - series object null.", outputConsumer);
       return HttpResponseStatus.BAD_REQUEST;
     }
     try {
-      if (metric.get("metric") == null ) {
+      if (metric.get("metric") == null) {
         error("Skipping - 'metric' field missing.", outputConsumer);
         return HttpResponseStatus.BAD_REQUEST;
       }
-      String metricName = INVALID_METRIC_CHARACTERS.matcher(metric.get("metric").textValue()).
-          replaceAll("_");
-      String hostName = metric.get("host") == null ? "unknown" : metric.get("host").textValue().
-          toLowerCase();
+      String metricName =
+          INVALID_METRIC_CHARACTERS.matcher(metric.get("metric").textValue()).replaceAll("_");
+      String hostName =
+          metric.get("host") == null ? "unknown" : metric.get("host").textValue().toLowerCase();
       JsonNode tagsNode = metric.get("tags");
       Map<String, String> systemTags;
       Map<String, String> tags = new HashMap<>();
@@ -384,8 +415,14 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       }
       for (JsonNode node : pointsNode) {
         if (node.size() == 2) {
-          reportValue(metricName, hostName, tags, node.get(1), node.get(0).longValue() * 1000,
-              pointCounter, interval);
+          reportValue(
+              metricName,
+              hostName,
+              tags,
+              node.get(1),
+              node.get(0).longValue() * 1000,
+              pointCounter,
+              interval);
         } else {
           error("Inconsistent point value size (expected: 2)", outputConsumer);
         }
@@ -398,8 +435,10 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     }
   }
 
-  private void reportChecks(final JsonNode checkNode, @Nullable final AtomicInteger pointCounter,
-                            Consumer<String> outputConsumer) {
+  private void reportChecks(
+      final JsonNode checkNode,
+      @Nullable final AtomicInteger pointCounter,
+      Consumer<String> outputConsumer) {
     if (checkNode == null) {
       error("Empty or malformed /api/v1/check_run payload - ignoring", outputConsumer);
       return;
@@ -413,23 +452,25 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     }
   }
 
-  private void reportCheck(final JsonNode check, @Nullable final AtomicInteger pointCounter,
-                           Consumer<String> outputConsumer) {
+  private void reportCheck(
+      final JsonNode check,
+      @Nullable final AtomicInteger pointCounter,
+      Consumer<String> outputConsumer) {
     try {
-      if (check.get("check") == null ) {
+      if (check.get("check") == null) {
         error("Skipping - 'check' field missing.", outputConsumer);
         return;
       }
-      if (check.get("host_name") == null ) {
+      if (check.get("host_name") == null) {
         error("Skipping - 'host_name' field missing.", outputConsumer);
         return;
       }
-      if (check.get("status") == null ) {
+      if (check.get("status") == null) {
         // ignore - there is no status to update
         return;
       }
-      String metricName = INVALID_METRIC_CHARACTERS.matcher(check.get("check").textValue()).
-          replaceAll("_");
+      String metricName =
+          INVALID_METRIC_CHARACTERS.matcher(check.get("check").textValue()).replaceAll("_");
       String hostName = check.get("host_name").textValue().toLowerCase();
       JsonNode tagsNode = check.get("tags");
       Map<String, String> systemTags;
@@ -439,8 +480,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       }
       extractTags(tagsNode, tags); // tags sent with the data override system host-level tags
 
-      long timestamp = check.get("timestamp") == null ?
-          Clock.now() : check.get("timestamp").asLong() * 1000;
+      long timestamp =
+          check.get("timestamp") == null ? Clock.now() : check.get("timestamp").asLong() * 1000;
       reportValue(metricName, hostName, tags, check.get("status"), timestamp, pointCounter);
     } catch (final Exception e) {
       logger.log(Level.WARNING, "WF-300: Failed to add metric", e);
@@ -448,8 +489,10 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
   }
 
   private HttpResponseStatus processMetadataAndSystemMetrics(
-      final JsonNode metrics, boolean reportSystemMetrics,
-      @Nullable final AtomicInteger pointCounter, Consumer<String> outputConsumer) {
+      final JsonNode metrics,
+      boolean reportSystemMetrics,
+      @Nullable final AtomicInteger pointCounter,
+      Consumer<String> outputConsumer) {
     if (metrics == null || !metrics.isObject()) {
       error("Empty or malformed /intake payload", outputConsumer);
       return HttpResponseStatus.BAD_REQUEST;
@@ -478,8 +521,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     }
 
     if (!reportSystemMetrics) {
-      Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port",
-          handle)).inc();
+      Metrics.newCounter(new TaggedMetricName("listeners", "http-requests.ignored", "port", handle))
+          .inc();
       return HttpResponseStatus.ACCEPTED;
     }
 
@@ -489,45 +532,82 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       // Report "system.io." metrics
       JsonNode ioStats = metrics.get("ioStats");
       if (ioStats != null && ioStats.isObject()) {
-        ioStats.fields().forEachRemaining(entry -> {
-          Map<String, String> deviceTags = ImmutableMap.<String, String>builder().
-                  putAll(systemTags).
-                  put("device", entry.getKey()).
-                  build();
-          if (entry.getValue() != null && entry.getValue().isObject()) {
-            entry.getValue().fields().forEachRemaining(metricEntry -> {
-              String metric = "system.io." + metricEntry.getKey().replace('%', ' ').
-                      replace('/', '_').trim();
-              reportValue(metric, hostName, deviceTags, metricEntry.getValue(), timestamp,
-                      pointCounter);
-            });
-          }
-        });
+        ioStats
+            .fields()
+            .forEachRemaining(
+                entry -> {
+                  Map<String, String> deviceTags =
+                      ImmutableMap.<String, String>builder()
+                          .putAll(systemTags)
+                          .put("device", entry.getKey())
+                          .build();
+                  if (entry.getValue() != null && entry.getValue().isObject()) {
+                    entry
+                        .getValue()
+                        .fields()
+                        .forEachRemaining(
+                            metricEntry -> {
+                              String metric =
+                                  "system.io."
+                                      + metricEntry
+                                          .getKey()
+                                          .replace('%', ' ')
+                                          .replace('/', '_')
+                                          .trim();
+                              reportValue(
+                                  metric,
+                                  hostName,
+                                  deviceTags,
+                                  metricEntry.getValue(),
+                                  timestamp,
+                                  pointCounter);
+                            });
+                  }
+                });
       }
 
       // Report all metrics that already start with "system."
-      metrics.fields().forEachRemaining(entry -> {
-        if (entry.getKey().startsWith("system.")) {
-          reportValue(entry.getKey(), hostName, systemTags, entry.getValue(), timestamp,
-                  pointCounter);
-        }
-      });
+      metrics
+          .fields()
+          .forEachRemaining(
+              entry -> {
+                if (entry.getKey().startsWith("system.")) {
+                  reportValue(
+                      entry.getKey(),
+                      hostName,
+                      systemTags,
+                      entry.getValue(),
+                      timestamp,
+                      pointCounter);
+                }
+              });
 
       // Report CPU and memory metrics
-      SYSTEM_METRICS.forEach((key, value) -> reportValue(key, hostName, systemTags,
-          metrics.get(value), timestamp, pointCounter));
+      SYSTEM_METRICS.forEach(
+          (key, value) ->
+              reportValue(key, hostName, systemTags, metrics.get(value), timestamp, pointCounter));
     }
     return HttpResponseStatus.ACCEPTED;
   }
 
-  private void reportValue(String metricName, String hostName, Map<String, String> tags,
-                           JsonNode valueNode, long timestamp, AtomicInteger pointCounter) {
+  private void reportValue(
+      String metricName,
+      String hostName,
+      Map<String, String> tags,
+      JsonNode valueNode,
+      long timestamp,
+      AtomicInteger pointCounter) {
     reportValue(metricName, hostName, tags, valueNode, timestamp, pointCounter, 1);
   }
 
-  private void reportValue(String metricName, String hostName, Map<String, String> tags,
-                           JsonNode valueNode, long timestamp, AtomicInteger pointCounter,
-                           int interval) {
+  private void reportValue(
+      String metricName,
+      String hostName,
+      Map<String, String> tags,
+      JsonNode valueNode,
+      long timestamp,
+      AtomicInteger pointCounter,
+      int interval) {
     if (valueNode == null || valueNode.isNull()) return;
     double value;
     if (valueNode.isTextual()) {
@@ -547,14 +627,15 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
     // interval will normally be 1 unless the metric was a rate type with a specified interval
     value = value * interval;
 
-    ReportPoint point = ReportPoint.newBuilder().
-        setTable("dummy").
-        setMetric(metricName).
-        setHost(hostName).
-        setTimestamp(timestamp).
-        setAnnotations(tags).
-        setValue(value).
-        build();
+    ReportPoint point =
+        ReportPoint.newBuilder()
+            .setTable("dummy")
+            .setMetric(metricName)
+            .setHost(hostName)
+            .setTimestamp(timestamp)
+            .setAnnotations(tags)
+            .setValue(value)
+            .build();
     if (pointCounter != null) {
       pointCounter.incrementAndGet();
     }
@@ -598,8 +679,8 @@ public class DataDogPortUnificationHandler extends AbstractHttpOnlyHandler {
       if (tagK.toLowerCase().equals("source")) {
         tags.put("_source", input.substring(tagKvIndex + 1));
       } else {
-        tags.put(INVALID_TAG_CHARACTERS.matcher(tagK).replaceAll("_"),
-            input.substring(tagKvIndex + 1));
+        tags.put(
+            INVALID_TAG_CHARACTERS.matcher(tagK).replaceAll("_"), input.substring(tagKvIndex + 1));
       }
     }
   }

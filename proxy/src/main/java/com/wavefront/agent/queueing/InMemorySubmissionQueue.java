@@ -1,23 +1,20 @@
 package com.wavefront.agent.queueing;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import com.squareup.tape2.ObjectQueue;
+import com.wavefront.agent.data.DataSubmissionTask;
+import com.wavefront.common.Utils;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
-
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.jetbrains.annotations.NotNull;
-
-import com.squareup.tape2.ObjectQueue;
-import com.wavefront.agent.data.DataSubmissionTask;
-import com.wavefront.common.Utils;
 
 /**
  * Implements proxy-specific in-memory-queue interface as a wrapper over tape {@link ObjectQueue}
  *
  * @param <T> type of objects stored.
- *
  * @author mike@wavefront.com
  */
 public class InMemorySubmissionQueue<T extends DataSubmissionTask<T>> implements TaskQueue<T> {

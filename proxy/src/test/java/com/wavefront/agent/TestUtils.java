@@ -3,18 +3,6 @@ package com.wavefront.agent;
 import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
 import com.wavefront.ingester.SpanDecoder;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.message.BasicHeader;
-import org.easymock.EasyMock;
-import org.easymock.IArgumentMatcher;
-
-import javax.net.SocketFactory;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,41 +21,46 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
-
-import okhttp3.MediaType;
+import javax.net.SocketFactory;
+import org.apache.commons.io.FileUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.message.BasicHeader;
+import org.easymock.EasyMock;
+import org.easymock.IArgumentMatcher;
 import wavefront.report.Span;
 
-import static org.easymock.EasyMock.verify;
-
-/**
- * @author vasily@wavefront.com
- */
+/** @author vasily@wavefront.com */
 public class TestUtils {
   private static final Logger logger = Logger.getLogger(TestUtils.class.getCanonicalName());
 
   public static <T extends HttpRequestBase> T httpEq(HttpRequestBase request) {
-    EasyMock.reportMatcher(new IArgumentMatcher() {
-      @Override
-      public boolean matches(Object o) {
-        return o instanceof HttpRequestBase &&
-            o.getClass().getCanonicalName().equals(request.getClass().getCanonicalName()) &&
-            ((HttpRequestBase) o).getMethod().equals(request.getMethod()) &&
-            ((HttpRequestBase) o).getProtocolVersion().equals(request.getProtocolVersion()) &&
-            ((HttpRequestBase) o).getURI().equals(request.getURI());
-      }
+    EasyMock.reportMatcher(
+        new IArgumentMatcher() {
+          @Override
+          public boolean matches(Object o) {
+            return o instanceof HttpRequestBase
+                && o.getClass().getCanonicalName().equals(request.getClass().getCanonicalName())
+                && ((HttpRequestBase) o).getMethod().equals(request.getMethod())
+                && ((HttpRequestBase) o).getProtocolVersion().equals(request.getProtocolVersion())
+                && ((HttpRequestBase) o).getURI().equals(request.getURI());
+          }
 
-      @Override
-      public void appendTo(StringBuffer stringBuffer) {
-        stringBuffer.append("httpEq(");
-        stringBuffer.append(request.toString());
-        stringBuffer.append(")");
-      }
-    });
+          @Override
+          public void appendTo(StringBuffer stringBuffer) {
+            stringBuffer.append("httpEq(");
+            stringBuffer.append(request.toString());
+            stringBuffer.append(")");
+          }
+        });
     return null;
   }
 
-  public static void expectHttpResponse(HttpClient httpClient, HttpRequestBase req,
-                                        byte[] content, int httpStatus) throws Exception {
+  public static void expectHttpResponse(
+      HttpClient httpClient, HttpRequestBase req, byte[] content, int httpStatus) throws Exception {
     HttpResponse response = EasyMock.createMock(HttpResponse.class);
     HttpEntity entity = EasyMock.createMock(HttpEntity.class);
     StatusLine line = EasyMock.createMock(StatusLine.class);
@@ -78,7 +71,9 @@ public class TestUtils {
     EasyMock.expect(line.getReasonPhrase()).andReturn("OK").anyTimes();
     EasyMock.expect(entity.getContent()).andReturn(new ByteArrayInputStream(content)).anyTimes();
     EasyMock.expect(entity.getContentLength()).andReturn((long) content.length).atLeastOnce();
-    EasyMock.expect(entity.getContentType()).andReturn(new BasicHeader("Content-Type", "application/json")).anyTimes();
+    EasyMock.expect(entity.getContentType())
+        .andReturn(new BasicHeader("Content-Type", "application/json"))
+        .anyTimes();
 
     EasyMock.expect(httpClient.execute(httpEq(req))).andReturn(response).once();
 
@@ -99,8 +94,12 @@ public class TestUtils {
       }
       portNum++;
     }
-    throw new RuntimeException("Unable to find an available port in the [" + startingPortNumber +
-        ";" + (startingPortNumber + 1000) + ") range");
+    throw new RuntimeException(
+        "Unable to find an available port in the ["
+            + startingPortNumber
+            + ";"
+            + (startingPortNumber + 1000)
+            + ") range");
   }
 
   public static void waitUntilListenerIsOnline(int port) throws Exception {
@@ -114,8 +113,8 @@ public class TestUtils {
         TimeUnit.MILLISECONDS.sleep(50);
       }
     }
-    throw new RuntimeException("Giving up connecting to port " + port + " after " + maxTries +
-        " tries.");
+    throw new RuntimeException(
+        "Giving up connecting to port " + port + " after " + maxTries + " tries.");
   }
 
   public static int gzippedHttpPost(String postUrl, String payload) throws Exception {
@@ -153,7 +152,8 @@ public class TestUtils {
     connection.setRequestMethod("POST");
     connection.setDoOutput(true);
     connection.setDoInput(true);
-    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream(), "UTF-8"));
+    BufferedWriter writer =
+        new BufferedWriter(new OutputStreamWriter(connection.getOutputStream(), "UTF-8"));
     writer.write(payload);
     writer.flush();
     writer.close();
@@ -186,11 +186,11 @@ public class TestUtils {
   }
 
   /**
-   * Verify mocks with retries until specified timeout expires. A healthier alternative
-   * to putting Thread.sleep() before verify().
+   * Verify mocks with retries until specified timeout expires. A healthier alternative to putting
+   * Thread.sleep() before verify().
    *
-   * @param timeout  Desired timeout in milliseconds
-   * @param mocks    Mock objects to verify (sequentially).
+   * @param timeout Desired timeout in milliseconds
+   * @param mocks Mock objects to verify (sequentially).
    */
   public static void verifyWithTimeout(int timeout, Object... mocks) {
     int sleepIntervalMillis = 10;
@@ -245,5 +245,4 @@ public class TestUtils {
     new SpanDecoder("unknown").decode(line, out, "dummy");
     return out.get(0);
   }
-
 }
