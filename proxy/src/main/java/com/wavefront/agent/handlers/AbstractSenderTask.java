@@ -15,16 +15,13 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.MetricName;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nullable;
+import org.apache.activemq.artemis.api.core.client.*;
+import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
 
 /**
  * Base class for all {@link SenderTask} implementations.
@@ -38,8 +35,6 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   /** Warn about exceeding the rate limit no more than once every 5 seconds */
   protected final Logger throttledLogger;
 
-  List<T> datum = new ArrayList<>();
-  int datumSize;
   final Object mutex = new Object();
   final ScheduledExecutorService scheduler;
   private final ExecutorService flushExecutor;
@@ -65,6 +60,76 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
    */
   @SuppressWarnings("UnstableApiUsage")
   private final RateLimiter drainBuffersRateLimiter = RateLimiter.create(10);
+
+  private static EmbeddedActiveMQ embeddedMen;
+  private static EmbeddedActiveMQ embeddedDisk;
+  private static ClientConsumer consumer;
+  private static ClientSession session;
+
+  static {
+    try {
+      //      System.out.println("-> " +
+      // AbstractSenderTask.class.getClassLoader().getResource("broker_disk.xml").toString());
+      //      embeddedDisk = new EmbeddedActiveMQ();
+      //
+      // embeddedDisk.setConfigResourcePath(AbstractSenderTask.class.getClassLoader().getResource("broker_disk.xml").toString());
+      //      embeddedDisk.start();
+      //
+      //      embeddedMen = new EmbeddedActiveMQ();
+      //
+      // embeddedMen.setConfigResourcePath(AbstractSenderTask.class.getClassLoader().getResource("broker.xml").toString());
+      //      embeddedMen.start();
+      //
+      //      ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://0");
+      //      ClientSessionFactory factory = serverLocator.createSessionFactory();
+      //      session = factory.createSession(true,true);
+      //
+      //      consumer = session.createConsumer("memory::points");
+
+      //      MBeanInfo obj = embedded.getActiveMQServer().getMBeanServer().getMBeanInfo();
+      //              System.out.println(obj);
+
+      //      ObjectName nameMen = new
+      // ObjectName("org.apache.activemq.artemis:broker=\"memory\",component=addresses,address=\"memoryBuffer\"");
+      //      ObjectName nameDisk = new
+      // ObjectName("org.apache.activemq.artemis:broker=\"disk\",component=addresses,address=\"diskBuffer\"");
+      //      Metrics.newGauge(new MetricName("buffer.memory", "", "MessageCount"), new
+      // Gauge<Integer>() {
+      //        @Override
+      //        public Integer value() {
+      //          Long mc = null;
+      //          try {
+      //            mc = (Long)
+      // embeddedMen.getActiveMQServer().getMBeanServer().getAttribute(nameMen, "MessageCount");
+      //          } catch (Exception e) {
+      //            e.printStackTrace();
+      //            return 0;
+      //          }
+      //          return mc.intValue(); //datum.size();
+      //        }
+      //      });
+      //
+      //      Metrics.newGauge(new MetricName("buffer.disk", "", "MessageCount"), new
+      // Gauge<Integer>() {
+      //        @Override
+      //        public Integer value() {
+      //          Long mc = null;
+      //          try {
+      //            mc = (Long)
+      // embeddedDisk.getActiveMQServer().getMBeanServer().getAttribute(nameDisk, "MessageCount");
+      //          } catch (Exception e) {
+      //            e.printStackTrace();
+      //            return 0;
+      //          }
+      //          return mc.intValue(); //datum.size();
+      //        }
+      //      });
+
+    } catch (Exception e) {
+      e.printStackTrace();
+      System.exit(-1);
+    }
+  }
 
   /**
    * Base constructor.
@@ -112,9 +177,28 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
         new Gauge<Integer>() {
           @Override
           public Integer value() {
-            return datumSize;
+            return 0; // datum.size();
           }
         });
+
+    //    try {
+    //      ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://0");
+    //      ClientSessionFactory factory = serverLocator.createSessionFactory();
+    //      session = factory.createSession();
+    //      session.start();
+    //      consumer = session.createConsumer("example");
+
+    //      ClientMessage message = session.createMessage(true);
+    //      message.writeBodyBufferString("Hello");
+    //      producer.send(message);
+    //
+    //      ClientMessage msgReceived = consumer.receive(1);
+    //      System.out.println("message = " + msgReceived.getReadOnlyBodyBuffer().readString());
+
+    //    } catch (Exception e) {
+    //      e.printStackTrace();
+    //      System.exit(-1);
+    //    }
   }
 
   abstract TaskResult processSingleBatch(List<T> batch);
@@ -125,44 +209,21 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
     long nextRunMillis = properties.getPushFlushInterval();
     isSending = true;
     try {
+      session.start();
       List<T> current = createBatch();
       int currentBatchSize = getDataSize(current);
       if (currentBatchSize == 0) return;
-      if (rateLimiter == null || rateLimiter.tryAcquire(currentBatchSize)) {
-        TaskResult result = processSingleBatch(current);
-        this.attemptedCounter.inc(currentBatchSize);
-        switch (result) {
-          case DELIVERED:
-            break;
-          case PERSISTED:
-          case PERSISTED_RETRY:
-            if (rateLimiter != null) rateLimiter.recyclePermits(currentBatchSize);
-            break;
-          case RETRY_LATER:
-            undoBatch(current);
-            if (rateLimiter != null) rateLimiter.recyclePermits(currentBatchSize);
-          default:
-        }
-      } else {
-        // if proxy rate limit exceeded, try again in 1/4..1/2 of flush interval
-        // to introduce some degree of fairness.
-        nextRunMillis = nextRunMillis / 4 + (int) (Math.random() * nextRunMillis / 4);
-        final long willRetryIn = nextRunMillis;
-        throttledLogger.log(
-            Level.INFO,
-            () ->
-                "["
-                    + handlerKey.getHandle()
-                    + " thread "
-                    + threadId
-                    + "]: WF-4 Proxy rate limiter active (pending "
-                    + handlerKey.getEntityType()
-                    + ": "
-                    + datumSize
-                    + "), will retry in "
-                    + willRetryIn
-                    + "ms");
-        undoBatch(current);
+      TaskResult result = processSingleBatch(current);
+      this.attemptedCounter.inc(currentBatchSize);
+      switch (result) {
+        case DELIVERED:
+          session.commit();
+          break;
+        case PERSISTED:
+        case PERSISTED_RETRY:
+        case RETRY_LATER:
+        default:
+          session.rollback(true);
       }
     } catch (Throwable t) {
       logger.log(Level.SEVERE, "Unexpected error in flush loop", t);
@@ -190,156 +251,108 @@ abstract class AbstractSenderTask<T> implements SenderTask<T>, Runnable {
   @Override
   public void add(T metricString) {
     metricSize.update(metricString.toString().length());
-    synchronized (mutex) {
-      this.datum.add(metricString);
-      datumSize += getObjectSize(metricString);
-    }
-    //noinspection UnstableApiUsage
-    if (datumSize >= properties.getMemoryBufferLimit()
-        && !isBuffering.get()
-        && drainBuffersRateLimiter.tryAcquire()) {
-      try {
-        flushExecutor.submit(drainBuffersToQueueTask);
-      } catch (RejectedExecutionException e) {
-        // ignore - another task is already being executed
-      }
-    }
+    //    try {
+    //      ClientMessage message = session.createMessage(true);
+    //      message.writeBodyBufferString(metricString.toString());
+    //      producer.send(message);
+    //    } catch (Exception e) {
+    //      e.printStackTrace();
+    //      System.exit(-1);
+    //    }
   }
 
   protected List<T> createBatch() {
-    List<T> current;
-    int blockSize;
-    synchronized (mutex) {
-      blockSize = getBlockSize(datum, (int) rateLimiter.getRate(), properties.getDataPerBatch());
-      current = datum.subList(0, blockSize);
-      datumSize -= getDataSize(current);
-      datum = new ArrayList<>(datum.subList(blockSize, datum.size()));
+    int blockSize = Math.min(properties.getItemsPerBatch(), (int) rateLimiter.getRate());
+    List<T> current = new ArrayList<>(blockSize);
+    boolean done = false;
+    long start = System.currentTimeMillis();
+    try {
+      while (!done
+          && (current.size() < blockSize)
+          && ((System.currentTimeMillis() - start) < 1000)) {
+        ClientMessage msgReceived = consumer.receive(1);
+        if (msgReceived != null) {
+          System.out.println("--- q -> msg");
+          current.add((T) msgReceived.getReadOnlyBodyBuffer().readString());
+        } else {
+          done = true;
+        }
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      System.exit(-1);
     }
-    logger.fine(
-        "["
-            + handlerKey.getHandle()
-            + "] (DETAILED): sending "
-            + current.size()
-            + " valid "
-            + handlerKey.getEntityType()
-            + "; in memory: "
-            + datumSize
-            + "; total attempted: "
-            + this.attemptedCounter.count()
-            + "; total blocked: "
-            + this.blockedCounter.count());
-    return current;
+    return current != null ? current : new ArrayList<T>();
   }
 
   protected void undoBatch(List<T> batch) {
-    synchronized (mutex) {
-      datum.addAll(0, batch);
-      datumSize += getDataSize(batch);
-    }
+    //    synchronized (mutex) {
+    //      datum.addAll(0, batch);
+    //    }
   }
 
   private final Runnable drainBuffersToQueueTask =
       new Runnable() {
         @Override
         public void run() {
-          if (datumSize > properties.getMemoryBufferLimit()) {
-            // there are going to be too many points to be able to flush w/o the agent blowing up
-            // drain the leftovers straight to the retry queue (i.e. to disk)
-            // don't let anyone add any more to points while we're draining it.
-            logger.warning(
-                "["
-                    + handlerKey.getHandle()
-                    + " thread "
-                    + threadId
-                    + "]: WF-3 Too many pending "
-                    + handlerKey.getEntityType()
-                    + " ("
-                    + datumSize
-                    + "), block size: "
-                    + properties.getDataPerBatch()
-                    + ". flushing to retry queue");
-            drainBuffersToQueue(QueueingReason.BUFFER_SIZE);
-            logger.info(
-                "["
-                    + handlerKey.getHandle()
-                    + " thread "
-                    + threadId
-                    + "]: flushing to retry queue complete. Pending "
-                    + handlerKey.getEntityType()
-                    + ": "
-                    + datumSize);
-          }
+          //      if (datum.size() > properties.getMemoryBufferLimit()) {
+          //        // there are going to be too many points to be able to flush w/o the agent
+          // blowing up
+          //        // drain the leftovers straight to the retry queue (i.e. to disk)
+          //        // don't let anyone add any more to points while we're draining it.
+          //        logger.warning("[" + handlerKey.getHandle() + " thread " + threadId +
+          //            "]: WF-3 Too many pending " + handlerKey.getEntityType() + " (" +
+          // datum.size() +
+          //            "), block size: " + properties.getItemsPerBatch() + ". flushing to retry
+          // queue");
+          //        drainBuffersToQueue(QueueingReason.BUFFER_SIZE);
+          //        logger.info("[" + handlerKey.getHandle() + " thread " + threadId +
+          //            "]: flushing to retry queue complete. Pending " + handlerKey.getEntityType()
+          // +
+          //            ": " + datum.size());
+          //      }
         }
       };
 
   abstract void flushSingleBatch(List<T> batch, @Nullable QueueingReason reason);
 
   public void drainBuffersToQueue(@Nullable QueueingReason reason) {
-    if (isBuffering.compareAndSet(false, true)) {
-      bufferFlushCounter.inc();
-      try {
-        int lastBatchSize = Integer.MIN_VALUE;
-        // roughly limit number of items to flush to the the current buffer size (+1 blockSize max)
-        // if too many points arrive at the proxy while it's draining,
-        // they will be taken care of in the next run
-        int toFlush = datum.size();
-        while (toFlush > 0) {
-          List<T> batch = createBatch();
-          int batchSize = batch.size();
-          if (batchSize > 0) {
-            flushSingleBatch(batch, reason);
-            // update the counters as if this was a failed call to the API
-            this.attemptedCounter.inc(batchSize);
-            toFlush -= batchSize;
-            // stop draining buffers if the batch is smaller than the previous one
-            if (batchSize < lastBatchSize) {
-              break;
-            }
-            lastBatchSize = batchSize;
-          } else {
-            break;
-          }
-        }
-      } finally {
-        isBuffering.set(false);
-        bufferCompletedFlushCounter.inc();
-      }
-    }
+    //    if (isBuffering.compareAndSet(false, true)) {
+    //      bufferFlushCounter.inc();
+    //      try {
+    //        int lastBatchSize = Integer.MIN_VALUE;
+    //        // roughly limit number of items to flush to the the current buffer size (+1 blockSize
+    // max)
+    //        // if too many points arrive at the proxy while it's draining,
+    //        // they will be taken care of in the next run
+    //        int toFlush = datum.size();
+    //        while (toFlush > 0) {
+    //          List<T> batch = createBatch();
+    //          int batchSize = batch.size();
+    //          if (batchSize > 0) {
+    //            flushSingleBatch(batch, reason);
+    //            // update the counters as if this was a failed call to the API
+    //            this.attemptedCounter.inc(batchSize);
+    //            toFlush -= batchSize;
+    //            // stop draining buffers if the batch is smaller than the previous one
+    //            if (batchSize < lastBatchSize) {
+    //              break;
+    //            }
+    //            lastBatchSize = batchSize;
+    //          } else {
+    //            break;
+    //          }
+    //        }
+    //      } finally {
+    //        isBuffering.set(false);
+    //        bufferCompletedFlushCounter.inc();
+    //      }
+    //    }
   }
 
   @Override
   public long getTaskRelativeScore() {
-    return datumSize
-        + (isBuffering.get()
-            ? properties.getMemoryBufferLimit()
-            : (isSending ? properties.getDataPerBatch() / 2 : 0));
-  }
-
-  /**
-   * @param datum list from which to calculate the sub-list
-   * @param ratelimit the rate limit
-   * @param batchSize the size of the batch
-   * @return size of sublist such that datum[0:i) falls within the rate limit
-   */
-  protected int getBlockSize(List<T> datum, int ratelimit, int batchSize) {
-    return Math.min(Math.min(getDataSize(datum), ratelimit), batchSize);
-  }
-
-  /**
-   * @param data the data to get the size of
-   * @return the size of the data in regard to the rate limiter
-   */
-  protected int getDataSize(List<T> data) {
-    return data.size();
-  }
-
-  /***
-   * returns the size of the object in relation to the scale we care about
-   * default each object = 1
-   * @param object object to size
-   * @return size of object
-   */
-  protected int getObjectSize(T object) {
-    return 1;
+    return 0; // datum.size() + (isBuffering.get() ? properties.getMemoryBufferLimit() :
+    //        (isSending ? properties.getItemsPerBatch() / 2 : 0));
   }
 }

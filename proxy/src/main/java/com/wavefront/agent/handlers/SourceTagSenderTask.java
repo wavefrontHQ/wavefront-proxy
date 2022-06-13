@@ -108,7 +108,7 @@ class SourceTagSenderTask extends AbstractSenderTask<SourceTag> {
                       + "active (pending "
                       + handlerKey.getEntityType()
                       + ": "
-                      + datum.size()
+                      + "datum.size()"
                       + "), will retry in "
                       + willRetryIn
                       + "ms");

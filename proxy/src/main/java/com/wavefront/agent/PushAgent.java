@@ -20,6 +20,7 @@ import com.uber.tchannel.api.TChannel;
 import com.uber.tchannel.channels.Connection;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
+import com.wavefront.agent.buffer.BufferManager;
 import com.wavefront.agent.channel.CachingHostnameLookupResolver;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
@@ -119,11 +120,7 @@ import java.io.File;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -220,6 +217,19 @@ public class PushAgent extends AbstractAgent {
 
   @Override
   protected void startListeners() throws Exception {
+
+    /***** PROXY NEW *****/
+
+    BufferManager.init();
+    BufferManager.registerNewPort("2878");
+    BufferManager.registerNewPort("2879");
+
+    BufferManager.sendMsg("2878", Collections.singletonList("tururu"));
+    BufferManager.sendMsg("2879", Collections.singletonList("tururu"));
+    //		System.exit(-1);
+
+    /***** END PROXY NEW *****/
+
     blockedPointsLogger = Logger.getLogger(proxyConfig.getBlockedPointsLoggerName());
     blockedHistogramsLogger = Logger.getLogger(proxyConfig.getBlockedHistogramsLoggerName());
     blockedSpansLogger = Logger.getLogger(proxyConfig.getBlockedSpansLoggerName());
@@ -575,7 +585,11 @@ public class PushAgent extends AbstractAgent {
             + (histMinPorts.size() > 0 ? 1 : 0)
             + (histDistPorts.size() > 0 ? 1 : 0);
     if (activeHistogramAggregationTypes > 0) {
+<<<<<<< HEAD
       /*Histograms enabled*/
+=======
+        /*Histograms enabled*/
+>>>>>>> 54d04ad7 (basic ActiveMQ setup)
       histogramExecutor =
           Executors.newScheduledThreadPool(
               1 + activeHistogramAggregationTypes, new NamedThreadFactory("histogram-service"));
@@ -1917,15 +1931,26 @@ public class PushAgent extends AbstractAgent {
           // if the collector is in charge and it provided a setting, use it
           tenantSpecificEntityProps
               .get(ReportableEntityType.POINT)
+<<<<<<< HEAD
               .setDataPerBatch(pointsPerBatch.intValue());
+=======
+              .setItemsPerBatch(pointsPerBatch.intValue());
+>>>>>>> 54d04ad7 (basic ActiveMQ setup)
           logger.fine("Proxy push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
       } else {
         // restore the original setting
+<<<<<<< HEAD
         tenantSpecificEntityProps.get(ReportableEntityType.POINT).setDataPerBatch(null);
         logger.fine(
             "Proxy push batch set to (locally) "
                 + tenantSpecificEntityProps.get(ReportableEntityType.POINT).getDataPerBatch());
+=======
+        tenantSpecificEntityProps.get(ReportableEntityType.POINT).setItemsPerBatch(null);
+        logger.fine(
+            "Proxy push batch set to (locally) "
+                + tenantSpecificEntityProps.get(ReportableEntityType.POINT).getItemsPerBatch());
+>>>>>>> 54d04ad7 (basic ActiveMQ setup)
       }
       if (config.getHistogramStorageAccuracy() != null) {
         tenantSpecificEntityProps
@@ -2051,8 +2076,8 @@ public class PushAgent extends AbstractAgent {
         if (collectorRateLimit != null
             && rateLimiter.getRate() != collectorRateLimit.doubleValue()) {
           rateLimiter.setRate(collectorRateLimit.doubleValue());
-          entityProperties.setDataPerBatch(
-              Math.min(collectorRateLimit.intValue(), entityProperties.getDataPerBatch()));
+          entityProperties.setItemsPerBatch(
+              Math.min(collectorRateLimit.intValue(), entityProperties.getItemsPerBatch()));
           logger.warning(
               "["
                   + tenantName

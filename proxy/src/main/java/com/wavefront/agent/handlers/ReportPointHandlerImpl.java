@@ -2,9 +2,9 @@ package com.wavefront.agent.handlers;
 
 import static com.wavefront.data.Validation.validatePoint;
 
-import com.wavefront.agent.api.APIContainer;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
+import com.wavefront.common.Pair;
 import com.wavefront.common.Utils;
 import com.wavefront.data.DeltaCounterValueException;
 import com.wavefront.ingester.ReportPointSerializer;
@@ -13,6 +13,7 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -20,6 +21,7 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.activemq.artemis.api.core.client.*;
 import wavefront.report.Histogram;
 import wavefront.report.ReportPoint;
 
@@ -30,6 +32,8 @@ import wavefront.report.ReportPoint;
  * @author vasily@wavefront.com
  */
 class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint, String> {
+  private static final Logger logger =
+      Logger.getLogger(ReportPointHandlerImpl.class.getCanonicalName());
 
   final Logger validItemsLogger;
   final ValidationConfiguration validationConfig;
@@ -37,6 +41,9 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   final com.yammer.metrics.core.Histogram receivedPointLag;
   final com.yammer.metrics.core.Histogram receivedTagCount;
   final Supplier<Counter> discardedCounterSupplier;
+
+  private final Map<String, Pair<ClientSession, ClientProducer>> mqContext = new HashMap<>();
+  private final Map<String, Pair<ClientSession, ClientProducer>> mqContextDisk = new HashMap<>();
 
   /**
    * Creates a new instance that handles either histograms or points.
@@ -84,10 +91,12 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     this.discardedCounterSupplier =
         Utils.lazySupplier(
             () -> Metrics.newCounter(new MetricName(handlerKey.toString(), "", "discarded")));
+    logger.severe("ReportPointHandlerImpl created");
   }
 
   @Override
   void reportInternal(ReportPoint point) {
+    //    logger.severe("reportInternal " + Thread.currentThread().getName());
     receivedTagCount.update(point.getAnnotations().size());
     try {
       validatePoint(point, validationConfig);
@@ -101,7 +110,39 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       point.setValue(recompressor.apply(histogram));
     }
     final String strPoint = serializer.apply(point);
-    getTask(APIContainer.CENTRAL_TENANT_NAME).add(strPoint);
+
+    // getTask(APIContainer.CENTRAL_TENANT_NAME).add(strPoint);
+    Pair<ClientSession, ClientProducer> mqCtx =
+        mqContext.computeIfAbsent(
+            Thread.currentThread().getName(),
+            s -> {
+              try {
+                ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://0");
+                ClientSessionFactory factory = serverLocator.createSessionFactory();
+                ClientSession session = factory.createSession(true, true);
+                ClientProducer producer = session.createProducer("memory::points");
+                return new Pair<>(session, producer);
+              } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(-1);
+              }
+              return null;
+            });
+
+    ClientSession session = mqCtx._1;
+    ClientProducer producer = mqCtx._2;
+    try {
+      session.start();
+      ClientMessage message = session.createMessage(true);
+      message.writeBodyBufferString(strPoint);
+      producer.send(message);
+      System.out.println("-- msg -> q");
+      session.commit();
+    } catch (Exception e) {
+      e.printStackTrace();
+      System.exit(-1);
+    }
+
     getReceivedCounter().inc();
     // check if data points contains the tag key indicating this point should be multicasted
     if (isMulticastingActive
@@ -118,5 +159,37 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
       }
     }
     if (validItemsLogger != null) validItemsLogger.info(strPoint);
+  }
+
+  private void toDisk(String strPoint) {
+    System.out.println("--> msg toDisk ");
+    Pair<ClientSession, ClientProducer> mqCtx =
+        mqContextDisk.computeIfAbsent(
+            Thread.currentThread().getName(),
+            s -> {
+              try {
+                ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://1");
+                ClientSessionFactory factory = serverLocator.createSessionFactory();
+                ClientSession session = factory.createSession();
+                ClientProducer producer = session.createProducer("diskBuffer");
+                session.start();
+                return new Pair<>(session, producer);
+              } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(-1);
+              }
+              return null;
+            });
+
+    ClientSession session = mqCtx._1;
+    ClientProducer producer = mqCtx._2;
+    try {
+      ClientMessage message = session.createMessage(true);
+      message.writeBodyBufferString(strPoint);
+      producer.send(message);
+    } catch (Exception e) {
+      e.printStackTrace();
+      System.exit(-1);
+    }
   }
 }
