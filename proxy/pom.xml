@@ -50,8 +50,7 @@
     <java.version>1.8</java.version>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
-
-    <opentelemetry.version>1.6.0-alpha</opentelemetry.version>
+    <opentelemetry.version>1.14.0</opentelemetry.version>
     <powermock.version>2.0.9</powermock.version>
 
     <doclint>none</doclint>
@@ -353,10 +352,15 @@
       </dependency>
       <dependency>
         <groupId>io.opentelemetry</groupId>
-        <artifactId>opentelemetry-bom-alpha</artifactId>
+        <artifactId>opentelemetry-bom</artifactId>
         <version>${opentelemetry.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.squareup.okhttp3</groupId>
+        <artifactId>okhttp</artifactId>
+        <version>4.9.3</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -446,19 +450,13 @@
     </dependency>
     <dependency>
       <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-exporters-jaeger</artifactId>
-      <version>0.9.1</version>
+      <artifactId>opentelemetry-exporter-jaeger-proto</artifactId>
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>io.opentelemetry</groupId>
+      <groupId>io.opentelemetry.proto</groupId>
       <artifactId>opentelemetry-proto</artifactId>
-      <version>${opentelemetry.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-semconv</artifactId>
-      <version>${opentelemetry.version}</version>
+      <version>0.17.0-alpha</version>
     </dependency>
     <dependency>
       <groupId>com.uber.tchannel</groupId>

@@ -18,6 +18,7 @@ import com.wavefront.data.ReportableEntityType;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.sdk.common.Pair;
 import com.wavefront.sdk.common.WavefrontSender;
+import com.wavefront.sdk.common.annotation.NonNull;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
@@ -47,7 +48,9 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
+import wavefront.report.ReportPoint;
 import wavefront.report.Span;
 import wavefront.report.SpanLogs;
 
@@ -71,25 +74,32 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
   private final WavefrontSender sender;
   private final ReportableEntityHandler<SpanLogs, String> spanLogsHandler;
   private final Set<String> traceDerivedCustomTagKeys;
+  private final ReportableEntityHandler<ReportPoint, String> metricsHandler;
+  private final ReportableEntityHandler<ReportPoint, String> histogramHandler;
   private final Counter receivedSpans;
   private final Pair<Supplier<Boolean>, Counter> spansDisabled;
   private final Pair<Supplier<Boolean>, Counter> spanLogsDisabled;
+  private final boolean includeResourceAttrsForMetrics;
 
   public OtlpHttpHandler(ReportableEntityHandlerFactory handlerFactory,
                          @Nullable TokenAuthenticator tokenAuthenticator,
                          @Nullable HealthCheckManager healthCheckManager,
-                         @Nullable String handle,
+                         @NonNull String handle,
                          @Nullable WavefrontSender wfSender,
                          @Nullable Supplier<ReportableEntityPreprocessor> preprocessorSupplier,
                          SpanSampler sampler,
                          Supplier<Boolean> spansFeatureDisabled,
                          Supplier<Boolean> spanLogsFeatureDisabled,
                          String defaultSource,
-                         Set<String> traceDerivedCustomTagKeys) {
+                         Set<String> traceDerivedCustomTagKeys, boolean includeResourceAttrsForMetrics) {
     super(tokenAuthenticator, healthCheckManager, handle);
+    this.includeResourceAttrsForMetrics = includeResourceAttrsForMetrics;
     this.spanHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE, handle));
     this.spanLogsHandler =
         handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.TRACE_SPAN_LOGS, handle));
+    this.metricsHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.POINT, handle));
+    this.histogramHandler = handlerFactory.getHandler(HandlerKey.of(ReportableEntityType.HISTOGRAM,
+        handle));
     this.sender = wfSender;
     this.preprocessorSupplier = preprocessorSupplier;
     this.defaultSource = defaultSource;
@@ -108,7 +118,7 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
         Executors.newScheduledThreadPool(1, new NamedThreadFactory("otlp-http-heart-beater"));
     scheduledExecutorService.scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
 
-    this.internalReporter = OtlpProtobufUtils.createAndStartInternalReporter(sender);
+    this.internalReporter = OtlpTraceUtils.createAndStartInternalReporter(sender);
   }
 
   @Override
@@ -118,9 +128,9 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
     try {
       switch (path) {
         case "/v1/traces/":
-          ExportTraceServiceRequest otlpRequest =
+          ExportTraceServiceRequest traceRequest =
               ExportTraceServiceRequest.parseFrom(request.content().nioBuffer());
-          long spanCount = OtlpProtobufUtils.getSpansCount(otlpRequest);
+          long spanCount = OtlpTraceUtils.getSpansCount(traceRequest);
           receivedSpans.inc(spanCount);
 
           if (isFeatureDisabled(spansDisabled._1, SPAN_DISABLED, spansDisabled._2, spanCount)) {
@@ -129,18 +139,25 @@ public class OtlpHttpHandler extends AbstractHttpOnlyHandler implements Closeabl
             return;
           }
 
-          OtlpProtobufUtils.exportToWavefront(
-              otlpRequest, spanHandler, spanLogsHandler, preprocessorSupplier, spanLogsDisabled,
+          OtlpTraceUtils.exportToWavefront(
+              traceRequest, spanHandler, spanLogsHandler, preprocessorSupplier, spanLogsDisabled,
               spanSamplerAndCounter, defaultSource, discoveredHeartbeatMetrics, internalReporter,
               traceDerivedCustomTagKeys
           );
           break;
-
+        case "/v1/metrics/":
+          ExportMetricsServiceRequest metricRequest =
+              ExportMetricsServiceRequest.parseFrom(request.content().nioBuffer());
+          OtlpMetricsUtils.exportToWavefront(metricRequest,
+              metricsHandler, histogramHandler, preprocessorSupplier, defaultSource,
+              includeResourceAttrsForMetrics);
+          break;
         default:
-          String msg = "Unknown OTLP endpoint " + uri.getPath();
-          logWarning("WF-300: " + msg, null, ctx);
-          HttpResponse response = makeErrorResponse(Code.NOT_FOUND, msg);
-          writeHttpResponse(ctx, response, request);
+          /*
+          We use HTTP 200 for success and HTTP 400 for errors, mirroring what we found in
+          OTel Collector's OTLP Receiver code.
+         */
+          writeHttpResponse(ctx, HttpResponseStatus.BAD_REQUEST, "unknown endpoint " + path, request);
           return;
       }
 

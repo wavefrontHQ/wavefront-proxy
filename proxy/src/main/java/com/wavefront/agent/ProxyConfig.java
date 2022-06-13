@@ -526,6 +526,10 @@ public class ProxyConfig extends Configuration {
       " none (4318 is recommended).")
   String otlpHttpListenerPorts = "";
 
+  @Parameter(names = {"--otlpResourceAttrsOnMetricsIncluded"}, arity = 1, description =
+      "If true, includes OTLP resource attributes on metrics (Default: false)")
+  boolean otlpResourceAttrsOnMetricsIncluded = false;
+
   // logs ingestion
   @Parameter(names = {"--filebeatPort"}, description = "Port on which to listen for filebeat data.")
   Integer filebeatPort = 0;
@@ -1314,6 +1318,10 @@ public class ProxyConfig extends Configuration {
     return otlpHttpListenerPorts;
   }
 
+  public boolean isOtlpResourceAttrsOnMetricsIncluded() {
+    return otlpResourceAttrsOnMetricsIncluded;
+  }
+
   public Integer getFilebeatPort() {
     return filebeatPort;
   }
@@ -1913,6 +1921,8 @@ public class ProxyConfig extends Configuration {
       graphiteDelimiters = config.getString("graphiteDelimiters", graphiteDelimiters);
       otlpGrpcListenerPorts = config.getString("otlpGrpcListenerPorts", otlpGrpcListenerPorts);
       otlpHttpListenerPorts = config.getString("otlpHttpListenerPorts", otlpHttpListenerPorts);
+      otlpResourceAttrsOnMetricsIncluded = config.getBoolean("otlpResourceAttrsOnMetricsIncluded",
+          otlpResourceAttrsOnMetricsIncluded);
       allowRegex = config.getString("allowRegex", config.getString("whitelistRegex", allowRegex));
       blockRegex = config.getString("blockRegex", config.getString("blacklistRegex", blockRegex));
       opentsdbPorts = config.getString("opentsdbPorts", opentsdbPorts);

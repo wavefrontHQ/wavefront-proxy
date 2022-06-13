@@ -395,3 +395,35 @@
     action        : spanAddTag
     key           : multiPortSpanTagKey
     value         : multiSpanTagVal
+
+'9999':
+  - rule: testFilter
+    action: metricsFilter
+    function: allow
+    names:
+      - "metrics.1"
+      - "/metrics.2.*/"
+      - "/.*.ok$/"
+      - "metrics.ok.*"
+
+'9998':
+  - rule: testFilter
+    action: metricsFilter
+    function: drop
+    names:
+      - "metrics.1"
+      - "/metrics.2.*/"
+      - "/.*.ok$/"
+      - "metrics.ok.*"
+
+'9997':
+  - rule: testFilter
+    action: metricsFilter
+    function: allow
+    opts:
+      cacheSize: 0
+    names:
+      - "metrics.1"
+      - "/metrics.2.*/"
+      - "/.*.ok$/"
+      - "metrics.ok.*"
