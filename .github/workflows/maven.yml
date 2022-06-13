@@ -2,9 +2,9 @@ name: Java CI with Maven
 
 on:
   push:
-    branches: [ master, 'release-**' ]
+    branches: [ '**' ]
   pull_request:
-    branches: [ master, 'release-**' ]
+    branches: [ master, dev, 'release-**' ]
 
 jobs:
   build:

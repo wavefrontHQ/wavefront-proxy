@@ -36,4 +36,4 @@ test/proxy*.out
 test/.wavefront_id
 
 dependency-reduced-pom.xml
-
+out/*

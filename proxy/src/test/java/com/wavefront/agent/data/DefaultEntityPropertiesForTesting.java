@@ -2,16 +2,13 @@ package com.wavefront.agent.data;
 
 import com.google.common.util.concurrent.RecyclableRateLimiter;
 import com.google.common.util.concurrent.RecyclableRateLimiterImpl;
-
 import javax.annotation.Nullable;
 
-/**
- * @author vasily@wavefront.com
- */
+/** @author vasily@wavefront.com */
 public class DefaultEntityPropertiesForTesting implements EntityProperties {
 
   @Override
-  public int getItemsPerBatchOriginal() {
+  public int getDataPerBatchOriginal() {
     return DEFAULT_BATCH_SIZE;
   }
 
@@ -46,13 +43,12 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   }
 
   @Override
-  public int getItemsPerBatch() {
+  public int getDataPerBatch() {
     return DEFAULT_BATCH_SIZE;
   }
 
   @Override
-  public void setItemsPerBatch(@Nullable Integer itemsPerBatch) {
-  }
+  public void setDataPerBatch(@Nullable Integer dataPerBatch) {}
 
   @Override
   public int getMinBatchSplitSize() {
@@ -75,8 +71,7 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   }
 
   @Override
-  public void setFeatureDisabled(boolean featureDisabled) {
-  }
+  public void setFeatureDisabled(boolean featureDisabled) {}
 
   @Override
   public int getTotalBacklogSize() {
@@ -84,8 +79,7 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   }
 
   @Override
-  public void reportBacklogSize(String handle, int backlogSize) {
-  }
+  public void reportBacklogSize(String handle, int backlogSize) {}
 
   @Override
   public long getTotalReceivedRate() {
@@ -93,7 +87,5 @@ public class DefaultEntityPropertiesForTesting implements EntityProperties {
   }
 
   @Override
-  public void reportReceivedRate(String handle, long receivedRate) {
-  }
-
+  public void reportReceivedRate(String handle, long receivedRate) {}
 }
