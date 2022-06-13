@@ -1,8 +1,9 @@
 package com.wavefront.agent.handlers;
 
-import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.ingester.SpanLogsSerializer;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
@@ -33,7 +34,7 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
   SpanLogsHandlerImpl(
       final HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      @Nullable final Map<String, Collection<SenderTask<String>>> senderTaskMap,
+      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedItemLogger,
       @Nullable final Logger validItemsLogger) {
@@ -52,7 +53,9 @@ public class SpanLogsHandlerImpl extends AbstractReportableEntityHandler<SpanLog
   protected void reportInternal(SpanLogs spanLogs) {
     String strSpanLogs = serializer.apply(spanLogs);
     if (strSpanLogs != null) {
-      getTask(APIContainer.CENTRAL_TENANT_NAME).add(strSpanLogs);
+
+      BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(strSpanLogs));
+
       getReceivedCounter().inc();
       if (validItemsLogger != null) validItemsLogger.info(strSpanLogs);
       // tagK=tagV based multicasting is not supported

@@ -1,10 +1,11 @@
 package com.wavefront.agent.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.Event;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -39,7 +40,7 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
   public EventHandlerImpl(
       final HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      @Nullable final Map<String, Collection<SenderTask<Event>>> senderTaskMap,
+      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedEventsLogger,
       @Nullable final Logger validEventsLogger) {
@@ -59,23 +60,9 @@ public class EventHandlerImpl extends AbstractReportableEntityHandler<ReportEven
     if (!annotationKeysAreValid(event)) {
       throw new IllegalArgumentException("WF-401: Event annotation key has illegal characters.");
     }
-    Event eventToAdd = new Event(event);
-    getTask(APIContainer.CENTRAL_TENANT_NAME).add(eventToAdd);
-    getReceivedCounter().inc();
-    // check if event annotations contains the tag key indicating this event should be multicasted
-    if (isMulticastingActive
-        && event.getAnnotations() != null
-        && event.getAnnotations().containsKey(MULTICASTING_TENANT_TAG_KEY)) {
-      String[] multicastingTenantNames =
-          event.getAnnotations().get(MULTICASTING_TENANT_TAG_KEY).trim().split(",");
-      event.getAnnotations().remove(MULTICASTING_TENANT_TAG_KEY);
-      for (String multicastingTenantName : multicastingTenantNames) {
-        // if the tenant name indicated in event tag is not configured, just ignore
-        if (getTask(multicastingTenantName) != null) {
-          getTask(multicastingTenantName).add(new Event(event));
-        }
-      }
-    }
+
+    BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(event.toString()));
+
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(EVENT_SERIALIZER.apply(event));
     }

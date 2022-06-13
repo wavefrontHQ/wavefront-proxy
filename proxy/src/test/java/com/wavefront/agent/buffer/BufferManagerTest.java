@@ -3,20 +3,19 @@ package com.wavefront.agent.buffer;
 import static org.junit.Assert.assertEquals;
 
 import com.yammer.metrics.core.Gauge;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import org.junit.Test;
 
 public class BufferManagerTest {
   @Test
   public void initTest() throws InterruptedException, IOException {
-    File buffer = File.createTempFile("wfproxy", "buffer");
+    Path buffer = Files.createTempDirectory("wfproxy");
     System.out.println("buffer: " + buffer);
-    buffer.mkdir();
-    buffer.deleteOnExit();
 
-    BuffersManager.init(buffer.getAbsolutePath());
+    BuffersManager.init(buffer.toFile().getAbsolutePath());
     BuffersManager.registerNewPort("2878");
     BuffersManager.registerNewPort("2879");
 

@@ -2,12 +2,10 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.data.Validation;
 import com.wavefront.dto.SourceTag;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Logger;
@@ -29,7 +27,7 @@ class ReportSourceTagHandlerImpl
   public ReportSourceTagHandlerImpl(
       HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      @Nullable final Map<String, Collection<SenderTask<SourceTag>>> senderTaskMap,
+      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       final Logger blockedItemLogger) {
     super(
@@ -48,7 +46,9 @@ class ReportSourceTagHandlerImpl
       throw new IllegalArgumentException(
           "WF-401: SourceTag annotation key has illegal characters.");
     }
-    getTask(sourceTag).add(new SourceTag(sourceTag));
+
+    BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(sourceTag.toString()));
+
     getReceivedCounter().inc();
     // tagK=tagV based multicasting is not support
   }
@@ -59,9 +59,9 @@ class ReportSourceTagHandlerImpl
     return sourceTag.getAnnotations().stream().allMatch(Validation::charactersAreValid);
   }
 
-  private SenderTask<SourceTag> getTask(ReportSourceTag sourceTag) {
+  private SenderTask getTask(ReportSourceTag sourceTag) {
     // we need to make sure the we preserve the order of operations for each source
-    List<SenderTask<SourceTag>> senderTasks =
+    List<SenderTask> senderTasks =
         new ArrayList<>(senderTaskMap.get(APIContainer.CENTRAL_TENANT_NAME));
     return senderTasks.get(Math.abs(sourceTag.getSource().hashCode()) % senderTasks.size());
   }

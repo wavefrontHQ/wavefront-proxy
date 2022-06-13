@@ -69,16 +69,6 @@ class BufferActiveMQ implements Buffer {
             .setAddress(port)
             .setRoutingType(RoutingType.ANYCAST);
 
-    AddressSettings addrSetting = new AddressSettings();
-    addrSetting.setMaxExpiryDelay(5000l);
-    addrSetting.setMaxDeliveryAttempts(3); // TODO: config ?
-    addrSetting.setDeadLetterAddress(
-        SimpleString.toSimpleString(port + "::" + name + "." + port + ".points.dl"));
-    addrSetting.setExpiryAddress(
-        SimpleString.toSimpleString(port + "::" + name + "." + port + ".points.dl"));
-
-    embeddedMen.getActiveMQServer().getAddressSettingsRepository().addMatch(port, addrSetting);
-
     try {
       ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://" + level);
       ClientSessionFactory factory = serverLocator.createSessionFactory();
@@ -144,6 +134,16 @@ class BufferActiveMQ implements Buffer {
   }
 
   public void createBridge(String port, int level) {
+    AddressSettings addrSetting = new AddressSettings();
+    addrSetting.setMaxExpiryDelay(5000l);
+    addrSetting.setMaxDeliveryAttempts(3); // TODO: config ?
+    addrSetting.setDeadLetterAddress(
+        SimpleString.toSimpleString(port + "::" + name + "." + port + ".points.dl"));
+    addrSetting.setExpiryAddress(
+        SimpleString.toSimpleString(port + "::" + name + "." + port + ".points.dl"));
+
+    embeddedMen.getActiveMQServer().getAddressSettingsRepository().addMatch(port, addrSetting);
+
     BridgeConfiguration bridge = new BridgeConfiguration();
     bridge.setName(port + ".to.l" + level);
     bridge.setQueueName(port + "::" + name + "." + port + ".points.dl");

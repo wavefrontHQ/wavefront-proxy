@@ -1,45 +1,15 @@
 package com.wavefront.agent;
 
-import static com.wavefront.agent.TestUtils.findAvailablePort;
-import static com.wavefront.agent.TestUtils.getResource;
-import static com.wavefront.agent.TestUtils.gzippedHttpPost;
-import static com.wavefront.agent.TestUtils.httpGet;
-import static com.wavefront.agent.TestUtils.httpPost;
-import static com.wavefront.agent.TestUtils.verifyWithTimeout;
-import static com.wavefront.agent.TestUtils.waitUntilListenerIsOnline;
-import static com.wavefront.sdk.common.Constants.APPLICATION_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.CLUSTER_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.HEART_BEAT_METRIC;
-import static com.wavefront.sdk.common.Constants.SERVICE_TAG_KEY;
-import static com.wavefront.sdk.common.Constants.SHARD_TAG_KEY;
-import static org.easymock.EasyMock.anyLong;
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.anyString;
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.startsWith;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static com.wavefront.agent.TestUtils.*;
+import static com.wavefront.sdk.common.Constants.*;
+import static org.easymock.EasyMock.*;
+import static org.junit.Assert.*;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
-import com.wavefront.agent.data.QueueingReason;
-import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.MockReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.SenderTask;
-import com.wavefront.agent.handlers.SenderTaskFactory;
+import com.wavefront.agent.handlers.*;
 import com.wavefront.agent.listeners.otlp.OtlpTestHelpers;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportableEntityPreprocessor;
@@ -64,22 +34,12 @@ import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.Socket;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nonnull;
 import javax.net.SocketFactory;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
+import javax.net.ssl.*;
 import junit.framework.AssertionFailedError;
 import net.jcip.annotations.NotThreadSafe;
 import org.apache.http.HttpResponse;
@@ -94,17 +54,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import wavefront.report.Annotation;
-import wavefront.report.Histogram;
-import wavefront.report.HistogramType;
-import wavefront.report.ReportEvent;
-import wavefront.report.ReportPoint;
-import wavefront.report.ReportSourceTag;
-import wavefront.report.SourceOperationType;
-import wavefront.report.SourceTagAction;
-import wavefront.report.Span;
-import wavefront.report.SpanLog;
-import wavefront.report.SpanLogs;
+import wavefront.report.*;
 
 @NotThreadSafe
 public class PushAgentTest {
@@ -135,15 +85,15 @@ public class PushAgentTest {
   private ReportableEntityHandler<ReportEvent, Event> mockEventHandler =
       MockReportableEntityHandlerFactory.getMockEventHandlerImpl();
   private WavefrontSender mockWavefrontSender = EasyMock.createMock(WavefrontSender.class);
-  private SenderTask<String> mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
-  private Map<String, Collection<SenderTask<String>>> mockSenderTaskMap =
+  private SenderTask mockSenderTask = EasyMock.createNiceMock(SenderTask.class);
+  private Map<String, Collection<SenderTask>> mockSenderTaskMap =
       ImmutableMap.of(APIContainer.CENTRAL_TENANT_NAME, ImmutableList.of(mockSenderTask));
 
   private SenderTaskFactory mockSenderTaskFactory =
       new SenderTaskFactory() {
         @SuppressWarnings("unchecked")
         @Override
-        public Map<String, Collection<SenderTask<String>>> createSenderTasks(
+        public Map<String, Collection<SenderTask>> createSenderTasks(
             @Nonnull HandlerKey handlerKey) {
           return mockSenderTaskMap;
         }
@@ -153,9 +103,6 @@ public class PushAgentTest {
 
         @Override
         public void shutdown(@Nonnull String handle) {}
-
-        @Override
-        public void drainBuffersToQueue(QueueingReason reason) {}
 
         @Override
         public void truncateBuffers() {}
@@ -1906,7 +1853,7 @@ public class PushAgentTest {
     waitUntilListenerIsOnline(deltaPort);
     reset(mockSenderTask);
     Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
-    mockSenderTask.add(EasyMock.capture(capturedArgument));
+    //    mockSenderTask.add(Collections.singletonList(EasyMock.capture(capturedArgument)));
     expectLastCall().atLeastOnce();
     replay(mockSenderTask);
 
@@ -1945,7 +1892,7 @@ public class PushAgentTest {
     waitUntilListenerIsOnline(deltaPort);
     reset(mockSenderTask);
     Capture<String> capturedArgument = Capture.newInstance(CaptureType.ALL);
-    mockSenderTask.add(EasyMock.capture(capturedArgument));
+    //    mockSenderTask.add(Collections.singletonList(EasyMock.capture(capturedArgument)));
     expectLastCall().atLeastOnce();
     replay(mockSenderTask);
 

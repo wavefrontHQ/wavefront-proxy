@@ -1,10 +1,8 @@
 package com.wavefront.agent.handlers;
 
-import com.wavefront.agent.data.QueueingReason;
 import java.util.Collection;
 import java.util.Map;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Factory for {@link SenderTask} objects.
@@ -20,7 +18,7 @@ public interface SenderTaskFactory {
    * @return created tasks corresponding to different Wavefront endpoints {@link
    *     com.wavefront.api.ProxyV2API}.
    */
-  <T> Map<String, Collection<SenderTask<T>>> createSenderTasks(@Nonnull HandlerKey handlerKey);
+  <T> Map<String, Collection<SenderTask>> createSenderTasks(@Nonnull HandlerKey handlerKey);
 
   /** Shut down all tasks. */
   void shutdown();
@@ -31,13 +29,6 @@ public interface SenderTaskFactory {
    * @param handle pipeline's handle
    */
   void shutdown(@Nonnull String handle);
-
-  /**
-   * Drain memory buffers to queue for all tasks.
-   *
-   * @param reason reason for queueing
-   */
-  void drainBuffersToQueue(@Nullable QueueingReason reason);
 
   void truncateBuffers();
 }

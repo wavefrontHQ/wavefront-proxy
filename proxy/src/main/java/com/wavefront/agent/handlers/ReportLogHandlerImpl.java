@@ -2,7 +2,7 @@ package com.wavefront.agent.handlers;
 
 import static com.wavefront.data.Validation.validateLog;
 
-import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.dto.Log;
@@ -10,6 +10,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -48,7 +49,7 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
   public ReportLogHandlerImpl(
       final HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      @Nullable final Map<String, Collection<SenderTask<Log>>> senderTaskMap,
+      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nonnull final ValidationConfiguration validationConfig,
       final boolean setupMetrics,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
@@ -81,8 +82,10 @@ public class ReportLogHandlerImpl extends AbstractReportableEntityHandler<Report
     validateLog(log, validationConfig);
     receivedLogLag.update(Clock.now() - log.getTimestamp());
     Log logObj = new Log(log);
-    receivedByteCount.inc(logObj.getDataSize());
-    getTask(APIContainer.CENTRAL_TENANT_NAME).add(logObj);
+    receivedByteCount.inc(logObj.toString().getBytes().length);
+
+    BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(logObj.toString()));
+
     getReceivedCounter().inc();
     if (validItemsLogger != null && validItemsLogger.isLoggable(Level.FINEST)) {
       validItemsLogger.info(LOG_SERIALIZER.apply(log));

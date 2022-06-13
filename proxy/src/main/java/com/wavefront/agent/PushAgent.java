@@ -28,7 +28,6 @@ import com.wavefront.agent.channel.SharedGraphiteHostAnnotator;
 import com.wavefront.agent.config.ConfigurationException;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
-import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.formatter.GraphiteFormatter;
 import com.wavefront.agent.handlers.*;
 import com.wavefront.agent.histogram.*;
@@ -163,26 +162,18 @@ public class PushAgent extends AbstractAgent {
     new PushAgent().start(args);
   }
 
-  protected void setupMemoryGuard() {
-    if (proxyConfig.getMemGuardFlushThreshold() > 0) {
-      float threshold = ((float) proxyConfig.getMemGuardFlushThreshold() / 100);
-      new ProxyMemoryGuard(
-          () -> senderTaskFactory.drainBuffersToQueue(QueueingReason.MEMORY_PRESSURE), threshold);
-    }
-  }
-
   @Override
   protected void startListeners() throws Exception {
 
     /***** PROXY NEW *****/
 
     BuffersManager.init(proxyConfig.getBufferFile());
-    BuffersManager.registerNewPort("2878");
-    BuffersManager.registerNewPort("2879");
 
-    BuffersManager.sendMsg("2878", Collections.singletonList("tururu"));
-    BuffersManager.sendMsg("2879", Collections.singletonList("tururu"));
-    //		System.exit(-1);
+    csvToList(proxyConfig.getPushListenerPorts())
+        .forEach(
+            strPort -> {
+              BuffersManager.registerNewPort(strPort);
+            });
 
     /***** END PROXY NEW *****/
 
@@ -254,7 +245,6 @@ public class PushAgent extends AbstractAgent {
     tokenAuthenticator = configureTokenAuthenticator();
 
     shutdownTasks.add(() -> senderTaskFactory.shutdown());
-    shutdownTasks.add(() -> senderTaskFactory.drainBuffersToQueue(null));
 
     SpanSampler spanSampler = createSpanSampler();
 
@@ -374,7 +364,6 @@ public class PushAgent extends AbstractAgent {
         logger.warning("Cannot start logsIngestion: invalid configuration or no config specified");
       }
     }
-    setupMemoryGuard();
   }
 
   private void startDistributedTracingListeners(SpanSampler spanSampler) {
@@ -2017,8 +2006,8 @@ public class PushAgent extends AbstractAgent {
         if (collectorRateLimit != null
             && rateLimiter.getRate() != collectorRateLimit.doubleValue()) {
           rateLimiter.setRate(collectorRateLimit.doubleValue());
-          entityProperties.setItemsPerBatch(
-              Math.min(collectorRateLimit.intValue(), entityProperties.getItemsPerBatch()));
+          entityProperties.setDataPerBatch(
+              Math.min(collectorRateLimit.intValue(), entityProperties.getDataPerBatch()));
           logger.warning(
               "["
                   + tenantName

@@ -2,12 +2,9 @@ package com.wavefront.agent.handlers;
 
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.LineDelimitedDataSubmissionTask;
-import com.wavefront.agent.data.QueueingReason;
-import com.wavefront.agent.data.TaskResult;
 import com.wavefront.agent.queueing.TaskQueue;
 import com.wavefront.agent.queueing.TaskSizeEstimator;
 import com.wavefront.api.ProxyV2API;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.Nullable;
@@ -17,7 +14,7 @@ import javax.annotation.Nullable;
  *
  * @author vasily@wavefront.com
  */
-class LineDelimitedSenderTask extends AbstractSenderTask<String> {
+class LineDelimitedSenderTask extends AbstractSenderTask {
 
   private final ProxyV2API proxyAPI;
   private final UUID proxyId;
@@ -55,36 +52,21 @@ class LineDelimitedSenderTask extends AbstractSenderTask<String> {
     this.backlog = backlog;
   }
 
-  @Override
-  TaskResult processSingleBatch(List<String> batch) {
-    LineDelimitedDataSubmissionTask task =
-        new LineDelimitedDataSubmissionTask(
-            proxyAPI,
-            proxyId,
-            properties,
-            backlog,
-            pushFormat,
-            handlerKey.getEntityType(),
-            handlerKey.getHandle(),
-            batch,
-            null);
-    if (taskSizeEstimator != null) taskSizeEstimator.scheduleTaskForSizing(task);
-    return task.execute();
-  }
-
-  @Override
-  void flushSingleBatch(List<String> batch, @Nullable QueueingReason reason) {
-    LineDelimitedDataSubmissionTask task =
-        new LineDelimitedDataSubmissionTask(
-            proxyAPI,
-            proxyId,
-            properties,
-            backlog,
-            pushFormat,
-            handlerKey.getEntityType(),
-            handlerKey.getHandle(),
-            batch,
-            null);
-    task.enqueue(reason);
-  }
+  // TODO: review
+  //  @Override
+  //  TaskResult processSingleBatch(List<String> batch) {
+  //    LineDelimitedDataSubmissionTask task = new LineDelimitedDataSubmissionTask(proxyAPI,
+  //        proxyId, properties, backlog, pushFormat, handlerKey.getEntityType(),
+  //        handlerKey.getHandle(), batch, null);
+  //    if (taskSizeEstimator != null) taskSizeEstimator.scheduleTaskForSizing(task);
+  //    return task.execute();
+  //  }
+  //
+  //  @Override
+  //  void flushSingleBatch(List<String> batch, @Nullable QueueingReason reason) {
+  //    LineDelimitedDataSubmissionTask task = new LineDelimitedDataSubmissionTask(proxyAPI,
+  //        proxyId, properties, backlog, pushFormat, handlerKey.getEntityType(),
+  //        handlerKey.getHandle(), batch, null);
+  //    task.enqueue(reason);
+  //  }
 }

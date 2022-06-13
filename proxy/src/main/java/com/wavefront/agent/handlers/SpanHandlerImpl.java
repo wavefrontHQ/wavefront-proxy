@@ -4,6 +4,7 @@ import static com.wavefront.agent.sampler.SpanSampler.SPAN_SAMPLING_POLICY_TAG;
 import static com.wavefront.data.Validation.validateSpan;
 
 import com.wavefront.agent.api.APIContainer;
+import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.data.AnnotationUtils;
@@ -11,6 +12,7 @@ import com.wavefront.ingester.SpanSerializer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -55,7 +57,7 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
   SpanHandlerImpl(
       final HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      final Map<String, Collection<SenderTask<String>>> senderTaskMap,
+      final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nonnull final ValidationConfiguration validationConfig,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedItemLogger,
@@ -106,31 +108,9 @@ public class SpanHandlerImpl extends AbstractReportableEntityHandler<Span, Strin
       this.policySampledSpanCounter.inc();
     }
     final String strSpan = serializer.apply(span);
-    getTask(APIContainer.CENTRAL_TENANT_NAME).add(strSpan);
-    getReceivedCounter().inc();
-    // check if span annotations contains the tag key indicating this span should be multicasted
-    if (isMulticastingActive
-        && span.getAnnotations() != null
-        && AnnotationUtils.getValue(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY) != null) {
-      String[] multicastingTenantNames =
-          AnnotationUtils.getValue(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY)
-              .trim()
-              .split(",");
-      removeSpanAnnotation(span.getAnnotations(), MULTICASTING_TENANT_TAG_KEY);
-      for (String multicastingTenantName : multicastingTenantNames) {
-        // if the tenant name indicated in span tag is not configured, just ignore
-        if (getTask(multicastingTenantName) != null) {
-          maxSpanDelay = dropSpansDelayedMinutes.apply(multicastingTenantName);
-          if (maxSpanDelay != null
-              && span.getStartMillis() + span.getDuration()
-                  < Clock.now() - TimeUnit.MINUTES.toMillis(maxSpanDelay)) {
-            // just ignore, reduce unnecessary cost on multicasting cluster
-            continue;
-          }
-          getTask(multicastingTenantName).add(serializer.apply(span));
-        }
-      }
-    }
+
+    BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(strSpan));
+
     if (validItemsLogger != null) validItemsLogger.info(strSpan);
   }
 

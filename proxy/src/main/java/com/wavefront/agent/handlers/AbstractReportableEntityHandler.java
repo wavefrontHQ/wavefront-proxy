@@ -2,18 +2,9 @@ package com.wavefront.agent.handlers;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.BurstRateTrackingCounter;
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricsRegistry;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.yammer.metrics.core.*;
+import java.util.*;
 import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -27,7 +18,7 @@ import javax.annotation.Nullable;
  *
  * @author vasily@wavefront.com
  * @param <T> the type of input objects handled
- * @param <U> the type of the output object as handled by {@link SenderTask<U>}
+ * @param <U> the type of the output object as handled by {@link SenderTask}
  */
 abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntityHandler<T, U> {
   private static final Logger logger =
@@ -47,7 +38,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
   final RateLimiter blockedItemsLimiter;
 
   final Function<T, String> serializer;
-  final Map<String, Collection<SenderTask<U>>> senderTaskMap;
+  final Map<String, Collection<SenderTask>> senderTaskMap;
   protected final boolean isMulticastingActive;
   final boolean reportReceivedStats;
   final String rateUnit;
@@ -77,7 +68,7 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
       HandlerKey handlerKey,
       final int blockedItemsPerBatch,
       final Function<T, String> serializer,
-      @Nullable final Map<String, Collection<SenderTask<U>>> senderTaskMap,
+      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       boolean reportReceivedStats,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
       @Nullable final Logger blockedItemsLogger) {
@@ -212,31 +203,6 @@ abstract class AbstractReportableEntityHandler<T, U> implements ReportableEntity
 
   protected Counter getReceivedCounter() {
     return receivedCounter;
-  }
-
-  protected SenderTask<U> getTask(String tenantName) {
-    if (senderTaskMap == null) {
-      throw new IllegalStateException("getTask() cannot be called on null senderTasks");
-    }
-    if (!senderTaskMap.containsKey(tenantName)) {
-      return null;
-    }
-    List<SenderTask<U>> senderTasks = new ArrayList<>(senderTaskMap.get(tenantName));
-    // roundrobin all tasks, skipping the worst one (usually with the highest number of points)
-    int nextTaskId = (int) (roundRobinCounter.getAndIncrement() % senderTasks.size());
-    long worstScore = 0L;
-    int worstTaskId = 0;
-    for (int i = 0; i < senderTasks.size(); i++) {
-      long score = senderTasks.get(i).getTaskRelativeScore();
-      if (score > worstScore) {
-        worstScore = score;
-        worstTaskId = i;
-      }
-    }
-    if (nextTaskId == worstTaskId) {
-      nextTaskId = (int) (roundRobinCounter.getAndIncrement() % senderTasks.size());
-    }
-    return senderTasks.get(nextTaskId);
   }
 
   protected void printStats() {

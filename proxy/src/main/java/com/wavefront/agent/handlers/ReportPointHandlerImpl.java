@@ -2,6 +2,7 @@ package com.wavefront.agent.handlers;
 
 import static com.wavefront.data.Validation.validatePoint;
 
+import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.api.agent.ValidationConfiguration;
 import com.wavefront.common.Clock;
 import com.wavefront.common.Pair;
@@ -13,6 +14,7 @@ import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.MetricsRegistry;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -63,7 +65,7 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
   ReportPointHandlerImpl(
       final HandlerKey handlerKey,
       final int blockedItemsPerBatch,
-      @Nullable final Map<String, Collection<SenderTask<String>>> senderTaskMap,
+      @Nullable final Map<String, Collection<SenderTask>> senderTaskMap,
       @Nonnull final ValidationConfiguration validationConfig,
       final boolean setupMetrics,
       @Nullable final BiConsumer<String, Long> receivedRateSink,
@@ -111,53 +113,8 @@ class ReportPointHandlerImpl extends AbstractReportableEntityHandler<ReportPoint
     }
     final String strPoint = serializer.apply(point);
 
-    // getTask(APIContainer.CENTRAL_TENANT_NAME).add(strPoint);
-    Pair<ClientSession, ClientProducer> mqCtx =
-        mqContext.computeIfAbsent(
-            Thread.currentThread().getName(),
-            s -> {
-              try {
-                ServerLocator serverLocator = ActiveMQClient.createServerLocator("vm://0");
-                ClientSessionFactory factory = serverLocator.createSessionFactory();
-                ClientSession session = factory.createSession(true, true);
-                ClientProducer producer = session.createProducer("memory::points");
-                return new Pair<>(session, producer);
-              } catch (Exception e) {
-                e.printStackTrace();
-                System.exit(-1);
-              }
-              return null;
-            });
+    BuffersManager.sendMsg(handlerKey.getHandle(), Collections.singletonList(strPoint));
 
-    ClientSession session = mqCtx._1;
-    ClientProducer producer = mqCtx._2;
-    try {
-      session.start();
-      ClientMessage message = session.createMessage(true);
-      message.writeBodyBufferString(strPoint);
-      producer.send(message);
-      System.out.println("-- msg -> q");
-      session.commit();
-    } catch (Exception e) {
-      e.printStackTrace();
-      System.exit(-1);
-    }
-
-    getReceivedCounter().inc();
-    // check if data points contains the tag key indicating this point should be multicasted
-    if (isMulticastingActive
-        && point.getAnnotations() != null
-        && point.getAnnotations().containsKey(MULTICASTING_TENANT_TAG_KEY)) {
-      String[] multicastingTenantNames =
-          point.getAnnotations().get(MULTICASTING_TENANT_TAG_KEY).trim().split(",");
-      point.getAnnotations().remove(MULTICASTING_TENANT_TAG_KEY);
-      for (String multicastingTenantName : multicastingTenantNames) {
-        // if the tenant name indicated in point tag is not configured, just ignore
-        if (getTask(multicastingTenantName) != null) {
-          getTask(multicastingTenantName).add(serializer.apply(point));
-        }
-      }
-    }
     if (validItemsLogger != null) validItemsLogger.info(strPoint);
   }
 

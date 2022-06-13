@@ -10,7 +10,6 @@ import com.google.common.collect.Maps;
 import com.wavefront.agent.api.APIContainer;
 import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
-import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.queueing.QueueController;
 import com.wavefront.agent.queueing.QueueingFactory;
 import com.wavefront.agent.queueing.TaskQueueFactory;
@@ -47,7 +46,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
 
   private final Map<String, List<ReportableEntityType>> entityTypes = new ConcurrentHashMap<>();
   private final Map<HandlerKey, ScheduledExecutorService> executors = new ConcurrentHashMap<>();
-  private final Map<HandlerKey, List<SenderTask<?>>> managedTasks = new ConcurrentHashMap<>();
+  private final Map<HandlerKey, List<SenderTask>> managedTasks = new ConcurrentHashMap<>();
   private final Map<HandlerKey, QueueController> managedServices = new ConcurrentHashMap<>();
 
   /** Keep track of all {@link TaskSizeEstimator} instances to calculate global buffer fill rate. */
@@ -97,12 +96,12 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
   }
 
   @SuppressWarnings("unchecked")
-  public Map<String, Collection<SenderTask<?>>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
+  public Map<String, Collection<SenderTask>> createSenderTasks(@Nonnull HandlerKey handlerKey) {
     ReportableEntityType entityType = handlerKey.getEntityType();
     String handle = handlerKey.getHandle();
 
     ScheduledExecutorService scheduler;
-    Map<String, Collection<SenderTask<?>>> toReturn = Maps.newHashMap();
+    Map<String, Collection<SenderTask>> toReturn = Maps.newHashMap();
     // MONIT-25479: HandlerKey(EntityType, Port) --> HandlerKey(EntityType, Port, TenantName)
     // Every SenderTask is tenant specific from this point
     for (String tenantName : apiContainer.getTenantNameList()) {
@@ -126,7 +125,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     return toReturn;
   }
 
-  private Collection<SenderTask<?>> generateSenderTaskList(
+  private Collection<SenderTask> generateSenderTaskList(
       HandlerKey handlerKey, int numThreads, ScheduledExecutorService scheduler) {
     String tenantName = handlerKey.getTenantName();
     if (tenantName == null) {
@@ -136,11 +135,11 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
     TaskSizeEstimator taskSizeEstimator = new TaskSizeEstimator(handlerKey.getHandle());
     taskSizeEstimators.put(handlerKey, taskSizeEstimator);
     ReportableEntityType entityType = handlerKey.getEntityType();
-    List<SenderTask<?>> senderTaskList = new ArrayList<>(numThreads);
+    List<SenderTask> senderTaskList = new ArrayList<>(numThreads);
     ProxyV2API proxyV2API = apiContainer.getProxyV2APIForTenant(tenantName);
     EntityProperties properties = entityPropsFactoryMap.get(tenantName).get(entityType);
     for (int threadNo = 0; threadNo < numThreads; threadNo++) {
-      SenderTask<?> senderTask;
+      SenderTask senderTask;
       switch (entityType) {
         case POINT:
         case DELTA_COUNTER:
@@ -295,20 +294,12 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
                     .forEach(
                         t -> {
                           t.stop();
-                          t.drainBuffersToQueue(null);
                         }));
         types.forEach(x -> executors.remove(HandlerKey.of(x, handle, tenantName)).shutdown());
       } finally {
         entityTypes.remove(tenantHandlerKey);
       }
     }
-  }
-
-  @Override
-  public void drainBuffersToQueue(QueueingReason reason) {
-    managedTasks.values().stream()
-        .flatMap(Collection::stream)
-        .forEach(x -> x.drainBuffersToQueue(reason));
   }
 
   @Override
@@ -338,7 +329,7 @@ public class SenderTaskFactoryImpl implements SenderTaskFactory {
           .forEach(
               task -> {
                 if (task instanceof AbstractSenderTask) {
-                  ((AbstractSenderTask<?>) task).run();
+                  ((AbstractSenderTask) task).run();
                 }
               });
     }
