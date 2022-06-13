@@ -20,7 +20,7 @@ import com.uber.tchannel.api.TChannel;
 import com.uber.tchannel.channels.Connection;
 import com.wavefront.agent.auth.TokenAuthenticator;
 import com.wavefront.agent.auth.TokenAuthenticatorBuilder;
-import com.wavefront.agent.buffer.BufferManager;
+import com.wavefront.agent.buffer.BuffersManager;
 import com.wavefront.agent.channel.CachingHostnameLookupResolver;
 import com.wavefront.agent.channel.HealthCheckManager;
 import com.wavefront.agent.channel.HealthCheckManagerImpl;
@@ -30,75 +30,31 @@ import com.wavefront.agent.data.EntityProperties;
 import com.wavefront.agent.data.EntityPropertiesFactory;
 import com.wavefront.agent.data.QueueingReason;
 import com.wavefront.agent.formatter.GraphiteFormatter;
-import com.wavefront.agent.handlers.DelegatingReportableEntityHandlerFactoryImpl;
-import com.wavefront.agent.handlers.DeltaCounterAccumulationHandlerImpl;
-import com.wavefront.agent.handlers.HandlerKey;
-import com.wavefront.agent.handlers.HistogramAccumulationHandlerImpl;
-import com.wavefront.agent.handlers.InternalProxyWavefrontClient;
-import com.wavefront.agent.handlers.ReportableEntityHandler;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactory;
-import com.wavefront.agent.handlers.ReportableEntityHandlerFactoryImpl;
-import com.wavefront.agent.handlers.SenderTaskFactory;
-import com.wavefront.agent.handlers.SenderTaskFactoryImpl;
-import com.wavefront.agent.handlers.TrafficShapingRateLimitAdjuster;
-import com.wavefront.agent.histogram.Granularity;
-import com.wavefront.agent.histogram.HistogramKey;
-import com.wavefront.agent.histogram.HistogramRecompressor;
-import com.wavefront.agent.histogram.HistogramUtils;
+import com.wavefront.agent.handlers.*;
+import com.wavefront.agent.histogram.*;
 import com.wavefront.agent.histogram.HistogramUtils.HistogramKeyMarshaller;
-import com.wavefront.agent.histogram.MapLoader;
-import com.wavefront.agent.histogram.PointHandlerDispatcher;
 import com.wavefront.agent.histogram.accumulator.AccumulationCache;
 import com.wavefront.agent.histogram.accumulator.Accumulator;
 import com.wavefront.agent.histogram.accumulator.AgentDigestFactory;
-import com.wavefront.agent.listeners.AdminPortUnificationHandler;
-import com.wavefront.agent.listeners.ChannelByteArrayHandler;
-import com.wavefront.agent.listeners.DataDogPortUnificationHandler;
-import com.wavefront.agent.listeners.HttpHealthCheckEndpointHandler;
-import com.wavefront.agent.listeners.JsonMetricsPortUnificationHandler;
-import com.wavefront.agent.listeners.OpenTSDBPortUnificationHandler;
-import com.wavefront.agent.listeners.RawLogsIngesterPortUnificationHandler;
-import com.wavefront.agent.listeners.RelayPortUnificationHandler;
-import com.wavefront.agent.listeners.WavefrontPortUnificationHandler;
-import com.wavefront.agent.listeners.WriteHttpJsonPortUnificationHandler;
+import com.wavefront.agent.listeners.*;
 import com.wavefront.agent.listeners.otlp.OtlpGrpcMetricsHandler;
 import com.wavefront.agent.listeners.otlp.OtlpGrpcTraceHandler;
 import com.wavefront.agent.listeners.otlp.OtlpHttpHandler;
-import com.wavefront.agent.listeners.tracing.CustomTracingPortUnificationHandler;
-import com.wavefront.agent.listeners.tracing.JaegerGrpcCollectorHandler;
-import com.wavefront.agent.listeners.tracing.JaegerPortUnificationHandler;
-import com.wavefront.agent.listeners.tracing.JaegerTChannelCollectorHandler;
-import com.wavefront.agent.listeners.tracing.TracePortUnificationHandler;
-import com.wavefront.agent.listeners.tracing.ZipkinPortUnificationHandler;
+import com.wavefront.agent.listeners.tracing.*;
 import com.wavefront.agent.logsharvesting.FilebeatIngester;
 import com.wavefront.agent.logsharvesting.LogsIngester;
 import com.wavefront.agent.preprocessor.PreprocessorRuleMetrics;
 import com.wavefront.agent.preprocessor.ReportPointAddPrefixTransformer;
 import com.wavefront.agent.preprocessor.ReportPointTimestampInRangeFilter;
 import com.wavefront.agent.preprocessor.SpanSanitizeTransformer;
-import com.wavefront.agent.queueing.QueueingFactory;
-import com.wavefront.agent.queueing.QueueingFactoryImpl;
-import com.wavefront.agent.queueing.SQSQueueFactoryImpl;
-import com.wavefront.agent.queueing.TaskQueueFactory;
-import com.wavefront.agent.queueing.TaskQueueFactoryImpl;
+import com.wavefront.agent.queueing.*;
 import com.wavefront.agent.sampler.SpanSampler;
 import com.wavefront.agent.sampler.SpanSamplerUtils;
 import com.wavefront.api.agent.AgentConfiguration;
 import com.wavefront.common.NamedThreadFactory;
 import com.wavefront.common.TaggedMetricName;
 import com.wavefront.data.ReportableEntityType;
-import com.wavefront.ingester.EventDecoder;
-import com.wavefront.ingester.HistogramDecoder;
-import com.wavefront.ingester.OpenTSDBDecoder;
-import com.wavefront.ingester.PickleProtocolDecoder;
-import com.wavefront.ingester.ReportLogDecoder;
-import com.wavefront.ingester.ReportPointDecoder;
-import com.wavefront.ingester.ReportPointDecoderWrapper;
-import com.wavefront.ingester.ReportSourceTagDecoder;
-import com.wavefront.ingester.ReportableEntityDecoder;
-import com.wavefront.ingester.SpanDecoder;
-import com.wavefront.ingester.SpanLogsDecoder;
-import com.wavefront.ingester.TcpIngester;
+import com.wavefront.ingester.*;
 import com.wavefront.internal.reporter.WavefrontInternalReporter;
 import com.wavefront.metrics.ExpectedAgentMetric;
 import com.wavefront.sdk.common.WavefrontSender;
@@ -220,12 +176,12 @@ public class PushAgent extends AbstractAgent {
 
     /***** PROXY NEW *****/
 
-    BufferManager.init();
-    BufferManager.registerNewPort("2878");
-    BufferManager.registerNewPort("2879");
+    BuffersManager.init(proxyConfig.getBufferFile());
+    BuffersManager.registerNewPort("2878");
+    BuffersManager.registerNewPort("2879");
 
-    BufferManager.sendMsg("2878", Collections.singletonList("tururu"));
-    BufferManager.sendMsg("2879", Collections.singletonList("tururu"));
+    BuffersManager.sendMsg("2878", Collections.singletonList("tururu"));
+    BuffersManager.sendMsg("2879", Collections.singletonList("tururu"));
     //		System.exit(-1);
 
     /***** END PROXY NEW *****/
@@ -585,11 +541,7 @@ public class PushAgent extends AbstractAgent {
             + (histMinPorts.size() > 0 ? 1 : 0)
             + (histDistPorts.size() > 0 ? 1 : 0);
     if (activeHistogramAggregationTypes > 0) {
-<<<<<<< HEAD
       /*Histograms enabled*/
-=======
-        /*Histograms enabled*/
->>>>>>> 54d04ad7 (basic ActiveMQ setup)
       histogramExecutor =
           Executors.newScheduledThreadPool(
               1 + activeHistogramAggregationTypes, new NamedThreadFactory("histogram-service"));
@@ -1931,26 +1883,15 @@ public class PushAgent extends AbstractAgent {
           // if the collector is in charge and it provided a setting, use it
           tenantSpecificEntityProps
               .get(ReportableEntityType.POINT)
-<<<<<<< HEAD
               .setDataPerBatch(pointsPerBatch.intValue());
-=======
-              .setItemsPerBatch(pointsPerBatch.intValue());
->>>>>>> 54d04ad7 (basic ActiveMQ setup)
           logger.fine("Proxy push batch set to (remotely) " + pointsPerBatch);
         } // otherwise don't change the setting
       } else {
         // restore the original setting
-<<<<<<< HEAD
         tenantSpecificEntityProps.get(ReportableEntityType.POINT).setDataPerBatch(null);
         logger.fine(
             "Proxy push batch set to (locally) "
                 + tenantSpecificEntityProps.get(ReportableEntityType.POINT).getDataPerBatch());
-=======
-        tenantSpecificEntityProps.get(ReportableEntityType.POINT).setItemsPerBatch(null);
-        logger.fine(
-            "Proxy push batch set to (locally) "
-                + tenantSpecificEntityProps.get(ReportableEntityType.POINT).getItemsPerBatch());
->>>>>>> 54d04ad7 (basic ActiveMQ setup)
       }
       if (config.getHistogramStorageAccuracy() != null) {
         tenantSpecificEntityProps
